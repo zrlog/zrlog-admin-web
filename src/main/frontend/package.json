@@ -1,0 +1,67 @@
+{
+  "name": "admin-web-frontend",
+  "version": "0.1.0",
+  "homepage": "/admin",
+  "private": true,
+  "license": "MIT",
+  "dependencies": {
+    "@ant-design/cssinjs": "1.21.1",
+    "@craco/craco": "7.1.0",
+    "@editor": "https://raw.githubusercontent.com/zrlog-extensions/zrlog-editor/refs/heads/main/artifacts/v2.1.0.tgz?v=1",
+    "antd": "6.3.1",
+    "antd-style": "4.1.0",
+    "md5": "2.3.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "react-router": "6.28.0",
+    "react-router-dom": "6.28.0",
+    "rxjs": "7.8.1",
+    "styled-components": "6.1.15"
+  },
+  "scripts": {
+    "lint": "yarn type-check",
+    "prepare": "cd ../../../ && husky install src/main/frontend/.husky",
+    "pre-commit": "react-scripts lint",
+    "start": "craco start",
+    "type-check": "tsc --project tsconfig.json --pretty --noEmit",
+    "build": "cross-env GENERATE_SOURCEMAP=false craco build",
+    "test": "craco test"
+  },
+  "eslintConfig": {
+    "extends": "react-app"
+  },
+  "devDependencies": {
+    "@types/katex": "0.16.7",
+    "@types/react": "18.3.12",
+    "@types/react-dom": "18.3.1",
+    "@types/react-router": "5.1.20",
+    "@types/react-router-dom": "5.3.3",
+    "@typescript-eslint/typescript-estree": "8.38.0",
+    "cross-env": "7.0.3",
+    "husky": "7.0.4",
+    "lint-staged": "11.1.2",
+    "node": "18.9.0",
+    "prettier": "2.3.2",
+    "react-scripts": "5.0.1",
+    "typescript": "5.8.3"
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "lint-staged": {
+    "*.tsx": [
+      "prettier --write",
+      "eslint --fix --max-warnings=0",
+      "git add"
+    ]
+  }
+}

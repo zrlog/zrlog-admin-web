@@ -1,0 +1,79 @@
+name: Release to Maven Central
+
+on:
+  push:
+    tags:
+      - 'v*'  # Only run on version tags like v1.2.3
+    branches:
+      - main # snapshot
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout source code
+      uses: actions/checkout@v4
+
+    - name: Set up JDK
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '11'
+        cache: 'maven'
+        server-id: central
+        settings-path: ${{ github.workspace }}
+
+    - name: Cache frontend dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          src/main/frontend/node_modules
+          ~/.cache/yarn
+          target/node
+          target/yarn
+        key: ${{ runner.os }}-frontend-${{ hashFiles('src/main/frontend/yarn.lock', 'pom.xml') }}
+        restore-keys: |
+          ${{ runner.os }}-frontend-
+
+    - name: Generate settings.xml
+      run: |
+        cat > $GITHUB_WORKSPACE/settings.xml <<EOF
+        <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 https://maven.apache.org/xsd/settings-1.0.0.xsd">
+          <servers>
+            <server>
+              <id>central</id>
+              <username>${{ secrets.OSSRH_USERNAME }}</username>
+              <password>${{ secrets.OSSRH_PASSWORD }}</password>
+            </server>
+          </servers>
+        </settings>
+        EOF
+    - name: Import GPG key
+      run: |
+        echo "$GPG_PRIVATE_KEY" | gpg --batch --yes --import
+      env:
+        GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+
+    - name: Build and Deploy to OSSRH
+      run: |
+           bash -e shell/admin-compile-frontend.sh
+           ./mvnw -U clean deploy -s $GITHUB_WORKSPACE/settings.xml -Dgpg.passphrase=${{ secrets.GPG_PASSPHRASE }}
+      env:
+        GPG_TTY: $(tty)
+
+    - name: Notify zrlog preview build
+      if: github.ref == 'refs/heads/main'
+      env:
+        FULL_SHA: ${{ github.sha }}
+      run: |
+        SHORT_SHA="${FULL_SHA::7}"
+        BUILD_TIME="$(date '+%Y-%m-%d %H:%M:%S%z' | sed "s/\([+-][0-9][0-9]\)\([0-9][0-9]\)$/\1:\2/")"
+        curl -L \
+          -X POST \
+          -H "Accept: application/vnd.github+json" \
+          -H "Authorization: Bearer ${{ secrets.ZRLOG_REPO_DISPATCH_TOKEN }}" \
+          https://api.github.com/repos/94fzb/zrlog/dispatches \
+          -d "{\"event_type\":\"zrlog-admin-web-preview-updated\",\"client_payload\":{\"build_id\":\"adminweb-${SHORT_SHA}\",\"build_time\":\"${BUILD_TIME}\"}}"
