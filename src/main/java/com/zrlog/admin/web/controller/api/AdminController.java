@@ -72,10 +72,7 @@ public class AdminController extends BaseController {
 
     @ResponseBody
     public AdminApiPageDataStandardResponse<IndexResponse> index() throws SQLException {
-        List<String> tips = new ArrayList<>();
-        for (int i = 1; i <= 4; i++) {
-            tips.add(I18nUtil.getAdminBackendStringFromRes("admin.index.welcomeTips_" + i));
-        }
+        List<String> tips = loadWelcomeTips();
         Collections.shuffle(tips);
         ExecutorService executor = ThreadUtils.newFixedThreadPool(20);
         try {
@@ -92,5 +89,17 @@ public class AdminController extends BaseController {
         } finally {
             executor.shutdown();
         }
+    }
+
+    private List<String> loadWelcomeTips() {
+        List<String> tips = new ArrayList<>();
+        for (int i = 1; i <= 20; i++) {
+            String tip = I18nUtil.getAdminBackendStringFromRes("admin.index.welcomeTips_" + i);
+            if (tip == null || tip.trim().isEmpty()) {
+                break;
+            }
+            tips.add(tip);
+        }
+        return tips;
     }
 }

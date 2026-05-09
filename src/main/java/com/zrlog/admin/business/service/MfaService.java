@@ -24,14 +24,14 @@ public class MfaService {
         Map<String, Object> user = new User().loadById(userId);
         String userName = Objects.toString(user.get("userName"), "admin");
         boolean enabled = getMfaEnabled(user);
-        String secret = enabled ? "" : getOrCreateMfaSecret(userId);
+        String secret = getOrCreateMfaSecret(userId);
         String issuer = Objects.toString(AdminConstants.getPublicWebSiteInfo().getTitle(), "ZrLog Admin");
         MfaStatusResponse response = new MfaStatusResponse();
         response.setEnabled(enabled);
         response.setSecret(secret);
         response.setIssuer(StringUtils.isEmpty(issuer) ? "ZrLog Admin" : issuer);
         response.setAccountName(userName);
-        response.setOtpauthUrl(StringUtils.isEmpty(secret)
+        response.setOtpauthUrl(enabled || StringUtils.isEmpty(secret)
                 ? ""
                 : MfaUtils.buildOtpAuthUrl(response.getIssuer(), response.getAccountName(), secret));
         return response;
