@@ -2,6 +2,7 @@ package com.zrlog.admin.util;
 
 import com.hibegin.http.server.util.NativeImageUtils;
 import com.zrlog.admin.business.AdminConstants;
+import com.zrlog.admin.business.dto.StoredUpgradeNotice;
 import com.zrlog.admin.business.rest.base.*;
 import com.zrlog.admin.business.rest.request.*;
 import com.zrlog.admin.business.rest.response.*;
@@ -49,7 +50,7 @@ public class AdminNativeImageUtils {
                 AIWebSiteInfoResponse.class, AIWebSiteInfoResponse.AIProvider.class,
                 ArticleStatusCountResponse.class, ArticleVersionCompareResponse.class, ArticleVersionResponse.class,
                 HealthCheckIssueResponse.class, HealthCheckResponse.class, HealthCheckSuggestionResponse.class,
-                MessageCenterNoticeResponse.class, MfaStatusResponse.class));
+                MessageCenterNoticeResponse.class, MfaStatusResponse.class, StoredUpgradeNotice.class));
     }
 
     private static void adminJson() {
