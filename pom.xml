@@ -8,7 +8,7 @@
         <version>3.4.0</version>
     </parent>
     <artifactId>zrlog-admin-web</artifactId>
-    <version>3.4.3-SNAPSHOT</version>
+    <version>3.4.3</version>
     <modelVersion>4.0.0</modelVersion>
 
     <properties>
