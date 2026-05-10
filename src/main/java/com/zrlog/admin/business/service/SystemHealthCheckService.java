@@ -18,7 +18,9 @@ import org.jsoup.nodes.Element;
 import javax.sql.DataSource;
 import java.io.File;
 import java.io.IOException;
+import java.sql.Connection;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.text.DecimalFormat;
 import java.util.*;
 
@@ -304,13 +306,20 @@ public class SystemHealthCheckService {
                     if (StringUtils.isEmpty(tableName)) {
                         continue;
                     }
-                    dao.execute("OPTIMIZE TABLE `" + tableName.replace("`", "") + "`");
+                    executeStatement("OPTIMIZE TABLE `" + tableName.replace("`", "") + "`");
                 }
                 return;
             case POSTGRESQL:
-                dao.execute("VACUUM ANALYZE");
+                executeStatement("VACUUM ANALYZE");
                 return;
             default:
+        }
+    }
+
+    private void executeStatement(String sql) throws SQLException {
+        try (Connection connection = Constants.zrLogConfig.getDataSource().getConnection();
+             Statement statement = connection.createStatement()) {
+            statement.execute(sql);
         }
     }
 

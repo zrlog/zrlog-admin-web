@@ -24,6 +24,9 @@ public class UpgradeNoticeService {
     private final Gson gson = new Gson();
 
     public void sync(Version version) {
+        if (Objects.isNull(Constants.zrLogConfig)) {
+            return;
+        }
         if (!Constants.zrLogConfig.isInstalled()) {
             return;
         }

@@ -114,7 +114,6 @@ const HealthCheckPanel = ({ axiosInstance }: { axiosInstance: AxiosInstance }) =
                         <Button
                             size="small"
                             type="primary"
-                            ghost
                             icon={<ToolOutlined />}
                             onClick={optimizeDatabase}
                             loading={optimizing}
