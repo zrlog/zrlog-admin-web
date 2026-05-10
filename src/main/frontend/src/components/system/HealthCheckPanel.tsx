@@ -97,6 +97,11 @@ const HealthCheckPanel = ({ axiosInstance }: { axiosInstance: AxiosInstance }) =
         return issueMeta(item.key)?.detail || item.key;
     };
 
+    const showDatabaseFragment = state
+        ? !state.databaseEngine.toLowerCase().includes("d1") && !state.databaseEngine.toLowerCase().includes("webapi")
+        : true;
+    const showDatabaseInfo = state ? !state.databaseEngine.toLowerCase().includes("webapi") : true;
+
     return (
         <Card
             title={
@@ -151,23 +156,27 @@ const HealthCheckPanel = ({ axiosInstance }: { axiosInstance: AxiosInstance }) =
                                 />
                             </Card>
                         </Col>
-                        <Col xs={24} sm={12} lg={6}>
-                            <Card size="small" styles={{ body: { padding: 16 } }}>
-                                <Statistic
-                                    title={res.databaseFragment}
-                                    value={state.databaseFragmentLabel}
-                                    prefix={<ToolOutlined />}
-                                />
-                            </Card>
-                        </Col>
+                        {showDatabaseFragment && (
+                            <Col xs={24} sm={12} lg={6}>
+                                <Card size="small" styles={{ body: { padding: 16 } }}>
+                                    <Statistic
+                                        title={res.databaseFragment}
+                                        value={state.databaseFragmentLabel}
+                                        prefix={<ToolOutlined />}
+                                    />
+                                </Card>
+                            </Col>
+                        )}
                     </Row>
 
-                    <Alert
-                        type={scoreStatus(state.score)}
-                        showIcon
-                        message={`${res.database}: ${state.databaseEngine}`}
-                        description={`${res.lastChecked}: ${formatTime(state.checkedAt)}`}
-                    />
+                    {showDatabaseInfo && (
+                        <Alert
+                            type={scoreStatus(state.score)}
+                            showIcon
+                            message={`${res.database}: ${state.databaseEngine}`}
+                            description={`${res.lastChecked}: ${formatTime(state.checkedAt)}`}
+                        />
+                    )}
 
                     <Row gutter={[12, 12]}>
                         <Col xs={24} lg={12}>

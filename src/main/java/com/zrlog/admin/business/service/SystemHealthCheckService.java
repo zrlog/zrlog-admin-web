@@ -131,6 +131,9 @@ public class SystemHealthCheckService {
     }
 
     public HealthCheckResponse optimize() throws SQLException {
+        if (isWebApiDatabase()) {
+            return check();
+        }
         DatabaseFragmentResult databaseFragmentResult = inspectDatabaseFragment();
         if (databaseFragmentResult.canOptimize) {
             runDatabaseOptimize(databaseFragmentResult.engine);
@@ -263,6 +266,9 @@ public class SystemHealthCheckService {
         if (!(Constants.zrLogConfig.getDataSource() instanceof DataSourceWrapper)) {
             return new DatabaseFragmentResult(engine, "Unknown", 0L, "Unknown", Collections.emptyList(), false);
         }
+        if (isWebApiDatabase()) {
+            return new DatabaseFragmentResult(engine, "webapi", 0L, "N/A", Collections.emptyList(), false);
+        }
         DAO dao = new DAO((DataSourceWrapper) Constants.zrLogConfig.getDataSource());
         switch (engine) {
             case SQLITE:
@@ -290,6 +296,9 @@ public class SystemHealthCheckService {
 
     private void runDatabaseOptimize(DatabaseEngine engine) throws SQLException {
         if (!(Constants.zrLogConfig.getDataSource() instanceof DataSourceWrapper)) {
+            return;
+        }
+        if (isWebApiDatabase()) {
             return;
         }
         DAO dao = new DAO((DataSourceWrapper) Constants.zrLogConfig.getDataSource());
@@ -321,6 +330,16 @@ public class SystemHealthCheckService {
              Statement statement = connection.createStatement()) {
             statement.execute(sql);
         }
+    }
+
+    private boolean isWebApiDatabase() {
+        DataSource dataSource = Constants.zrLogConfig.getDataSource();
+        if (!(dataSource instanceof DataSourceWrapper)) {
+            return false;
+        }
+        return Objects.toString(((DataSourceWrapper) dataSource).getDbInfo(), "")
+                .toLowerCase(Locale.ROOT)
+                .contains("webapi");
     }
 
     private DatabaseEngine detectDatabaseEngine() {
