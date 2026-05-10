@@ -1,11 +1,12 @@
 package com.zrlog.admin.business.service;
 
 import com.google.gson.Gson;
-import com.hibegin.common.util.StringUtils;
 import com.hibegin.common.util.LoggerUtil;
+import com.hibegin.common.util.StringUtils;
 import com.zrlog.admin.business.rest.response.CheckVersionResponse;
 import com.zrlog.admin.business.rest.response.MessageCenterNoticeResponse;
 import com.zrlog.admin.web.plugin.UpdateVersionInfoPlugin;
+import com.zrlog.common.Constants;
 import com.zrlog.common.vo.Version;
 import com.zrlog.model.WebSite;
 import com.zrlog.util.ZrLogUtil;
@@ -23,6 +24,9 @@ public class UpgradeNoticeService {
     private final Gson gson = new Gson();
 
     public void sync(Version version) {
+        if (!Constants.zrLogConfig.isInstalled()) {
+            return;
+        }
         try {
             CheckVersionResponse response = buildResponse(version);
             if (!Boolean.TRUE.equals(response.getUpgrade()) || Objects.isNull(version)) {
