@@ -5,7 +5,7 @@ import com.hibegin.http.annotation.ResponseBody;
 import com.zrlog.admin.business.exception.DeleteTypeException;
 import com.zrlog.admin.business.rest.request.CreateTypeRequest;
 import com.zrlog.admin.business.rest.request.UpdateTypeRequest;
-import com.zrlog.admin.business.rest.response.AdminApiPageDataStandardResponse;
+import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
 import com.zrlog.admin.business.rest.response.DeleteResponse;
 import com.zrlog.admin.business.rest.response.UpdateRecordResponse;
 import com.zrlog.admin.business.service.ArticleTypeService;
@@ -38,8 +38,8 @@ public class TypeController extends BaseController {
     }
 
     @ResponseBody
-    public AdminApiPageDataStandardResponse<PageData<TypeDTO>> index() throws SQLException {
-        return new AdminApiPageDataStandardResponse<>(new ArticleTypeService().find(ZrLogUtil.getHomeUrlWithHost(request), ControllerUtil.unPageRequest(), Constants.isStaticHtmlStatus()), "", request.getUri());
+    public AdminPageDataResponse<PageData<TypeDTO>> index() throws SQLException {
+        return new AdminPageDataResponse<>(new ArticleTypeService().find(ZrLogUtil.getHomeUrlWithHost(request), ControllerUtil.unPageRequest(), Constants.isStaticHtmlStatus()), "", request.getUri());
     }
 
     @RefreshCache(async = true, updateStaticSites = StaticSiteType.BLOG)

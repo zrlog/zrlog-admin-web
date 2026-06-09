@@ -1,4 +1,4 @@
-import { Divider, Typography } from "antd";
+import { Typography } from "antd";
 import { getRealRouteUrl, getRes } from "../../utils/constants";
 import Row from "antd/es/grid/row";
 import Col from "antd/es/grid/col";
@@ -13,13 +13,20 @@ import {
 import { Link } from "react-router-dom";
 import { StatisticsInfoState } from "../../type";
 import { ReactElement } from "react";
-import { getAppState } from "../../base/ConfigProviderApp";
 import { useTheme } from "antd-style";
 import Card from "antd/es/card";
 
 const StatisticsInfo = ({ data }: { data: StatisticsInfoState }) => {
-    const isDark = getAppState().dark;
     const theme = useTheme();
+    const cardBackground = theme.colorFillQuaternary;
+    const cardHoverBackground = theme.colorFillTertiary;
+    const tileStyle = {
+        borderRadius: theme.borderRadiusLG,
+        background: cardBackground,
+        height: "100%",
+        minHeight: 112,
+        boxSizing: "border-box" as const,
+    };
     const totalArticles = data.articleCount;
 
     const formatBytes = (bytes?: number | string) => {
@@ -40,9 +47,24 @@ const StatisticsInfo = ({ data }: { data: StatisticsInfoState }) => {
     };
 
     const statusItems = [
-        { key: "published", label: getRes().article.status.published, value: data.publishedCount, color: "#52c41a" },
-        { key: "private", label: getRes().article.status.private, value: data.privateCount, color: "#fa8c16" },
-        { key: "draft", label: getRes().article.status.draft, value: data.draftCount, color: "#1677ff" },
+        {
+            key: "published",
+            label: getRes().article.status.published,
+            value: data.publishedCount,
+            color: theme.colorSuccess,
+        },
+        {
+            key: "private",
+            label: getRes().article.status.private,
+            value: data.privateCount,
+            color: theme.colorWarning,
+        },
+        {
+            key: "draft",
+            label: getRes().article.status.draft,
+            value: data.draftCount,
+            color: theme.colorPrimary,
+        },
     ].filter((item) => item.value > 0 || totalArticles === 0);
 
     const summaryCard = ({
@@ -58,15 +80,12 @@ const StatisticsInfo = ({ data }: { data: StatisticsInfoState }) => {
     }) => (
         <div
             style={{
+                ...tileStyle,
                 padding: 16,
-                borderRadius: theme.borderRadiusLG,
-                background: isDark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.015)",
-                border: `1px solid ${isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)"}`,
-                height: "100%",
             }}
         >
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                <span style={{ color: getAppState().colorPrimary }}>{icon}</span>
+                <span style={{ color: theme.colorPrimary }}>{icon}</span>
                 <Typography.Text type="secondary">{title}</Typography.Text>
             </div>
             <Typography.Text style={{ display: "block", fontSize: 24, fontWeight: 700, lineHeight: 1.2 }}>
@@ -88,15 +107,16 @@ const StatisticsInfo = ({ data }: { data: StatisticsInfoState }) => {
                     gap: 6,
                     flexFlow: "row",
                     alignItems: "center",
-                    fontSize: 24,
                     overflow: "hidden",
                     textOverflow: "ellipsis",
                     whiteSpace: "nowrap",
-                    color: getAppState().colorPrimary,
                 }}
             >
-                {icon}
-                <Typography.Text style={{ fontSize: 24, fontWeight: 600, lineHeight: 1.5 }} ellipsis={true}>
+                <span style={{ color: theme.colorPrimary, fontSize: 22, lineHeight: 1 }}>{icon}</span>
+                <Typography.Text
+                    style={{ color: theme.colorTextHeading, fontSize: 24, fontWeight: 600, lineHeight: 1.5 }}
+                    ellipsis={true}
+                >
                     {text}
                 </Typography.Text>
             </div>
@@ -115,27 +135,24 @@ const StatisticsInfo = ({ data }: { data: StatisticsInfoState }) => {
         const content = (
             <div
                 style={{
+                    ...tileStyle,
                     padding: 18,
-                    height: "100%",
                     display: "flex",
                     flexDirection: "column",
                     justifyContent: "space-between",
-                    borderRadius: theme.borderRadiusLG,
                     transition: "all 0.3s ease",
                     cursor: link ? "pointer" : "default",
-                    background: isDark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.015)",
-                    border: `1px solid ${isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)"}`,
                 }}
                 onMouseEnter={(e) => {
                     if (link) {
                         e.currentTarget.style.transform = "translateY(-2px)";
-                        e.currentTarget.style.background = isDark ? "rgba(255,255,255,0.035)" : "rgba(0,0,0,0.025)";
+                        e.currentTarget.style.background = cardHoverBackground;
                     }
                 }}
                 onMouseLeave={(e) => {
                     if (link) {
                         e.currentTarget.style.transform = "translateY(0)";
-                        e.currentTarget.style.background = isDark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.015)";
+                        e.currentTarget.style.background = cardBackground;
                     }
                 }}
             >
@@ -162,7 +179,8 @@ const StatisticsInfo = ({ data }: { data: StatisticsInfoState }) => {
     return (
         <Card
             bordered={false}
-            styles={{ body: { padding: 20 } }}
+            className="dashboard-card"
+            styles={{ body: { padding: theme.paddingLG } }}
             title={
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <FundOutlined />
@@ -198,20 +216,17 @@ const StatisticsInfo = ({ data }: { data: StatisticsInfoState }) => {
                     />
                 </Col>
             </Row>
-            <Divider style={{ margin: "20px 0" }} />
+            <div style={{ height: theme.marginLG }} />
             <Row gutter={[16, 16]}>
                 <Col xs={24} md={12}>
                     <div
                         style={{
+                            ...tileStyle,
                             padding: 16,
-                            borderRadius: theme.borderRadiusLG,
-                            background: isDark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.015)",
-                            border: `1px solid ${isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)"}`,
-                            height: "100%",
                         }}
                     >
                         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                            <span style={{ color: getAppState().colorPrimary }}>
+                            <span style={{ color: theme.colorPrimary }}>
                                 <FileTextOutlined />
                             </span>
                             <Typography.Text type="secondary">{getRes().index.status}</Typography.Text>
@@ -226,7 +241,7 @@ const StatisticsInfo = ({ data }: { data: StatisticsInfoState }) => {
                                 borderRadius: theme.borderRadiusLG,
                                 overflow: "hidden",
                                 marginTop: 16,
-                                background: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
+                                background: theme.colorFillSecondary,
                             }}
                         >
                             {statusItems.map((item) => (

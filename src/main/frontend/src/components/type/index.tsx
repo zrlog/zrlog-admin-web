@@ -1,25 +1,101 @@
-import { getRes } from "../../utils/constants";
+import { getLabelValueSeparator, getRes } from "../../utils/constants";
 import BaseTable, { PageDataSource } from "../../common/BaseTable";
-import { getAppState } from "../../base/ConfigProviderApp";
 import { EditOutlined } from "@ant-design/icons";
-import { Button } from "antd";
+import { Button, Grid, Space, Tag, Typography, theme } from "antd";
 import CreateOrEditType from "./create_or_edit_type";
 
+const { Text } = Typography;
+
 const Type = ({ data, offline }: { data: PageDataSource; offline: boolean }) => {
+    const screens = Grid.useBreakpoint();
+    const compactTypeTable = screens.md !== true;
+    const { token } = theme.useToken();
+    const surface = {
+        compactWrap: {
+            display: "flex",
+            flexDirection: "column" as const,
+            gap: token.marginXXS,
+            minWidth: 0,
+        },
+        compactMetaSpace: {
+            h: token.marginSM,
+            v: token.marginXXS,
+        },
+        compactTypeTag: {
+            marginInlineEnd: 0,
+        },
+        addButton: {
+            marginBottom: token.marginSM,
+        },
+        editIcon: {
+            color: token.colorPrimary,
+        },
+    };
+
+    const renderTypeName = (name: string, record: Record<string, any>, compact: boolean) => {
+        const title = (
+            <a rel="noopener noreferrer" target={"_blank"} href={record.url}>
+                {name}
+            </a>
+        );
+        if (!compact) {
+            return title;
+        }
+        return (
+            <div style={surface.compactWrap}>
+                {title}
+                <Space size={[surface.compactMetaSpace.h, surface.compactMetaSpace.v]} wrap>
+                    {record.alias ? <Tag style={surface.compactTypeTag}>{record.alias}</Tag> : null}
+                    <Text type="secondary">
+                        {getRes().articleType.size}
+                        {getLabelValueSeparator()}
+                        {record.amount}
+                    </Text>
+                    {record.remark ? (
+                        <Text type="secondary">
+                            {getRes().introduction}
+                            {getLabelValueSeparator()}
+                            <span dangerouslySetInnerHTML={{ __html: record.remark }} />
+                        </Text>
+                    ) : null}
+                </Space>
+            </div>
+        );
+    };
+
+    const getArticleCount = (record: Record<string, any>) => {
+        const amount = Number(record.amount ?? record.typeamount ?? 0);
+        return Number.isFinite(amount) ? amount : 0;
+    };
+
+    const getDeleteDisabledTip = (record: Record<string, any>) => {
+        const amount = getArticleCount(record);
+        if (amount <= 0) {
+            return undefined;
+        }
+        return getRes().articleType.deleteBlocked.replace("{count}", `${amount}`);
+    };
+
     const getColumns = () => {
+        if (compactTypeTable) {
+            return [
+                {
+                    title: getRes().articleType.title,
+                    dataIndex: "typeName",
+                    key: "typeName",
+                    width: 280,
+                    render: (e: string, r: Record<string, any>) => renderTypeName(e, r, true),
+                },
+            ];
+        }
+
         return [
             {
                 title: getRes().articleType.title,
                 dataIndex: "typeName",
                 key: "typeName",
                 width: 240,
-                render: (e: string, r: Record<string, string>) => {
-                    return (
-                        <a rel="noopener noreferrer" target={"_blank"} href={r.url}>
-                            {e}
-                        </a>
-                    );
-                },
+                render: (e: string, r: Record<string, any>) => renderTypeName(e, r, false),
             },
             {
                 title: getRes().alias,
@@ -52,6 +128,7 @@ const Type = ({ data, offline }: { data: PageDataSource; offline: boolean }) => 
                 offline={offline}
                 hideId={true}
                 columns={getColumns()}
+                actionColumnWidth={compactTypeTable ? 88 : undefined}
                 addBtnRender={(addSuccessCall) => {
                     return (
                         <CreateOrEditType
@@ -59,7 +136,7 @@ const Type = ({ data, offline }: { data: PageDataSource; offline: boolean }) => 
                             offline={offline}
                             editSuccessCall={addSuccessCall}
                         >
-                            <Button type="primary" disabled={offline} style={{ marginBottom: 8 }}>
+                            <Button type="primary" disabled={offline} style={surface.addButton}>
                                 {getRes().add}
                             </Button>
                         </CreateOrEditType>
@@ -71,10 +148,11 @@ const Type = ({ data, offline }: { data: PageDataSource; offline: boolean }) => 
                             type="text"
                             size="small"
                             title={getRes().edit}
-                            icon={<EditOutlined style={{ color: getAppState().colorPrimary }} />}
+                            icon={<EditOutlined style={surface.editIcon} />}
                         />
                     </CreateOrEditType>
                 )}
+                deleteDisabledTip={getDeleteDisabledTip}
                 datasource={data}
                 deleteApi={"/api/admin/type/delete"}
             />

@@ -58,6 +58,30 @@ const ServerInfo = ({ data, dockerMode, nativeImageMode, title }: ServerInfoProp
     const accentBorder = theme.colorPrimaryBorder;
     const accentColor = theme.colorPrimary;
     const neutralBg = theme.colorFillQuaternary;
+    const accentBorderStyle = `${theme.lineWidth}px ${theme.lineType} ${accentBorder}`;
+    const borderSecondary = `${theme.lineWidth}px ${theme.lineType} ${theme.colorBorderSecondary}`;
+    const systemSurface = {
+        link: {
+            display: "block",
+            color: "inherit",
+        },
+        spacing: {
+            label: theme.marginSM,
+            section: theme.marginMD,
+            row: theme.padding,
+            rowInline: theme.marginXS,
+            listPadY: theme.padding,
+            listPadX: theme.padding,
+            sectionBody: theme.paddingLG,
+        },
+        icons: {
+            featuredBox: 42,
+            detailBox: 32,
+            iconFont: theme.fontSize,
+            textFont: theme.fontSize,
+            secondaryFont: theme.fontSizeSM,
+        },
+    };
 
     const externalUrl = (key: string, value: string) => {
         if (key === "programInfo") {
@@ -87,7 +111,7 @@ const ServerInfo = ({ data, dockerMode, nativeImageMode, title }: ServerInfoProp
         if (item.key === "runtime") {
             return {
                 icon: (
-                    <Space size={4}>
+                    <Space size={theme.marginXXS / 2}>
                         {dockerMode ? <DockerOutlined /> : null}
                         {nativeImageMode && screens.sm ? <GraalVmOutlined /> : <LaptopOutlined />}
                     </Space>
@@ -142,7 +166,7 @@ const ServerInfo = ({ data, dockerMode, nativeImageMode, title }: ServerInfoProp
             return node;
         }
         return (
-            <Link target="_blank" to={url} style={{ display: "block", color: "inherit" }}>
+            <Link target="_blank" to={url} style={systemSurface.link}>
                 {node}
             </Link>
         );
@@ -154,16 +178,17 @@ const ServerInfo = ({ data, dockerMode, nativeImageMode, title }: ServerInfoProp
     const usesBareLogo = (key: string) => key === "runtime" || key === "programInfo";
 
     const renderRuntimeIcons = (variant: "featured" | "detail") => {
-        const gap = variant === "featured" ? 10 : 8;
+        const gap = variant === "featured" ? systemSurface.spacing.label : systemSurface.spacing.rowInline;
+        const iconSize = variant === "featured" ? 34 : 28;
 
         const items = [];
         if (dockerMode) {
-            items.push(<DockerOutlined style={{ fontSize: 34 }} />);
+            items.push(<DockerOutlined style={{ fontSize: iconSize }} />);
         }
         if (nativeImageMode) {
             items.push(<GraalVmOutlined />);
         } else {
-            items.push(<RiJavaLine style={{ width: 34, height: 34 }} />);
+            items.push(<RiJavaLine style={{ width: iconSize, height: iconSize }} />);
         }
         return (
             <div
@@ -196,7 +221,7 @@ const ServerInfo = ({ data, dockerMode, nativeImageMode, title }: ServerInfoProp
                     justifyContent: "center",
                     background: variant === "featured" ? accentBg : neutralBg,
                     color: accentColor,
-                    fontSize: variant === "featured" ? 14 : 13,
+                    fontSize: theme.fontSizeSM,
                     flexShrink: 0,
                 }}
             >
@@ -215,15 +240,15 @@ const ServerInfo = ({ data, dockerMode, nativeImageMode, title }: ServerInfoProp
             ) : (
                 <div
                     style={{
-                        minWidth: 42,
-                        height: 42,
+                        minWidth: systemSurface.icons.featuredBox,
+                        height: systemSurface.icons.featuredBox,
                         borderRadius: theme.borderRadius,
                         display: "inline-flex",
                         alignItems: "center",
                         justifyContent: "center",
                         background: accentBg,
                         color: accentColor,
-                        fontSize: 20,
+                        fontSize: systemSurface.icons.iconFont,
                     }}
                 >
                     {meta.icon}
@@ -235,19 +260,19 @@ const ServerInfo = ({ data, dockerMode, nativeImageMode, title }: ServerInfoProp
             <div
                 style={{
                     height: "100%",
-                    padding: 18,
+                    padding: systemSurface.spacing.sectionBody,
                     borderRadius: theme.borderRadiusLG,
-                    border: `1px solid ${accentBorder}`,
-                    background: `linear-gradient(180deg, ${accentBg}, ${theme.colorBgContainer})`,
+                    border: accentBorderStyle,
+                    background: theme.colorBgContainer,
                 }}
             >
-                <Space direction="vertical" size={14} style={{ width: "100%" }}>
+                <Space direction="vertical" size={systemSurface.spacing.section} style={{ width: "100%" }}>
                     <div
                         style={{
                             display: "flex",
                             alignItems: "flex-start",
                             justifyContent: "space-between",
-                            gap: 12,
+                            gap: systemSurface.spacing.label,
                         }}
                     >
                         <div
@@ -264,7 +289,7 @@ const ServerInfo = ({ data, dockerMode, nativeImageMode, title }: ServerInfoProp
                         <Typography.Text type="secondary">{item.name}</Typography.Text>
                         <div
                             style={{
-                                marginTop: 6,
+                                marginTop: theme.marginXXS,
                                 color: theme.colorText,
                                 fontSize: screens.xs ? 18 : 20,
                                 lineHeight: 1.45,
@@ -288,18 +313,18 @@ const ServerInfo = ({ data, dockerMode, nativeImageMode, title }: ServerInfoProp
                 style={{
                     display: "flex",
                     alignItems: "flex-start",
-                    gap: 12,
-                    padding: "14px 16px",
+                    gap: systemSurface.spacing.label,
+                    padding: `${systemSurface.spacing.listPadY}px ${systemSurface.spacing.listPadX}px`,
                     borderRadius: theme.borderRadiusLG,
-                    border: `1px solid ${theme.colorBorderSecondary}`,
+                    border: borderSecondary,
                     background: theme.colorBgContainer,
                 }}
             >
                 <div
                     style={{
                         flexShrink: 0,
-                        marginTop: 2,
-                        minWidth: usesBareLogo(item.key) ? undefined : 32,
+                        marginTop: theme.marginXXS / 2,
+                        minWidth: usesBareLogo(item.key) ? undefined : systemSurface.icons.detailBox,
                     }}
                 >
                     {item.key === "runtime" ? (
@@ -309,15 +334,15 @@ const ServerInfo = ({ data, dockerMode, nativeImageMode, title }: ServerInfoProp
                     ) : (
                         <div
                             style={{
-                                width: 32,
-                                height: 32,
+                                width: systemSurface.icons.detailBox,
+                                height: systemSurface.icons.detailBox,
                                 borderRadius: theme.borderRadius,
                                 display: "inline-flex",
                                 alignItems: "center",
                                 justifyContent: "center",
                                 background: neutralBg,
                                 color: accentColor,
-                                fontSize: 16,
+                                fontSize: systemSurface.icons.textFont,
                             }}
                         >
                             {meta.icon}
@@ -325,14 +350,14 @@ const ServerInfo = ({ data, dockerMode, nativeImageMode, title }: ServerInfoProp
                     )}
                 </div>
                 <div style={{ minWidth: 0, flex: 1 }}>
-                    <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                    <Typography.Text type="secondary" style={{ fontSize: systemSurface.icons.secondaryFont }}>
                         {item.name}
                     </Typography.Text>
                     <div
                         style={{
-                            marginTop: 4,
+                            marginTop: theme.marginXS,
                             color: theme.colorText,
-                            fontSize: 15,
+                            fontSize: systemSurface.icons.textFont,
                             lineHeight: 1.55,
                             fontWeight: 500,
                             wordBreak: "break-word",
@@ -361,9 +386,9 @@ const ServerInfo = ({ data, dockerMode, nativeImageMode, title }: ServerInfoProp
     }
 
     return (
-        <Card title={title} styles={{ body: { overflow: "hidden", padding: 16 } }}>
-            <Space direction="vertical" size={14} style={{ width: "100%" }}>
-                <Row gutter={[12, 12]}>
+        <Card title={title} styles={{ body: { overflow: "hidden", padding: systemSurface.spacing.row } }}>
+            <Space direction="vertical" size={systemSurface.spacing.section} style={{ width: "100%" }}>
+                <Row gutter={[systemSurface.spacing.section, systemSurface.spacing.section]}>
                     {featuredItems.map((item) => (
                         <Col xs={24} md={featuredItems.length === 1 ? 24 : 12} key={item.key}>
                             {renderFeaturedCard(item)}
@@ -371,7 +396,7 @@ const ServerInfo = ({ data, dockerMode, nativeImageMode, title }: ServerInfoProp
                     ))}
                 </Row>
                 {detailItems.length > 0 ? (
-                    <Row gutter={[10, 10]}>
+                    <Row gutter={[systemSurface.spacing.listPadY, systemSurface.spacing.listPadY]}>
                         {detailItems.map((item) => (
                             <Col xs={24} md={12} key={item.key}>
                                 {renderDetailItem(item)}

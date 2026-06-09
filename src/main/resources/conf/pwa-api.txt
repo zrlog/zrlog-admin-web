@@ -6,6 +6,7 @@
 /api/admin/website
 /api/admin/website/blog
 /api/admin/website/admin
+/api/admin/website/webhook
 /api/admin/website/template
 /api/admin/website/other
 /api/admin/website/upgrade
@@ -23,3 +24,9 @@
 /api/admin/static-site
 /api/admin/dev
 /api/admin/website/ai
+/api/admin/file-manager
+/api/admin/website/article-edit
+/api/admin/website/content-protector
+/api/admin/website/lab
+/api/admin/template
+/api/admin/template-center

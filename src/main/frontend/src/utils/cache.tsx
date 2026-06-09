@@ -52,7 +52,6 @@ export const removeAllCaches = () => {
 
 export const putCache = (cache: Record<string, any>) => {
     try {
-        //console.info(cache);
         localStorage.setItem(getCacheKey(), JSON.stringify(cache));
     } catch (e) {
         console.error(e);
@@ -72,7 +71,6 @@ export const getCacheByKey = (key: string) => {
 
 export const removeCacheDataByKey = (key: string) => {
     const data: Record<string, any> = getCachedData();
-    //console.info("deleted -> " + key + ":" + JSON.stringify(data[key]));
     delete data[key];
     putCache(data);
 };

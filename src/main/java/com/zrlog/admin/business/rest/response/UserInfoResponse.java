@@ -1,5 +1,7 @@
 package com.zrlog.admin.business.rest.response;
 
+import com.zrlog.business.rest.response.CheckVersionResponse;
+
 public class UserInfoResponse {
 
     private String userName;

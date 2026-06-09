@@ -1,7 +1,7 @@
-import { useMemo } from "react";
-import { theme } from "antd";
-import type { ConfigProviderProps } from "antd";
-import { createStyles } from "antd-style";
+import {useMemo} from "react";
+import type {ConfigProviderProps} from "antd";
+import {theme} from "antd";
+import {createStyles} from "antd-style";
 
 const useStyles = createStyles(({ css, cssVar }) => {
     const illustrationBorder = {

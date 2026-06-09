@@ -5,19 +5,20 @@ import { HookAPI } from "antd/es/modal/useModal";
 import { EditorUser } from "@editor/dist/src/type";
 import { getCacheByKey } from "./cache";
 import { BasicUserInfo } from "../type";
-import { cacheIgnoreReloadTime, getRes } from "./constants";
+import { cacheIgnoreReloadTime, getRes, tryAppendBackendServerUrl } from "./constants";
 import { isPWA } from "./env-utils";
+
+declare global {
+    interface Window {
+        onbeforeunloadTips?: string | null;
+    }
+}
 
 export const mapToQueryString = (map: Record<string, string[] | string | boolean | number | undefined>): string => {
     return Object.keys(map)
-        .reduce(function (a, k) {
-            if (map[k] === undefined) {
-                // @ts-ignore
-                a.push(`${k}=`);
-            } else {
-                // @ts-ignore
-                a.push(k + "=" + encodeURIComponent(map[k]));
-            }
+        .reduce<string[]>(function (a, k) {
+            const value = map[k];
+            a.push(value === undefined ? `${k}=` : k + "=" + encodeURIComponent(String(value)));
             return a;
         }, [])
         .join("&");
@@ -94,12 +95,10 @@ export const getFullPath = (location: H.Location) => {
 };
 
 export const getExitTips = () => {
-    //@ts-ignore
     return window.onbeforeunloadTips;
 };
 
 export const enableExitTips = (str: string) => {
-    //@ts-ignore
     window.onbeforeunloadTips = str;
     window.onbeforeunload = function () {
         return str;
@@ -108,7 +107,6 @@ export const enableExitTips = (str: string) => {
 
 export const disableExitTips = () => {
     window.onbeforeunload = null;
-    //@ts-ignore
     window.onbeforeunloadTips = null;
 };
 
@@ -180,7 +178,7 @@ export const getEditorUser = (): EditorUser => {
     }
     return {
         nickname: basicUser.userName,
-        avatarUrl: basicUser.header,
+        avatarUrl: tryAppendBackendServerUrl(basicUser.header),
     };
 };
 

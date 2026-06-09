@@ -6,6 +6,7 @@ import com.hibegin.common.util.StringUtils;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.util.PathUtil;
 import com.zrlog.admin.business.AdminConstants;
+import com.zrlog.admin.business.rest.response.AdminManifestResponse;
 import com.zrlog.admin.web.controller.page.AdminPageController;
 import com.zrlog.blog.web.util.WebTools;
 import com.zrlog.common.vo.PublicWebSiteInfo;
@@ -16,46 +17,51 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
 
 public class ManifestUtils {
 
-    public static Map<String, Object> manifest(HttpRequest request) throws IOException {
+    public static AdminManifestResponse manifest(HttpRequest request) throws IOException {
         try (InputStream inputStream = AdminPageController.class.getResourceAsStream(AdminConstants.ADMIN_PWA_MANIFEST_JSON)) {
             if (inputStream == null) {
-                return new HashMap<>();
+                return new AdminManifestResponse();
             }
-            Map map = new Gson().fromJson(IOUtil.getStringInputStream(inputStream), Map.class);
+            AdminManifestResponse manifest = new Gson().fromJson(IOUtil.getStringInputStream(inputStream), AdminManifestResponse.class);
             PublicWebSiteInfo publicWebSiteInfo = AdminConstants.getPublicWebSiteInfo();
             if (StringUtils.isNotEmpty(publicWebSiteInfo.getTitle())) {
-                map.put("short_name", publicWebSiteInfo.getTitle());
+                manifest.setShort_name(publicWebSiteInfo.getTitle());
             }
-            map.put("name", AdminConstants.getAdminDocumentTitleByUri("/", publicWebSiteInfo));
-            map.put("theme_color", publicWebSiteInfo.getAdmin_color_primary());
-            map.put("description", publicWebSiteInfo.getDescription());
-            map.put("id", publicWebSiteInfo.getAppId());
-            map.put("background_color", Objects.equals(publicWebSiteInfo.getAdmin_darkMode(), true) ? "#000000" : "#FFFFFF");
-            List<Map<String, Object>> list = getManifestIcons();
-            for (Map<String, Object> icon : list) {
-                icon.put("src", WebTools.buildEncodedUrl(request, (String) icon.get("src")));
+            manifest.setName(AdminConstants.getAdminDocumentTitleByUri("/", publicWebSiteInfo));
+            manifest.setTheme_color(publicWebSiteInfo.getAdmin_color_primary());
+            manifest.setDescription(publicWebSiteInfo.getDescription());
+            manifest.setId(publicWebSiteInfo.getAppId());
+            manifest.setBackground_color(Objects.equals(publicWebSiteInfo.getAdmin_darkMode(), true) ? "#000000" : "#FFFFFF");
+            List<AdminManifestResponse.Icon> list = getManifestIcons();
+            for (AdminManifestResponse.Icon icon : list) {
+                icon.setSrc(WebTools.buildEncodedUrl(request, icon.getSrc()));
             }
-            map.put("icons", list);
-            if (BaseStaticSitePlugin.isStaticPluginRequest(request)) {
-                map.put("start_url", ((String) map.get("start_url")).replace("./index", "./index.html"));
+            manifest.setIcons(list);
+            if (BaseStaticSitePlugin.isStaticPluginRequest(request) && StringUtils.isNotEmpty(manifest.getStart_url())) {
+                manifest.setStart_url(manifest.getStart_url().replace("./index", "./index.html"));
             }
-            return map;
+            return manifest;
         }
     }
 
-    public static List<Map<String, Object>> getManifestIcons() throws IOException {
+    public static List<AdminManifestResponse.Icon> getManifestIcons() throws IOException {
         try (InputStream inputStream = AdminPageController.class.getResourceAsStream(AdminConstants.ADMIN_PWA_MANIFEST_JSON)) {
             if (inputStream == null) {
                 return new ArrayList<>();
             }
-            Map map = new Gson().fromJson(IOUtil.getStringInputStream(inputStream), Map.class);
-            List<Map<String, Object>> icons = (List<Map<String, Object>>) map.get("icons");
-            for (Map<String, Object> icon : icons) {
-                String src = "/admin" + ((String) icon.get("src")).replaceFirst("./", "/");
+            AdminManifestResponse manifest = new Gson().fromJson(IOUtil.getStringInputStream(inputStream), AdminManifestResponse.class);
+            List<AdminManifestResponse.Icon> icons = manifest.getIcons();
+            if (Objects.isNull(icons)) {
+                return new ArrayList<>();
+            }
+            for (AdminManifestResponse.Icon icon : icons) {
+                String src = AdminConstants.ADMIN_URI_BASE_PATH + icon.getSrc().replaceFirst("./", "/");
                 File file = PathUtil.getStaticFile(src);
                 InputStream srcIn;
                 if (file.exists()) {
@@ -67,7 +73,7 @@ public class ManifestUtils {
                     try (srcIn) {
                         String fileTag = StaticFileCacheUtils.getInstance().getStreamTag(srcIn);
                         src += "?v=" + fileTag;
-                        icon.put("src", src);
+                        icon.setSrc(src);
                     }
                 }
             }
@@ -75,8 +81,4 @@ public class ManifestUtils {
         }
     }
 
-    public static void main(String[] args) throws IOException {
-        List<Map<String, Object>> manifestIcons = getManifestIcons();
-        System.out.println(manifestIcons);
-    }
 }

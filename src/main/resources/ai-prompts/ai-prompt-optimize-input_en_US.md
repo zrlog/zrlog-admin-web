@@ -1,0 +1,2 @@
+Current global prompt:
+{{prompt}}

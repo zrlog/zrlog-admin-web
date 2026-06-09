@@ -1,6 +1,7 @@
+import { getAppState } from "../base/ConfigProviderApp";
 import { useEffect, useRef, useState } from "react";
 import Card from "antd/es/card";
-import Divider from "antd/es/divider";
+
 import Form from "antd/es/form";
 import { Input, message, Modal, QRCode, Row, Space, Typography } from "antd";
 import Button from "antd/es/button";
@@ -11,6 +12,7 @@ import { useAxiosBaseInstance } from "../base/AppBase";
 import { AdminCommonProps, MfaStatusResponse } from "../type";
 import { getPageDataCacheKeyByPath } from "../utils/cache";
 import { useLocation } from "react-router-dom";
+import { useResponsiveFormLayout } from "../utils/responsive-form";
 
 const layout = {
     labelCol: { span: 8 },
@@ -41,6 +43,26 @@ const AccountSecurity = ({ offline, data, updateCache }: AdminCommonProps<Accoun
     const [mfaForm] = Form.useForm();
     const mfaCode = Form.useWatch("code", mfaForm) as string | undefined;
     const lastAutoSubmittedMfaCodeRef = useRef("");
+    const { formLayout, narrow } = useResponsiveFormLayout(layout);
+    const passwordStyle = narrow ? { width: "100%" } : passwordInputStyle;
+    const securitySurface = {
+        card: {
+            borderRadius: theme.borderRadiusLG,
+            height: "100%",
+            maxWidth: panelMaxWidth,
+            width: "100%",
+        },
+        contentSpace: {
+            width: "100%",
+            marginBottom: theme.marginSM,
+            alignItems: "center",
+        },
+        actions: {
+            width: "100%",
+        },
+        modalWidth: narrow ? `calc(100vw - ${theme.margin * 2}px)` : undefined,
+        verticalGap: theme.marginSM,
+    };
 
     const loadMfaStatus = async () => {
         const { data } = await axiosInstance.get(accountSecurityApiBase + "/mfa");
@@ -131,37 +153,44 @@ const AccountSecurity = ({ offline, data, updateCache }: AdminCommonProps<Accoun
             {contextHolder}
             <Row gutter={[24, 24]}>
                 <Col xs={24}>
-                    <Card
-                        title={getRes().accountSecurity.passwordTitle}
-                        style={{ borderRadius: theme.borderRadiusLG, height: "100%", maxWidth: panelMaxWidth }}
-                    >
-                        <Form {...layout} onFinish={(value) => onFinish(value)}>
+                    <Card title={getRes().accountSecurity.passwordTitle} style={securitySurface.card}>
+                        <Form {...formLayout} onFinish={(value) => onFinish(value)}>
                             <Form.Item
                                 name="oldPassword"
                                 label={getRes().accountSecurity.oldPassword}
                                 rules={[{ required: true }]}
                             >
-                                <Input.Password style={passwordInputStyle} />
+                                <Input.Password style={passwordStyle} />
                             </Form.Item>
                             <Form.Item
                                 name="newPassword"
                                 label={getRes().accountSecurity.newPassword}
                                 rules={[{ required: true }]}
                             >
-                                <Input.Password style={passwordInputStyle} />
+                                <Input.Password style={passwordStyle} />
                             </Form.Item>
-                            <Divider />
-                            <Button disabled={offline} type="primary" htmlType="submit">
-                                {getRes().submit}
-                            </Button>
+
+                            <div
+                                style={{
+                                    position: "sticky",
+                                    bottom: 0,
+                                    paddingTop: 16,
+                                    paddingBottom: "calc(16px + env(safe-area-inset-bottom))",
+                                    background: getAppState().dark ? "#141414" : "#ffffff",
+                                    zIndex: 10,
+                                    marginTop: 24,
+                                    borderTop: "1px solid " + (getAppState().dark ? "#424242" : "#f0f0f0"),
+                                }}
+                            >
+                                <Button disabled={offline} type="primary" htmlType="submit">
+                                    {getRes().submit}
+                                </Button>
+                            </div>
                         </Form>
                     </Card>
                 </Col>
                 <Col xs={24}>
-                    <Card
-                        title={getRes().accountSecurity.mfaTitle}
-                        style={{ borderRadius: theme.borderRadiusLG, height: "100%", maxWidth: panelMaxWidth }}
-                    >
+                    <Card title={getRes().accountSecurity.mfaTitle} style={securitySurface.card}>
                         <Typography.Paragraph>
                             {mfaStatus?.enabled
                                 ? getRes().accountSecurity.mfaEnabled
@@ -189,6 +218,7 @@ const AccountSecurity = ({ offline, data, updateCache }: AdminCommonProps<Accoun
                 onCancel={closeMfaDialog}
                 footer={null}
                 destroyOnHidden={false}
+                width={securitySurface.modalWidth}
             >
                 <Form form={mfaForm} layout="vertical">
                     {mfaDialogAction === "enable" && (
@@ -197,10 +227,10 @@ const AccountSecurity = ({ offline, data, updateCache }: AdminCommonProps<Accoun
                             {mfaStatus?.otpauthUrl && (
                                 <Space
                                     direction="vertical"
-                                    size={12}
-                                    style={{ width: "100%", marginBottom: 16, alignItems: "center" }}
+                                    size={securitySurface.verticalGap}
+                                    style={securitySurface.contentSpace}
                                 >
-                                    <QRCode value={mfaStatus.otpauthUrl} size={180} />
+                                    <QRCode value={mfaStatus.otpauthUrl} size={narrow ? 160 : 180} />
                                 </Space>
                             )}
                             <Form.Item label={getRes().accountSecurity.mfaSecret}>
@@ -225,8 +255,8 @@ const AccountSecurity = ({ offline, data, updateCache }: AdminCommonProps<Accoun
                             }}
                         />
                     </Form.Item>
-                    <Divider />
-                    <Space direction="vertical" style={{ width: "100%" }} size={12}>
+
+                    <Space direction="vertical" style={securitySurface.actions} size={securitySurface.verticalGap}>
                         <Button
                             disabled={offline || (mfaCode?.length ?? 0) !== 6}
                             loading={mfaSubmitting}
@@ -239,13 +269,13 @@ const AccountSecurity = ({ offline, data, updateCache }: AdminCommonProps<Accoun
                             }
                             type={mfaDialogAction === "disable" ? "default" : "primary"}
                             danger={mfaDialogAction === "disable"}
-                            style={{ width: "100%" }}
+                            style={securitySurface.actions}
                         >
                             {mfaDialogAction === "disable"
                                 ? getRes().accountSecurity.disableMfa
                                 : getRes().accountSecurity.enableMfa}
                         </Button>
-                        <Button disabled={mfaSubmitting} onClick={closeMfaDialog} style={{ width: "100%" }}>
+                        <Button disabled={mfaSubmitting} onClick={closeMfaDialog} style={securitySurface.actions}>
                             {getRes().close}
                         </Button>
                     </Space>

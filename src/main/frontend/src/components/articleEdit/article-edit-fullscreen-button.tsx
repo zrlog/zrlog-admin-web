@@ -28,14 +28,9 @@ const ArticleEditFullscreenButton: FunctionComponent<ArticleEditFullscreenButton
     const onfullscreen = () => {
         try {
             if (screenfull.isEnabled) {
-                screenfull
-                    .request(fullScreenElement)
-                    .then(() => {
-                        //ignore
-                    })
-                    .catch((e) => {
-                        console.error(e);
-                    });
+                void screenfull.request(fullScreenElement).catch((e) => {
+                    console.error(e);
+                });
             }
         } catch (e) {
             console.error(e);
@@ -63,9 +58,8 @@ const ArticleEditFullscreenButton: FunctionComponent<ArticleEditFullscreenButton
     const nativeFullscreenChange = () => {
         const isFullscreen = !!document.fullscreenElement;
         if (isFullscreen) {
-            //ignore, fullscreen required click
+            // Entering fullscreen is already handled by the click action.
         } else {
-            //console.log("退出全屏");
             onfullscreenExit();
         }
     };

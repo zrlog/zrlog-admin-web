@@ -19,7 +19,6 @@ const PWAHandler: React.FC<PropsWithChildren> = ({ children }) => {
         const lastOpenedPage = getLastOpenedPage();
         sessionStorage.setItem("loaded", "true");
         if (lastOpenedPage && lastOpenedPage !== getFullPath(location)) {
-            console.log(getFullPath(location) + " redirecting to last opened page:", lastOpenedPage);
             navigate(lastOpenedPage, { replace: true });
             return;
         }
@@ -43,7 +42,6 @@ const PWAHandler: React.FC<PropsWithChildren> = ({ children }) => {
         if (sessionStorage.getItem("loaded") !== "true") {
             return;
         }
-        //console.log("This page is running as a PWA.");
         if (
             fullPath.startsWith("/500") ||
             fullPath.startsWith("/404") ||

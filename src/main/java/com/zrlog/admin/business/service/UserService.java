@@ -1,6 +1,7 @@
 package com.zrlog.admin.business.service;
 
 import com.hibegin.common.util.*;
+import com.hibegin.http.server.api.HttpRequest;
 import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.dto.UserLoginDTO;
 import com.zrlog.admin.business.exception.OldPasswordException;
@@ -10,10 +11,11 @@ import com.zrlog.admin.business.exception.UserNameOrPasswordException;
 import com.zrlog.admin.business.rest.request.LoginRequest;
 import com.zrlog.admin.business.rest.request.UpdateAdminRequest;
 import com.zrlog.admin.business.rest.request.UpdatePasswordRequest;
-import com.zrlog.admin.business.rest.response.CheckVersionResponse;
 import com.zrlog.admin.business.rest.response.UpdateRecordResponse;
 import com.zrlog.admin.business.rest.response.UserBasicInfoResponse;
 import com.zrlog.admin.business.rest.response.UserInfoResponse;
+import com.zrlog.admin.web.token.AdminTokenThreadLocal;
+import com.zrlog.business.rest.response.CheckVersionResponse;
 import com.zrlog.common.CacheService;
 import com.zrlog.common.Constants;
 import com.zrlog.common.cache.dto.UserBasicDTO;
@@ -49,7 +51,7 @@ public class UserService {
             if (verifyPassword(oldPassword, dbPassword)) {
                 user.updatePassword(currentUserId, encodePassword(normalizeSubmittedPassword(updatePasswordRequest.getNewPassword())));
                 UpdateRecordResponse updateRecordResponse = new UpdateRecordResponse();
-                updateRecordResponse.setMessage(I18nUtil.getAdminBackendStringFromRes("changePasswordSuccess"));
+                updateRecordResponse.setMessage(I18nUtil.getAdminBackendStringFromRes("admin.user.password.change.success"));
                 return updateRecordResponse;
             } else {
                 throw new OldPasswordException();
@@ -67,14 +69,9 @@ public class UserService {
         return userInfoByUser;
     }
 
-    public UserInfoResponse getUserInfoWithCache(int userId, String sessionId) {
+    public UserInfoResponse getUserInfoWithCache(int userId, String sessionId) throws SQLException {
         UserBasicDTO userInfoById = cacheService.getUserInfoById((long) userId);
-        boolean mfaEnabled = false;
-        try {
-            mfaEnabled = mfaService.isMfaEnabled(userId);
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
+        boolean mfaEnabled = mfaService.isMfaEnabled(userId);
         if (StringUtils.isEmpty(userInfoById.getHeader())) {
             return new UserInfoResponse(userInfoById.getUserName(), getDefaultHeaderImage(), sessionId, buildLastVersionPlaceholder(), mfaEnabled);
         }
@@ -130,12 +127,41 @@ public class UserService {
     }
 
 
-    public Object update(int userId, UpdateAdminRequest updateAdminRequest) throws SQLException {
+    public Object update(int userId, UpdateAdminRequest updateAdminRequest, HttpRequest request) throws SQLException {
         if (ZrLogUtil.isPreviewMode()) {
             throw new PermissionErrorException();
         }
-        new User().updateEmailUserNameHeaderByUserId(updateAdminRequest.getEmail(), updateAdminRequest.getUserName(), updateAdminRequest.getHeader(), userId);
+        new User().updateEmailUserNameHeaderByUserId(updateAdminRequest.getEmail(), updateAdminRequest.getUserName(),
+                normalizeHeader(updateAdminRequest.getHeader(), request), userId);
         return new User().loadById(userId);
+    }
+
+    private String normalizeHeader(String header, HttpRequest request) {
+        if (StringUtils.isEmpty(header) || !header.startsWith("data:image/")) {
+            return header;
+        }
+        int commaIndex = header.indexOf(',');
+        if (commaIndex <= 0) {
+            throw new ArgsException("header");
+        }
+        String meta = header.substring(5, commaIndex);
+        if (!meta.contains(";base64")) {
+            throw new ArgsException("header");
+        }
+        String mimeType = meta.split(";")[0];
+        String extension = toImageExtension(mimeType);
+        byte[] bytes = Base64.getDecoder().decode(header.substring(commaIndex + 1));
+        return new UploadService().saveBytes(bytes, extension, "image", request, AdminTokenThreadLocal.getUser()).getUrl();
+    }
+
+    private String toImageExtension(String mimeType) {
+        if (mimeType.contains("jpeg") || mimeType.contains("jpg")) {
+            return "jpg";
+        }
+        if (mimeType.contains("webp")) {
+            return "webp";
+        }
+        return "png";
     }
 
     private CheckVersionResponse buildLastVersionPlaceholder() {

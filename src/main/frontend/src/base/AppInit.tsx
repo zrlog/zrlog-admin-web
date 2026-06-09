@@ -8,6 +8,12 @@ import { AppState } from "../type";
 import { changeAppState, getAppState } from "./ConfigProviderApp";
 import { getSsDate } from "./SsData";
 
+declare global {
+    interface Window {
+        inited?: boolean;
+    }
+}
+
 type AppInitProps = {
     offline: boolean;
     lang: string;
@@ -132,7 +138,6 @@ const AppInit: FunctionComponent<AppInitProps> = ({ lang, offline }) => {
             .catch((e) => {
                 const errorMsg =
                     "Request " + axiosInstance.defaults.baseURL + resourceApi.substring(1) + " error -> " + e.message;
-                //console.info(errorMsg);
                 if (isStaticPage()) {
                     setAppState((prevState) => {
                         return {
@@ -160,7 +165,6 @@ const AppInit: FunctionComponent<AppInitProps> = ({ lang, offline }) => {
             copyrightTips:
                 mergedRes.copyright + ' <a target="_blank" href="https://blog.zrlog.com/about.html?footer">ZrLog</a>',
         });
-        // @ts-ignore
         if (window.inited === undefined || window.inited === null) {
             changeAppState({
                 lang: data.lang,
@@ -169,7 +173,6 @@ const AppInit: FunctionComponent<AppInitProps> = ({ lang, offline }) => {
                 compactMode: isCompactModeByRes(),
                 theme: getThemeByRes(),
             });
-            // @ts-ignore
             window.inited = true;
         } else {
             changeAppState({

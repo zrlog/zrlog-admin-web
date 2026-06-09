@@ -1,51 +1,45 @@
-import React from "react";
+import { Heatmap } from "@ant-design/plots";
+import { theme } from "antd";
+import React, { useMemo } from "react";
 import { getRes } from "../../utils/constants";
 
-// 定义类型
 export interface ActivityDay {
-    date: string; // YYYY-MM-DD 格式
-    count: number; // 动作数量，用于决定颜色深浅
+    date: string;
+    count: number;
 }
 
 interface ActivityGraphProps {
-    data: ActivityDay[]; // 一年的数据
+    data: ActivityDay[];
 }
 
 const ActivityGraph: React.FC<ActivityGraphProps> = ({ data }) => {
+    const { token } = theme.useToken();
     const daysInWeek = 7;
-    const weekWidth = 15; // 每周宽度（包含间距）
-    const dayHeight = 15; // 每天高度（包含间距）
-    const cellSize = 10; // 每个格子的大小
-    const textOffset = 20; // 顶部和左侧的文字偏移
-    const textOffsetX = 20; // 左侧文字偏移量
-    const textOffsetY = 20; // 顶部文字偏移量
+    const dayHeight = 15;
+    const textOffset = 20;
+    const res = getRes();
 
-    // 调整数据，确保以星期一开头并填充前后空白
-    const generateActivityGrid = () => {
+    const activityGrid = useMemo(() => {
         const grid: ActivityDay[][] = [];
         let currentWeek: ActivityDay[] = [];
 
         const firstDate = new Date(data[0]?.date);
-        const firstDayOfWeek = firstDate.getDay(); // 获取第一天的星期几 (0 表示星期日)
-        const offsetStart = (firstDayOfWeek + 6) % 7; // 计算偏移量 (0: 星期一, 6: 星期日)
+        const firstDayOfWeek = firstDate.getDay();
+        const offsetStart = (firstDayOfWeek + 6) % 7;
 
-        // 填充前面的空白天
         for (let i = 0; i < offsetStart; i++) {
             currentWeek.push({ date: "", count: 0 });
         }
 
-        // 填充实际数据
         data.forEach((day) => {
             currentWeek.push(day);
 
-            // 如果满一周，则推入 grid 并开启新的一周
             if (currentWeek.length === daysInWeek) {
                 grid.push(currentWeek);
                 currentWeek = [];
             }
         });
 
-        // 填充最后一周的空白天（保持完整列）
         while (currentWeek.length > 0 && currentWeek.length < daysInWeek) {
             currentWeek.push({ date: "", count: 0 });
         }
@@ -54,23 +48,29 @@ const ActivityGraph: React.FC<ActivityGraphProps> = ({ data }) => {
         }
 
         return grid;
-    };
+    }, [data]);
 
-    const activityGrid = generateActivityGrid();
-
-    // 颜色梯度
     const getColor = (count: number) => {
-        if (count === 0) return "#ebedf0"; // 无活动
-        if (count < 2) return "#9be9a8";
-        if (count < 4) return "#40c463";
-        if (count < 8) return "#30a14e";
-        return "#216e39";
+        if (count === 0) return token.colorFillSecondary;
+        if (count < 2) return token.colorSuccessBgHover;
+        if (count < 4) return token.colorSuccessBorderHover;
+        if (count < 8) return token.colorSuccess;
+        return token.colorSuccessActive;
     };
 
-    // 生成月份标记
-    const generateMonths = () => {
-        const months: { x: number; name: string }[] = [];
-        const month = getRes().index.activityGraph.month;
+    const chartData = useMemo(() => {
+        return activityGrid.flatMap((week, weekIndex) =>
+            week.map((day, dayIndex) => ({
+                week: weekIndex,
+                weekday: daysInWeek - 1 - dayIndex,
+                date: day.date,
+                count: day.count,
+            }))
+        );
+    }, [activityGrid]);
+
+    const monthLabelByWeek = useMemo(() => {
+        const month = res.index.activityGraph.month;
         const monthNames = [
             month.jan,
             month.feb,
@@ -85,80 +85,77 @@ const ActivityGraph: React.FC<ActivityGraphProps> = ({ data }) => {
             month.nov,
             month.dec,
         ];
-
+        const labelMap = new Map<number, string>();
         let currentMonth = -1;
 
         data.forEach((day, index) => {
             const date = new Date(day.date);
-            const month = date.getMonth();
-
-            // 每次遇到新的月份时添加标记
-            if (month !== currentMonth) {
-                currentMonth = month;
-                months.push({ x: Math.floor(index / daysInWeek) * weekWidth, name: monthNames[month] });
+            const monthIndex = date.getMonth();
+            if (monthIndex !== currentMonth) {
+                currentMonth = monthIndex;
+                labelMap.set(Math.floor(index / daysInWeek), monthNames[monthIndex]);
             }
         });
 
-        return months;
-    };
+        return labelMap;
+    }, [data, res.index.activityGraph.month]);
 
-    const months = generateMonths();
+    const weekdayLabelByValue = new Map<number, string>([
+        [6, res.index.activityGraph.weekday.mon],
+        [4, res.index.activityGraph.weekday.wed],
+        [2, res.index.activityGraph.weekday.fri],
+    ]);
+    const chartHeight = daysInWeek * dayHeight + textOffset;
 
     return (
-        <svg width={activityGrid.length * weekWidth + textOffset} height={daysInWeek * dayHeight + textOffset}>
-            {/* 月份标记 */}
-            {months.map((month, index) => (
-                <text key={index} x={month.x + textOffset} y={textOffset - 5} fontSize="10" fill="#666">
-                    {month.name}
-                </text>
-            ))}
-
-            {/* 星期标记 */}
-            {[
-                getRes().index.activityGraph.weekday.mon,
-                getRes().index.activityGraph.weekday.wed,
-                getRes().index.activityGraph.weekday.fri,
-            ].map((label, index) => (
-                <text
-                    key={index}
-                    x={textOffsetX - 5}
-                    y={textOffsetY + (index * 2 + 1) * dayHeight - 9}
-                    fontSize="7"
-                    fill="#666"
-                    textAnchor="end" // 文字右对齐
-                    dominantBaseline="middle" // 垂直居中
-                >
-                    {label}
-                </text>
-            ))}
-
-            {/* 活动格子 */}
-            {activityGrid.map((week, weekIndex) =>
-                week.map((day, dayIndex) => (
-                    <rect
-                        key={`${weekIndex}-${dayIndex}`}
-                        x={weekIndex * weekWidth + textOffset}
-                        y={dayIndex * dayHeight + textOffset}
-                        width={cellSize}
-                        height={cellSize}
-                        rx={2} // 圆角
-                        ry={2} // 圆角
-                        fill={getColor(day.count)}
-                        stroke="#ccc"
-                    >
-                        <title>
-                            {day.date
-                                ? `${day.date}. ${getRes().article.label}: ${day.count}`
-                                : getRes().index.activityGraph.noData}
-                        </title>
-                    </rect>
-                ))
-            )}
-        </svg>
+        <div style={{ width: "100%" }}>
+            <Heatmap
+                data={chartData}
+                xField="week"
+                yField="weekday"
+                colorField="count"
+                height={chartHeight}
+                autoFit
+                legend={false}
+                axis={{
+                    x: {
+                        position: "top",
+                        labelFormatter: (value: string) => monthLabelByWeek.get(Number(value)) || "",
+                        labelFill: token.colorTextSecondary,
+                        tick: false,
+                        line: false,
+                    },
+                    y: {
+                        labelFormatter: (value: string) => weekdayLabelByValue.get(Number(value)) || "",
+                        labelFill: token.colorTextSecondary,
+                        tick: false,
+                        line: false,
+                    },
+                }}
+                scale={{
+                    x: { padding: 0 },
+                    y: { padding: 0 },
+                }}
+                style={{
+                    fill: (datum: { count: number }) => getColor(datum.count),
+                    stroke: token.colorBorderSecondary,
+                    inset: 2,
+                    radius: token.borderRadiusSM,
+                }}
+                tooltip={{
+                    title: (datum: { date: string }) => datum.date || res.index.activityGraph.noData,
+                    items: [
+                        (datum: { count: number; date: string }) => ({
+                            name: res.article.label,
+                            value: datum.date ? datum.count : res.index.activityGraph.noData,
+                        }),
+                    ],
+                }}
+            />
+        </div>
     );
 };
 
-// 修改后的 generateCompleteData 函数，用于补全数据
 export const generateCompleteData = (partialData: ActivityDay[]): ActivityDay[] => {
     const today = new Date();
     const startDate = new Date(today);

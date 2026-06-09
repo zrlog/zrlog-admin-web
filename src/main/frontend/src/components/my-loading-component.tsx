@@ -1,7 +1,14 @@
-import { CSSProperties, FunctionComponent } from "react";
+import { CSSProperties, FunctionComponent, useEffect, useState } from "react";
 import { getAppState } from "../base/ConfigProviderApp";
 
-const MyLoadingComponent: FunctionComponent = () => {
+type MyLoadingComponentProps = {
+    delayMs?: number;
+    mode?: "immediate" | "delayed";
+};
+
+const MyLoadingComponent: FunctionComponent<MyLoadingComponentProps> = ({ delayMs = 200, mode = "immediate" }) => {
+    const delayed = mode === "delayed";
+    const [visible, setVisible] = useState(!delayed || delayMs <= 0);
     const colorPrimary = getAppState().colorPrimary;
     const topBarShellStyle: CSSProperties = {
         position: "absolute",
@@ -22,6 +29,19 @@ const MyLoadingComponent: FunctionComponent = () => {
         backgroundColor: colorPrimary,
         animation: "adminTopLoadingSlide 1.2s ease-in-out infinite",
     };
+
+    useEffect(() => {
+        if (!delayed || delayMs <= 0) {
+            setVisible(true);
+            return;
+        }
+        const timer = window.setTimeout(() => setVisible(true), delayMs);
+        return () => window.clearTimeout(timer);
+    }, [delayMs, delayed]);
+
+    if (!visible) {
+        return null;
+    }
 
     return (
         <>

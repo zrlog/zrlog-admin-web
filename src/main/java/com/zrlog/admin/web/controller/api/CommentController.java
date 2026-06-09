@@ -5,7 +5,7 @@ import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.RequestMethod;
 import com.hibegin.http.annotation.ResponseBody;
 import com.zrlog.admin.business.rest.request.ReadCommentRequest;
-import com.zrlog.admin.business.rest.response.AdminApiPageDataStandardResponse;
+import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
 import com.zrlog.admin.business.rest.response.DeleteResponse;
 import com.zrlog.admin.business.rest.response.UpdateRecordResponse;
 import com.zrlog.admin.business.service.AdminCommentService;
@@ -40,7 +40,7 @@ public class CommentController extends BaseController {
     }
 
     @ResponseBody
-    public AdminApiPageDataStandardResponse<PageData<CommentDTO>> index() throws SQLException {
-        return new AdminApiPageDataStandardResponse<>(commentService.page(ControllerUtil.getPageRequest(this)), "", request.getUri());
+    public AdminPageDataResponse<PageData<CommentDTO>> index() throws SQLException {
+        return new AdminPageDataResponse<>(commentService.page(ControllerUtil.getPageRequest(this)), "", request.getUri());
     }
 }

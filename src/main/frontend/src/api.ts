@@ -1,6 +1,12 @@
 import { AxiosInstance } from "axios";
 import { getSsDate, getWindowPageBuildId, setWindowPageBuildId } from "./base/SsData";
 import { cacheIgnoreReloadTime } from "./utils/constants";
+import { syncMessageCenterStatus } from "./utils/message-center-status";
+import type { ApiResponse, PublicVersionResponse } from "./type";
+
+export const API_VERSION_PATH = "/api/public/version";
+export const API_DO_UPGRADE_PATH = "/api/admin/upgrade/doUpgrade";
+export const API_ADMIN_STATIC_SITE_SYNC_PATH = "/api/admin/static-site/startSync";
 
 export const getCsrData = async (uri: string, t: number, axiosInstance: AxiosInstance) => {
     let requestUri = "/api/admin" + uri.replace(".html", "");
@@ -11,6 +17,8 @@ export const getCsrData = async (uri: string, t: number, axiosInstance: AxiosIns
     if (data.pageBuildId !== undefined) {
         getSsDate().pageBuildId = data.pageBuildId as string as never;
         getSsDate().systemNotification = data.systemNotification as string as never;
+        getSsDate().messageCenter = data.messageCenter;
+        syncMessageCenterStatus(data.messageCenter);
         if (getWindowPageBuildId() === "" || getWindowPageBuildId() === null || getWindowPageBuildId() === undefined) {
             setWindowPageBuildId(data.pageBuildId);
         }
@@ -18,8 +26,10 @@ export const getCsrData = async (uri: string, t: number, axiosInstance: AxiosIns
     return data;
 };
 
-export const getVersion = async (buildId: string, axiosInstance: AxiosInstance) => {
-    const { data } = await axiosInstance.get("/api/public/version?buildId=" + buildId);
+export const getVersion = async (buildId: string, axiosInstance: AxiosInstance): Promise<ApiResponse<PublicVersionResponse>> => {
+    const { data } = await axiosInstance.get<ApiResponse<PublicVersionResponse>>(
+        API_VERSION_PATH + "?buildId=" + encodeURIComponent(buildId)
+    );
     return data;
 };
 

@@ -1,11 +1,12 @@
 import React, { RefObject, useEffect, useState } from "react";
-import { App, Button, Drawer, Empty, List, Select, Space, Tag, Typography } from "antd";
+import { App, Button, Drawer, Empty, Grid, List, Select, Space, Tag, Typography } from "antd";
 import { HistoryOutlined, RollbackOutlined } from "@ant-design/icons";
 import TimeAgo from "@editor/dist/src/editor/TimeAgo";
 import { getRes } from "../../utils/constants";
 import { getAppState } from "../../base/ConfigProviderApp";
 import { useTheme } from "antd-style";
 import { getShortcutTitle } from "./shortcut-utils";
+import { collectMarkdownReferenceSummary } from "./markdown-reference-utils";
 
 const { Paragraph, Text } = Typography;
 
@@ -40,6 +41,7 @@ type ArticleVersionDrawerProps = {
     containerRef: RefObject<HTMLDivElement>;
     open?: boolean;
     onOpenChange?: (open: boolean) => void;
+    showTrigger?: boolean;
 };
 
 const buildLineDiff = (beforeText: string, afterText: string): DiffLine[] => {
@@ -86,22 +88,22 @@ const buildLineDiff = (beforeText: string, afterText: string): DiffLine[] => {
     return lines;
 };
 
-const getDiffLineStyle = (type: DiffLineType) => {
+const getDiffLineStyle = (type: DiffLineType, theme: ReturnType<typeof useTheme>) => {
     switch (type) {
         case "add":
             return {
-                background: "rgba(34, 197, 94, 0.12)",
-                color: "#166534",
+                background: theme.colorSuccessBg,
+                color: theme.colorSuccessText,
             };
         case "remove":
             return {
-                background: "rgba(239, 68, 68, 0.12)",
-                color: "#991b1b",
+                background: theme.colorErrorBg,
+                color: theme.colorErrorText,
             };
         default:
             return {
                 background: "transparent",
-                color: getAppState().dark ? "rgba(255,255,255,0.8)" : "rgba(15,23,42,0.82)",
+                color: theme.colorText,
             };
     }
 };
@@ -117,6 +119,34 @@ const getDiffPrefix = (type: DiffLineType) => {
     }
 };
 
+const PRIMARY_DIFF_FIELDS = new Set(["title", "markdown", "content"]);
+
+const toReferenceSourceText = (value: unknown) => (typeof value === "string" ? value : "");
+
+const collectArticleReferenceTargets = (article?: Record<string, any>) => {
+    if (!article) {
+        return [];
+    }
+    const referenceSummary = collectMarkdownReferenceSummary(
+        [toReferenceSourceText(article.markdown), toReferenceSourceText(article.content)].join("\n")
+    );
+    const references = new Set<string>(referenceSummary.imageReferences.concat(referenceSummary.linkReferences));
+    const thumbnail = toReferenceSourceText(article.thumbnail).trim();
+    if (thumbnail) {
+        references.add(thumbnail);
+    }
+    return Array.from(references).sort((a, b) => a.localeCompare(b));
+};
+
+const getArticleReferenceChanges = (fromArticle?: Record<string, any>, toArticle?: Record<string, any>) => {
+    const fromReferences = new Set(collectArticleReferenceTargets(fromArticle));
+    const toReferences = new Set(collectArticleReferenceTargets(toArticle));
+    return {
+        added: Array.from(toReferences).filter((target) => !fromReferences.has(target)),
+        removed: Array.from(fromReferences).filter((target) => !toReferences.has(target)),
+    };
+};
+
 const ArticleVersionDrawer: React.FC<ArticleVersionDrawerProps> = ({
     logId,
     currentVersion,
@@ -125,8 +155,11 @@ const ArticleVersionDrawer: React.FC<ArticleVersionDrawerProps> = ({
     containerRef,
     open,
     onOpenChange,
+    showTrigger = true,
 }) => {
     const theme = useTheme();
+    const screens = Grid.useBreakpoint();
+    const diffBorder = `${theme.lineWidth}px ${theme.lineType} ${theme.colorBorderSecondary}`;
     const [innerOpen, setInnerOpen] = useState(false);
     const [versions, setVersions] = useState<VersionItem[]>([]);
     const [loading, setLoading] = useState(false);
@@ -135,6 +168,8 @@ const ArticleVersionDrawer: React.FC<ArticleVersionDrawerProps> = ({
     const [compareData, setCompareData] = useState<CompareResponse | null>(null);
     const { modal } = App.useApp();
     const drawerOpen = open ?? innerOpen;
+    const mobileMode = screens.sm !== true;
+    const drawerWidth = screens.lg ? 960 : screens.md ? 720 : "100%";
 
     useEffect(() => {
         if (open !== undefined) {
@@ -222,41 +257,109 @@ const ArticleVersionDrawer: React.FC<ArticleVersionDrawerProps> = ({
         ? buildLineDiff(compareData.fromArticle?.title || "", compareData.toArticle?.title || "")
         : [];
 
+    const getChangedFieldLabel = (field: string) => {
+        const fields = getRes().articleEdit.version.fields;
+        switch (field) {
+            case "title":
+                return fields.title;
+            case "content":
+                return fields.content;
+            case "markdown":
+                return fields.markdown;
+            case "digest":
+                return fields.digest;
+            case "keywords":
+                return fields.keywords;
+            case "alias":
+                return fields.alias;
+            case "thumbnail":
+                return fields.thumbnail;
+            case "typeId":
+                return fields.typeId;
+            case "canComment":
+                return fields.canComment;
+            case "recommended":
+                return fields.recommended;
+            case "privacy":
+                return fields.privacy;
+            case "rubbish":
+                return fields.rubbish;
+            case "editorType":
+                return fields.editorType;
+            default:
+                return getRes().articleEdit.version.unknownField.replace("{field}", field);
+        }
+    };
+
+    const formatChangedFieldValue = (value: unknown) => {
+        if (value === undefined || value === null || value === "") {
+            return getRes().articleEdit.version.emptyValue;
+        }
+        if (typeof value === "boolean") {
+            return value ? getRes().yes : getRes().no;
+        }
+        if (typeof value === "object") {
+            return JSON.stringify(value);
+        }
+        return `${value}`;
+    };
+
+    const fieldChangeDetails = compareData?.changedFields.filter((field) => !PRIMARY_DIFF_FIELDS.has(field)) || [];
+    const referenceChanges = compareData
+        ? getArticleReferenceChanges(compareData.fromArticle, compareData.toArticle)
+        : { added: [], removed: [] };
+    const hasReferenceChanges = referenceChanges.added.length > 0 || referenceChanges.removed.length > 0;
+    const referenceChangeGroups = [
+        {
+            key: "removed",
+            label: getRes().articleEdit.version.resourceRemoved,
+            color: "red",
+            values: referenceChanges.removed,
+        },
+        {
+            key: "added",
+            label: getRes().articleEdit.version.resourceAdded,
+            color: "green",
+            values: referenceChanges.added,
+        },
+    ].filter((item) => item.values.length > 0);
+
     return (
         <>
-            <Button
-                href={"#articleVersionHistory"}
-                type={"text"}
-                title={getShortcutTitle(getRes().articleEdit.version.label, {
-                    alt: true,
-                    shift: true,
-                    key: "V",
-                })}
-                disabled={!logId}
-                style={{
-                    border: 0,
-                    display: "flex",
-                    justifyContent: "center",
-                    alignItems: "center",
-                    cursor: !logId ? "not-allowed" : "pointer",
-                    color: "rgb(119, 119, 119)",
-                }}
-                icon={<HistoryOutlined style={{ fontSize: getAppState().compactMode ? 18 : 24, display: "flex" }} />}
-                onClick={(e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    updateOpen(true);
-                }}
-            />
+            {showTrigger && (
+                <Button
+                    href={"#articleVersionHistory"}
+                    type={"text"}
+                    title={getShortcutTitle(getRes().articleEdit.version.label, {
+                        alt: true,
+                        shift: true,
+                        key: "V",
+                    })}
+                    disabled={!logId}
+                    style={{
+                        border: 0,
+                        display: "flex",
+                        justifyContent: "center",
+                        alignItems: "center",
+                        cursor: !logId ? "not-allowed" : "pointer",
+                        color: "rgb(119, 119, 119)",
+                    }}
+                    icon={
+                        <HistoryOutlined style={{ fontSize: getAppState().compactMode ? 18 : 24, display: "flex" }} />
+                    }
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        updateOpen(true);
+                    }}
+                />
+            )}
             <Drawer
                 title={getRes().articleEdit.version.label}
-                width={960}
+                width={drawerWidth}
                 open={drawerOpen}
                 onClose={() => updateOpen(false)}
-                //@ts-ignore
-                getContainer={() => {
-                    return containerRef.current;
-                }}
+                getContainer={() => containerRef.current ?? document.body}
             >
                 <Space direction="vertical" size={16} style={{ width: "100%" }}>
                     <Space style={{ width: "100%", justifyContent: "space-between" }} wrap>
@@ -292,30 +395,42 @@ const ArticleVersionDrawer: React.FC<ArticleVersionDrawerProps> = ({
                         }}
                         dataSource={versions}
                         renderItem={(item) => (
-                            <List.Item
-                                actions={
-                                    !item.current
-                                        ? [
-                                              <Button
-                                                  type="link"
-                                                  key="compare"
-                                                  onClick={() => setSelectedVersion(item.version)}
-                                              >
-                                                  {getRes().articleEdit.version.compareAction}
-                                              </Button>,
-                                          ]
-                                        : []
-                                }
-                            >
-                                <Space style={{ width: "100%", justifyContent: "space-between" }} wrap>
-                                    <Space>
+                            <List.Item>
+                                <div
+                                    style={{
+                                        width: "100%",
+                                        display: "flex",
+                                        flexDirection: mobileMode ? "column" : "row",
+                                        alignItems: mobileMode ? "stretch" : "center",
+                                        justifyContent: "space-between",
+                                        gap: 8,
+                                    }}
+                                >
+                                    <Space style={{ minWidth: 0 }} wrap>
                                         <Tag color={item.current ? "blue" : "default"}>
                                             {item.current ? getRes().articleEdit.version.current : `v${item.version}`}
                                         </Tag>
                                         <Text>{item.title || "-"}</Text>
                                     </Space>
-                                    <Space>{item.createdAt ? <TimeAgo timestamp={item.createdAt} /> : null}</Space>
-                                </Space>
+                                    <Space
+                                        style={{
+                                            justifyContent: mobileMode ? "space-between" : "flex-end",
+                                        }}
+                                        wrap
+                                    >
+                                        {item.createdAt ? <TimeAgo timestamp={item.createdAt} /> : null}
+                                        {!item.current ? (
+                                            <Button
+                                                type="link"
+                                                style={{ paddingInline: 0 }}
+                                                block={mobileMode}
+                                                onClick={() => setSelectedVersion(item.version)}
+                                            >
+                                                {getRes().articleEdit.version.compareAction}
+                                            </Button>
+                                        ) : null}
+                                    </Space>
+                                </div>
                             </List.Item>
                         )}
                     />
@@ -325,12 +440,119 @@ const ArticleVersionDrawer: React.FC<ArticleVersionDrawerProps> = ({
                                 <Tag color="gold">v{compareData.fromVersion}</Tag>
                                 <Tag color="blue">v{compareData.toVersion}</Tag>
                                 {compareData.changedFields.map((field) => (
-                                    <Tag key={field}>{field}</Tag>
+                                    <Tag key={field}>{getChangedFieldLabel(field)}</Tag>
                                 ))}
                             </Space>
+                            {fieldChangeDetails.length > 0 ? (
+                                <div
+                                    style={{
+                                        border: diffBorder,
+                                        borderRadius: theme.borderRadius,
+                                        overflow: "hidden",
+                                    }}
+                                >
+                                    <div
+                                        style={{
+                                            padding: "10px 14px",
+                                            borderBottom: diffBorder,
+                                            background: theme.colorFillQuaternary,
+                                        }}
+                                    >
+                                        <Text strong>{getRes().articleEdit.version.fieldChanges}</Text>
+                                    </div>
+                                    <List
+                                        size="small"
+                                        dataSource={fieldChangeDetails}
+                                        renderItem={(field) => (
+                                            <List.Item>
+                                                <Space direction="vertical" size={8} style={{ width: "100%" }}>
+                                                    <Text strong>{getChangedFieldLabel(field)}</Text>
+                                                    <div
+                                                        style={{
+                                                            display: "grid",
+                                                            gridTemplateColumns: mobileMode ? "1fr" : "1fr 1fr",
+                                                            gap: 8,
+                                                        }}
+                                                    >
+                                                        <Space direction="vertical" size={4}>
+                                                            <Text type="secondary">
+                                                                {getRes().articleEdit.version.from}
+                                                            </Text>
+                                                            <Paragraph style={{ marginBottom: 0 }} copyable>
+                                                                {formatChangedFieldValue(
+                                                                    compareData.fromArticle?.[field]
+                                                                )}
+                                                            </Paragraph>
+                                                        </Space>
+                                                        <Space direction="vertical" size={4}>
+                                                            <Text type="secondary">
+                                                                {getRes().articleEdit.version.to}
+                                                            </Text>
+                                                            <Paragraph style={{ marginBottom: 0 }} copyable>
+                                                                {formatChangedFieldValue(
+                                                                    compareData.toArticle?.[field]
+                                                                )}
+                                                            </Paragraph>
+                                                        </Space>
+                                                    </div>
+                                                </Space>
+                                            </List.Item>
+                                        )}
+                                    />
+                                </div>
+                            ) : null}
+                            {hasReferenceChanges ? (
+                                <div
+                                    style={{
+                                        border: diffBorder,
+                                        borderRadius: theme.borderRadius,
+                                        overflow: "hidden",
+                                    }}
+                                >
+                                    <div
+                                        style={{
+                                            padding: "10px 14px",
+                                            borderBottom: diffBorder,
+                                            background: theme.colorFillQuaternary,
+                                        }}
+                                    >
+                                        <Text strong>{getRes().articleEdit.version.resourceChanges}</Text>
+                                    </div>
+                                    <List
+                                        size="small"
+                                        dataSource={referenceChangeGroups}
+                                        renderItem={(group) => (
+                                            <List.Item>
+                                                <Space direction="vertical" size={8} style={{ width: "100%" }}>
+                                                    <Tag color={group.color}>{group.label}</Tag>
+                                                    <div
+                                                        style={{
+                                                            maxHeight: 180,
+                                                            overflow: "auto",
+                                                        }}
+                                                    >
+                                                        {group.values.map((target) => (
+                                                            <Paragraph
+                                                                key={`${group.key}-${target}`}
+                                                                copyable
+                                                                style={{
+                                                                    marginBottom: 6,
+                                                                    wordBreak: "break-all",
+                                                                }}
+                                                            >
+                                                                {target}
+                                                            </Paragraph>
+                                                        ))}
+                                                    </div>
+                                                </Space>
+                                            </List.Item>
+                                        )}
+                                    />
+                                </div>
+                            ) : null}
                             <div
                                 style={{
-                                    border: "1px solid rgba(148, 163, 184, 0.25)",
+                                    border: diffBorder,
                                     borderRadius: theme.borderRadius,
                                     overflow: "hidden",
                                 }}
@@ -338,16 +560,18 @@ const ArticleVersionDrawer: React.FC<ArticleVersionDrawerProps> = ({
                                 <div
                                     style={{
                                         padding: "10px 14px",
-                                        borderBottom: "1px solid rgba(148, 163, 184, 0.18)",
+                                        borderBottom: diffBorder,
                                         fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
                                         fontSize: 13,
-                                        background: getAppState().dark
-                                            ? "rgba(255,255,255,0.04)"
-                                            : "rgba(15,23,42,0.03)",
+                                        background: theme.colorFillQuaternary,
                                     }}
                                 >
-                                    <div style={{ color: "#991b1b" }}>{`--- v${compareData.fromVersion}`}</div>
-                                    <div style={{ color: "#166534" }}>{`+++ v${compareData.toVersion}`}</div>
+                                    <div
+                                        style={{ color: theme.colorErrorText }}
+                                    >{`--- v${compareData.fromVersion}`}</div>
+                                    <div
+                                        style={{ color: theme.colorSuccessText }}
+                                    >{`+++ v${compareData.toVersion}`}</div>
                                 </div>
                                 <div style={{ padding: "10px 14px" }}>
                                     <Paragraph style={{ marginBottom: 8 }} type="secondary">
@@ -357,7 +581,7 @@ const ArticleVersionDrawer: React.FC<ArticleVersionDrawerProps> = ({
                                         style={{
                                             borderRadius: theme.borderRadiusSM,
                                             overflow: "hidden",
-                                            border: "1px solid rgba(148, 163, 184, 0.16)",
+                                            border: diffBorder,
                                             marginBottom: 14,
                                         }}
                                     >
@@ -365,7 +589,7 @@ const ArticleVersionDrawer: React.FC<ArticleVersionDrawerProps> = ({
                                             <div
                                                 key={`title-${index}`}
                                                 style={{
-                                                    ...getDiffLineStyle(line.type),
+                                                    ...getDiffLineStyle(line.type, theme),
                                                     fontFamily:
                                                         "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
                                                     fontSize: 13,
@@ -386,14 +610,14 @@ const ArticleVersionDrawer: React.FC<ArticleVersionDrawerProps> = ({
                                             maxHeight: "52vh",
                                             overflow: "auto",
                                             borderRadius: theme.borderRadiusSM,
-                                            border: "1px solid rgba(148, 163, 184, 0.16)",
+                                            border: diffBorder,
                                         }}
                                     >
                                         {markdownDiffLines.map((line, index) => (
                                             <div
                                                 key={`md-${index}`}
                                                 style={{
-                                                    ...getDiffLineStyle(line.type),
+                                                    ...getDiffLineStyle(line.type, theme),
                                                     fontFamily:
                                                         "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
                                                     fontSize: 13,

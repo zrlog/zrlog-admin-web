@@ -1,7 +1,7 @@
 package com.zrlog.admin.business.rest.base;
 
 import com.hibegin.common.util.StringUtils;
-import com.zrlog.admin.business.type.AIProviderType;
+import com.zrlog.admin.business.ai.model.AIProviderType;
 import com.zrlog.common.Validator;
 import com.zrlog.common.exception.ArgsException;
 
@@ -16,6 +16,10 @@ public class AIWebSiteInfo implements Validator {
     private String ai_model;
     private String ai_api_key;
     private String ai_prompt;
+    private Integer ai_max_completion_tokens;
+    private AIProviderType ai_image_provider;
+    private String ai_image_model;
+    private String ai_image_api_key;
 
     public AIProviderType getAi_provider() {
         return ai_provider;
@@ -49,6 +53,39 @@ public class AIWebSiteInfo implements Validator {
         this.ai_prompt = ai_prompt;
     }
 
+    public Integer getAi_max_completion_tokens() {
+        return ai_max_completion_tokens;
+    }
+
+    public void setAi_max_completion_tokens(Integer ai_max_completion_tokens) {
+        this.ai_max_completion_tokens = ai_max_completion_tokens;
+    }
+
+    public AIProviderType getAi_image_provider() {
+        return ai_image_provider;
+    }
+
+    public void setAi_image_provider(AIProviderType ai_image_provider) {
+        this.ai_image_provider = ai_image_provider;
+    }
+
+    public String getAi_image_model() {
+        return ai_image_model;
+    }
+
+    public void setAi_image_model(String ai_image_model) {
+        this.ai_image_model = ai_image_model;
+    }
+
+    public String getAi_image_api_key() {
+        return ai_image_api_key;
+    }
+
+    public void setAi_image_api_key(String ai_image_api_key) {
+        this.ai_image_api_key = ai_image_api_key;
+    }
+
+
     @Override
     public void doValid() {
         if (Objects.isNull(ai_provider)) {
@@ -57,8 +94,11 @@ public class AIWebSiteInfo implements Validator {
         if (StringUtils.isEmpty(ai_model)) {
             throw new ArgsException("ai_model");
         }
-        if (StringUtils.isEmpty(ai_api_key)) {
-            throw new ArgsException("ai_api_key");
+        if (Objects.nonNull(ai_max_completion_tokens) && ai_max_completion_tokens < 1) {
+            throw new ArgsException("ai_max_completion_tokens");
+        }
+        if (Objects.nonNull(ai_image_provider) && StringUtils.isEmpty(ai_image_model)) {
+            throw new ArgsException("ai_image_model");
         }
     }
 }

@@ -1,16 +1,13 @@
 package com.zrlog.admin.business.exception;
 
-import com.zrlog.common.exception.AbstractBusinessException;
-import com.zrlog.util.I18nUtil;
+public class InvalidMfaCodeException extends AbstractAdminBusinessException {
 
-public class InvalidMfaCodeException extends AbstractBusinessException {
-    @Override
-    public int getError() {
-        return 9015;
+    public InvalidMfaCodeException() {
+        super("admin.mfa.error.codeInvalid");
     }
 
     @Override
-    public String getMessage() {
-        return I18nUtil.getAdminBackendStringFromRes("mfaCodeInvalid");
+    public int getError() {
+        return 9015;
     }
 }

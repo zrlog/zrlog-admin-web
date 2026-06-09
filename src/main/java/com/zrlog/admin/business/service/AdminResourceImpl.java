@@ -2,13 +2,11 @@ package com.zrlog.admin.business.service;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-import com.hibegin.common.util.EnvKit;
-import com.hibegin.common.util.IOUtil;
-import com.hibegin.common.util.ObjectUtil;
-import com.hibegin.common.util.SecurityUtils;
-import com.hibegin.common.util.StringUtils;
+import com.hibegin.common.util.*;
 import com.hibegin.http.server.api.HttpRequest;
 import com.zrlog.admin.business.AdminConstants;
+import com.zrlog.admin.business.rest.base.FeatureLabWebSiteInfo;
+import com.zrlog.admin.business.rest.response.AdminResourceInfoResponse;
 import com.zrlog.admin.util.AdminWebTools;
 import com.zrlog.admin.util.ManifestUtils;
 import com.zrlog.common.CacheService;
@@ -40,7 +38,7 @@ public class AdminResourceImpl implements AdminResource {
     public AdminResourceImpl(String contextPath) {
         this.basePath = contextPath + "/";
         this.contextPath = contextPath;
-        this.pageUris = wrapperUris(getUris(AdminConstants.ADMIN_URI_BASE_PATH + "/pwa-page.txt"));
+        this.pageUris = wrapperUris(getUris("/conf/pwa-page.txt"));
         this.apiUris = getUris("/conf/pwa-api.txt");
         this.staticUris = getStaticUri();
         Map<String, Object> resourceMap = new TreeMap<>();
@@ -53,12 +51,6 @@ public class AdminResourceImpl implements AdminResource {
             throw new RuntimeException(e);
         }
         this.fileBuildId = Math.abs(SecurityUtils.md5(new Gson().toJson(resourceMap)).hashCode());
-    }
-
-    public static void main(String[] args) {
-        System.out.println("js = " + IOUtil.getStringInputStream(new AdminResourceImpl("").renderServiceWorker(null)));
-        Set<String> adminPageUris = new AdminResourceImpl("").getAdminPageUris();
-        System.out.println(adminPageUris);
     }
 
     private Set<String> getStaticUri() {
@@ -176,36 +168,39 @@ public class AdminResourceImpl implements AdminResource {
     }
 
     @Override
-    public Map<String, Object> adminResourceInfo(HttpRequest request) {
+    public AdminResourceInfoResponse adminResourceInfo(HttpRequest request) {
         String lang = I18nUtil.getCurrentLocale();
-        Map<String, Object> stringObjectMap = new TreeMap<>();
+        AdminResourceInfoResponse response = new AdminResourceInfoResponse();
         PublicWebSiteInfo publicWebSiteInfo = AdminConstants.getPublicWebSiteInfo();
-        stringObjectMap.put("currentVersion", BlogBuildInfoUtil.getBuildId());
+        response.setCurrentVersion(BlogBuildInfoUtil.getBuildId());
         if (Objects.nonNull(publicWebSiteInfo)) {
-            stringObjectMap.put("websiteTitle", ObjectUtil.requireNonNullElse(publicWebSiteInfo.getTitle(), ""));
-            stringObjectMap.put("admin_darkMode", Objects.equals(publicWebSiteInfo.getAdmin_darkMode(), true));
-            stringObjectMap.put("admin_theme", Objects.requireNonNullElse(publicWebSiteInfo.getAdmin_theme(), "default"));
-            stringObjectMap.put("admin_compactMode", Objects.equals(publicWebSiteInfo.getAdmin_compactMode(), true));
-            stringObjectMap.put("appId", ObjectUtil.requireNonNullElse(publicWebSiteInfo.getAppId(), ""));
-            stringObjectMap.put("admin_color_primary", ObjectUtil.requireNonNullElse(publicWebSiteInfo.getAdmin_color_primary(), WebSiteUtils.DEFAULT_COLOR_PRIMARY_COLOR));
+            response.setWebsiteTitle(ObjectUtil.requireNonNullElse(publicWebSiteInfo.getTitle(), ""));
+            response.setAdmin_darkMode(Objects.equals(publicWebSiteInfo.getAdmin_darkMode(), true));
+            response.setAdmin_theme(Objects.requireNonNullElse(publicWebSiteInfo.getAdmin_theme(), "default"));
+            response.setAdmin_compactMode(Objects.equals(publicWebSiteInfo.getAdmin_compactMode(), true));
+            response.setAppId(ObjectUtil.requireNonNullElse(publicWebSiteInfo.getAppId(), ""));
+            response.setAdmin_color_primary(ObjectUtil.requireNonNullElse(publicWebSiteInfo.getAdmin_color_primary(), WebSiteUtils.DEFAULT_COLOR_PRIMARY_COLOR));
         }
-        stringObjectMap.put("homeUrl", ZrLogUtil.getHomeUrlWithHost(request));
-        stringObjectMap.put("articleRoute", "");
+        response.setHomeUrl(ZrLogUtil.getHomeUrlWithHost(request));
+        response.setArticleRoute("");
         if (ZrLogUtil.isPreviewMode()) {
-            Map<String, String> defaultLoginInfo = new HashMap<>();
-            defaultLoginInfo.put("userName", System.getenv("DEFAULT_USERNAME"));
-            defaultLoginInfo.put("password", System.getenv("DEFAULT_PASSWORD"));
-            defaultLoginInfo.put("backendServerUrl", ObjectUtil.requireNonNullElse(System.getenv("DEFAULT_BACKEND_SERVER_URL"), "/"));
-            stringObjectMap.put("defaultLoginInfo", defaultLoginInfo);
+            AdminResourceInfoResponse.DefaultLoginInfo defaultLoginInfo = new AdminResourceInfoResponse.DefaultLoginInfo();
+            defaultLoginInfo.setUserName(System.getenv("DEFAULT_USERNAME"));
+            defaultLoginInfo.setPassword(System.getenv("DEFAULT_PASSWORD"));
+            defaultLoginInfo.setBackendServerUrl(ObjectUtil.requireNonNullElse(System.getenv("DEFAULT_BACKEND_SERVER_URL"), "/"));
+            response.setDefaultLoginInfo(defaultLoginInfo);
         }
-        stringObjectMap.put("buildId", BlogBuildInfoUtil.getBuildId());
-        stringObjectMap.put("lang", lang);
-        stringObjectMap.put("staticPage", BaseStaticSitePlugin.isStaticPluginRequest(request));
+        response.setBuildId(BlogBuildInfoUtil.getBuildId());
+        response.setLang(lang);
+        response.setStaticPage(BaseStaticSitePlugin.isStaticPluginRequest(request));
         //remove
-        stringObjectMap.put("staticPlugin", BaseStaticSitePlugin.isStaticPluginRequest(request));
-        stringObjectMap.put("supportSse", !EnvKit.isLambda() || EnvKit.isLambdaResponseStreamEnabled());
-        stringObjectMap.put("admin_static_resource_base_url", AdminWebTools.getAdminStaticResourceBaseUrlByWebSite(request));
-        return stringObjectMap;
+        response.setStaticPlugin(BaseStaticSitePlugin.isStaticPluginRequest(request));
+        response.setSupportSse(!EnvKit.isLambda() || EnvKit.isLambdaResponseStreamEnabled());
+        response.setAdmin_static_resource_base_url(AdminWebTools.getAdminStaticResourceBaseUrlByWebSite(request));
+        FeatureLabWebSiteInfo featureLab = new WebSiteService().featureLab();
+        response.setFeature_webhook_enabled(featureLab.getFeature_webhook_enabled());
+        response.setFeature_personal_data_enabled(featureLab.getFeature_personal_data_enabled());
+        return response;
     }
 
 }

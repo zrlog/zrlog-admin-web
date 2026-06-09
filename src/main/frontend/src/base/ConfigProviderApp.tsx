@@ -1,4 +1,4 @@
-import { App, ConfigProvider } from "antd";
+import { App, ConfigProvider, theme as antdTheme } from "antd";
 import { useEffect, useState } from "react";
 import { isOffline } from "../utils/env-utils";
 import { getContextPath } from "../utils/helpers";
@@ -26,9 +26,14 @@ import StyledApp from "./StyledApp";
 
 type ChangeAbleState = AppCompactModeState | AppColorPrimaryState | AppDarkState | AppLangState | AppThemeState;
 
+declare global {
+    interface Window {
+        changeAppState?: (appState: ChangeAbleState | AppState) => void;
+    }
+}
+
 export const changeAppState = (appState: ChangeAbleState | AppState) => {
-    //@ts-ignore
-    window.changeAppState(appState);
+    window.changeAppState?.(appState);
 };
 
 const getDefaultAppState = (): AppState => {
@@ -45,8 +50,47 @@ const getDefaultAppState = (): AppState => {
 let gAppState = getDefaultAppState();
 
 export const getAppState = (): AppState => {
-    //console.info(gAppState);
     return gAppState;
+};
+
+type ConfiguredAppContentProps = {
+    appState: AppState;
+    basePath: string;
+    onInit: (newState: ChangeAbleState) => void;
+};
+
+const ConfiguredAppContent = ({ appState, basePath, onInit }: ConfiguredAppContentProps) => {
+    const { token } = antdTheme.useToken();
+
+    return (
+        <ConfigProvider
+            avatar={{
+                style: {
+                    borderRadius: token.borderRadiusLG,
+                },
+            }}
+        >
+            <App>
+                <StyleProvider transformers={[legacyLogicalPropertiesTransformer]}>
+                    <StyledApp theme={appState.theme} />
+                    <BrowserRouter
+                        basename={basePath}
+                        future={{
+                            v7_relativeSplatPath: true,
+                            v7_startTransition: true,
+                        }}
+                    >
+                        <Routes>
+                            <Route
+                                path={"/*"}
+                                element={<AppInit lang={appState.lang} offline={appState.offline} onInit={onInit} />}
+                            />
+                        </Routes>
+                    </BrowserRouter>
+                </StyleProvider>
+            </App>
+        </ConfigProvider>
+    );
 };
 
 const ConfigProviderApp = () => {
@@ -61,7 +105,6 @@ const ConfigProviderApp = () => {
         });
     };
 
-    //@ts-ignore
     window.changeAppState = (newAppState: ChangeAbleState) => {
         setState((prevState) => {
             gAppState = {
@@ -111,38 +154,18 @@ const ConfigProviderApp = () => {
             locale={appState.lang.startsWith("en") ? en_US : zh_CN}
             componentSize={appState.compactMode ? "small" : undefined}
         >
-            <App>
-                <StyleProvider transformers={[legacyLogicalPropertiesTransformer]}>
-                    <StyledApp theme={appState.theme} />
-                    <BrowserRouter
-                        basename={basePath}
-                        future={{
-                            v7_relativeSplatPath: true,
-                            v7_startTransition: true,
-                        }}
-                    >
-                        <Routes>
-                            <Route
-                                path={"/*"}
-                                element={
-                                    <AppInit
-                                        lang={appState.lang}
-                                        offline={appState.offline}
-                                        onInit={(newState) => {
-                                            setState((prevState) => {
-                                                return {
-                                                    ...prevState,
-                                                    ...newState,
-                                                };
-                                            });
-                                        }}
-                                    />
-                                }
-                            />
-                        </Routes>
-                    </BrowserRouter>
-                </StyleProvider>
-            </App>
+            <ConfiguredAppContent
+                appState={appState}
+                basePath={basePath}
+                onInit={(newState) => {
+                    setState((prevState) => {
+                        return {
+                            ...prevState,
+                            ...newState,
+                        };
+                    });
+                }}
+            />
         </ConfigProvider>
     );
 };

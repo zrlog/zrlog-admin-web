@@ -1,12 +1,13 @@
 import { Route, Routes, useNavigate } from "react-router-dom";
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useMemo } from "react";
 import { App, Spin } from "antd";
 import axios, { AxiosError, AxiosInstance } from "axios";
-import { API_DO_UPGRADE_PATH, API_VERSION_PATH } from "../components/upgrade";
+import { API_DO_UPGRADE_PATH, API_VERSION_PATH } from "../api";
 import ErrorBoundary from "../common/ErrorBoundary";
 import { getBackendServerUrl, getRealRouteUrl, getRes, isStaticPage } from "../utils/constants";
 import AdminDashboardPage from "../components/admin-dashboard-page";
 import { NavigateFunction } from "react-router";
+import { syncMessageCenterStatus } from "../utils/message-center-status";
 
 const AsyncLogin = lazy(() => import("components/login"));
 
@@ -27,92 +28,97 @@ export const jumpToLoginPage = (navigate: NavigateFunction): void => {
 
 export const useAxiosBaseInstance = (getContainer?: () => HTMLElement): AxiosInstance => {
     const { modal, message } = App.useApp();
-
     const navigate = useNavigate();
 
-    const axiosInstance = axios.create();
-    if (isStaticPage()) {
-        axiosInstance.defaults.withCredentials = true;
-    }
-
-    const commonAxiosErrorHandle = (error: any): Promise<any> => {
-        //ignore upgrade api error
-        if ((error as AxiosError) && error.config && error.config.url) {
-            if (error.config.url.includes(API_VERSION_PATH)) {
-                return Promise.reject(error.message);
-            }
-            if (error.config.url.includes(API_DO_UPGRADE_PATH)) {
-                return Promise.reject(error.message);
-            }
+    return useMemo(() => {
+        const axiosInstance = axios.create();
+        if (isStaticPage()) {
+            axiosInstance.defaults.withCredentials = true;
         }
-        if (error && error.response) {
-            if (error.response.status) {
-                modal.error({
-                    title: `${getRes().error.serviceException}[${error.response.status}]`,
-                    content: (
-                        <div
-                            style={{ paddingTop: 20, overflow: "auto" }}
-                            dangerouslySetInnerHTML={{ __html: error.response.data }}
-                        />
-                    ),
-                    getContainer: getContainer ? getContainer() : undefined,
-                });
-                return Promise.reject(error.response);
-            }
-        } else {
+
+        const commonAxiosErrorHandle = (error: any): Promise<any> => {
+            // Upgrade flow handles these request failures in its own progress UI.
             if ((error as AxiosError) && error.config && error.config.url) {
-                if (navigator.onLine) {
-                    modal.error({
-                        title: `${getRes().error.requestError}: ${error.config.url}`,
-                        content: error.message,
-                        getContainer: getContainer ? getContainer() : undefined,
-                    });
-                } else {
-                    message.error(
-                        `${getRes().error.requestError}: ${error.config.url} ${error.toString()} ${
-                            getRes().error.networkOffline
-                        }`
-                    );
+                if ((error.config as any).showError === false) {
+                    return Promise.reject(error);
+                }
+                if (error.config.url.includes(API_VERSION_PATH)) {
+                    return Promise.reject(error.message);
+                }
+                if (error.config.url.includes(API_DO_UPGRADE_PATH)) {
+                    return Promise.reject(error.message);
                 }
             }
-        }
-        return Promise.reject(error);
-    };
-
-    axiosInstance.defaults.baseURL = getBackendServerUrl();
-
-    axiosInstance.interceptors.response.use(
-        (response) => {
-            const errorCode = response.data.error;
-            if (errorCode === 9001) {
-                let count = errorCountMap.get(errorCode);
-                if (count === null || count === undefined) {
-                    count = 0;
-                }
-                if (count === 0) {
-                    errorCountMap.set(errorCode, count + 1);
+            if (error && error.response) {
+                if (error.response.status) {
                     modal.error({
-                        title: response.data.error,
-                        content: response.data.message,
+                        title: `${getRes().error.serviceException}[${error.response.status}]`,
+                        content: (
+                            <div
+                                style={{ paddingTop: 20, overflow: "auto" }}
+                                dangerouslySetInnerHTML={{ __html: error.response.data }}
+                            />
+                        ),
                         getContainer: getContainer ? getContainer() : undefined,
-                        onOk: () => {
-                            errorCountMap.set(errorCode, 0);
-                        },
                     });
+                    return Promise.reject(error.response);
                 }
-
-                if (isStaticPage()) {
-                    jumpToLoginPage(navigate);
+            } else {
+                if ((error as AxiosError) && error.config && error.config.url) {
+                    if (navigator.onLine) {
+                        modal.error({
+                            title: `${getRes().error.requestError}: ${error.config.url}`,
+                            content: error.message,
+                            getContainer: getContainer ? getContainer() : undefined,
+                        });
+                    } else {
+                        message.error(
+                            `${getRes().error.requestError}: ${error.config.url} ${error.toString()} ${
+                                getRes().error.networkOffline
+                            }`
+                        );
+                    }
                 }
-                return Promise.reject(response.data);
             }
-            return response;
-        },
-        (error) => {
-            return commonAxiosErrorHandle(error);
-        }
-    );
-    return axiosInstance;
+            return Promise.reject(error);
+        };
+
+        axiosInstance.defaults.baseURL = getBackendServerUrl();
+
+        axiosInstance.interceptors.response.use(
+            (response) => {
+                syncMessageCenterStatus(response.data?.messageCenter);
+                const errorCode = response.data.error;
+                if (errorCode === 9001) {
+                    let count = errorCountMap.get(errorCode);
+                    if (count === null || count === undefined) {
+                        count = 0;
+                    }
+                    if (count === 0) {
+                        errorCountMap.set(errorCode, count + 1);
+                        modal.error({
+                            title: response.data.error,
+                            content: response.data.message,
+                            getContainer: getContainer ? getContainer() : undefined,
+                            onOk: () => {
+                                errorCountMap.set(errorCode, 0);
+                            },
+                        });
+                    }
+
+                    if (isStaticPage()) {
+                        jumpToLoginPage(navigate);
+                    }
+                    return Promise.reject(response.data);
+                }
+                return response;
+            },
+            (error) => {
+                return commonAxiosErrorHandle(error);
+            }
+        );
+        return axiosInstance;
+    }, [modal, message, navigate, getContainer]);
 };
 
 export const buildUriPaths = (uri: string) => {

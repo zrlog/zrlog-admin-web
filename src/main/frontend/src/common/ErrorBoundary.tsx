@@ -1,4 +1,4 @@
-import { useState, useEffect, FunctionComponent, PropsWithChildren } from "react";
+import { FunctionComponent, PropsWithChildren, useEffect, useState } from "react";
 import UnknownErrorPage from "../components/unknown-error-page";
 
 const ErrorBoundary: FunctionComponent<PropsWithChildren> = ({ children }) => {

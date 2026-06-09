@@ -55,7 +55,7 @@ public class TemplateService {
         }
         new WebSite().updateTemplateConfigMap(template, settingMap);
         UpdateRecordResponse updateRecordResponse = new UpdateRecordResponse();
-        updateRecordResponse.setMessage(I18nUtil.getAdminBackendStringFromRes("templateUpdateSuccess"));
+        updateRecordResponse.setMessage(I18nUtil.getAdminBackendStringFromRes("admin.template.update.success"));
         return updateRecordResponse;
     }
 
@@ -66,7 +66,7 @@ public class TemplateService {
         //start extract template file
         FileUtils.moveOrCopyFile(file.toString(), finalFile, true);
         UploadTemplateResponse response = new UploadTemplateResponse();
-        response.setMessage(I18nUtil.getAdminBackendStringFromRes("templateUploadSuccess"));
+        response.setMessage(I18nUtil.getAdminBackendStringFromRes("admin.template.upload.success"));
         String extractFolder = finalPath + templateName.replace(".zip", "");
         FileUtils.deleteFile(extractFolder);
         ZipUtil.unZip(finalFile, extractFolder);

@@ -49,3 +49,5 @@ README.en-us.md
 conf/temp.properties
 .codex
 src/main/resources/admin
+src/main/frontend/build
+lib

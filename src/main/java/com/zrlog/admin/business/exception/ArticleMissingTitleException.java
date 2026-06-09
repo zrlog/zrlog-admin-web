@@ -1,16 +1,13 @@
 package com.zrlog.admin.business.exception;
 
-import com.zrlog.common.exception.AbstractBusinessException;
-import com.zrlog.util.I18nUtil;
+public class ArticleMissingTitleException extends AbstractAdminBusinessException {
 
-public class ArticleMissingTitleException extends AbstractBusinessException {
-    @Override
-    public int getError() {
-        return 9026;
+    public ArticleMissingTitleException() {
+        super("admin.article.validation.titleRequired");
     }
 
     @Override
-    public String getMessage() {
-        return I18nUtil.getAdminBackendStringFromRes("article_require_title");
+    public int getError() {
+        return 9026;
     }
 }

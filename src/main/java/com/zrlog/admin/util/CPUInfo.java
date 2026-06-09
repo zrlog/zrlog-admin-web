@@ -36,10 +36,6 @@ public class CPUInfo {
         return instance;
     }
 
-    public static void main(String[] args) {
-        System.out.println("CPU Model: " + instance.getCpuModel());
-    }
-
     public String getCpuModel() {
         return cpuModel;
     }

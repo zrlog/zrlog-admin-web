@@ -2,8 +2,11 @@ package com.zrlog.admin.web.controller.api;
 
 import com.hibegin.http.annotation.ResponseBody;
 import com.hibegin.http.server.execption.NotFindResourceException;
-import com.zrlog.admin.business.rest.response.AdminApiPageDataStandardResponse;
+import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
 import com.zrlog.admin.business.rest.response.AdminStaticSiteSyncResponse;
+import com.zrlog.admin.business.service.AdminAuditService;
+import com.zrlog.admin.business.service.MessageCenterOperationService;
+import com.zrlog.admin.business.type.AdminAuditAction;
 import com.zrlog.admin.util.AdminStaticSiteSsePublisher;
 import com.zrlog.admin.web.annotation.RequestLock;
 import com.zrlog.admin.web.plugin.AdminStaticResourcePlugin;
@@ -13,6 +16,7 @@ import com.zrlog.business.plugin.type.StaticSiteType;
 import com.zrlog.business.util.CacheUtils;
 import com.zrlog.common.Constants;
 import com.zrlog.common.controller.BaseController;
+import com.zrlog.common.rest.response.ApiStandardResponse;
 
 import java.io.IOException;
 import java.util.List;
@@ -25,8 +29,8 @@ public class AdminStaticSiteController extends BaseController {
     @RequestLock
     public void startSync() throws IOException {
         if (StaticSitePlugin.isDisabled()) {
-            //仅让浏览器刷新
-            response.renderJson(new AdminApiPageDataStandardResponse<>(new AdminStaticSiteSyncResponse(true)));
+            // 静态化未启用时，只通知浏览器刷新缓存状态。
+            response.renderJson(new ApiStandardResponse<>(new AdminStaticSiteSyncResponse(true)));
             return;
         }
         AdminStaticResourcePlugin adminStaticResourcePlugin = Constants.zrLogConfig.getPlugin(AdminStaticResourcePlugin.class);
@@ -35,7 +39,10 @@ public class AdminStaticSiteController extends BaseController {
         }
         List<StaticSiteType> siteTypes = List.of(StaticSiteType.ADMIN);
         if (!isSseRequest()) {
-            response.renderJson(new AdminApiPageDataStandardResponse<>(new AdminStaticSiteSyncResponse(CacheUtils.refreshStaticSiteCache(request, siteTypes))));
+            boolean synced = CacheUtils.refreshStaticSiteCache(request, siteTypes);
+            new MessageCenterOperationService().recordStaticSiteSync(siteTypes, synced);
+            new AdminAuditService().record(request, AdminAuditAction.SYNC_ADMIN_STATIC_SITE);
+            response.renderJson(new ApiStandardResponse<>(new AdminStaticSiteSyncResponse(synced)));
             return;
         }
         AtomicBoolean synced = new AtomicBoolean(false);
@@ -46,7 +53,11 @@ public class AdminStaticSiteController extends BaseController {
                 emitter -> {
                 },
                 () -> synced.set(CacheUtils.refreshStaticSiteCache(request, siteTypes)),
-                emitter -> emitter.send("response", new AdminApiPageDataStandardResponse<>(new AdminStaticSiteSyncResponse(synced.get())))
+                emitter -> {
+                    new MessageCenterOperationService().recordStaticSiteSync(siteTypes, synced.get());
+                    new AdminAuditService().record(request, AdminAuditAction.SYNC_ADMIN_STATIC_SITE);
+                    emitter.send("response", new ApiStandardResponse<>(new AdminStaticSiteSyncResponse(synced.get())));
+                }
         );
     }
 
@@ -56,14 +67,14 @@ public class AdminStaticSiteController extends BaseController {
     }
 
     @ResponseBody
-    public AdminApiPageDataStandardResponse<AdminStaticSiteSyncResponse> index() {
+    public AdminPageDataResponse<AdminStaticSiteSyncResponse> index() {
         if (StaticSitePlugin.isDisabled()) {
-            return new AdminApiPageDataStandardResponse<>(new AdminStaticSiteSyncResponse(true), "", request.getUri());
+            return new AdminPageDataResponse<>(new AdminStaticSiteSyncResponse(true), "", request.getUri());
         }
         AdminStaticResourcePlugin adminStaticResourcePlugin = Constants.zrLogConfig.getPlugin(AdminStaticResourcePlugin.class);
         if (Objects.isNull(adminStaticResourcePlugin)) {
             throw new NotFindResourceException("plugin not found");
         }
-        return new AdminApiPageDataStandardResponse<>(new AdminStaticSiteSyncResponse(adminStaticResourcePlugin.isSynchronized(AdminTokenThreadLocal.getUserProtocol())), "", request.getUri());
+        return new AdminPageDataResponse<>(new AdminStaticSiteSyncResponse(adminStaticResourcePlugin.isSynchronized(AdminTokenThreadLocal.getUserProtocol())), "", request.getUri());
     }
 }

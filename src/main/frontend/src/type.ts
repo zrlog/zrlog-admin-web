@@ -1,4 +1,6 @@
-import { ActivityDay } from "./components/index/ActivityGraph";
+import {ActivityDay} from "./components/index/ActivityGraph";
+import {InteractiveSurface} from "./common/plugin-surface/types";
+import type {BackgroundTaskStatus} from "./utils/background-task-store";
 
 export type AppCompactModeState = {
     compactMode: boolean;
@@ -32,7 +34,6 @@ export type UpgradeData = {
     upgrade: boolean;
     onlineUpgradable: boolean;
     disableUpgradeReason: string;
-    preUpgradeKey: string;
     version: UpgradeVersion;
 };
 
@@ -42,6 +43,10 @@ export type ApiResponse<T> = {
     message: string;
     pageBuildId: string;
     documentTitle?: string;
+    messageCenter?: {
+        revision: number;
+        hasUnread: boolean;
+    };
 };
 
 export type UpgradeVersion = {
@@ -50,6 +55,10 @@ export type UpgradeVersion = {
     releaseDate?: string;
     version: string;
     type: string;
+};
+
+export type PublicVersionResponse = {
+    buildId?: string;
 };
 
 export type StatisticsInfoState = {
@@ -62,7 +71,7 @@ export type StatisticsInfoState = {
     publishedCount: number;
     typeData: { typeName: string, alias: string, typeamount: number }[];
     tagData: { text: string, count: number }[];
-    auditLogs?: { timestamp: number, ip: string, action: string, type: string, os?: string, browser?: string, crawler?: boolean }[];
+    auditLogs?: { timestamp: number, ip: string, action: string, type: string, content?: string, os?: string, browser?: string, crawler?: boolean }[];
     loading: boolean;
     usedCacheSpace: number | string;
     usedDiskSpace: number | string;
@@ -74,14 +83,61 @@ export type Version = {
     version: string;
 };
 
-export type MessageCenterNotice = {
+type MessageCenterNoticeBase = {
     taskKey: string;
     type: "versionUpdate" | "unreadComment" | string;
-    status: "notice" | "running" | "success" | "error";
+    status: BackgroundTaskStatus;
     updatedAt: number;
-    version?: UpgradeVersion;
-    count?: number;
 };
+
+export type VersionUpdateNotice = MessageCenterNoticeBase & {
+    type: "versionUpdate";
+    payload: {
+        version: UpgradeVersion;
+    };
+};
+
+export type UnreadCommentNotice = MessageCenterNoticeBase & {
+    type: "unreadComment";
+    payload: {
+        count: number;
+    };
+};
+
+export type WebhookMessageNotice = MessageCenterNoticeBase & {
+    type: "webhookMessage";
+    payload: {
+        title: string;
+        description?: string;
+        actionLabel?: string;
+        actionPath?: string;
+        source?: string;
+        closable?: boolean;
+        payload?: Record<string, unknown>;
+    };
+};
+
+export type OperationTaskNotice = MessageCenterNoticeBase & {
+    type: "operationTask";
+    payload: {
+        title: string;
+        description?: string;
+        actionLabel?: string;
+        actionPath?: string;
+        source?: string;
+        closable?: boolean;
+        payload?: Record<string, unknown>;
+    };
+};
+
+export type MessageCenterNotice =
+    | VersionUpdateNotice
+    | UnreadCommentNotice
+    | WebhookMessageNotice
+    | OperationTaskNotice
+    | (MessageCenterNoticeBase & {
+          payload?: Record<string, unknown>;
+      });
 
 export type BasicUserInfo = {
     userName: string;
@@ -93,6 +149,7 @@ export enum AIProviderType {
     DEEP_SEEK = "DEEP_SEEK",
     OPEN_AI = "OPEN_AI",
     QWEN = "QWEN",
+    GOOGLE_GEMINI = "GOOGLE_GEMINI",
 }
 
 export type LoginUserResponseInfo = BasicUserInfo & {
@@ -117,6 +174,10 @@ export type AdminCommonProps<P> = {
     userInfo?: BasicUserInfo;
     pageBuildId?: string;
     systemNotification?: string;
+    messageCenter?: {
+        revision: number;
+        hasUnread: boolean;
+    };
     updateCache?: (cache: P, cacheKey: string) => void;
 };
 
@@ -132,37 +193,50 @@ export type IndexData = {
     tips: string[];
     welcomeTip: string;
     versionInfo: string;
+    dashboardConfig: AdminDashboardConfig;
 };
+
+export type AdminDashboardCardConfig = {
+    id: "welcome" | "localDraft" | "quickAction" | "statistics" | "activity" | "pluginPanels" | "auditTrail" | "dataInsights" | string;
+    enabled: boolean;
+    sort?: number;
+    title?: string;
+    data?: Record<string, unknown>;
+};
+
+export type AdminDashboardPluginPanelConfig = {
+    id?: string;
+    enabled?: boolean;
+    type?: "surface" | "view";
+    pluginName?: string;
+    title?: string;
+    surfaceUrl?: string;
+    actionUrl?: string;
+    viewUrl?: string;
+    maxItems?: number;
+    height?: number;
+    sort?: number;
+    order?: number;
+    data?: Record<string, unknown> | InteractiveSurface;
+    error?: string;
+    surfaceLoaded?: boolean;
+};
+
+export type AdminDashboardConfig = {
+    cards: AdminDashboardLayoutItem[];
+    autoRefreshEnabled?: boolean;
+    autoRefreshIntervalSeconds?: number;
+};
+
+export type AdminDashboardLayoutItem = ({
+    kind: "card";
+} & AdminDashboardCardConfig) | ({
+    kind: "plugin";
+} & AdminDashboardPluginPanelConfig);
 
 export type SystemData = {
     serverInfos: ServerInfoEntry[];
     serverInfos2: ServerInfoEntry[];
     dockerMode: boolean;
     nativeImageMode: boolean;
-};
-
-export type HealthCheckIssue = {
-    key: string;
-    severity: "warning" | "info" | "error";
-    count: number;
-    samples: string[];
-    actionUri?: string | null;
-};
-
-export type HealthCheckSuggestion = {
-    key: string;
-    actionUri?: string | null;
-};
-
-export type SystemHealthData = {
-    checkedAt: number;
-    score: number;
-    brokenLinkCount: number;
-    seoIssueCount: number;
-    databaseFragmentValue: number;
-    databaseFragmentLabel: string;
-    databaseEngine: string;
-    canOptimizeDatabase: boolean;
-    issues: HealthCheckIssue[];
-    suggestions: HealthCheckSuggestion[];
 };

@@ -1,10 +1,10 @@
-import { useMemo } from "react";
+import {useMemo} from "react";
 import raf from "@rc-component/util/lib/raf";
-import type { ConfigProviderProps, GetProp } from "antd";
-import { colorToRgba } from "../../layout/slider";
-import { getAppState } from "../ConfigProviderApp";
-import { AppState } from "../../type";
-import { themeAlgorithms } from "../../utils/theme-utils";
+import type {ConfigProviderProps, GetProp} from "antd";
+import {colorToRgba} from "../../layout/slider";
+import {getAppState} from "../ConfigProviderApp";
+import {AppState} from "../../type";
+import {themeAlgorithms} from "../../utils/theme-utils";
 
 type WaveConfig = GetProp<ConfigProviderProps, "wave">;
 

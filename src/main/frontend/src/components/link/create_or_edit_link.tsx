@@ -5,6 +5,7 @@ import TextArea from "antd/es/input/TextArea";
 import { Link } from "react-router-dom";
 import { getRes } from "../../utils/constants";
 import { postRefreshCacheSse } from "../../utils/sse-utils";
+import { useResponsiveFormLayout } from "../../utils/responsive-form";
 
 const layout = {
     labelCol: { span: 4 },
@@ -31,6 +32,7 @@ const CreateOrEditLink: FunctionComponent<EditLinkProps> = ({ record, editSucces
     const [updateForm, setUpdateForm] = useState<LinkEntry>(record);
     const [messageApi, contextHolder] = message.useMessage({ maxCount: 3 });
     const [loading, setLoading] = useState<boolean>(false);
+    const { formLayout, narrow } = useResponsiveFormLayout(layout);
 
     const isUpdate = () => {
         return record.id && record.id > 0;
@@ -95,8 +97,9 @@ const CreateOrEditLink: FunctionComponent<EditLinkProps> = ({ record, editSucces
                     loading: loading,
                 }}
                 onCancel={() => setShowModel(false)}
+                width={narrow ? "calc(100vw - 32px)" : undefined}
             >
-                <Form initialValues={updateForm} onValuesChange={(_k, v) => setValue(v)} {...layout}>
+                <Form initialValues={updateForm} onValuesChange={(_k, v) => setValue(v)} {...formLayout}>
                     <Form.Item name="id" style={{ display: "none" }}>
                         <Input hidden={true} />
                     </Form.Item>
@@ -107,8 +110,9 @@ const CreateOrEditLink: FunctionComponent<EditLinkProps> = ({ record, editSucces
                                 style={{ marginBottom: 8 }}
                                 name="url"
                                 rules={[{ required: true, message: "" }]}
+                                extra={getRes().link.urlHelp}
                             >
-                                <Input />
+                                <Input placeholder={getRes().link.urlPlaceholder} />
                             </Form.Item>
                         </Col>
                     </Row>
@@ -119,8 +123,9 @@ const CreateOrEditLink: FunctionComponent<EditLinkProps> = ({ record, editSucces
                                 style={{ marginBottom: 8 }}
                                 name="linkName"
                                 rules={[{ required: true, message: "" }]}
+                                extra={getRes().link.nameHelp}
                             >
-                                <Input />
+                                <Input placeholder={getRes().link.namePlaceholder} />
                             </Form.Item>
                         </Col>
                     </Row>
@@ -131,8 +136,9 @@ const CreateOrEditLink: FunctionComponent<EditLinkProps> = ({ record, editSucces
                                 style={{ marginBottom: 8 }}
                                 name="alt"
                                 rules={[{ required: true, message: "" }]}
+                                extra={getRes().link.introductionHelp}
                             >
-                                <TextArea />
+                                <TextArea placeholder={getRes().link.introductionPlaceholder} />
                             </Form.Item>
                         </Col>
                     </Row>
@@ -143,8 +149,9 @@ const CreateOrEditLink: FunctionComponent<EditLinkProps> = ({ record, editSucces
                                 style={{ marginBottom: 8 }}
                                 name="icon"
                                 rules={[{ message: "" }]}
+                                extra={getRes().link.iconHelp}
                             >
-                                <Input />
+                                <Input placeholder={getRes().link.iconPlaceholder} />
                             </Form.Item>
                         </Col>
                     </Row>
@@ -155,8 +162,9 @@ const CreateOrEditLink: FunctionComponent<EditLinkProps> = ({ record, editSucces
                                 style={{ marginBottom: 8 }}
                                 name="sort"
                                 rules={[{ required: true, message: "" }]}
+                                extra={getRes().link.sortHelp}
                             >
-                                <InputNumber />
+                                <InputNumber style={{ width: "100%" }} placeholder={getRes().link.sortPlaceholder} />
                             </Form.Item>
                         </Col>
                     </Row>

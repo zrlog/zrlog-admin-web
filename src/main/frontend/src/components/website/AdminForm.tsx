@@ -1,11 +1,9 @@
-import Title from "antd/es/typography/Title";
-import Divider from "antd/es/divider";
 import Form from "antd/es/form";
+import { useTheme } from "antd-style";
 import Input from "antd/es/input";
 import Switch from "antd/es/switch";
 import { getPreset, getRes } from "../../utils/constants";
 import Select from "antd/es/select";
-import Button from "antd/es/button";
 import { useEffect, useState } from "react";
 import { ColorPicker, InputNumber } from "antd";
 import { Admin } from "./index";
@@ -15,7 +13,8 @@ import zh_CN from "antd/es/locale/zh_CN";
 import en_US from "antd/es/locale/en_US";
 import { changeAppState, getAppState } from "../../base/ConfigProviderApp";
 import { getColorByTheme, isDarkByTheme, isSupportDarkMode } from "../../base/AppInit";
-import { editorLang } from "@editor/dist/src/editor/lang/editor-lang";
+import { useResponsiveFormLayout } from "../../utils/responsive-form";
+import WebsiteSubmitBar from "./WebsiteSubmitBar";
 
 const layout = {
     labelCol: { span: 8 },
@@ -54,6 +53,10 @@ const namedPresetColorDefs = [
     { key: "charcoalGray", color: "rgb(33, 33, 33)" },
 ] as const;
 
+type PaginationLocaleWithItems = {
+    items_per_page?: string;
+};
+
 const BlogForm = ({
     data,
     offlineData,
@@ -69,14 +72,12 @@ const BlogForm = ({
 }) => {
     const [state, setState] = useState<Admin>(data);
     const [form] = Form.useForm();
+    const { formLayout } = useResponsiveFormLayout(layout);
+    const theme = useTheme();
 
-    const getItems_per_page = () => {
-        if (getRes().lang === "zh_CN") {
-            // @ts-ignore
-            return zh_CN.Pagination.items_per_page;
-        }
-        // @ts-ignore
-        return en_US.Pagination.items_per_page;
+    const getItemsPerPage = () => {
+        const paginationLocale = getRes().lang === "zh_CN" ? zh_CN.Pagination : en_US.Pagination;
+        return (paginationLocale as PaginationLocaleWithItems | undefined)?.items_per_page ?? "";
     };
 
     const onValueChange = (value: any) => {
@@ -116,7 +117,7 @@ const BlogForm = ({
 
     return (
         <Form
-            {...layout}
+            {...formLayout}
             form={form}
             disabled={offline || offlineData}
             initialValues={data}
@@ -125,6 +126,11 @@ const BlogForm = ({
             }}
             onFinish={(nv) => onSubmit({ ...state, ...nv, ...getRealState() })}
         >
+            <div
+                style={{ color: theme.colorText, fontSize: theme.fontSizeLG, fontWeight: 600, margin: "8px 0 16px 0" }}
+            >
+                {getRes().websiteAdmin.basicSettings}
+            </div>
             <Form.Item
                 name="admin_static_resource_base_url"
                 label={getRes().websiteAdmin.staticResource.url}
@@ -224,8 +230,11 @@ const BlogForm = ({
                     ]}
                 />
             </Form.Item>
-            <Title level={4}>{getRes().websiteAdmin.moreSettings}</Title>
-            <Divider />
+            <div
+                style={{ color: theme.colorText, fontSize: theme.fontSizeLG, fontWeight: 600, margin: "24px 0 16px 0" }}
+            >
+                {getRes().websiteAdmin.moreSettings}
+            </div>
             <Form.Item
                 name="admin_article_page_size"
                 label={getRes().websiteAdmin.article.pageSize}
@@ -236,42 +245,31 @@ const BlogForm = ({
                     options={[
                         {
                             value: 10,
-                            label: "10 " + getItems_per_page(),
+                            label: "10 " + getItemsPerPage(),
                         },
                         {
                             value: 20,
-                            label: "20 " + getItems_per_page(),
+                            label: "20 " + getItemsPerPage(),
                         },
                         {
                             value: 50,
-                            label: "50 " + getItems_per_page(),
+                            label: "50 " + getItemsPerPage(),
                         },
                         {
                             value: 100,
-                            label: "100 " + getItems_per_page(),
+                            label: "100 " + getItemsPerPage(),
                         },
                     ]}
                 />
             </Form.Item>
-            <Form.Item
-                name="article_auto_digest_length"
-                label={getRes().websiteAdmin.article.autoDigestLengthTips}
-                tooltip={getRes().websiteAdmin.article.autoDigestLengthHelp}
+            <div
+                style={{ color: theme.colorText, fontSize: theme.fontSizeLG, fontWeight: 600, margin: "24px 0 16px 0" }}
             >
-                <InputNumber
-                    suffix={editorLang[getAppState().lang].wordsCount}
-                    style={{ width: 120 }}
-                    max={99999}
-                    type={"number"}
-                    min={-1}
-                    placeholder=""
-                />
-            </Form.Item>
-            <Title level={4}>PWA</Title>
-            <Divider />
+                {getRes().websiteAdmin.pwa.title}
+            </div>
             <Form.Item
                 name="favicon_png_pwa_192_base64"
-                label={`${getRes().favicon} PWA (192px)`}
+                label={getRes().websiteAdmin.pwa.icon192}
                 tooltip={getRes().websiteAdmin.pwa.icon192Help}
             >
                 <FaviconUpload
@@ -283,7 +281,7 @@ const BlogForm = ({
             </Form.Item>
             <Form.Item
                 name="favicon_png_pwa_512_base64"
-                label={`${getRes().favicon} PWA (512px)`}
+                label={getRes().websiteAdmin.pwa.icon512}
                 tooltip={getRes().websiteAdmin.pwa.icon512Help}
             >
                 <FaviconUpload
@@ -293,16 +291,8 @@ const BlogForm = ({
                     }}
                 />
             </Form.Item>
-            <Divider />
-            <Button
-                enterKeyHint={"enter"}
-                loading={loading}
-                disabled={offline || offlineData}
-                type="primary"
-                htmlType="submit"
-            >
-                {getRes().submit}
-            </Button>
+
+            <WebsiteSubmitBar loading={loading} disabled={offline || offlineData} />
         </Form>
     );
 };

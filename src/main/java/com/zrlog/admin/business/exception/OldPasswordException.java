@@ -1,16 +1,13 @@
 package com.zrlog.admin.business.exception;
 
-import com.zrlog.common.exception.AbstractBusinessException;
-import com.zrlog.util.I18nUtil;
+public class OldPasswordException extends AbstractAdminBusinessException {
 
-public class OldPasswordException extends AbstractBusinessException {
-    @Override
-    public int getError() {
-        return 9013;
+    public OldPasswordException() {
+        super("admin.user.password.error.oldPassword");
     }
 
     @Override
-    public String getMessage() {
-        return I18nUtil.getAdminBackendStringFromRes("oldPasswordError");
+    public int getError() {
+        return 9013;
     }
 }

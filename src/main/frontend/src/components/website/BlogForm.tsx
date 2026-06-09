@@ -1,12 +1,12 @@
-import Divider from "antd/es/divider";
 import Form from "antd/es/form";
 import Input from "antd/es/input";
 import Switch from "antd/es/switch";
 import { getRes } from "../../utils/constants";
-import Button from "antd/es/button";
 import { useEffect, useState } from "react";
 import { Blog } from "./index";
 import TextArea from "antd/es/input/TextArea";
+import { useResponsiveFormLayout } from "../../utils/responsive-form";
+import WebsiteSubmitBar from "./WebsiteSubmitBar";
 
 const layout = {
     labelCol: { span: 8 },
@@ -28,6 +28,7 @@ const BlogForm = ({
 }) => {
     const [state, setState] = useState<Blog>(data);
     const [form] = Form.useForm();
+    const { formLayout } = useResponsiveFormLayout(layout);
 
     useEffect(() => {
         setState(data);
@@ -37,7 +38,7 @@ const BlogForm = ({
     return (
         <Form
             form={form}
-            {...layout}
+            {...formLayout}
             initialValues={data}
             disabled={offline || offlineData}
             onValuesChange={(_k, v) => setState({ ...state, ...v })}
@@ -72,16 +73,8 @@ const BlogForm = ({
             >
                 <TextArea />
             </Form.Item>
-            <Divider />
-            <Button
-                enterKeyHint={"enter"}
-                loading={loading}
-                type="primary"
-                disabled={offline || offlineData}
-                htmlType="submit"
-            >
-                {getRes().submit}
-            </Button>
+
+            <WebsiteSubmitBar loading={loading} disabled={offline || offlineData} />
         </Form>
     );
 };

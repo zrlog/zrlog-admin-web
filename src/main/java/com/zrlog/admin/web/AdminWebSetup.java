@@ -3,18 +3,14 @@ package com.zrlog.admin.web;
 import com.hibegin.common.util.EnvKit;
 import com.hibegin.http.server.api.Interceptor;
 import com.zrlog.admin.business.AdminConstants;
-import com.zrlog.admin.business.rest.base.*;
-import com.zrlog.admin.business.rest.request.*;
-import com.zrlog.admin.business.rest.response.*;
 import com.zrlog.admin.business.service.AdminResource;
 import com.zrlog.admin.util.AdminNativeImageUtils;
 import com.zrlog.admin.util.DevKit;
 import com.zrlog.admin.web.config.AdminRouters;
 import com.zrlog.admin.web.interceptor.*;
 import com.zrlog.admin.web.plugin.AdminStaticResourcePlugin;
-import com.zrlog.admin.web.plugin.UpdateVersionInfoPlugin;
+import com.zrlog.business.updater.UpdateVersionInfoPlugin;
 import com.zrlog.common.ZrLogConfig;
-import com.zrlog.data.dto.*;
 import com.zrlog.plugin.Plugins;
 import com.zrlog.web.WebSetup;
 
@@ -40,12 +36,15 @@ public class AdminWebSetup implements WebSetup {
     @Override
     public void setup() {
         List<Class<? extends Interceptor>> interceptors = zrLogConfig.getServerConfig().getInterceptors();
-        //admin
         interceptors.add(AdminCrossOriginInterceptor.class);
         interceptors.add(PwaInterceptor.class);
         interceptors.add(AdminPwaInterceptor.class);
         interceptors.add(AdminStaticResourceInterceptor.class);
         interceptors.add(AdminPluginInterceptor.class);
+        interceptors.add(AdminLoginInterceptor.class);
+        interceptors.add(AdminTemporaryResourceInterceptor.class);
+        interceptors.add(AdminDevFileInterceptor.class);
+        interceptors.add(AdminRefreshCacheInterceptor.class);
         interceptors.add(AdminInterceptor.class);
         if (EnvKit.isDevMode()) {
             DevKit.configDev(zrLogConfig.getServerConfig());

@@ -4,6 +4,7 @@ import Row from "antd/es/grid/row";
 import { Link } from "react-router-dom";
 import { getRes } from "../../utils/constants";
 import { postRefreshCacheSse } from "../../utils/sse-utils";
+import { useResponsiveFormLayout } from "../../utils/responsive-form";
 
 const layout = {
     labelCol: { span: 4 },
@@ -29,6 +30,7 @@ const CreateOrEditNav: FunctionComponent<EditNavProps> = ({ record, editSuccessC
     const [updateForm, setUpdateForm] = useState<LogNav>(record);
     const [messageApi, contextHolder] = message.useMessage({ maxCount: 3 });
     const [loading, setLoading] = useState<boolean>(false);
+    const { formLayout, narrow } = useResponsiveFormLayout(layout);
     const isUpdate = () => {
         return record.id && record.id > 0;
     };
@@ -91,8 +93,9 @@ const CreateOrEditNav: FunctionComponent<EditNavProps> = ({ record, editSuccessC
                     loading: loading,
                 }}
                 onCancel={() => setShowModel(false)}
+                width={narrow ? "calc(100vw - 32px)" : undefined}
             >
-                <Form initialValues={updateForm} onValuesChange={(_k, v) => setValue(v)} {...layout}>
+                <Form initialValues={updateForm} onValuesChange={(_k, v) => setValue(v)} {...formLayout}>
                     <Form.Item name="id" style={{ display: "none" }}>
                         <Input hidden={true} />
                     </Form.Item>
@@ -103,8 +106,9 @@ const CreateOrEditNav: FunctionComponent<EditNavProps> = ({ record, editSuccessC
                                 style={{ marginBottom: 8 }}
                                 name="url"
                                 rules={[{ required: true, message: "" }]}
+                                extra={getRes().nav.linkHelp}
                             >
-                                <Input />
+                                <Input placeholder={getRes().nav.linkPlaceholder} />
                             </Form.Item>
                         </Col>
                     </Row>
@@ -116,7 +120,7 @@ const CreateOrEditNav: FunctionComponent<EditNavProps> = ({ record, editSuccessC
                                 name="navName"
                                 rules={[{ required: true, message: "" }]}
                             >
-                                <Input />
+                                <Input placeholder={getRes().nav.namePlaceholder} />
                             </Form.Item>
                         </Col>
                     </Row>
@@ -127,8 +131,9 @@ const CreateOrEditNav: FunctionComponent<EditNavProps> = ({ record, editSuccessC
                                 style={{ marginBottom: 8 }}
                                 name="icon"
                                 rules={[{ message: "" }]}
+                                extra={getRes().nav.iconHelp}
                             >
-                                <Input />
+                                <Input placeholder={getRes().nav.iconPlaceholder} />
                             </Form.Item>
                         </Col>
                     </Row>
@@ -139,8 +144,9 @@ const CreateOrEditNav: FunctionComponent<EditNavProps> = ({ record, editSuccessC
                                 style={{ marginBottom: 8 }}
                                 name="sort"
                                 rules={[{ required: true, message: "" }]}
+                                extra={getRes().nav.sortHelp}
                             >
-                                <InputNumber />
+                                <InputNumber style={{ width: "100%" }} placeholder={getRes().nav.sortPlaceholder} />
                             </Form.Item>
                         </Col>
                     </Row>

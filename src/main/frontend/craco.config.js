@@ -3,6 +3,7 @@ module.exports = {
         configure: (webpackConfig) => {
             webpackConfig.optimization.splitChunks = {
                 chunks: 'all',
+                maxSize: 2500000,
                 cacheGroups: {
                     vendor: {
                         test: /[\\/]node_modules[\\/](react|react-dom|antd|react-router|react-router-dom|styled-components|@ant-design\/cssinjs)[\\/]/,

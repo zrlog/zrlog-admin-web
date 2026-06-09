@@ -26,11 +26,15 @@ const UpgradeContent: FunctionComponent<UpgradeContentProps> = ({ data }) => {
 
     return (
         <>
-            <HtmlPreviewPanel htmlContent={data.version ? (htmlStr as string) : ""} dark={getAppState().dark} />
+            <div style={{ overflowX: "auto" }}>
+                <HtmlPreviewPanel htmlContent={data.version ? (htmlStr as string) : ""} dark={getAppState().dark} />
+            </div>
             {!data.onlineUpgradable && (
                 <>
                     <Divider />
-                    <HtmlPreviewPanel dark={getAppState().dark} htmlContent={disableHtmlStr} />
+                    <div style={{ overflowX: "auto" }}>
+                        <HtmlPreviewPanel dark={getAppState().dark} htmlContent={disableHtmlStr} />
+                    </div>
                 </>
             )}
         </>

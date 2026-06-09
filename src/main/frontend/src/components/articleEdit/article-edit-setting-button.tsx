@@ -6,7 +6,7 @@ import ThumbnailUpload from "./thumbnail-upload";
 import Form from "antd/es/form";
 import Switch from "antd/es/switch";
 import ArticleEditTag from "./article-edit-tag";
-import { Drawer, InputRef } from "antd";
+import { Drawer, Grid, InputRef } from "antd";
 import { SettingFilled, SettingOutlined } from "@ant-design/icons";
 import { RefObject, useEffect, useState } from "react";
 import { ArticleChangeableValue, ArticleEntry } from "./index.types";
@@ -15,6 +15,7 @@ import DigestEditorCard from "./digest-editor-card";
 import { getAppState } from "../../base/ConfigProviderApp";
 import { colorToRgba } from "../../layout/slider";
 import { getShortcutTitle } from "./shortcut-utils";
+import { parseCoverAspectRatio } from "./cover-aspect-ratio";
 
 const ArticleEditSettingButton = ({
     article,
@@ -26,6 +27,11 @@ const ArticleEditSettingButton = ({
     handleValuesChange,
     open,
     onOpenChange,
+    generatingDigest,
+    onGenerateDigest,
+    generatingTags,
+    onGenerateTags,
+    coverAspectRatio,
 }: {
     article: ArticleEntry;
     initDigest: string;
@@ -36,7 +42,13 @@ const ArticleEditSettingButton = ({
     handleValuesChange: (cv: ArticleChangeableValue) => void;
     open?: boolean;
     onOpenChange?: (open: boolean) => void;
+    generatingDigest?: boolean;
+    onGenerateDigest?: () => void;
+    generatingTags?: boolean;
+    onGenerateTags?: () => void;
+    coverAspectRatio?: string;
 }) => {
+    const screens = Grid.useBreakpoint();
     const [innerOpen, setInnerOpen] = useState(false);
     const settingsOpen = open ?? innerOpen;
 
@@ -52,6 +64,7 @@ const ArticleEditSettingButton = ({
         }
         onOpenChange?.(nextOpen);
     };
+    const getContainer = () => containerRef.current ?? document.body;
 
     return (
         <>
@@ -104,38 +117,26 @@ const ArticleEditSettingButton = ({
                     },
                 }}
                 open={settingsOpen}
-                //@ts-ignore
-                getContainer={() => {
-                    return containerRef.current;
-                }}
+                getContainer={getContainer}
+                width={screens.sm ? undefined : "100%"}
             >
                 <Col md={24} sm={24} xs={24} style={{ overflow: "hidden" }}>
                     <Row gutter={[8, 8]}>
                         <Col span={24}>
-                            <Card
-                                title={
-                                    <span style={{ textAlign: "start", display: "flex" }}>
-                                        {getRes().articleEdit.cover}
-                                    </span>
-                                }
-                                style={{ textAlign: "center", marginTop: 6 }}
-                            >
-                                <ThumbnailUpload
-                                    //@ts-ignore
-                                    getContainer={() => {
-                                        return containerRef.current;
-                                    }}
-                                    thumbnail={article.thumbnail}
-                                    onChange={(e) => {
-                                        handleValuesChange({ thumbnail: e });
-                                    }}
-                                />
-                            </Card>
+                            <ThumbnailUpload
+                                getContainer={getContainer}
+                                title={getRes().articleEdit.cover}
+                                thumbnail={article.thumbnail}
+                                aspectRatio={parseCoverAspectRatio(coverAspectRatio)}
+                                onChange={(e) => {
+                                    handleValuesChange({ thumbnail: e });
+                                }}
+                            />
                         </Col>
                         <Col span={24}>
                             <Card title={getRes().articleEdit.settings}>
                                 <Row>
-                                    <Col xs={24} md={12}>
+                                    <Col xs={24} md={8}>
                                         <Form.Item
                                             style={{ marginBottom: 0 }}
                                             valuePropName="checked"
@@ -149,7 +150,21 @@ const ArticleEditSettingButton = ({
                                             />
                                         </Form.Item>
                                     </Col>
-                                    <Col xs={24} md={12}>
+                                    <Col xs={24} md={8}>
+                                        <Form.Item
+                                            style={{ marginBottom: 0 }}
+                                            valuePropName="checked"
+                                            label={getRes().articleEdit.recommended}
+                                        >
+                                            <Switch
+                                                value={article.recommended}
+                                                onChange={(checked) => {
+                                                    handleValuesChange({ recommended: checked });
+                                                }}
+                                            />
+                                        </Form.Item>
+                                    </Col>
+                                    <Col xs={24} md={8}>
                                         <Form.Item
                                             style={{ marginBottom: 0 }}
                                             valuePropName="checked"
@@ -174,6 +189,8 @@ const ArticleEditSettingButton = ({
                                     }}
                                     keywords={article!.keywords ? article.keywords : ""}
                                     allTags={tags.map((x: { text: any }) => x.text)}
+                                    generatingTags={generatingTags}
+                                    onGenerateTags={onGenerateTags}
                                 />
                             </Card>
                         </Col>
@@ -182,6 +199,8 @@ const ArticleEditSettingButton = ({
                                 digestRef={digestRef}
                                 initDigest={initDigest}
                                 handleValuesChange={handleValuesChange}
+                                generatingDigest={generatingDigest}
+                                onGenerateDigest={onGenerateDigest}
                             />
                         </Col>
                     </Row>

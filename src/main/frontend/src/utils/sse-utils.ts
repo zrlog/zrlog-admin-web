@@ -1,11 +1,12 @@
-import { MessageInstance } from "antd/es/message/interface";
-import { getBackendServerUrl, getRes, isStaticPage } from "./constants";
+import {MessageInstance} from "antd/es/message/interface";
+import {formatLabelValue, getBackendServerUrl, getRes, isStaticPage} from "./constants";
 import {
     createBackgroundTask,
     finishBackgroundTask,
     removeBackgroundTask,
     updateBackgroundTask,
 } from "./background-task-store";
+import {buildBackgroundTaskResult, type BackgroundTaskResult} from "./background-task-result";
 
 export type StaticProgress = {
     total?: number;
@@ -32,6 +33,8 @@ export type RefreshCacheSseOptions<T> = {
     resolveWhenStarted?: boolean;
     backgroundTaskTitle?: string;
     removeBackgroundTaskOnSuccess?: boolean;
+    showErrorMessage?: boolean;
+    getBackgroundTaskResult?: (data: T) => BackgroundTaskResult | undefined;
 };
 
 const toApiUrl = (uri: string) => {
@@ -44,13 +47,20 @@ const toApiUrl = (uri: string) => {
     return getBackendServerUrl() + uri;
 };
 
+const getRequestErrorDescription = (error: unknown) => {
+    if (error instanceof Error && error.message) {
+        return formatLabelValue(getRes().error.requestError, error.message);
+    }
+    return getRes().error.requestError;
+};
+
 export const getStaticProgressText = (progress: StaticProgress) => {
     const siteTypes = progress.siteTypes || [];
     const total = progress.total || 0;
     const handled = progress.handled || 0;
     const retrying = progress.retrying || 0;
     const actionText = getStaticSiteActionText(siteTypes, total > 0 && handled < total ? "generating" : "syncing");
-    const suffix = retrying > 0 ? ` ${getRes().staticSite.retrying}: ${retrying}` : "";
+    const suffix = retrying > 0 ? ` ${formatLabelValue(getRes().staticSite.retrying, retrying)}` : "";
     if (total > 0 && handled < total) {
         return `${actionText} ${handled}/${total}${suffix}`;
     }
@@ -58,6 +68,18 @@ export const getStaticProgressText = (progress: StaticProgress) => {
         return `${actionText} ${handled}/${total}${suffix}`;
     }
     return getStaticSiteActionText(siteTypes, "syncing");
+};
+
+const getStaticProgressDetailText = (progress: StaticProgress) => {
+    const total = progress.total || 0;
+    const handled = progress.handled || 0;
+    const retrying = progress.retrying || 0;
+    const progressText = total > 0 ? `${handled}/${total}` : "";
+    const retryingText = retrying > 0 ? formatLabelValue(getRes().staticSite.retrying, retrying) : "";
+    if (progressText && retryingText) {
+        return `${progressText} ${retryingText}`;
+    }
+    return progressText || retryingText || undefined;
 };
 
 const getStaticSiteActionText = (siteTypes: string[], stage: "generating" | "syncing") => {
@@ -101,26 +123,35 @@ export const postRefreshCacheSse = async <T>(uri: string, options: RefreshCacheS
     const backgroundTaskId = options.backgroundTaskTitle
         ? createBackgroundTask(options.backgroundTaskTitle, getRes().backgroundTask.started)
         : undefined;
-    const response = await fetch(toApiUrl(uri), {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            Accept: supportSse ? "text/event-stream" : "application/json",
-        },
-        credentials: isStaticPage() ? "include" : "same-origin",
-        body: options.body === undefined ? undefined : JSON.stringify(options.body),
-    });
+    let response: Response;
+    try {
+        response = await fetch(toApiUrl(uri), {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Accept: supportSse ? "text/event-stream" : "application/json",
+            },
+            credentials: isStaticPage() ? "include" : "same-origin",
+            body: options.body === undefined ? undefined : JSON.stringify(options.body),
+        });
+    } catch (error) {
+        if (backgroundTaskId) {
+            finishBackgroundTask(backgroundTaskId, "error", getRequestErrorDescription(error));
+        }
+        throw error;
+    }
     if (!response.ok) {
         if (backgroundTaskId) {
-            finishBackgroundTask(backgroundTaskId, "error", `${getRes().error.requestError}: ${response.status}`);
+            finishBackgroundTask(backgroundTaskId, "error", formatLabelValue(getRes().error.requestError, response.status));
         }
-        throw new Error(`${getRes().error.requestError}: ${response.status}`);
+        throw new Error(formatLabelValue(getRes().error.requestError, response.status));
     }
     if (!supportSse) {
         options.messageApi?.destroy(messageKey);
         const data = await response.json();
         if (backgroundTaskId) {
-            finishBackgroundTask(backgroundTaskId, data.error ? "error" : "success", data.message);
+            const taskResult = options.getBackgroundTaskResult?.(data) || buildBackgroundTaskResult(data);
+            finishBackgroundTask(backgroundTaskId, taskResult.status, taskResult.description);
         }
         return data;
     }
@@ -129,7 +160,8 @@ export const postRefreshCacheSse = async <T>(uri: string, options: RefreshCacheS
         options.messageApi?.destroy(messageKey);
         const data = await response.json();
         if (backgroundTaskId) {
-            finishBackgroundTask(backgroundTaskId, data.error ? "error" : "success", data.message);
+            const taskResult = options.getBackgroundTaskResult?.(data) || buildBackgroundTaskResult(data);
+            finishBackgroundTask(backgroundTaskId, taskResult.status, taskResult.description);
         }
         return data;
     }
@@ -215,16 +247,18 @@ const consumeRefreshCacheSse = async <T>(
     let latestResponseMessage = "";
     let hasError = false;
     let responseHasError = false;
+    let responseTaskResult: BackgroundTaskResult | undefined;
     const showProgressMessage = !backgroundTaskId;
     const showSuccessMessage = !backgroundTaskId;
     for (;;) {
         const { done, value } = await reader.read();
         if (done) {
-            break;
+            buffer += decoder.decode();
+        } else {
+            buffer += decoder.decode(value, { stream: true });
         }
-        buffer += decoder.decode(value, { stream: true });
         const chunks = buffer.split("\n\n");
-        buffer = chunks.pop() || "";
+        buffer = done ? "" : chunks.pop() || "";
         for (const chunk of chunks) {
             const event = parseSseEvent(chunk);
             if (!event) {
@@ -237,11 +271,13 @@ const consumeRefreshCacheSse = async <T>(
                 options.onResponse?.(data);
                 latestResponseMessage = (event.data as any)?.message || latestResponseMessage;
                 responseHasError = (event.data as any)?.error > 0;
+                responseTaskResult = options.getBackgroundTaskResult?.(data) || buildBackgroundTaskResult(data);
             }
             if (event.event === "static-progress") {
                 if (backgroundTaskId) {
                     updateBackgroundTask(backgroundTaskId, {
-                        description: getStaticProgressText(event.data),
+                        title: getStaticSiteActionText(event.data?.siteTypes || [], "syncing"),
+                        description: getStaticProgressDetailText(event.data),
                     });
                 }
                 if (showProgressMessage) {
@@ -256,7 +292,11 @@ const consumeRefreshCacheSse = async <T>(
             if (event.event === "static-sync-start" || event.event === "static-sync-progress") {
                 if (backgroundTaskId) {
                     updateBackgroundTask(backgroundTaskId, {
-                        description: getStaticProgressText(event.data),
+                        title: getStaticSiteActionText(
+                            event.data?.siteTypes || [],
+                            event.event === "static-sync-start" ? "generating" : "syncing"
+                        ),
+                        description: getStaticProgressDetailText(event.data),
                     });
                 }
                 if (showProgressMessage) {
@@ -271,15 +311,15 @@ const consumeRefreshCacheSse = async <T>(
             if (event.event === "static-sync-complete") {
                 if (backgroundTaskId) {
                     updateBackgroundTask(backgroundTaskId, {
-                        description: getRes().staticSite.syncComplete,
+                        title: getRes().staticSite.syncComplete,
+                        description: getStaticProgressDetailText(event.data) || getRes().staticSite.syncComplete,
                     });
                 }
-                if (showProgressMessage) {
+                if (showSuccessMessage) {
                     options.messageApi?.open({
                         key: messageKey,
-                        type: "loading",
+                        type: "success",
                         content: getRes().staticSite.syncComplete,
-                        duration: 0,
                     });
                 }
             }
@@ -303,6 +343,20 @@ const consumeRefreshCacheSse = async <T>(
                     });
                 }
             }
+            if (event.event === "publish-check-start") {
+                if (backgroundTaskId) {
+                    updateBackgroundTask(backgroundTaskId, {
+                        description: getRes().articleEdit.publishCheck.running,
+                    });
+                }
+            }
+            if (event.event === "publish-check-complete") {
+                if (backgroundTaskId) {
+                    updateBackgroundTask(backgroundTaskId, {
+                        description: getRes().articleEdit.publishCheck.finished,
+                    });
+                }
+            }
             if (event.event === "publish-complete") {
                 if (backgroundTaskId) {
                     updateBackgroundTask(backgroundTaskId, {
@@ -312,10 +366,12 @@ const consumeRefreshCacheSse = async <T>(
             }
             if (event.event === "static-error" || event.event === "sse-error" || event.event === "publish-error") {
                 hasError = true;
-                options.messageApi?.error({
-                    key: messageKey,
-                    content: event.data?.message || getRes().staticSite.syncFailed,
-                });
+                if (options.showErrorMessage !== false) {
+                    options.messageApi?.error({
+                        key: messageKey,
+                        content: event.data?.message || getRes().staticSite.syncFailed,
+                    });
+                }
                 if (backgroundTaskId) {
                     finishBackgroundTask(backgroundTaskId, "error", event.data?.message || getRes().staticSite.syncFailed);
                 }
@@ -324,16 +380,20 @@ const consumeRefreshCacheSse = async <T>(
                 throw error;
             }
         }
+        if (done) {
+            break;
+        }
     }
     if (backgroundTaskId && !hasError) {
-        if (options.removeBackgroundTaskOnSuccess && !responseHasError) {
+        const finishStatus = responseTaskResult?.status || (responseHasError ? "error" : "success");
+        if (options.removeBackgroundTaskOnSuccess && finishStatus === "success" && !responseHasError) {
             removeBackgroundTask(backgroundTaskId);
             return;
         }
         finishBackgroundTask(
             backgroundTaskId,
-            responseHasError ? "error" : "success",
-            latestResponseMessage || getRes().backgroundTask.finished
+            finishStatus,
+            responseTaskResult?.description || latestResponseMessage || getRes().backgroundTask.finished
         );
     }
 };

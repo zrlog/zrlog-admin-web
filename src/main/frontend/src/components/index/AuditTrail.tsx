@@ -1,9 +1,9 @@
-import { Card, Typography, Timeline, Drawer, Button, Tag } from "antd";
-import { HistoryOutlined, LoginOutlined, EditOutlined, SettingOutlined, RightOutlined } from "@ant-design/icons";
+import { Button, Card, Drawer, Tag, Timeline, Typography } from "antd";
+import { EditOutlined, HistoryOutlined, LoginOutlined, RightOutlined, SettingOutlined } from "@ant-design/icons";
 import TimeAgo from "@editor/dist/src/editor/TimeAgo";
 import React, { useState } from "react";
 import { getRes } from "../../utils/constants";
-import { getAppState } from "../../base/ConfigProviderApp";
+import { useTheme } from "antd-style";
 
 const { Text } = Typography;
 
@@ -12,6 +12,7 @@ interface AuditLog {
     ip: string;
     action: string;
     type: string;
+    content?: string;
     os?: string;
     browser?: string;
     crawler?: boolean;
@@ -24,15 +25,19 @@ interface AuditTrailProps {
 
 const AuditTrail: React.FC<AuditTrailProps> = ({ logs = [], loading }) => {
     const [drawerVisible, setDrawerVisible] = useState(false);
+    const theme = useTheme();
 
     const getIcon = (type: string) => {
         switch (type) {
+            case "LOGIN":
             case "login":
-                return <LoginOutlined style={{ color: "#1890ff" }} />;
+                return <LoginOutlined style={{ color: theme.colorInfo }} />;
+            case "ARTICLE":
             case "article":
-                return <EditOutlined style={{ color: "#52c41a" }} />;
+                return <EditOutlined style={{ color: theme.colorSuccess }} />;
+            case "SETTING":
             case "setting":
-                return <SettingOutlined style={{ color: "#722ed1" }} />;
+                return <SettingOutlined style={{ color: theme.colorPrimary }} />;
             default:
                 return <HistoryOutlined />;
         }
@@ -47,6 +52,11 @@ const AuditTrail: React.FC<AuditTrailProps> = ({ logs = [], loading }) => {
                             <Text strong style={{ display: "block" }}>
                                 {log.action}
                             </Text>
+                            {log.content && (
+                                <Text type="secondary" style={{ display: "block", fontSize: 12 }}>
+                                    {log.content}
+                                </Text>
+                            )}
                             <Text type="secondary" style={{ fontSize: 12 }}>
                                 {log.ip}
                                 {(log.os || log.browser) && (
@@ -69,8 +79,8 @@ const AuditTrail: React.FC<AuditTrailProps> = ({ logs = [], loading }) => {
                 </Timeline.Item>
             ))}
             {data.length === 0 && !loading && (
-                <div style={{ textAlign: "center", padding: "40px 0", color: "#999" }}>
-                    {getRes().index.audit.empty}
+                <div style={{ textAlign: "center", padding: "40px 0" }}>
+                    <Text type="secondary">{getRes().index.audit.empty}</Text>
                 </div>
             )}
         </Timeline>
@@ -90,7 +100,7 @@ const AuditTrail: React.FC<AuditTrailProps> = ({ logs = [], loading }) => {
                         <Button
                             type="link"
                             size="small"
-                            style={{ color: getAppState().colorPrimary }}
+                            style={{ color: theme.colorPrimary }}
                             onClick={() => setDrawerVisible(true)}
                         >
                             {getRes().index.audit.more} <RightOutlined />

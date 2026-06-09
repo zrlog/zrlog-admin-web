@@ -2,23 +2,24 @@ import { useEffect, useState } from "react";
 import { ColorPicker, Form, Input, message, Row } from "antd";
 import Divider from "antd/es/divider";
 import Button from "antd/es/button";
-import Image from "antd/es/image";
 import TextArea from "antd/es/input/TextArea";
 import Col from "antd/es/grid/col";
-import { getPreset, getRes, tryAppendBackendServerUrl } from "../../utils/constants";
+import { getPreset, getRes } from "../../utils/constants";
 import Switch from "antd/es/switch";
 import { colorPickerBgColors } from "../../utils/helpers";
 import { useAxiosBaseInstance } from "../../base/AppBase";
-import BaseDragger, { DraggerUploadResponse } from "@editor/dist/src/editor/common/BaseDragger";
+import ResourceDragger, { DraggerUploadResponse } from "../../common/ResourceDragger";
 import { CameraOutlined } from "@ant-design/icons";
 import PreviewConfig from "./preview-config";
 import Editor from "@editor/dist/src/editor";
 import { getLangByRes } from "../../base/AppInit";
 import { getAppState } from "../../base/ConfigProviderApp";
 import Card from "antd/es/card";
-import { getBorderColor } from "@editor/dist/src/editor/editor-helpers";
 import { EditorMode } from "@editor/dist/src/editor/editor.types";
 import { postRefreshCacheSse } from "../../utils/sse-utils";
+import BackendImage from "../../common/BackendImage";
+import { useResponsiveFormLayout } from "../../utils/responsive-form";
+import { useTheme } from "antd-style";
 
 const layout = {
     labelCol: { span: 8 },
@@ -42,9 +43,8 @@ export type ConfigParam = {
 };
 
 const convertToDataMap = (data: TemplateConfigState) => {
-    const dataMap = {};
+    const dataMap: Record<string, string> = {};
     for (const [key, value] of Object.entries(data.config)) {
-        //@ts-ignore
         dataMap[key] = value.value;
     }
     return dataMap;
@@ -59,6 +59,7 @@ const TemplateConfig = ({
     offline: boolean;
     offlineData: boolean;
 }) => {
+    const theme = useTheme();
     const dataMap = convertToDataMap(data);
     const [state, setState] = useState<TemplateConfigState>({
         config: data.config,
@@ -69,6 +70,9 @@ const TemplateConfig = ({
     const [form] = Form.useForm();
 
     const [messageApi, contextHolder] = message.useMessage({ maxCount: 3 });
+    const { formLayout, narrow, screens } = useResponsiveFormLayout(layout);
+    const editorHeight = narrow ? 420 : screens.xl ? 520 : 480;
+    const borderSecondary = `${theme.lineWidth}px ${theme.lineType} ${theme.colorBorderSecondary}`;
 
     const setValue = (changedValues: any) => {
         setState((prevState) => {
@@ -87,34 +91,42 @@ const TemplateConfig = ({
         });
     };
 
+    const onAssetSelect = (path: string, key: string) => {
+        setState((prevState) => ({
+            ...prevState,
+            dataMap: {
+                ...prevState.dataMap,
+                [key]: path,
+            },
+        }));
+    };
+
     const getInput = (key: string, value: ConfigParam) => {
         if (value.type === "file") {
             return (
-                <BaseDragger
-                    style={{ width: 96, height: 96 }}
+                <ResourceDragger
+                    axiosInstance={axiosInstance}
+                    style={{ width: 128, height: 128 }}
                     onSuccess={(e) => onUploadChange(e, key)}
                     onError={(e) => {
                         messageApi.error(e.message);
                     }}
                     type={"image"}
-                    uploadConfig={{
-                        buildUploadUrl: function (type: string): string {
-                            return `/api/admin/upload?dir=${type}`;
-                        },
-                        formName: "imgFile",
-                        axiosInstance: axiosInstance,
-                        tryAppendBackendServerUrl: tryAppendBackendServerUrl,
+                    bodyAspectRatio={1}
+                    resourcePicker={{
+                        onlyImage: true,
+                        onSelectFile: (path) => onAssetSelect(path, key),
                     }}
                 >
                     {state.dataMap[key] && state.dataMap[key].length > 0 ? (
-                        <Image preview={false} height={96} width={96} src={state.dataMap[key]} />
+                        <BackendImage preview={false} height={128} width={128} src={state.dataMap[key]} />
                     ) : (
                         <p
                             className="ant-upload-drag-icon"
                             style={{
                                 margin: 0,
-                                width: 96,
-                                height: 96,
+                                width: 128,
+                                height: 128,
                                 display: "flex",
                                 justifyContent: "center",
                                 alignItems: "center",
@@ -123,7 +135,7 @@ const TemplateConfig = ({
                             <CameraOutlined style={{ fontSize: 36 }} />
                         </p>
                     )}
-                </BaseDragger>
+                </ResourceDragger>
             );
         } else if (value.htmlElementType === "switch") {
             return <Switch />;
@@ -178,14 +190,14 @@ const TemplateConfig = ({
                         styles={{
                             body: {
                                 padding: 0,
-                                borderTop: `1px solid ${getBorderColor(getAppState().dark)}`,
+                                borderTop: borderSecondary,
                                 boxSizing: "border-box",
                             },
                         }}
                         style={{ overflow: "hidden" }}
                     >
                         <Editor
-                            height={520}
+                            height={editorHeight}
                             onChange={(e) => {
                                 setValue({
                                     [key]: e.value,
@@ -287,7 +299,7 @@ const TemplateConfig = ({
                         onFinish={() => onFinish()}
                         initialValues={state.dataMap}
                         onValuesChange={(_k, v) => setValue(v)}
-                        {...layout}
+                        {...formLayout}
                     >
                         {getFormItems()}
                         <Divider />

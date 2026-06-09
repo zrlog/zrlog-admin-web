@@ -11,7 +11,9 @@ import com.hibegin.http.server.web.cookie.Cookie;
 import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.rest.request.UpdateTemplateConfigRequest;
 import com.zrlog.admin.business.rest.response.*;
+import com.zrlog.admin.business.service.AdminAuditService;
 import com.zrlog.admin.business.service.TemplateService;
+import com.zrlog.admin.business.type.AdminAuditAction;
 import com.zrlog.admin.util.AdminTemplateUtils;
 import com.zrlog.admin.web.annotation.RefreshCache;
 import com.zrlog.admin.web.annotation.RequestLock;
@@ -21,6 +23,7 @@ import com.zrlog.business.template.HtmlTemplateProcessor;
 import com.zrlog.common.Constants;
 import com.zrlog.common.controller.BaseController;
 import com.zrlog.common.exception.ArgsException;
+import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.common.vo.BaseTemplateVO;
 import com.zrlog.common.vo.TemplateVO;
 import com.zrlog.model.WebSite;
@@ -44,10 +47,11 @@ public class TemplateController extends BaseController {
     @RefreshCache(updateStaticSites = StaticSiteType.BLOG)
     @ResponseBody
     @RequestLock
-    public AdminApiPageDataStandardResponse<Void> apply() throws SQLException {
-        AdminApiPageDataStandardResponse<Void> apiStandardResponse = new AdminApiPageDataStandardResponse<>();
+    public ApiStandardResponse<Void> apply() throws SQLException {
+        ApiStandardResponse<Void> apiStandardResponse = new ApiStandardResponse<>();
         apiStandardResponse.setError(0);
-        if (new WebSite().updateByKV("template", AdminTemplateUtils.loadTemplatePathByRequestInfo(this))) {
+        String template = AdminTemplateUtils.loadTemplatePathByRequestInfo(this);
+        if (new WebSite().updateByKV("template", template)) {
             Cookie cookie = new Cookie();
             cookie.setName("template");
             cookie.setValue("");
@@ -55,16 +59,17 @@ public class TemplateController extends BaseController {
             cookie.setHttpOnly(true);
             getResponse().addCookie(cookie);
         }
-        apiStandardResponse.setMessage(I18nUtil.getAdminBackendStringFromRes("updateSuccess"));
+        new AdminAuditService().record(request, AdminAuditAction.APPLY_TEMPLATE, template);
+        apiStandardResponse.setMessage(I18nUtil.getAdminBackendStringFromRes("admin.common.update.success"));
         return apiStandardResponse;
     }
 
     @ResponseBody
-    public AdminApiPageDataStandardResponse<Void> preview() {
+    public ApiStandardResponse<Void> preview() {
         if (EnvKit.isFaaSMode()) {
-            AdminApiPageDataStandardResponse<Void> apiStandardResponse = new AdminApiPageDataStandardResponse<>();
+            ApiStandardResponse<Void> apiStandardResponse = new ApiStandardResponse<>();
             apiStandardResponse.setError(1);
-            apiStandardResponse.setMessage("Not support preview");
+            apiStandardResponse.setMessage(I18nUtil.getAdminBackendStringFromRes("admin.template.preview.error.unsupported"));
             return apiStandardResponse;
         }
         String template = AdminTemplateUtils.loadTemplatePathByRequestInfo(this);
@@ -74,7 +79,7 @@ public class TemplateController extends BaseController {
         cookie.setPath("/");
         cookie.setHttpOnly(true);
         getResponse().addCookie(cookie);
-        return new AdminApiPageDataStandardResponse<>();
+        return new ApiStandardResponse<>();
     }
 
     @ResponseBody
@@ -83,7 +88,11 @@ public class TemplateController extends BaseController {
         String shortTemplate = getParamWithEmptyCheck("shortTemplate");
         File file = PathUtil.safeAppendFilePath(PathUtil.getStaticPath() + Constants.TEMPLATE_BASE_PATH, shortTemplate);
         if (file.exists()) {
-            return new DeleteResponse(FileUtils.deleteFile(file.toString()));
+            boolean deleted = FileUtils.deleteFile(file.toString());
+            if (deleted) {
+                new AdminAuditService().record(request, AdminAuditAction.DELETE_TEMPLATE, shortTemplate);
+            }
+            return new DeleteResponse(deleted);
         }
         return new DeleteResponse(false);
     }
@@ -95,7 +104,9 @@ public class TemplateController extends BaseController {
         if (Objects.isNull(templateName)) {
             throw new ArgsException("file");
         }
-        return templateService.upload("", templateName);
+        UploadTemplateResponse response = templateService.upload("", templateName);
+        new AdminAuditService().record(request, AdminAuditAction.UPLOAD_TEMPLATE);
+        return response;
     }
 
     @RefreshCache(updateStaticSites = StaticSiteType.BLOG)
@@ -107,13 +118,15 @@ public class TemplateController extends BaseController {
         String template = param.getTemplate();
         if (StringUtils.isNotEmpty(template)) {
             param.remove("template");
-            return templateService.save(template, param);
+            UpdateRecordResponse response = templateService.save(template, param);
+            new AdminAuditService().record(request, AdminAuditAction.UPDATE_TEMPLATE_CONFIG, template);
+            return response;
         }
         return new UpdateRecordResponse();
     }
 
     @ResponseBody
-    public AdminApiPageDataStandardResponse<TemplateVO> configParams() throws IOException {
+    public AdminPageDataResponse<TemplateVO> configParams() throws IOException {
         String template = AdminTemplateUtils.loadTemplatePathByRequestInfo(this);
         TemplateVO templateVO = templateService.loadTemplateConfig(template);
         templateVO.getConfig().values().forEach((value) -> {
@@ -123,7 +136,7 @@ public class TemplateController extends BaseController {
                 }
             }
         });
-        return new AdminApiPageDataStandardResponse<>(templateVO, "", request.getUri());
+        return new AdminPageDataResponse<>(templateVO, "", request.getUri());
     }
 
     private String previewValue(String value) {
@@ -132,18 +145,18 @@ public class TemplateController extends BaseController {
     }
 
     @ResponseBody
-    public AdminApiPageDataStandardResponse<TemplateValuePreviewResponse> previewConfigValue() {
-        return new AdminApiPageDataStandardResponse<>(new TemplateValuePreviewResponse(previewValue(request.getParaToStr("value"))), "", request.getUri());
+    public ApiStandardResponse<TemplateValuePreviewResponse> previewConfigValue() {
+        return new ApiStandardResponse<>(new TemplateValuePreviewResponse(previewValue(request.getParaToStr("value"))));
     }
 
     @ResponseBody
-    public AdminApiPageDataStandardResponse<List<BaseTemplateVO>> index() throws IOException {
-        return new AdminApiPageDataStandardResponse<>(templateService.getAllTemplates(TemplateHelper.getTemplatePath(getRequest())),
+    public AdminPageDataResponse<List<BaseTemplateVO>> index() throws IOException {
+        return new AdminPageDataResponse<>(templateService.getAllTemplates(TemplateHelper.getTemplatePath(getRequest())),
                 "", request.getUri());
     }
 
     @ResponseBody
-    public AdminApiPageDataStandardResponse<TemplateDownloadResponse> templateCenter() {
+    public AdminPageDataResponse<TemplateDownloadResponse> templateCenter() {
         String host = request.getParaToStr("host", "");
         if (StringUtils.isEmpty(host)) {
             String referer = request.getHeader("referer");
@@ -154,6 +167,6 @@ public class TemplateController extends BaseController {
             }
         }
         TemplateDownloadResponse downloadResponse = new TemplateDownloadResponse("https://store.zrlog.com/template/index.html?from=" + AdminTokenThreadLocal.getUserProtocol() + "://" + host + request.getContextPath() + AdminConstants.ADMIN_URI_BASE_PATH + "/template&v=" + BlogBuildInfoUtil.getVersion() + "&id=" + BlogBuildInfoUtil.getBuildId() + "&upgrade-v3=true");
-        return new AdminApiPageDataStandardResponse<>(downloadResponse, "", request.getUri());
+        return new AdminPageDataResponse<>(downloadResponse, "", request.getUri());
     }
 }

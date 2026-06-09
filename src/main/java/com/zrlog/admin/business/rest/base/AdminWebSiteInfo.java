@@ -16,7 +16,6 @@ public class AdminWebSiteInfo implements Validator {
     private String language;
     private String admin_color_primary;
     private String admin_theme;
-    private Long article_auto_digest_length;
     private Boolean admin_darkMode;
     private Boolean admin_compactMode;
     private Long admin_article_page_size;
@@ -48,14 +47,6 @@ public class AdminWebSiteInfo implements Validator {
         this.admin_color_primary = admin_color_primary;
     }
 
-    public Long getArticle_auto_digest_length() {
-        return article_auto_digest_length;
-    }
-
-    public void setArticle_auto_digest_length(Long article_auto_digest_length) {
-        this.article_auto_digest_length = article_auto_digest_length;
-    }
-
     public Boolean getAdmin_darkMode() {
         return admin_darkMode;
     }
@@ -66,9 +57,6 @@ public class AdminWebSiteInfo implements Validator {
 
     @Override
     public void doValid() {
-        if (Objects.isNull(article_auto_digest_length)) {
-            article_auto_digest_length = WebSiteUtils.DEFAULT_ARTICLE_DIGEST_LENGTH;
-        }
         if (Objects.isNull(session_timeout)) {
             session_timeout = WebSiteUtils.DEFAULT_SESSION_TIMEOUT;
         }

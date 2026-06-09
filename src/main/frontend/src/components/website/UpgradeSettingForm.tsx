@@ -5,8 +5,8 @@ import { getRealRouteUrl, getRes } from "../../utils/constants";
 import Form from "antd/es/form";
 import Select from "antd/es/select";
 import Switch from "antd/es/switch";
-import Divider from "antd/es/divider";
-import { App, message } from "antd";
+
+import { App, message, theme } from "antd";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Upgrade } from "./index";
@@ -14,6 +14,8 @@ import { useAxiosBaseInstance } from "../../base/AppBase";
 import { ApiResponse, UpgradeData } from "../../type";
 import axios, { AxiosResponse, CancelTokenSource } from "axios";
 import UpgradeContent from "../upgrade-content";
+import { useResponsiveFormLayout } from "../../utils/responsive-form";
+import WebsiteSubmitBar from "./WebsiteSubmitBar";
 
 const layout = {
     labelCol: { span: 8 },
@@ -36,6 +38,7 @@ const UpgradeSettingForm = ({
     const [checking, setChecking] = useState<boolean>(false);
     const { modal } = App.useApp();
     const [messageApi, contextHolder] = message.useMessage({ maxCount: 3 });
+    const { token } = theme.useToken();
 
     const [state, setState] = useState<Upgrade>(data);
     const [form] = Form.useForm();
@@ -43,6 +46,12 @@ const UpgradeSettingForm = ({
     const navigate = useNavigate();
     const axiosInstance = useAxiosBaseInstance();
     const cancelTokenSource = useRef<CancelTokenSource | null>(null);
+    const { formLayout, narrow, screens } = useResponsiveFormLayout(layout);
+    const formItemStyle = narrow ? { marginBottom: token.marginMD } : undefined;
+    const cycleSelectWidth = narrow ? "100%" : 120;
+    const checkRowStyle = {
+        marginBottom: narrow ? token.marginMD : token.margin,
+    };
 
     const checkNewVersion = async () => {
         if (checking) {
@@ -57,9 +66,19 @@ const UpgradeSettingForm = ({
             });
             if (data.data.upgrade) {
                 modal.info({
-                    width: 682,
+                    width: narrow ? "calc(100vw - 32px)" : 682,
                     title: `${getRes().upgrade.detectedPrefix}${data.data.version.type}`,
-                    content: <UpgradeContent data={data.data} />,
+                    content: (
+                        <div
+                            style={{
+                                maxHeight: narrow ? "60vh" : "62vh",
+                                overflowY: "auto",
+                                paddingRight: narrow ? 0 : 4,
+                            }}
+                        >
+                            <UpgradeContent data={data.data} />
+                        </div>
+                    ),
                     closable: true,
                     okText: getRes().upgrade.doUpgrade,
                     onOk: () => {
@@ -73,9 +92,7 @@ const UpgradeSettingForm = ({
                 }
             }
         } catch (e) {
-            if (axios.isCancel(e)) {
-                console.log("Cancel check version request");
-            } else {
+            if (!axios.isCancel(e)) {
                 throw e;
             }
         } finally {
@@ -96,24 +113,29 @@ const UpgradeSettingForm = ({
         };
     }, []);
 
+    if (screens.md === undefined) {
+        return <></>;
+    }
+
     return (
         <Form
             form={form}
-            {...layout}
+            {...formLayout}
             disabled={offline || offlineData}
             initialValues={data}
             onValuesChange={(_k, v) => setState({ ...state, ...v })}
             onFinish={(nv) => onSubmit({ ...state, ...nv })}
         >
             {contextHolder}
-            <Row>
+            <Row style={checkRowStyle}>
                 <Col xs={24}>
                     <Button
                         type="dashed"
                         disabled={offline || offlineData}
                         loading={checking}
                         onClick={checkNewVersion}
-                        style={{ float: "right" }}
+                        block={narrow}
+                        style={{ float: narrow ? undefined : "right" }}
                     >
                         {getRes().upgrade.check}
                     </Button>
@@ -123,9 +145,10 @@ const UpgradeSettingForm = ({
                 name="autoUpgradeVersion"
                 label={getRes().websiteUpgrade.autoCheckCycle}
                 tooltip={getRes().websiteUpgrade.autoCheckCycleTip}
+                style={formItemStyle}
             >
                 <Select
-                    style={{ maxWidth: 120 }}
+                    style={{ width: cycleSelectWidth }}
                     options={[
                         {
                             label: getRes().websiteUpgrade.cycle.oneDay,
@@ -151,19 +174,12 @@ const UpgradeSettingForm = ({
                 name="upgradePreview"
                 label={getRes().websiteUpgrade.canPreview}
                 tooltip={getRes().websiteUpgrade.canPreviewTip}
+                style={formItemStyle}
             >
                 <Switch />
             </Form.Item>
-            <Divider />
-            <Button
-                enterKeyHint={"enter"}
-                disabled={offline || offlineData}
-                loading={loading}
-                type="primary"
-                htmlType="submit"
-            >
-                {getRes().submit}
-            </Button>
+
+            <WebsiteSubmitBar loading={loading} disabled={offline || offlineData} />
         </Form>
     );
 };

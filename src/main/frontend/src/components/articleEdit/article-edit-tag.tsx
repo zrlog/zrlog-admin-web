@@ -1,7 +1,7 @@
-import { Input, InputRef, Space, Tag } from "antd";
-import { PlusOutlined } from "@ant-design/icons";
+import { Button, Input, InputRef, Space, Tag } from "antd";
+import { BulbOutlined, PlusOutlined } from "@ant-design/icons";
 import Title from "antd/es/typography/Title";
-import { FunctionComponent, useRef, useState } from "react";
+import { FunctionComponent, useEffect, useRef, useState } from "react";
 import { getRes } from "../../utils/constants";
 import { getAppState } from "base/ConfigProviderApp";
 import Tags from "../../common/Tags";
@@ -10,6 +10,8 @@ type ArticleEditTagProps = {
     allTags: string[];
     keywords: string;
     onKeywordsChange: (text: string) => void;
+    generatingTags?: boolean;
+    onGenerateTags?: () => void;
 };
 
 type ArticleEditTagState = {
@@ -18,7 +20,13 @@ type ArticleEditTagState = {
     inputValue: string;
 };
 
-const ArticleEditTag: FunctionComponent<ArticleEditTagProps> = ({ allTags, keywords, onKeywordsChange }) => {
+const ArticleEditTag: FunctionComponent<ArticleEditTagProps> = ({
+    allTags,
+    keywords,
+    onKeywordsChange,
+    generatingTags,
+    onGenerateTags,
+}) => {
     const [state, setState] = useState<ArticleEditTagState>({
         keywords: "",
         inputVisible: false,
@@ -26,6 +34,13 @@ const ArticleEditTag: FunctionComponent<ArticleEditTagProps> = ({ allTags, keywo
     });
 
     const inputRef = useRef<InputRef>(null);
+
+    useEffect(() => {
+        setState((prevState) => ({
+            ...prevState,
+            keywords: keywords || "",
+        }));
+    }, [keywords]);
 
     const handleClose = (removedTag: string) => {
         const tags = state.keywords.split(",").filter((tag) => tag !== removedTag);
@@ -140,6 +155,18 @@ const ArticleEditTag: FunctionComponent<ArticleEditTagProps> = ({ allTags, keywo
                         <Tag color={getAppState().colorPrimary} onClick={showInput} style={{ userSelect: "none" }}>
                             <PlusOutlined /> {getRes().articleEdit.tag.tips}
                         </Tag>
+                        {onGenerateTags && (
+                            <Button
+                                type="link"
+                                size="small"
+                                icon={<BulbOutlined />}
+                                loading={generatingTags}
+                                onClick={onGenerateTags}
+                                style={{ paddingInline: 0, color: getAppState().colorPrimary }}
+                            >
+                                {getRes().articleEdit.tag.generate}
+                            </Button>
+                        )}
                     </Space>
                     <Title level={5} style={{ marginTop: 12, fontSize: 14 }}>
                         {getRes().articleEdit.tag.all}

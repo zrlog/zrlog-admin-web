@@ -8,7 +8,6 @@ import { Col, Space } from "antd";
 import { getCsrData, getTimeInfoBySearchStr } from "../../api";
 import { useAxiosBaseInstance } from "../../base/AppBase";
 import { useLocation } from "react-router";
-import HealthCheckPanel from "./HealthCheckPanel";
 
 type SystemProps = {
     data: SystemData;
@@ -22,7 +21,7 @@ const System: FunctionComponent<SystemProps> = ({ data }) => {
 
     const cycleDuration = 5000;
 
-    const timer = useRef<NodeJS.Timeout | null>(null);
+    const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const location = useLocation();
 
@@ -80,9 +79,6 @@ const System: FunctionComponent<SystemProps> = ({ data }) => {
                     />
                 </Col>
             </Row>
-            <div style={{ marginTop: 8 }}>
-                <HealthCheckPanel axiosInstance={axiosInstance} />
-            </div>
         </>
     );
 };

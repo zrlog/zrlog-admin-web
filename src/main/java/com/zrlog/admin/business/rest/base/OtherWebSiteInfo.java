@@ -80,9 +80,4 @@ public class OtherWebSiteInfo implements Validator {
         this.robotRuleContent = robotRuleContent;
     }
 
-    public static void main(String[] args) {
-        boolean validRobotsTxt = isValidRobotsTxt("User-agent: * \n" +
-                "Disallow: /\n# comment");
-        System.out.println("validRobotsTxt = " + validRobotsTxt);
-    }
 }

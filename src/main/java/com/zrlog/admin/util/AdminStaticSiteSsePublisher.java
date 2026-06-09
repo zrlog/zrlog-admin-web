@@ -1,6 +1,7 @@
 package com.zrlog.admin.util;
 
 import com.hibegin.http.server.api.HttpResponse;
+import com.zrlog.business.plugin.StaticSitePlugin;
 import com.zrlog.business.plugin.type.StaticSiteType;
 
 import java.io.IOException;
@@ -18,15 +19,37 @@ public class AdminStaticSiteSsePublisher {
             CacheTask cacheTask,
             SseStep afterCacheTask
     ) throws IOException {
+        write(response, threadName, errorEvent, siteTypes, beforeCacheTask, cacheTask, emitter -> {
+        }, afterCacheTask);
+    }
+
+    public static void write(
+            HttpResponse response,
+            String threadName,
+            String errorEvent,
+            List<StaticSiteType> siteTypes,
+            SseStep beforeCacheTask,
+            CacheTask cacheTask,
+            SseStep duringCacheTask,
+            SseStep afterCacheTask
+    ) throws IOException {
         AdminSseEmitter.write(response, threadName, errorEvent, emitter -> {
             beforeCacheTask.write(emitter);
+            if (StaticSitePlugin.isDisabled()) {
+                cacheTask.run();
+                duringCacheTask.write(emitter);
+                afterCacheTask.write(emitter);
+                return;
+            }
             emitter.send("static-sync-start", AdminStaticSiteProgress.snapshot(siteTypes));
             CompletableFuture<Void> cacheFuture = CompletableFuture.runAsync(cacheTask::run);
             while (!cacheFuture.isDone()) {
+                duringCacheTask.write(emitter);
                 emitter.send("static-progress", AdminStaticSiteProgress.snapshot(siteTypes));
                 Thread.sleep(1000);
             }
             cacheFuture.join();
+            duringCacheTask.write(emitter);
             emitter.send("static-sync-complete", AdminStaticSiteProgress.snapshot(siteTypes));
             afterCacheTask.write(emitter);
         });

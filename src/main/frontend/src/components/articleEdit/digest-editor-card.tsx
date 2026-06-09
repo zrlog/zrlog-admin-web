@@ -1,8 +1,8 @@
 import { getRes } from "../../utils/constants";
-import { CheckOutlined, EditOutlined } from "@ant-design/icons";
+import { BulbOutlined, CheckOutlined, EditOutlined } from "@ant-design/icons";
 import Card from "antd/es/card";
 import { FunctionComponent, memo, RefObject, useEffect, useRef, useState } from "react";
-import { InputRef } from "antd";
+import { Button, InputRef, Space } from "antd";
 import { ArticleChangeableValue } from "./index.types";
 import { getAppState } from "../../base/ConfigProviderApp";
 import HtmlPreviewPanel from "@editor/dist/src/editor/html-preview-panel";
@@ -12,15 +12,22 @@ type DigestEditorCardProps = {
     digestRef: RefObject<InputRef>;
     initDigest: string;
     handleValuesChange: (cv: ArticleChangeableValue) => void;
+    generatingDigest?: boolean;
+    onGenerateDigest?: () => void;
 };
 
 const DigestEditorCard: FunctionComponent<DigestEditorCardProps> = memo(
-    ({ digestRef, initDigest, handleValuesChange }) => {
+    ({ digestRef, initDigest, handleValuesChange, generatingDigest, onGenerateDigest }) => {
         const [editDigest, setEditDigest] = useState<boolean>(initDigest.trim().length === 0);
 
         const [digest, setDigest] = useState<string>(initDigest);
         const [value, setValue] = useState<string>(initDigest);
         const hasMounted = useRef(false);
+
+        useEffect(() => {
+            setDigest(initDigest);
+            setValue(initDigest);
+        }, [initDigest]);
 
         useEffect(() => {
             if (!hasMounted.current) {
@@ -68,26 +75,43 @@ const DigestEditorCard: FunctionComponent<DigestEditorCardProps> = memo(
         };
 
         const getActionBtn = () => {
+            const generateButton = onGenerateDigest ? (
+                <Button
+                    type="text"
+                    size="small"
+                    icon={<BulbOutlined />}
+                    loading={generatingDigest}
+                    title={getRes().articleEdit.digest.generate}
+                    onClick={onGenerateDigest}
+                    style={{ color: getAppState().colorPrimary }}
+                />
+            ) : null;
             if (digest.length === 0) {
-                return <></>;
+                return generateButton;
             }
             if (editDigest) {
                 return (
-                    <CheckOutlined
-                        onClick={() => {
-                            setEditDigest(false);
-                        }}
-                        style={{ color: getAppState().colorPrimary, cursor: "pointer" }}
-                    />
+                    <Space size={4}>
+                        {generateButton}
+                        <CheckOutlined
+                            onClick={() => {
+                                setEditDigest(false);
+                            }}
+                            style={{ color: getAppState().colorPrimary, cursor: "pointer" }}
+                        />
+                    </Space>
                 );
             }
             return (
-                <EditOutlined
-                    onClick={() => {
-                        setEditDigest(true);
-                    }}
-                    style={{ color: getAppState().colorPrimary, cursor: "pointer" }}
-                />
+                <Space size={4}>
+                    {generateButton}
+                    <EditOutlined
+                        onClick={() => {
+                            setEditDigest(true);
+                        }}
+                        style={{ color: getAppState().colorPrimary, cursor: "pointer" }}
+                    />
+                </Space>
             );
         };
 

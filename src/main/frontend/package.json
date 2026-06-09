@@ -6,8 +6,9 @@
   "license": "MIT",
   "dependencies": {
     "@ant-design/cssinjs": "1.21.1",
+    "@ant-design/plots": "2.6.8",
     "@craco/craco": "7.1.0",
-    "@editor": "https://raw.githubusercontent.com/zrlog-extensions/zrlog-editor/refs/heads/main/artifacts/v2.1.0.tgz?v=1",
+    "@editor": "https://raw.githubusercontent.com/zrlog-extensions/zrlog-editor/refs/heads/main/artifacts/v2.1.19.tgz?v=1",
     "antd": "6.3.1",
     "antd-style": "4.1.0",
     "md5": "2.3.0",
@@ -21,7 +22,7 @@
   "scripts": {
     "lint": "yarn type-check",
     "prepare": "cd ../../../ && husky install src/main/frontend/.husky",
-    "pre-commit": "react-scripts lint",
+    "pre-commit": "yarn lint",
     "start": "craco start",
     "type-check": "tsc --project tsconfig.json --pretty --noEmit",
     "build": "cross-env GENERATE_SOURCEMAP=false craco build",

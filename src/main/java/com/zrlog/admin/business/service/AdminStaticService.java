@@ -1,5 +1,7 @@
 package com.zrlog.admin.business.service;
 
+import com.zrlog.business.service.UpgradeService;
+
 public class AdminStaticService {
 
     private static final AdminStaticService instance = new AdminStaticService();

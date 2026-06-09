@@ -1,25 +1,20 @@
 import { DownOutlined, KeyOutlined, LogoutOutlined, UserOutlined } from "@ant-design/icons";
-import { MenuProps, Modal, Typography } from "antd";
+import { Avatar, MenuProps, Modal, Typography } from "antd";
 import { Link } from "react-router-dom";
 
 import Dropdown from "antd/es/dropdown";
-import Image from "antd/es/image";
-import Constants, {
-    AdminResourceInfo,
-    getBackendServerUrl,
-    getRealRouteUrl,
-    getRes,
-    isStaticPage,
-} from "../utils/constants";
+import { AdminResourceInfo, getBackendServerUrl, getRealRouteUrl, getRes, isStaticPage } from "../utils/constants";
 import Divider from "antd/es/divider";
 import { BasicUserInfo } from "../type";
 import { tryBlock } from "../utils/helpers";
-import { getAppState } from "../base/ConfigProviderApp";
+import { resolveBackendImageSrc } from "../common/BackendImage";
+import { useTheme } from "antd-style";
 
 const { Text } = Typography;
 
 const UserInfo = ({ data, offline }: { data: BasicUserInfo; offline: boolean }) => {
     const [modal, contextHolder] = Modal.useModal();
+    const theme = useTheme();
 
     const adminSettings = (res: AdminResourceInfo): MenuProps["items"] => {
         const base = [
@@ -74,36 +69,29 @@ const UserInfo = ({ data, offline }: { data: BasicUserInfo; offline: boolean }) 
 
     const items = adminSettings(getRes());
 
-    const getImgSize = () => {
-        if (getAppState().compactMode) {
-            return 32;
-        }
-        return 40;
-    };
-
     return (
         <>
             {contextHolder}
             <Dropdown menu={{ items }} placement="bottom">
                 <div
                     style={{
-                        color: getAppState().dark ? "#ffffff" : "#333333",
+                        color: theme.colorText,
                         marginRight: 16,
-                        height: 50,
+                        minHeight: 32,
                         display: "flex",
                         alignItems: "center",
+                        cursor: "pointer",
                     }}
                 >
-                    <Image
-                        preview={false}
-                        fallback={Constants.getFillBackImg()}
+                    <Avatar
                         className={"userAvatarImg"}
-                        src={data.header}
-                        style={{ lineHeight: getImgSize(), width: getImgSize(), height: getImgSize() }}
+                        src={resolveBackendImageSrc(data.header)}
+                        size={32}
+                        icon={<UserOutlined />}
                     />
                     <Text
                         style={{
-                            color: getAppState().dark ? "#ffffff" : "#333333",
+                            color: theme.colorText,
                             paddingLeft: 8,
                         }}
                     >

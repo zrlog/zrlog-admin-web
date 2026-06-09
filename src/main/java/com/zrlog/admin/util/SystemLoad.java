@@ -13,13 +13,6 @@ public class SystemLoad {
 
     private static final Logger LOGGER = LoggerUtil.getLogger(SystemLoad.class);
 
-    public static void main(String[] args) {
-        // 调用方法获取系统负载信息
-        String loadInfo = getSystemLoad();
-        System.out.println("System Load: " + loadInfo);
-        System.out.println("parseLine(\"11:30  up 3 days,  1:51, 4 users, load averages: 3.40 3.22 2.97\") = " + parseLine("11:30  up 3 days,  1:51, 4 users, load averages: 3.40 3.22 2.97"));
-    }
-
     private static boolean isWindows() {
         String osName = System.getProperty("os.name").toLowerCase();
         return osName.contains("windows");

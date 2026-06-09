@@ -1,8 +1,8 @@
-import { AppstoreOutlined, EditOutlined, GlobalOutlined, LockOutlined } from "@ant-design/icons";
+import { AppstoreOutlined, EditOutlined, GlobalOutlined, LockOutlined, StarFilled } from "@ant-design/icons";
 
-import { Button, Grid, Image, Input, Segmented, TableColumnsType, Tooltip } from "antd";
+import { Button, Grid, Input, Segmented, Space, TableColumnsType, Tag, Tooltip, Typography, theme } from "antd";
 import Divider from "antd/es/divider";
-import { getRealRouteUrl, getRes } from "../../utils/constants";
+import { getLabelValueSeparator, getRealRouteUrl, getRes } from "../../utils/constants";
 import type * as React from "react";
 import { ReactElement, useEffect, useRef, useState } from "react";
 import Tags from "../../common/Tags";
@@ -12,11 +12,20 @@ import { useLocation } from "react-router";
 import { getAppState } from "../../base/ConfigProviderApp";
 import { ArticlePreviewAction } from "./ArticlePreviewAction";
 import { removeCacheDataByKey } from "../../utils/cache";
+import BackendImage from "../../common/BackendImage";
+import HighlightText from "../../common/HighlightText";
 
 const { Search } = Input;
+const { Text } = Typography;
 const { useBreakpoint } = Grid;
 
-const genTypes = (d: ArticlePageDataSource, search: string) => {
+type ArticleTypeFilter = {
+    text: string;
+    value: string;
+    selected: boolean;
+};
+
+const genTypes = (d: ArticlePageDataSource, search: string): ArticleTypeFilter[] => {
     const typesStr = new URLSearchParams(search).get("types");
 
     return d.types
@@ -32,10 +41,78 @@ const genTypes = (d: ArticlePageDataSource, search: string) => {
 
 const Index = ({ data, offline }: { data: ArticlePageDataSource; offline: boolean }) => {
     const screens = useBreakpoint();
-    const mobile = screens.xs === true;
+    const compactToolbar = screens.lg !== true;
+    const compactArticleTable = screens.md !== true;
     const location = useLocation();
     const navigate = useNavigate();
     const ds = genTypes(data, location.search);
+    const { token } = theme.useToken();
+
+    const surface = {
+        titleStateRow: {
+            display: "flex",
+            gap: token.marginXXS,
+            whiteSpace: "normal" as const,
+            flexFlow: "wrap" as const,
+            alignItems: "center" as const,
+        },
+        titleStateDraft: {
+            color: token.colorTextSecondary,
+            fontSize: token.fontSizeSM,
+        },
+        titleStateIcon: {
+            color: token.colorTextSecondary,
+        },
+        compactTitleMeta: {
+            display: "flex",
+            flexDirection: "column" as const,
+            gap: token.marginXXS,
+            minWidth: 0,
+        },
+        compactTitleMetaSpace: {
+            h: token.marginXS,
+            v: token.marginXXS,
+        },
+        titleText: {
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            wordBreak: "break-word" as const,
+        },
+        compactTypeTag: {
+            marginInlineEnd: 0,
+        },
+        toolbar: {
+            justifyContent: "space-between",
+            display: "flex",
+            alignItems: compactToolbar ? ("stretch" as const) : ("center" as const),
+            gap: token.margin,
+            flexWrap: "wrap" as const,
+            flexDirection: compactToolbar ? ("column" as const) : ("row" as const),
+        },
+        toolbarControlWrap: {
+            display: "flex",
+            alignItems: "center",
+            gap: token.margin,
+            flex: 1,
+            minWidth: 0,
+            width: "100%",
+        },
+        search: {
+            width: compactToolbar ? "100%" : 260,
+            maxWidth: "100%",
+        },
+        segmented: {
+            maxWidth: "100%",
+            width: compactToolbar ? "100%" : "auto",
+        },
+        thumbnailImage: {
+            objectFit: "contain" as const,
+            maxHeight: 108,
+        },
+        editActionIcon: {
+            color: token.colorPrimary,
+        },
+    };
 
     const statusOptions = [
         {
@@ -60,7 +137,7 @@ const Index = ({ data, offline }: { data: ArticlePageDataSource; offline: boolea
         },
     ];
 
-    const [filters, setFilters] = useState<Record<string, any>[]>(ds); // 用于存储选中的筛选项
+    const [filters, setFilters] = useState<ArticleTypeFilter[]>(ds);
     const jumped = useRef(false);
 
     // 从 URL 或后端数据中读取当前 status
@@ -114,14 +191,69 @@ const Index = ({ data, offline }: { data: ArticlePageDataSource; offline: boolea
 
     const wrapperArticleStateInfo = (record: any, element: ReactElement) => {
         return (
-            <span style={{ display: "flex", gap: 4, whiteSpace: "normal", flexFlow: "wrap", alignItems: "center" }}>
+            <span style={surface.titleStateRow}>
                 {element}
-                {record.rubbish && (
-                    <span style={{ color: "rgb(119, 119, 119)", fontSize: 12 }}>{getRes().article.status.draft}</span>
+                {record.rubbish && <span style={surface.titleStateDraft}>{getRes().article.status.draft}</span>}
+                {record.privacy && <LockOutlined style={surface.titleStateIcon} />}
+                {record.recommended && (
+                    <Tag color="gold" bordered={false} icon={<StarFilled />} style={{ marginInlineEnd: 0 }}>
+                        {getRes().article.recommended}
+                    </Tag>
                 )}
-                {record.privacy && <LockOutlined style={{ color: "rgb(119, 119, 119)" }} />}
                 {record.keywords && <Tags closeable={false} keywords={record.keywords} />}
             </span>
+        );
+    };
+
+    const renderArticleTitle = (text: string, record: any, compact: boolean) => {
+        const keyword = data.key || "";
+        const title = (
+            <Tooltip
+                placement="top"
+                title={
+                    <div>
+                        {getRes().article.previewOpenPrefix}
+                        <HighlightText text={text} keyword={keyword} />
+                        {getRes().article.previewOpenSuffix}
+                    </div>
+                }
+            >
+                <HighlightText text={text} keyword={keyword} style={surface.titleText} />
+            </Tooltip>
+        );
+        const titleLink = record["url"].includes("previewMode") ? (
+            <Link to={record["url"]}>{title}</Link>
+        ) : (
+            <a rel="noopener noreferrer" target={"_blank"} href={record.url}>
+                {title}
+            </a>
+        );
+        const titleWithState = wrapperArticleStateInfo(record, titleLink);
+        if (!compact) {
+            return titleWithState;
+        }
+        return (
+            <div style={surface.compactTitleMeta}>
+                {titleWithState}
+                <Space size={[surface.compactTitleMetaSpace.h, surface.compactTitleMetaSpace.v]} wrap>
+                    {record.typeName ? <Tag style={surface.compactTypeTag}>{record.typeName}</Tag> : null}
+                    <Text type="secondary">
+                        {getRes().article.viewCount}
+                        {getLabelValueSeparator()}
+                        {record.click}
+                    </Text>
+                    <Text type="secondary">
+                        {getRes().article.commentSize}
+                        {getLabelValueSeparator()}
+                        {record.commentSize}
+                    </Text>
+                    <Text type="secondary">
+                        {getRes().article.lastUpdateDate}
+                        {getLabelValueSeparator()}
+                        {record.lastUpdateDate}
+                    </Text>
+                </Space>
+            </div>
         );
     };
 
@@ -134,6 +266,18 @@ const Index = ({ data, offline }: { data: ArticlePageDataSource; offline: boolea
             sorterMap[field] = order.toUpperCase() === "DESC" ? "descend" : "ascend";
         }
 
+        if (compactArticleTable) {
+            return [
+                {
+                    title: getRes().title,
+                    key: "title",
+                    dataIndex: "title",
+                    width: 280,
+                    render: (text: string, record: any) => renderArticleTitle(text, record, true),
+                },
+            ];
+        }
+
         return [
             {
                 title: getRes().article.cover as string,
@@ -142,7 +286,7 @@ const Index = ({ data, offline }: { data: ArticlePageDataSource; offline: boolea
                 width: data.article_thumbnail_status ? 108 : 0,
                 render: (url: string) => {
                     if (url && url.length > 0 && data.article_thumbnail_status) {
-                        return <Image style={{ objectFit: "contain", maxHeight: 108 }} src={url} />;
+                        return <BackendImage style={surface.thumbnailImage} src={url} />;
                     }
                     return <></>;
                 },
@@ -155,56 +299,28 @@ const Index = ({ data, offline }: { data: ArticlePageDataSource; offline: boolea
                     showTitle: false,
                 },
                 width: 400,
-                render: (text: string, record: any) => {
-                    const t = (
-                        <Tooltip
-                            placement="top"
-                            title={
-                                <div>
-                                    {getRes().article.previewOpenPrefix}
-                                    <span dangerouslySetInnerHTML={{ __html: text }}></span>
-                                    {getRes().article.previewOpenSuffix}
-                                </div>
-                            }
-                        >
-                            <span
-                                style={{ overflow: "hidden", textOverflow: "ellipsis", wordBreak: "break-word" }}
-                                dangerouslySetInnerHTML={{ __html: text }}
-                            />
-                        </Tooltip>
-                    );
-                    if (record["url"].includes("previewMode")) {
-                        return wrapperArticleStateInfo(record, <Link to={record["url"]}>{t}</Link>);
-                    }
-                    return wrapperArticleStateInfo(
-                        record,
-                        <a rel="noopener noreferrer" target={"_blank"} href={record.url}>
-                            {t}
-                        </a>
-                    );
-                },
+                render: (text: string, record: any) => renderArticleTitle(text, record, false),
             },
             {
                 title: getRes().type,
                 key: "typeName",
                 dataIndex: "typeName",
                 width: 100,
-                //@ts-ignore
-                filters: filters,
+                filters: filters.map(({ text, value }) => ({ text, value })),
                 filterMultiple: false,
                 filteredValue: filters.filter((e) => e.selected).map((e) => e.value), // 动态绑定当前选中值
                 onFilter: (value: React.Key | boolean) => {
+                    const filterValue = String(value);
                     // 更新选中状态
                     if (
                         filters
                             .filter((e) => e.selected)
                             .map((e) => e.value)
-                            .includes(value)
+                            .includes(filterValue)
                     ) {
                         return true;
                     }
-                    //@ts-ignore
-                    handleFilterChange(value, true);
+                    handleFilterChange(filterValue, true);
                     handleNavigation();
                     return true; // 保留默认筛选功能
                 },
@@ -267,23 +383,14 @@ const Index = ({ data, offline }: { data: ArticlePageDataSource; offline: boolea
 
     return (
         <>
-            <div
-                style={{
-                    justifyContent: "space-between",
-                    display: "flex",
-                    alignItems: mobile ? "stretch" : "center",
-                    gap: 16,
-                    flexWrap: "wrap",
-                    flexDirection: mobile ? "column" : "row",
-                }}
-            >
-                <div style={{ display: "flex", alignItems: "center", gap: 16, flex: 1, minWidth: 0, width: "100%" }}>
+            <div style={surface.toolbar}>
+                <div style={surface.toolbarControlWrap}>
                     <Segmented
                         options={statusOptions}
                         value={currentStatus}
                         onChange={handleStatusChange}
-                        block={mobile}
-                        style={{ maxWidth: "100%", width: mobile ? "100%" : "auto" }}
+                        block={compactToolbar}
+                        style={surface.segmented}
                     />
                 </div>
                 <Search
@@ -293,7 +400,7 @@ const Index = ({ data, offline }: { data: ArticlePageDataSource; offline: boolea
                     onSearch={onSearch}
                     defaultValue={data.key}
                     enterButton={getRes().article.search}
-                    style={{ width: mobile ? "100%" : 260, maxWidth: "100%" }}
+                    style={surface.search}
                 />
             </div>
             <Divider />
@@ -302,17 +409,18 @@ const Index = ({ data, offline }: { data: ArticlePageDataSource; offline: boolea
                 offline={offline}
                 datasource={data}
                 columns={getColumns()}
-                actionColumnWidth={116}
-                editBtnRender={(id) => (
+                actionColumnWidth={compactArticleTable ? 88 : 116}
+                hideId={compactArticleTable}
+                editBtnRender={(id, record) => (
                     <>
-                        <ArticlePreviewAction id={id} />
+                        <ArticlePreviewAction article={record} />
                         <Tooltip title={getRes().edit}>
                             <Link to={getRealRouteUrl("/article-edit?id=" + id)}>
                                 <Button
                                     type="text"
                                     size="small"
                                     title={getRes().edit}
-                                    icon={<EditOutlined style={{ color: getAppState().colorPrimary }} />}
+                                    icon={<EditOutlined style={surface.editActionIcon} />}
                                 />
                             </Link>
                         </Tooltip>

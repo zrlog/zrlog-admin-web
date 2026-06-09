@@ -4,11 +4,14 @@ import com.hibegin.http.annotation.ResponseBody;
 import com.zrlog.admin.business.rest.request.ArticleVersionRollbackRequest;
 import com.zrlog.admin.business.rest.response.*;
 import com.zrlog.admin.business.service.AdminArticleService;
+import com.zrlog.admin.business.service.AdminAuditService;
 import com.zrlog.admin.business.service.ArticleVersionService;
+import com.zrlog.admin.business.type.AdminAuditAction;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.business.plugin.type.StaticSiteType;
 import com.zrlog.business.util.CacheUtils;
 import com.zrlog.common.controller.BaseController;
+import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.util.I18nUtil;
 
 import java.sql.SQLException;
@@ -22,12 +25,12 @@ public class AdminArticleVersionController extends BaseController {
 
     private String getResponseMsg(CreateOrUpdateArticleResponse response) {
         return I18nUtil.getAdminBackendStringFromRes(Objects.equals(response.getRubbish(), true)
-                || Objects.equals(response.getPrivacy(), true) ? "saveSuccess" : "releaseSuccess");
+                || Objects.equals(response.getPrivacy(), true) ? "admin.article.save.success" : "admin.article.release.success");
     }
 
-    private AdminApiPageDataStandardResponse<ArticleGlobalResponse> toResponseByArticle(
+    private AdminPageDataResponse<ArticleGlobalResponse> toResponseByArticle(
             CreateOrUpdateArticleResponse createOrUpdateArticleResponse) throws SQLException {
-        AdminApiPageDataStandardResponse<ArticleGlobalResponse> detail = articleService
+        AdminPageDataResponse<ArticleGlobalResponse> detail = articleService
                 .loadDetailById(createOrUpdateArticleResponse.getLogId() + "", request);
         LoadEditArticleResponse loadEditArticleResponse = detail.getData().getArticle();
         if (Objects.equals(loadEditArticleResponse.isRubbish(), false)) {
@@ -38,25 +41,25 @@ public class AdminArticleVersionController extends BaseController {
     }
 
     @ResponseBody
-    public AdminApiPageDataStandardResponse<List<ArticleVersionResponse>> index() throws SQLException {
+    public ApiStandardResponse<List<ArticleVersionResponse>> index() throws SQLException {
         Integer id = Integer.valueOf(getParamWithEmptyCheck("id"));
-        return new AdminApiPageDataStandardResponse<>(articleVersionService.listVersions(id));
+        return new ApiStandardResponse<>(articleVersionService.listVersions(id));
     }
 
     @ResponseBody
-    public AdminApiPageDataStandardResponse<ArticleVersionCompareResponse> compare() throws SQLException {
+    public ApiStandardResponse<ArticleVersionCompareResponse> compare() throws SQLException {
         Integer id = Integer.valueOf(getParamWithEmptyCheck("id"));
         Integer fromVersion = Integer.valueOf(getParamWithEmptyCheck("fromVersion"));
         Integer toVersion = Integer.valueOf(getParamWithEmptyCheck("toVersion"));
-        return new AdminApiPageDataStandardResponse<>(articleVersionService.compare(id, fromVersion, toVersion));
+        return new ApiStandardResponse<>(articleVersionService.compare(id, fromVersion, toVersion, request));
     }
 
     @ResponseBody
-    public AdminApiPageDataStandardResponse<ArticleGlobalResponse> rollback() throws SQLException {
+    public AdminPageDataResponse<ArticleGlobalResponse> rollback() throws SQLException {
         ArticleVersionRollbackRequest body = getRequestBodyWithNullCheck(ArticleVersionRollbackRequest.class);
-        CreateOrUpdateArticleResponse response = articleVersionService.rollback(AdminTokenThreadLocal.getUser(), body);
-        new com.zrlog.admin.business.service.AdminAuditService().record(request,
-                "回滚文章版本：" + body.getLogId() + " -> v" + body.getTargetVersion(), "article");
+        CreateOrUpdateArticleResponse response = articleVersionService.rollback(AdminTokenThreadLocal.getUser(), body, request);
+        new AdminAuditService().record(request, AdminAuditAction.ROLLBACK_ARTICLE_VERSION,
+                body.getLogId() + " -> v" + body.getTargetVersion());
         return toResponseByArticle(response);
     }
 }

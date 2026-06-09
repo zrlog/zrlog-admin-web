@@ -1,4 +1,4 @@
-import { CSSProperties, FunctionComponent } from "react";
+import { CSSProperties, FunctionComponent, MouseEvent } from "react";
 import { Tag } from "antd";
 import { TagOutlined } from "@ant-design/icons";
 import { getAppState } from "../base/ConfigProviderApp";
@@ -7,8 +7,8 @@ type TagsProps = {
     keywords: string;
     closeable?: boolean;
     tagStyle?: CSSProperties;
-    onClick?: (e: any) => void;
-    onClose?: (e: any, tag: string) => void;
+    onClick?: (e: MouseEvent<HTMLElement>) => void;
+    onClose?: (e: MouseEvent<HTMLElement>, tag: string) => void;
 };
 
 const Tags: FunctionComponent<TagsProps> = ({ keywords, closeable, tagStyle, onClick, onClose }) => {

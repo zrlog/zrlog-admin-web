@@ -45,6 +45,13 @@ public class AIResponseEntry {
 
         private String role;
         private String content;
+        private String messageId;
+        private String messageType;
+        private ArticleContextMeta contextMeta;
+        private String tool;
+        private Object payload;
+        private String provider;
+        private String model;
 
         public String getRole() {
             return role;
@@ -60,6 +67,102 @@ public class AIResponseEntry {
 
         public void setContent(String content) {
             this.content = content;
+        }
+
+        public String getMessageId() {
+            return messageId;
+        }
+
+        public void setMessageId(String messageId) {
+            this.messageId = messageId;
+        }
+
+        public String getMessageType() {
+            return messageType;
+        }
+
+        public void setMessageType(String messageType) {
+            this.messageType = messageType;
+        }
+
+        public ArticleContextMeta getContextMeta() {
+            return contextMeta;
+        }
+
+        public void setContextMeta(ArticleContextMeta contextMeta) {
+            this.contextMeta = contextMeta;
+        }
+
+        public String getTool() {
+            return tool;
+        }
+
+        public void setTool(String tool) {
+            this.tool = tool;
+        }
+
+        public Object getPayload() {
+            return payload;
+        }
+
+        public void setPayload(Object payload) {
+            this.payload = payload;
+        }
+
+        public String getProvider() {
+            return provider;
+        }
+
+        public void setProvider(String provider) {
+            this.provider = provider;
+        }
+
+        public String getModel() {
+            return model;
+        }
+
+        public void setModel(String model) {
+            this.model = model;
+        }
+
+        public static class ArticleContextMeta {
+
+            private String title;
+            private Integer articleVersion;
+            private Integer markdownLength;
+            private Long createdAt;
+
+            public String getTitle() {
+                return title;
+            }
+
+            public void setTitle(String title) {
+                this.title = title;
+            }
+
+            public Integer getArticleVersion() {
+                return articleVersion;
+            }
+
+            public void setArticleVersion(Integer articleVersion) {
+                this.articleVersion = articleVersion;
+            }
+
+            public Integer getMarkdownLength() {
+                return markdownLength;
+            }
+
+            public void setMarkdownLength(Integer markdownLength) {
+                this.markdownLength = markdownLength;
+            }
+
+            public Long getCreatedAt() {
+                return createdAt;
+            }
+
+            public void setCreatedAt(Long createdAt) {
+                this.createdAt = createdAt;
+            }
         }
     }
 

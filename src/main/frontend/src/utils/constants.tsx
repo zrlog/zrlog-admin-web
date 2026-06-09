@@ -1,9 +1,7 @@
-// eslint-disable-next-line no-unused-vars
-
 import { getContextPath } from "./helpers";
 import { getSsDate } from "../base/SsData";
-import { getAdminI18n } from "../i18n/admin";
 import type { AdminI18nResource, AdminLang } from "../i18n/admin";
+import { getAdminI18n } from "../i18n/admin";
 
 export type AdminTheme = "geek" | "antd" | "shadcn" | "default" | "cartoon" | "illustration" | "bootstrap";
 
@@ -32,6 +30,8 @@ export type AdminRuntimeResourceInfo = {
     copyrightTips?: string;
     currentVersion?: string;
     defaultLoginInfo?: LoginUserInfo;
+    feature_personal_data_enabled?: boolean;
+    feature_webhook_enabled?: boolean;
     homeUrl?: string;
     lang?: AdminLang;
     staticPage?: boolean;
@@ -58,6 +58,8 @@ const toRuntimeResourceInfo = (res?: AdminRuntimeResourceInfo | null): AdminRunt
         copyrightTips: res.copyrightTips,
         currentVersion: res.currentVersion,
         defaultLoginInfo: res.defaultLoginInfo,
+        feature_personal_data_enabled: res.feature_personal_data_enabled,
+        feature_webhook_enabled: res.feature_webhook_enabled,
         homeUrl: res.homeUrl,
         lang: res.lang,
         staticPage: res.staticPage,
@@ -76,6 +78,14 @@ export const getRes = (): AdminResourceInfo => {
         ...getAdminI18n(runtimeRes.lang),
         ...runtimeRes,
     };
+};
+
+export const getLabelValueSeparator = () => {
+    return getRes().lang === "en_US" ? ": " : "：";
+};
+
+export const formatLabelValue = (label: string, value: string | number) => {
+    return `${label}${getLabelValueSeparator()}${value}`;
 };
 
 export const getDefaultLoginInfo = (): LoginUserInfo => {
@@ -103,7 +113,7 @@ export const setRes = (r: AdminRuntimeResourceInfo) => {
 
 export const cacheIgnoreReloadTime = "_t";
 
-export const cacheIgnoreReloadKeys = cacheIgnoreReloadTime + ",v";
+export const cacheIgnoreReloadKeys = cacheIgnoreReloadTime + ",v" + ",view";
 
 export const isDev = () => {
     return process.env.NODE_ENV != "production";
@@ -136,7 +146,19 @@ export const getBackendServerUrl = (): string => {
 
 export const tryAppendBackendServerUrl = (url: string): string => {
     if (url.startsWith("/")) {
-        return getBackendServerUrl() + url.substring(1);
+        const backendServerUrl = window.localStorage.getItem("_backend_server_url");
+        if (!backendServerUrl) {
+            return url;
+        }
+        const normalizedBackendServerUrl = backendServerUrl.endsWith("/") ? backendServerUrl : backendServerUrl + "/";
+        const serverContextPath =
+            normalizedBackendServerUrl.startsWith("http://") || normalizedBackendServerUrl.startsWith("https://")
+                ? new URL(normalizedBackendServerUrl).pathname
+                : normalizedBackendServerUrl;
+        if (url.startsWith(serverContextPath)) {
+            return normalizedBackendServerUrl + url.substring(serverContextPath.length, url.length);
+        }
+        return normalizedBackendServerUrl + url.substring(1);
     }
     return url;
 };

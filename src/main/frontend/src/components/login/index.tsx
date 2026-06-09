@@ -27,7 +27,6 @@ const md5 = require("md5");
 const PREFIX = "login";
 
 export const classes = {
-    bg: `${PREFIX}-bg`,
     title: `${PREFIX}-title`,
     card: `${PREFIX}-card`,
     content: `${PREFIX}-content`,
@@ -188,23 +187,6 @@ export const StyledLoginPage = styled(Layout)<StyledLoginPageProps>(
                 width: "100%",
                 fontWeight: 600,
                 height: 44,
-                border: "none",
-                boxShadow: `0 10px 20px -10px ${mainColor}80`,
-                "&:hover": {
-                    boxShadow: `0 15px 30px -10px ${mainColor}90`,
-                    filter: "brightness(1.05)",
-                },
-                "&:active": {
-                    transform: "translateY(0)",
-                },
-            },
-
-            [`& .ant - layout - footer`]: {
-                display: "none", // Hide footer for this clean layout or position absolutely
-            },
-
-            [`& .${classes.bg} `]: {
-                display: "none",
             },
         };
     }
@@ -233,13 +215,9 @@ const asyncSaveApiCache = async (axiosInstance: AxiosInstance, responseBody: Log
         addToCache(key, data);
     });
 
-    await Promise.all(promises)
-        .then(() => {
-            console.log("all api data cached");
-        })
-        .catch((error) => {
-            console.error("cache error：", error);
-        });
+    await Promise.all(promises).catch((error) => {
+        console.error("cache error：", error);
+    });
 };
 
 const Index = ({ offline }: { offline: boolean }) => {

@@ -2,9 +2,9 @@ package com.zrlog.admin.business.service;
 
 import com.hibegin.http.server.api.HttpRequest;
 import com.zrlog.admin.business.AdminConstants;
+import com.zrlog.admin.business.rest.response.AdminResourceInfoResponse;
 
 import java.io.InputStream;
-import java.util.Map;
 import java.util.Set;
 
 public interface AdminResource  {
@@ -23,5 +23,5 @@ public interface AdminResource  {
 
     String getStaticResourceBuildId();
 
-    Map<String, Object> adminResourceInfo(HttpRequest request);
+    AdminResourceInfoResponse adminResourceInfo(HttpRequest request);
 }

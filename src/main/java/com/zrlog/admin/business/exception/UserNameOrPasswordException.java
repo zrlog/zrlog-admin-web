@@ -1,16 +1,13 @@
 package com.zrlog.admin.business.exception;
 
-import com.zrlog.common.exception.AbstractBusinessException;
-import com.zrlog.util.I18nUtil;
+public class UserNameOrPasswordException extends AbstractAdminBusinessException {
 
-public class UserNameOrPasswordException extends AbstractBusinessException {
-    @Override
-    public int getError() {
-        return 9010;
+    public UserNameOrPasswordException() {
+        super("admin.login.error.usernameOrPassword");
     }
 
     @Override
-    public String getMessage() {
-        return I18nUtil.getAdminBackendStringFromRes("userNameOrPasswordError");
+    public int getError() {
+        return 9010;
     }
 }

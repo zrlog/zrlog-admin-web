@@ -14,6 +14,8 @@ public class AdminConstants {
     public static final String ADMIN_URI_BASE_PATH = "/admin";
     public static final String ADMIN_DEV_URI_BASE_PATH = ADMIN_URI_BASE_PATH + "/dev";
     public static final String ADMIN_DEV_FILE_URI_BASE_PATH = ADMIN_URI_BASE_PATH + "/dev/file";
+    public static final String ADMIN_DEV_FILE_SYSTEM_TEMP_URI_BASE_PATH = ADMIN_URI_BASE_PATH + "/dev/file/tmp";
+    public static final String ADMIN_DB_ATTACHED_TMP = AdminConstants.ADMIN_URI_BASE_PATH + "/attached/tmp";
 
     public static final String ADMIN_HTML_PAGE = ADMIN_URI_BASE_PATH + "/index.html";
     public static final String ADMIN_LOGIN_URI_PATH = ADMIN_URI_BASE_PATH + "/login";
@@ -35,29 +37,36 @@ public class AdminConstants {
     public static final List<String> adminStaticResources = Arrays.asList(ADMIN_URI_BASE_PATH + "/static", ADMIN_URI_BASE_PATH + "/pwa");
 
     static {
-        TITLE_MAP.put(ADMIN_LOGIN_URI_PATH, "login");
-        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/article-edit", "admin.log.edit");
-        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/article", "blogManage");
-        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/index", "dashboard");
-        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/comment", "comment");
+        TITLE_MAP.put(ADMIN_LOGIN_URI_PATH, "admin.login.title");
+        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/article-edit", "admin.article.edit.manage");
+        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/article", "admin.article.manage");
+        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/index", "admin.dashboard.manage");
+        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/comment", "admin.comment.manage");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/website", "admin.website.manage");
-        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/website/blog", "admin.blog.manage");
-        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/website/admin", "admin.admin.manage");
-        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/website/template", "admin.template.manage");
-        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/website/other", "admin.other.manage");
-        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/website/upgrade", "admin.upgrade.manage");
-        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/website/ai", "admin.ai.manage");
+        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/website/blog", "admin.website.blog.manage");
+        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/website/admin", "admin.website.admin.manage");
+        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/website/template", "admin.website.template.manage");
+        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/website/other", "admin.website.other.manage");
+        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/website/upgrade", "admin.website.upgrade.manage");
+        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/website/ai", "admin.website.ai.manage");
+        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/website/article-edit", "admin.website.articleEdit.manage");
+        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/website/content-protector", "admin.website.contentProtector.manage");
+        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/website/webhook", "admin.website.webhook.manage");
+        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/website/privacy", "admin.website.privacy.manage");
+        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/website/lab", "admin.website.lab.manage");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/nav", "admin.nav.manage");
-        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/article-type", "admin.type.manage");
+        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/tag", "admin.tag.manage");
+        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/article-type", "admin.articleType.manage");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/link", "admin.link.manage");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/plugin", "admin.plugin.manage");
-        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/user", "admin.user.info");
-        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/user-update-password", "admin.changePwd");
-        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/upgrade", "upgradeWizard");
-        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/template-config", "templateConfig");
-        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/template-center", "templateCenter");
-        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/system", "systemInfo");
-        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/dev", "dev");
+        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/user", "admin.user.info.manage");
+        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/user-update-password", "admin.user.password.change.manage");
+        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/upgrade", "admin.upgrade.wizard.manage");
+        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/template-config", "admin.template.config.manage");
+        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/template-center", "admin.template.center.manage");
+        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/system", "admin.system.info.manage");
+        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/file-manager", "admin.fileManager.title");
+        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/dev", "admin.dev.manage");
     }
 
     public static AdminResource adminResource;
@@ -106,7 +115,7 @@ public class AdminConstants {
         if (StringUtils.isNotEmpty(title)) {
             sj.add(title);
         }
-        sj.add(I18nUtil.getAdminBackendStringFromRes("admin.management"));
+        sj.add(I18nUtil.getAdminBackendStringFromRes("admin.management.title"));
         return sj.toString();
     }
 

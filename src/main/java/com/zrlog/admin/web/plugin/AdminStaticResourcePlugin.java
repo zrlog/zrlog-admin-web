@@ -49,7 +49,7 @@ public class AdminStaticResourcePlugin extends BaseLockObject implements StaticS
         this.zrLogConfig = zrLogConfig;
         this.applicationContext = new ApplicationContext(zrLogConfig.getServerConfig());
         this.applicationContext.init();
-        File cacheFolder = getCacheFile("/admin");
+        File cacheFolder = getCacheFile(AdminConstants.ADMIN_URI_BASE_PATH);
         if (cacheFolder.exists()) {
             FileUtils.deleteFile(cacheFolder.toString());
         }
@@ -99,7 +99,6 @@ public class AdminStaticResourcePlugin extends BaseLockObject implements StaticS
         AdminConstants.adminResource.getAdminStaticCacheUris().forEach(uri -> {
             handleStatusPageMap.put(uri, StaticSitePlugin.HandleState.NEW);
         });
-        //admin resource
         adminResource.getAdminStaticResourceUris().forEach(uri -> {
             handleStatusPageMap.put(uri, StaticSitePlugin.HandleState.NEW);
         });

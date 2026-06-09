@@ -6,16 +6,14 @@ import com.hibegin.http.annotation.ResponseBody;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
 import com.zrlog.admin.business.exception.AdminAuthException;
-import com.zrlog.admin.business.rest.request.UpdateMfaRequest;
 import com.zrlog.admin.business.rest.request.UpdateAdminRequest;
+import com.zrlog.admin.business.rest.request.UpdateMfaRequest;
 import com.zrlog.admin.business.rest.request.UpdatePasswordRequest;
-import com.zrlog.admin.business.rest.response.AdminApiPageDataStandardResponse;
-import com.zrlog.admin.business.rest.response.MfaStatusResponse;
-import com.zrlog.admin.business.rest.response.UpdateRecordResponse;
-import com.zrlog.admin.business.rest.response.UserBasicInfoResponse;
-import com.zrlog.admin.business.rest.response.UserInfoResponse;
+import com.zrlog.admin.business.rest.response.*;
+import com.zrlog.admin.business.service.AdminAuditService;
 import com.zrlog.admin.business.service.MfaService;
 import com.zrlog.admin.business.service.UserService;
+import com.zrlog.admin.business.type.AdminAuditAction;
 import com.zrlog.admin.web.annotation.RefreshCache;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.business.plugin.type.StaticSiteType;
@@ -43,12 +41,12 @@ public class AdminUserController extends BaseController {
     }
 
     @ResponseBody
-    public AdminApiPageDataStandardResponse<UserBasicInfoResponse> index() throws SQLException {
+    public AdminPageDataResponse<UserBasicInfoResponse> index() throws SQLException {
         AdminTokenVO adminTokenVO = AdminTokenThreadLocal.getUser();
         if (Objects.isNull(adminTokenVO)) {
             throw new AdminAuthException();
         }
-        return new AdminApiPageDataStandardResponse<>(userService.getBasicUserInfo(adminTokenVO.getUserId(), adminTokenVO.getSessionId()), "", request.getUri());
+        return new AdminPageDataResponse<>(userService.getBasicUserInfo(adminTokenVO.getUserId(), adminTokenVO.getSessionId()), "", request.getUri());
     }
 
     /**
@@ -57,12 +55,12 @@ public class AdminUserController extends BaseController {
      * @return 基础的用户信息
      */
     @ResponseBody
-    public AdminApiPageDataStandardResponse<UserInfoResponse> info() {
+    public AdminPageDataResponse<UserInfoResponse> info() throws SQLException {
         AdminTokenVO adminTokenVO = AdminTokenThreadLocal.getUser();
         if (Objects.isNull(adminTokenVO)) {
             throw new AdminAuthException();
         }
-        return new AdminApiPageDataStandardResponse<>(userService.getUserInfoWithCache(adminTokenVO.getUserId(), adminTokenVO.getSessionId()), "", request.getUri());
+        return new AdminPageDataResponse<>(userService.getUserInfoWithCache(adminTokenVO.getUserId(), adminTokenVO.getSessionId()), "", request.getUri());
     }
 
     @RefreshCache(updateStaticSites = StaticSiteType.BLOG)
@@ -70,33 +68,40 @@ public class AdminUserController extends BaseController {
     @RequestMethod(method = HttpMethod.POST)
     public UpdateRecordResponse update() throws SQLException {
         UpdateAdminRequest updateAdminRequest = getRequestBodyWithNullCheck(UpdateAdminRequest.class);
-        userService.update(AdminTokenThreadLocal.getUserId(), updateAdminRequest);
+        userService.update(AdminTokenThreadLocal.getUserId(), updateAdminRequest, getRequest());
+        new AdminAuditService().record(request, AdminAuditAction.UPDATE_PROFILE);
         UpdateRecordResponse updateRecordResponse = new UpdateRecordResponse(true);
-        updateRecordResponse.setMessage(I18nUtil.getAdminBackendStringFromRes("updatePersonInfoSuccess"));
+        updateRecordResponse.setMessage(I18nUtil.getAdminBackendStringFromRes("admin.user.update.success"));
         return updateRecordResponse;
     }
 
     @ResponseBody
     @RequestMethod(method = HttpMethod.POST)
     public UpdateRecordResponse updatePassword() throws SQLException {
-        return userService.updatePassword(AdminTokenThreadLocal.getUserId(),
+        UpdateRecordResponse response = userService.updatePassword(AdminTokenThreadLocal.getUserId(),
                 getRequestBodyWithNullCheck(UpdatePasswordRequest.class));
+        new AdminAuditService().record(request, AdminAuditAction.UPDATE_PASSWORD);
+        return response;
     }
 
     @ResponseBody
-    public AdminApiPageDataStandardResponse<MfaStatusResponse> mfa() throws SQLException {
-        return new AdminApiPageDataStandardResponse<>(mfaService.getMfaStatus(AdminTokenThreadLocal.getUserId()), "", request.getUri());
+    public AdminPageDataResponse<MfaStatusResponse> mfa() throws SQLException {
+        return new AdminPageDataResponse<>(mfaService.getMfaStatus(AdminTokenThreadLocal.getUserId()), "", request.getUri());
     }
 
     @ResponseBody
     @RequestMethod(method = HttpMethod.POST)
     public UpdateRecordResponse enableMfa() throws SQLException {
-        return mfaService.enableMfa(AdminTokenThreadLocal.getUserId(), getRequestBodyWithNullCheck(UpdateMfaRequest.class));
+        UpdateRecordResponse response = mfaService.enableMfa(AdminTokenThreadLocal.getUserId(), getRequestBodyWithNullCheck(UpdateMfaRequest.class));
+        new AdminAuditService().record(request, AdminAuditAction.ENABLE_MFA);
+        return response;
     }
 
     @ResponseBody
     @RequestMethod(method = HttpMethod.POST)
     public UpdateRecordResponse disableMfa() throws SQLException {
-        return mfaService.disableMfa(AdminTokenThreadLocal.getUserId(), getRequestBodyWithNullCheck(UpdateMfaRequest.class));
+        UpdateRecordResponse response = mfaService.disableMfa(AdminTokenThreadLocal.getUserId(), getRequestBodyWithNullCheck(UpdateMfaRequest.class));
+        new AdminAuditService().record(request, AdminAuditAction.DISABLE_MFA);
+        return response;
     }
 }

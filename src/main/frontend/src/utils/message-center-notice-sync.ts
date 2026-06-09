@@ -4,25 +4,47 @@ import { getBackgroundTasks, removeBackgroundTaskByKey, upsertBackgroundTaskByKe
 
 const SERVER_TASK_KEY_PREFIX = "server.";
 
+const isVersionUpdateNotice = (
+    notice: MessageCenterNotice
+): notice is Extract<MessageCenterNotice, { type: "versionUpdate" }> => {
+    return notice.type === "versionUpdate" && !!notice.payload?.version;
+};
+
+const isUnreadCommentNotice = (
+    notice: MessageCenterNotice
+): notice is Extract<MessageCenterNotice, { type: "unreadComment" }> => {
+    return notice.type === "unreadComment" && typeof notice.payload?.count === "number";
+};
+
+const isWebhookMessageNotice = (
+    notice: MessageCenterNotice
+): notice is Extract<MessageCenterNotice, { type: "webhookMessage" }> => {
+    return notice.type === "webhookMessage" && typeof notice.payload?.title === "string";
+};
+
+const isOperationTaskNotice = (
+    notice: MessageCenterNotice
+): notice is Extract<MessageCenterNotice, { type: "operationTask" }> => {
+    return notice.type === "operationTask" && typeof notice.payload?.title === "string";
+};
+
 const buildVersionUpdateDescription = (notice: MessageCenterNotice) => {
-    if (!notice.version) {
+    if (!isVersionUpdateNotice(notice)) {
         return "";
     }
-    return `${getRes().backgroundTask.versionUpdate.current} ${notice.version.version} (${notice.version.type})`;
+    const version = notice.payload.version;
+    const versionText = getRes()
+        .backgroundTask.versionUpdate.current.replace("{version}", version.version)
+        .replace("{type}", version.type);
+    if (!version.buildId) {
+        return versionText;
+    }
+    return `${versionText}\n${getRes().backgroundTask.versionUpdate.buildId.replace("{buildId}", version.buildId)}`;
 };
 
 const buildUnreadCommentDescription = (notice: MessageCenterNotice) => {
-    const count = notice.count ?? 0;
+    const count = isUnreadCommentNotice(notice) ? notice.payload.count : 0;
     return getRes().backgroundTask.unreadComment.pending.replace("{count}", `${count}`);
-};
-
-const parseVersionReleaseTime = (releaseDate?: string, fallback?: number) => {
-    if (!releaseDate) {
-        return fallback ?? Date.now();
-    }
-    const normalized = releaseDate.replace(" ", "T");
-    const timestamp = new Date(normalized).getTime();
-    return Number.isNaN(timestamp) ? (fallback ?? Date.now()) : timestamp;
 };
 
 export const syncMessageCenterNotices = (notices: MessageCenterNotice[]) => {
@@ -36,7 +58,7 @@ export const syncMessageCenterNotices = (notices: MessageCenterNotice[]) => {
         });
 
     notices.forEach((notice) => {
-        if (notice.type === "versionUpdate" && notice.version) {
+        if (isVersionUpdateNotice(notice)) {
             upsertBackgroundTaskByKey(notice.taskKey, {
                 title: getRes().backgroundTask.versionUpdate.title,
                 description: buildVersionUpdateDescription(notice),
@@ -45,11 +67,25 @@ export const syncMessageCenterNotices = (notices: MessageCenterNotice[]) => {
                 timeLabel: getRes().backgroundTask.versionUpdate.publishedAt,
                 closable: false,
                 status: notice.status,
-                updatedAt: parseVersionReleaseTime(notice.version.releaseDate, notice.updatedAt),
+                updatedAt: notice.updatedAt,
             });
             return;
         }
-        if (notice.type !== "unreadComment") {
+        if (!isUnreadCommentNotice(notice)) {
+            if (isWebhookMessageNotice(notice) || isOperationTaskNotice(notice)) {
+                upsertBackgroundTaskByKey(notice.taskKey, {
+                    title: notice.payload.title,
+                    description: notice.payload.description,
+                    actionLabel: notice.payload.actionLabel,
+                    actionPath: notice.payload.actionPath,
+                    timeLabel: notice.payload.source || getRes().backgroundTask.updatedAt,
+                    closable: notice.payload.closable !== false,
+                    dismissPath: "/api/admin/message-center/read",
+                    dismissPayload: { taskKey: notice.taskKey },
+                    status: notice.status,
+                    updatedAt: notice.updatedAt,
+                });
+            }
             return;
         }
         upsertBackgroundTaskByKey(notice.taskKey, {

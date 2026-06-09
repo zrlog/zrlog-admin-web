@@ -1,23 +1,104 @@
 import BaseTable, { PageDataSource } from "../../common/BaseTable";
-import { getRes } from "../../utils/constants";
-import { Button } from "antd";
+import { getLabelValueSeparator, getRes } from "../../utils/constants";
+import { Button, Grid, Space, Typography, theme } from "antd";
 import { EditOutlined } from "@ant-design/icons";
-import { getAppState } from "../../base/ConfigProviderApp";
 import CreateOrEditLink from "./create_or_edit_link";
 
+const { Text } = Typography;
+
 const BLink = ({ data, offline }: { data: PageDataSource; offline: boolean }) => {
+    const screens = Grid.useBreakpoint();
+    const compactLinkTable = screens.md !== true;
+    const { token } = theme.useToken();
+    const surface = {
+        linkText: {
+            wordBreak: "break-all" as const,
+        },
+        compactWrap: {
+            display: "flex",
+            flexDirection: "column" as const,
+            gap: token.marginXXS,
+            minWidth: 0,
+        },
+        compactMetaSpace: {
+            h: token.marginSM,
+            v: token.marginXXS,
+        },
+        iconText: {
+            wordBreak: "break-all" as const,
+        },
+        addButton: {
+            marginBottom: token.marginSM,
+        },
+        editIcon: {
+            color: token.colorPrimary,
+        },
+    };
+
+    const renderLink = (url: string, record: Record<string, any>, compact: boolean) => {
+        const link = (
+            <a style={surface.linkText} rel="noopener noreferrer" target={"_blank"} href={url}>
+                {url}
+            </a>
+        );
+        if (!compact) {
+            return link;
+        }
+        return (
+            <div style={surface.compactWrap}>
+                {link}
+                <Space size={[surface.compactMetaSpace.h, surface.compactMetaSpace.v]} wrap>
+                    {record.linkName ? (
+                        <Text>
+                            {getRes().link.name}
+                            {getLabelValueSeparator()}
+                            <span dangerouslySetInnerHTML={{ __html: record.linkName }} />
+                        </Text>
+                    ) : null}
+                    {record.alt ? (
+                        <Text type="secondary">
+                            {getRes().introduction}
+                            {getLabelValueSeparator()}
+                            {record.alt}
+                        </Text>
+                    ) : null}
+                    {record.icon ? (
+                        <Text type="secondary" style={surface.iconText}>
+                            {getRes().icon}
+                            {getLabelValueSeparator()}
+                            {record.icon}
+                        </Text>
+                    ) : null}
+                    <Text type="secondary">
+                        {getRes().order}
+                        {getLabelValueSeparator()}
+                        {record.sort}
+                    </Text>
+                </Space>
+            </div>
+        );
+    };
+
     const getColumns = () => {
+        if (compactLinkTable) {
+            return [
+                {
+                    title: getRes().link.title,
+                    dataIndex: "url",
+                    key: "url",
+                    width: 280,
+                    render: (url: string, record: Record<string, any>) => renderLink(url, record, true),
+                },
+            ];
+        }
+
         return [
             {
                 title: getRes().link.title,
                 dataIndex: "url",
                 key: "url",
                 width: 140,
-                render: (url: string) => (
-                    <a style={{ display: "inline" }} rel="noopener noreferrer" target={"_blank"} href={url}>
-                        {url}
-                    </a>
-                ),
+                render: (url: string, record: Record<string, any>) => renderLink(url, record, false),
             },
             {
                 title: getRes().link.name,
@@ -56,6 +137,7 @@ const BLink = ({ data, offline }: { data: PageDataSource; offline: boolean }) =>
                 offline={offline}
                 hideId={true}
                 columns={getColumns()}
+                actionColumnWidth={compactLinkTable ? 88 : undefined}
                 addBtnRender={(addSuccessCall) => {
                     return (
                         <CreateOrEditLink
@@ -63,7 +145,7 @@ const BLink = ({ data, offline }: { data: PageDataSource; offline: boolean }) =>
                             offline={offline}
                             editSuccessCall={addSuccessCall}
                         >
-                            <Button type="primary" disabled={offline} style={{ marginBottom: 8 }}>
+                            <Button type="primary" disabled={offline} style={surface.addButton}>
                                 {getRes().add}
                             </Button>
                         </CreateOrEditLink>
@@ -76,7 +158,7 @@ const BLink = ({ data, offline }: { data: PageDataSource; offline: boolean }) =>
                             type="text"
                             size="small"
                             title={getRes().edit}
-                            icon={<EditOutlined style={{ color: getAppState().colorPrimary }} />}
+                            icon={<EditOutlined style={surface.editIcon} />}
                         />
                     </CreateOrEditLink>
                 )}

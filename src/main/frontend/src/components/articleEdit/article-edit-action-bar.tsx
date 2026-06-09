@@ -1,17 +1,17 @@
 import { Button, Grid } from "antd";
-import { EyeOutlined, SaveOutlined, SendOutlined } from "@ant-design/icons";
-import { getRealRouteUrl, getRes } from "../../utils/constants";
-import { ArticleEditState, ArticleEntry } from "./index.types";
+import { SaveOutlined, SendOutlined } from "@ant-design/icons";
+import { getRes } from "../../utils/constants";
+import { ArticleChangeableValue, ArticleEditState, ArticleEntry } from "./index.types";
 import { FunctionComponent, useEffect, useRef } from "react";
 import styled from "styled-components";
-import { getAppState } from "../../base/ConfigProviderApp";
 import { AIContent } from "@editor/dist/src/ai/AIContentItem";
-import AIButton from "@editor/dist/src/ai/AIButton";
-import AIIcon from "@editor/dist/src/ai/AIIcon";
+import { AIStateCache } from "@editor/dist/src/ai/AIStateCache";
 import { useAxiosBaseInstance } from "../../base/AppBase";
 import { getAiDrawerOpen } from "@editor/dist/src/ai/AIDrawer";
-import { getEditorUser } from "../../utils/helpers";
 import { getShortcutTitle, isMacLikeDevice, isTouchLikeDevice } from "./shortcut-utils";
+import ArticleAiAssistantButton, {
+    getArticleAiAssistantDrawerOpen,
+} from "./article-ai-assistant/article-ai-assistant-button";
 
 type ArticleEditActionBarProps = {
     data: ArticleEditState;
@@ -25,8 +25,12 @@ type ArticleEditActionBarProps = {
     getContainer?: () => HTMLElement;
     onAiMessagesChange?: (messages: AIContent[]) => void;
     onAiDrawerSizeChange?: (newSize: number) => void;
+    aiDrawerOpen?: boolean;
+    onAiDrawerOpenChange?: (open: boolean) => void;
     aiDrawerWidth?: number | "default" | "large";
-    previewUrl?: string | undefined;
+    aiStateCache?: AIStateCache;
+    onApplyAiValues: (cv: ArticleChangeableValue) => void;
+    onApplyGeneratedCover?: (cover: { dataUrl: string; extension?: string }) => Promise<string | undefined>;
 };
 
 const StyledActionBar = styled(`div`)`
@@ -53,8 +57,12 @@ const ArticleEditActionBar: FunctionComponent<ArticleEditActionBarProps> = ({
     getContainer,
     onAiMessagesChange,
     onAiDrawerSizeChange,
+    aiDrawerOpen,
+    onAiDrawerOpenChange,
     aiDrawerWidth,
-    previewUrl,
+    aiStateCache,
+    onApplyAiValues,
+    onApplyGeneratedCover,
 }) => {
     const enterBtnRef = useRef<HTMLAnchorElement | HTMLButtonElement>(null);
     const saveDraftBtnRef = useRef<HTMLButtonElement>(null);
@@ -70,7 +78,7 @@ const ArticleEditActionBar: FunctionComponent<ArticleEditActionBarProps> = ({
             const metaPressed = isMac ? event.metaKey : event.ctrlKey;
             const key = event.key.toLowerCase();
 
-            if (getAiDrawerOpen() || isTouchLikeDevice()) {
+            if (getAiDrawerOpen() || getArticleAiAssistantDrawerOpen() || isTouchLikeDevice()) {
                 return;
             }
 
@@ -126,39 +134,30 @@ const ArticleEditActionBar: FunctionComponent<ArticleEditActionBarProps> = ({
         onPreview,
         onOpenSettings,
         onOpenVersionHistory,
-        previewUrl,
     ]);
 
     return (
-        <StyledActionBar style={{ display: "flex", justifyContent: "end", gap: 8 }}>
-            <AIButton
-                aiProvider={data.aiProvider}
-                apiUri={"/api/admin/article/ai"}
-                input={""}
-                aiMessages={data.aiMessages ? data.aiMessages : []}
-                subject={data.article.title}
-                sessionId={data.article.logId ? data.article.logId : 0}
+        <StyledActionBar
+            style={{
+                display: "flex",
+                justifyContent: "end",
+                gap: 8,
+            }}
+        >
+            <ArticleAiAssistantButton
+                data={data}
+                offline={offline}
+                axiosInstance={axiosInstance}
                 getContainer={getContainer}
                 onAiMessagesChange={onAiMessagesChange}
-                axiosInstance={axiosInstance}
-                user={getEditorUser()}
-                drawerWidth={aiDrawerWidth}
-                dark={getAppState().dark}
-                configUrl={getRealRouteUrl("/website/ai")}
-                onSizeChange={onAiDrawerSizeChange}
-            >
-                <Button
-                    className={"btn"}
-                    type={"primary"}
-                    icon={<AIIcon name={data.aiProvider} />}
-                    style={{
-                        background: `linear-gradient(135deg, #6253e1, ${getAppState().colorPrimary})`,
-                        border: "none",
-                    }}
-                >
-                    {screens.sm && <span>{getRes().websiteAi.label}</span>}
-                </Button>
-            </AIButton>
+                onAiDrawerSizeChange={onAiDrawerSizeChange}
+                open={aiDrawerOpen}
+                onOpenChange={onAiDrawerOpenChange}
+                aiDrawerWidth={aiDrawerWidth}
+                stateCache={aiStateCache}
+                onApplyValues={onApplyAiValues}
+                onApplyGeneratedCover={onApplyGeneratedCover}
+            />
 
             <Button
                 ref={saveDraftBtnRef}
@@ -181,21 +180,6 @@ const ArticleEditActionBar: FunctionComponent<ArticleEditActionBarProps> = ({
                 )}
             </Button>
             <Button
-                className={"btn"}
-                type="dashed"
-                icon={<EyeOutlined />}
-                title={getShortcutTitle(getRes().preview, {
-                    ctrlOrCmd: true,
-                    shift: true,
-                    key: "Enter",
-                })}
-                disabled={offline || (data.saving.previewIng && !data.saving.autoSaving)}
-                style={{ display: fullScreen ? "none" : "flex" }}
-                onClick={() => void onPreview?.()}
-            >
-                {screens.sm && getRes().preview}
-            </Button>
-            <Button
                 ref={enterBtnRef}
                 type="primary"
                 className={"btn"}
@@ -208,9 +192,8 @@ const ArticleEditActionBar: FunctionComponent<ArticleEditActionBarProps> = ({
                         key: "Enter",
                     }
                 )}
-                disabled={offline}
-                icon={data.saving.releaseSaving ? <></> : <SendOutlined />}
-                loading={data.saving.releaseSaving}
+                disabled={offline || data.saving.releaseSaving}
+                icon={<SendOutlined />}
                 onClick={async () => {
                     await onSubmit(data.article, true, false, false);
                 }}

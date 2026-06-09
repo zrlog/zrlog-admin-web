@@ -1,16 +1,13 @@
 package com.zrlog.admin.business.exception;
 
-import com.zrlog.common.exception.AbstractBusinessException;
-import com.zrlog.util.I18nUtil;
+public class PermissionErrorException extends AbstractAdminBusinessException {
 
-public class PermissionErrorException extends AbstractBusinessException {
-    @Override
-    public int getError() {
-        return 9013;
+    public PermissionErrorException() {
+        super("admin.permission.error");
     }
 
     @Override
-    public String getMessage() {
-        return I18nUtil.getAdminBackendStringFromRes("permissionError");
+    public int getError() {
+        return 9013;
     }
 }

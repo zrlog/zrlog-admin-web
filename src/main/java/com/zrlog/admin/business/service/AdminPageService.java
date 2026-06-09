@@ -7,7 +7,7 @@ import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
 import com.hibegin.http.server.web.Controller;
 import com.zrlog.admin.business.AdminConstants;
-import com.zrlog.admin.business.rest.response.AdminApiPageDataStandardResponse;
+import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
 import com.zrlog.admin.business.rest.response.ServerSideDataResponse;
 import com.zrlog.admin.business.rest.response.UserInfoResponse;
 import com.zrlog.admin.util.AdminWebTools;
@@ -110,7 +110,7 @@ public class AdminPageService {
     }
 
     public ServerSideDataResponse<Object> serverSide(String uri, HttpRequest request, HttpResponse response) throws Throwable {
-        Map<String, Object> resourceInfo = AdminConstants.adminResource.adminResourceInfo(request);
+        com.zrlog.admin.business.rest.response.AdminResourceInfoResponse resourceInfo = AdminConstants.adminResource.adminResourceInfo(request);
         if (Objects.isNull(AdminTokenThreadLocal.getUser())) {
             return new ServerSideDataResponse<>(null, resourceInfo, null, null, AdminConstants.getAdminDocumentTitleByUri(request.getUri()));
         }
@@ -122,8 +122,8 @@ public class AdminPageService {
             if (Objects.isNull(result)) {
                 return new ServerSideDataResponse<>(userInfo, resourceInfo, new Object(), AdminTokenThreadLocal.getUser().getSessionId(), AdminConstants.getAdminDocumentTitleByUri(request.getUri()));
             }
-            if (result instanceof AdminApiPageDataStandardResponse<?>) {
-                AdminApiPageDataStandardResponse<?> data = (AdminApiPageDataStandardResponse<?>) result;
+            if (result instanceof AdminPageDataResponse<?>) {
+                AdminPageDataResponse<?> data = (AdminPageDataResponse<?>) result;
                 return new ServerSideDataResponse<>(userInfo, resourceInfo, data.getData(), AdminTokenThreadLocal.getUser().getSessionId(), data.getDocumentTitle());
             }
         } catch (InvocationTargetException e) {

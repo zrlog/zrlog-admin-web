@@ -4,28 +4,28 @@ import com.hibegin.common.dao.ResultValueConvertUtils;
 import com.hibegin.common.dao.dto.PageData;
 import com.hibegin.common.dao.dto.PageRequest;
 import com.hibegin.common.util.*;
-import com.hibegin.common.util.http.HttpUtil;
-import com.hibegin.common.util.http.handle.HttpFileHandle;
 import com.hibegin.http.server.api.HttpRequest;
-import com.hibegin.http.server.util.PathUtil;
 import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.exception.ArticleMissingTitleException;
 import com.zrlog.admin.business.exception.ArticleMissingTypeException;
 import com.zrlog.admin.business.exception.UpdateArticleExpireException;
 import com.zrlog.admin.business.rest.base.AIWebSiteInfoWithAIMessages;
+import com.zrlog.admin.business.rest.base.ArticleEditWebSiteInfo;
 import com.zrlog.admin.business.rest.request.CreateArticleRequest;
 import com.zrlog.admin.business.rest.request.UpdateArticleRequest;
 import com.zrlog.admin.business.rest.response.*;
 import com.zrlog.business.plugin.StaticSitePlugin;
-import com.zrlog.business.util.ArticleHelpers;
 import com.zrlog.common.Constants;
 import com.zrlog.common.cache.dto.TypeDTO;
 import com.zrlog.common.exception.NotFindDbEntryException;
 import com.zrlog.common.exception.ResourceLockedException;
 import com.zrlog.common.exception.UnknownException;
 import com.zrlog.common.vo.AdminTokenVO;
+import com.zrlog.common.vo.PublicWebSiteInfo;
+import com.zrlog.common.vo.SocialPreviewDTO;
 import com.zrlog.data.dto.ArticleBasicDTO;
 import com.zrlog.data.service.DistributedLock;
+import com.zrlog.data.util.SocialPreviewUtils;
 import com.zrlog.model.Log;
 import com.zrlog.util.I18nUtil;
 import com.zrlog.util.ParseUtil;
@@ -33,13 +33,7 @@ import com.zrlog.util.ThreadUtils;
 import com.zrlog.util.ZrLogUtil;
 import org.jsoup.Jsoup;
 import org.jsoup.safety.Safelist;
-import org.jsoup.select.Elements;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -60,56 +54,10 @@ public class AdminArticleService {
         return new DistributedLock("write_article_" + adminTokenVO.getSessionId() + "_" + ObjectUtil.requireNonNullElse(logId, Integer.MAX_VALUE));
     }
 
-    private static String getFirstImgUrl(String htmlContent, AdminTokenVO adminTokenVO) {
-        if (StringUtils.isEmpty(htmlContent)) {
-            return "";
-        }
-        Elements elements = Jsoup.parse(htmlContent).select("img");
-        if (elements.isEmpty()) {
-            return null;
-        }
-        String url = elements.first().attr("src");
-        try {
-            String path = url;
-            byte[] bytes;
-            if (url.startsWith("https://") || url.startsWith("http://")) {
-                path = URI.create(url).getPath();
-                if (!path.startsWith(AdminConstants.ATTACHED_FOLDER)) {
-                    path = (AdminConstants.ATTACHED_FOLDER + path).replace("//", "/");
-                } else {
-                    path = path.replace("//", "/");
-                }
-                bytes = getRequestBodyBytes(url);
-                path = path.substring(0, path.indexOf('.')) + "_thumbnail" + path.substring(path.indexOf('.'));
-            } else {
-                bytes = IOUtil.getByteByInputStream(new FileInputStream(PathUtil.getStaticFile(url)));
-                path = url.substring(0, url.indexOf('.')) + "_thumbnail" + url.substring(path.indexOf('.'));
-            }
-            File thumbnailFile = PathUtil.getStaticFile(path);
-            if (bytes.length == 0) {
-                return null;
-            }
-            int height = -1;
-            int width = -1;
-            //创建文件夹，避免保存失败
-            thumbnailFile.getParentFile().mkdirs();
-            IOUtil.writeBytesToFile(bytes, thumbnailFile);
-            return new UploadService().getCloudUrl("", path, thumbnailFile.getPath(), null,
-                    adminTokenVO).getUrl() + "?h=" + height + "&w=" + width;
-        } catch (Exception e) {
-            LOGGER.log(Level.SEVERE, "", e);
-        }
-        return null;
-    }
-
-    private static byte[] getRequestBodyBytes(String url) throws IOException, URISyntaxException, InterruptedException {
-        HttpFileHandle fileHandler = new HttpFileHandle("");
-        HttpUtil.getInstance().sendGetRequest(url, new HashMap<>(), fileHandler, new HashMap<>());
-        return IOUtil.getByteByInputStream(new FileInputStream(fileHandler.getT().getPath()));
-    }
-
     public CreateOrUpdateArticleResponse create(AdminTokenVO adminTokenVO, CreateArticleRequest createArticleRequest) throws SQLException {
-        return save(adminTokenVO, createArticleRequest);
+        CreateOrUpdateArticleResponse response = save(adminTokenVO, createArticleRequest);
+        migrateDraftAIMessage(response.getLogId());
+        return response;
     }
 
     public CreateOrUpdateArticleResponse update(AdminTokenVO adminTokenVO, UpdateArticleRequest updateArticleRequest) throws SQLException {
@@ -170,7 +118,27 @@ public class AdminArticleService {
     }
 
     public boolean delete(Long logId) throws SQLException {
-        return new Log().deleteById(Math.toIntExact(logId));
+        boolean deleted = new Log().deleteById(Math.toIntExact(logId));
+        if (deleted) {
+            removeAIMessage(logId);
+        }
+        return deleted;
+    }
+
+    private void migrateDraftAIMessage(Long articleId) {
+        try {
+            new WebSiteService().migrateDraftAIMessageToArticle(articleId);
+        } catch (Exception e) {
+            LOGGER.log(Level.FINE, "Migrate draft article AI messages failed, articleId=" + articleId, e);
+        }
+    }
+
+    private void removeAIMessage(Long articleId) {
+        try {
+            new WebSiteService().removeAIMessage(articleId);
+        } catch (Exception e) {
+            LOGGER.log(Level.FINE, "Remove article AI messages failed, articleId=" + articleId, e);
+        }
     }
 
     private Map<String, Object> getLog(AdminTokenVO adminTokenVO, CreateArticleRequest createArticleRequest) throws SQLException {
@@ -203,7 +171,7 @@ public class AdminArticleService {
         log.put("privacy", createArticleRequest.isPrivacy());
         log.put("rubbish", createArticleRequest.isRubbish());
         if (StringUtils.isEmpty(createArticleRequest.getThumbnail())) {
-            log.put("thumbnail", getFirstImgUrl(createArticleRequest.getContent(), adminTokenVO));
+            log.put("thumbnail", "");
         } else {
             log.put("thumbnail", createArticleRequest.getThumbnail());
         }
@@ -272,14 +240,47 @@ public class AdminArticleService {
         ArticleStatusCountResponse counts = new ArticleStatusCountResponse();
         try {
             Log log = new Log();
-            counts.setTotal(log.getAdminCount());
-            counts.setPublished(((Number) log.queryFirstObj("SELECT count(*) FROM " + Log.TABLE_NAME + " WHERE rubbish = ? AND privacy = ?", false, false)).longValue());
-            counts.setPrivateCount(((Number) log.queryFirstObj("SELECT count(*) FROM " + Log.TABLE_NAME + " WHERE privacy = ?", true)).longValue());
-            counts.setDraft(((Number) log.queryFirstObj("SELECT count(*) FROM " + Log.TABLE_NAME + " WHERE rubbish = ?", true)).longValue());
+            Map<String, Object> row = log.queryFirstWithParams(
+                    "SELECT "
+                            + "count(1) AS totalCount,"
+                            + "SUM(CASE WHEN l.rubbish = ? AND l.privacy = ? THEN 1 ELSE 0 END) AS publishedCount,"
+                            + "SUM(CASE WHEN l.privacy = ? THEN 1 ELSE 0 END) AS privateCount,"
+                            + "SUM(CASE WHEN l.rubbish = ? THEN 1 ELSE 0 END) AS draftCount "
+                            + "FROM " + Log.TABLE_NAME + " l "
+                            + "inner join user u on u.userId = l.userId "
+                            + "inner join type t on t.typeId = l.typeId "
+                            + "where l.typeId is not null",
+                    false, false, true, true);
+            counts.setTotal(toLong(row, "totalCount"));
+            counts.setPublished(toLong(row, "publishedCount"));
+            counts.setPrivateCount(toLong(row, "privateCount"));
+            counts.setDraft(toLong(row, "draftCount"));
         } catch (SQLException e) {
             LOGGER.warning("Query article counts error: " + e.getMessage());
         }
         return counts;
+    }
+
+    private static long toLong(Map<String, Object> row, String key) {
+        if (row == null) {
+            return 0L;
+        }
+        Object value = row.get(key);
+        if (value == null) {
+            value = row.get(key.toLowerCase(Locale.ROOT));
+        }
+        if (value == null) {
+            for (Map.Entry<String, Object> entry : row.entrySet()) {
+                if (entry.getKey() != null && entry.getKey().equalsIgnoreCase(key)) {
+                    value = entry.getValue();
+                    break;
+                }
+            }
+        }
+        if (value instanceof Number) {
+            return ((Number) value).longValue();
+        }
+        return 0L;
     }
 
     public ArticlePageData adminPage(PageRequest pageRequest, String keywords, String typeAlias, String status, HttpRequest request) {
@@ -294,7 +295,6 @@ public class AdminArticleService {
             // 统计各状态数量
             CompletableFuture<ArticleStatusCountResponse> countFuture = CompletableFuture.supplyAsync(this::getStatusCounts, executorService);
             CompletableFuture.allOf(listCompletableFuture, dataCompletableFuture, countFuture).join();
-            ArticleHelpers.wrapperSearchKeyword(dataCompletableFuture.join(), keywords);
             PageData<ArticleResponseEntry> articleResponseEntryPageData = convertPageable(dataCompletableFuture.join(), request);
             ArticlePageData convert = BeanUtil.convert(articleResponseEntryPageData, ArticlePageData.class);
             convert.setTypes(listCompletableFuture.join());
@@ -313,7 +313,7 @@ public class AdminArticleService {
         return CompletableFuture.supplyAsync(() -> {
             Map<String, Long> adminArticleData;
             try {
-                adminArticleData = new Log().getAdminArticleData();
+                adminArticleData = getRecentArticleActivityData();
             } catch (SQLException e) {
                 LOGGER.warning("Query activityDataList error," + e.getMessage());
                 adminArticleData = new HashMap<>();
@@ -324,7 +324,26 @@ public class AdminArticleService {
         }, executor);
     }
 
-    public AdminApiPageDataStandardResponse<ArticleGlobalResponse> loadDetailById(String id, HttpRequest request) throws SQLException {
+    private Map<String, Long> getRecentArticleActivityData() throws SQLException {
+        Calendar calendar = Calendar.getInstance();
+        calendar.add(Calendar.YEAR, -1);
+        calendar.set(Calendar.DAY_OF_MONTH, 1);
+        List<Map<String, Object>> rows = new Log().queryListWithParams(
+                "select releaseTime from " + Log.TABLE_NAME + " where releaseTime >= ? order by releaseTime desc",
+                ResultValueConvertUtils.formatDate(calendar.getTime(), "yyyy-MM-dd"));
+        Map<String, Long> archives = new LinkedHashMap<>();
+        for (Map<String, Object> row : rows) {
+            Object value = row.get("releaseTime");
+            if (Objects.isNull(value)) {
+                continue;
+            }
+            String key = ResultValueConvertUtils.formatDate(value, "yyyy-MM-dd");
+            archives.put(key, archives.getOrDefault(key, 0L) + 1);
+        }
+        return archives;
+    }
+
+    public AdminPageDataResponse<ArticleGlobalResponse> loadDetailById(String id, HttpRequest request) throws SQLException {
         ArticleGlobalResponse response = new ArticleGlobalResponse();
         ExecutorService executorService = ThreadUtils.newFixedThreadPool(2);
         if (StringUtils.isNotEmpty(id)) {
@@ -333,23 +352,34 @@ public class AdminArticleService {
             response.setArticle(new LoadEditArticleResponse());
         }
         try {
-            CompletableFuture.allOf(CompletableFuture.runAsync(() -> {
-                response.setTags(Constants.zrLogConfig.getCacheService().getTags());
-            }, executorService), CompletableFuture.runAsync(() -> {
-                response.setTypes(Constants.zrLogConfig.getCacheService().getArticleTypes());
-            }, executorService), CompletableFuture.runAsync(() -> {
+            CompletableFuture<WebSiteService.ArticleEditorContext> articleEditorContext = CompletableFuture.supplyAsync(() -> {
                 Integer articleId = response.getArticle().getId();
                 if (articleId == null) {
                     articleId = 0;
                 }
-                AIWebSiteInfoWithAIMessages ai = new WebSiteService().getAiMessageInfoByArticleId(Long.valueOf(articleId));
-                response.setAiProvider(ai.getAi_provider());
-                response.setAiMessages(ai.getAiMessages().stream().filter(e -> !Objects.equals(e.getRole(), "system")).collect(Collectors.toList()));
-            })).join();
+                return new WebSiteService().articleEditorContext(Long.valueOf(articleId));
+            }, executorService);
+            CompletableFuture.allOf(CompletableFuture.runAsync(() -> {
+                response.setTags(Constants.zrLogConfig.getCacheService().getTags());
+            }, executorService), CompletableFuture.runAsync(() -> {
+                response.setTypes(Constants.zrLogConfig.getCacheService().getArticleTypes());
+            }, executorService), articleEditorContext).join();
+            WebSiteService.ArticleEditorContext context = articleEditorContext.join();
+            AIWebSiteInfoWithAIMessages ai = context.getAi();
+            response.setAiProvider(ai.getAi_provider());
+            response.setAiModel(ai.getAi_model());
+            response.setAiConfigured(ai.getAi_provider() != null && StringUtils.isNotEmpty(ai.getAi_model())
+                    && StringUtils.isNotEmpty(ai.getAi_api_key()));
+            response.setAiMessages(ai.getAiMessages().stream().filter(e -> !Objects.equals(e.getRole(), "system")).collect(Collectors.toList()));
+            ArticleEditWebSiteInfo articleEdit = context.getArticleEdit();
+            response.setLinkPreviewEnabled(articleEdit.getArticle_editor_link_preview_enabled());
+            response.setPublishCheckEnabled(articleEdit.getArticle_publish_check_enabled());
+            response.setArticleCoverAspectRatio(articleEdit.getArticle_cover_aspect_ratio());
+            response.setArticleEditAutoSaveInterval(articleEdit.getArticle_edit_auto_save_interval());
         } finally {
             executorService.shutdown();
         }
-        AdminApiPageDataStandardResponse<ArticleGlobalResponse> standardResponse = new AdminApiPageDataStandardResponse<>(response);
+        AdminPageDataResponse<ArticleGlobalResponse> standardResponse = new AdminPageDataResponse<>(response);
         StringJoiner sj = new StringJoiner(AdminConstants.ADMIN_TITLE_CHAR);
         if (Objects.nonNull(response.getArticle().getTitle())) {
             sj.add(response.getArticle().getTitle());
@@ -369,7 +399,7 @@ public class AdminArticleService {
             key = articleResponseEntry.getAlias();
         }
         if (articleResponseEntry.isPrivacy() || articleResponseEntry.isRubbish()) {
-            return AdminConstants.ADMIN_URI_BASE_PATH + "/403?message=" + I18nUtil.getAdminBackendStringFromRes("preview403");
+            return AdminConstants.ADMIN_URI_BASE_PATH + "/403?message=" + I18nUtil.getAdminBackendStringFromRes("admin.article.preview.error.forbidden");
         }
         return ZrLogUtil.getHomeUrlWithHost(request) + Constants.getArticleUri() + key + StaticSitePlugin.getSuffix(request) + "?v=" + articleResponseEntry.getVersion();
     }
@@ -387,7 +417,36 @@ public class AdminArticleService {
         }
         loadEditArticleResponse.setLastUpdateDate(lastUpdateDate);
         loadEditArticleResponse.setPreviewUrl(getPreviewUrl(loadEditArticleResponse, request));
+        loadEditArticleResponse.setSocialPreview(buildSocialPreview(loadEditArticleResponse, request));
         return loadEditArticleResponse;
+    }
+
+    private SocialPreviewDTO buildSocialPreview(LoadEditArticleResponse loadEditArticleResponse, HttpRequest request) {
+        PublicWebSiteInfo webSite = AdminConstants.getPublicWebSiteInfo();
+        ArticleBasicDTO article = new ArticleBasicDTO();
+        article.setTitle(loadEditArticleResponse.getTitle());
+        article.setDigest(loadEditArticleResponse.getDigest());
+        article.setContent(loadEditArticleResponse.getContent());
+        article.setMarkdown(loadEditArticleResponse.getMarkdown());
+        article.setPlain_content(ParseUtil.getPlainSearchText(
+                ObjectHelpers.requireNonNullElse(loadEditArticleResponse.getContent(), "")));
+        article.setThumbnail(loadEditArticleResponse.getThumbnail());
+        String title = buildSocialPreviewTitle(loadEditArticleResponse.getTitle(), webSite);
+        String url = StringUtils.isNotEmpty(loadEditArticleResponse.getPreviewUrl())
+                ? loadEditArticleResponse.getPreviewUrl()
+                : ZrLogUtil.getFullUrl(request);
+        return SocialPreviewUtils.article(webSite, article, title, url, loadEditArticleResponse.getThumbnail());
+    }
+
+    private String buildSocialPreviewTitle(String articleTitle, PublicWebSiteInfo webSite) {
+        StringJoiner sj = new StringJoiner(AdminConstants.ADMIN_TITLE_CHAR);
+        if (StringUtils.isNotEmpty(articleTitle)) {
+            sj.add(articleTitle);
+        }
+        if (webSite != null && StringUtils.isNotEmpty(webSite.getTitle())) {
+            sj.add(webSite.getTitle());
+        }
+        return sj.toString();
     }
 
     public LoadEditArticleResponse loadDetail(String id, HttpRequest request) throws SQLException {

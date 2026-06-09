@@ -4,7 +4,7 @@ import com.hibegin.common.dao.dto.PageData;
 import com.hibegin.http.annotation.ResponseBody;
 import com.zrlog.admin.business.rest.request.CreateLinkRequest;
 import com.zrlog.admin.business.rest.request.UpdateLinkRequest;
-import com.zrlog.admin.business.rest.response.AdminApiPageDataStandardResponse;
+import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
 import com.zrlog.admin.business.rest.response.DeleteResponse;
 import com.zrlog.admin.business.rest.response.UpdateRecordResponse;
 import com.zrlog.admin.web.annotation.RefreshCache;
@@ -48,8 +48,8 @@ public class LinkController extends BaseController {
     }
 
     @ResponseBody
-    public AdminApiPageDataStandardResponse<PageData<LinkDTO>> index() throws SQLException {
-        return new AdminApiPageDataStandardResponse<>(new Link().find(ControllerUtil.unPageRequest()), "", request.getUri());
+    public AdminPageDataResponse<PageData<LinkDTO>> index() throws SQLException {
+        return new AdminPageDataResponse<>(new Link().find(ControllerUtil.unPageRequest()), "", request.getUri());
     }
 
     @RefreshCache(async = true, updateStaticSites = StaticSiteType.BLOG)

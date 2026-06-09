@@ -1,5 +1,6 @@
-import { AdminCommonProps, AIProviderType } from "../../type";
-import { AIContent } from "@editor/dist/src/ai/AIContentItem";
+import {AdminCommonProps, AIProviderType} from "../../type";
+import {AIContent} from "@editor/dist/src/ai/AIContentItem";
+import {AssistantToolPayload} from "./article-ai-assistant/article-ai-assistant.types";
 
 export type ArticleEntry = ChangedContent &
     ThumbnailChanged &
@@ -7,6 +8,7 @@ export type ArticleEntry = ChangedContent &
     AliasChanged &
     DigestChanged &
     KeywordsChanged &
+    RecommendedChanged &
     PrivacyChanged &
     CanCommentChanged &
     TypeChanged & {
@@ -15,8 +17,23 @@ export type ArticleEntry = ChangedContent &
         lastUpdateDate?: number;
         version: number;
         previewUrl?: string;
+        socialPreview?: SocialPreview;
         transparentPublish?: boolean;
     };
+
+export type SocialPreview = {
+    type: string;
+    title: string;
+    description: string;
+    url: string;
+    siteName: string;
+    image: string;
+    twitterCard: string;
+    author: string;
+    publishedTime: string;
+    modifiedTime: string;
+    metaHtml: string;
+};
 
 export type ChangedContent = {
     content?: string;
@@ -43,6 +60,10 @@ export type KeywordsChanged = {
     keywords?: string;
 };
 
+export type RecommendedChanged = {
+    recommended?: boolean;
+};
+
 export type TypeChanged = {
     typeId?: number;
 };
@@ -62,6 +83,7 @@ export type ArticleChangeableValue =
     | TypeChanged
     | TitleChanged
     | KeywordsChanged
+    | RecommendedChanged
     | ChangedContent
     | ThumbnailChanged
     | DigestChanged;
@@ -71,7 +93,13 @@ export type ArticleEditInfo = {
     types: any[];
     article: ArticleEntry;
     aiProvider: AIProviderType;
+    aiModel?: string;
+    aiConfigured?: boolean;
     aiMessages: AIContent[];
+    linkPreviewEnabled?: boolean;
+    publishCheckEnabled?: boolean;
+    articleCoverAspectRatio?: string;
+    articleEditAutoSaveInterval?: number;
 };
 
 export type FullScreenProps = {
@@ -86,9 +114,24 @@ export type ArticleEditState = {
     typeOptions: any[];
     tags: any[];
     aiProvider: AIProviderType;
+    aiModel?: string;
+    aiConfigured: boolean;
     aiMessages: AIContent[];
+    linkPreviewEnabled: boolean;
+    publishCheckEnabled: boolean;
+    articleCoverAspectRatio: string;
+    articleEditAutoSaveInterval: number;
     rubbish: boolean;
     editorVersion: number;
+    contentSource: "server" | "localDraft" | "localEdit";
+    contentSourceUpdatedAt?: number;
+    contentConflict?: {
+        source: "localDraft" | "localEdit";
+        localArticle: ArticleEntry;
+        localVersion: number;
+        localUpdatedAt?: number;
+        serverVersion: number;
+    };
     article: ArticleEntry;
     saving: ArticleSavingState;
 };
@@ -99,3 +142,17 @@ export type ArticleSavingState = {
     autoSaving: boolean;
     releaseSaving: boolean;
 };
+
+export type PublishStatusPopoverState = {
+    open: boolean;
+    visible: boolean;
+    updatedAt?: number;
+    publishText?: string;
+    publishError?: string;
+    staticText?: string;
+    checkStatus: "idle" | "running" | "success" | "error";
+    checkError?: string;
+    checkPayload?: Extract<AssistantToolPayload, { tool: "publishCheck" }>;
+};
+
+export type PublishCheckTarget = "title" | "alias" | "digest" | "tags" | "cover" | "markdown" | "settings";

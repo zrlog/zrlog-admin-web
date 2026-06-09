@@ -8,8 +8,8 @@ import com.zrlog.admin.business.rest.request.UpdateMfaRequest;
 import com.zrlog.admin.business.rest.response.MfaStatusResponse;
 import com.zrlog.admin.business.rest.response.UpdateRecordResponse;
 import com.zrlog.admin.util.MfaUtils;
-import com.zrlog.util.I18nUtil;
 import com.zrlog.model.User;
+import com.zrlog.util.I18nUtil;
 
 import java.sql.SQLException;
 import java.util.Map;
@@ -44,7 +44,7 @@ public class MfaService {
         }
         updateMfaFields(userId, true, secret);
         UpdateRecordResponse response = new UpdateRecordResponse(true);
-        response.setMessage(I18nUtil.getAdminBackendStringFromRes("mfaEnableSuccess"));
+        response.setMessage(I18nUtil.getAdminBackendStringFromRes("admin.mfa.enable.success"));
         return response;
     }
 
@@ -52,7 +52,7 @@ public class MfaService {
         Map<String, Object> user = new User().loadById(userId);
         if (!getMfaEnabled(user)) {
             UpdateRecordResponse response = new UpdateRecordResponse(true);
-            response.setMessage(I18nUtil.getAdminBackendStringFromRes("mfaDisableSuccess"));
+            response.setMessage(I18nUtil.getAdminBackendStringFromRes("admin.mfa.disable.success"));
             return response;
         }
         String secret = getMfaSecret(user);
@@ -61,7 +61,7 @@ public class MfaService {
         }
         updateMfaFields(userId, false, null);
         UpdateRecordResponse response = new UpdateRecordResponse(true);
-        response.setMessage(I18nUtil.getAdminBackendStringFromRes("mfaDisableSuccess"));
+        response.setMessage(I18nUtil.getAdminBackendStringFromRes("admin.mfa.disable.success"));
         return response;
     }
 

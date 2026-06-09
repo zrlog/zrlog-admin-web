@@ -3,7 +3,7 @@ package com.zrlog.admin.web.controller.page;
 import com.hibegin.http.annotation.ResponseBody;
 import com.hibegin.http.server.web.Controller;
 import com.zrlog.admin.business.AdminConstants;
-import com.zrlog.admin.business.rest.response.AdminApiPageDataStandardResponse;
+import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
 import com.zrlog.admin.business.rest.response.ServerSideDataResponse;
 import com.zrlog.admin.business.service.AdminPageService;
 import com.zrlog.common.Constants;
@@ -40,8 +40,8 @@ public class AdminPageController extends Controller {
     }
 
     @ResponseBody
-    public AdminApiPageDataStandardResponse<ServerSideDataResponse<Object>> ssJson() throws Throwable {
-        return new AdminApiPageDataStandardResponse<>(adminPageService.serverSide(request.getParaToStr("uri"), request, response));
+    public AdminPageDataResponse<ServerSideDataResponse<Object>> ssJson() throws Throwable {
+        return new AdminPageDataResponse<>(adminPageService.serverSide(request.getParaToStr("uri"), request, response));
     }
 
     public void logout() {

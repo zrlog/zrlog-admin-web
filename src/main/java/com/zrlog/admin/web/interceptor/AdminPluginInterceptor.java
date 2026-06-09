@@ -1,8 +1,11 @@
 package com.zrlog.admin.web.interceptor;
 
+import com.hibegin.http.HttpMethod;
 import com.hibegin.http.server.api.HandleAbleInterceptor;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
+import com.zrlog.admin.business.service.AdminAuditService;
+import com.zrlog.admin.business.type.AdminAuditAction;
 import com.zrlog.admin.util.AdminWebTools;
 import com.zrlog.business.plugin.PluginCorePlugin;
 import com.zrlog.common.Constants;
@@ -46,9 +49,23 @@ public class AdminPluginInterceptor implements HandleAbleInterceptor {
             return;
         }
         if (Constants.zrLogConfig.getPlugin(PluginCorePlugin.class).accessPlugin(target.replaceFirst(adminPluginUriPath, "/"), request, response, entry)) {
+            recordPluginSurfaceAction(request, target);
             return;
         }
         response.renderCode(404);
+    }
+
+    private void recordPluginSurfaceAction(HttpRequest request, String target) {
+        if (request.getMethod() != HttpMethod.POST || !target.startsWith(adminPluginUriPath)) {
+            return;
+        }
+        String pluginPath = target.substring(adminPluginUriPath.length())
+                .split("\\?", 2)[0]
+                .replaceAll("^/+|/+$", "");
+        if (!pluginPath.endsWith("/surfaceAction")) {
+            return;
+        }
+        new AdminAuditService().record(request, AdminAuditAction.PLUGIN_SURFACE_ACTION, pluginPath);
     }
 
     @Override

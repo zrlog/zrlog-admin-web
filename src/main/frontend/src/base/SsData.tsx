@@ -2,6 +2,7 @@ import { getCacheByKey } from "../utils/cache";
 import { BasicUserInfo } from "../type";
 import { FunctionComponent, PropsWithChildren } from "react";
 import type { AdminRuntimeResourceInfo } from "../utils/constants";
+import { MessageCenterStatus, syncMessageCenterStatus } from "../utils/message-center-status";
 
 type SsDate = {
     data?: any;
@@ -9,43 +10,51 @@ type SsDate = {
     user: BasicUserInfo | null;
     key: string;
     systemNotification: string;
+    messageCenter?: MessageCenterStatus;
     pageBuildId: string;
 };
+
+declare global {
+    interface Window {
+        __SS_DATA__?: SsDate;
+        __SS_PAGE_BUILD_ID__?: string;
+    }
+}
 
 export const ssKeyStorageKey = "ss_key";
 const SS_DATA_KEY = "__SS_DATA__";
 const SS_PAGE_BUILD_ID_KEY = "__SS_PAGE_BUILD_ID__";
+
+const createEmptySsData = (): SsDate => ({
+    key: "",
+    data: undefined,
+    resourceInfo: {},
+    user: null,
+    pageBuildId: "",
+    systemNotification: "",
+    messageCenter: undefined,
+});
+
 export const getSsDate = (): SsDate => {
-    //@ts-ignore
-    return window[SS_DATA_KEY];
+    return window[SS_DATA_KEY] ?? createEmptySsData();
 };
 
 export const getWindowPageBuildId = (): string => {
-    //@ts-ignore
-    return window[SS_PAGE_BUILD_ID_KEY];
+    return window[SS_PAGE_BUILD_ID_KEY] ?? "";
 };
 
 export const setWindowPageBuildId = (id: string) => {
-    //@ts-ignore
     window[SS_PAGE_BUILD_ID_KEY] = id;
 };
 
 const SsData: FunctionComponent<PropsWithChildren> = ({ children }) => {
     const initSsData = (): SsDate => {
         const ssDataStr = document.getElementById(SS_DATA_KEY)?.innerText;
-        let tSData;
-        // @ts-ignore
-        if (ssDataStr?.length > 0) {
+        let tSData: SsDate;
+        if (ssDataStr && ssDataStr.length > 0) {
             tSData = JSON.parse(ssDataStr as string) as SsDate;
         } else {
-            tSData = {
-                key: "",
-                data: undefined,
-                resourceInfo: {},
-                user: null,
-                pageBuildId: "",
-                systemNotification: "",
-            };
+            tSData = createEmptySsData();
         }
 
         if (tSData.key === "" || tSData.key === null || tSData.key === undefined) {
@@ -56,12 +65,11 @@ const SsData: FunctionComponent<PropsWithChildren> = ({ children }) => {
         }
         return tSData;
     };
-    //@ts-ignore
-    window[SS_DATA_KEY] = initSsData();
-    //@ts-ignore
-    window[SS_PAGE_BUILD_ID_KEY] = initSsData().pageBuildId;
+    const ssData = initSsData();
+    window[SS_DATA_KEY] = ssData;
+    window[SS_PAGE_BUILD_ID_KEY] = ssData.pageBuildId;
 
-    const ssData = getSsDate();
+    syncMessageCenterStatus(ssData.messageCenter);
 
     if (ssData.user === undefined || ssData.user === null) {
         if (ssData.key !== "") {

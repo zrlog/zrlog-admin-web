@@ -1,8 +1,8 @@
-import { Button, message, PaginationProps, Space, Table, TableColumnsType } from "antd";
+import { Button, Grid, message, PaginationProps, Space, Table, TableColumnsType } from "antd";
 import { FunctionComponent, useEffect, useState } from "react";
 import { mapToQueryString } from "../utils/helpers";
 import Popconfirm from "antd/es/popconfirm";
-import { cacheIgnoreReloadTime, getRealRouteUrl, getRes, isDev } from "../utils/constants";
+import { cacheIgnoreReloadTime, getRealRouteUrl, getRes } from "../utils/constants";
 import { DeleteOutlined } from "@ant-design/icons";
 import { Link, useNavigate } from "react-router-dom";
 import { useLocation } from "react-router";
@@ -21,6 +21,7 @@ type BaseTableProps = {
     defaultPageSize: number;
     addBtnRender?: (addSuccessCall: () => void) => any;
     editBtnRender?: (id: number, record: any, editSuccessCall: () => void) => any;
+    deleteDisabledTip?: (record: any) => string | undefined;
 };
 
 export type PageDataSource = {
@@ -71,9 +72,13 @@ const BaseTable: FunctionComponent<BaseTableProps> = ({
     deleteSuccessCallback,
     hideId,
     offline,
+    deleteDisabledTip,
 }) => {
     const navigate = useNavigate();
     const location = useLocation();
+    const screens = Grid.useBreakpoint();
+    const pinnedColumns = screens.xl === true;
+    const compactTable = screens.md !== true;
 
     const buildJumpUrl = (page: number, size: number, searchKey: string | undefined, sorter: string[]) => {
         return buildJumpUrlFull(page, size, searchKey, -1, sorter);
@@ -104,9 +109,6 @@ const BaseTable: FunctionComponent<BaseTableProps> = ({
             queryParam["status"] = currentStatus;
         }
         const queryStr = mapToQueryString(queryParam);
-        if (isDev()) {
-            console.info(queryStr + "===<");
-        }
         if (queryStr.length === 0) {
             return getRealRouteUrl(location.pathname);
         }
@@ -193,7 +195,7 @@ const BaseTable: FunctionComponent<BaseTableProps> = ({
                 title: getRes().id,
                 dataIndex: "id",
                 key: "id",
-                fixed: "left",
+                fixed: pinnedColumns ? "left" : undefined,
                 width: 64,
                 render: (text: string) => {
                     return <span style={{ maxWidth: 64 }}>{text}</span>;
@@ -207,11 +209,13 @@ const BaseTable: FunctionComponent<BaseTableProps> = ({
             title: getRes().actions,
             dataIndex: "id",
             key: "action",
-            fixed: "right",
+            fixed: pinnedColumns ? "right" : undefined,
             width: actionColumnWidth || 96,
             align: "center",
-            render: (text: any, record: any) =>
-                text ? (
+            render: (text: any, record: any) => {
+                const disabledDeleteTip = deleteDisabledTip?.(record);
+                const deleteDisabled = offline || Boolean(disabledDeleteTip);
+                return text ? (
                     <Space size={0} wrap={false} style={{ whiteSpace: "nowrap" }}>
                         {editBtnRender
                             ? editBtnRender(text, record, () => {
@@ -224,7 +228,7 @@ const BaseTable: FunctionComponent<BaseTableProps> = ({
                               })
                             : null}
                         <Popconfirm
-                            disabled={offline}
+                            disabled={deleteDisabled}
                             title={getRes().deleteTips}
                             onConfirm={async () => {
                                 const success = await handleDelete(tableDataState.pagination, deleteApi, record.id);
@@ -236,19 +240,34 @@ const BaseTable: FunctionComponent<BaseTableProps> = ({
                             }}
                         >
                             <Button
-                                disabled={offline}
+                                disabled={deleteDisabled}
                                 danger
                                 type="text"
                                 size="small"
-                                title={getRes().deleteTips}
+                                title={disabledDeleteTip || getRes().deleteTips}
                                 icon={<DeleteOutlined />}
                             />
                         </Popconfirm>
                     </Space>
-                ) : null,
+                ) : null;
+            },
         });
         return c;
     };
+
+    const getColumnWidth = (width: unknown) => {
+        if (typeof width === "number") {
+            return width;
+        }
+        if (typeof width === "string" && width.endsWith("px")) {
+            const parsedWidth = Number.parseInt(width, 10);
+            return Number.isNaN(parsedWidth) ? 0 : parsedWidth;
+        }
+        return 160;
+    };
+
+    const tableColumns = getActionedColumns();
+    const scrollX = tableColumns.reduce((total, column) => total + getColumnWidth(column.width), 0);
 
     return (
         <>
@@ -289,10 +308,11 @@ const BaseTable: FunctionComponent<BaseTableProps> = ({
                         sort
                     );
                 }}
-                style={{ minHeight: 512 }}
-                columns={getActionedColumns()}
+                style={{ minHeight: compactTable ? 360 : 512 }}
+                columns={tableColumns}
                 pagination={{
                     hideOnSinglePage: true,
+                    simple: compactTable,
                     ...tableDataState.tablePagination,
                     itemRender: (page, _type, e) => {
                         return (
@@ -311,7 +331,8 @@ const BaseTable: FunctionComponent<BaseTableProps> = ({
                     },
                 }}
                 dataSource={tableDataState.rows}
-                scroll={{ x: "90vw" }}
+                scroll={{ x: scrollX }}
+                size={compactTable ? "small" : undefined}
             ></Table>
         </>
     );

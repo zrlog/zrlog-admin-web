@@ -1,6 +1,5 @@
-import { Typography, Tooltip, Empty, Card } from "antd";
-import { getAppState } from "../../base/ConfigProviderApp";
-import { getRes } from "../../utils/constants";
+import { Card, Empty, Tooltip, Typography } from "antd";
+import { formatLabelValue, getRes } from "../../utils/constants";
 import { PieChartOutlined } from "@ant-design/icons";
 import { useTheme } from "antd-style";
 
@@ -10,8 +9,15 @@ type DataInsightsProps = {
 };
 
 const DataInsights = ({ typeData, tagData }: DataInsightsProps) => {
-    const isDark = getAppState().dark;
     const theme = useTheme();
+    const chartColors = [
+        theme.colorPrimary,
+        theme.colorSuccess,
+        theme.colorInfo,
+        theme.colorWarning,
+        theme.colorError,
+        theme.colorTextSecondary,
+    ];
 
     // Filter out items with 0 count for the visualization
     const activeTypes = typeData?.filter((t) => t.typeamount > 0).sort((a, b) => b.typeamount - a.typeamount) || [];
@@ -42,28 +48,22 @@ const DataInsights = ({ typeData, tagData }: DataInsightsProps) => {
                             height: 24,
                             borderRadius: theme.borderRadiusLG,
                             overflow: "hidden",
-                            backgroundColor: isDark ? "rgba(255,255,255,0.05)" : "#f5f5f5",
+                            backgroundColor: theme.colorFillQuaternary,
                         }}
                     >
                         {activeTypes.map((type, index) => {
                             const percentage = (type.typeamount / totalArticles) * 100;
-                            const colors = [
-                                getAppState().colorPrimary,
-                                "#52c41a",
-                                "#1890ff",
-                                "#722ed1",
-                                "#faad14",
-                                "#eb2f96",
-                            ];
                             return (
                                 <Tooltip
                                     key={type.alias}
-                                    title={`${type.typeName}: ${type.typeamount} (${percentage.toFixed(1)}%)`}
+                                    title={`${formatLabelValue(type.typeName, type.typeamount)} (${percentage.toFixed(
+                                        1
+                                    )}%)`}
                                 >
                                     <div
                                         style={{
                                             width: `${percentage}%`,
-                                            backgroundColor: colors[index % colors.length],
+                                            backgroundColor: chartColors[index % chartColors.length],
                                             transition: "all 0.3s",
                                         }}
                                     />
@@ -82,14 +82,7 @@ const DataInsights = ({ typeData, tagData }: DataInsightsProps) => {
                                     width: 8,
                                     height: 8,
                                     borderRadius: "50%",
-                                    backgroundColor: [
-                                        getAppState().colorPrimary,
-                                        "#52c41a",
-                                        "#1890ff",
-                                        "#722ed1",
-                                        "#faad14",
-                                        "#eb2f96",
-                                    ][index % 6],
+                                    backgroundColor: chartColors[index % chartColors.length],
                                 }}
                             />
                             <Typography.Text style={{ fontSize: 12 }}>{type.typeName}</Typography.Text>
@@ -102,13 +95,12 @@ const DataInsights = ({ typeData, tagData }: DataInsightsProps) => {
                 <Typography.Text type="secondary" style={{ display: "block", marginBottom: 12, fontSize: 13 }}>
                     {getRes().index.insight.hotTags}
                 </Typography.Text>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "8px 12px", alignItems: "baseline" }}>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 12px", alignItems: "baseline" }}>
                     {activeTags.length > 0 ? (
                         activeTags.slice(0, 15).map((tag) => {
-                            // Scale font size based on count
                             const maxCount = activeTags[0].count;
-                            const size = Math.max(12, Math.min(24, 12 + (tag.count / maxCount) * 12));
-                            const opacity = Math.max(0.5, tag.count / maxCount);
+                            const size = Math.max(13, Math.min(18, 13 + (tag.count / maxCount) * 5));
+                            const opacity = Math.max(0.64, Math.min(0.92, 0.64 + (tag.count / maxCount) * 0.28));
 
                             return (
                                 <span
@@ -116,8 +108,9 @@ const DataInsights = ({ typeData, tagData }: DataInsightsProps) => {
                                     style={{
                                         fontSize: size,
                                         opacity: opacity,
-                                        fontWeight: size > 18 ? 600 : 400,
-                                        color: isDark ? "rgba(255,255,255,0.85)" : "rgba(0,0,0,0.85)",
+                                        fontWeight: tag.count === maxCount ? 600 : 500,
+                                        lineHeight: 1.65,
+                                        color: theme.colorText,
                                         cursor: "default",
                                         transition: "all 0.2s",
                                     }}

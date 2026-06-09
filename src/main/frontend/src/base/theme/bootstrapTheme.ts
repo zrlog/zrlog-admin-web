@@ -1,9 +1,9 @@
-import { useMemo } from "react";
-import type { ConfigProviderProps } from "antd";
-import { createStyles } from "antd-style";
+import {useMemo} from "react";
+import type {ConfigProviderProps} from "antd";
+import {createStyles} from "antd-style";
 import clsx from "clsx";
-import { AppState } from "../../type";
-import { themeAlgorithms } from "../../utils/theme-utils";
+import {AppState} from "../../type";
+import {themeAlgorithms} from "../../utils/theme-utils";
 
 const useStyles = createStyles(({ css, cssVar }) => {
     return {

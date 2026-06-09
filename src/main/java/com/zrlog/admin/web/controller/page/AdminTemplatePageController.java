@@ -17,6 +17,8 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.Objects;
 
+import static com.zrlog.util.CrossUtils.cross;
+
 public class AdminTemplatePageController extends BaseController {
 
 
@@ -29,6 +31,7 @@ public class AdminTemplatePageController extends BaseController {
 
     @RequestMethod
     public void previewImage() {
+        cross(request, response);
         String templateName = AdminTemplateUtils.loadTemplatePathByRequestInfo(this);
         TemplateVO templateVO = new TemplateService().loadTemplateConfig(templateName);
         if (Objects.isNull(templateVO)) {

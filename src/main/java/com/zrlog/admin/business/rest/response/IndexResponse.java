@@ -9,13 +9,17 @@ public class IndexResponse {
     private final List<String> tips;
     private final List<ArticleActivityData> activityData;
     private final String versionInfo;
+    private final AdminDashboardConfigResponse dashboardConfig;
 
-    public IndexResponse(StatisticsInfoResponse statisticsInfo, String welcomeTip, List<String> tips, List<ArticleActivityData> activityData, String versionInfo) {
+    public IndexResponse(StatisticsInfoResponse statisticsInfo, String welcomeTip, List<String> tips,
+                         List<ArticleActivityData> activityData, String versionInfo,
+                         AdminDashboardConfigResponse dashboardConfig) {
         this.statisticsInfo = statisticsInfo;
         this.welcomeTip = welcomeTip;
         this.tips = tips;
         this.activityData = activityData;
         this.versionInfo = versionInfo;
+        this.dashboardConfig = dashboardConfig;
     }
 
     public StatisticsInfoResponse getStatisticsInfo() {
@@ -36,5 +40,9 @@ public class IndexResponse {
 
     public String getVersionInfo() {
         return versionInfo;
+    }
+
+    public AdminDashboardConfigResponse getDashboardConfig() {
+        return dashboardConfig;
     }
 }

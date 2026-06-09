@@ -7,12 +7,15 @@ public class ArticleResponseEntry {
     private String title;
     private Integer click;
     private String keywords;
+    private String markdown;
+    private String digest;
     private String releaseTime;
 
     private String lastUpdateDate;
     private String typeName;
     private Boolean rubbish;
     private Boolean canComment;
+    private Boolean recommended;
     private Long commentSize;
     private Boolean privacy;
     private String url;
@@ -61,6 +64,22 @@ public class ArticleResponseEntry {
         this.keywords = keywords;
     }
 
+    public String getMarkdown() {
+        return markdown;
+    }
+
+    public void setMarkdown(String markdown) {
+        this.markdown = markdown;
+    }
+
+    public String getDigest() {
+        return digest;
+    }
+
+    public void setDigest(String digest) {
+        this.digest = digest;
+    }
+
     public String getReleaseTime() {
         return releaseTime;
     }
@@ -99,6 +118,14 @@ public class ArticleResponseEntry {
 
     public void setCanComment(Boolean canComment) {
         this.canComment = canComment;
+    }
+
+    public Boolean getRecommended() {
+        return recommended;
+    }
+
+    public void setRecommended(Boolean recommended) {
+        this.recommended = recommended;
     }
 
     public Long getCommentSize() {

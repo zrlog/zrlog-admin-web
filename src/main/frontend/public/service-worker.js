@@ -1,5 +1,15 @@
-const CACHE_NAME = "my-cache-v6";
+const CACHE_NAME = "my-cache-v7";
 const urlsToCache = [];
+const networkOnlyPathMatchers = [
+    (pathname) => pathname.includes("/api/"),
+    (pathname) => pathname.includes("/admin/logout"),
+    (pathname) => pathname.includes("/admin/plugins/"),
+    (pathname) => pathname.includes("/admin/attached"),
+    (pathname) => pathname.includes("/admin/template/preview-image"),
+];
+
+const shouldUseNetworkOnly = (pathname) => networkOnlyPathMatchers.some((matcher) => matcher(pathname));
+
 self.addEventListener("install", (event) => {
     self.skipWaiting();
     event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(urlsToCache)));
@@ -20,8 +30,6 @@ self.addEventListener("activate", (event) => {
                 );
             })
             .then(() => {
-                // 🚨 关键：确保 Service Worker 立即接管所有客户端（包括当前页面）
-                console.log("[SW] Service Worker 已激活并接管控制权。");
                 return self.clients.claim();
             })
     );
@@ -29,6 +37,8 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
     const request = event.request;
+    const requestUrl = new URL(request.url);
+    const pathname = requestUrl.pathname;
     // 跳过不支持的协议
     if (!request.url.startsWith("http")) {
         return;
@@ -36,16 +46,7 @@ self.addEventListener("fetch", (event) => {
     if (request.method !== "GET") {
         return;
     }
-    // ✅ 不缓存 /api 接口，直接走网络
-    if (new URL(request.url).pathname.startsWith("/api")) {
-        return;
-    }
-
-    if (new URL(request.url).pathname.endsWith("/admin/logout")) {
-        return;
-    }
-
-    if (new URL(request.url).pathname.includes("/admin/plugins/")) {
+    if (shouldUseNetworkOnly(pathname)) {
         return;
     }
 

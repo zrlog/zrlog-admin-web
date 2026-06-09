@@ -5,6 +5,7 @@ import com.google.gson.reflect.TypeToken;
 import com.hibegin.common.dao.ResultValueConvertUtils;
 import com.hibegin.common.util.BeanUtil;
 import com.hibegin.common.util.StringUtils;
+import com.hibegin.http.server.api.HttpRequest;
 import com.zrlog.admin.business.rest.request.ArticleVersionRollbackRequest;
 import com.zrlog.admin.business.rest.request.UpdateArticleRequest;
 import com.zrlog.admin.business.rest.response.ArticleVersionCompareResponse;
@@ -29,7 +30,7 @@ public class ArticleVersionService {
     }.getType();
     private static final List<String> SNAPSHOT_FIELDS = List.of(
             "title", "content", "markdown", "digest", "keywords", "alias", "thumbnail",
-            "typeId", "canComment", "privacy", "rubbish", "editorType"
+            "typeId", "canComment", "recommended", "privacy", "rubbish", "editorType"
     );
 
     private final AdminArticleService adminArticleService;
@@ -69,15 +70,8 @@ public class ArticleVersionService {
     }
 
     public List<ArticleVersionResponse> listVersions(Integer logId) throws SQLException {
-        LoadEditArticleResponse current = adminArticleService.loadDetail(logId.toString(), null);
         List<ArticleVersionResponse> responses = new ArrayList<>();
-        ArticleVersionResponse currentVersion = new ArticleVersionResponse();
-        currentVersion.setVersion(current.getVersion());
-        currentVersion.setCreatedAt(current.getLastUpdateDate());
-        currentVersion.setUserId(null);
-        currentVersion.setTitle(current.getTitle());
-        currentVersion.setCurrent(true);
-        responses.add(currentVersion);
+        responses.add(loadCurrentVersion(logId));
 
         List<Map<String, Object>> rows = logVersion.findVersionList(logId);
         for (Map<String, Object> row : rows) {
@@ -100,9 +94,27 @@ public class ArticleVersionService {
                 .collect(Collectors.toList());
     }
 
-    public ArticleVersionCompareResponse compare(Integer logId, Integer fromVersion, Integer toVersion) throws SQLException {
-        LoadEditArticleResponse from = loadVersion(logId, fromVersion);
-        LoadEditArticleResponse to = loadVersion(logId, toVersion);
+    private ArticleVersionResponse loadCurrentVersion(Integer logId) throws SQLException {
+        Map<String, Object> row = new Log().queryFirstWithParams(
+                "select version, title, last_update_date as lastUpdateDate from " + Log.TABLE_NAME + " where logId=?",
+                logId
+        );
+        if (row == null || row.isEmpty()) {
+            throw new NotFindDbEntryException();
+        }
+        ArticleVersionResponse currentVersion = new ArticleVersionResponse();
+        currentVersion.setVersion(toInteger(getIgnoreCase(row, "version")));
+        currentVersion.setCreatedAt(ResultValueConvertUtils.parseDate(getIgnoreCase(row, "lastUpdateDate")));
+        currentVersion.setUserId(null);
+        currentVersion.setTitle(Objects.toString(getIgnoreCase(row, "title"), ""));
+        currentVersion.setCurrent(true);
+        return currentVersion;
+    }
+
+    public ArticleVersionCompareResponse compare(Integer logId, Integer fromVersion, Integer toVersion, HttpRequest request) throws SQLException {
+        LoadEditArticleResponse current = adminArticleService.loadDetail(logId.toString(), request);
+        LoadEditArticleResponse from = loadVersion(logId, fromVersion, current);
+        LoadEditArticleResponse to = loadVersion(logId, toVersion, current);
         ArticleVersionCompareResponse response = new ArticleVersionCompareResponse();
         response.setFromVersion(fromVersion);
         response.setToVersion(toVersion);
@@ -114,22 +126,25 @@ public class ArticleVersionService {
         return response;
     }
 
-    public CreateOrUpdateArticleResponse rollback(AdminTokenVO user, ArticleVersionRollbackRequest request) throws SQLException {
+    public CreateOrUpdateArticleResponse rollback(AdminTokenVO user, ArticleVersionRollbackRequest request, HttpRequest req) throws SQLException {
         if (request.getLogId() == null || request.getVersion() == null || request.getTargetVersion() == null) {
             throw new ArgsException("logId/version/targetVersion");
         }
-        LoadEditArticleResponse target = loadVersion(request.getLogId(), request.getTargetVersion());
+        LoadEditArticleResponse target = loadVersion(request.getLogId(), request.getTargetVersion(), req);
         UpdateArticleRequest updateArticleRequest = BeanUtil.convert(target, UpdateArticleRequest.class);
         updateArticleRequest.setLogId(request.getLogId());
         updateArticleRequest.setVersion(request.getVersion());
         return adminArticleService.update(user, updateArticleRequest);
     }
 
-    public LoadEditArticleResponse loadVersion(Integer logId, Integer targetVersion) throws SQLException {
+    public LoadEditArticleResponse loadVersion(Integer logId, Integer targetVersion, HttpRequest request) throws SQLException {
+        return loadVersion(logId, targetVersion, adminArticleService.loadDetail(logId.toString(), request));
+    }
+
+    private LoadEditArticleResponse loadVersion(Integer logId, Integer targetVersion, LoadEditArticleResponse current) throws SQLException {
         if (logId == null || targetVersion == null) {
             throw new ArgsException("logId/targetVersion");
         }
-        LoadEditArticleResponse current = adminArticleService.loadDetail(logId.toString(), null);
         if (current.getVersion() == null || targetVersion > current.getVersion() || targetVersion < 0) {
             throw new NotFindDbEntryException();
         }
@@ -166,6 +181,7 @@ public class ArticleVersionService {
         map.put("thumbnail", article.getThumbnail());
         map.put("typeId", article.getTypeId());
         map.put("canComment", article.isCanComment());
+        map.put("recommended", article.isRecommended());
         map.put("privacy", article.isPrivacy());
         map.put("rubbish", article.isRubbish());
         map.put("editorType", article.getEditorType());
@@ -234,6 +250,9 @@ public class ArticleVersionService {
                 break;
             case "canComment":
                 article.setCanComment(toBoolean(value));
+                break;
+            case "recommended":
+                article.setRecommended(toBoolean(value));
                 break;
             case "privacy":
                 article.setPrivacy(toBoolean(value));
@@ -350,5 +369,18 @@ public class ArticleVersionService {
 
     private static String toStringValue(Object value) {
         return value == null ? null : value.toString();
+    }
+
+    private static Object getIgnoreCase(Map<String, Object> row, String key) {
+        Object value = row.get(key);
+        if (value != null) {
+            return value;
+        }
+        for (Map.Entry<String, Object> entry : row.entrySet()) {
+            if (entry.getKey() != null && entry.getKey().equalsIgnoreCase(key)) {
+                return entry.getValue();
+            }
+        }
+        return null;
     }
 }

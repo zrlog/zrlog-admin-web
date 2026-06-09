@@ -16,13 +16,13 @@ type AdminNavigationDrawerProps = {
 const AdminNavigationDrawer: FunctionComponent<AdminNavigationDrawerProps> = ({
     open,
     width,
-    dark,
     closeLabel,
     brand,
     onClose,
     children,
 }) => {
     const theme = useTheme();
+    const borderSecondary = `${theme.lineWidth}px ${theme.lineType} ${theme.colorBorderSecondary}`;
 
     return (
         <Drawer
@@ -37,40 +37,47 @@ const AdminNavigationDrawer: FunctionComponent<AdminNavigationDrawerProps> = ({
                     {brand}
                     <Button
                         type="text"
+                        className="sidebar-drawer-close"
                         aria-label={closeLabel}
                         onClick={onClose}
-                        style={{
-                            width: 32,
-                            minWidth: 32,
-                            height: 32,
-                            borderRadius: theme.borderRadiusLG,
-                            color: dark ? "rgba(255,255,255,0.88)" : "#0f0f0f",
-                            flexShrink: 0,
-                            paddingInline: 7,
-                        }}
                         icon={<CloseOutlined style={{ fontSize: 18 }} />}
                     />
                 </div>
             }
             className="admin-navigation-drawer"
             rootStyle={{
-                position: "absolute",
+                position: "fixed",
                 top: 0,
                 left: 0,
-                height: "100%",
+                height: "100dvh",
+                maxHeight: "100dvh",
             }}
             styles={{
                 header: {
-                    padding: "10px 10px 0",
-                    borderBottom: "none",
-                    background: dark ? "rgba(26, 26, 26, 0.95)" : "rgba(255, 255, 255, 0.95)",
+                    padding: 0,
+                    borderBottom: borderSecondary,
+                    background: theme.colorBgElevated,
+                    flexShrink: 0,
                 },
                 body: {
-                    padding: "0 0 20px",
-                    background: dark ? "rgba(26, 26, 26, 0.95)" : "rgba(255, 255, 255, 0.95)",
+                    display: "flex",
+                    flexDirection: "column",
+                    flex: 1,
+                    minHeight: 0,
+                    padding: "10px 0 0",
+                    background: theme.colorBgElevated,
+                    overflow: "hidden",
+                },
+                content: {
+                    display: "flex",
+                    flexDirection: "column",
+                    height: "100dvh",
+                    maxHeight: "100dvh",
                 },
                 wrapper: {
-                    boxShadow: dark ? "18px 0 36px rgba(0,0,0,0.34)" : "18px 0 36px rgba(15,23,42,0.08)",
+                    height: "100dvh",
+                    maxHeight: "100dvh",
+                    boxShadow: theme.boxShadowSecondary,
                 },
             }}
         >

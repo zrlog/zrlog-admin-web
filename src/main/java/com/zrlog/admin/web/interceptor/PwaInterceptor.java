@@ -7,7 +7,6 @@ import com.hibegin.http.server.api.HttpResponse;
 import com.hibegin.http.server.util.MimeTypeUtil;
 import com.hibegin.http.server.util.PathUtil;
 import com.zrlog.admin.business.AdminConstants;
-import com.zrlog.common.Constants;
 
 import java.io.File;
 import java.io.FileInputStream;

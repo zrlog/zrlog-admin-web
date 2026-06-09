@@ -5,6 +5,7 @@ import TextArea from "antd/es/input/TextArea";
 import { Link } from "react-router-dom";
 import { getRes } from "../../utils/constants";
 import { postRefreshCacheSse } from "../../utils/sse-utils";
+import { useResponsiveFormLayout } from "../../utils/responsive-form";
 
 const layout = {
     labelCol: { span: 4 },
@@ -29,6 +30,7 @@ const CreateOrEditType: FunctionComponent<EditTypeProps> = ({ record, editSucces
     const [updateForm, setUpdateForm] = useState<TypeEntry>(record);
     const [messageApi, contextHolder] = message.useMessage({ maxCount: 3 });
     const [loading, setLoading] = useState<boolean>(false);
+    const { formLayout, narrow } = useResponsiveFormLayout(layout);
 
     const isUpdate = () => {
         return record.id && record.id > 0;
@@ -89,8 +91,9 @@ const CreateOrEditType: FunctionComponent<EditTypeProps> = ({ record, editSucces
                     loading: loading,
                 }}
                 onCancel={() => setShowModel(false)}
+                width={narrow ? "calc(100vw - 32px)" : undefined}
             >
-                <Form initialValues={updateForm} onValuesChange={(_k, v) => setValue(v)} {...layout}>
+                <Form initialValues={updateForm} onValuesChange={(_k, v) => setValue(v)} {...formLayout}>
                     <Form.Item name="id" style={{ display: "none" }}>
                         <Input hidden={true} />
                     </Form.Item>
@@ -102,7 +105,7 @@ const CreateOrEditType: FunctionComponent<EditTypeProps> = ({ record, editSucces
                                 name="typeName"
                                 rules={[{ required: true, message: "" }]}
                             >
-                                <Input />
+                                <Input placeholder={getRes().articleType.namePlaceholder} />
                             </Form.Item>
                         </Col>
                     </Row>
@@ -113,8 +116,9 @@ const CreateOrEditType: FunctionComponent<EditTypeProps> = ({ record, editSucces
                                 style={{ marginBottom: 8 }}
                                 name="alias"
                                 rules={[{ required: true, message: "" }]}
+                                extra={getRes().articleType.aliasHelp}
                             >
-                                <Input />
+                                <Input placeholder={getRes().articleType.aliasPlaceholder} />
                             </Form.Item>
                         </Col>
                     </Row>
@@ -125,8 +129,9 @@ const CreateOrEditType: FunctionComponent<EditTypeProps> = ({ record, editSucces
                                 style={{ marginBottom: 8 }}
                                 name="remark"
                                 rules={[{ message: "" }]}
+                                extra={getRes().articleType.remarkHelp}
                             >
-                                <TextArea />
+                                <TextArea placeholder={getRes().articleType.remarkPlaceholder} />
                             </Form.Item>
                         </Col>
                     </Row>

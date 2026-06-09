@@ -1,16 +1,13 @@
 package com.zrlog.admin.business.exception;
 
-import com.zrlog.common.exception.AbstractBusinessException;
-import com.zrlog.util.I18nUtil;
+public class AdminAuthException extends AbstractAdminBusinessException {
 
-public class AdminAuthException extends AbstractBusinessException {
-    @Override
-    public int getError() {
-        return 9001;
+    public AdminAuthException() {
+        super("admin.session.timeout");
     }
 
     @Override
-    public String getMessage() {
-        return I18nUtil.getAdminBackendStringFromRes("admin.session.timeout");
+    public int getError() {
+        return 9001;
     }
 }

@@ -5,6 +5,7 @@ import { LoadingOutlined, SyncOutlined } from "@ant-design/icons";
 import { getRes } from "../utils/constants";
 import { postRefreshCacheSse } from "../utils/sse-utils";
 import { refreshLocationForce } from "../utils/helpers";
+import { buildBackgroundTaskResult } from "../utils/background-task-result";
 
 type StaticSiteData = {
     synced: boolean;
@@ -46,11 +47,16 @@ const StaticSite: FunctionComponent<AdminCommonProps<StaticSiteData>> = ({ data 
                         }>("/api/admin/static-site/startSync", {
                             messageApi,
                             messageKey: "staticSiteSync",
-                            resolveWhenStarted: true,
                             removeBackgroundTaskOnSuccess: true,
                             waitForComplete: true,
-                            backgroundTaskTitle:
-                                getRes().backgroundTask.title + " · " + getRes().staticSite.syncingAdmin,
+                            backgroundTaskTitle: getRes().staticSite.syncingAdmin,
+                            getBackgroundTaskResult: (response) =>
+                                buildBackgroundTaskResult(response, {
+                                    warningWhen: (item) => !item.data?.synced,
+                                    successDescription: (item) => item.message || getRes().staticSite.syncComplete,
+                                    warningDescription: (item) => item.message || getRes().staticSite.syncIncomplete,
+                                    errorDescription: (item) => item.message || getRes().staticSite.syncFailed,
+                                }),
                         });
                     } catch (e) {
                         messageApi.error(e instanceof Error ? e.message : getRes().staticSite.syncFailed);

@@ -1,7 +1,7 @@
 import { Form } from "antd";
 import Card from "antd/es/card";
 import { getRes } from "../../utils/constants";
-import { FunctionComponent, useEffect, useRef, useState } from "react";
+import { CSSProperties, FunctionComponent, useEffect, useRef, useState } from "react";
 import { useAxiosBaseInstance } from "../../base/AppBase";
 import XxsTips from "../xxs-tips";
 
@@ -9,9 +9,10 @@ type PreviewConfigProps = {
     contentType: string;
     value: string;
     initPreviewValue?: string | null;
+    style?: CSSProperties;
 };
 
-const PreviewConfig: FunctionComponent<PreviewConfigProps> = ({ contentType, value, initPreviewValue }) => {
+const PreviewConfig: FunctionComponent<PreviewConfigProps> = ({ contentType, value, initPreviewValue, style }) => {
     const [previewValue, setPreviewValue] = useState<string>(initPreviewValue != null ? initPreviewValue : "");
 
     const axiosInstance = useAxiosBaseInstance();
@@ -23,7 +24,6 @@ const PreviewConfig: FunctionComponent<PreviewConfigProps> = ({ contentType, val
             first.current = false;
             return;
         }
-        //console.info(contentType);
         if (contentType === "html") {
             axiosInstance
                 .get("/api/admin/template/previewConfigValue?value=" + encodeURIComponent(value))
@@ -48,7 +48,7 @@ const PreviewConfig: FunctionComponent<PreviewConfigProps> = ({ contentType, val
                         minHeight: 36,
                     },
                 }}
-                style={{ overflow: "hidden" }}
+                style={{ overflow: "hidden", ...style }}
             >
                 <div
                     style={{ userSelect: "none" }}

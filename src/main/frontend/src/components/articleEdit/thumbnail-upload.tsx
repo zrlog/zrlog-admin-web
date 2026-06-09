@@ -1,20 +1,28 @@
 import { CameraOutlined, DeleteFilled, LoadingOutlined } from "@ant-design/icons";
-import Image from "antd/es/image";
-import { FunctionComponent, useState } from "react";
-import { getRes, tryAppendBackendServerUrl } from "../../utils/constants";
+import { FunctionComponent, ReactNode, useState } from "react";
+import { getRes } from "../../utils/constants";
 import { message, Typography } from "antd";
 import { getAppState } from "../../base/ConfigProviderApp";
-import BaseDragger from "@editor/dist/src/editor/common/BaseDragger";
+import ResourceDragger from "../../common/ResourceDragger";
 import { useAxiosBaseInstance } from "../../base/AppBase";
 import { useTheme } from "antd-style";
+import BackendImage from "../../common/BackendImage";
 
 type ThumbnailUploadProps = {
     onChange?: (e: string) => void;
     thumbnail?: string;
     getContainer?: () => HTMLElement;
+    aspectRatio?: number;
+    title?: ReactNode;
 };
 
-const ThumbnailUpload: FunctionComponent<ThumbnailUploadProps> = ({ onChange, thumbnail, getContainer }) => {
+const ThumbnailUpload: FunctionComponent<ThumbnailUploadProps> = ({
+    onChange,
+    thumbnail,
+    getContainer,
+    aspectRatio,
+    title,
+}) => {
     const [uploading, setUploading] = useState<boolean>(false);
 
     const [messageApi, contextHolder] = message.useMessage({ maxCount: 3 });
@@ -24,7 +32,8 @@ const ThumbnailUpload: FunctionComponent<ThumbnailUploadProps> = ({ onChange, th
     const theme = useTheme();
 
     return (
-        <BaseDragger
+        <ResourceDragger
+            axiosInstance={axiosInstance}
             onSuccess={({ data }) => {
                 setUploading(false);
                 if (onChange) {
@@ -39,17 +48,22 @@ const ThumbnailUpload: FunctionComponent<ThumbnailUploadProps> = ({ onChange, th
                 messageApi.error(e.message);
                 setUploading(false);
             }}
+            getContainer={getContainer}
             accept={"image/*"}
-            style={{ overflow: "hidden", minHeight: 102, maxHeight: 256 }}
-            uploadConfig={{
-                buildUploadUrl: function (type): string {
-                    return `/api/admin/upload/thumbnail?dir=${type}`;
-                },
-                formName: "imgFile",
-                axiosInstance: axiosInstance,
-                tryAppendBackendServerUrl: tryAppendBackendServerUrl,
-            }}
+            style={{ overflow: "hidden", height: "100%" }}
+            bodyAspectRatio={aspectRatio}
+            cardSize="default"
+            cardStyle={{ width: "100%" }}
+            buildUploadUrl={(type) => `/api/admin/upload/thumbnail?dir=${type}`}
             type={"thumbnail"}
+            title={title}
+            resourcePicker={{
+                disabled: uploading,
+                onlyImage: true,
+                onSelectFile: (path) => {
+                    onChange?.(path);
+                },
+            }}
         >
             {contextHolder}
             {(thumbnail === undefined || thumbnail === null || thumbnail === "") && (
@@ -78,8 +92,9 @@ const ThumbnailUpload: FunctionComponent<ThumbnailUploadProps> = ({ onChange, th
             )}
             {thumbnail != null && thumbnail !== "" && (
                 <div style={{ position: "relative" }}>
-                    <Image
-                        style={{ borderRadius: 0, position: "relative" }}
+                    <BackendImage
+                        style={{ borderRadius: 0, position: "relative", aspectRatio, objectFit: "cover" }}
+                        width="100%"
                         preview={false}
                         id="thumbnail"
                         src={thumbnail}
@@ -106,7 +121,7 @@ const ThumbnailUpload: FunctionComponent<ThumbnailUploadProps> = ({ onChange, th
                     </div>
                 </div>
             )}
-        </BaseDragger>
+        </ResourceDragger>
     );
 };
 export default ThumbnailUpload;
