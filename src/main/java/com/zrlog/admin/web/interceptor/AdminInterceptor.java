@@ -13,6 +13,7 @@ import com.zrlog.common.exception.ResourceLockedException;
 import com.zrlog.common.vo.AdminFullTokenVO;
 import com.zrlog.data.service.DistributedLock;
 import com.zrlog.plugin.BaseStaticSitePlugin;
+import com.zrlog.util.BlogBuildInfoUtil;
 
 import java.lang.reflect.Method;
 import java.util.Objects;
@@ -38,7 +39,7 @@ public class AdminInterceptor implements HandleAbleInterceptor {
         if (Objects.nonNull(AdminTokenThreadLocal.getUser())) {
             userFlag = AdminTokenThreadLocal.getUser().getSessionId();
         }
-        return new DistributedLock("request-lock-" + request.getUri() + "-" + userFlag);
+        return new DistributedLock("request-lock-" + BlogBuildInfoUtil.getBuildId() + request.getUri() + "-" + userFlag);
     }
 
     protected Method getMethod(HttpRequest request) {
