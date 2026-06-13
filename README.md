@@ -13,6 +13,14 @@
 
 ## 本地开发
 
+前后端一起启动：
+
+```shell
+scripts/dev-start.sh
+```
+
+脚本会复用已运行的 `http://localhost:17080/sub` 后端和 `http://localhost:3000/admin` 前端；未运行时会自动启动。前端默认启用 polling watcher，避免 Linux inotify 数量不足导致 `ENOSPC`。
+
 ### 后端
 
 ```shell
