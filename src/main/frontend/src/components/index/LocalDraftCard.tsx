@@ -91,7 +91,10 @@ const LocalDraftCard: FunctionComponent<LocalDraftCardProps> = ({ localDrafts, o
                         </Typography.Text>
                     )}
                     <div style={{ display: "flex", gap: token.marginXS, flexWrap: "wrap" }}>
-                        <Link to={getRealRouteUrl(getEditPath(localDraft))}>
+                        <Link
+                            to={getRealRouteUrl(getEditPath(localDraft))}
+                            style={{ display: "inline-flex", width: "fit-content" }}
+                        >
                             <Button type="primary" size="small">
                                 {getRes().index.quickAction.continueWriting}
                             </Button>
@@ -149,7 +152,10 @@ const LocalDraftCard: FunctionComponent<LocalDraftCardProps> = ({ localDrafts, o
             ) : (
                 <div style={{ display: "grid", gap: token.marginSM }}>
                     <Typography.Text type="secondary">{getRes().index.quickAction.localDraftEmpty}</Typography.Text>
-                    <Link to={getRealRouteUrl("/article-edit")}>
+                    <Link
+                        to={getRealRouteUrl("/article-edit")}
+                        style={{ display: "inline-flex", width: "fit-content" }}
+                    >
                         <Button icon={<EditOutlined />} size="small">
                             {getRes().index.quickAction.writeArticle}
                         </Button>
