@@ -278,19 +278,7 @@ const Index = ({ data, offline }: { data: ArticlePageDataSource; offline: boolea
             ];
         }
 
-        return [
-            {
-                title: getRes().article.cover as string,
-                dataIndex: "thumbnail",
-                key: "thumbnail",
-                width: data.article_thumbnail_status ? 108 : 0,
-                render: (url: string) => {
-                    if (url && url.length > 0 && data.article_thumbnail_status) {
-                        return <BackendImage style={surface.thumbnailImage} src={url} />;
-                    }
-                    return <></>;
-                },
-            },
+        const columns: TableColumnsType<any> = [
             {
                 title: getRes().title,
                 key: "title",
@@ -369,6 +357,21 @@ const Index = ({ data, offline }: { data: ArticlePageDataSource; offline: boolea
                 sortOrder: sorterMap["lastUpdateDate"],
             },
         ];
+        if (data.article_thumbnail_status) {
+            columns.unshift({
+                title: getRes().article.cover as string,
+                dataIndex: "thumbnail",
+                key: "thumbnail",
+                width: 108,
+                render: (url: string) => {
+                    if (url && url.length > 0) {
+                        return <BackendImage style={surface.thumbnailImage} src={url} />;
+                    }
+                    return <></>;
+                },
+            });
+        }
+        return columns;
     };
 
     const onSearch = (key: string) => {
