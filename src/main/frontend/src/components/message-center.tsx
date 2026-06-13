@@ -116,9 +116,29 @@ const MessageCenter = ({
 
     const handleRemoveTask = async (taskId: string, dismissPath?: string, dismissPayload?: Record<string, unknown>) => {
         if (dismissPath) {
-            await axiosInstance.post(dismissPath, dismissPayload || {});
+            const { data } = await axiosInstance.post(dismissPath, dismissPayload || {});
+            if (data?.error !== 0) {
+                onRefresh?.(true);
+                return;
+            }
         }
         removeBackgroundTask(taskId);
+        onRefresh?.(true);
+    };
+
+    const handleClearFinishedTasks = async () => {
+        const finishedTasks = tasks.filter((task) => !isBackgroundTaskActive(task.status));
+        for (const task of finishedTasks) {
+            if (!task.dismissPath) {
+                continue;
+            }
+            const { data } = await axiosInstance.post(task.dismissPath, task.dismissPayload || {});
+            if (data?.error !== 0) {
+                onRefresh?.(true);
+                return;
+            }
+        }
+        clearFinishedBackgroundTasks();
         onRefresh?.(true);
     };
 
@@ -181,7 +201,7 @@ const MessageCenter = ({
         >
             <Typography.Text strong>{getRes().backgroundTask.title}</Typography.Text>
             {hasFinishedTask ? (
-                <Button type="link" size="small" onClick={() => clearFinishedBackgroundTasks()}>
+                <Button type="link" size="small" onClick={() => void handleClearFinishedTasks()}>
                     {getRes().backgroundTask.clearFinished}
                 </Button>
             ) : null}
