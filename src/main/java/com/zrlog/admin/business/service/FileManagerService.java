@@ -138,8 +138,7 @@ public class FileManagerService {
         if (!new WebSiteService().isFeatureResourceReferenceEnabled()) {
             return false;
         }
-        referenceService.refreshReferenceIndex();
-        return true;
+        return referenceService.refreshReferenceIndex();
     }
 
     public File resolveAndValidate(String relativePath) {

@@ -111,8 +111,20 @@ public class FileEntryUtils {
         if (url == null || url.trim().isEmpty()) {
             return false;
         }
-        String normalized = url.trim().toLowerCase(Locale.ROOT);
-        return normalized.startsWith("http://") || normalized.startsWith("https://") || normalized.startsWith("//");
+        String trimmed = url.trim();
+        String normalized = trimmed.toLowerCase(Locale.ROOT);
+        if (!normalized.startsWith("http://") && !normalized.startsWith("https://") && !normalized.startsWith("//")) {
+            return false;
+        }
+        try {
+            String parseValue = normalized.startsWith("//") ? "https:" + trimmed : trimmed;
+            java.net.URI uri = new java.net.URI(parseValue);
+            String scheme = uri.getScheme();
+            return ("http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme))
+                    && uri.getHost() != null && !uri.getHost().trim().isEmpty();
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     public static boolean isLikelyResourceUrl(String url) {

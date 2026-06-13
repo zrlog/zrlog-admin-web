@@ -48,7 +48,12 @@ public class WebsiteCacheService {
     }
 
     public boolean putJson(String key, Object value) {
-        return putString(key, GSON.toJson(value));
+        try {
+            return putString(key, GSON.toJson(value));
+        } catch (Exception e) {
+            LOGGER.log(Level.FINE, "Write website JSON cache failed, key=" + key, e);
+            return false;
+        }
     }
 
     public String getString(String key) {

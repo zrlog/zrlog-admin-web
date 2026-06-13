@@ -1,5 +1,6 @@
 package com.zrlog.admin.business.service;
 
+import com.hibegin.common.util.LoggerUtil;
 import com.hibegin.common.util.StringUtils;
 import com.hibegin.http.server.util.PathUtil;
 import com.zrlog.admin.business.rest.request.ReplaceArticleResourceUrlRequest;
@@ -19,19 +20,31 @@ import java.io.File;
 import java.sql.SQLException;
 import java.util.*;
 import java.util.function.Function;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public class FileManagerReferenceService {
 
+    private static final Logger LOGGER = LoggerUtil.getLogger(FileManagerReferenceService.class);
     private static final Object REFERENCE_INDEX_CACHE_LOCK = new Object();
     private static final String REFERENCE_INDEX_CACHE_KEY = "file_manager_reference_index";
     private static final Pattern MARKDOWN_LINK_PATTERN = Pattern.compile("!?\\[[^\\]]*]\\(([^)\\s]+)(?:\\s+\"[^\"]*\")?\\)");
     private static final Pattern RESOURCE_URL_PATTERN = Pattern.compile("(?i)(https?://[^\\s\"'<>)]*|//[^\\s\"'<>)]*|/attached/[^\\s\"'<>)]*)");
     private static final List<String> ARTICLE_RESOURCE_FIELDS = List.of("thumbnail", "content", "markdown", "digest");
 
+    private final WebsiteCacheService cacheService;
     private FileReferenceIndexCacheVO requestReferenceIndex;
+
+    public FileManagerReferenceService() {
+        this(new WebsiteCacheService());
+    }
+
+    FileManagerReferenceService(WebsiteCacheService cacheService) {
+        this.cacheService = cacheService;
+    }
 
     public Map<String, List<FileReferenceVO>> buildLocalReferenceMap() throws SQLException {
         return getReferenceIndex().getLocalReferences();
@@ -41,12 +54,11 @@ public class FileManagerReferenceService {
         return getReferenceIndex().getExternalReferences();
     }
 
-    public FileReferenceIndexCacheVO refreshReferenceIndex() throws SQLException {
+    public boolean refreshReferenceIndex() throws SQLException {
         String signature = buildArticleReferenceSignature();
         synchronized (REFERENCE_INDEX_CACHE_LOCK) {
             requestReferenceIndex = rebuildReferenceIndex(signature);
-            writeReferenceIndexCache(requestReferenceIndex);
-            return requestReferenceIndex;
+            return writeReferenceIndexCache(requestReferenceIndex);
         }
     }
 
@@ -156,7 +168,7 @@ public class FileManagerReferenceService {
         }
         if (response.getUpdatedArticles() > 0) {
             requestReferenceIndex = null;
-            new WebsiteCacheService().remove(REFERENCE_INDEX_CACHE_KEY);
+            clearReferenceIndexCache();
         }
         return response;
     }
@@ -192,16 +204,27 @@ public class FileManagerReferenceService {
     }
 
     private FileReferenceIndexCacheVO readReferenceIndexCache() {
-        FileReferenceIndexCacheVO cached = new WebsiteCacheService().getJson(REFERENCE_INDEX_CACHE_KEY,
-                FileReferenceIndexCacheVO.class);
+        FileReferenceIndexCacheVO cached = cacheService.getJson(REFERENCE_INDEX_CACHE_KEY, FileReferenceIndexCacheVO.class);
         if (cached == null || cached.getLocalReferences() == null || cached.getExternalReferences() == null) {
             return null;
         }
         return cached;
     }
 
-    private void writeReferenceIndexCache(FileReferenceIndexCacheVO referenceIndex) {
-        new WebsiteCacheService().putJson(REFERENCE_INDEX_CACHE_KEY, referenceIndex);
+    boolean writeReferenceIndexCache(FileReferenceIndexCacheVO referenceIndex) {
+        boolean saved = cacheService.putJson(REFERENCE_INDEX_CACHE_KEY, referenceIndex);
+        if (!saved) {
+            LOGGER.log(Level.WARNING, "Write file-manager reference index cache failed; using request-scoped index");
+        }
+        return saved;
+    }
+
+    boolean clearReferenceIndexCache() {
+        boolean removed = cacheService.remove(REFERENCE_INDEX_CACHE_KEY);
+        if (!removed) {
+            LOGGER.log(Level.WARNING, "Clear file-manager reference index cache failed");
+        }
+        return removed;
     }
 
     private void setReferences(FileEntryVO entry, List<FileReferenceVO> references) {
