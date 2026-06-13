@@ -8,6 +8,7 @@ import { getBackendServerUrl, getRealRouteUrl, getRes, isStaticPage } from "../u
 import AdminDashboardPage from "../components/admin-dashboard-page";
 import { NavigateFunction } from "react-router";
 import { syncMessageCenterStatus } from "../utils/message-center-status";
+import { ADMIN_ERROR_CODE } from "../common/admin-error-code";
 
 const AsyncLogin = lazy(() => import("components/login"));
 
@@ -89,7 +90,7 @@ export const useAxiosBaseInstance = (getContainer?: () => HTMLElement): AxiosIns
             (response) => {
                 syncMessageCenterStatus(response.data?.messageCenter);
                 const errorCode = response.data.error;
-                if (errorCode === 9001) {
+                if (errorCode === ADMIN_ERROR_CODE.authSessionExpired) {
                     let count = errorCountMap.get(errorCode);
                     if (count === null || count === undefined) {
                         count = 0;

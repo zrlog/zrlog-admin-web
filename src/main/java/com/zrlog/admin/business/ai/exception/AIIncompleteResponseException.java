@@ -1,6 +1,7 @@
 package com.zrlog.admin.business.ai.exception;
 
 import com.zrlog.admin.business.exception.AbstractAdminBusinessException;
+import com.zrlog.admin.business.exception.AdminErrorCode;
 
 public class AIIncompleteResponseException extends AbstractAdminBusinessException {
 
@@ -12,7 +13,7 @@ public class AIIncompleteResponseException extends AbstractAdminBusinessExceptio
     }
 
     public AIIncompleteResponseException(String finishReason, Integer continuationRounds) {
-        super("admin.ai.error.incomplete", finishReason);
+        super(AdminErrorCode.AI_RESPONSE_INCOMPLETE, finishReason);
         this.finishReason = finishReason;
         this.continuationRounds = continuationRounds;
     }
@@ -25,8 +26,4 @@ public class AIIncompleteResponseException extends AbstractAdminBusinessExceptio
         return continuationRounds;
     }
 
-    @Override
-    public int getError() {
-        return 9037;
-    }
 }

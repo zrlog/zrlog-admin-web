@@ -1,16 +1,12 @@
 package com.zrlog.admin.business.ai.exception;
 
 import com.zrlog.admin.business.exception.AbstractAdminBusinessException;
+import com.zrlog.admin.business.exception.AdminErrorCode;
 
 public class UnsupportedAIToolException extends AbstractAdminBusinessException {
 
     public UnsupportedAIToolException(String detail) {
-        super("admin.ai.error.unsupportedTool", detail);
-    }
-
-    @Override
-    public int getError() {
-        return 9034;
+        super(AdminErrorCode.AI_TOOL_UNSUPPORTED, detail);
     }
 
 }

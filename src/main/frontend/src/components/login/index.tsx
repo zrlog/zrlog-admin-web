@@ -21,6 +21,7 @@ import { AxiosInstance } from "axios";
 import { getSsDate, ssKeyStorageKey } from "../../base/SsData";
 import { getAppState } from "../../base/ConfigProviderApp";
 import { Theme, useTheme } from "antd-style";
+import { ADMIN_ERROR_CODE } from "../../common/admin-error-code";
 
 const md5 = require("md5");
 
@@ -273,9 +274,9 @@ const Index = ({ offline }: { offline: boolean }) => {
             }
             const { data } = await axiosInstance.post("/api/admin/login", loginForm);
             if (data.error) {
-                if (data.error === 9014 || data.error === 9015) {
+                if (data.error === ADMIN_ERROR_CODE.mfaCodeRequired || data.error === ADMIN_ERROR_CODE.mfaCodeInvalid) {
                     setMfaStep(true);
-                    if (data.error === 9015) {
+                    if (data.error === ADMIN_ERROR_CODE.mfaCodeInvalid) {
                         await messageApi.error(data.message);
                     }
                     return;
