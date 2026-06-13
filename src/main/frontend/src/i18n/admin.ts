@@ -950,8 +950,15 @@ const zhCN = {
     },
     "system": {
         "info": "系统信息",
-        "runtimeEnvironment": "运行环境",
-        "resourceOverview": "资源概览"
+        "overview": "状态概览",
+        "applicationRuntime": "应用与运行环境",
+        "systemConfiguration": "系统配置",
+        "resourceStatus": "资源与状态",
+        "loadAverage": {
+            "oneMinute": "1 分钟",
+            "fiveMinutes": "5 分钟",
+            "fifteenMinutes": "15 分钟"
+        }
     },
     "upgrade": {
         "wizard": "更新向导",
@@ -2146,8 +2153,15 @@ const enUS = {
     },
     "system": {
         "info": "System Info",
-        "runtimeEnvironment": "Runtime Environment",
-        "resourceOverview": "Resource Overview"
+        "overview": "Status Overview",
+        "applicationRuntime": "Application and Runtime",
+        "systemConfiguration": "System Configuration",
+        "resourceStatus": "Resources and Status",
+        "loadAverage": {
+            "oneMinute": "1 min",
+            "fiveMinutes": "5 min",
+            "fifteenMinutes": "15 min"
+        }
     },
     "upgrade": {
         "wizard": "Upgrade Wizard",

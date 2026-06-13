@@ -11,8 +11,13 @@ import {
 } from "@ant-design/icons";
 import { useTheme } from "antd-style";
 
-const QuickActionCard = ({ draftCount, embedded = false }: { draftCount: number; embedded?: boolean }) => {
+type QuickActionCardData = {
+    draftCount?: number;
+};
+
+const QuickActionCard = ({ data, embedded = false }: { data?: QuickActionCardData; embedded?: boolean }) => {
     const theme = useTheme();
+    const draftCount = data?.draftCount || 0;
     const iconBgColor = embedded ? theme.colorFillQuaternary : theme.colorPrimaryBg;
     const textColor = embedded ? theme.colorText : undefined;
     const mutedTextColor = embedded ? theme.colorTextSecondary : undefined;

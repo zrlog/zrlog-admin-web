@@ -4,28 +4,24 @@ import TimeAgo from "@editor/dist/src/editor/TimeAgo";
 import React, { useState } from "react";
 import { getRes } from "../../utils/constants";
 import { useTheme } from "antd-style";
+import { StatisticsInfoState } from "../../type";
 
 const { Text } = Typography;
 
-interface AuditLog {
-    timestamp: number;
-    ip: string;
-    action: string;
-    type: string;
-    content?: string;
-    os?: string;
-    browser?: string;
-    crawler?: boolean;
-}
+type AuditLog = NonNullable<StatisticsInfoState["auditLogs"]>[number];
 
 interface AuditTrailProps {
-    logs?: AuditLog[];
-    loading?: boolean;
+    data?: {
+        auditLogs?: AuditLog[];
+        loading?: boolean;
+    };
 }
 
-const AuditTrail: React.FC<AuditTrailProps> = ({ logs = [], loading }) => {
+const AuditTrail: React.FC<AuditTrailProps> = ({ data }) => {
     const [drawerVisible, setDrawerVisible] = useState(false);
     const theme = useTheme();
+    const logs = data?.auditLogs || [];
+    const loading = data?.loading;
 
     const getIcon = (type: string) => {
         switch (type) {

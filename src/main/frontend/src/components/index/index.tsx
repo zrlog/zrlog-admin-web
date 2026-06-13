@@ -10,8 +10,9 @@ import {
     AdminDashboardPluginPanelConfig,
     ApiResponse,
     IndexData,
+    StatisticsInfoState,
 } from "../../type";
-import ActivityGraph, { generateCompleteData } from "./ActivityGraph";
+import ActivityGraph, { ActivityDay, generateCompleteData } from "./ActivityGraph";
 import StatisticsInfo from "./StatisticsInfo";
 import QuickActionCard from "./QuickAction";
 import DataInsights from "./DataInsights";
@@ -28,6 +29,18 @@ import { getLocalArticleCaches } from "../../utils/article-cache";
 import { useTheme } from "antd-style";
 
 type IndexProps = AdminCommonProps<IndexData>;
+type WelcomeCardData = {
+    welcomeTip?: string;
+    tips?: string[];
+    versionInfo?: string;
+};
+type QuickActionCardData = {
+    draftCount?: number;
+};
+type DataInsightsCardData = {
+    typeData?: StatisticsInfoState["typeData"];
+    tagData?: StatisticsInfoState["tagData"];
+};
 
 const Index: FunctionComponent<IndexProps> = ({ data, updateCache }) => {
     const sectionGap = 20;
@@ -49,13 +62,11 @@ const Index: FunctionComponent<IndexProps> = ({ data, updateCache }) => {
         autoRefreshIntervalSeconds: 60,
         cards: defaultCards.map((card) => ({ ...card, kind: "card" as const })),
     };
-    const [pageData, setPageData] = useState<IndexData>(data);
     const [dashboardConfig, setDashboardConfig] = useState<AdminDashboardConfig>(data.dashboardConfig || defaultConfig);
     const [localDrafts, setLocalDrafts] = useState(() => getLocalArticleCaches());
     const refreshRunningRef = useRef(false);
 
     useEffect(() => {
-        setPageData(data);
         setDashboardConfig(data.dashboardConfig || defaultConfig);
     }, [data]);
 
@@ -76,11 +87,23 @@ const Index: FunctionComponent<IndexProps> = ({ data, updateCache }) => {
         };
     }, []);
 
-    const cards = (dashboardConfig.cards || [])
+    const cardItems = (dashboardConfig.cards || [])
         .filter((item): item is Extract<AdminDashboardLayoutItem, { kind: "card" }> => item.kind === "card")
-        .map((item) => ({ id: item.id, enabled: item.enabled, sort: item.sort } as AdminDashboardCardConfig))
+        .map(
+            (item) =>
+                ({
+                    id: item.id,
+                    enabled: item.enabled,
+                    sort: item.sort,
+                    title: item.title,
+                    data: item.data,
+                } as AdminDashboardCardConfig)
+        );
+    const cards = cardItems
         .filter((card) => card.id !== "pluginPanels" && card.id !== "welcome" && card.enabled !== false)
         .sort((a, b) => (a.sort || 0) - (b.sort || 0));
+    const welcomeCard =
+        cardItems.find((card) => card.id === "welcome") || ({ id: "welcome", enabled: true, sort: 0 } as const);
     const pluginPanels = (dashboardConfig.cards || [])
         .filter((item): item is Extract<AdminDashboardLayoutItem, { kind: "plugin" }> => item.kind === "plugin")
         .map(
@@ -107,7 +130,6 @@ const Index: FunctionComponent<IndexProps> = ({ data, updateCache }) => {
         .sort((a, b) => (a.sort ?? a.order ?? 0) - (b.sort ?? b.order ?? 0));
 
     const updateIndexData = (nextData: IndexData) => {
-        setPageData(nextData);
         setDashboardConfig(nextData.dashboardConfig || defaultConfig);
         updateCache?.(nextData, getPageDataCacheKeyByPath(location.pathname, location.search));
     };
@@ -170,12 +192,11 @@ const Index: FunctionComponent<IndexProps> = ({ data, updateCache }) => {
         updateCache,
     ]);
 
-    if (pageData.statisticsInfo === null) {
-        return <></>;
-    }
+    const getCardData = <T,>(card: AdminDashboardCardConfig | undefined): T | undefined => card?.data as T | undefined;
 
-    const cardRenderers: Record<string, ReactNode> = {
-        welcome: (
+    const renderWelcomeCard = (card: AdminDashboardCardConfig) => {
+        const welcomeData = getCardData<WelcomeCardData>(card);
+        return (
             <Card
                 className="dashboard-card"
                 style={{
@@ -186,7 +207,7 @@ const Index: FunctionComponent<IndexProps> = ({ data, updateCache }) => {
                 title={
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                         <SmileOutlined style={{ fontSize: 18 }} />
-                        <span>{pageData.welcomeTip}</span>
+                        <span>{welcomeData?.welcomeTip || ""}</span>
                     </div>
                 }
                 extra={
@@ -245,43 +266,52 @@ const Index: FunctionComponent<IndexProps> = ({ data, updateCache }) => {
                             color: theme.colorText,
                         }}
                     >
-                        {pageData.tips.map((e, idx) => (
+                        {(welcomeData?.tips || []).map((e, idx) => (
                             <span key={idx} style={{ display: "block" }}>
                                 {e}
                             </span>
                         ))}
                     </div>
-                    <div
-                        style={{
-                            marginTop: 18,
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 8,
-                            flexWrap: "wrap",
-                            color: theme.colorTextSecondary,
-                        }}
-                    >
-                        <InfoCircleOutlined style={{ fontSize: 14, opacity: 0.82 }} />
-                        <span style={{ fontSize: 12 }}>{getRes().index.welcome.currentVersion}</span>
-                        <span
+                    {welcomeData?.versionInfo && (
+                        <div
                             style={{
-                                fontSize: 14,
-                                lineHeight: 1.25,
-                                wordBreak: "break-word",
+                                marginTop: 18,
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 8,
+                                flexWrap: "wrap",
+                                color: theme.colorTextSecondary,
                             }}
                         >
-                            {pageData.versionInfo}
-                        </span>
-                    </div>
+                            <InfoCircleOutlined style={{ fontSize: 14, opacity: 0.82 }} />
+                            <span style={{ fontSize: 12 }}>{getRes().index.welcome.currentVersion}</span>
+                            <span
+                                style={{
+                                    fontSize: 14,
+                                    lineHeight: 1.25,
+                                    wordBreak: "break-word",
+                                }}
+                            >
+                                {welcomeData.versionInfo}
+                            </span>
+                        </div>
+                    )}
                 </div>
             </Card>
-        ),
-        localDraft: (
+        );
+    };
+
+    const cardRenderers: Record<string, (card: AdminDashboardCardConfig) => ReactNode> = {
+        welcome: renderWelcomeCard,
+        localDraft: () => (
             <LocalDraftCard localDrafts={localDrafts} onClear={() => setLocalDrafts(getLocalArticleCaches())} />
         ),
-        quickAction: <QuickActionCard draftCount={pageData.statisticsInfo.draftCount} />,
-        statistics: <StatisticsInfo data={pageData.statisticsInfo} />,
-        activity: (
+        quickAction: (card) => <QuickActionCard data={getCardData<QuickActionCardData>(card)} />,
+        statistics: (card) => {
+            const cardData = getCardData<StatisticsInfoState>(card);
+            return cardData ? <StatisticsInfo data={cardData} /> : null;
+        },
+        activity: (card) => (
             <Card
                 title={
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -294,14 +324,12 @@ const Index: FunctionComponent<IndexProps> = ({ data, updateCache }) => {
                 styles={{ body: { padding: 0 } }}
             >
                 <div style={{ overflow: "hidden", padding: "8px 12px 10px" }}>
-                    <ActivityGraph data={generateCompleteData(pageData.activityData)} />
+                    <ActivityGraph data={generateCompleteData(getCardData<ActivityDay[]>(card) || [])} />
                 </div>
             </Card>
         ),
-        auditTrail: <AuditTrail logs={pageData.statisticsInfo.auditLogs} />,
-        dataInsights: (
-            <DataInsights typeData={pageData.statisticsInfo.typeData} tagData={pageData.statisticsInfo.tagData} />
-        ),
+        auditTrail: (card) => <AuditTrail data={getCardData(card)} />,
+        dataInsights: (card) => <DataInsights data={getCardData<DataInsightsCardData>(card)} />,
     };
     const layoutItems: (
         | { type: "card"; item: AdminDashboardCardConfig }
@@ -315,7 +343,7 @@ const Index: FunctionComponent<IndexProps> = ({ data, updateCache }) => {
             if (layoutItem.type === "plugin") {
                 return <PluginSurfacePanels axiosInstance={axiosInstance} panels={[layoutItem.item]} />;
             }
-            return cardRenderers[layoutItem.item.id];
+            return cardRenderers[layoutItem.item.id]?.(layoutItem.item);
         })
         .filter(Boolean);
     const leftNodes = sortedNodes.filter((_, index) => index % 2 === 1);
@@ -329,7 +357,7 @@ const Index: FunctionComponent<IndexProps> = ({ data, updateCache }) => {
                         className="admin-dashboard-column"
                         style={{ display: "flex", flexDirection: "column", gap: sectionGap }}
                     >
-                        {cardRenderers.welcome}
+                        {renderWelcomeCard(welcomeCard)}
                         {leftNodes.map((node, index) => (
                             <div
                                 className="admin-dashboard-item"

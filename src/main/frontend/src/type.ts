@@ -1,5 +1,3 @@
-import {ActivityDay} from "./components/index/ActivityGraph";
-import {InteractiveSurface} from "./common/plugin-surface/types";
 import type {BackgroundTaskStatus} from "./utils/background-task-store";
 
 export type AppCompactModeState = {
@@ -188,11 +186,6 @@ export type ServerInfoEntry = {
 };
 
 export type IndexData = {
-    statisticsInfo: StatisticsInfoState;
-    activityData: ActivityDay[];
-    tips: string[];
-    welcomeTip: string;
-    versionInfo: string;
     dashboardConfig: AdminDashboardConfig;
 };
 
@@ -201,7 +194,7 @@ export type AdminDashboardCardConfig = {
     enabled: boolean;
     sort?: number;
     title?: string;
-    data?: Record<string, unknown>;
+    data?: unknown;
 };
 
 export type AdminDashboardPluginPanelConfig = {
@@ -217,7 +210,7 @@ export type AdminDashboardPluginPanelConfig = {
     height?: number;
     sort?: number;
     order?: number;
-    data?: Record<string, unknown> | InteractiveSurface;
+    data?: unknown;
     error?: string;
     surfaceLoaded?: boolean;
 };

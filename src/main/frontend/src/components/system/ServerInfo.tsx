@@ -4,16 +4,17 @@ import {
     ClockCircleOutlined,
     CloudServerOutlined,
     CodeOutlined,
+    DashboardOutlined,
     DatabaseOutlined,
     DockerOutlined,
     GlobalOutlined,
     HddOutlined,
-    LaptopOutlined,
     PartitionOutlined,
+    SettingOutlined,
     WindowsOutlined,
 } from "@ant-design/icons";
 import LinuxOutlined from "@ant-design/icons/lib/icons/LinuxOutlined";
-import { Card, Col, Grid, Row, Space, Typography } from "antd";
+import { Card, Col, Row, Space, Typography } from "antd";
 import { useTheme } from "antd-style";
 import GraalVmOutlined from "icons/GraalVMOutlined";
 import ZrLogOutlined from "icons/ZrLogOutlined";
@@ -21,66 +22,115 @@ import * as React from "react";
 import { Link } from "react-router-dom";
 import CPUIcon from "../../icons/CPUIcon";
 import MemoryIcon from "../../icons/MemoryIcon";
-import { ServerInfoEntry } from "../../type";
 import { RiJavaLine } from "../../icons/ri/RiJavaLine";
-
-const { useBreakpoint } = Grid;
+import { ServerInfoEntry, SystemData } from "../../type";
+import { getRes } from "../../utils/constants";
 
 type ServerInfoProps = {
-    data: ServerInfoEntry[];
-    dockerMode: boolean;
-    nativeImageMode: boolean;
-    title: React.ReactNode;
+    data: SystemData;
 };
 
-const FEATURED_KEYS = [
-    "programInfo",
-    "runtime",
-    "system",
-    "dbInfo",
-    "usedMemorySpace",
-    "usedDiskSpace",
-    "cpuLoad",
-    "uptime",
-];
+const APPLICATION_KEYS = ["programInfo", "runtime", "webServer", "system", "runPath"];
+const CONFIGURATION_KEYS = ["dbInfo", "timezone", "locale", "encoding"];
+const RESOURCE_KEYS = ["cpuInfo", "usedDiskSpace", "usedCacheSpace"];
 
-const FEATURED_LIMIT = 2;
+const clampPercent = (value: number) => Math.min(Math.max(value, 0), 100);
 
-const keyRank = (key: string) => {
-    const index = FEATURED_KEYS.indexOf(key);
-    return index === -1 ? FEATURED_KEYS.length + 1 : index;
+const parseCpuPercent = (value?: string) => {
+    const text = value?.trim();
+    const match = text?.match(/-?\d+(?:\.\d+)?/);
+    if (!text || !match) {
+        return undefined;
+    }
+    const numberValue = Number(match[0]);
+    if (!Number.isFinite(numberValue) || numberValue < 0) {
+        return undefined;
+    }
+    if (text.includes("%")) {
+        return clampPercent(numberValue);
+    }
+    if (numberValue <= 1) {
+        return clampPercent(numberValue * 100);
+    }
+    return clampPercent(numberValue);
 };
 
-const ServerInfo = ({ data, dockerMode, nativeImageMode, title }: ServerInfoProps) => {
-    const screens = useBreakpoint();
+const parseSize = (value?: string) => {
+    const match = value?.trim().match(/^(\d+(?:\.\d+)?)\s*([KMGT]?B?)$/i);
+    if (!match) {
+        return undefined;
+    }
+    const unit = match[2].toUpperCase();
+    const unitScale: Record<string, number> = {
+        B: 1,
+        K: 1024,
+        KB: 1024,
+        M: 1024 ** 2,
+        MB: 1024 ** 2,
+        G: 1024 ** 3,
+        GB: 1024 ** 3,
+        T: 1024 ** 4,
+        TB: 1024 ** 4,
+    };
+    return Number(match[1]) * (unitScale[unit] || 1);
+};
+
+const parseConnectionUsage = (value?: string) => {
+    const match = value?.match(/(\d+)\s*\/\s*(\d+)/);
+    if (!match) {
+        return undefined;
+    }
+    const active = Number(match[1]);
+    const total = Number(match[2]);
+    if (!Number.isFinite(active) || !Number.isFinite(total) || total <= 0) {
+        return undefined;
+    }
+    return clampPercent((active / total) * 100);
+};
+
+const parseLoadValues = (value?: string) => {
+    return (value?.match(/\d+(?:\.\d+)?/g) || []).slice(0, 3).map((item) => Number(item));
+};
+
+const formatPercent = (percent: number) => {
+    const normalized = percent >= 10 ? Math.round(percent) : Math.round(percent * 10) / 10;
+    return `${normalized}%`;
+};
+
+const getItemsByKeys = (itemMap: Map<string, ServerInfoEntry>, keys: string[]) => {
+    return keys.map((key) => itemMap.get(key)).filter((item): item is ServerInfoEntry => Boolean(item));
+};
+
+type GridSpan = {
+    xs: number;
+    sm?: number;
+    md?: number;
+    lg?: number;
+    xl?: number;
+};
+
+const ServerInfo = ({ data }: ServerInfoProps) => {
     const theme = useTheme();
-    const accentBg = theme.colorPrimaryBg;
-    const accentBorder = theme.colorPrimaryBorder;
-    const accentColor = theme.colorPrimary;
-    const neutralBg = theme.colorFillQuaternary;
-    const accentBorderStyle = `${theme.lineWidth}px ${theme.lineType} ${accentBorder}`;
     const borderSecondary = `${theme.lineWidth}px ${theme.lineType} ${theme.colorBorderSecondary}`;
-    const systemSurface = {
-        link: {
-            display: "block",
-            color: "inherit",
-        },
-        spacing: {
-            label: theme.marginSM,
-            section: theme.marginMD,
-            row: theme.padding,
-            rowInline: theme.marginXS,
-            listPadY: theme.padding,
-            listPadX: theme.padding,
-            sectionBody: theme.paddingLG,
-        },
-        icons: {
-            featuredBox: 42,
-            detailBox: 32,
-            iconFont: theme.fontSize,
-            textFont: theme.fontSize,
-            secondaryFont: theme.fontSizeSM,
-        },
+    const infoEntries = [...(data.serverInfos || []), ...(data.serverInfos2 || [])];
+    const itemMap = new Map(infoEntries.map((item) => [item.key, item]));
+    const applicationItems = getItemsByKeys(itemMap, APPLICATION_KEYS);
+    const configurationItems = getItemsByKeys(itemMap, CONFIGURATION_KEYS);
+    const resourceItems = getItemsByKeys(itemMap, RESOURCE_KEYS);
+    const loadLabels = [
+        getRes().system.loadAverage.oneMinute,
+        getRes().system.loadAverage.fiveMinutes,
+        getRes().system.loadAverage.fifteenMinutes,
+    ];
+
+    const metricColor = (percent: number) => {
+        if (percent >= 85) {
+            return theme.colorError;
+        }
+        if (percent >= 65) {
+            return theme.colorWarning;
+        }
+        return theme.colorSuccess;
     };
 
     const externalUrl = (key: string, value: string) => {
@@ -99,65 +149,12 @@ const ServerInfo = ({ data, dockerMode, nativeImageMode, title }: ServerInfoProp
             }
         }
         if (key === "runtime") {
-            if (nativeImageMode) {
+            if (data.nativeImageMode) {
                 return "https://www.graalvm.org";
             }
             return "https://www.oracle.com/java";
         }
         return "";
-    };
-
-    const getItemMeta = (item: ServerInfoEntry) => {
-        if (item.key === "runtime") {
-            return {
-                icon: (
-                    <Space size={theme.marginXXS / 2}>
-                        {dockerMode ? <DockerOutlined /> : null}
-                        {nativeImageMode && screens.sm ? <GraalVmOutlined /> : <LaptopOutlined />}
-                    </Space>
-                ),
-            };
-        }
-        if (item.key === "system") {
-            if (item.value.startsWith("Linux")) {
-                return { icon: <LinuxOutlined /> };
-            }
-            if (item.value.startsWith("Darwin") || item.value.startsWith("Mac")) {
-                return { icon: <AppleOutlined /> };
-            }
-            return { icon: <WindowsOutlined /> };
-        }
-        if (item.key === "usedCacheSpace" || item.key === "usedDiskSpace") {
-            return { icon: <HddOutlined /> };
-        }
-        if (item.key === "usedMemorySpace" || item.key === "totalMemorySpace") {
-            return { icon: <MemoryIcon /> };
-        }
-        if (item.key === "dbInfo" || item.key === "dbConnectSize") {
-            return { icon: <DatabaseOutlined /> };
-        }
-        if (item.key === "cpuInfo" || item.key === "cpuLoad" || item.key === "systemLoad") {
-            return { icon: <CPUIcon /> };
-        }
-        if (item.key === "programInfo") {
-            return { icon: <ZrLogOutlined /> };
-        }
-        if (item.key === "webServer") {
-            return { icon: <CloudServerOutlined /> };
-        }
-        if (item.key === "runPath") {
-            return { icon: <PartitionOutlined /> };
-        }
-        if (item.key === "timezone" || item.key === "uptime") {
-            return { icon: <ClockCircleOutlined /> };
-        }
-        if (item.key === "locale") {
-            return { icon: <GlobalOutlined /> };
-        }
-        if (item.key === "encoding") {
-            return { icon: <CodeOutlined /> };
-        }
-        return { icon: <GlobalOutlined /> };
     };
 
     const wrapByLink = (item: ServerInfoEntry, node: React.ReactNode) => {
@@ -166,246 +163,414 @@ const ServerInfo = ({ data, dockerMode, nativeImageMode, title }: ServerInfoProp
             return node;
         }
         return (
-            <Link target="_blank" to={url} style={systemSurface.link}>
+            <Link target="_blank" to={url} style={{ display: "block", color: "inherit", height: "100%" }}>
                 {node}
             </Link>
         );
     };
 
-    const sortedItems = [...data].sort((a, b) => keyRank(a.key) - keyRank(b.key));
-    const featuredItems = sortedItems.slice(0, Math.min(FEATURED_LIMIT, sortedItems.length));
-    const detailItems = sortedItems.slice(featuredItems.length);
-    const usesBareLogo = (key: string) => key === "runtime" || key === "programInfo";
-
-    const renderRuntimeIcons = (variant: "featured" | "detail") => {
-        const gap = variant === "featured" ? systemSurface.spacing.label : systemSurface.spacing.rowInline;
-        const iconSize = variant === "featured" ? 34 : 28;
-
-        const items = [];
-        if (dockerMode) {
-            items.push(<DockerOutlined style={{ fontSize: iconSize }} />);
+    const renderRuntimeIcons = (iconSize: number) => {
+        const items: React.ReactNode[] = [];
+        if (data.dockerMode) {
+            items.push(<DockerOutlined key="docker" style={{ fontSize: iconSize }} />);
         }
-        if (nativeImageMode) {
-            items.push(<GraalVmOutlined />);
+        if (data.nativeImageMode) {
+            items.push(<GraalVmOutlined key="graalvm" />);
         } else {
-            items.push(<RiJavaLine style={{ width: iconSize, height: iconSize }} />);
+            items.push(<RiJavaLine key="java" style={{ width: iconSize, height: iconSize }} />);
         }
         return (
-            <div
-                style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap,
-                    color: accentColor,
-                }}
+            <span
+                style={{ display: "inline-flex", alignItems: "center", gap: theme.marginXS, color: theme.colorPrimary }}
             >
                 {items}
-            </div>
+            </span>
         );
     };
 
-    const renderProgramInfoIcon = (variant: "featured" | "detail") => {
-        return <ZrLogOutlined size={variant === "featured" ? 34 : 26} />;
+    const renderItemIcon = (item: ServerInfoEntry, iconSize = 24) => {
+        if (item.key === "runtime") {
+            return renderRuntimeIcons(iconSize);
+        }
+        if (item.key === "programInfo") {
+            return <ZrLogOutlined size={iconSize} />;
+        }
+        if (item.key === "system") {
+            if (item.value.startsWith("Linux")) {
+                return <LinuxOutlined />;
+            }
+            if (item.value.startsWith("Darwin") || item.value.startsWith("Mac")) {
+                return <AppleOutlined />;
+            }
+            return <WindowsOutlined />;
+        }
+        if (item.key === "usedCacheSpace" || item.key === "usedDiskSpace") {
+            return <HddOutlined />;
+        }
+        if (item.key === "usedMemorySpace" || item.key === "totalMemorySpace") {
+            return <MemoryIcon />;
+        }
+        if (item.key === "dbInfo" || item.key === "dbConnectSize") {
+            return <DatabaseOutlined />;
+        }
+        if (item.key === "cpuInfo" || item.key === "cpuLoad" || item.key === "systemLoad") {
+            return <CPUIcon />;
+        }
+        if (item.key === "webServer") {
+            return <CloudServerOutlined />;
+        }
+        if (item.key === "runPath") {
+            return <PartitionOutlined />;
+        }
+        if (item.key === "timezone" || item.key === "uptime") {
+            return <ClockCircleOutlined />;
+        }
+        if (item.key === "locale") {
+            return <GlobalOutlined />;
+        }
+        if (item.key === "encoding") {
+            return <CodeOutlined />;
+        }
+        return <GlobalOutlined />;
     };
 
-    const renderExternalIndicator = (variant: "featured" | "detail") => {
-        const size = variant === "featured" ? 32 : 28;
+    const renderIconBox = (item: ServerInfoEntry) => {
         return (
-            <div
+            <span
                 style={{
-                    width: size,
-                    height: size,
+                    width: 36,
+                    height: 36,
                     borderRadius: theme.borderRadius,
+                    background: theme.colorPrimaryBg,
+                    color: theme.colorPrimary,
                     display: "inline-flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    background: variant === "featured" ? accentBg : neutralBg,
-                    color: accentColor,
-                    fontSize: theme.fontSizeSM,
                     flexShrink: 0,
+                    fontSize: theme.fontSizeLG,
                 }}
             >
-                <ArrowRightOutlined />
+                {renderItemIcon(item)}
+            </span>
+        );
+    };
+
+    const renderProgressBar = (percent: number) => {
+        const color = metricColor(percent);
+        return (
+            <div
+                style={{
+                    height: 8,
+                    borderRadius: theme.borderRadiusLG,
+                    background: theme.colorFillSecondary,
+                    overflow: "hidden",
+                }}
+            >
+                <div
+                    style={{
+                        width: `${percent}%`,
+                        height: "100%",
+                        borderRadius: theme.borderRadiusLG,
+                        background: color,
+                        transition: "width 0.3s ease",
+                    }}
+                />
             </div>
         );
     };
 
-    const renderFeaturedCard = (item: ServerInfoEntry) => {
-        const meta = getItemMeta(item);
-        const iconNode =
-            item.key === "runtime" ? (
-                renderRuntimeIcons("featured")
-            ) : item.key === "programInfo" ? (
-                renderProgramInfoIcon("featured")
-            ) : (
-                <div
-                    style={{
-                        minWidth: systemSurface.icons.featuredBox,
-                        height: systemSurface.icons.featuredBox,
-                        borderRadius: theme.borderRadius,
-                        display: "inline-flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        background: accentBg,
-                        color: accentColor,
-                        fontSize: systemSurface.icons.iconFont,
-                    }}
-                >
-                    {meta.icon}
-                </div>
-            );
-
-        return wrapByLink(
-            item,
+    const renderMetricTile = ({
+        item,
+        value,
+        percent,
+        extra,
+    }: {
+        item: ServerInfoEntry;
+        value?: string;
+        percent?: number;
+        extra?: React.ReactNode;
+    }) => {
+        return (
             <div
                 style={{
                     height: "100%",
-                    padding: systemSurface.spacing.sectionBody,
+                    minHeight: 132,
+                    padding: theme.padding,
                     borderRadius: theme.borderRadiusLG,
-                    border: accentBorderStyle,
+                    border: borderSecondary,
                     background: theme.colorBgContainer,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: theme.marginSM,
+                    boxSizing: "border-box",
                 }}
             >
-                <Space direction="vertical" size={systemSurface.spacing.section} style={{ width: "100%" }}>
-                    <div
-                        style={{
-                            display: "flex",
-                            alignItems: "flex-start",
-                            justifyContent: "space-between",
-                            gap: systemSurface.spacing.label,
-                        }}
-                    >
-                        <div
-                            style={{
-                                minWidth: 0,
-                                flex: 1,
-                            }}
-                        >
-                            {iconNode}
-                        </div>
-                        {externalUrl(item.key, item.value) ? renderExternalIndicator("featured") : null}
-                    </div>
-                    <div>
-                        <Typography.Text type="secondary">{item.name}</Typography.Text>
-                        <div
-                            style={{
-                                marginTop: theme.marginXXS,
-                                color: theme.colorText,
-                                fontSize: screens.xs ? 18 : 20,
-                                lineHeight: 1.45,
-                                fontWeight: 600,
-                                wordBreak: "break-word",
-                            }}
-                        >
-                            {item.value}
-                        </div>
-                    </div>
-                </Space>
+                <div style={{ display: "flex", alignItems: "center", gap: theme.marginSM, minWidth: 0 }}>
+                    {renderIconBox(item)}
+                    <Typography.Text type="secondary" ellipsis={true} style={{ minWidth: 0 }}>
+                        {item.name}
+                    </Typography.Text>
+                </div>
+                <Typography.Text
+                    style={{
+                        display: "block",
+                        color: theme.colorTextHeading,
+                        fontSize: theme.fontSizeHeading4,
+                        fontWeight: 700,
+                        lineHeight: 1.2,
+                        wordBreak: "break-word",
+                    }}
+                >
+                    {value || item.value}
+                </Typography.Text>
+                {typeof percent === "number" ? renderProgressBar(percent) : null}
+                {extra}
             </div>
         );
     };
 
-    const renderDetailItem = (item: ServerInfoEntry) => {
-        const meta = getItemMeta(item);
-        return wrapByLink(
-            item,
+    const renderLoadBars = (item: ServerInfoEntry) => {
+        const values = parseLoadValues(item.value);
+        if (values.length === 0) {
+            return undefined;
+        }
+        const maxValue = Math.max(...values, 1);
+        return (
+            <div style={{ display: "grid", gap: theme.marginXS }}>
+                {values.map((value, index) => (
+                    <div key={`${item.key}-${index}`} style={{ display: "grid", gap: theme.marginXXS }}>
+                        <div
+                            style={{
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                gap: theme.marginXS,
+                            }}
+                        >
+                            <Typography.Text type="secondary" style={{ fontSize: theme.fontSizeSM }}>
+                                {loadLabels[index]}
+                            </Typography.Text>
+                            <Typography.Text style={{ fontSize: theme.fontSizeSM }}>{value.toFixed(2)}</Typography.Text>
+                        </div>
+                        <div
+                            style={{
+                                height: 6,
+                                borderRadius: theme.borderRadiusLG,
+                                background: theme.colorFillSecondary,
+                                overflow: "hidden",
+                            }}
+                        >
+                            <div
+                                style={{
+                                    width: `${clampPercent((value / maxValue) * 100)}%`,
+                                    height: "100%",
+                                    borderRadius: theme.borderRadiusLG,
+                                    background: theme.colorPrimary,
+                                }}
+                            />
+                        </div>
+                    </div>
+                ))}
+            </div>
+        );
+    };
+
+    const renderInfoItem = (item: ServerInfoEntry) => {
+        const node = (
             <div
                 style={{
-                    display: "flex",
-                    alignItems: "flex-start",
-                    gap: systemSurface.spacing.label,
-                    padding: `${systemSurface.spacing.listPadY}px ${systemSurface.spacing.listPadX}px`,
+                    height: "100%",
+                    padding: theme.padding,
                     borderRadius: theme.borderRadiusLG,
                     border: borderSecondary,
                     background: theme.colorBgContainer,
+                    display: "flex",
+                    gap: theme.marginSM,
+                    alignItems: "flex-start",
+                    minWidth: 0,
+                    boxSizing: "border-box",
                 }}
             >
-                <div
-                    style={{
-                        flexShrink: 0,
-                        marginTop: theme.marginXXS / 2,
-                        minWidth: usesBareLogo(item.key) ? undefined : systemSurface.icons.detailBox,
-                    }}
-                >
-                    {item.key === "runtime" ? (
-                        renderRuntimeIcons("detail")
-                    ) : item.key === "programInfo" ? (
-                        renderProgramInfoIcon("detail")
-                    ) : (
-                        <div
-                            style={{
-                                width: systemSurface.icons.detailBox,
-                                height: systemSurface.icons.detailBox,
-                                borderRadius: theme.borderRadius,
-                                display: "inline-flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                background: neutralBg,
-                                color: accentColor,
-                                fontSize: systemSurface.icons.textFont,
-                            }}
-                        >
-                            {meta.icon}
-                        </div>
-                    )}
-                </div>
+                {renderIconBox(item)}
                 <div style={{ minWidth: 0, flex: 1 }}>
-                    <Typography.Text type="secondary" style={{ fontSize: systemSurface.icons.secondaryFont }}>
+                    <Typography.Text type="secondary" style={{ fontSize: theme.fontSizeSM }}>
                         {item.name}
                     </Typography.Text>
-                    <div
+                    <Typography.Text
                         style={{
-                            marginTop: theme.marginXS,
+                            display: "block",
+                            marginTop: theme.marginXXS,
                             color: theme.colorText,
-                            fontSize: systemSurface.icons.textFont,
-                            lineHeight: 1.55,
                             fontWeight: 500,
+                            lineHeight: 1.55,
                             wordBreak: "break-word",
                         }}
                     >
                         {item.value}
-                    </div>
+                    </Typography.Text>
                 </div>
                 {externalUrl(item.key, item.value) ? (
-                    <div
+                    <span
                         style={{
-                            alignSelf: "stretch",
-                            display: "flex",
+                            width: 28,
+                            height: 28,
+                            borderRadius: theme.borderRadius,
+                            background: theme.colorFillQuaternary,
+                            color: theme.colorPrimary,
+                            display: "inline-flex",
                             alignItems: "center",
+                            justifyContent: "center",
+                            flexShrink: 0,
                         }}
                     >
-                        {renderExternalIndicator("detail")}
-                    </div>
+                        <ArrowRightOutlined />
+                    </span>
                 ) : null}
             </div>
         );
+        return wrapByLink(item, node);
     };
 
-    if (!data || data.length === 0) {
-        return <></>;
+    const renderSectionTitle = (icon: React.ReactNode, title: string) => (
+        <Space size={theme.marginXS}>
+            {icon}
+            <span>{title}</span>
+        </Space>
+    );
+
+    const renderInfoGrid = (items: ServerInfoEntry[], getSpan: (item: ServerInfoEntry) => GridSpan) => {
+        if (items.length === 0) {
+            return null;
+        }
+        return (
+            <Row gutter={[theme.marginSM, theme.marginSM]}>
+                {items.map((item) => (
+                    <Col {...getSpan(item)} key={item.key}>
+                        {renderInfoItem(item)}
+                    </Col>
+                ))}
+            </Row>
+        );
+    };
+
+    const getApplicationSpan = (item: ServerInfoEntry) => {
+        if (item.key === "runPath") {
+            return { xs: 24, md: 24, xl: 16 };
+        }
+        return { xs: 24, md: 12, xl: 8 };
+    };
+
+    const getConfigurationSpan = () => ({ xs: 24, md: 12, xl: 6 });
+
+    const getResourceSpan = () => ({ xs: 24, md: 12 });
+
+    const cpuLoad = itemMap.get("cpuLoad");
+    const usedMemory = itemMap.get("usedMemorySpace");
+    const totalMemory = itemMap.get("totalMemorySpace");
+    const dbConnections = itemMap.get("dbConnectSize");
+    const uptime = itemMap.get("uptime");
+    const systemLoad = itemMap.get("systemLoad");
+    const cpuPercent = parseCpuPercent(cpuLoad?.value);
+    const dbConnectionPercent = parseConnectionUsage(dbConnections?.value);
+    const memoryPercent =
+        usedMemory && totalMemory
+            ? (() => {
+                  const usedSize = parseSize(usedMemory.value);
+                  const totalSize = parseSize(totalMemory.value);
+                  return usedSize !== undefined && totalSize ? clampPercent((usedSize / totalSize) * 100) : undefined;
+              })()
+            : undefined;
+    const overviewItems: { key: string; node: React.ReactNode }[] = [];
+    if (cpuLoad) {
+        overviewItems.push({
+            key: cpuLoad.key,
+            node: renderMetricTile({
+                item: cpuLoad,
+                value: cpuPercent !== undefined ? formatPercent(cpuPercent) : cpuLoad.value,
+                percent: cpuPercent,
+            }),
+        });
+    }
+    if (usedMemory) {
+        overviewItems.push({
+            key: usedMemory.key,
+            node: renderMetricTile({
+                item: usedMemory,
+                value: totalMemory ? `${usedMemory.value} / ${totalMemory.value}` : usedMemory.value,
+                percent: memoryPercent,
+            }),
+        });
+    }
+    if (dbConnections) {
+        overviewItems.push({
+            key: dbConnections.key,
+            node: renderMetricTile({
+                item: dbConnections,
+                percent: dbConnectionPercent,
+            }),
+        });
+    }
+    if (uptime) {
+        overviewItems.push({
+            key: uptime.key,
+            node: renderMetricTile({
+                item: uptime,
+            }),
+        });
     }
 
     return (
-        <Card title={title} styles={{ body: { overflow: "hidden", padding: systemSurface.spacing.row } }}>
-            <Space direction="vertical" size={systemSurface.spacing.section} style={{ width: "100%" }}>
-                <Row gutter={[systemSurface.spacing.section, systemSurface.spacing.section]}>
-                    {featuredItems.map((item) => (
-                        <Col xs={24} md={featuredItems.length === 1 ? 24 : 12} key={item.key}>
-                            {renderFeaturedCard(item)}
-                        </Col>
-                    ))}
-                </Row>
-                {detailItems.length > 0 ? (
-                    <Row gutter={[systemSurface.spacing.listPadY, systemSurface.spacing.listPadY]}>
-                        {detailItems.map((item) => (
-                            <Col xs={24} md={12} key={item.key}>
-                                {renderDetailItem(item)}
+        <Space direction="vertical" size={theme.marginMD} style={{ width: "100%" }}>
+            {overviewItems.length > 0 ? (
+                <Card
+                    title={renderSectionTitle(<DashboardOutlined />, getRes().system.overview)}
+                    styles={{ body: { padding: theme.padding } }}
+                >
+                    <Row gutter={[theme.marginSM, theme.marginSM]}>
+                        {overviewItems.map((item) => (
+                            <Col xs={24} sm={12} xl={6} key={item.key}>
+                                {item.node}
                             </Col>
                         ))}
                     </Row>
-                ) : null}
-            </Space>
-        </Card>
+                </Card>
+            ) : null}
+
+            <Card
+                title={renderSectionTitle(<CloudServerOutlined />, getRes().system.applicationRuntime)}
+                styles={{ body: { padding: theme.padding } }}
+            >
+                {renderInfoGrid(applicationItems, getApplicationSpan)}
+            </Card>
+
+            <Card
+                title={renderSectionTitle(<SettingOutlined />, getRes().system.systemConfiguration)}
+                styles={{ body: { padding: theme.padding } }}
+            >
+                {renderInfoGrid(configurationItems, getConfigurationSpan)}
+            </Card>
+
+            <Card
+                title={renderSectionTitle(<HddOutlined />, getRes().system.resourceStatus)}
+                styles={{ body: { padding: theme.padding } }}
+            >
+                <Row gutter={[theme.marginSM, theme.marginSM]}>
+                    {systemLoad ? (
+                        <Col xs={24} md={12}>
+                            {renderMetricTile({
+                                item: systemLoad,
+                                extra: renderLoadBars(systemLoad),
+                            })}
+                        </Col>
+                    ) : null}
+                    {resourceItems.map((item) => (
+                        <Col {...getResourceSpan()} key={item.key}>
+                            {renderInfoItem(item)}
+                        </Col>
+                    ))}
+                </Row>
+            </Card>
+        </Space>
     );
 };
 

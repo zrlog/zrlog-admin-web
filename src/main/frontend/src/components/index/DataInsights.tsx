@@ -4,11 +4,13 @@ import { PieChartOutlined } from "@ant-design/icons";
 import { useTheme } from "antd-style";
 
 type DataInsightsProps = {
-    typeData: { typeName: string; alias: string; typeamount: number }[];
-    tagData: { text: string; count: number }[];
+    data?: {
+        typeData?: { typeName: string; alias: string; typeamount: number }[];
+        tagData?: { text: string; count: number }[];
+    };
 };
 
-const DataInsights = ({ typeData, tagData }: DataInsightsProps) => {
+const DataInsights = ({ data }: DataInsightsProps) => {
     const theme = useTheme();
     const chartColors = [
         theme.colorPrimary,
@@ -20,8 +22,9 @@ const DataInsights = ({ typeData, tagData }: DataInsightsProps) => {
     ];
 
     // Filter out items with 0 count for the visualization
-    const activeTypes = typeData?.filter((t) => t.typeamount > 0).sort((a, b) => b.typeamount - a.typeamount) || [];
-    const activeTags = tagData?.filter((t) => t.count > 0).sort((a, b) => b.count - a.count) || [];
+    const activeTypes =
+        data?.typeData?.filter((t) => t.typeamount > 0).sort((a, b) => b.typeamount - a.typeamount) || [];
+    const activeTags = data?.tagData?.filter((t) => t.count > 0).sort((a, b) => b.count - a.count) || [];
 
     const totalArticles = activeTypes.reduce((acc, curr) => acc + curr.typeamount, 0);
 

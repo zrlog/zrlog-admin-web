@@ -90,13 +90,51 @@ public class AdminController extends BaseController {
                     : CompletableFuture.completedFuture(Collections.emptyList());
             futures.add(dataList);
             CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
-            return new AdminPageDataResponse<>(new IndexResponse(statisticsInfo.join(),
+            attachDashboardCardData(dashboardConfig, statisticsInfo.join(),
                     I18nUtil.getAdminBackendStringFromRes("admin.index.welcomeTip"),
                     new ArrayList<>(Collections.singletonList(tips.get(0))),
-                    dataList.join(), BlogBuildInfoUtil.getVersionInfo(),
-                    dashboardConfig), "", request.getUri());
+                    BlogBuildInfoUtil.getVersionInfo(), dataList.join());
+            return new AdminPageDataResponse<>(new IndexResponse(dashboardConfig), "", request.getUri());
         } finally {
             executor.shutdown();
+        }
+    }
+
+    private void attachDashboardCardData(AdminDashboardConfigResponse config, StatisticsInfoResponse statisticsInfo,
+                                         String welcomeTip, List<String> tips, String versionInfo,
+                                         List<ArticleActivityData> activityData) {
+        if (config == null || config.getCards() == null) {
+            return;
+        }
+        for (AdminDashboardCardResponse item : config.getCards()) {
+            if (!Objects.equals("card", item.getKind())) {
+                continue;
+            }
+            if (Objects.equals("welcome", item.getId())) {
+                Map<String, Object> data = new LinkedHashMap<>();
+                data.put("welcomeTip", welcomeTip);
+                data.put("tips", tips);
+                data.put("versionInfo", versionInfo);
+                item.setData(data);
+            } else if (Objects.equals("quickAction", item.getId())) {
+                Map<String, Object> data = new LinkedHashMap<>();
+                data.put("draftCount", statisticsInfo.getDraftCount());
+                item.setData(data);
+            } else if (Objects.equals("statistics", item.getId())) {
+                item.setData(statisticsInfo);
+            } else if (Objects.equals("activity", item.getId())) {
+                item.setData(activityData);
+            } else if (Objects.equals("auditTrail", item.getId())) {
+                Map<String, Object> data = new LinkedHashMap<>();
+                data.put("auditLogs", statisticsInfo.getAuditLogs());
+                data.put("loading", false);
+                item.setData(data);
+            } else if (Objects.equals("dataInsights", item.getId())) {
+                Map<String, Object> data = new LinkedHashMap<>();
+                data.put("typeData", statisticsInfo.getTypeData());
+                data.put("tagData", statisticsInfo.getTagData());
+                item.setData(data);
+            }
         }
     }
 
