@@ -3,9 +3,9 @@ import { Badge, Card, Col, Row, Typography } from "antd";
 import { Link } from "react-router-dom";
 import { getRealRouteUrl, getRes } from "utils/constants";
 import {
+    AppstoreOutlined,
     DatabaseOutlined,
     EditOutlined,
-    FolderAddFilled,
     PlusCircleOutlined,
     ThunderboltOutlined,
 } from "@ant-design/icons";
@@ -97,7 +97,7 @@ const QuickActionCard = ({ data, embedded = false }: { data?: QuickActionCardDat
                     label={getRes().article.status.draft}
                     count={draftCount}
                 />
-                <ActionItem to="/article-type" icon={<FolderAddFilled />} label={getRes().articleType.title} />
+                <ActionItem to="/article-type" icon={<AppstoreOutlined />} label={getRes().articleType.title} />
                 <ActionItem
                     to="/plugin?page=backup-sql-file/files"
                     icon={<DatabaseOutlined />}
