@@ -12,7 +12,7 @@ import { getLabelValueSeparator, getRes } from "../../utils/constants";
 import { ArticleEditState, PublishCheckTarget, PublishStatusPopoverState } from "./index.types";
 import PublishCheckResult from "./article-ai-assistant/tool/content/publish-check-result";
 import { useTheme } from "antd-style";
-import TimeAgo from "@editor/dist/src/editor/TimeAgo";
+import TimeAgo from "@editor/dist/editor/TimeAgo";
 
 type PublishStatusBarProps = {
     saving: ArticleEditState["saving"];

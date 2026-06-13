@@ -1,13 +1,9 @@
 import { Alert, App, Button, Drawer, Grid, Space, Tag, Typography } from "antd";
 import { EyeOutlined } from "@ant-design/icons";
 import { FunctionComponent, useEffect, useMemo, useRef, useState } from "react";
-import { AIContent } from "@editor/dist/src/ai/AIContentItem";
-import AIButton, {
-    AIButtonRenderMessageOptions,
-    AIStateCache,
-    getAIButtonDrawerOpen,
-} from "@editor/dist/src/ai/AIButton";
-import { resolveDrawerWidth } from "@editor/dist/src/ai/AIDrawer";
+import { AIContent } from "@editor/dist/ai/AIContentItem";
+import AIButton, { AIButtonRenderMessageOptions, AIStateCache, getAIButtonDrawerOpen } from "@editor/dist/ai/AIButton";
+import { resolveDrawerWidth } from "@editor/dist/ai/AIDrawer";
 import { AxiosInstance } from "axios";
 import {
     formatLabelValue,
@@ -41,7 +37,7 @@ import ArticleAiAssistantToolContent from "./tool/article-ai-assistant-tool-cont
 import ArticleAiAssistantSkillContent from "./article-ai-assistant-skill-content";
 import { getShortcutTitle, isTouchLikeDevice } from "../shortcut-utils";
 import { ApiResponse } from "../../../type";
-import { markdownToHtmlSyncWithCallback } from "@editor/dist/src/editor/utils/marked-utils";
+import { markdownToHtmlSyncWithCallback } from "@editor/dist/editor/utils/marked-utils";
 import ArticlePreviewSnapshot from "../../article/article-preview-snapshot";
 import { collectMarkdownReferenceSummary } from "../markdown-reference-utils";
 

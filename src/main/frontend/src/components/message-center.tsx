@@ -11,7 +11,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { useTheme } from "antd-style";
 import { useLocation, useNavigate } from "react-router-dom";
-import TimeAgo from "@editor/dist/src/editor/TimeAgo";
+import TimeAgo from "@editor/dist/editor/TimeAgo";
 import {
     BackgroundTaskStatus,
     clearFinishedBackgroundTasks,

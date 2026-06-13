@@ -1,6 +1,6 @@
 import { FolderOpenOutlined } from "@ant-design/icons";
-import EditorBaseDragger, { DraggerUploadResponse } from "@editor/dist/src/editor/common/BaseDragger";
-import type { UploadConfig } from "@editor/dist/src/editor/editor.types";
+import EditorBaseDragger, { DraggerUploadResponse } from "@editor/dist/editor/common/BaseDragger";
+import type { UploadConfig } from "@editor/dist/editor/editor.types";
 import type { AxiosInstance } from "axios";
 import Button from "antd/es/button";
 import Card from "antd/es/card";

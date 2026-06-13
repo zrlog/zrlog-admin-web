@@ -5,8 +5,8 @@ import { FunctionComponent, memo, RefObject, useEffect, useRef, useState } from 
 import { Button, InputRef, Space } from "antd";
 import { ArticleChangeableValue } from "./index.types";
 import { getAppState } from "../../base/ConfigProviderApp";
-import HtmlPreviewPanel from "@editor/dist/src/editor/html-preview-panel";
-import BaseTextArea from "@editor/dist/src/editor/common/BaseTextArea";
+import HtmlPreviewPanel from "@editor/dist/editor/html-preview-panel";
+import BaseTextArea from "@editor/dist/editor/common/BaseTextArea";
 
 type DigestEditorCardProps = {
     digestRef: RefObject<InputRef>;

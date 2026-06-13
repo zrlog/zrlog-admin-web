@@ -13,7 +13,7 @@ import {
 } from "antd";
 import { useEffect, useMemo, useState } from "react";
 import { ReloadOutlined, StopOutlined } from "@ant-design/icons";
-import TimeAgo from "@editor/dist/src/editor/TimeAgo";
+import TimeAgo from "@editor/dist/editor/TimeAgo";
 import { getLabelValueSeparator, getRes, tryAppendBackendServerUrl } from "../../utils/constants";
 import { useAxiosBaseInstance } from "../../base/AppBase";
 import type { ApiResponse } from "../../type";

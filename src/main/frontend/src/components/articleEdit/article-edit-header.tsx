@@ -8,8 +8,8 @@ import ArticleEditActionBar from "./article-edit-action-bar";
 import ArticleEditMoreActions from "./article-edit-more-actions";
 import ArticleEditSettingButton from "./article-edit-setting-button";
 import { ArticleChangeableValue, ArticleEditState, ArticleEntry } from "./index.types";
-import { AIContent } from "@editor/dist/src/ai/AIContentItem";
-import { AIStateCache } from "@editor/dist/src/ai/AIStateCache";
+import { AIContent } from "@editor/dist/ai/AIContentItem";
+import { AIStateCache } from "@editor/dist/ai/AIStateCache";
 
 type ArticleEditHeaderProps = {
     articleVersion: number;

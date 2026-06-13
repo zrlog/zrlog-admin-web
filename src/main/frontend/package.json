@@ -8,7 +8,7 @@
     "@ant-design/cssinjs": "1.21.1",
     "@ant-design/plots": "2.6.8",
     "@craco/craco": "7.1.0",
-    "@editor": "https://raw.githubusercontent.com/zrlog-extensions/zrlog-editor/refs/heads/main/artifacts/v2.1.22.tgz?v=1",
+    "@editor": "https://raw.githubusercontent.com/zrlog-extensions/zrlog-editor/refs/heads/main/artifacts/v2.1.23.tgz?v=1",
     "antd": "6.3.1",
     "antd-style": "4.1.0",
     "md5": "2.3.0",

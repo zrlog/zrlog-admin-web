@@ -7,8 +7,8 @@ import {
     FileTextOutlined,
     InfoCircleOutlined,
 } from "@ant-design/icons";
-import AIIcon from "@editor/dist/src/ai/AIIcon";
-import { getEditorRes } from "@editor/dist/src/editor/lang/editor-lang";
+import AIIcon from "@editor/dist/ai/AIIcon";
+import { getEditorRes } from "@editor/dist/editor/lang/editor-lang";
 import { getRes } from "../../../utils/constants";
 import {
     ArticleAiRequestField,

@@ -2,7 +2,7 @@ import * as H from "history";
 import React from "react";
 import { ExclamationCircleOutlined } from "@ant-design/icons";
 import { HookAPI } from "antd/es/modal/useModal";
-import { EditorUser } from "@editor/dist/src/type";
+import { EditorUser } from "@editor/dist/type";
 import { getCacheByKey } from "./cache";
 import { BasicUserInfo } from "../type";
 import { cacheIgnoreReloadTime, getRes, tryAppendBackendServerUrl } from "./constants";

@@ -1,7 +1,7 @@
 import React, { RefObject, useEffect, useState } from "react";
 import { App, Button, Drawer, Empty, Grid, List, Select, Space, Tag, Typography } from "antd";
 import { HistoryOutlined, RollbackOutlined } from "@ant-design/icons";
-import TimeAgo from "@editor/dist/src/editor/TimeAgo";
+import TimeAgo from "@editor/dist/editor/TimeAgo";
 import { getRes } from "../../utils/constants";
 import { getAppState } from "../../base/ConfigProviderApp";
 import { useTheme } from "antd-style";

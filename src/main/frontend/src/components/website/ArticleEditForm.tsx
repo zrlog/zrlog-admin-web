@@ -4,7 +4,7 @@ import { InputNumber, Select } from "antd";
 import { useEffect } from "react";
 import { getRes } from "../../utils/constants";
 import { ArticleEditSetting } from "./index";
-import { editorLang } from "@editor/dist/src/editor/lang/editor-lang";
+import { editorLang } from "@editor/dist/editor/lang/editor-lang";
 import { getAppState } from "../../base/ConfigProviderApp";
 import { useResponsiveFormLayout } from "../../utils/responsive-form";
 import WebsiteSubmitBar from "./WebsiteSubmitBar";

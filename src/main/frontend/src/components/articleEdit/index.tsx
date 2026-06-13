@@ -42,19 +42,19 @@ import {
 import { useLocation } from "react-router";
 import { addToCache, getCacheByKey, getPageDataCacheKeyByPath } from "../../utils/cache";
 import { getAppState } from "../../base/ConfigProviderApp";
-import Editor, { insertTextAtCursor } from "@editor/dist/src/editor";
-import EditorStatusBar from "@editor/dist/src/editor/editor-statistics-info";
-import { toStatisticsByMarkdown } from "@editor/dist/src/editor/utils/editor-utils";
+import Editor, { insertTextAtCursor } from "@editor/dist/editor";
+import EditorStatusBar from "@editor/dist/editor/editor-statistics-info";
+import { toStatisticsByMarkdown } from "@editor/dist/editor/utils/editor-utils";
 import { EditorView } from "@uiw/react-codemirror";
-import { Locale } from "@editor/dist/src/editor/lang/editor-lang";
-import { AIContent } from "@editor/dist/src/ai/AIContentItem";
-import { AIStateCache } from "@editor/dist/src/ai/AIStateCache";
+import { Locale } from "@editor/dist/editor/lang/editor-lang";
+import { AIContent } from "@editor/dist/ai/AIContentItem";
+import { AIStateCache } from "@editor/dist/ai/AIStateCache";
 import { useNavigate } from "react-router-dom";
 import { getStaticProgressText, postRefreshCacheSse } from "../../utils/sse-utils";
 import { useTheme } from "antd-style";
 import PublishStatusBar from "./publish-status-bar";
 import { useArticleAiAssistantConfig } from "./article-ai-assistant/article-ai-assistant-button";
-import TimeAgo from "@editor/dist/src/editor/TimeAgo";
+import TimeAgo from "@editor/dist/editor/TimeAgo";
 
 const normalizeConflictValue = (value: unknown) => {
     if (value === undefined || value === null) {

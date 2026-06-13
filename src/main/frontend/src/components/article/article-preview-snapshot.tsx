@@ -1,4 +1,4 @@
-import HtmlPreviewPanel from "@editor/dist/src/editor/html-preview-panel";
+import HtmlPreviewPanel from "@editor/dist/editor/html-preview-panel";
 import { Empty, Space, Tag, Typography } from "antd";
 import { useTheme } from "antd-style";
 import type { CSSProperties, FunctionComponent, ReactNode } from "react";

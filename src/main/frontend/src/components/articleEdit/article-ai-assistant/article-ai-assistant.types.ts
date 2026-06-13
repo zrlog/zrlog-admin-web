@@ -1,4 +1,4 @@
-import {AIContent} from "@editor/dist/src/ai/AIContentItem";
+import {AIContent} from "@editor/dist/ai/AIContentItem";
 import {ReactNode} from "react";
 
 export type AssistantTool =

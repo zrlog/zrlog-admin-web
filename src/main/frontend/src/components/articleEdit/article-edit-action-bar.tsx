@@ -4,10 +4,10 @@ import { getRes } from "../../utils/constants";
 import { ArticleChangeableValue, ArticleEditState, ArticleEntry } from "./index.types";
 import { FunctionComponent, useEffect, useRef } from "react";
 import styled from "styled-components";
-import { AIContent } from "@editor/dist/src/ai/AIContentItem";
-import { AIStateCache } from "@editor/dist/src/ai/AIStateCache";
+import { AIContent } from "@editor/dist/ai/AIContentItem";
+import { AIStateCache } from "@editor/dist/ai/AIStateCache";
 import { useAxiosBaseInstance } from "../../base/AppBase";
-import { getAiDrawerOpen } from "@editor/dist/src/ai/AIDrawer";
+import { getAiDrawerOpen } from "@editor/dist/ai/AIDrawer";
 import { getShortcutTitle, isMacLikeDevice, isTouchLikeDevice } from "./shortcut-utils";
 import ArticleAiAssistantButton, {
     getArticleAiAssistantDrawerOpen,

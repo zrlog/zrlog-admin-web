@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 import { getRealRouteUrl, getRes } from "../../utils/constants";
 import { getAppState } from "../../base/ConfigProviderApp";
 import ArticlePreviewSnapshot from "./article-preview-snapshot";
-import { markdownToHtmlSyncWithCallback } from "@editor/dist/src/editor/utils/marked-utils";
+import { markdownToHtmlSyncWithCallback } from "@editor/dist/editor/utils/marked-utils";
 
 export type ArticleListEntry = {
     id: number;

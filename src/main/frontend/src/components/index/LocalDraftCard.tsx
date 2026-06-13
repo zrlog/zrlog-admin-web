@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { FunctionComponent } from "react";
 import { getLabelValueSeparator, getRealRouteUrl, getRes } from "../../utils/constants";
 import { LocalArticleCacheEntry, removeLocalArticleCacheByKey } from "../../utils/article-cache";
-import TimeAgo from "@editor/dist/src/editor/TimeAgo";
+import TimeAgo from "@editor/dist/editor/TimeAgo";
 
 type LocalDraftCardProps = {
     localDrafts: LocalArticleCacheEntry[];
