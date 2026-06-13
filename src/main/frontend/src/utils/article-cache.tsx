@@ -50,42 +50,43 @@ const removeArticleCacheByKey = (key: string) => {
 };
 
 export const articleDataToState = (data: ArticleEditInfo, preferredTypeId?: number): ArticleEditState => {
-    const article: ArticleEntry =
-        data.article.logId && data.article.logId > 0
-            ? data.article
-            : {
-                  version: -1,
-                  title: "",
-                  keywords: "",
-                  /*默认创建的为草稿*/
-                  rubbish: true,
-              };
+    const serverArticle = data.article.logId && data.article.logId > 0;
+    const article: ArticleEntry = serverArticle
+        ? data.article
+        : {
+              version: -1,
+              title: "",
+              keywords: "",
+              /*默认创建的为草稿*/
+              rubbish: true,
+          };
     const cacheKey = buildCacheKey(article.logId);
     const record = getCachedData();
     const cachedArticleValue = record[cacheKey];
     const cachedArticle = isArticleEntry(cachedArticleValue) ? cachedArticleValue : undefined;
     const cachedUpdatedAt = getArticleCacheUpdatedAt(record, cacheKey);
+    const serverVersion = Number.isFinite(Number(article.version)) ? Number(article.version) : -1;
     let realArticle;
     let contentSource: ArticleEditState["contentSource"] = "server";
     let contentConflict: ArticleEditState["contentConflict"];
     //本地缓存版本是没有被服务器再次修改的情况下才使用缓存数据
-    if (cachedArticle && cachedArticle.version >= data.article.version) {
-        realArticle = cachedArticle;
-        contentSource = cachedArticle.logId && cachedArticle.logId > 0 ? "localEdit" : "localDraft";
-    } else if (cachedArticle && article.version === -1) {
+    if (cachedArticle && !serverArticle) {
         realArticle = cachedArticle;
         contentSource = "localDraft";
+    } else if (cachedArticle && cachedArticle.version >= serverVersion) {
+        realArticle = cachedArticle;
+        contentSource = "localEdit";
     } else {
-        if (cachedArticle && article.version > -1) {
+        if (cachedArticle && serverArticle) {
             contentConflict = {
-                source: cachedArticle.logId && cachedArticle.logId > 0 ? "localEdit" : "localDraft",
+                source: "localEdit",
                 localArticle: cachedArticle,
                 localVersion: cachedArticle.version,
                 localUpdatedAt: cachedUpdatedAt,
-                serverVersion: data.article.version,
+                serverVersion,
             };
         }
-        realArticle = data.article;
+        realArticle = article;
     }
 
     const realArticleWithPreferredType =
@@ -126,11 +127,11 @@ export const articleDataToState = (data: ArticleEditInfo, preferredTypeId?: numb
     };
 };
 
-export const articleSaveToCache = (article: ArticleEntry) => {
+export const articleSaveToCache = (article: ArticleEntry, updatedAt: number = Date.now()) => {
     const key = buildCacheKey(article.logId);
     const record = getCachedData();
     record[key] = article;
-    record[buildCacheMetaKey(key)] = { updatedAt: Date.now() };
+    record[buildCacheMetaKey(key)] = { updatedAt };
     putCache(record);
 };
 

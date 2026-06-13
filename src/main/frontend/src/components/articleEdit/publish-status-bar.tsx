@@ -7,7 +7,7 @@ import {
     LoadingOutlined,
     MessageOutlined,
 } from "@ant-design/icons";
-import { FunctionComponent } from "react";
+import { CSSProperties, FunctionComponent } from "react";
 import { getLabelValueSeparator, getRes } from "../../utils/constants";
 import { ArticleEditState, PublishCheckTarget, PublishStatusPopoverState } from "./index.types";
 import PublishCheckResult from "./article-ai-assistant/tool/content/publish-check-result";
@@ -41,7 +41,34 @@ const PublishStatusBar: FunctionComponent<PublishStatusBarProps> = ({
         return null;
     }
 
-    const contentWidth = screens.xs && !screens.sm ? "calc(100vw - 32px)" : 320;
+    const popoverWidth = (() => {
+        if (screens.xxl) {
+            return 520;
+        }
+        if (screens.xl) {
+            return 480;
+        }
+        if (screens.md) {
+            return 420;
+        }
+        if (screens.sm) {
+            return 360;
+        }
+        return "calc(100vw - 24px)";
+    })();
+    const resultMaxHeight = screens.xs && !screens.sm ? 240 : 320;
+    const statusTextStyle: CSSProperties = {
+        flex: 1,
+        minWidth: 0,
+        overflowWrap: "anywhere",
+    };
+
+    const renderStatusRow = (status: "running" | "success" | "error", text: string) => (
+        <div style={{ display: "flex", alignItems: "flex-start", gap: theme.marginXS, width: "100%" }}>
+            {buildStatusTag(status)}
+            <Typography.Text style={statusTextStyle}>{text}</Typography.Text>
+        </div>
+    );
 
     const getStatusIcon = () => {
         if (publishStatus.publishError) {
@@ -92,9 +119,9 @@ const PublishStatusBar: FunctionComponent<PublishStatusBarProps> = ({
     };
 
     const content = (
-        <Space direction="vertical" size={10} style={{ width: contentWidth }}>
+        <Space direction="vertical" size={10} style={{ width: "100%", minWidth: 0 }}>
             <Space style={{ width: "100%", justifyContent: "space-between", alignItems: "flex-start" }}>
-                <Space direction="vertical" size={0}>
+                <Space direction="vertical" size={0} style={{ minWidth: 0 }}>
                     <Typography.Text strong>{getRes().articleEdit.publishStatus.title}</Typography.Text>
                     {publishStatus.updatedAt && (
                         <Typography.Text type="secondary" style={{ fontSize: 12 }}>
@@ -107,61 +134,44 @@ const PublishStatusBar: FunctionComponent<PublishStatusBarProps> = ({
                 <Button size="small" type="text" icon={<CloseOutlined />} onClick={onClose} />
             </Space>
             <Space direction="vertical" size={6} style={{ width: "100%" }}>
-                {publishStatus.publishText && (
-                    <Space>
-                        {buildStatusTag(
-                            publishStatus.publishError ? "error" : saving.releaseSaving ? "running" : "success"
-                        )}
-                        <Typography.Text>{publishStatus.publishText}</Typography.Text>
-                    </Space>
-                )}
-                {publishStatus.publishError && (
-                    <Space>
-                        {buildStatusTag("error")}
-                        <Typography.Text>{publishStatus.publishError}</Typography.Text>
-                    </Space>
-                )}
-                {publishStatus.staticText && (
-                    <Space>
-                        {buildStatusTag(saving.releaseSaving ? "running" : "success")}
-                        <Typography.Text>{publishStatus.staticText}</Typography.Text>
-                    </Space>
-                )}
-                {publishStatus.checkStatus !== "idle" && (
-                    <Space>
-                        {buildStatusTag(
-                            publishStatus.checkStatus === "success"
-                                ? "success"
-                                : publishStatus.checkStatus === "error"
-                                ? "error"
-                                : "running"
-                        )}
-                        <Typography.Text>
-                            {publishStatus.checkStatus === "success"
-                                ? getRes().articleEdit.publishCheck.finished
-                                : publishStatus.checkStatus === "error"
-                                ? publishStatus.checkError || getRes().articleEdit.publishCheck.failed
-                                : getRes().articleEdit.publishCheck.running}
-                        </Typography.Text>
-                    </Space>
-                )}
+                {publishStatus.publishText &&
+                    renderStatusRow(
+                        publishStatus.publishError ? "error" : saving.releaseSaving ? "running" : "success",
+                        publishStatus.publishText
+                    )}
+                {publishStatus.publishError && renderStatusRow("error", publishStatus.publishError)}
+                {publishStatus.staticText &&
+                    renderStatusRow(saving.releaseSaving ? "running" : "success", publishStatus.staticText)}
+                {publishStatus.checkStatus !== "idle" &&
+                    renderStatusRow(
+                        publishStatus.checkStatus === "success"
+                            ? "success"
+                            : publishStatus.checkStatus === "error"
+                            ? "error"
+                            : "running",
+                        publishStatus.checkStatus === "success"
+                            ? getRes().articleEdit.publishCheck.finished
+                            : publishStatus.checkStatus === "error"
+                            ? publishStatus.checkError || getRes().articleEdit.publishCheck.failed
+                            : getRes().articleEdit.publishCheck.running
+                    )}
             </Space>
             {publishStatus.checkPayload && (
                 <PublishCheckResult
                     toolPayload={publishStatus.checkPayload}
-                    style={{ maxHeight: 320, overflowY: "auto" }}
+                    style={{ maxHeight: resultMaxHeight, overflowY: "auto" }}
                     onLocateTarget={onLocatePublishCheckTarget}
                 />
             )}
             {publishStatus.checkStatus === "success" && (
-                <Space direction="vertical" size={4} style={{ width: "100%" }}>
+                <Space direction="vertical" size={4} style={{ width: "100%", minWidth: 0 }}>
                     <Typography.Text type="secondary">{getRes().articleEdit.publishCheck.reportHint}</Typography.Text>
                     {onOpenAssistant && (
                         <Button
                             size="small"
                             type="link"
                             icon={<MessageOutlined />}
-                            style={{ paddingInline: 0 }}
+                            style={{ paddingInline: 0, whiteSpace: "normal", height: "auto", textAlign: "start" }}
                             onClick={() => {
                                 onOpenAssistant();
                                 onOpenChange(false);
@@ -185,6 +195,7 @@ const PublishStatusBar: FunctionComponent<PublishStatusBarProps> = ({
             getPopupContainer={getContainer}
             placement="topRight"
             autoAdjustOverflow
+            overlayInnerStyle={{ width: popoverWidth, maxWidth: "calc(100vw - 24px)" }}
         >
             <Space
                 size={4}

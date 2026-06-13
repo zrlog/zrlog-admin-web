@@ -424,19 +424,19 @@ const zhCN = {
             "published": "公开"
         },
         "contentSource": {
-            "server": "服务器版本",
+            "server": "已保存版本",
             "localDraft": "本地草稿",
             "localEdit": "未同步编辑",
             "localSavedAt": "本地保存"
         },
         "contentConflict": {
-            "serverUpdatedWithLocalEditTitle": "检测到服务器更新和本地未同步编辑",
-            "serverUpdatedWithLocalEditDetail": "当前显示服务器 v{serverVersion}。浏览器中还保留 v{localVersion} 的本地编辑，恢复后会以当前服务器版本为基线继续保存。",
+            "serverUpdatedWithLocalEditTitle": "检测到已保存内容更新和本地未同步编辑",
+            "serverUpdatedWithLocalEditDetail": "当前显示已保存版本 v{serverVersion}。浏览器中还保留 v{localVersion} 的本地编辑，恢复后会以当前已保存版本为基线继续保存。",
             "localSavedAt": "本地保存",
             "changedFields": "本地编辑改动字段",
-            "bodyLengthDetail": "正文长度：本地 {localLength} 字，服务器 {serverLength} 字",
+            "bodyLengthDetail": "正文长度：本地 {localLength} 字，已保存 {serverLength} 字",
             "useLocalEdit": "使用本地未同步编辑",
-            "keepServer": "继续服务器版本"
+            "keepServer": "继续使用已保存版本"
         },
         "actions": {
             "save": "保存",
@@ -1620,19 +1620,19 @@ const enUS = {
             "published": "Public"
         },
         "contentSource": {
-            "server": "Server version",
+            "server": "Saved version",
             "localDraft": "Local draft",
             "localEdit": "Unsynced edit",
             "localSavedAt": "Saved locally"
         },
         "contentConflict": {
-            "serverUpdatedWithLocalEditTitle": "Server update and unsynced local edit detected",
-            "serverUpdatedWithLocalEditDetail": "Server v{serverVersion} is shown now. The browser still keeps a local edit from v{localVersion}; restoring it will continue from the current server version.",
+            "serverUpdatedWithLocalEditTitle": "Saved content update and unsynced local edit detected",
+            "serverUpdatedWithLocalEditDetail": "Saved version v{serverVersion} is shown now. The browser still keeps a local edit from v{localVersion}; restoring it will continue from the current saved version.",
             "localSavedAt": "Saved locally",
             "changedFields": "Fields changed in the local edit",
-            "bodyLengthDetail": "Body length: local {localLength} chars, server {serverLength} chars",
+            "bodyLengthDetail": "Body length: local {localLength} chars, saved {serverLength} chars",
             "useLocalEdit": "Use Unsynced Edit",
-            "keepServer": "Keep Server Version"
+            "keepServer": "Keep Saved Version"
         },
         "actions": {
             "save": "Save",

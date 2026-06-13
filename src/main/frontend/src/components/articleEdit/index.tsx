@@ -123,7 +123,13 @@ const Index: FunctionComponent<ArticleEditProps> = ({
         }
         return "default";
     })();
-    const showContentSourceTag = !(isNewArticle && state.contentSource === "server");
+    const showContentSourceTag = state.contentSource !== "server";
+    const statusBarLastUpdateDate =
+        state.contentSource !== "server" && state.contentSourceUpdatedAt
+            ? state.contentSourceUpdatedAt
+            : state.article.lastUpdateDate
+            ? state.article.lastUpdateDate
+            : 0;
 
     const titleRef = useRef<InputRef>(null);
     const aliasRef = useRef<InputRef>(null);
@@ -136,6 +142,23 @@ const Index: FunctionComponent<ArticleEditProps> = ({
     // 当由于路由跳转导致外部传入的 data 变化时，重新初始化表单状态
     useEffect(() => {
         const newState = articleDataToState(data, preferredTypeId);
+        const serverArticle = data.article.logId && data.article.logId > 0;
+        if (!serverArticle && state.contentSource === "localDraft") {
+            setState((prevState) => ({
+                ...prevState,
+                typeOptions: newState.typeOptions,
+                tags: newState.tags,
+                aiProvider: newState.aiProvider,
+                aiModel: newState.aiModel,
+                aiConfigured: newState.aiConfigured,
+                aiMessages: newState.aiMessages,
+                linkPreviewEnabled: newState.linkPreviewEnabled,
+                publishCheckEnabled: newState.publishCheckEnabled,
+                articleCoverAspectRatio: newState.articleCoverAspectRatio,
+                articleEditAutoSaveInterval: newState.articleEditAutoSaveInterval,
+            }));
+            return;
+        }
         const articleChanged = !deepEqualWithSpecialJSON(loadedArticleRef.current, newState.article);
         if (articleChanged) {
             loadedArticleRef.current = newState.article;
@@ -143,6 +166,7 @@ const Index: FunctionComponent<ArticleEditProps> = ({
             setSettingsOpen(false);
             setVersionDrawerOpen(false);
             setArticleAssistantOpen(false);
+            setRestoreInputRevision((revision) => revision + 1);
             versionRef.current = newState.article.version;
             previewUrlRef.current = newState.article.previewUrl;
             logIdRef.current = newState.article.logId ? newState.article.logId : -1;
@@ -162,7 +186,7 @@ const Index: FunctionComponent<ArticleEditProps> = ({
             articleEditAutoSaveInterval: newState.articleEditAutoSaveInterval,
             editorVersion: newState.editorVersion,
         }));
-    }, [data, preferredTypeId]);
+    }, [data, preferredTypeId, state.contentSource]);
 
     const subjectRef = useRef<Subject<ArticleEntry> | null>(null);
     const subRef = useRef<Subscription | null>(null);
@@ -214,11 +238,14 @@ const Index: FunctionComponent<ArticleEditProps> = ({
     };
 
     const persistToCache = (newArticle: ArticleEntry) => {
-        articleSaveToCache(newArticle);
+        const updatedAt = Date.now();
+        articleSaveToCache(newArticle, updatedAt);
         setState((prevState) => {
             return {
                 ...prevState,
                 article: newArticle,
+                contentSource: getLocalContentSource(newArticle),
+                contentSourceUpdatedAt: updatedAt,
                 saving: {
                     ...prevState.saving,
                     releaseSaving: false,
@@ -237,6 +264,10 @@ const Index: FunctionComponent<ArticleEditProps> = ({
 
     const getLocalCacheKey = (url: URL) => {
         return getPageDataCacheKeyByPath(location.pathname, "?" + url.searchParams.toString());
+    };
+
+    const getLocalContentSource = (article: ArticleEntry): ArticleEditState["contentSource"] => {
+        return article.logId && article.logId > 0 ? "localEdit" : "localDraft";
     };
 
     const onSubmit = async (
@@ -714,7 +745,14 @@ const Index: FunctionComponent<ArticleEditProps> = ({
             const newArticle = { ...prev.article, ...cv };
             //没有验证通过的情况下，保存本地缓存
             if (!validForm(newArticle)) {
-                persistToCache(newArticle);
+                const updatedAt = Date.now();
+                articleSaveToCache(newArticle, updatedAt);
+                return {
+                    ...prev,
+                    article: newArticle,
+                    contentSource: getLocalContentSource(newArticle),
+                    contentSourceUpdatedAt: updatedAt,
+                };
             } else {
                 const sub = subjectRef.current;
                 if (sub) {
@@ -1127,7 +1165,7 @@ const Index: FunctionComponent<ArticleEditProps> = ({
                 }}
             >
                 <ArticleEditHeader
-                    articleVersion={data.article.version}
+                    articleVersion={state.article.version}
                     dataDigest={state.article.digest}
                     state={state}
                     fullScreen={fullScreen}
@@ -1236,7 +1274,7 @@ const Index: FunctionComponent<ArticleEditProps> = ({
                 <EditorStatusBar
                     rubbish={state.article.rubbish}
                     offline={offline}
-                    lastUpdateDate={state.article.lastUpdateDate ? state.article.lastUpdateDate : 0}
+                    lastUpdateDate={statusBarLastUpdateDate}
                     data={toStatisticsByMarkdown(state.article.markdown)}
                     fullScreen={fullScreen}
                     dark={getAppState().dark}
