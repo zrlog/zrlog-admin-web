@@ -1080,7 +1080,7 @@ const Index: FunctionComponent<ArticleEditProps> = ({
                 overflow: "hidden",
             };
         }
-        return {};
+        return { overflow: "hidden" };
     };
 
     const getSelectStyle = () => {
