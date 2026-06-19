@@ -26,6 +26,12 @@ public class AdminPluginInterceptor implements HandleAbleInterceptor {
 
     private static final String notGoodAdminUriPath = Constants.ADMIN_URI_BASE_PATH + "/plugins";
     private static final String adminPluginUriPath = Constants.ADMIN_URI_BASE_PATH + "/plugins/";
+    private static final List<String> PUBLIC_PLUGIN_PWA_RESOURCES = Arrays.asList(
+            "manifest.webmanifest",
+            "manifest.json",
+            "pwa-icon",
+            "pwa-sw.js"
+    );
     private final List<String> pluginHandlerPaths = Arrays.asList(notGoodAdminUriPath, adminPluginUriPath);
 
     @Override
@@ -68,11 +74,40 @@ public class AdminPluginInterceptor implements HandleAbleInterceptor {
         new AdminAuditService().record(request, AdminAuditAction.PLUGIN_SURFACE_ACTION, pluginPath);
     }
 
+    static boolean isPluginPwaResource(String target) {
+        if (Objects.isNull(target) || !target.startsWith(adminPluginUriPath)) {
+            return false;
+        }
+        String path = target.split("\\?", 2)[0];
+        String relativePath = path.substring(adminPluginUriPath.length());
+        String[] segments = relativePath.split("/", -1);
+        return segments.length == 2
+                && !segments[0].isEmpty()
+                && PUBLIC_PLUGIN_PWA_RESOURCES.contains(segments[1]);
+    }
+
+    static String pluginCoreUri(String target) {
+        return target.replaceFirst(adminPluginUriPath, "/");
+    }
+
+    private void renderPublicPluginPwaResource(String target, HttpRequest request, HttpResponse response)
+            throws IOException, URISyntaxException, InterruptedException {
+        if (Constants.zrLogConfig.getPlugin(PluginCorePlugin.class)
+                .accessPlugin(pluginCoreUri(target), request, response, null)) {
+            return;
+        }
+        response.renderCode(404);
+    }
+
     @Override
     public boolean doInterceptor(HttpRequest request, HttpResponse response) throws Exception {
         String target = request.getUri();
         if (Objects.equals(notGoodAdminUriPath, target)) {
             response.redirect(adminPluginUriPath);
+            return false;
+        }
+        if (isPluginPwaResource(target)) {
+            renderPublicPluginPwaResource(target, request, response);
             return false;
         }
         AdminTokenVO entry = Constants.zrLogConfig.getTokenService().getAdminTokenVO(request);
