@@ -1,7 +1,8 @@
-import { Button, Dropdown, Grid, Modal } from "antd";
+import { App, Button, Dropdown, Grid, Modal } from "antd";
 import {
     EllipsisOutlined,
     EyeOutlined,
+    FilePdfOutlined,
     FolderOpenOutlined,
     FullscreenExitOutlined,
     FullscreenOutlined,
@@ -18,10 +19,13 @@ import { getAppState } from "../../base/ConfigProviderApp";
 import FileManagerPicker from "../file-manager/picker";
 import ArticleSocialPreviewDrawer from "./article-social-preview-drawer";
 import { SocialPreview } from "./index.types";
+import type { ArticlePrintableEntry } from "../article/ArticlePreviewAction";
+import { exportArticlePdf } from "../article/ArticlePdfAction";
 
 type ArticleEditMoreActionsProps = {
     fullScreen: boolean;
     offline: boolean;
+    article: ArticlePrintableEntry;
     logId?: number;
     socialPreview?: SocialPreview;
     currentVersion: number;
@@ -40,6 +44,7 @@ type ArticleEditMoreActionsProps = {
 const ArticleEditMoreActions: FunctionComponent<ArticleEditMoreActionsProps> = ({
     fullScreen,
     offline,
+    article,
     logId,
     socialPreview,
     currentVersion,
@@ -54,6 +59,7 @@ const ArticleEditMoreActions: FunctionComponent<ArticleEditMoreActionsProps> = (
     onExitFullScreen,
     onFullScreen,
 }) => {
+    const { message } = App.useApp();
     const [assetPickerOpen, setAssetPickerOpen] = useState(false);
     const [socialPreviewOpen, setSocialPreviewOpen] = useState(false);
     const screens = Grid.useBreakpoint();
@@ -125,6 +131,12 @@ const ArticleEditMoreActions: FunctionComponent<ArticleEditMoreActionsProps> = (
             label: getRes().articleEdit.socialPreview.title,
             disabled: !logId || !socialPreview,
             onClick: () => setSocialPreviewOpen(true),
+        },
+        {
+            key: "export-pdf",
+            icon: <FilePdfOutlined />,
+            label: getRes().article.exportPdf,
+            onClick: () => exportArticlePdf(article, () => message.warning(getRes().article.exportPdfPopupBlocked)),
         },
         {
             key: "asset",

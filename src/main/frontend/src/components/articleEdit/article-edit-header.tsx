@@ -260,6 +260,7 @@ const ArticleEditHeader: FunctionComponent<ArticleEditHeaderProps> = ({
                         <ArticleEditMoreActions
                             fullScreen={fullScreen}
                             offline={offline}
+                            article={state.article}
                             logId={state.article.logId}
                             socialPreview={state.article.socialPreview}
                             currentVersion={state.article.version}

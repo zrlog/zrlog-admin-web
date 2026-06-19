@@ -204,6 +204,9 @@ const zhCN = {
         "commentSize": "评论量",
         "listSearchTip": "搜索文章",
         "cover": "封面",
+        "exportPdf": "导出 PDF",
+        "exportPdfPopupBlocked": "浏览器阻止了打印窗口，请允许弹窗后重试",
+        "exportPdfGeneratedAt": "导出时间：",
         "previewSnapshot": {
             "digest": "摘要",
             "keywords": "标签",
@@ -1407,6 +1410,9 @@ const enUS = {
         "commentSize": "Comments",
         "listSearchTip": "Search Articles",
         "cover": "Cover",
+        "exportPdf": "Export PDF",
+        "exportPdfPopupBlocked": "The browser blocked the print window. Allow pop-ups and try again.",
+        "exportPdfGeneratedAt": "Exported at: ",
         "previewSnapshot": {
             "digest": "Summary",
             "keywords": "Tags",

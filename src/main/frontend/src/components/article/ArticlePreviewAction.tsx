@@ -1,18 +1,22 @@
 import { EditOutlined, EyeOutlined } from "@ant-design/icons";
-import { Button, Drawer, Grid, Tooltip } from "antd";
+import { Button, Drawer, Grid, Space, Tooltip } from "antd";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { getRealRouteUrl, getRes } from "../../utils/constants";
 import { getAppState } from "../../base/ConfigProviderApp";
 import ArticlePreviewSnapshot from "./article-preview-snapshot";
 import { markdownToHtmlSyncWithCallback } from "@editor/dist/editor/utils/marked-utils";
+import { ArticlePdfAction } from "./ArticlePdfAction";
 
-export type ArticleListEntry = {
-    id: number;
+export type ArticlePrintableEntry = {
     title: string;
     markdown?: string;
     digest?: string;
     keywords?: string;
+};
+
+export type ArticleListEntry = ArticlePrintableEntry & {
+    id: number;
 };
 
 export const ArticlePreviewAction = ({ article }: { article: ArticleListEntry }) => {
@@ -44,11 +48,14 @@ export const ArticlePreviewAction = ({ article }: { article: ArticleListEntry })
             <Drawer
                 title={article.title || getRes().preview}
                 extra={
-                    <Link to={getRealRouteUrl("/article-edit?id=" + article.id)}>
-                        <Button style={{ height: "auto" }} type="link" icon={<EditOutlined />}>
-                            {getRes().edit}
-                        </Button>
-                    </Link>
+                    <Space size={4}>
+                        <ArticlePdfAction article={article} buttonSize="middle" buttonType="link" showText />
+                        <Link to={getRealRouteUrl("/article-edit?id=" + article.id)}>
+                            <Button style={{ height: "auto" }} type="link" icon={<EditOutlined />}>
+                                {getRes().edit}
+                            </Button>
+                        </Link>
+                    </Space>
                 }
                 width={drawerWidth}
                 onClose={() => setVisible(false)}
