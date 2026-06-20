@@ -1,4 +1,4 @@
-import { Card, Col, Row } from "antd";
+import { Card, Col, Grid, Row } from "antd";
 import { getRealRouteUrl, getRes } from "../../utils/constants";
 
 import { FunctionComponent, ReactNode, useEffect, useRef, useState } from "react";
@@ -43,10 +43,12 @@ type DataInsightsCardData = {
 };
 
 const Index: FunctionComponent<IndexProps> = ({ data, updateCache }) => {
-    const sectionGap = 20;
     const axiosInstance = useAxiosBaseInstance();
     const location = useLocation();
     const theme = useTheme();
+    const screens = Grid.useBreakpoint();
+    const twoColumnDashboard = screens.lg === true;
+    const dashboardGap = twoColumnDashboard ? theme.marginMD : theme.marginSM;
 
     const defaultCards: AdminDashboardCardConfig[] = [
         { id: "welcome", enabled: true, sort: 0 },
@@ -348,41 +350,42 @@ const Index: FunctionComponent<IndexProps> = ({ data, updateCache }) => {
         .filter(Boolean);
     const leftNodes = sortedNodes.filter((_, index) => index % 2 === 1);
     const rightNodes = sortedNodes.filter((_, index) => index % 2 === 0);
+    const renderDashboardItem = (node: ReactNode, index: number) => (
+        <div className="admin-dashboard-item" key={index} style={{ animationDelay: `${index * 35}ms` }}>
+            {node}
+        </div>
+    );
+
+    if (!twoColumnDashboard) {
+        return (
+            <div
+                className="admin-dashboard-grid admin-dashboard-grid-single"
+                style={{ display: "flex", flexDirection: "column", gap: dashboardGap }}
+            >
+                {renderWelcomeCard(welcomeCard)}
+                {sortedNodes.map(renderDashboardItem)}
+            </div>
+        );
+    }
 
     return (
         <>
-            <Row gutter={[20, 20]} className="admin-dashboard-grid">
+            <Row gutter={[dashboardGap, dashboardGap]} className="admin-dashboard-grid">
                 <Col xs={24} lg={12}>
                     <div
                         className="admin-dashboard-column"
-                        style={{ display: "flex", flexDirection: "column", gap: sectionGap }}
+                        style={{ display: "flex", flexDirection: "column", gap: dashboardGap }}
                     >
                         {renderWelcomeCard(welcomeCard)}
-                        {leftNodes.map((node, index) => (
-                            <div
-                                className="admin-dashboard-item"
-                                key={index}
-                                style={{ animationDelay: `${index * 35}ms` }}
-                            >
-                                {node}
-                            </div>
-                        ))}
+                        {leftNodes.map(renderDashboardItem)}
                     </div>
                 </Col>
                 <Col xs={24} lg={12}>
                     <div
                         className="admin-dashboard-column"
-                        style={{ display: "flex", flexDirection: "column", gap: sectionGap }}
+                        style={{ display: "flex", flexDirection: "column", gap: dashboardGap }}
                     >
-                        {rightNodes.map((node, index) => (
-                            <div
-                                className="admin-dashboard-item"
-                                key={index}
-                                style={{ animationDelay: `${index * 35}ms` }}
-                            >
-                                {node}
-                            </div>
-                        ))}
+                        {rightNodes.map(renderDashboardItem)}
                     </div>
                 </Col>
             </Row>
