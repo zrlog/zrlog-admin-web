@@ -1,5 +1,16 @@
 import { Route, Routes } from "react-router-dom";
-import { ComponentType, FunctionComponent, lazy, ReactElement, Suspense, useEffect, useRef, useState } from "react";
+import {
+    ComponentType,
+    FunctionComponent,
+    lazy,
+    ReactElement,
+    Suspense,
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
 import { useLocation } from "react-router";
 import { getCsrData, getTimeInfoBySearchStr } from "../api";
 import MyLoadingComponent from "./my-loading-component";
@@ -102,6 +113,8 @@ const AdminDashboardRouter: FunctionComponent<AdminDashboardRouterProps> = ({ of
     const initCurrentPageDataKey = getPageDataCacheKey(location);
     const serverSideData = useRef<boolean>(getSsDate() && getSsDate().data);
     const latestRequestSeqRef = useRef(0);
+    const locationRef = useRef(location);
+    locationRef.current = location;
 
     const [state, setState] = useState<AdminDashboardRouterState>({
         axiosRequesting: false,
@@ -222,22 +235,36 @@ const AdminDashboardRouter: FunctionComponent<AdminDashboardRouterProps> = ({ of
         });
     }, [location.pathname, location.search]);
 
-    const routes = createAdminDashboardRoutes({
-        onFullScreen: () => {
-            setState((prevState) => {
-                savePageFullState(getFullPath(location), true);
-                return { ...prevState, fullScreen: true };
-            });
-        },
-        onExitFullScreen: () => {
-            if (state.fullScreen) {
-                setState((prevState) => {
-                    savePageFullState(getFullPath(location), false);
-                    return { ...prevState, fullScreen: false };
-                });
+    const handleFullScreen = useCallback(() => {
+        const currentLocation = locationRef.current;
+        setState((prevState) => {
+            savePageFullState(getFullPath(currentLocation), true);
+            if (prevState.fullScreen) {
+                return prevState;
             }
-        },
-    });
+            return { ...prevState, fullScreen: true };
+        });
+    }, []);
+
+    const handleExitFullScreen = useCallback(() => {
+        const currentLocation = locationRef.current;
+        setState((prevState) => {
+            if (!prevState.fullScreen) {
+                return prevState;
+            }
+            savePageFullState(getFullPath(currentLocation), false);
+            return { ...prevState, fullScreen: false };
+        });
+    }, []);
+
+    const routes = useMemo(
+        () =>
+            createAdminDashboardRoutes({
+                onFullScreen: handleFullScreen,
+                onExitFullScreen: handleExitFullScreen,
+            }),
+        [handleExitFullScreen, handleFullScreen]
+    );
 
     const isOfflineData = () => {
         if (serverSideData.current) {
@@ -256,12 +283,29 @@ const AdminDashboardRouter: FunctionComponent<AdminDashboardRouterProps> = ({ of
         return state.visiblePageDataCacheKey;
     };
 
+    const visibleRouteData = getDataFromCache();
+    const visiblePageDataCacheKey = getVisiblePageDataCacheKey();
+    const offlineData = isOfflineData();
+    const pageBuildId = getPageBuildId();
+
+    const commonPageProps = {
+        userInfo: userInfo,
+        fullScreen: state.fullScreen,
+        data: visibleRouteData,
+        offline: offline,
+        systemNotification: getSsDate().systemNotification,
+        messageCenter: getSsDate().messageCenter,
+        pageBuildId,
+        offlineData,
+        updateCache: (e: any, cacheKey: string) => {
+            addToCache(cacheKey, e);
+        },
+    } as AdminCommonProps<any>;
+
     return (
         <Routes>
             {routes.flatMap(({ paths, lazy, fallback, props = {}, getComponentKey }, i) =>
                 paths.map((path, j) => {
-                    const data = getDataFromCache();
-                    const visiblePageDataCacheKey = getVisiblePageDataCacheKey();
                     return (
                         <Route
                             key={`${i}-${j}`}
@@ -270,21 +314,11 @@ const AdminDashboardRouter: FunctionComponent<AdminDashboardRouterProps> = ({ of
                                 <AdminPage
                                     LazyComponent={lazy}
                                     FallbackComponent={fallback}
-                                    componentKey={getComponentKey?.(data, visiblePageDataCacheKey)}
+                                    componentKey={getComponentKey?.(visibleRouteData, visiblePageDataCacheKey)}
                                     props={
                                         {
                                             ...props,
-                                            userInfo: userInfo,
-                                            fullScreen: state.fullScreen,
-                                            data,
-                                            offline: offline,
-                                            systemNotification: getSsDate().systemNotification,
-                                            messageCenter: getSsDate().messageCenter,
-                                            pageBuildId: getPageBuildId(),
-                                            offlineData: isOfflineData(),
-                                            updateCache: (e, cacheKey) => {
-                                                addToCache(cacheKey, e);
-                                            },
+                                            ...commonPageProps,
                                         } as AdminCommonProps<any>
                                     }
                                 />

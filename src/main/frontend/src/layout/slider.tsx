@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { getRealRouteUrl, getRes } from "../utils/constants";
 import { Menu, MenuProps, Modal } from "antd";
@@ -94,8 +94,10 @@ const SliderMenu = ({ expanded = false }: SliderMenuProps) => {
         return getAppState().compactMode ? 22 : 24;
     };
 
+    const selectMenu = getSelectMenu();
+
     const getRailSelectedKey = () => {
-        const selectedKey = getSelectMenu()[0];
+        const selectedKey = selectMenu[0];
         if (selectedKey === "/comment") {
             return "/comment";
         }
@@ -113,7 +115,7 @@ const SliderMenu = ({ expanded = false }: SliderMenuProps) => {
     };
 
     const getInfo = (entry: MenuEntry) => {
-        const selected = (expanded ? getSelectMenu()[0] : getRailSelectedKey()) === entry.key;
+        const selected = (expanded ? selectMenu[0] : getRailSelectedKey()) === entry.key;
         return {
             selected,
             icon: renderAdminDashboardRouteIcon(entry.iconKey, selected, getIconSize()) as ReactNode,
@@ -287,12 +289,6 @@ const SliderMenu = ({ expanded = false }: SliderMenuProps) => {
             iconKey: "setting",
         }),
     ];
-
-    const [selectMenu, setSelectMenu] = useState<string[]>(getSelectMenu());
-
-    useEffect(() => {
-        setSelectMenu(getSelectMenu());
-    }, [location.pathname, location.search]);
 
     return (
         <>
