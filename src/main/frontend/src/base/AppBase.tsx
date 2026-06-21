@@ -14,6 +14,20 @@ const AsyncLogin = lazy(() => import("components/login"));
 
 const errorCountMap = new Map<number, number>();
 
+const formatErrorResponseData = (data: unknown): string => {
+    if (typeof data === "string") {
+        return data;
+    }
+    if (data === null || data === undefined) {
+        return "";
+    }
+    try {
+        return JSON.stringify(data, null, 2);
+    } catch {
+        return String(data);
+    }
+};
+
 export const jumpToLoginPage = (navigate: NavigateFunction): void => {
     if (!window.location.search.includes("redirectFrom")) {
         navigate(
@@ -56,9 +70,15 @@ export const useAxiosBaseInstance = (getContainer?: () => HTMLElement): AxiosIns
                         title: `${getRes().error.serviceException}[${error.response.status}]`,
                         content: (
                             <div
-                                style={{ paddingTop: 20, overflow: "auto" }}
-                                dangerouslySetInnerHTML={{ __html: error.response.data }}
-                            />
+                                style={{
+                                    paddingTop: 20,
+                                    overflow: "auto",
+                                    whiteSpace: "pre-wrap",
+                                    wordBreak: "break-word",
+                                }}
+                            >
+                                {formatErrorResponseData(error.response.data)}
+                            </div>
                         ),
                         getContainer: getContainer ? getContainer() : undefined,
                     });

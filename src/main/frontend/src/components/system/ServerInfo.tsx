@@ -163,7 +163,12 @@ const ServerInfo = ({ data }: ServerInfoProps) => {
             return node;
         }
         return (
-            <Link target="_blank" to={url} style={{ display: "block", color: "inherit", height: "100%" }}>
+            <Link
+                target="_blank"
+                rel="noopener noreferrer"
+                to={url}
+                style={{ display: "block", color: "inherit", height: "100%" }}
+            >
                 {node}
             </Link>
         );

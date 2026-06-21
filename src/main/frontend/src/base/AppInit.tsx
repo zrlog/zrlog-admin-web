@@ -163,7 +163,8 @@ const AppInit: FunctionComponent<AppInitProps> = ({ lang, offline }) => {
         setRes({
             ...data,
             copyrightTips:
-                mergedRes.copyright + ' <a target="_blank" href="https://blog.zrlog.com/about.html?footer">ZrLog</a>',
+                mergedRes.copyright +
+                ' <a target="_blank" rel="noopener noreferrer" href="https://blog.zrlog.com/about.html?footer">ZrLog</a>',
         });
         if (window.inited === undefined || window.inited === null) {
             changeAppState({
