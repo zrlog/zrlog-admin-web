@@ -3,7 +3,7 @@ import { markdownToHtmlSyncWithCallback } from "@editor/dist/editor/utils/marked
 import { App, Button, Tooltip } from "antd";
 import type { ButtonProps } from "antd";
 import { getAppState } from "../../base/ConfigProviderApp";
-import { getRes } from "../../utils/constants";
+import { getBackendServerUrl, getRes, tryAppendBackendServerUrl } from "../../utils/constants";
 import type { ArticlePrintableEntry } from "./ArticlePreviewAction";
 
 const escapeHtml = (value?: string) =>
@@ -15,6 +15,25 @@ const escapeHtml = (value?: string) =>
         .replace(/'/g, "&#39;");
 
 const escapeAttribute = (value?: string) => escapeHtml(value).replace(/`/g, "&#96;");
+
+const isAbsoluteOrSpecialUrl = (value: string) => {
+    return /^(?:[a-z][a-z\d+.-]*:|#|\/\/)/i.test(value);
+};
+
+const normalizePrintableResourceUrl = (value: string) => {
+    const trimmedValue = value.trim();
+    if (!trimmedValue || isAbsoluteOrSpecialUrl(trimmedValue)) {
+        return value;
+    }
+    if (trimmedValue.startsWith("/")) {
+        return tryAppendBackendServerUrl(trimmedValue);
+    }
+    return value;
+};
+
+const getPrintBaseHref = () => {
+    return new URL(getBackendServerUrl(), window.location.origin).toString();
+};
 
 const sanitizeArticleHtml = (html: string) => {
     const doc = new DOMParser().parseFromString(`<div>${html}</div>`, "text/html");
@@ -28,6 +47,10 @@ const sanitizeArticleHtml = (html: string) => {
             }
             if ((name === "href" || name === "src") && normalizedValue.startsWith("javascript:")) {
                 element.removeAttribute(attribute.name);
+                return;
+            }
+            if (name === "href" || name === "src") {
+                element.setAttribute(attribute.name, normalizePrintableResourceUrl(attribute.value));
             }
         });
     });
@@ -57,7 +80,7 @@ const buildPrintDocument = (article: ArticlePrintableEntry, bodyHtml: string) =>
     const generatedAt = new Date().toLocaleString();
     const safeBodyHtml = sanitizeArticleHtml(bodyHtml).trim();
     const keywordHtml = buildKeywordHtml(article.keywords);
-    const baseHref = `${window.location.origin}/`;
+    const baseHref = getPrintBaseHref();
 
     return `<!doctype html>
 <html>

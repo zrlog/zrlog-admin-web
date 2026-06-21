@@ -7,9 +7,13 @@ import org.jsoup.Jsoup;
 import org.jsoup.safety.Safelist;
 
 import java.net.URI;
+import java.util.Locale;
 import java.util.Objects;
+import java.util.Set;
 
 public class CreateLinkRequest implements Validator {
+
+    private static final Set<String> ALLOWED_URL_SCHEMES = Set.of("http", "https", "mailto", "tel");
 
     private String linkName;
     private String url;
@@ -68,7 +72,21 @@ public class CreateLinkRequest implements Validator {
             this.setLinkName(Jsoup.clean(this.getLinkName(), Safelist.basic()));
         }
         if (StringUtils.isNotEmpty(this.getUrl())) {
-            this.setUrl(URI.create(this.getUrl()).toString());
+            this.setUrl(normalizeUrl(this.getUrl()));
+        }
+    }
+
+    private String normalizeUrl(String value) {
+        try {
+            URI uri = URI.create(value.trim());
+            String scheme = uri.getScheme();
+            if (StringUtils.isNotEmpty(scheme)
+                    && !ALLOWED_URL_SCHEMES.contains(scheme.toLowerCase(Locale.ROOT))) {
+                throw new ArgsException("url");
+            }
+            return uri.toString();
+        } catch (IllegalArgumentException e) {
+            throw new ArgsException("url");
         }
     }
 

@@ -9,6 +9,7 @@ import com.zrlog.admin.business.rest.response.FileReferenceIndexCacheVO;
 import com.zrlog.admin.business.rest.response.FileReferenceVO;
 import com.zrlog.admin.business.rest.response.ReplaceArticleResourceUrlResponse;
 import com.zrlog.admin.business.util.FileEntryUtils;
+import com.zrlog.common.Constants;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.model.Log;
 import com.zrlog.util.ParseUtil;
@@ -32,18 +33,24 @@ public class FileManagerReferenceService {
     private static final Object REFERENCE_INDEX_CACHE_LOCK = new Object();
     private static final String REFERENCE_INDEX_CACHE_KEY = "file_manager_reference_index";
     private static final Pattern MARKDOWN_LINK_PATTERN = Pattern.compile("!?\\[[^\\]]*]\\(([^)\\s]+)(?:\\s+\"[^\"]*\")?\\)");
-    private static final Pattern RESOURCE_URL_PATTERN = Pattern.compile("(?i)(https?://[^\\s\"'<>)]*|//[^\\s\"'<>)]*|/attached/[^\\s\"'<>)]*)");
+    private static final Pattern RESOURCE_URL_PATTERN = Pattern.compile("(?i)(https?://[^\\s\"'<>)]*|//[^\\s\"'<>)]*|/(?:[^\\s\"'<>)]*/)?attached/[^\\s\"'<>)]*)");
     private static final List<String> ARTICLE_RESOURCE_FIELDS = List.of("thumbnail", "content", "markdown", "digest");
 
     private final WebsiteCacheService cacheService;
+    private final String contextPath;
     private FileReferenceIndexCacheVO requestReferenceIndex;
 
     public FileManagerReferenceService() {
-        this(new WebsiteCacheService());
+        this(new WebsiteCacheService(), getConfiguredContextPath());
     }
 
     FileManagerReferenceService(WebsiteCacheService cacheService) {
+        this(cacheService, getConfiguredContextPath());
+    }
+
+    FileManagerReferenceService(WebsiteCacheService cacheService, String contextPath) {
         this.cacheService = cacheService;
+        this.contextPath = normalizeContextPath(contextPath);
     }
 
     public Map<String, List<FileReferenceVO>> buildLocalReferenceMap() throws SQLException {
@@ -266,8 +273,8 @@ public class FileManagerReferenceService {
         return new ArrayList<>(referenceMap.values());
     }
 
-    private Map<String, Object> buildArticleResourceUrlUpdates(Map<String, Object> article, String fromUrl,
-                                                               String toUrl, boolean prefix) {
+    Map<String, Object> buildArticleResourceUrlUpdates(Map<String, Object> article, String fromUrl,
+                                                       String toUrl, boolean prefix) {
         Map<String, Object> updates = new LinkedHashMap<>();
         ResourceReplacement replacement = buildResourceReplacement(fromUrl, toUrl, prefix);
         if (replacement == null) {
@@ -409,7 +416,7 @@ public class FileManagerReferenceService {
     }
 
     private String normalizeResourceKey(String value) {
-        String normalized = normalizePath(value.trim()).replace("\\", "/").toLowerCase(Locale.ROOT);
+        String normalized = stripContextPath(normalizePath(value.trim()).replace("\\", "/")).toLowerCase(Locale.ROOT);
         while (normalized.startsWith("/")) {
             normalized = normalized.substring(1);
         }
@@ -574,27 +581,26 @@ public class FileManagerReferenceService {
         }
     }
 
-    private String normalizeLocalResourcePath(String value) {
+    String normalizeLocalResourcePath(String value) {
         if (StringUtils.isEmpty(value)) {
             return null;
         }
         String normalized = normalizePath(value.trim());
         if (FileEntryUtils.isExternalUrl(normalized)) {
-            normalized = normalizeExternalUrlPath(normalized);
+            return null;
         }
+        normalized = stripContextPath(normalized.replace("\\", "/"));
         return normalized.startsWith(FileManagerService.ATTACHED_ROOT + "/") ? normalized : null;
     }
 
-    private String normalizeExternalUrlPath(String value) {
-        try {
-            if (value.startsWith("//")) {
-                value = "https:" + value;
-            }
-            java.net.URI uri = new java.net.URI(value);
-            return uri.getPath() == null ? "" : uri.getPath();
-        } catch (Exception e) {
-            return value;
+    private String stripContextPath(String path) {
+        if (StringUtils.isEmpty(path) || StringUtils.isEmpty(contextPath)) {
+            return path;
         }
+        if (path.equals(contextPath)) {
+            return "";
+        }
+        return path.startsWith(contextPath + "/") ? path.substring(contextPath.length()) : path;
     }
 
     private String getDomain(String url) {
@@ -620,5 +626,26 @@ public class FileManagerReferenceService {
             this.toKey = toKey;
             this.prefix = prefix;
         }
+    }
+
+    private static String getConfiguredContextPath() {
+        if (Constants.zrLogConfig == null || Constants.zrLogConfig.getServerConfig() == null) {
+            return "";
+        }
+        return normalizeContextPath(Constants.zrLogConfig.getServerConfig().getContextPath());
+    }
+
+    private static String normalizeContextPath(String contextPath) {
+        if (StringUtils.isEmpty(contextPath) || Objects.equals(contextPath, "/")) {
+            return "";
+        }
+        String normalized = contextPath.trim().replace("\\", "/");
+        if (!normalized.startsWith("/")) {
+            normalized = "/" + normalized;
+        }
+        while (normalized.endsWith("/") && normalized.length() > 1) {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
+        return normalized;
     }
 }
