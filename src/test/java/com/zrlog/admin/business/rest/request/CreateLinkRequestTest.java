@@ -4,6 +4,8 @@ import com.zrlog.common.exception.ArgsException;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 public class CreateLinkRequestTest {
 
@@ -39,5 +41,30 @@ public class CreateLinkRequestTest {
         CreateLinkRequest request = new CreateLinkRequest();
         request.setUrl("data:text/html,<script>alert(1)</script>");
         request.doClean();
+    }
+
+    @Test(expected = ArgsException.class)
+    public void shouldRejectProtocolRelativeLinkWithoutHost() {
+        CreateLinkRequest request = new CreateLinkRequest();
+        request.setUrl("//");
+        request.doClean();
+    }
+
+    @Test(expected = ArgsException.class)
+    public void shouldRejectHttpLinkWithoutHost() {
+        CreateLinkRequest request = new CreateLinkRequest();
+        request.setUrl("http:example");
+        request.doClean();
+    }
+
+    @Test
+    public void shouldStripHtmlFromLinkIcon() {
+        CreateLinkRequest request = new CreateLinkRequest();
+        request.setUrl("/about");
+        request.setIcon("fa-link <img src=x onerror=alert(1)>");
+        request.doClean();
+        assertTrue(request.getIcon().contains("fa-link"));
+        assertFalse(request.getIcon().contains("<"));
+        assertFalse(request.getIcon().contains("onerror"));
     }
 }

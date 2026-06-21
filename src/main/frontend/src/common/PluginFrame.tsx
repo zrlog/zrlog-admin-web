@@ -14,6 +14,8 @@ type PluginFrameBridgeMessage = {
 
 const BRIDGE_SOURCE = "zrlog-plugin";
 const NAVIGATE_MESSAGE_TYPES = new Set(["zrlog-admin:navigate", "admin:navigate", "navigate"]);
+const SAFE_FRAME_FALLBACK_SRC = "about:blank";
+const UNSAFE_FRAME_SCHEME_PATTERN = /^(?!https?:)[a-z][a-z0-9+.-]*:/i;
 
 const parseMessage = (data: unknown): PluginFrameBridgeMessage | undefined => {
     if (typeof data === "string") {
@@ -37,6 +39,14 @@ const originOf = (src: string) => {
     }
 };
 
+const safeFrameSrc = (src: string) => {
+    const value = src.trim();
+    if (!value) {
+        return value;
+    }
+    return UNSAFE_FRAME_SCHEME_PATTERN.test(value) ? SAFE_FRAME_FALLBACK_SRC : value;
+};
+
 const resolveBridgeRoute = (message: PluginFrameBridgeMessage) => {
     if (message.source !== BRIDGE_SOURCE || !message.type || !NAVIGATE_MESSAGE_TYPES.has(message.type)) {
         return undefined;
@@ -54,7 +64,8 @@ const PluginFrame: FunctionComponent<{
 }> = ({ title, src, height, minHeight, style, enableAdminRouteBridge = true }) => {
     const navigate = useNavigate();
     const frameRef = useRef<HTMLIFrameElement>(null);
-    const allowedOrigin = useMemo(() => originOf(src), [src]);
+    const frameSrc = useMemo(() => safeFrameSrc(src), [src]);
+    const allowedOrigin = useMemo(() => originOf(frameSrc), [frameSrc]);
 
     useEffect(() => {
         if (!enableAdminRouteBridge) {
@@ -82,7 +93,7 @@ const PluginFrame: FunctionComponent<{
             ref={frameRef}
             title={title}
             style={{ border: 0, width: "100%", height, minHeight, display: "block", ...style }}
-            src={src}
+            src={frameSrc}
         />
     );
 };

@@ -7,7 +7,6 @@ import com.zrlog.common.exception.ArgsException;
 import org.jsoup.Jsoup;
 import org.jsoup.safety.Safelist;
 
-import java.net.URI;
 import java.util.Objects;
 
 public class CreateNavRequest extends AbstractNavEntry implements Validator {
@@ -27,8 +26,11 @@ public class CreateNavRequest extends AbstractNavEntry implements Validator {
         if (StringUtils.isNotEmpty(this.getNavName())) {
             this.setNavName(Jsoup.clean(this.getNavName(), Safelist.none()));
         }
+        if (StringUtils.isNotEmpty(this.getIcon())) {
+            this.setIcon(Jsoup.clean(this.getIcon(), Safelist.none()));
+        }
         if (StringUtils.isNotEmpty(this.getUrl())) {
-            this.setUrl(URI.create(this.getUrl()).toString());
+            this.setUrl(SafeRequestUrl.normalize(this.getUrl()));
         }
     }
 }
