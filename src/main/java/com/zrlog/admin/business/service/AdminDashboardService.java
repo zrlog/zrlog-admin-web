@@ -22,11 +22,13 @@ import com.zrlog.util.ThreadUtils;
 
 import java.io.InputStream;
 import java.lang.reflect.Type;
+import java.net.URI;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.regex.Pattern;
 
 public class AdminDashboardService {
 
@@ -40,6 +42,7 @@ public class AdminDashboardService {
     private static final String ITEM_KIND_PLUGIN = "plugin";
     private static final int DEFAULT_AUTO_REFRESH_INTERVAL_SECONDS = 60;
     private static final int MIN_AUTO_REFRESH_INTERVAL_SECONDS = 10;
+    private static final Pattern PLUGIN_NAME_PATTERN = Pattern.compile("[A-Za-z0-9_-]+");
     private static final Gson GSON = new Gson();
     private static final Type CONFIG_TYPE = new TypeToken<AdminDashboardConfigResponse>() {
     }.getType();
@@ -384,11 +387,17 @@ public class AdminDashboardService {
         }
     }
 
-    private AdminDashboardCardResponse normalizePanel(AdminDashboardCardResponse panel) {
+    static AdminDashboardCardResponse normalizePanel(AdminDashboardCardResponse panel) {
         if (panel == null) {
             return null;
         }
-        String type = StringUtils.isEmpty(panel.getType()) ? PANEL_TYPE_SURFACE : panel.getType();
+        panel.setId(trimToNull(panel.getId()));
+        panel.setPluginName(normalizePluginName(panel.getPluginName()));
+        panel.setSurfaceUrl(normalizePluginContextPath(panel.getSurfaceUrl()));
+        panel.setActionUrl(normalizePluginContextPath(panel.getActionUrl()));
+        panel.setViewUrl(normalizePluginViewUrl(panel.getViewUrl()));
+
+        String type = StringUtils.isEmpty(panel.getType()) ? PANEL_TYPE_SURFACE : panel.getType().trim();
         if (!PANEL_TYPE_SURFACE.equals(type) && !PANEL_TYPE_VIEW.equals(type)) {
             return null;
         }
@@ -434,6 +443,72 @@ public class AdminDashboardService {
             panel.setViewUrl("index");
         }
         return panel;
+    }
+
+    private static String trimToNull(String value) {
+        if (StringUtils.isEmpty(value)) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private static String normalizePluginName(String pluginName) {
+        String value = trimToNull(pluginName);
+        if (StringUtils.isEmpty(value)) {
+            return null;
+        }
+        return PLUGIN_NAME_PATTERN.matcher(value).matches() ? value : null;
+    }
+
+    private static String normalizePluginContextPath(String value) {
+        String path = trimToNull(value);
+        if (StringUtils.isEmpty(path) || !path.startsWith("/") || path.startsWith("//")) {
+            return null;
+        }
+        try {
+            URI uri = URI.create(path);
+            if (StringUtils.isNotEmpty(uri.getScheme()) || StringUtils.isNotEmpty(uri.getHost())) {
+                return null;
+            }
+            return uri.toString();
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    private static String normalizePluginViewUrl(String value) {
+        String viewUrl = trimToNull(value);
+        if (StringUtils.isEmpty(viewUrl) || viewUrl.startsWith("//")) {
+            return null;
+        }
+        try {
+            URI uri = URI.create(viewUrl);
+            String scheme = uri.getScheme();
+            if (StringUtils.isNotEmpty(scheme)) {
+                if (("http".equals(scheme) || "https".equals(scheme)) && StringUtils.isNotEmpty(uri.getHost())) {
+                    return uri.toString();
+                }
+                return null;
+            }
+            String path = Objects.requireNonNullElse(uri.getPath(), "").replaceFirst("^/+", "");
+            if (StringUtils.isEmpty(path) || hasParentPathSegment(path)) {
+                return null;
+            }
+            String query = uri.getQuery();
+            return StringUtils.isEmpty(query) ? path : path + "?" + query;
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    private static boolean hasParentPathSegment(String path) {
+        for (String segment : path.split("/")) {
+            if (Objects.equals(segment, "..")) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private List<AdminDashboardCardResponse> loadStandardPluginPanels(HttpRequest request, AdminTokenVO adminTokenVO) {
@@ -508,7 +583,7 @@ public class AdminDashboardService {
         }
     }
 
-    private String pluginUrl(String pluginName, String action) {
+    private static String pluginUrl(String pluginName, String action) {
         return "/admin/plugins/" + pluginName + "/" + action;
     }
 }
