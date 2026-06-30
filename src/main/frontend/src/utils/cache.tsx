@@ -64,9 +64,9 @@ export const addToCache = (key: string, obj: any) => {
     putCache(record);
 };
 
-export const getCacheByKey = (key: string) => {
+export const getCacheByKey = <T = any,>(key: string): T => {
     const record = getCachedData();
-    return record[key];
+    return record[key] as T;
 };
 
 export const removeCacheDataByKey = (key: string) => {
@@ -83,14 +83,11 @@ const buildPageFullStateKey = (key: string) => {
 };
 
 export const savePageFullState = (key: string, full: boolean) => {
-    const record = getCachedData();
-    record[buildPageFullStateKey(key)] = full;
-    putCache(record);
+    addToCache(buildPageFullStateKey(key), full);
 };
 
 export const getPageFullState = (key: string): boolean => {
-    const record = getCachedData();
-    return record[buildPageFullStateKey(key)] === true;
+    return getCacheByKey(buildPageFullStateKey(key)) === true;
 };
 
 // Function to save the last opened page to cache

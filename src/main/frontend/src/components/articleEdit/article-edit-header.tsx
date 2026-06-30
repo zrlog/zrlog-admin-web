@@ -31,6 +31,9 @@ type ArticleEditHeaderProps = {
     axiosInstance: any;
     aiDrawerWidth?: number | "default" | "large";
     aiStateCache?: AIStateCache;
+    articleAssistantOpen?: boolean;
+    onArticleAssistantOpenChange?: (open: boolean) => void;
+    stateCacheKey: string;
     saving: boolean;
     onValuesChange: (cv: ArticleChangeableValue) => void;
     onApplyAiValues: (cv: ArticleChangeableValue) => void;
@@ -67,6 +70,9 @@ const ArticleEditHeader: FunctionComponent<ArticleEditHeaderProps> = ({
     axiosInstance,
     aiDrawerWidth,
     aiStateCache,
+    articleAssistantOpen,
+    onArticleAssistantOpenChange,
+    stateCacheKey,
     saving,
     onValuesChange,
     onApplyAiValues,
@@ -230,6 +236,8 @@ const ArticleEditHeader: FunctionComponent<ArticleEditHeaderProps> = ({
                             canOpenVersionHistory={Boolean(state.article.logId)}
                             onAiMessagesChange={onAiMessagesChange}
                             onSubmit={onSubmit}
+                            aiDrawerOpen={articleAssistantOpen}
+                            onAiDrawerOpenChange={onArticleAssistantOpenChange}
                             aiDrawerWidth={aiDrawerWidth}
                             aiStateCache={aiStateCache}
                             onAiDrawerSizeChange={onAiDrawerSizeChange}
@@ -267,6 +275,7 @@ const ArticleEditHeader: FunctionComponent<ArticleEditHeaderProps> = ({
                             axiosInstance={axiosInstance}
                             containerRef={editCardRef}
                             getFullScreenElement={getFullScreenElement}
+                            stateCacheKey={stateCacheKey}
                             versionDrawerOpen={versionDrawerOpen}
                             onPreview={onPreview}
                             onRollback={onRollback}

@@ -21,6 +21,7 @@ import ArticleSocialPreviewDrawer from "./article-social-preview-drawer";
 import { SocialPreview } from "./index.types";
 import type { ArticlePrintableEntry } from "../article/ArticlePreviewAction";
 import { exportArticlePdf } from "../article/ArticlePdfAction";
+import { addToCache, getCacheByKey } from "../../utils/cache";
 
 type ArticleEditMoreActionsProps = {
     fullScreen: boolean;
@@ -32,6 +33,7 @@ type ArticleEditMoreActionsProps = {
     axiosInstance: any;
     containerRef: RefObject<HTMLDivElement>;
     getFullScreenElement: () => HTMLElement | null;
+    stateCacheKey: string;
     versionDrawerOpen: boolean;
     onPreview?: () => Promise<void>;
     onRollback: (targetVersion: number) => Promise<void>;
@@ -51,6 +53,7 @@ const ArticleEditMoreActions: FunctionComponent<ArticleEditMoreActionsProps> = (
     axiosInstance,
     containerRef,
     getFullScreenElement,
+    stateCacheKey,
     versionDrawerOpen,
     onPreview,
     onRollback,
@@ -60,11 +63,36 @@ const ArticleEditMoreActions: FunctionComponent<ArticleEditMoreActionsProps> = (
     onFullScreen,
 }) => {
     const { message } = App.useApp();
-    const [assetPickerOpen, setAssetPickerOpen] = useState(false);
-    const [socialPreviewOpen, setSocialPreviewOpen] = useState(false);
+    const assetPickerOpenCacheKey = `${stateCacheKey}/assetPickerOpen`;
+    const socialPreviewOpenCacheKey = `${stateCacheKey}/socialPreviewOpen`;
+    const [assetPickerOpen, setAssetPickerOpenState] = useState(
+        getCacheByKey<boolean>(assetPickerOpenCacheKey) === true
+    );
+    const [socialPreviewOpen, setSocialPreviewOpenState] = useState(
+        getCacheByKey<boolean>(socialPreviewOpenCacheKey) === true
+    );
     const screens = Grid.useBreakpoint();
     const narrow = screens.md !== true;
     const assetPickerWidth = narrow ? "100vw" : screens.lg ? 860 : 720;
+    const setAssetPickerOpen = useCallback(
+        (open: boolean) => {
+            setAssetPickerOpenState(open);
+            addToCache(assetPickerOpenCacheKey, open);
+        },
+        [assetPickerOpenCacheKey]
+    );
+    const setSocialPreviewOpen = useCallback(
+        (open: boolean) => {
+            setSocialPreviewOpenState(open);
+            addToCache(socialPreviewOpenCacheKey, open);
+        },
+        [socialPreviewOpenCacheKey]
+    );
+
+    useEffect(() => {
+        setAssetPickerOpenState(getCacheByKey<boolean>(assetPickerOpenCacheKey) === true);
+        setSocialPreviewOpenState(getCacheByKey<boolean>(socialPreviewOpenCacheKey) === true);
+    }, [assetPickerOpenCacheKey, socialPreviewOpenCacheKey]);
     const toggleFullScreen = useCallback(() => {
         if (fullScreen) {
             if (screenfull.isEnabled) {
@@ -218,6 +246,7 @@ const ArticleEditMoreActions: FunctionComponent<ArticleEditMoreActionsProps> = (
                 }}
             >
                 <FileManagerPicker
+                    stateCacheKey={`${stateCacheKey}/assetPicker`}
                     style={{ height: "100%" }}
                     onSelectFile={(path) => {
                         onInsertMarkdownFromAsset(path);

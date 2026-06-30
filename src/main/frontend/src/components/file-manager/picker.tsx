@@ -7,6 +7,7 @@ import { FileManagerData } from "./index";
 import FileManagerView from "./view";
 import { FileEntry, formatSize, getFileIcon, getShortcutIcon, hasAction, isImage } from "./shared";
 import BackendImage from "../../common/BackendImage";
+import { addToCache, getCacheByKey } from "../../utils/cache";
 
 const { useBreakpoint } = Grid;
 const { Text } = Typography;
@@ -17,6 +18,21 @@ type FileManagerPickerProps = {
     onlyImage?: boolean;
     onSelectFile?: (path: string) => void;
     style?: CSSProperties;
+    stateCacheKey?: string;
+};
+
+type FileManagerPickerUiState = {
+    currentPath?: string;
+    searchKey?: string;
+    viewMode?: "grid" | "list";
+};
+
+const normalizeViewMode = (value: unknown): "grid" | "list" => {
+    return value === "list" ? "list" : "grid";
+};
+
+const getCachedPickerUiState = (key?: string): FileManagerPickerUiState => {
+    return key ? getCacheByKey<FileManagerPickerUiState>(key) || {} : {};
 };
 
 const FileManagerPicker: FunctionComponent<FileManagerPickerProps> = ({
@@ -24,6 +40,7 @@ const FileManagerPicker: FunctionComponent<FileManagerPickerProps> = ({
     onlyImage = false,
     onSelectFile,
     style,
+    stateCacheKey,
 }) => {
     const { token } = theme.useToken();
     const themeVars = useTheme();
@@ -37,16 +54,57 @@ const FileManagerPicker: FunctionComponent<FileManagerPickerProps> = ({
     const gridItemMinHeight = compactItems ? 84 : 100;
     const gridImageMaxHeight = compactItems ? 44 : 60;
     const gridIconSize = compactItems ? 24 : undefined;
+    const cachedUiState = getCachedPickerUiState(stateCacheKey);
 
-    const [currentPath, setCurrentPath] = useState("");
-    const [searchKey, setSearchKey] = useState("");
-    const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+    const [currentPath, setCurrentPathState] = useState(cachedUiState.currentPath || "");
+    const [searchKey, setSearchKeyState] = useState(cachedUiState.searchKey || "");
+    const [viewMode, setViewModeState] = useState<"grid" | "list">(normalizeViewMode(cachedUiState.viewMode));
     const [shortcuts, setShortcuts] = useState<FileEntry[]>(() => data?.shortcuts ?? []);
     const [entries, setEntries] = useState<FileEntry[]>(() => data?.entries ?? []);
     const [loading, setLoading] = useState(!data);
     const hydratedFromDataRef = useRef(Boolean(data));
     const fetchSeqRef = useRef(0);
     const effectivePath = currentPath || "";
+    const persistUiState = useCallback(
+        (patch: FileManagerPickerUiState) => {
+            if (!stateCacheKey) {
+                return;
+            }
+            addToCache(stateCacheKey, {
+                ...getCachedPickerUiState(stateCacheKey),
+                ...patch,
+            });
+        },
+        [stateCacheKey]
+    );
+    const setCurrentPath = useCallback(
+        (path: string) => {
+            setCurrentPathState(path);
+            persistUiState({ currentPath: path });
+        },
+        [persistUiState]
+    );
+    const setSearchKey = useCallback(
+        (key: string) => {
+            setSearchKeyState(key);
+            persistUiState({ searchKey: key });
+        },
+        [persistUiState]
+    );
+    const setViewMode = useCallback(
+        (view: "grid" | "list") => {
+            setViewModeState(view);
+            persistUiState({ viewMode: view });
+        },
+        [persistUiState]
+    );
+
+    useEffect(() => {
+        const nextUiState = getCachedPickerUiState(stateCacheKey);
+        setCurrentPathState(nextUiState.currentPath || "");
+        setSearchKeyState(nextUiState.searchKey || "");
+        setViewModeState(normalizeViewMode(nextUiState.viewMode));
+    }, [stateCacheKey]);
 
     const fetchEntries = useCallback(
         async (path: string, key: string) => {

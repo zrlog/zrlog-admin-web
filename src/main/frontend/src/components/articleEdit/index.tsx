@@ -1,4 +1,4 @@
-import { FunctionComponent, useEffect, useMemo, useRef, useState } from "react";
+import { FunctionComponent, SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, App, Button, Grid, InputRef, message, Space, Tag } from "antd";
 import Divider from "antd/es/divider";
 import Card from "antd/es/card";
@@ -68,6 +68,45 @@ const normalizeConflictValue = (value: unknown) => {
 
 const getArticleBodyForConflict = (article: ArticleEntry) => article.markdown || article.content || "";
 
+type ArticleEditUiState = {
+    settingsOpen?: boolean;
+    versionDrawerOpen?: boolean;
+    articleAssistantOpen?: boolean;
+    publishStatus?: PublishStatusPopoverState;
+};
+
+const getDefaultPublishStatus = (): PublishStatusPopoverState => ({
+    open: false,
+    visible: false,
+    checkStatus: "idle",
+});
+
+const normalizeCachedPublishStatus = (value: unknown): PublishStatusPopoverState => {
+    if (!value || typeof value !== "object") {
+        return getDefaultPublishStatus();
+    }
+    const status = value as Partial<PublishStatusPopoverState>;
+    if (
+        status.checkStatus !== "idle" &&
+        status.checkStatus !== "running" &&
+        status.checkStatus !== "success" &&
+        status.checkStatus !== "error"
+    ) {
+        return getDefaultPublishStatus();
+    }
+    return {
+        open: status.open === true,
+        visible: status.visible === true,
+        updatedAt: typeof status.updatedAt === "number" ? status.updatedAt : undefined,
+        publishText: typeof status.publishText === "string" ? status.publishText : undefined,
+        publishError: typeof status.publishError === "string" ? status.publishError : undefined,
+        staticText: typeof status.staticText === "string" ? status.staticText : undefined,
+        checkStatus: status.checkStatus,
+        checkError: typeof status.checkError === "string" ? status.checkError : undefined,
+        checkPayload: status.checkPayload,
+    };
+};
+
 const Index: FunctionComponent<ArticleEditProps> = ({
     offline,
     data,
@@ -85,18 +124,94 @@ const Index: FunctionComponent<ArticleEditProps> = ({
         const typeId = rawTypeId ? Number(rawTypeId) : undefined;
         return typeId && Number.isFinite(typeId) && typeId > 0 ? typeId : undefined;
     }, [location.search]);
+    const articleEditUiStateScope = useMemo(() => {
+        const rawLogId = new URLSearchParams(location.search).get("id");
+        const urlLogId = rawLogId ? Number(rawLogId) : undefined;
+        const logId =
+            data.article.logId && data.article.logId > 0
+                ? data.article.logId
+                : urlLogId && Number.isFinite(urlLogId) && urlLogId > 0
+                ? urlLogId
+                : undefined;
+        if (logId) {
+            return `article/${logId}`;
+        }
+        return "draft";
+    }, [data.article.logId, location.search]);
+    const articleEditUiStateCacheKey = useMemo(
+        () => `articleEdit/ui/${articleEditUiStateScope}`,
+        [articleEditUiStateScope]
+    );
+    const getCachedArticleEditUiState = useCallback(
+        () => getCacheByKey<ArticleEditUiState>(articleEditUiStateCacheKey) || {},
+        [articleEditUiStateCacheKey]
+    );
+    const persistArticleEditUiState = useCallback(
+        (patch: ArticleEditUiState) => {
+            addToCache(articleEditUiStateCacheKey, {
+                ...getCachedArticleEditUiState(),
+                ...patch,
+            });
+        },
+        [articleEditUiStateCacheKey, getCachedArticleEditUiState]
+    );
+    const cachedArticleEditUiState = getCachedArticleEditUiState();
 
     const defaultState = articleDataToState(data, preferredTypeId);
     const [state, setState] = useState<ArticleEditState>(defaultState);
-    const [settingsOpen, setSettingsOpen] = useState(false);
-    const [versionDrawerOpen, setVersionDrawerOpen] = useState(false);
-    const [articleAssistantOpen, setArticleAssistantOpen] = useState(false);
+    const [settingsOpen, setSettingsOpenState] = useState(cachedArticleEditUiState.settingsOpen === true);
+    const [versionDrawerOpen, setVersionDrawerOpenState] = useState(
+        cachedArticleEditUiState.versionDrawerOpen === true
+    );
+    const [articleAssistantOpen, setArticleAssistantOpenState] = useState(
+        cachedArticleEditUiState.articleAssistantOpen === true
+    );
     const [restoreInputRevision, setRestoreInputRevision] = useState(0);
-    const [publishStatus, setPublishStatus] = useState<PublishStatusPopoverState>({
-        open: false,
-        visible: false,
-        checkStatus: "idle",
-    });
+    const [publishStatus, setPublishStatusState] = useState<PublishStatusPopoverState>(() =>
+        normalizeCachedPublishStatus(cachedArticleEditUiState.publishStatus)
+    );
+    const applyCachedArticleEditUiState = useCallback(() => {
+        const cachedUiState = getCachedArticleEditUiState();
+        setSettingsOpenState(cachedUiState.settingsOpen === true);
+        setVersionDrawerOpenState(cachedUiState.versionDrawerOpen === true);
+        setArticleAssistantOpenState(cachedUiState.articleAssistantOpen === true);
+        setPublishStatusState(normalizeCachedPublishStatus(cachedUiState.publishStatus));
+    }, [getCachedArticleEditUiState]);
+    const updateSettingsOpen = useCallback(
+        (open: boolean) => {
+            setSettingsOpenState(open);
+            persistArticleEditUiState({ settingsOpen: open });
+        },
+        [persistArticleEditUiState]
+    );
+    const updateVersionDrawerOpen = useCallback(
+        (open: boolean) => {
+            setVersionDrawerOpenState(open);
+            persistArticleEditUiState({ versionDrawerOpen: open });
+        },
+        [persistArticleEditUiState]
+    );
+    const updateArticleAssistantOpen = useCallback(
+        (open: boolean) => {
+            setArticleAssistantOpenState(open);
+            persistArticleEditUiState({ articleAssistantOpen: open });
+        },
+        [persistArticleEditUiState]
+    );
+    const updatePublishStatus = useCallback(
+        (action: SetStateAction<PublishStatusPopoverState>) => {
+            setPublishStatusState((prevState) => {
+                const nextState = typeof action === "function" ? action(prevState) : action;
+                persistArticleEditUiState({ publishStatus: nextState });
+                return nextState;
+            });
+        },
+        [persistArticleEditUiState]
+    );
+
+    useEffect(() => {
+        applyCachedArticleEditUiState();
+    }, [applyCachedArticleEditUiState]);
     const isNewArticle = !state.article.logId;
     const articleStatusText = isNewArticle
         ? getRes().articleEdit.new
@@ -163,9 +278,7 @@ const Index: FunctionComponent<ArticleEditProps> = ({
         if (articleChanged) {
             loadedArticleRef.current = newState.article;
             setState(newState);
-            setSettingsOpen(false);
-            setVersionDrawerOpen(false);
-            setArticleAssistantOpen(false);
+            applyCachedArticleEditUiState();
             setRestoreInputRevision((revision) => revision + 1);
             versionRef.current = newState.article.version;
             previewUrlRef.current = newState.article.previewUrl;
@@ -352,7 +465,7 @@ const Index: FunctionComponent<ArticleEditProps> = ({
                 }
             } catch (e) {
                 if (newArticle.transparentPublish) {
-                    setPublishStatus((prevState) => ({
+                    updatePublishStatus((prevState) => ({
                         ...prevState,
                         open: true,
                         visible: true,
@@ -383,7 +496,7 @@ const Index: FunctionComponent<ArticleEditProps> = ({
     };
 
     const postArticleWithTransparentPublish = async (uri: string, article: ArticleEntry) => {
-        setPublishStatus({
+        updatePublishStatus({
             open: true,
             visible: true,
             updatedAt: Date.now(),
@@ -408,7 +521,7 @@ const Index: FunctionComponent<ArticleEditProps> = ({
                     articleResponse = event.data;
                 }
                 if (event.event === "publish-start") {
-                    setPublishStatus((prevState) => ({
+                    updatePublishStatus((prevState) => ({
                         ...prevState,
                         visible: true,
                         updatedAt: Date.now(),
@@ -416,7 +529,7 @@ const Index: FunctionComponent<ArticleEditProps> = ({
                     }));
                 }
                 if (event.event === "static-sync-start" || event.event === "static-progress") {
-                    setPublishStatus((prevState) => ({
+                    updatePublishStatus((prevState) => ({
                         ...prevState,
                         visible: true,
                         updatedAt: Date.now(),
@@ -424,7 +537,7 @@ const Index: FunctionComponent<ArticleEditProps> = ({
                     }));
                 }
                 if (event.event === "static-sync-complete") {
-                    setPublishStatus((prevState) => ({
+                    updatePublishStatus((prevState) => ({
                         ...prevState,
                         visible: true,
                         updatedAt: Date.now(),
@@ -432,7 +545,7 @@ const Index: FunctionComponent<ArticleEditProps> = ({
                     }));
                 }
                 if (event.event === "publish-complete") {
-                    setPublishStatus((prevState) => ({
+                    updatePublishStatus((prevState) => ({
                         ...prevState,
                         visible: true,
                         updatedAt: Date.now(),
@@ -440,7 +553,7 @@ const Index: FunctionComponent<ArticleEditProps> = ({
                     }));
                 }
                 if (event.event === "publish-check-start") {
-                    setPublishStatus((prevState) => ({
+                    updatePublishStatus((prevState) => ({
                         ...prevState,
                         visible: true,
                         updatedAt: Date.now(),
@@ -451,7 +564,7 @@ const Index: FunctionComponent<ArticleEditProps> = ({
                     if (event.data?.aiMessages) {
                         updateAiMessageCache([...state.aiMessages, ...event.data.aiMessages]);
                     }
-                    setPublishStatus((prevState) => ({
+                    updatePublishStatus((prevState) => ({
                         ...prevState,
                         visible: true,
                         updatedAt: Date.now(),
@@ -460,7 +573,7 @@ const Index: FunctionComponent<ArticleEditProps> = ({
                     }));
                 }
                 if (event.event === "publish-check-error") {
-                    setPublishStatus((prevState) => ({
+                    updatePublishStatus((prevState) => ({
                         ...prevState,
                         visible: true,
                         updatedAt: Date.now(),
@@ -469,7 +582,7 @@ const Index: FunctionComponent<ArticleEditProps> = ({
                     }));
                 }
                 if (event.event === "publish-error") {
-                    setPublishStatus((prevState) => ({
+                    updatePublishStatus((prevState) => ({
                         ...prevState,
                         open: true,
                         visible: true,
@@ -483,14 +596,14 @@ const Index: FunctionComponent<ArticleEditProps> = ({
     };
 
     const updatePublishStatusOpen = (open: boolean) => {
-        setPublishStatus((prevState) => ({
+        updatePublishStatus((prevState) => ({
             ...prevState,
             open,
         }));
     };
 
     const closePublishStatus = () => {
-        setPublishStatus((prevState) => ({
+        updatePublishStatus((prevState) => ({
             ...prevState,
             open: false,
         }));
@@ -503,12 +616,12 @@ const Index: FunctionComponent<ArticleEditProps> = ({
     };
 
     const locatePublishCheckTarget = (target: PublishCheckTarget) => {
-        setPublishStatus((prevState) => ({
+        updatePublishStatus((prevState) => ({
             ...prevState,
             open: false,
         }));
         if (target === "markdown") {
-            setSettingsOpen(false);
+            updateSettingsOpen(false);
             editCardRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
             window.setTimeout(() => {
                 editorViewRef.current?.focus();
@@ -516,18 +629,18 @@ const Index: FunctionComponent<ArticleEditProps> = ({
             return;
         }
         if (target === "title") {
-            setSettingsOpen(false);
+            updateSettingsOpen(false);
             editCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
             focusInputRef(titleRef);
             return;
         }
         if (target === "alias") {
-            setSettingsOpen(false);
+            updateSettingsOpen(false);
             editCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
             focusInputRef(aliasRef);
             return;
         }
-        setSettingsOpen(true);
+        updateSettingsOpen(true);
         if (target === "digest") {
             focusInputRef(digestRef);
         }
@@ -1062,7 +1175,7 @@ const Index: FunctionComponent<ArticleEditProps> = ({
     };
 
     const getEditorPreviewState = (): boolean => {
-        const open = getCacheByKey(editorPreviewStateKey);
+        const open = getCacheByKey<boolean>(editorPreviewStateKey);
         if (open === null || open === undefined) {
             return window.innerWidth > 600;
         }
@@ -1137,13 +1250,13 @@ const Index: FunctionComponent<ArticleEditProps> = ({
                         data={state}
                         onSubmit={onSubmit}
                         onPreview={onPreview}
-                        onOpenSettings={() => setSettingsOpen(true)}
-                        onOpenVersionHistory={() => setVersionDrawerOpen(true)}
+                        onOpenSettings={() => updateSettingsOpen(true)}
+                        onOpenVersionHistory={() => updateVersionDrawerOpen(true)}
                         canOpenVersionHistory={Boolean(state.article.logId)}
                         onAiMessagesChange={(messages) => updateAiMessageCache(messages)}
                         onAiDrawerSizeChange={updateAiDrawerWidth}
                         aiDrawerOpen={articleAssistantOpen}
-                        onAiDrawerOpenChange={setArticleAssistantOpen}
+                        onAiDrawerOpenChange={updateArticleAssistantOpen}
                         aiDrawerWidth={getDefaultAiDrawerWidth()}
                         aiStateCache={articleAiStateCache}
                         onApplyAiValues={fieldAi.applyGeneratedValues}
@@ -1184,11 +1297,14 @@ const Index: FunctionComponent<ArticleEditProps> = ({
                     axiosInstance={axiosInstance}
                     aiDrawerWidth={getDefaultAiDrawerWidth()}
                     aiStateCache={articleAiStateCache}
+                    articleAssistantOpen={articleAssistantOpen}
+                    onArticleAssistantOpenChange={updateArticleAssistantOpen}
+                    stateCacheKey={articleEditUiStateCacheKey}
                     saving={isSaving()}
                     onValuesChange={handleValuesChange}
                     onApplyAiValues={fieldAi.applyGeneratedValues}
-                    onSettingsOpenChange={setSettingsOpen}
-                    onVersionOpenChange={setVersionDrawerOpen}
+                    onSettingsOpenChange={updateSettingsOpen}
+                    onVersionOpenChange={updateVersionDrawerOpen}
                     onRollback={onRollback}
                     onSubmit={onSubmit}
                     onPreview={onPreview}
@@ -1284,7 +1400,7 @@ const Index: FunctionComponent<ArticleEditProps> = ({
                             publishStatus={publishStatus}
                             onOpenChange={updatePublishStatusOpen}
                             onClose={closePublishStatus}
-                            onOpenAssistant={!fullScreen ? () => setArticleAssistantOpen(true) : undefined}
+                            onOpenAssistant={!fullScreen ? () => updateArticleAssistantOpen(true) : undefined}
                             onLocatePublishCheckTarget={locatePublishCheckTarget}
                             getContainer={() => editCardRef.current as HTMLDivElement}
                         />
