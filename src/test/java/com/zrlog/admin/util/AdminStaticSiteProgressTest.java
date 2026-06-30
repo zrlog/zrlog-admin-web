@@ -1,6 +1,7 @@
 package com.zrlog.admin.util;
 
 import com.hibegin.http.server.api.HttpRequest;
+import com.zrlog.admin.business.rest.response.StaticSiteProgressResponse;
 import com.hibegin.http.server.util.PathUtil;
 import com.zrlog.business.plugin.StaticSitePlugin;
 import com.zrlog.business.plugin.type.StaticSiteType;
@@ -31,7 +32,6 @@ public class AdminStaticSiteProgressTest {
     public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
     @Test
-    @SuppressWarnings("unchecked")
     public void shouldAggregateStaticSiteProgressAcrossConfiguredPlugins() throws Exception {
         ZrLogConfig previousConfig = Constants.zrLogConfig;
         Map<String, StaticSitePlugin.HandleState> blogStates = new LinkedHashMap<>();
@@ -48,19 +48,19 @@ public class AdminStaticSiteProgressTest {
                     new FakeStaticSitePlugin(StaticSiteType.ADMIN, adminStates)
             ));
 
-            Map<String, Object> blogSnapshot = AdminStaticSiteProgress.snapshot(StaticSiteType.BLOG);
-            assertEquals(4, blogSnapshot.get("total"));
-            assertEquals(1, blogSnapshot.get("handled"));
-            assertEquals(1, blogSnapshot.get("handing"));
-            assertEquals(1, blogSnapshot.get("retrying"));
-            assertEquals(1, blogSnapshot.get("pending"));
-            assertEquals(List.of("BLOG"), blogSnapshot.get("siteTypes"));
+            StaticSiteProgressResponse blogSnapshot = AdminStaticSiteProgress.snapshot(StaticSiteType.BLOG);
+            assertEquals(4, blogSnapshot.getTotal());
+            assertEquals(1, blogSnapshot.getHandled());
+            assertEquals(1, blogSnapshot.getHanding());
+            assertEquals(1, blogSnapshot.getRetrying());
+            assertEquals(1, blogSnapshot.getPending());
+            assertEquals(List.of("BLOG"), blogSnapshot.getSiteTypes());
 
-            Map<String, Object> allSnapshot =
+            StaticSiteProgressResponse allSnapshot =
                     AdminStaticSiteProgress.snapshot(List.of(StaticSiteType.BLOG, StaticSiteType.ADMIN));
-            assertEquals(5, allSnapshot.get("total"));
-            assertEquals(2, allSnapshot.get("handled"));
-            assertEquals(List.of("BLOG", "ADMIN"), allSnapshot.get("siteTypes"));
+            assertEquals(5, allSnapshot.getTotal());
+            assertEquals(2, allSnapshot.getHandled());
+            assertEquals(List.of("BLOG", "ADMIN"), allSnapshot.getSiteTypes());
         } finally {
             Constants.zrLogConfig = previousConfig;
         }

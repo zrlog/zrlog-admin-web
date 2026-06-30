@@ -4,6 +4,7 @@ import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
 import com.hibegin.http.server.config.ServerConfig;
 import com.zrlog.admin.business.AdminConstants;
+import com.zrlog.admin.business.rest.response.StaticSiteProgressResponse;
 import com.zrlog.admin.business.type.AdminAuditAction;
 import com.zrlog.admin.business.type.FileDirectoryAction;
 import com.zrlog.admin.business.type.FileEntryAccess;
@@ -153,15 +154,16 @@ public class AdminTypeAndUtilContractTest {
     }
 
     @Test
-    public void shouldBuildStaticSiteProgressMap() throws Exception {
-        Map<?, ?> map = AdminStaticSiteProgress.toMap(4, 1, 1, 1, 1, List.of(StaticSiteType.BLOG.name()));
+    public void shouldBuildStaticSiteProgressResponse() throws Exception {
+        StaticSiteProgressResponse response =
+                AdminStaticSiteProgress.response(4, 1, 1, 1, 1, List.of(StaticSiteType.BLOG.name()));
 
-        assertEquals(4, map.get("total"));
-        assertEquals(1, map.get("handled"));
-        assertEquals(1, map.get("handing"));
-        assertEquals(1, map.get("pending"));
-        assertEquals(1, map.get("retrying"));
-        assertEquals(List.of("BLOG"), map.get("siteTypes"));
+        assertEquals(4, response.getTotal());
+        assertEquals(1, response.getHandled());
+        assertEquals(1, response.getHanding());
+        assertEquals(1, response.getPending());
+        assertEquals(1, response.getRetrying());
+        assertEquals(List.of("BLOG"), response.getSiteTypes());
     }
 
     @Test

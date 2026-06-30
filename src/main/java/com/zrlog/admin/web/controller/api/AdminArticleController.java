@@ -170,7 +170,7 @@ public class AdminArticleController extends BaseController {
                                                PublishStartWriter publishStartWriter)
             throws IOException {
         List<StaticSiteType> siteTypes = List.of(StaticSiteType.BLOG);
-        AtomicReference<CompletableFuture<Map<String, Object>>> publishCheckFutureRef = new AtomicReference<>();
+        AtomicReference<CompletableFuture<PublishCheckResponse>> publishCheckFutureRef = new AtomicReference<>();
         AtomicBoolean publishCheckSent = new AtomicBoolean(false);
         AdminStaticSiteSsePublisher.write(
                 response,
@@ -179,7 +179,7 @@ public class AdminArticleController extends BaseController {
                 siteTypes,
                 emitter -> {
                     AdminPageDataResponse<ArticleGlobalResponse> detail = publishStartWriter.write(emitter);
-                    CompletableFuture<Map<String, Object>> publishCheckFuture = startPublishCheck(detail, body);
+                    CompletableFuture<PublishCheckResponse> publishCheckFuture = startPublishCheck(detail, body);
                     if (publishCheckFuture != null) {
                         publishCheckFutureRef.set(publishCheckFuture);
                         emitter.send("publish-check-start", Map.of("tool", "publishCheck"));
@@ -228,7 +228,7 @@ public class AdminArticleController extends BaseController {
         AdminPageDataResponse<ArticleGlobalResponse> write(AdminSseEmitter emitter) throws Exception;
     }
 
-    private CompletableFuture<Map<String, Object>> startPublishCheck(
+    private CompletableFuture<PublishCheckResponse> startPublishCheck(
             AdminPageDataResponse<ArticleGlobalResponse> detail, CreateArticleRequest body) {
         if (!Objects.equals(detail.getData().getPublishCheckEnabled(), true)) {
             return null;
@@ -257,22 +257,18 @@ public class AdminArticleController extends BaseController {
         articleContext.setStaticSitePluginEnabled(!StaticSitePlugin.isDisabled());
     }
 
-    private Map<String, Object> buildPublishCheckPayload(Long articleId, GenerateArticleFieldRequest articleContext) {
+    private PublishCheckResponse buildPublishCheckPayload(Long articleId, GenerateArticleFieldRequest articleContext) {
         try {
             List<AIResponseEntry.AIContentEntry> aiMessages =
                     new AIChatService().runToolResponse("publish-check", articleId, "publishCheck", articleContext);
             AIResponseEntry.AIContentEntry assistantMessage = aiMessages.get(aiMessages.size() - 1);
             Object checkPayload = assistantMessage.getPayload();
-            Map<String, Object> toolPayload = new HashMap<>();
-            toolPayload.put("tool", "publishCheck");
-            toolPayload.put("payload", checkPayload);
-            Map<String, Object> payload = new HashMap<>();
-            payload.put("toolPayload", toolPayload);
-            payload.put("content", assistantMessage.getContent());
-            payload.put("messageId", assistantMessage.getMessageId());
-            payload.put("aiMessages", aiMessages);
             recordPublishCheckSuccess(articleId, articleContext.getTitle(), checkPayload);
-            return payload;
+            return new PublishCheckResponse(
+                    new PublishCheckToolPayload("publishCheck", checkPayload),
+                    assistantMessage.getContent(),
+                    assistantMessage.getMessageId(),
+                    aiMessages);
         } catch (Exception e) {
             recordPublishCheckError(articleId, articleContext.getTitle(), Objects.requireNonNullElse(e.getMessage(), ""));
             throw new CompletionException(e);
@@ -295,7 +291,7 @@ public class AdminArticleController extends BaseController {
         }
     }
 
-    private void sendPublishCheckIfReady(CompletableFuture<Map<String, Object>> publishCheckFuture,
+    private void sendPublishCheckIfReady(CompletableFuture<PublishCheckResponse> publishCheckFuture,
                                          AtomicBoolean publishCheckSent, AdminSseEmitter emitter, boolean wait)
             throws Exception {
         if (publishCheckFuture == null || publishCheckSent.get() || (!wait && !publishCheckFuture.isDone())) {

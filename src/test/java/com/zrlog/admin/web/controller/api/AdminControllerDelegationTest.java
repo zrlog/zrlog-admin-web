@@ -12,7 +12,11 @@ import com.hibegin.http.server.web.Controller;
 import com.zrlog.admin.business.exception.AdminAuthException;
 import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
 import com.zrlog.admin.business.rest.response.AdminDashboardCardResponse;
+import com.zrlog.admin.business.rest.response.AdminDashboardAuditTrailDataResponse;
 import com.zrlog.admin.business.rest.response.AdminDashboardConfigResponse;
+import com.zrlog.admin.business.rest.response.AdminDashboardDataInsightsResponse;
+import com.zrlog.admin.business.rest.response.AdminDashboardQuickActionDataResponse;
+import com.zrlog.admin.business.rest.response.AdminDashboardWelcomeDataResponse;
 import com.zrlog.admin.business.rest.response.AdminManifestResponse;
 import com.zrlog.admin.business.rest.response.ArticleActivityData;
 import com.zrlog.admin.business.rest.request.PersonalDataPreviewRequest;
@@ -567,16 +571,17 @@ public class AdminControllerDelegationTest {
             AdminDashboardCardResponse auditTrail = findCard(config, "auditTrail");
             AdminDashboardCardResponse dataInsights = findCard(config, "dataInsights");
 
-            assertTrue(((Map<String, Object>) welcome.getData()).containsKey("welcomeTip"));
-            assertTrue(((Map<String, Object>) welcome.getData()).containsKey("versionInfo"));
+            assertTrue(welcome.getData() instanceof AdminDashboardWelcomeDataResponse);
+            assertTrue(((AdminDashboardWelcomeDataResponse) welcome.getData()).getWelcomeTip() != null);
+            assertTrue(((AdminDashboardWelcomeDataResponse) welcome.getData()).getVersionInfo() != null);
             assertTrue(statistics.getData() instanceof StatisticsInfoResponse);
-            assertTrue(((Map<String, Object>) auditTrail.getData()).containsKey("auditLogs"));
-            assertTrue(((Map<String, Object>) dataInsights.getData()).containsKey("typeData"));
+            assertTrue(auditTrail.getData() instanceof AdminDashboardAuditTrailDataResponse);
+            assertTrue(((AdminDashboardAuditTrailDataResponse) auditTrail.getData()).getAuditLogs() != null);
+            assertTrue(dataInsights.getData() instanceof AdminDashboardDataInsightsResponse);
         }
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     public void shouldAttachDashboardCardDataByCardId() throws Exception {
         AdminController controller = new AdminController();
         AdminDashboardConfigResponse config = new AdminDashboardConfigResponse();
@@ -602,17 +607,18 @@ public class AdminControllerDelegationTest {
         method.invoke(controller, config, statisticsInfo, "Welcome", List.of("Tip"), "3.6.0",
                 List.of(activityData));
 
-        Map<String, Object> welcomeData = (Map<String, Object>) welcome.getData();
-        assertEquals("Welcome", welcomeData.get("welcomeTip"));
-        assertEquals(List.of("Tip"), welcomeData.get("tips"));
-        assertEquals("3.6.0", welcomeData.get("versionInfo"));
-        assertEquals(4L, ((Map<String, Object>) quickAction.getData()).get("draftCount"));
+        AdminDashboardWelcomeDataResponse welcomeData = (AdminDashboardWelcomeDataResponse) welcome.getData();
+        assertEquals("Welcome", welcomeData.getWelcomeTip());
+        assertEquals(List.of("Tip"), welcomeData.getTips());
+        assertEquals("3.6.0", welcomeData.getVersionInfo());
+        assertEquals(4L, ((AdminDashboardQuickActionDataResponse) quickAction.getData()).getDraftCount().longValue());
         assertSame(statisticsInfo, statistics.getData());
         assertEquals(List.of(activityData), activity.getData());
-        assertEquals(List.of(Map.of("action", "login")), ((Map<String, Object>) auditTrail.getData()).get("auditLogs"));
-        assertEquals(false, ((Map<String, Object>) auditTrail.getData()).get("loading"));
+        AdminDashboardAuditTrailDataResponse auditTrailData = (AdminDashboardAuditTrailDataResponse) auditTrail.getData();
+        assertEquals(List.of(Map.of("action", "login")), auditTrailData.getAuditLogs());
+        assertEquals(false, auditTrailData.getLoading());
         assertEquals(null, pluginSurface.getData());
-        assertEquals(null, ((Map<String, Object>) dataInsights.getData()).get("typeData"));
+        assertEquals(null, ((AdminDashboardDataInsightsResponse) dataInsights.getData()).getTypeData());
     }
 
     @Test

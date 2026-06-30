@@ -111,29 +111,17 @@ public class AdminController extends BaseController {
                 continue;
             }
             if (Objects.equals("welcome", item.getId())) {
-                Map<String, Object> data = new LinkedHashMap<>();
-                data.put("welcomeTip", welcomeTip);
-                data.put("tips", tips);
-                data.put("versionInfo", versionInfo);
-                item.setData(data);
+                item.setData(new AdminDashboardWelcomeDataResponse(welcomeTip, tips, versionInfo));
             } else if (Objects.equals("quickAction", item.getId())) {
-                Map<String, Object> data = new LinkedHashMap<>();
-                data.put("draftCount", statisticsInfo.getDraftCount());
-                item.setData(data);
+                item.setData(new AdminDashboardQuickActionDataResponse(statisticsInfo.getDraftCount()));
             } else if (Objects.equals("statistics", item.getId())) {
                 item.setData(statisticsInfo);
             } else if (Objects.equals("activity", item.getId())) {
                 item.setData(activityData);
             } else if (Objects.equals("auditTrail", item.getId())) {
-                Map<String, Object> data = new LinkedHashMap<>();
-                data.put("auditLogs", statisticsInfo.getAuditLogs());
-                data.put("loading", false);
-                item.setData(data);
+                item.setData(new AdminDashboardAuditTrailDataResponse(statisticsInfo.getAuditLogs(), false));
             } else if (Objects.equals("dataInsights", item.getId())) {
-                Map<String, Object> data = new LinkedHashMap<>();
-                data.put("typeData", statisticsInfo.getTypeData());
-                data.put("tagData", statisticsInfo.getTagData());
-                item.setData(data);
+                item.setData(new AdminDashboardDataInsightsResponse(statisticsInfo.getTypeData(), statisticsInfo.getTagData()));
             }
         }
     }

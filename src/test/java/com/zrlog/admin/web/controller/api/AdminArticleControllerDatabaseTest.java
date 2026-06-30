@@ -12,6 +12,8 @@ import com.zrlog.admin.business.rest.response.ArticlePageData;
 import com.zrlog.admin.business.rest.response.CreateOrUpdateArticleResponse;
 import com.zrlog.admin.business.rest.response.DeleteResponse;
 import com.zrlog.admin.business.rest.response.LoadEditArticleResponse;
+import com.zrlog.admin.business.rest.response.PublishCheckResponse;
+import com.zrlog.admin.business.rest.response.PublishCheckToolPayload;
 import com.zrlog.admin.business.rest.response.UploadFileResponse;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.util.AdminSseEmitter;
@@ -354,8 +356,12 @@ public class AdminArticleControllerDatabaseTest {
             assertNull(invoke(controller, "startPublishCheck", detail, request));
 
             String successPayload = emitPublishCheck(
-                    CompletableFuture.completedFuture(Map.of("toolPayload", Map.of("ok", true))), false);
-            CompletableFuture<Map<String, Object>> failed = new CompletableFuture<>();
+                    CompletableFuture.completedFuture(new PublishCheckResponse(
+                            new PublishCheckToolPayload("publishCheck", Map.of("ok", true)),
+                            null,
+                            null,
+                            List.of())), false);
+            CompletableFuture<PublishCheckResponse> failed = new CompletableFuture<>();
             failed.completeExceptionally(new IllegalStateException("publish failed"));
             String errorPayload = emitPublishCheck(failed, true);
 
@@ -383,7 +389,7 @@ public class AdminArticleControllerDatabaseTest {
             global.setAiConfigured(true);
             AdminPageDataResponse<ArticleGlobalResponse> detail = new AdminPageDataResponse<>(global);
 
-            CompletableFuture<Map<String, Object>> future = (CompletableFuture<Map<String, Object>>)
+            CompletableFuture<PublishCheckResponse> future = (CompletableFuture<PublishCheckResponse>)
                     invoke(controller, "startPublishCheck", detail, request);
 
             assertNotNull(future);
@@ -492,7 +498,7 @@ public class AdminArticleControllerDatabaseTest {
         throw new IllegalArgumentException("No method " + name);
     }
 
-    private static String emitPublishCheck(CompletableFuture<Map<String, Object>> future, boolean wait)
+    private static String emitPublishCheck(CompletableFuture<PublishCheckResponse> future, boolean wait)
             throws Exception {
         AdminArticleController controller = controller(Map.of(), null, new ResponseRecorder());
         try (PipedInputStream inputStream = new PipedInputStream();
