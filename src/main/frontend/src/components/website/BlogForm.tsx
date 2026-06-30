@@ -50,16 +50,16 @@ const BlogForm = ({
             <Form.Item
                 valuePropName="checked"
                 name="generator_html_status"
-                label={getRes().websiteBlog.staticSite}
-                tooltip={getRes().websiteBlog.staticSiteTip}
+                label={getRes().websiteBlog.staticPages}
+                tooltip={getRes().websiteBlog.staticPagesTip}
             >
                 <Switch />
             </Form.Item>
             <Form.Item
                 valuePropName="checked"
                 name="disable_comment_status"
-                label={getRes().websiteBlog.disableComment}
-                tooltip={getRes().websiteBlog.disableCommentTip}
+                label={getRes().websiteBlog.commentDisabled}
+                tooltip={getRes().websiteBlog.commentDisabledTip}
             >
                 <Switch />
             </Form.Item>

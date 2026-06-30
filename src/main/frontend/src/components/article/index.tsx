@@ -323,7 +323,7 @@ const Index = ({ data, offline }: { data: ArticlePageDataSource; offline: boolea
                 sortOrder: sorterMap["click"],
             },
             {
-                title: getRes().article.commentAble,
+                title: getRes().article.commentStatus,
                 key: "canComment",
                 dataIndex: "canComment",
                 render: (v: boolean) => (v ? getRes().yes : getRes().no),

@@ -172,8 +172,8 @@ const UpgradeSettingForm = ({
             <Form.Item
                 valuePropName="checked"
                 name="upgradePreview"
-                label={getRes().websiteUpgrade.canPreview}
-                tooltip={getRes().websiteUpgrade.canPreviewTip}
+                label={getRes().websiteUpgrade.previewVersionCheck}
+                tooltip={getRes().websiteUpgrade.previewVersionCheckTip}
                 style={formItemStyle}
             >
                 <Switch />

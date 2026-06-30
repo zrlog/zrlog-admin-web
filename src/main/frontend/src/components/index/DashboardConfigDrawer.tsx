@@ -757,7 +757,7 @@ const DashboardConfigDrawer: FunctionComponent<DashboardConfigDrawerProps> = ({
                             checked={draftConfig.autoRefreshEnabled === true}
                             onChange={(autoRefreshEnabled) => updateRefreshConfig({ autoRefreshEnabled })}
                         />
-                        <Typography.Text>{res.autoRefreshEnabled}</Typography.Text>
+                        <Typography.Text>{res.autoRefreshState}</Typography.Text>
                     </Space>
                     <Space>
                         <Typography.Text type="secondary">{res.autoRefreshInterval}</Typography.Text>

@@ -57,8 +57,8 @@ const ContentProtectorForm = ({
             <Form.Item
                 valuePropName="checked"
                 name="content_protector_enabled"
-                label={getRes().websiteContentProtector.enabled}
-                tooltip={getRes().websiteContentProtector.enabledTip}
+                label={getRes().websiteContentProtector.copyrightNotice}
+                tooltip={getRes().websiteContentProtector.copyrightNoticeTip}
             >
                 <Switch />
             </Form.Item>

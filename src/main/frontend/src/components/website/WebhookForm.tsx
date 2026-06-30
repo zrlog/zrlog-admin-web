@@ -227,8 +227,8 @@ const WebhookForm = ({
                 <Form.Item
                     valuePropName="checked"
                     name="enabled"
-                    label={getRes().websiteWebhook.enabled}
-                    tooltip={getRes().websiteWebhook.enabledTip}
+                    label={getRes().websiteWebhook.webhookStatus}
+                    tooltip={getRes().websiteWebhook.webhookStatusTip}
                 >
                     <Switch />
                 </Form.Item>

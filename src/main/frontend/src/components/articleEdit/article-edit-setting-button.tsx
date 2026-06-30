@@ -140,7 +140,7 @@ const ArticleEditSettingButton = ({
                                         <Form.Item
                                             style={{ marginBottom: 0 }}
                                             valuePropName="checked"
-                                            label={getRes().articleEdit.commentAble}
+                                            label={getRes().articleEdit.comment}
                                         >
                                             <Switch
                                                 value={article.canComment}
