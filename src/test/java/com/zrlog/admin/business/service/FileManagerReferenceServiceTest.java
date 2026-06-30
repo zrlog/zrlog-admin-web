@@ -5,6 +5,7 @@ import com.zrlog.admin.business.rest.response.FileReferenceIndexCacheVO;
 import com.zrlog.admin.business.rest.response.FileReferenceVO;
 import com.zrlog.admin.business.rest.response.ReplaceArticleResourceUrlResponse;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
+import com.zrlog.admin.support.TestLogCapture;
 import com.zrlog.common.vo.AdminTokenVO;
 import org.junit.Test;
 
@@ -12,6 +13,7 @@ import java.lang.reflect.Field;
 import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.logging.Level;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -30,7 +32,10 @@ public class FileManagerReferenceServiceTest {
             }
         });
 
-        assertFalse(service.writeReferenceIndexCache(new FileReferenceIndexCacheVO()));
+        try (TestLogCapture logs = TestLogCapture.forClass(FileManagerReferenceService.class)) {
+            assertFalse(service.writeReferenceIndexCache(new FileReferenceIndexCacheVO()));
+            assertTrue(logs.contains(Level.WARNING, "Write file-manager reference index cache failed"));
+        }
     }
 
     @Test
@@ -42,7 +47,10 @@ public class FileManagerReferenceServiceTest {
             }
         });
 
-        assertFalse(service.clearReferenceIndexCache());
+        try (TestLogCapture logs = TestLogCapture.forClass(FileManagerReferenceService.class)) {
+            assertFalse(service.clearReferenceIndexCache());
+            assertTrue(logs.contains(Level.WARNING, "Clear file-manager reference index cache failed"));
+        }
     }
 
     @Test

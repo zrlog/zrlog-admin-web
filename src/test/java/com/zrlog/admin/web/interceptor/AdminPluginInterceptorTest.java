@@ -223,16 +223,18 @@ public class AdminPluginInterceptorTest {
     private static class TestZrLogConfig extends ZrLogConfig {
 
         private final TokenService tokenService;
+        private boolean installed;
 
         TestZrLogConfig(TokenService tokenService, PluginCorePlugin plugin) {
             super(18080, null, "");
             this.tokenService = tokenService;
+            this.installed = true;
             getAllPlugins().add(plugin);
         }
 
         @Override
         public boolean isInstalled() {
-            return true;
+            return installed;
         }
 
         @Override

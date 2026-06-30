@@ -48,7 +48,7 @@ public class WebSiteController extends BaseController {
         VersionResponse versionResponse = new VersionResponse();
         versionResponse.setBuildId(BlogBuildInfoUtil.getBuildId());
         versionResponse.setVersion(BlogBuildInfoUtil.getVersion());
-        versionResponse.setChangelog(UpdateVersionInfoPlugin.getCurrentChangeLog(I18nUtil.getBackend()));
+        versionResponse.setChangelog(getCurrentChangeLog(I18nUtil.getBackend()));
         InputStream resourceAsStream = WebSiteController.class.getResourceAsStream(AdminConstants.BUILD_SYSTEM_INFO_MD);
         if (Objects.nonNull(resourceAsStream)) {
             versionResponse.setBuildSystemInfo(IOUtil.getStringInputStream(resourceAsStream));
@@ -56,6 +56,10 @@ public class WebSiteController extends BaseController {
             versionResponse.setBuildSystemInfo("#### Not find build system info file");
         }
         return new AdminPageDataResponse<>(versionResponse, "", request.getUri());
+    }
+
+    protected String getCurrentChangeLog(Map<String, Object> backendMessages) {
+        return UpdateVersionInfoPlugin.getCurrentChangeLog(backendMessages);
     }
 
     @ResponseBody

@@ -14,6 +14,7 @@ import com.zrlog.admin.business.rest.base.FeatureLabWebSiteInfo;
 import com.zrlog.admin.business.rest.base.OtherWebSiteInfo;
 import com.zrlog.admin.business.rest.response.AIWebSiteInfoResponse;
 import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
+import com.zrlog.admin.business.rest.response.VersionResponse;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.business.rest.base.UpgradeWebSiteInfo;
@@ -172,8 +173,11 @@ public class WebSiteControllerDatabaseTest {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
             WebSiteController controller = controller(HttpMethod.GET, "/api/admin/website/version", null);
 
-            assertNotNull(controller.version().getData().getVersion());
-            assertNotNull(controller.version().getData().getBuildSystemInfo());
+            AdminPageDataResponse<VersionResponse> response = controller.version();
+
+            assertNotNull(response.getData().getVersion());
+            assertNotNull(response.getData().getBuildSystemInfo());
+            assertEquals("test changelog", response.getData().getChangelog());
         }
     }
 
@@ -183,7 +187,7 @@ public class WebSiteControllerDatabaseTest {
     }
 
     private static WebSiteController controller(HttpMethod method, String uri, String body) throws Exception {
-        WebSiteController controller = new WebSiteController();
+        WebSiteController controller = new TestWebSiteController();
         setControllerField(controller, "request", request(method, uri, body));
         setControllerField(controller, "response", response());
         return controller;
@@ -231,5 +235,13 @@ public class WebSiteControllerDatabaseTest {
                 WebSiteControllerDatabaseTest.class.getClassLoader(),
                 new Class[]{HttpResponse.class},
                 (proxy, method, args) -> null);
+    }
+
+    private static class TestWebSiteController extends WebSiteController {
+
+        @Override
+        protected String getCurrentChangeLog(Map<String, Object> backendMessages) {
+            return "test changelog";
+        }
     }
 }

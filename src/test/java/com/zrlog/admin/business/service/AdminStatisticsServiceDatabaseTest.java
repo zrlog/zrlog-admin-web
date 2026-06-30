@@ -2,13 +2,16 @@ package com.zrlog.admin.business.service;
 
 import com.zrlog.admin.business.rest.response.StatisticsInfoResponse;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
+import com.zrlog.admin.support.TestLogCapture;
 import com.zrlog.common.cache.dto.TagDTO;
 import org.junit.Test;
 
 import java.util.concurrent.Executor;
+import java.util.logging.Level;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 public class AdminStatisticsServiceDatabaseTest {
 
@@ -51,9 +54,15 @@ public class AdminStatisticsServiceDatabaseTest {
             db.execute("drop table comment");
             db.execute("drop table log");
 
-            StatisticsInfoResponse response = new AdminStatisticsService()
-                    .statisticsInfo(DIRECT_EXECUTOR, false)
-                    .get();
+            StatisticsInfoResponse response;
+            try (TestLogCapture logs = TestLogCapture.forClass(AdminStatisticsService.class)) {
+                response = new AdminStatisticsService()
+                        .statisticsInfo(DIRECT_EXECUTOR, false)
+                        .get();
+
+                assertTrue(logs.contains(Level.WARNING, "Query comment counts error"));
+                assertTrue(logs.contains(Level.WARNING, "Query article counts error"));
+            }
 
             assertEquals(Long.valueOf(0L), response.getArticleCount());
             assertEquals(Long.valueOf(0L), response.getPublishedCount());

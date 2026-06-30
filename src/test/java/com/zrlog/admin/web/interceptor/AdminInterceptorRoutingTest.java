@@ -318,15 +318,17 @@ public class AdminInterceptorRoutingTest {
     private static class TestZrLogConfig extends ZrLogConfig {
 
         private final TokenService tokenService;
+        private boolean installed;
 
         TestZrLogConfig(TokenService tokenService) {
             super(18080, null, "");
             this.tokenService = tokenService;
+            this.installed = true;
         }
 
         @Override
         public boolean isInstalled() {
-            return true;
+            return installed;
         }
 
         @Override
