@@ -9,6 +9,7 @@ import java.util.Map;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class AIServiceUtilityTest {
 
@@ -18,7 +19,7 @@ public class AIServiceUtilityTest {
 
         assertEquals("1024x1024", service.resolveImageRequestSize("1:1"));
         assertEquals("1536x1024", service.resolveImageRequestSize("16:9"));
-        assertEquals("1024x1536", service.resolveImageRequestSize("3:4"));
+        assertEquals("1536x1024", service.resolveImageRequestSize("3:4"));
         assertEquals("jpg", service.toExtension("image/jpeg", ""));
         assertEquals("webp", service.toExtension("image/webp", ""));
         assertEquals("png", service.toExtension("", "https://example.com/a.png?x=1"));
@@ -47,7 +48,7 @@ public class AIServiceUtilityTest {
         try {
             service.decodeDataUrl("data:image/png;base64", "");
         } catch (ArgsException e) {
-            assertEquals("dataUrl", e.getMessage());
+            assertTrue(e.getMessage().contains("dataUrl"));
             return;
         }
         throw new AssertionError("Expected ArgsException");

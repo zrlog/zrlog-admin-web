@@ -27,8 +27,23 @@ jobs:
           java-version: '11'
           cache: maven
 
+      - name: Cache frontend dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            src/main/frontend/node_modules
+            ~/.cache/yarn
+            target/node
+            target/yarn
+          key: ${{ runner.os }}-frontend-${{ hashFiles('src/main/frontend/yarn.lock', 'pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-frontend-
+
+      - name: Generate admin frontend resources
+        run: ./mvnw -q -PnodeBuild generate-resources -DskipTests=true -Dmaven.test.skip=true
+
       - name: Run tests and generate coverage
-        run: ./mvnw -q org.jacoco:jacoco-maven-plugin:0.8.12:prepare-agent test org.jacoco:jacoco-maven-plugin:0.8.12:report
+        run: ./mvnw -q -DskipTests=false -Dmaven.test.skip=false org.jacoco:jacoco-maven-plugin:0.8.12:prepare-agent test org.jacoco:jacoco-maven-plugin:0.8.12:report
 
       - name: Summarize JaCoCo coverage
         shell: bash
