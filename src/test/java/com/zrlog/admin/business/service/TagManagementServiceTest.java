@@ -9,7 +9,6 @@ import com.zrlog.admin.business.rest.response.TagManagementPreviewResponse;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import org.junit.Test;
 
-import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
 
@@ -18,44 +17,34 @@ import static org.junit.Assert.assertEquals;
 public class TagManagementServiceTest {
 
     @Test
-    @SuppressWarnings("unchecked")
     public void shouldParseTagsWithTrimAndStableDeduplication() throws Exception {
         TagManagementService service = new TagManagementService();
-        Method method = method("parseTags", String.class);
 
-        assertEquals(List.of(), method.invoke(service, new Object[]{null}));
-        assertEquals(List.of("java", "zrlog", "blog"), method.invoke(service, " java, zrlog,java,, blog "));
+        assertEquals(List.of(), service.parseTags(null));
+        assertEquals(List.of("java", "zrlog", "blog"), service.parseTags(" java, zrlog,java,, blog "));
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     public void shouldReplaceMergeOrRemoveTagsWithoutDuplicates() throws Exception {
         TagManagementService service = new TagManagementService();
-        Method replace = method("replaceTag", List.class, String.class, String.class, boolean.class);
-        Method join = method("joinTags", List.class);
 
-        List<String> merged = (List<String>) replace.invoke(service,
-                List.of("java", "blog", "zrlog"), "java", "blog", false);
-        List<String> renamed = (List<String>) replace.invoke(service,
-                List.of("java", "blog", "zrlog"), "java", "server", false);
-        List<String> removed = (List<String>) replace.invoke(service,
-                List.of("java", "blog", "zrlog"), "blog", "", true);
+        List<String> merged = service.replaceTag(List.of("java", "blog", "zrlog"), "java", "blog", false);
+        List<String> renamed = service.replaceTag(List.of("java", "blog", "zrlog"), "java", "server", false);
+        List<String> removed = service.replaceTag(List.of("java", "blog", "zrlog"), "blog", "", true);
 
         assertEquals(List.of("blog", "zrlog"), merged);
         assertEquals(List.of("server", "blog", "zrlog"), renamed);
         assertEquals(List.of("java", "zrlog"), removed);
-        assertEquals("server,blog,zrlog", join.invoke(service, renamed));
+        assertEquals("server,blog,zrlog", service.joinTags(renamed));
     }
 
     @Test
     public void shouldBuildArticleImpactResponseFromRawRow() throws Exception {
         TagManagementService service = new TagManagementService();
-        Method method = method("toImpact", Map.class, String.class, String.class);
 
-        TagManagementArticleImpactResponse response = (TagManagementArticleImpactResponse) method.invoke(service,
+        TagManagementArticleImpactResponse response = service.toImpact(
                 Map.of("logId", 7L, "title", "Article"), "java,zrlog", "blog,zrlog");
-        TagManagementArticleImpactResponse missing = (TagManagementArticleImpactResponse) method.invoke(service,
-                Map.of(), "java", "");
+        TagManagementArticleImpactResponse missing = service.toImpact(Map.of(), "java", "");
 
         assertEquals(Long.valueOf(7L), response.getId());
         assertEquals("Article", response.getTitle());
@@ -68,10 +57,9 @@ public class TagManagementServiceTest {
     @Test
     public void shouldNormalizeTagValues() throws Exception {
         TagManagementService service = new TagManagementService();
-        Method method = method("normalizeTag", String.class);
 
-        assertEquals("", method.invoke(service, new Object[]{null}));
-        assertEquals("java", method.invoke(service, " java "));
+        assertEquals("", service.normalizeTag(null));
+        assertEquals("java", service.normalizeTag(" java "));
     }
 
     @Test
@@ -133,9 +121,4 @@ public class TagManagementServiceTest {
                 keywords, 1, 1, false, false, true, false, 0);
     }
 
-    private static Method method(String name, Class<?>... parameterTypes) throws Exception {
-        Method method = TagManagementService.class.getDeclaredMethod(name, parameterTypes);
-        method.setAccessible(true);
-        return method;
-    }
 }

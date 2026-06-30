@@ -3,7 +3,6 @@ package com.zrlog.admin.business.service;
 import com.zrlog.admin.business.type.AdminAuditAction;
 import org.junit.Test;
 
-import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
 
@@ -13,15 +12,13 @@ import static org.junit.Assert.assertTrue;
 public class AdminAuditServiceTest {
 
     @Test
-    @SuppressWarnings("unchecked")
     public void shouldReadOnlyValidAuditLogMapsFromJson() throws Exception {
         AdminAuditService service = new AdminAuditService();
-        Method method = method("readLogs", String.class);
 
-        assertTrue(((List<Map<String, Object>>) method.invoke(service, new Object[]{null})).isEmpty());
-        assertTrue(((List<Map<String, Object>>) method.invoke(service, "not-json")).isEmpty());
+        assertTrue(service.readLogs(null).isEmpty());
+        assertTrue(service.readLogs("not-json").isEmpty());
 
-        List<Map<String, Object>> logs = (List<Map<String, Object>>) method.invoke(service,
+        List<Map<String, Object>> logs = service.readLogs(
                 "[{\"action\":\"REFRESH_CACHE\",\"timestamp\":1},\"invalid\",{\"type\":\"security\"}]");
 
         assertEquals(2, logs.size());
@@ -30,16 +27,14 @@ public class AdminAuditServiceTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     public void shouldSanitizeSecurityLogsForDisplay() throws Exception {
         AdminAuditService service = new AdminAuditService();
-        Method method = method("toDisplayLog", Map.class);
 
-        Map<String, Object> byType = (Map<String, Object>) method.invoke(service,
+        Map<String, Object> byType = service.toDisplayLog(
                 Map.of("action", "UNKNOWN", "type", "security", "content", "secret"));
-        Map<String, Object> byAction = (Map<String, Object>) method.invoke(service,
+        Map<String, Object> byAction = service.toDisplayLog(
                 Map.of("action", "UPDATE_PASSWORD", "type", "system", "content", "secret"));
-        Map<String, Object> regular = (Map<String, Object>) method.invoke(service,
+        Map<String, Object> regular = service.toDisplayLog(
                 Map.of("action", "REFRESH_CACHE", "type", "system", "content", "cache"));
 
         assertEquals("", byType.get("content"));
@@ -50,26 +45,18 @@ public class AdminAuditServiceTest {
     @Test
     public void shouldResolveAuditActionsAndUnknownValues() throws Exception {
         AdminAuditService service = new AdminAuditService();
-        Method method = method("toAuditAction", Object.class);
 
-        assertEquals(AdminAuditAction.REFRESH_CACHE, method.invoke(service, "REFRESH_CACHE"));
-        assertEquals(null, method.invoke(service, "MISSING"));
-        assertEquals(null, method.invoke(service, 1));
+        assertEquals(AdminAuditAction.REFRESH_CACHE, service.toAuditAction("REFRESH_CACHE"));
+        assertEquals(null, service.toAuditAction("MISSING"));
+        assertEquals(null, service.toAuditAction(1));
     }
 
     @Test
     public void shouldSanitizeSecurityActionContent() throws Exception {
         AdminAuditService service = new AdminAuditService();
-        Method method = method("sanitizeContent", AdminAuditAction.class, String.class);
 
-        assertEquals("", method.invoke(service, AdminAuditAction.UPDATE_PASSWORD, "secret"));
-        assertEquals("", method.invoke(service, AdminAuditAction.REFRESH_CACHE, (Object) null));
-        assertEquals("done", method.invoke(service, AdminAuditAction.REFRESH_CACHE, "done"));
-    }
-
-    private static Method method(String name, Class<?>... parameterTypes) throws Exception {
-        Method method = AdminAuditService.class.getDeclaredMethod(name, parameterTypes);
-        method.setAccessible(true);
-        return method;
+        assertEquals("", service.sanitizeContent(AdminAuditAction.UPDATE_PASSWORD, "secret"));
+        assertEquals("", service.sanitizeContent(AdminAuditAction.REFRESH_CACHE, null));
+        assertEquals("done", service.sanitizeContent(AdminAuditAction.REFRESH_CACHE, "done"));
     }
 }

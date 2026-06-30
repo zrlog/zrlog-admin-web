@@ -6,7 +6,6 @@ import com.zrlog.admin.business.rest.response.UpdateRecordResponse;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import org.junit.Test;
 
-import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
 
@@ -18,15 +17,11 @@ import static org.junit.Assert.assertTrue;
 public class AdminCommentServiceTest {
 
     @Test
-    @SuppressWarnings("unchecked")
     public void shouldParseCommentIdsWithTrimAndStableDeduplication() throws Exception {
         AdminCommentService service = new AdminCommentService();
-        Method method = method("parseCommentIds", String[].class);
 
-        List<Integer> ids = (List<Integer>) method.invoke(service,
-                new Object[]{new String[]{" 3 ", "", "3", null, "2"}});
-        List<Integer> empty = (List<Integer>) method.invoke(service,
-                new Object[]{new String[]{null, " "}});
+        List<Integer> ids = service.parseCommentIds(new String[]{" 3 ", "", "3", null, "2"});
+        List<Integer> empty = service.parseCommentIds(new String[]{null, " "});
 
         assertEquals(List.of(3, 2), ids);
         assertEquals(List.of(), empty);
@@ -35,11 +30,10 @@ public class AdminCommentServiceTest {
     @Test
     public void shouldBuildSqlPlaceholdersForIds() throws Exception {
         AdminCommentService service = new AdminCommentService();
-        Method method = method("placeholders", int.class);
 
-        assertEquals("", method.invoke(service, 0));
-        assertEquals("?", method.invoke(service, 1));
-        assertEquals("?,?,?", method.invoke(service, 3));
+        assertEquals("", service.placeholders(0));
+        assertEquals("?", service.placeholders(1));
+        assertEquals("?,?,?", service.placeholders(3));
     }
 
     @Test
@@ -77,12 +71,6 @@ public class AdminCommentServiceTest {
             assertNotNull(status);
             assertNotNull(status.get("value"));
         }
-    }
-
-    private static Method method(String name, Class<?>... parameterTypes) throws Exception {
-        Method method = AdminCommentService.class.getDeclaredMethod(name, parameterTypes);
-        method.setAccessible(true);
-        return method;
     }
 
     private static void seedComments(InMemoryZrLogDatabase db) throws Exception {

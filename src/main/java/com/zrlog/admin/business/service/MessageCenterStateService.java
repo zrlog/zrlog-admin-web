@@ -49,7 +49,7 @@ public class MessageCenterStateService {
         });
     }
 
-    private long nextRevision(long currentRevision) {
+    long nextRevision(long currentRevision) {
         long now = System.currentTimeMillis();
         return now > currentRevision ? now : currentRevision + 1;
     }
@@ -90,7 +90,7 @@ public class MessageCenterStateService {
         }
     }
 
-    private MessageCenterStatusResponse parseStatus(String raw) {
+    MessageCenterStatusResponse parseStatus(String raw) {
         if (StringUtils.isEmpty(raw)) {
             return new MessageCenterStatusResponse(0, false);
         }
@@ -103,7 +103,7 @@ public class MessageCenterStateService {
         }
     }
 
-    private boolean sameStatus(MessageCenterStatusResponse current, MessageCenterStatusResponse next) {
+    boolean sameStatus(MessageCenterStatusResponse current, MessageCenterStatusResponse next) {
         return current.getRevision() == next.getRevision()
                 && Objects.equals(current.isHasUnread(), next.isHasUnread());
     }

@@ -2,8 +2,6 @@ package com.zrlog.admin.util;
 
 import org.junit.Test;
 
-import java.lang.reflect.Method;
-
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
@@ -29,9 +27,7 @@ public class MfaUtilsTest {
     public void shouldVerifyCurrentWindowCode() throws Exception {
         String secret = "JBSWY3DPEHPK3PXP";
         long currentCounter = System.currentTimeMillis() / 1000 / 30;
-        Method method = MfaUtils.class.getDeclaredMethod("generateCode", String.class, long.class);
-        method.setAccessible(true);
-        String code = (String) method.invoke(null, secret, currentCounter);
+        String code = MfaUtils.generateCode(secret, currentCounter);
 
         assertTrue(MfaUtils.verifyCode(secret, " " + code + " "));
     }

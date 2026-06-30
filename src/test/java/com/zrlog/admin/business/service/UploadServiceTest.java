@@ -11,7 +11,6 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
-import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -81,12 +80,10 @@ public class UploadServiceTest {
     @Test
     public void shouldNormalizeExtensions() throws Exception {
         UploadService service = new UploadService();
-        Method method = UploadService.class.getDeclaredMethod("normalizeExtension", String.class);
-        method.setAccessible(true);
 
-        assertEquals("png", method.invoke(service, new Object[]{null}));
-        assertEquals("png", method.invoke(service, " "));
-        assertEquals("webp", method.invoke(service, "webp"));
+        assertEquals("png", service.normalizeExtension(null));
+        assertEquals("png", service.normalizeExtension(" "));
+        assertEquals("webp", service.normalizeExtension("webp"));
     }
 
     private void withRootPath() throws Exception {

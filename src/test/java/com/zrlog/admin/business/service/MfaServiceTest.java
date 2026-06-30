@@ -5,10 +5,9 @@ import com.zrlog.admin.business.exception.MfaCodeRequiredException;
 import com.zrlog.admin.business.rest.request.UpdateMfaRequest;
 import com.zrlog.admin.business.rest.response.MfaStatusResponse;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
-import com.zrlog.admin.util.MfaUtils;
+import com.zrlog.admin.support.MfaTestCodeGenerator;
 import org.junit.Test;
 
-import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -119,9 +118,6 @@ public class MfaServiceTest {
     }
 
     private static String currentCode(String secret) throws Exception {
-        Method method = MfaUtils.class.getDeclaredMethod("generateCode", String.class, long.class);
-        method.setAccessible(true);
-        long currentCounter = System.currentTimeMillis() / 1000 / 30;
-        return (String) method.invoke(null, secret, currentCounter);
+        return MfaTestCodeGenerator.currentCode(secret);
     }
 }

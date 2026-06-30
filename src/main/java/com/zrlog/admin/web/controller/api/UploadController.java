@@ -81,7 +81,7 @@ public class UploadController extends Controller {
         }
     }
 
-    private String buildTemporaryUri(String dir, File file) {
+    String buildTemporaryUri(String dir, File file) {
         String normalizedDir = normalizeTemporaryDir(dir);
         if (normalizedDir == null) {
             return null;
@@ -91,7 +91,7 @@ public class UploadController extends Controller {
         return AdminConstants.ADMIN_DB_ATTACHED_TMP + (suffix.startsWith("/") ? suffix : "/" + suffix);
     }
 
-    private String normalizeTemporaryDir(String dir) {
+    String normalizeTemporaryDir(String dir) {
         if (dir == null || dir.contains("..")) {
             return null;
         }

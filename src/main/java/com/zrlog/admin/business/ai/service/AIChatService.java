@@ -266,7 +266,7 @@ public class AIChatService extends AIService {
      * When adding a new article AI tool, classify it here first. Prefer CHAT_ONLY unless the tool clearly needs
      * previous tool results to iterate on text.
      */
-    private ToolContextPolicy getToolContextPolicy(String tool) {
+    ToolContextPolicy getToolContextPolicy(String tool) {
         if (Objects.equals(tool, "publishCheck")
                 || Objects.equals(tool, "score")
                 || Objects.equals(tool, "seo")
@@ -280,7 +280,7 @@ public class AIChatService extends AIService {
         return ToolContextPolicy.FULL_CONVERSATION;
     }
 
-    private String truncateContext(String content) {
+    String truncateContext(String content) {
         if (content.length() <= 500) {
             return content;
         }
@@ -600,11 +600,11 @@ public class AIChatService extends AIService {
         return CONTINUABLE_FINISH_REASONS.contains(normalizeFinishReason(finishReason));
     }
 
-    private String normalizeFinishReason(String finishReason) {
+    String normalizeFinishReason(String finishReason) {
         return finishReason.trim().toLowerCase(Locale.ROOT);
     }
 
-    private String toProviderStreamErrorDetail(Object error) {
+    String toProviderStreamErrorDetail(Object error) {
         if (error instanceof Map) {
             Object message = ((Map<?, ?>) error).get("message");
             if (message != null && StringUtils.isNotEmpty(message.toString())) {
@@ -641,7 +641,7 @@ public class AIChatService extends AIService {
         }
     }
 
-    private String readErrorBody(InputStream is) throws IOException {
+    String readErrorBody(InputStream is) throws IOException {
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
             StringBuilder sb = new StringBuilder();
             String line;
@@ -693,7 +693,7 @@ public class AIChatService extends AIService {
         }
     }
 
-    private enum ToolContextPolicy {
+    enum ToolContextPolicy {
         FULL_CONVERSATION,
         CHAT_ONLY,
         NONE

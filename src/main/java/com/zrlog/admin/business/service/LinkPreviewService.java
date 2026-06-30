@@ -169,7 +169,7 @@ public class LinkPreviewService {
         }
     }
 
-    private String normalizeUserAgent(String userAgent) {
+    String normalizeUserAgent(String userAgent) {
         if (StringUtils.isEmpty(userAgent)) {
             return BROWSER_USER_AGENT;
         }
@@ -187,7 +187,7 @@ public class LinkPreviewService {
         }
     }
 
-    private LinkPreviewResponse parse(URI uri, String html) {
+    LinkPreviewResponse parse(URI uri, String html) {
         Document document = Jsoup.parse(html, uri.toString());
         LinkPreviewResponse response = emptyResponse(uri.toString());
         response.setDomain(uri.getHost());
@@ -218,7 +218,7 @@ public class LinkPreviewService {
         return response;
     }
 
-    private Optional<URI> normalizeSafeUri(String rawUrl) {
+    Optional<URI> normalizeSafeUri(String rawUrl) {
         if (StringUtils.isEmpty(rawUrl) || rawUrl.length() > MAX_URL_LENGTH) {
             return Optional.empty();
         }
@@ -265,7 +265,7 @@ public class LinkPreviewService {
         return true;
     }
 
-    private boolean isBlockedIpv4(byte[] bytes) {
+    boolean isBlockedIpv4(byte[] bytes) {
         int first = bytes[0] & 0xff;
         int second = bytes[1] & 0xff;
         return first == 0
@@ -278,7 +278,7 @@ public class LinkPreviewService {
                 || first >= 224;
     }
 
-    private boolean isBlockedIpv6(byte[] bytes) {
+    boolean isBlockedIpv6(byte[] bytes) {
         int first = bytes[0] & 0xff;
         int second = bytes[1] & 0xff;
         return (first & 0xfe) == 0xfc
@@ -305,7 +305,7 @@ public class LinkPreviewService {
         return true;
     }
 
-    private String readLimited(InputStream inputStream) throws IOException {
+    String readLimited(InputStream inputStream) throws IOException {
         try (InputStream in = inputStream; ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
             byte[] buffer = new byte[8192];
             int total = 0;
@@ -321,7 +321,7 @@ public class LinkPreviewService {
         }
     }
 
-    private String resolveUri(URI baseUri, String value) {
+    String resolveUri(URI baseUri, String value) {
         if (StringUtils.isEmpty(value)) {
             return "";
         }
@@ -377,7 +377,7 @@ public class LinkPreviewService {
         return "";
     }
 
-    private LinkPreviewResponse emptyResponse(String url) {
+    LinkPreviewResponse emptyResponse(String url) {
         LinkPreviewResponse response = new LinkPreviewResponse();
         response.setUrl(Objects.requireNonNullElse(url, ""));
         response.setTitle("");

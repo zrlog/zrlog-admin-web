@@ -85,7 +85,7 @@ public class AdminDashboardService {
         return getConfig(httpRequest, adminTokenVO, true);
     }
 
-    private List<AdminDashboardCardResponse> toCardResponses(List<AdminDashboardCardRequest> requestCards) {
+    List<AdminDashboardCardResponse> toCardResponses(List<AdminDashboardCardRequest> requestCards) {
         List<AdminDashboardCardResponse> cards = new ArrayList<>();
         if (requestCards == null) {
             return cards;
@@ -109,7 +109,7 @@ public class AdminDashboardService {
         return cards;
     }
 
-    private void fillRefreshConfig(AdminDashboardConfigResponse target, AdminDashboardConfigResponse source) {
+    void fillRefreshConfig(AdminDashboardConfigResponse target, AdminDashboardConfigResponse source) {
         target.setAutoRefreshEnabled(Objects.equals(source.getAutoRefreshEnabled(), true));
         Integer interval = source.getAutoRefreshIntervalSeconds();
         target.setAutoRefreshIntervalSeconds(interval == null || interval < MIN_AUTO_REFRESH_INTERVAL_SECONDS
@@ -117,7 +117,7 @@ public class AdminDashboardService {
                 : interval);
     }
 
-    private void fillRefreshConfig(AdminDashboardConfigResponse target, AdminDashboardConfigRequest source) {
+    void fillRefreshConfig(AdminDashboardConfigResponse target, AdminDashboardConfigRequest source) {
         target.setAutoRefreshEnabled(Objects.equals(source.getAutoRefreshEnabled(), true));
         Integer interval = source.getAutoRefreshIntervalSeconds();
         target.setAutoRefreshIntervalSeconds(interval == null || interval < MIN_AUTO_REFRESH_INTERVAL_SECONDS
@@ -139,7 +139,7 @@ public class AdminDashboardService {
         }
     }
 
-    private List<AdminDashboardCardConfigResponse> mergeCards(List<AdminDashboardCardConfigResponse> savedCards) {
+    List<AdminDashboardCardConfigResponse> mergeCards(List<AdminDashboardCardConfigResponse> savedCards) {
         Map<String, AdminDashboardCardConfigResponse> savedMap = new HashMap<>();
         if (savedCards != null) {
             for (AdminDashboardCardConfigResponse card : savedCards) {
@@ -163,8 +163,8 @@ public class AdminDashboardService {
         return cards;
     }
 
-    private List<AdminDashboardCardResponse> mergePluginPanels(List<AdminDashboardCardResponse> savedPanels,
-                                                               List<AdminDashboardCardResponse> standardPanels) {
+    List<AdminDashboardCardResponse> mergePluginPanels(List<AdminDashboardCardResponse> savedPanels,
+                                                       List<AdminDashboardCardResponse> standardPanels) {
         Map<String, AdminDashboardCardResponse> panels = new LinkedHashMap<>();
         for (AdminDashboardCardResponse panel : standardPanels) {
             panels.put(panel.getId(), panel);
@@ -188,7 +188,7 @@ public class AdminDashboardService {
         return panelList;
     }
 
-    private void clearRuntimeData(List<AdminDashboardCardResponse> items) {
+    void clearRuntimeData(List<AdminDashboardCardResponse> items) {
         if (items != null) {
             for (AdminDashboardCardResponse item : items) {
                 item.setData(null);
@@ -198,8 +198,8 @@ public class AdminDashboardService {
         }
     }
 
-    private List<AdminDashboardCardResponse> toItems(List<AdminDashboardCardConfigResponse> cards,
-                                                     List<AdminDashboardCardResponse> panels) {
+    List<AdminDashboardCardResponse> toItems(List<AdminDashboardCardConfigResponse> cards,
+                                             List<AdminDashboardCardResponse> panels) {
         List<AdminDashboardCardResponse> items = new ArrayList<>();
         for (AdminDashboardCardConfigResponse card : cards) {
             AdminDashboardCardResponse item = new AdminDashboardCardResponse();
@@ -220,7 +220,7 @@ public class AdminDashboardService {
         return items;
     }
 
-    private List<AdminDashboardCardConfigResponse> extractCardItems(List<AdminDashboardCardResponse> items) {
+    List<AdminDashboardCardConfigResponse> extractCardItems(List<AdminDashboardCardResponse> items) {
         List<AdminDashboardCardConfigResponse> cards = new ArrayList<>();
         if (items == null) {
             return cards;
@@ -240,7 +240,7 @@ public class AdminDashboardService {
         return cards;
     }
 
-    private List<AdminDashboardCardResponse> extractPluginItems(List<AdminDashboardCardResponse> items) {
+    List<AdminDashboardCardResponse> extractPluginItems(List<AdminDashboardCardResponse> items) {
         List<AdminDashboardCardResponse> panels = new ArrayList<>();
         if (items == null) {
             return panels;
@@ -453,7 +453,7 @@ public class AdminDashboardService {
         return trimmed.isEmpty() ? null : trimmed;
     }
 
-    private static String normalizePluginName(String pluginName) {
+    static String normalizePluginName(String pluginName) {
         String value = trimToNull(pluginName);
         if (StringUtils.isEmpty(value)) {
             return null;
@@ -461,7 +461,7 @@ public class AdminDashboardService {
         return PLUGIN_NAME_PATTERN.matcher(value).matches() ? value : null;
     }
 
-    private static String normalizePluginContextPath(String value) {
+    static String normalizePluginContextPath(String value) {
         String path = trimToNull(value);
         if (StringUtils.isEmpty(path) || !path.startsWith("/") || path.startsWith("//")) {
             return null;
@@ -477,7 +477,7 @@ public class AdminDashboardService {
         }
     }
 
-    private static String normalizePluginViewUrl(String value) {
+    static String normalizePluginViewUrl(String value) {
         String viewUrl = trimToNull(value);
         if (StringUtils.isEmpty(viewUrl) || viewUrl.startsWith("//")) {
             return null;
@@ -502,7 +502,7 @@ public class AdminDashboardService {
         }
     }
 
-    private static boolean hasParentPathSegment(String path) {
+    static boolean hasParentPathSegment(String path) {
         for (String segment : path.split("/")) {
             if (Objects.equals(segment, "..")) {
                 return true;
@@ -546,12 +546,12 @@ public class AdminDashboardService {
         return panels;
     }
 
-    private boolean hasSurfaceMetadata(Map<?, ?> plugin) {
+    boolean hasSurfaceMetadata(Map<?, ?> plugin) {
         return hasEntry(plugin.get("paths"), "surface") || hasEntry(plugin.get("actions"), "surface")
                 || hasEntry(plugin.get("paths"), "surfaceAction") || hasEntry(plugin.get("actions"), "surfaceAction");
     }
 
-    private boolean hasEntry(Object value, String target) {
+    boolean hasEntry(Object value, String target) {
         if (!(value instanceof List)) {
             return false;
         }
@@ -583,7 +583,7 @@ public class AdminDashboardService {
         }
     }
 
-    private static String pluginUrl(String pluginName, String action) {
+    static String pluginUrl(String pluginName, String action) {
         return "/admin/plugins/" + pluginName + "/" + action;
     }
 }

@@ -11,7 +11,6 @@ import com.zrlog.admin.business.rest.response.WebhookTokenResponse;
 import org.junit.Test;
 
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -28,21 +27,18 @@ public class WebhookServiceTest {
     @Test
     public void shouldNormalizeWebhookTaskKeys() throws Exception {
         WebhookService service = newService();
-        Method method = method("normalizeTaskKey", String.class);
 
-        assertEquals("server.webhook.message.job-1", method.invoke(service, " job-1 "));
-        assertEquals("server.custom.job", method.invoke(service, "server.custom.job"));
-        assertTrue(((String) method.invoke(service, new Object[]{null})).startsWith("server.webhook.message."));
+        assertEquals("server.webhook.message.job-1", service.normalizeTaskKey(" job-1 "));
+        assertEquals("server.custom.job", service.normalizeTaskKey("server.custom.job"));
+        assertTrue(service.normalizeTaskKey(null).startsWith("server.webhook.message."));
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     public void shouldTrimWebhookNoticesByUpdatedAtDescending() throws Exception {
         WebhookService service = newService();
-        Method method = method("trimNotices", List.class);
         List<WebhookMessageNoticeEntry> notices = notices(55);
 
-        List<WebhookMessageNoticeEntry> trimmed = (List<WebhookMessageNoticeEntry>) method.invoke(service, notices);
+        List<WebhookMessageNoticeEntry> trimmed = service.trimNotices(notices);
 
         assertEquals(50, trimmed.size());
         assertEquals(Long.valueOf(54), trimmed.get(0).getUpdatedAt());
@@ -50,13 +46,11 @@ public class WebhookServiceTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     public void shouldReturnSameWebhookNoticeListWhenNoTrimNeeded() throws Exception {
         WebhookService service = newService();
-        Method method = method("trimNotices", List.class);
         List<WebhookMessageNoticeEntry> notices = notices(2);
 
-        List<WebhookMessageNoticeEntry> trimmed = (List<WebhookMessageNoticeEntry>) method.invoke(service, notices);
+        List<WebhookMessageNoticeEntry> trimmed = service.trimNotices(notices);
 
         assertSame(notices, trimmed);
         assertEquals(Long.valueOf(1), trimmed.get(0).getUpdatedAt());
@@ -66,7 +60,6 @@ public class WebhookServiceTest {
     @Test
     public void shouldBuildWebhookConfigResponse() throws Exception {
         WebhookService service = newService();
-        Method method = method("toConfigResponse", WebhookConfigEntry.class);
         WebhookConfigEntry disabled = new WebhookConfigEntry();
         WebhookConfigEntry enabled = new WebhookConfigEntry();
         enabled.setEnabled(true);
@@ -74,8 +67,8 @@ public class WebhookServiceTest {
         enabled.setTokenPreview("abcd...wxyz");
         enabled.setTokenUpdatedAt(123L);
 
-        WebhookConfigResponse disabledResponse = (WebhookConfigResponse) method.invoke(service, disabled);
-        WebhookConfigResponse enabledResponse = (WebhookConfigResponse) method.invoke(service, enabled);
+        WebhookConfigResponse disabledResponse = service.toConfigResponse(disabled);
+        WebhookConfigResponse enabledResponse = service.toConfigResponse(enabled);
 
         assertFalse(disabledResponse.getEnabled());
         assertFalse(disabledResponse.getHasToken());
@@ -90,13 +83,11 @@ public class WebhookServiceTest {
     @Test
     public void shouldPreviewAndHashWebhookTokens() throws Exception {
         WebhookService service = newService();
-        Method previewToken = method("previewToken", String.class);
-        Method sha256 = method("sha256", String.class);
 
-        assertEquals("12345678", previewToken.invoke(service, "12345678"));
-        assertEquals("abcd...ijkl", previewToken.invoke(service, "abcdefghijkl"));
+        assertEquals("12345678", service.previewToken("12345678"));
+        assertEquals("abcd...ijkl", service.previewToken("abcdefghijkl"));
         assertEquals("3c469e9d6c5875d37a43f353d4f88e61fcf812c66eee3457465a40b0da4153e0",
-                sha256.invoke(service, "token"));
+                service.sha256("token"));
     }
 
     @Test
@@ -187,12 +178,6 @@ public class WebhookServiceTest {
         setField(service, "cacheService", cacheService);
         setField(service, "messageCenterStateService", stateService);
         return service;
-    }
-
-    private static Method method(String name, Class<?>... parameterTypes) throws Exception {
-        Method method = WebhookService.class.getDeclaredMethod(name, parameterTypes);
-        method.setAccessible(true);
-        return method;
     }
 
     @SuppressWarnings("unchecked")

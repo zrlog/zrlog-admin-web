@@ -40,7 +40,7 @@ public class AdminCommentService {
         return new DeleteResponse(deleted);
     }
 
-    private List<Integer> parseCommentIds(String[] ids) {
+    List<Integer> parseCommentIds(String[] ids) {
         Set<Integer> idSet = new LinkedHashSet<>();
         for (String id : ids) {
             if (Objects.isNull(id)) {
@@ -55,7 +55,7 @@ public class AdminCommentService {
         return new ArrayList<>(idSet);
     }
 
-    private String placeholders(int size) {
+    String placeholders(int size) {
         StringJoiner sj = new StringJoiner(",");
         for (int i = 0; i < size; i++) {
             sj.add("?");

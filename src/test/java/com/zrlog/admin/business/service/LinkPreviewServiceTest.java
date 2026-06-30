@@ -6,7 +6,6 @@ import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.lang.reflect.Method;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpHeaders;
@@ -27,28 +26,25 @@ import static org.junit.Assert.assertTrue;
 public class LinkPreviewServiceTest {
 
     @Test
-    @SuppressWarnings("unchecked")
     public void shouldNormalizeOnlyHttpAndHttpsUrlsWithoutUserInfo() throws Exception {
         LinkPreviewService service = new LinkPreviewService();
-        Method method = method("normalizeSafeUri", String.class);
 
-        Optional<URI> normalized = (Optional<URI>) method.invoke(service, " https://example.com/a/../b?q=1 ");
+        Optional<URI> normalized = service.normalizeSafeUri(" https://example.com/a/../b?q=1 ");
 
         assertTrue(normalized.isPresent());
         assertEquals("https://example.com/b?q=1", normalized.get().toString());
-        assertTrue(((Optional<URI>) method.invoke(service, "http://example.com")).isPresent());
-        assertFalse(((Optional<URI>) method.invoke(service, "ftp://example.com/file")).isPresent());
-        assertFalse(((Optional<URI>) method.invoke(service, "https://user@example.com")).isPresent());
-        assertFalse(((Optional<URI>) method.invoke(service, "https:///missing-host")).isPresent());
-        assertFalse(((Optional<URI>) method.invoke(service, "https://exa mple.com")).isPresent());
-        assertFalse(((Optional<URI>) method.invoke(service, "")).isPresent());
-        assertFalse(((Optional<URI>) method.invoke(service, "https://example.com/" + "a".repeat(2049))).isPresent());
+        assertTrue(service.normalizeSafeUri("http://example.com").isPresent());
+        assertFalse(service.normalizeSafeUri("ftp://example.com/file").isPresent());
+        assertFalse(service.normalizeSafeUri("https://user@example.com").isPresent());
+        assertFalse(service.normalizeSafeUri("https:///missing-host").isPresent());
+        assertFalse(service.normalizeSafeUri("https://exa mple.com").isPresent());
+        assertFalse(service.normalizeSafeUri("").isPresent());
+        assertFalse(service.normalizeSafeUri("https://example.com/" + "a".repeat(2049)).isPresent());
     }
 
     @Test
     public void shouldParseOpenGraphAndTwitterMetadata() throws Exception {
         LinkPreviewService service = new LinkPreviewService();
-        Method method = method("parse", URI.class, String.class);
         String html = "<html><head>"
                 + "<meta property=\"og:title\" content=\"OG Title\">"
                 + "<meta property=\"og:description\" content=\"OG Description\">"
@@ -56,8 +52,7 @@ public class LinkPreviewServiceTest {
                 + "<meta property=\"og:site_name\" content=\"Example Site\">"
                 + "</head><body>content</body></html>";
 
-        LinkPreviewResponse response = (LinkPreviewResponse) method.invoke(service,
-                URI.create("https://example.com/posts/1"), html);
+        LinkPreviewResponse response = service.parse(URI.create("https://example.com/posts/1"), html);
 
         assertTrue(response.isAvailable());
         assertEquals("https://example.com/posts/1", response.getUrl());
@@ -71,15 +66,13 @@ public class LinkPreviewServiceTest {
     @Test
     public void shouldParseFallbackTitleDescriptionAndFavicon() throws Exception {
         LinkPreviewService service = new LinkPreviewService();
-        Method method = method("parse", URI.class, String.class);
         String html = "<html><head>"
                 + "<title>Document Title</title>"
                 + "<meta name=\"description\" content=\"Fallback description\">"
                 + "<link rel=\"shortcut icon\" href=\"../favicon.ico\">"
                 + "</head></html>";
 
-        LinkPreviewResponse response = (LinkPreviewResponse) method.invoke(service,
-                URI.create("https://example.com/posts/1"), html);
+        LinkPreviewResponse response = service.parse(URI.create("https://example.com/posts/1"), html);
 
         assertEquals("Document Title", response.getTitle());
         assertEquals("Fallback description", response.getDescription());
@@ -90,7 +83,6 @@ public class LinkPreviewServiceTest {
     @Test
     public void shouldPreferAppleTouchIconAndSkipEmptyIconLinks() throws Exception {
         LinkPreviewService service = new LinkPreviewService();
-        Method method = method("parse", URI.class, String.class);
         String html = "<html><head>"
                 + "<title>Icon Page</title>"
                 + "<link rel=\"icon\" href=\"\">"
@@ -98,8 +90,7 @@ public class LinkPreviewServiceTest {
                 + "<link rel=\"shortcut icon\" href=\"/favicon.png\">"
                 + "</head></html>";
 
-        LinkPreviewResponse response = (LinkPreviewResponse) method.invoke(service,
-                URI.create("https://example.com/posts/1"), html);
+        LinkPreviewResponse response = service.parse(URI.create("https://example.com/posts/1"), html);
 
         assertEquals("Icon Page", response.getTitle());
         assertEquals("https://example.com/apple.png", response.getImage());
@@ -108,11 +99,10 @@ public class LinkPreviewServiceTest {
     @Test
     public void shouldCleanUserAgentAndFallbackWhenMissing() throws Exception {
         LinkPreviewService service = new LinkPreviewService();
-        Method method = method("normalizeUserAgent", String.class);
 
-        String fallback = (String) method.invoke(service, new Object[]{null});
-        String cleaned = (String) method.invoke(service, " Browser\r\nInjected");
-        String trimmed = (String) method.invoke(service, "a".repeat(600));
+        String fallback = service.normalizeUserAgent(null);
+        String cleaned = service.normalizeUserAgent(" Browser\r\nInjected");
+        String trimmed = service.normalizeUserAgent("a".repeat(600));
 
         assertTrue(fallback.contains("Mozilla/5.0"));
         assertEquals("BrowserInjected", cleaned);
@@ -122,15 +112,14 @@ public class LinkPreviewServiceTest {
     @Test
     public void shouldResolveOnlyHttpImageUris() throws Exception {
         LinkPreviewService service = new LinkPreviewService();
-        Method method = method("resolveUri", URI.class, String.class);
         URI base = URI.create("https://example.com/post/page.html");
 
-        assertEquals("https://example.com/assets/card.png", method.invoke(service, base, "../assets/card.png"));
-        assertEquals("https://cdn.example.com/card.png", method.invoke(service, base, "//cdn.example.com/card.png"));
-        assertEquals("", method.invoke(service, base, "javascript:alert(1)"));
-        assertEquals("", method.invoke(service, base, "mailto:test@example.com"));
-        assertEquals("", method.invoke(service, base, "http://[bad"));
-        assertEquals("", method.invoke(service, base, ""));
+        assertEquals("https://example.com/assets/card.png", service.resolveUri(base, "../assets/card.png"));
+        assertEquals("https://cdn.example.com/card.png", service.resolveUri(base, "//cdn.example.com/card.png"));
+        assertEquals("", service.resolveUri(base, "javascript:alert(1)"));
+        assertEquals("", service.resolveUri(base, "mailto:test@example.com"));
+        assertEquals("", service.resolveUri(base, "http://[bad"));
+        assertEquals("", service.resolveUri(base, ""));
     }
 
     @Test
@@ -145,30 +134,25 @@ public class LinkPreviewServiceTest {
     @Test
     public void shouldDetectBlockedIpAddressRanges() throws Exception {
         LinkPreviewService service = new LinkPreviewService();
-        Method ipv4 = method("isBlockedIpv4", byte[].class);
-        Method ipv6 = method("isBlockedIpv6", byte[].class);
+        assertTrue(service.isBlockedIpv4(ipv4(10, 0, 0, 1)));
+        assertTrue(service.isBlockedIpv4(ipv4(100, 64, 0, 1)));
+        assertTrue(service.isBlockedIpv4(ipv4(192, 168, 1, 1)));
+        assertTrue(service.isBlockedIpv4(ipv4(224, 0, 0, 1)));
+        assertFalse(service.isBlockedIpv4(ipv4(8, 8, 8, 8)));
 
-        assertTrue((Boolean) ipv4.invoke(service, new Object[]{ipv4(10, 0, 0, 1)}));
-        assertTrue((Boolean) ipv4.invoke(service, new Object[]{ipv4(100, 64, 0, 1)}));
-        assertTrue((Boolean) ipv4.invoke(service, new Object[]{ipv4(192, 168, 1, 1)}));
-        assertTrue((Boolean) ipv4.invoke(service, new Object[]{ipv4(224, 0, 0, 1)}));
-        assertFalse((Boolean) ipv4.invoke(service, new Object[]{ipv4(8, 8, 8, 8)}));
-
-        assertTrue((Boolean) ipv6.invoke(service, new Object[]{ipv6(0, 0, 0, 0, 0, 0, 0, 1)}));
-        assertTrue((Boolean) ipv6.invoke(service, new Object[]{ipv6(0, 0, 0, 0, 0, 0, 0, 0)}));
-        assertTrue((Boolean) ipv6.invoke(service, new Object[]{ipv6(0xfc00, 0, 0, 0, 0, 0, 0, 1)}));
-        assertTrue((Boolean) ipv6.invoke(service, new Object[]{ipv6(0xfe80, 0, 0, 0, 0, 0, 0, 1)}));
-        assertFalse((Boolean) ipv6.invoke(service, new Object[]{ipv6(0x2001, 0x4860, 0x4860, 0, 0, 0, 0, 0x8888)}));
+        assertTrue(service.isBlockedIpv6(ipv6(0, 0, 0, 0, 0, 0, 0, 1)));
+        assertTrue(service.isBlockedIpv6(ipv6(0, 0, 0, 0, 0, 0, 0, 0)));
+        assertTrue(service.isBlockedIpv6(ipv6(0xfc00, 0, 0, 0, 0, 0, 0, 1)));
+        assertTrue(service.isBlockedIpv6(ipv6(0xfe80, 0, 0, 0, 0, 0, 0, 1)));
+        assertFalse(service.isBlockedIpv6(ipv6(0x2001, 0x4860, 0x4860, 0, 0, 0, 0, 0x8888)));
     }
 
     @Test
     public void shouldReadHtmlBodyWithinConfiguredLimit() throws Exception {
         LinkPreviewService service = new LinkPreviewService();
-        Method method = method("readLimited", java.io.InputStream.class);
         String html = "<html>" + "a".repeat(20_000) + "</html>";
 
-        String result = (String) method.invoke(service,
-                new ByteArrayInputStream(html.getBytes(StandardCharsets.UTF_8)));
+        String result = service.readLimited(new ByteArrayInputStream(html.getBytes(StandardCharsets.UTF_8)));
 
         assertEquals(html, result);
     }
@@ -176,11 +160,9 @@ public class LinkPreviewServiceTest {
     @Test
     public void shouldStopReadingHtmlBodyAfterConfiguredLimit() throws Exception {
         LinkPreviewService service = new LinkPreviewService();
-        Method method = method("readLimited", java.io.InputStream.class);
         String html = "<html>" + "a".repeat(300_000) + "</html>";
 
-        String result = (String) method.invoke(service,
-                new ByteArrayInputStream(html.getBytes(StandardCharsets.UTF_8)));
+        String result = service.readLimited(new ByteArrayInputStream(html.getBytes(StandardCharsets.UTF_8)));
 
         assertTrue(result.length() < html.length());
     }
@@ -317,9 +299,8 @@ public class LinkPreviewServiceTest {
     @Test
     public void shouldBuildEmptyResponseContract() throws Exception {
         LinkPreviewService service = new LinkPreviewService();
-        Method method = method("emptyResponse", String.class);
 
-        LinkPreviewResponse response = (LinkPreviewResponse) method.invoke(service, "https://example.com");
+        LinkPreviewResponse response = service.emptyResponse("https://example.com");
 
         assertEquals("https://example.com", response.getUrl());
         assertEquals("", response.getTitle());
@@ -344,12 +325,6 @@ public class LinkPreviewServiceTest {
         assertEquals(response, entry.getResponse());
         assertEquals(11L, entry.getExpiresAt());
         assertEquals(7L, entry.getAccessedAt());
-    }
-
-    private static Method method(String name, Class<?>... parameterTypes) throws Exception {
-        Method method = LinkPreviewService.class.getDeclaredMethod(name, parameterTypes);
-        method.setAccessible(true);
-        return method;
     }
 
     private static LinkPreviewService hostAllowedService(LinkPreviewService.HttpSender sender) {

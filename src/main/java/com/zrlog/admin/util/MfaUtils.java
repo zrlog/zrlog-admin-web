@@ -54,7 +54,7 @@ public class MfaUtils {
                 + "&period=" + TIME_STEP_SECONDS;
     }
 
-    private static String generateCode(String secret, long counter) {
+    static String generateCode(String secret, long counter) {
         byte[] secretBytes = base32Decode(secret);
         byte[] counterBytes = ByteBuffer.allocate(8).putLong(counter).array();
         try {

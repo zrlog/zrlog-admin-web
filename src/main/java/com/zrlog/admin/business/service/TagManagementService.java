@@ -119,8 +119,8 @@ public class TagManagementService {
         return response;
     }
 
-    private TagManagementArticleImpactResponse toImpact(Map<String, Object> row, String beforeKeywords,
-                                                        String afterKeywords) {
+    TagManagementArticleImpactResponse toImpact(Map<String, Object> row, String beforeKeywords,
+                                                String afterKeywords) {
         TagManagementArticleImpactResponse impact = new TagManagementArticleImpactResponse();
         Number logId = (Number) row.get("logId");
         impact.setId(logId == null ? null : logId.longValue());
@@ -130,7 +130,7 @@ public class TagManagementService {
         return impact;
     }
 
-    private List<String> parseTags(String keywords) {
+    List<String> parseTags(String keywords) {
         Set<String> tags = new LinkedHashSet<>();
         if (StringUtils.isEmpty(keywords)) {
             return new ArrayList<>();
@@ -144,7 +144,7 @@ public class TagManagementService {
         return new ArrayList<>(tags);
     }
 
-    private List<String> replaceTag(List<String> tags, String sourceTag, String targetTag, boolean remove) {
+    List<String> replaceTag(List<String> tags, String sourceTag, String targetTag, boolean remove) {
         Set<String> replaced = new LinkedHashSet<>();
         for (String tag : tags) {
             if (Objects.equals(tag, sourceTag)) {
@@ -158,11 +158,11 @@ public class TagManagementService {
         return new ArrayList<>(replaced);
     }
 
-    private String joinTags(List<String> tags) {
+    String joinTags(List<String> tags) {
         return String.join(",", tags);
     }
 
-    private String normalizeTag(String tag) {
+    String normalizeTag(String tag) {
         return Objects.requireNonNullElse(tag, "").trim();
     }
 }

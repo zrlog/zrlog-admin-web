@@ -119,7 +119,7 @@ public class ServerInfoUtils {
         return systemInfo;
     }
 
-    private static String formatFileSize(long fileS) {
+    static String formatFileSize(long fileS) {
         DecimalFormat df = new DecimalFormat("#.00");
         String fileSizeString;
         if (fileS < 1024) {
@@ -137,5 +137,4 @@ public class ServerInfoUtils {
     }
 
 }
-
 

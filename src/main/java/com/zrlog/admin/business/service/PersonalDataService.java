@@ -63,7 +63,7 @@ public class PersonalDataService {
         return response;
     }
 
-    private List<PersonalDataCommentExportResponse.CommentEntry> toCommentEntries(List<Map<String, Object>> rows) {
+    List<PersonalDataCommentExportResponse.CommentEntry> toCommentEntries(List<Map<String, Object>> rows) {
         List<PersonalDataCommentExportResponse.CommentEntry> entries = new ArrayList<>();
         for (Map<String, Object> row : rows) {
             PersonalDataCommentExportResponse.CommentEntry entry =
@@ -94,7 +94,7 @@ public class PersonalDataService {
         response.setAdminEmailMatched(equalsIgnoreCase(query, user.get("email")));
     }
 
-    private boolean equalsIgnoreCase(String query, Object value) {
+    boolean equalsIgnoreCase(String query, Object value) {
         if (!(value instanceof String)) {
             return false;
         }
@@ -105,21 +105,21 @@ public class PersonalDataService {
         return query.equalsIgnoreCase(text.trim());
     }
 
-    private long toLong(Object value) {
+    long toLong(Object value) {
         if (value instanceof Number) {
             return ((Number) value).longValue();
         }
         return 0;
     }
 
-    private String toString(Object value) {
+    String toString(Object value) {
         if (Objects.isNull(value)) {
             return "";
         }
         return String.valueOf(value);
     }
 
-    private String formatDate(Object value) {
+    String formatDate(Object value) {
         if (Objects.isNull(value)) {
             return "";
         }

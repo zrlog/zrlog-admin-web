@@ -7,7 +7,6 @@ import com.zrlog.admin.business.rest.response.AIResponseEntry;
 import com.zrlog.data.util.WebSiteUtils;
 import org.junit.Test;
 
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -35,10 +34,8 @@ public class WebSiteServiceTest {
         explicit.setArticle_publish_check_enabled(false);
         explicit.setArticle_cover_aspect_ratio("1:1");
 
-        ArticleEditWebSiteInfo normalizedInvalid = (ArticleEditWebSiteInfo) invoke(service,
-                "normalizeArticleEditWebSiteInfo", invalid);
-        ArticleEditWebSiteInfo normalizedExplicit = (ArticleEditWebSiteInfo) invoke(service,
-                "normalizeArticleEditWebSiteInfo", explicit);
+        ArticleEditWebSiteInfo normalizedInvalid = service.normalizeArticleEditWebSiteInfo(invalid);
+        ArticleEditWebSiteInfo normalizedExplicit = service.normalizeArticleEditWebSiteInfo(explicit);
 
         assertEquals(Long.valueOf(WebSiteUtils.DEFAULT_ARTICLE_DIGEST_LENGTH),
                 normalizedInvalid.getArticle_auto_digest_length());
@@ -60,7 +57,7 @@ public class WebSiteServiceTest {
         WebSiteService service = new WebSiteService();
         AIWebSiteInfoWithAIMessages info = new AIWebSiteInfoWithAIMessages();
 
-        invoke(service, "fillAiMessages", info, Map.of("ai_chat_message_7",
+        service.fillAiMessages(info, Map.of("ai_chat_message_7",
                 "[{\"role\":\"user\",\"content\":\"hello\",\"messageId\":\"m1\"}]"), "ai_chat_message_7");
 
         assertEquals(1, info.getAiMessages().size());
@@ -68,7 +65,7 @@ public class WebSiteServiceTest {
         assertEquals("hello", info.getAiMessages().get(0).getContent());
         assertEquals("m1", info.getAiMessages().get(0).getMessageId());
 
-        invoke(service, "fillAiMessages", info, Map.of(), "missing");
+        service.fillAiMessages(info, Map.of(), "missing");
         assertEquals(List.of(), info.getAiMessages());
     }
 
@@ -97,9 +94,9 @@ public class WebSiteServiceTest {
         request.setMarkdown("Markdown");
         request.setArticleVersion(3);
 
-        String content = (String) invoke(service, "buildArticleContextContent", request);
+        String content = service.buildArticleContextContent(request);
         AIResponseEntry.AIContentEntry.ArticleContextMeta meta =
-                (AIResponseEntry.AIContentEntry.ArticleContextMeta) invoke(service, "buildArticleContextMeta", request);
+                service.buildArticleContextMeta(request);
 
         assertTrue(content.startsWith("Article context snapshot."));
         assertTrue(content.contains("Article version: 3"));
@@ -121,34 +118,13 @@ public class WebSiteServiceTest {
         AIResponseEntry.AIContentEntry missing = new AIResponseEntry.AIContentEntry("assistant", "missing");
         List<AIResponseEntry.AIContentEntry> messages = List.of(existing, missing);
 
-        invoke(service, "fillMissingMessageIds", messages);
+        service.fillMissingMessageIds(messages);
 
         assertEquals("existing-id", existing.getMessageId());
         assertNotNull(missing.getMessageId());
         assertFalse(missing.getMessageId().isEmpty());
-        assertEquals("ai_chat_message_42", invokeStatic("buildCacheKey", 42L));
-        assertEquals("", invoke(service, "emptyToBlank", new Object[]{null}));
-        assertEquals("value", invoke(service, "emptyToBlank", "value"));
-    }
-
-    private static Object invoke(WebSiteService service, String name, Object... args) throws Exception {
-        Method method = findMethod(name, args.length);
-        method.setAccessible(true);
-        return method.invoke(service, args);
-    }
-
-    private static Object invokeStatic(String name, Object... args) throws Exception {
-        Method method = findMethod(name, args.length);
-        method.setAccessible(true);
-        return method.invoke(null, args);
-    }
-
-    private static Method findMethod(String name, int parameterCount) {
-        for (Method method : WebSiteService.class.getDeclaredMethods()) {
-            if (method.getName().equals(name) && method.getParameterCount() == parameterCount) {
-                return method;
-            }
-        }
-        throw new IllegalArgumentException("No method " + name);
+        assertEquals("ai_chat_message_42", WebSiteService.buildCacheKey(42L));
+        assertEquals("", service.emptyToBlank(null));
+        assertEquals("value", service.emptyToBlank("value"));
     }
 }

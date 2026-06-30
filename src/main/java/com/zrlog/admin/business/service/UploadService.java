@@ -81,7 +81,7 @@ public class UploadService {
         return getCloudUrl(uri, finalFilePath, request, adminTokenVO);
     }
 
-    private String normalizeExtension(String extension) {
+    String normalizeExtension(String extension) {
         return extension == null || extension.trim().isEmpty() ? "png" : extension;
     }
 

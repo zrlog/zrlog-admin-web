@@ -54,7 +54,7 @@ public class AdminStaticSiteProgress {
         return toMap(total, handled, handing, pending, retrying, List.of(siteType.name()));
     }
 
-    private static Map<String, Object> toMap(int total, int handled, int handing, int pending, int retrying, List<String> siteTypes) {
+    static Map<String, Object> toMap(int total, int handled, int handing, int pending, int retrying, List<String> siteTypes) {
         return Map.of(
                 "total", total,
                 "handled", handled,

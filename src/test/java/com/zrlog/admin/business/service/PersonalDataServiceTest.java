@@ -6,7 +6,6 @@ import com.zrlog.admin.business.rest.response.PersonalDataPreviewResponse;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import org.junit.Test;
 
-import java.lang.reflect.Method;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -20,10 +19,8 @@ import static org.junit.Assert.assertTrue;
 public class PersonalDataServiceTest {
 
     @Test
-    @SuppressWarnings("unchecked")
     public void shouldConvertCommentRowsToExportEntries() throws Exception {
         PersonalDataService service = new PersonalDataService();
-        Method method = method("toCommentEntries", List.class);
         Map<String, Object> row = new HashMap<>();
         row.put("id", 9L);
         row.put("userComment", "hello");
@@ -38,7 +35,7 @@ public class PersonalDataServiceTest {
         rows.add(new HashMap<>());
 
         List<PersonalDataCommentExportResponse.CommentEntry> entries =
-                (List<PersonalDataCommentExportResponse.CommentEntry>) method.invoke(service, rows);
+                service.toCommentEntries(rows);
 
         assertEquals(2, entries.size());
         PersonalDataCommentExportResponse.CommentEntry entry = entries.get(0);
@@ -61,21 +58,17 @@ public class PersonalDataServiceTest {
     @Test
     public void shouldConvertHelperValuesSafely() throws Exception {
         PersonalDataService service = new PersonalDataService();
-        Method toLong = method("toLong", Object.class);
-        Method toString = method("toString", Object.class);
-        Method formatDate = method("formatDate", Object.class);
-        Method equalsIgnoreCase = method("equalsIgnoreCase", String.class, Object.class);
 
-        assertEquals(7L, toLong.invoke(service, 7));
-        assertEquals(0L, toLong.invoke(service, "7"));
-        assertEquals("", toString.invoke(service, new Object[]{null}));
-        assertEquals("42", toString.invoke(service, 42));
-        assertEquals("", formatDate.invoke(service, new Object[]{null}));
+        assertEquals(7L, service.toLong(7));
+        assertEquals(0L, service.toLong("7"));
+        assertEquals("", service.toString(null));
+        assertEquals("42", service.toString(42));
+        assertEquals("", service.formatDate(null));
         assertEquals("2024-01-02 03:04:05",
-                formatDate.invoke(service, Timestamp.valueOf("2024-01-02 03:04:05")));
-        assertTrue((Boolean) equalsIgnoreCase.invoke(service, "Admin", " admin "));
-        assertFalse((Boolean) equalsIgnoreCase.invoke(service, "Admin", ""));
-        assertFalse((Boolean) equalsIgnoreCase.invoke(service, "Admin", 1));
+                service.formatDate(Timestamp.valueOf("2024-01-02 03:04:05")));
+        assertTrue(service.equalsIgnoreCase("Admin", " admin "));
+        assertFalse(service.equalsIgnoreCase("Admin", ""));
+        assertFalse(service.equalsIgnoreCase("Admin", 1));
     }
 
     @Test
@@ -117,12 +110,6 @@ public class PersonalDataServiceTest {
             assertEquals(2L, export.getComments().get(0).getLogId());
             assertEquals("2024-02-01 10:00:00", export.getComments().get(1).getCommTime());
         }
-    }
-
-    private static Method method(String name, Class<?>... parameterTypes) throws Exception {
-        Method method = PersonalDataService.class.getDeclaredMethod(name, parameterTypes);
-        method.setAccessible(true);
-        return method;
     }
 
     private static PersonalDataPreviewRequest request(String query) {

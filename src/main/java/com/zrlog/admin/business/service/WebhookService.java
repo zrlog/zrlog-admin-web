@@ -150,7 +150,7 @@ public class WebhookService {
         cacheService.putJson(CONFIG_KEY, config);
     }
 
-    private WebhookConfigResponse toConfigResponse(WebhookConfigEntry config) {
+    WebhookConfigResponse toConfigResponse(WebhookConfigEntry config) {
         WebhookConfigResponse response = new WebhookConfigResponse();
         response.setEnabled(Objects.equals(Boolean.TRUE, config.getEnabled()));
         response.setHasToken(StringUtils.isNotEmpty(config.getTokenHash()));
@@ -170,7 +170,7 @@ public class WebhookService {
         cacheService.putJson(MESSAGE_CENTER_NOTICE_KEY, notices);
     }
 
-    private List<WebhookMessageNoticeEntry> trimNotices(List<WebhookMessageNoticeEntry> notices) {
+    List<WebhookMessageNoticeEntry> trimNotices(List<WebhookMessageNoticeEntry> notices) {
         notices.sort(Comparator.comparing(WebhookMessageNoticeEntry::getUpdatedAt,
                 Comparator.nullsLast(Comparator.reverseOrder())));
         if (notices.size() <= MAX_NOTICE_COUNT) {
@@ -179,7 +179,7 @@ public class WebhookService {
         return new ArrayList<>(notices.subList(0, MAX_NOTICE_COUNT));
     }
 
-    private String normalizeTaskKey(String taskKey) {
+    String normalizeTaskKey(String taskKey) {
         String key = StringUtils.isEmpty(taskKey) ? UUID.randomUUID().toString() : taskKey.trim();
         if (key.startsWith("server.")) {
             return key;
@@ -193,14 +193,14 @@ public class WebhookService {
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
-    private String previewToken(String token) {
+    String previewToken(String token) {
         if (token.length() <= 8) {
             return token;
         }
         return token.substring(0, 4) + "..." + token.substring(token.length() - 4);
     }
 
-    private String sha256(String token) {
+    String sha256(String token) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] hash = digest.digest(token.getBytes(StandardCharsets.UTF_8));

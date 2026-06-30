@@ -114,7 +114,7 @@ public class AdminNativeImageUtils {
     }
 
 
-    private static List<String> getResources(AdminResource adminResource) {
+    static List<String> getResources(AdminResource adminResource) {
         List<String> resourceUris = new ArrayList<>(adminResource.getAdminStaticResourceUris());
         resourceUris.add("/assets/admin/images/default-portrait.gif");
         resourceUris.add(AdminConstants.ADMIN_HTML_PAGE);

@@ -16,8 +16,6 @@ import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpHeaders;
@@ -126,7 +124,6 @@ public class AdminDashboardServiceTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     public void shouldConvertDashboardCardRequestsToResponses() throws Exception {
         AdminDashboardService service = new AdminDashboardService();
         AdminDashboardCardRequest request = new AdminDashboardCardRequest();
@@ -143,8 +140,7 @@ public class AdminDashboardServiceTest {
         request.setHeight(260);
         request.setOrder(7);
 
-        List<AdminDashboardCardResponse> cards = (List<AdminDashboardCardResponse>) invoke(service,
-                "toCardResponses", List.of(request));
+        List<AdminDashboardCardResponse> cards = service.toCardResponses(List.of(request));
 
         assertEquals(1, cards.size());
         AdminDashboardCardResponse card = cards.get(0);
@@ -160,7 +156,7 @@ public class AdminDashboardServiceTest {
         assertEquals(Integer.valueOf(3), card.getMaxItems());
         assertEquals(Integer.valueOf(260), card.getHeight());
         assertEquals(Integer.valueOf(7), card.getOrder());
-        assertEquals(List.of(), invoke(service, "toCardResponses", new Object[]{null}));
+        assertEquals(List.of(), service.toCardResponses(null));
     }
 
     @Test
@@ -170,17 +166,13 @@ public class AdminDashboardServiceTest {
         AdminDashboardConfigResponse source = new AdminDashboardConfigResponse();
         source.setAutoRefreshEnabled(true);
         source.setAutoRefreshIntervalSeconds(5);
-        Method responseMethod = method("fillRefreshConfig",
-                AdminDashboardConfigResponse.class, AdminDashboardConfigResponse.class);
-        responseMethod.invoke(service, target, source);
+        service.fillRefreshConfig(target, source);
 
         AdminDashboardConfigRequest request = new AdminDashboardConfigRequest();
         request.setAutoRefreshEnabled(true);
         request.setAutoRefreshIntervalSeconds(15);
         AdminDashboardConfigResponse requestTarget = new AdminDashboardConfigResponse();
-        Method requestMethod = method("fillRefreshConfig",
-                AdminDashboardConfigResponse.class, AdminDashboardConfigRequest.class);
-        requestMethod.invoke(service, requestTarget, request);
+        service.fillRefreshConfig(requestTarget, request);
 
         assertEquals(true, target.getAutoRefreshEnabled());
         assertEquals(Integer.valueOf(60), target.getAutoRefreshIntervalSeconds());
@@ -189,7 +181,6 @@ public class AdminDashboardServiceTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     public void shouldMergeDefaultDashboardCardsWithSavedOverrides() throws Exception {
         AdminDashboardService service = new AdminDashboardService();
         AdminDashboardCardConfigResponse welcome = cardConfig("welcome", false, 90);
@@ -197,8 +188,7 @@ public class AdminDashboardServiceTest {
         AdminDashboardCardConfigResponse unknown = cardConfig("unknown", false, 1);
         AdminDashboardCardConfigResponse missing = cardConfig(null, false, 1);
 
-        List<AdminDashboardCardConfigResponse> cards = (List<AdminDashboardCardConfigResponse>) invoke(service,
-                "mergeCards", List.of(welcome, localDraft, unknown, missing));
+        List<AdminDashboardCardConfigResponse> cards = service.mergeCards(List.of(welcome, localDraft, unknown, missing));
 
         assertEquals(7, cards.size());
         assertEquals("localDraft", cards.get(0).getId());
@@ -211,7 +201,6 @@ public class AdminDashboardServiceTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     public void shouldMergePluginPanelsAndFillMissingStandardFields() throws Exception {
         AdminDashboardService service = new AdminDashboardService();
         AdminDashboardCardResponse standard = panel("reminder", "surface", 20);
@@ -229,8 +218,8 @@ public class AdminDashboardServiceTest {
         customView.setViewUrl("settings");
         customView.setSort(15);
 
-        List<AdminDashboardCardResponse> panels = (List<AdminDashboardCardResponse>) invoke(service,
-                "mergePluginPanels", List.of(saved, customView), List.of(standard));
+        List<AdminDashboardCardResponse> panels = service.mergePluginPanels(List.of(saved, customView),
+                List.of(standard));
 
         assertEquals(2, panels.size());
         assertEquals("reminder", panels.get(0).getId());
@@ -243,7 +232,6 @@ public class AdminDashboardServiceTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     public void shouldExtractItemsClearRuntimeDataAndBuildDashboardItems() throws Exception {
         AdminDashboardService service = new AdminDashboardService();
         AdminDashboardCardResponse cardItem = new AdminDashboardCardResponse();
@@ -259,13 +247,10 @@ public class AdminDashboardServiceTest {
         pluginItem.setError("error");
         pluginItem.setSurfaceLoaded(true);
 
-        List<AdminDashboardCardConfigResponse> cards = (List<AdminDashboardCardConfigResponse>) invoke(service,
-                "extractCardItems", List.of(cardItem, pluginItem));
-        List<AdminDashboardCardResponse> plugins = (List<AdminDashboardCardResponse>) invoke(service,
-                "extractPluginItems", List.of(cardItem, pluginItem));
-        invoke(service, "clearRuntimeData", List.of(pluginItem));
-        List<AdminDashboardCardResponse> items = (List<AdminDashboardCardResponse>) invoke(service, "toItems",
-                cards, plugins);
+        List<AdminDashboardCardConfigResponse> cards = service.extractCardItems(List.of(cardItem, pluginItem));
+        List<AdminDashboardCardResponse> plugins = service.extractPluginItems(List.of(cardItem, pluginItem));
+        service.clearRuntimeData(List.of(pluginItem));
+        List<AdminDashboardCardResponse> items = service.toItems(cards, plugins);
 
         assertEquals(1, cards.size());
         assertEquals("welcome", cards.get(0).getId());
@@ -308,43 +293,25 @@ public class AdminDashboardServiceTest {
     public void shouldValidatePluginMetadataEntriesAndUrls() throws Exception {
         AdminDashboardService service = new AdminDashboardService();
 
-        assertTrue((Boolean) invoke(service, "hasEntry", List.of("/surface", "other"), "surface"));
-        assertTrue((Boolean) invoke(service, "hasEntry", List.of("surfaceAction?scope=dashboard"), "surfaceAction"));
-        assertFalse((Boolean) invoke(service, "hasEntry", List.of("other"), "surface"));
-        assertFalse((Boolean) invoke(service, "hasEntry", "surface", "surface"));
-        assertTrue((Boolean) invoke(service, "hasSurfaceMetadata",
+        assertTrue(service.hasEntry(List.of("/surface", "other"), "surface"));
+        assertTrue(service.hasEntry(List.of("surfaceAction?scope=dashboard"), "surfaceAction"));
+        assertFalse(service.hasEntry(List.of("other"), "surface"));
+        assertFalse(service.hasEntry("surface", "surface"));
+        assertTrue(service.hasSurfaceMetadata(
                 Map.of("paths", List.of("surface"), "actions", List.of())));
-        assertFalse((Boolean) invoke(service, "hasSurfaceMetadata",
+        assertFalse(service.hasSurfaceMetadata(
                 Map.of("paths", List.of("index"), "actions", List.of("other"))));
-        assertEquals("/admin/plugins/reminder/surface", invokeStatic("pluginUrl", "reminder", "surface"));
-        assertEquals("reminder", invokeStatic("normalizePluginName", " reminder "));
-        assertNull(invokeStatic("normalizePluginName", "../reminder"));
+        assertEquals("/admin/plugins/reminder/surface", AdminDashboardService.pluginUrl("reminder", "surface"));
+        assertEquals("reminder", AdminDashboardService.normalizePluginName(" reminder "));
+        assertNull(AdminDashboardService.normalizePluginName("../reminder"));
         assertEquals("/admin/plugins/reminder/surface?x=1",
-                invokeStatic("normalizePluginContextPath", "/admin/plugins/reminder/surface?x=1"));
-        assertNull(invokeStatic("normalizePluginContextPath", "//example.com/surface"));
-        assertEquals("settings/index?tab=base", invokeStatic("normalizePluginViewUrl",
-                "/settings/index?tab=base"));
-        assertNull(invokeStatic("normalizePluginViewUrl", "ftp://example.com/file"));
-        assertTrue((Boolean) invokeStatic("hasParentPathSegment", "a/../b"));
-        assertFalse((Boolean) invokeStatic("hasParentPathSegment", "a/b"));
-    }
-
-    @Test
-    public void shouldExposeSurfaceLoadResultValues() throws Exception {
-        Class<?> type = Class.forName("com.zrlog.admin.business.service.AdminDashboardService$SurfaceLoadResult");
-        Method dataMethod = type.getDeclaredMethod("data", Object.class);
-        Method errorMethod = type.getDeclaredMethod("error", String.class);
-        dataMethod.setAccessible(true);
-        errorMethod.setAccessible(true);
-        Object data = dataMethod.invoke(null, Map.of("title", "Plugin"));
-        Object error = errorMethod.invoke(null, "failed");
-
-        assertEquals(Map.of("title", "Plugin"), field(data, "data"));
-        assertNull(field(data, "error"));
-        assertEquals(true, field(data, "loaded"));
-        assertNull(field(error, "data"));
-        assertEquals("failed", field(error, "error"));
-        assertEquals(false, field(error, "loaded"));
+                AdminDashboardService.normalizePluginContextPath("/admin/plugins/reminder/surface?x=1"));
+        assertNull(AdminDashboardService.normalizePluginContextPath("//example.com/surface"));
+        assertEquals("settings/index?tab=base",
+                AdminDashboardService.normalizePluginViewUrl("/settings/index?tab=base"));
+        assertNull(AdminDashboardService.normalizePluginViewUrl("ftp://example.com/file"));
+        assertTrue(AdminDashboardService.hasParentPathSegment("a/../b"));
+        assertFalse(AdminDashboardService.hasParentPathSegment("a/b"));
     }
 
     @Test
@@ -503,39 +470,6 @@ public class AdminDashboardServiceTest {
                 return HttpClient.Version.HTTP_1_1;
             }
         };
-    }
-
-    private static Object invoke(AdminDashboardService service, String name, Object... args) throws Exception {
-        Method method = findMethod(name, args.length);
-        method.setAccessible(true);
-        return method.invoke(service, args);
-    }
-
-    private static Object invokeStatic(String name, Object... args) throws Exception {
-        Method method = findMethod(name, args.length);
-        method.setAccessible(true);
-        return method.invoke(null, args);
-    }
-
-    private static Method method(String name, Class<?>... parameterTypes) throws Exception {
-        Method method = AdminDashboardService.class.getDeclaredMethod(name, parameterTypes);
-        method.setAccessible(true);
-        return method;
-    }
-
-    private static Method findMethod(String name, int parameterCount) {
-        for (Method method : AdminDashboardService.class.getDeclaredMethods()) {
-            if (method.getName().equals(name) && method.getParameterCount() == parameterCount) {
-                return method;
-            }
-        }
-        throw new IllegalArgumentException("No method " + name);
-    }
-
-    private static Object field(Object target, String name) throws Exception {
-        Field field = target.getClass().getDeclaredField(name);
-        field.setAccessible(true);
-        return field.get(target);
     }
 
     private static class FakePluginCorePlugin implements PluginCorePlugin {

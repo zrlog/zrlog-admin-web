@@ -144,7 +144,7 @@ public class AIImageService extends AIService {
         throw new AIResponseException("image data has no b64_json or url");
     }
 
-    private String resolveImageRequestSize(String coverAspectRatio) {
+    String resolveImageRequestSize(String coverAspectRatio) {
         double ratio = parseAspectRatio(coverAspectRatio);
         if (Math.abs(ratio - 1D) < 0.01D) {
             return "1024x1024";
@@ -176,7 +176,7 @@ public class AIImageService extends AIService {
         return new ImageResult(response.body(), extension, toMimeType(extension, contentType));
     }
 
-    private String toExtension(String contentType, String url) {
+    String toExtension(String contentType, String url) {
         if (contentType.contains("jpeg") || contentType.contains("jpg")) {
             return "jpg";
         }
@@ -197,7 +197,7 @@ public class AIImageService extends AIService {
         return "png";
     }
 
-    private String toMimeType(String extension, String fallbackContentType) {
+    String toMimeType(String extension, String fallbackContentType) {
         if (StringUtils.isNotEmpty(fallbackContentType) && fallbackContentType.startsWith("image/")) {
             return fallbackContentType.split(";")[0];
         }
@@ -222,14 +222,14 @@ public class AIImageService extends AIService {
     }
 
 
-    private String truncate(String value, int maxLength) {
+    String truncate(String value, int maxLength) {
         if (value.length() <= maxLength) {
             return value;
         }
         return value.substring(0, maxLength);
     }
 
-    private DecodedImage decodeDataUrl(String dataUrl, String fallbackExtension) {
+    DecodedImage decodeDataUrl(String dataUrl, String fallbackExtension) {
         if (dataUrl.startsWith(AdminConstants.ADMIN_DB_ATTACHED_TMP)) {
             return new DecodedImage(new DbFileService().loadDbFile(dataUrl),
                     StringUtils.isNotEmpty(fallbackExtension) ? fallbackExtension : toExtension("", dataUrl));
@@ -261,9 +261,9 @@ public class AIImageService extends AIService {
         }
     }
 
-    private static class DecodedImage {
-        private final byte[] bytes;
-        private final String extension;
+    static class DecodedImage {
+        final byte[] bytes;
+        final String extension;
 
         private DecodedImage(byte[] bytes, String extension) {
             this.bytes = bytes;

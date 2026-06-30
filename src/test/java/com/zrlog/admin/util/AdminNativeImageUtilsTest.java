@@ -10,7 +10,6 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.io.InputStream;
-import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Set;
 import java.util.logging.Level;
@@ -39,12 +38,8 @@ public class AdminNativeImageUtilsTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     public void shouldBuildNativeImageResourceListFromAdminResource() throws Exception {
-        Method getResources = AdminNativeImageUtils.class.getDeclaredMethod("getResources", AdminResource.class);
-        getResources.setAccessible(true);
-
-        List<String> resources = (List<String>) getResources.invoke(null, new TestAdminResource(Set.of("/admin/static/app.js")));
+        List<String> resources = AdminNativeImageUtils.getResources(new TestAdminResource(Set.of("/admin/static/app.js")));
 
         assertTrue(resources.contains("/admin/static/app.js"));
         assertTrue(resources.contains(AdminConstants.ADMIN_HTML_PAGE));

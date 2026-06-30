@@ -5,7 +5,6 @@ import com.zrlog.admin.business.rest.response.MessageCenterStatusResponse;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import org.junit.Test;
 
-import java.lang.reflect.Method;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
@@ -18,9 +17,9 @@ public class MessageCenterStateServiceTest {
     public void shouldParseStoredStatusAndFallbackForInvalidValues() throws Exception {
         MessageCenterStateService service = new MessageCenterStateService();
 
-        MessageCenterStatusResponse empty = parseStatus(service, "");
-        MessageCenterStatusResponse invalid = parseStatus(service, "{bad-json");
-        MessageCenterStatusResponse parsed = parseStatus(service, "{\"revision\":42,\"hasUnread\":true}");
+        MessageCenterStatusResponse empty = service.parseStatus("");
+        MessageCenterStatusResponse invalid = service.parseStatus("{bad-json");
+        MessageCenterStatusResponse parsed = service.parseStatus("{\"revision\":42,\"hasUnread\":true}");
 
         assertEquals(0L, empty.getRevision());
         assertFalse(empty.isHasUnread());
@@ -34,13 +33,13 @@ public class MessageCenterStateServiceTest {
     public void shouldCompareStatusValues() throws Exception {
         MessageCenterStateService service = new MessageCenterStateService();
 
-        assertTrue(sameStatus(service,
+        assertTrue(service.sameStatus(
                 new MessageCenterStatusResponse(7L, true),
                 new MessageCenterStatusResponse(7L, true)));
-        assertFalse(sameStatus(service,
+        assertFalse(service.sameStatus(
                 new MessageCenterStatusResponse(7L, true),
                 new MessageCenterStatusResponse(8L, true)));
-        assertFalse(sameStatus(service,
+        assertFalse(service.sameStatus(
                 new MessageCenterStatusResponse(7L, true),
                 new MessageCenterStatusResponse(7L, false)));
     }
@@ -50,8 +49,8 @@ public class MessageCenterStateServiceTest {
         MessageCenterStateService service = new MessageCenterStateService();
         long now = System.currentTimeMillis();
 
-        long fromPast = nextRevision(service, now - 10_000);
-        long fromFuture = nextRevision(service, now + 10_000);
+        long fromPast = service.nextRevision(now - 10_000);
+        long fromFuture = service.nextRevision(now + 10_000);
 
         assertTrue(fromPast >= now);
         assertEquals(now + 10_001, fromFuture);
@@ -82,26 +81,5 @@ public class MessageCenterStateServiceTest {
             assertEquals(changed.isHasUnread(), unchanged.isHasUnread());
             assertEquals(unchanged.getRevision(), stored.getRevision());
         }
-    }
-
-    private static MessageCenterStatusResponse parseStatus(MessageCenterStateService service, String raw)
-            throws Exception {
-        Method method = MessageCenterStateService.class.getDeclaredMethod("parseStatus", String.class);
-        method.setAccessible(true);
-        return (MessageCenterStatusResponse) method.invoke(service, raw);
-    }
-
-    private static boolean sameStatus(MessageCenterStateService service, MessageCenterStatusResponse current,
-                                      MessageCenterStatusResponse next) throws Exception {
-        Method method = MessageCenterStateService.class.getDeclaredMethod(
-                "sameStatus", MessageCenterStatusResponse.class, MessageCenterStatusResponse.class);
-        method.setAccessible(true);
-        return (Boolean) method.invoke(service, current, next);
-    }
-
-    private static long nextRevision(MessageCenterStateService service, long currentRevision) throws Exception {
-        Method method = MessageCenterStateService.class.getDeclaredMethod("nextRevision", long.class);
-        method.setAccessible(true);
-        return (Long) method.invoke(service, currentRevision);
     }
 }

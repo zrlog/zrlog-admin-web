@@ -55,7 +55,7 @@ public class AdminAuditService {
         }
     }
 
-    private String sanitizeContent(AdminAuditAction action, String content) {
+    String sanitizeContent(AdminAuditAction action, String content) {
         if ("security".equals(action.getType())) {
             return "";
         }
@@ -75,7 +75,7 @@ public class AdminAuditService {
         return displayLogs;
     }
 
-    private Map<String, Object> toDisplayLog(Map<String, Object> log) {
+    Map<String, Object> toDisplayLog(Map<String, Object> log) {
         Map<String, Object> displayLog = new HashMap<>(log);
         Object action = log.get("action");
         AdminAuditAction auditAction = toAuditAction(action);
@@ -90,7 +90,7 @@ public class AdminAuditService {
         return displayLog;
     }
 
-    private List<Map<String, Object>> readLogs(String json) {
+    List<Map<String, Object>> readLogs(String json) {
         if (StringUtils.isEmpty(json)) {
             return new ArrayList<>();
         }
@@ -115,7 +115,7 @@ public class AdminAuditService {
         }
     }
 
-    private AdminAuditAction toAuditAction(Object action) {
+    AdminAuditAction toAuditAction(Object action) {
         if (!(action instanceof String)) {
             return null;
         }

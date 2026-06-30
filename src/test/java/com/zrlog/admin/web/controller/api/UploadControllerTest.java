@@ -17,7 +17,6 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -101,15 +100,13 @@ public class UploadControllerTest {
         File file = temporaryFolder.newFile("cover.png");
         Files.writeString(file.toPath(), "image", StandardCharsets.UTF_8);
         UploadController controller = new UploadController();
-        Method method = UploadController.class.getDeclaredMethod("normalizeTemporaryDir", String.class);
-        method.setAccessible(true);
 
-        assertEquals("/", method.invoke(controller, AdminConstants.ADMIN_DB_ATTACHED_TMP));
-        assertEquals("/", method.invoke(controller, AdminConstants.ADMIN_DB_ATTACHED_TMP + "/"));
-        assertEquals("/nested/path", method.invoke(controller, AdminConstants.ADMIN_DB_ATTACHED_TMP + "\\nested//path"));
-        assertNull(method.invoke(controller, "/attached/normal"));
-        assertNull(method.invoke(controller, AdminConstants.ADMIN_DB_ATTACHED_TMP + "/../escape"));
-        assertNull(method.invoke(controller, new Object[]{null}));
+        assertEquals("/", controller.normalizeTemporaryDir(AdminConstants.ADMIN_DB_ATTACHED_TMP));
+        assertEquals("/", controller.normalizeTemporaryDir(AdminConstants.ADMIN_DB_ATTACHED_TMP + "/"));
+        assertEquals("/nested/path", controller.normalizeTemporaryDir(AdminConstants.ADMIN_DB_ATTACHED_TMP + "\\nested//path"));
+        assertNull(controller.normalizeTemporaryDir("/attached/normal"));
+        assertNull(controller.normalizeTemporaryDir(AdminConstants.ADMIN_DB_ATTACHED_TMP + "/../escape"));
+        assertNull(controller.normalizeTemporaryDir(null));
     }
 
     @Test
@@ -117,18 +114,15 @@ public class UploadControllerTest {
         File file = temporaryFolder.newFile("cover.PNG");
         Files.writeString(file.toPath(), "image", StandardCharsets.UTF_8);
         UploadController controller = new UploadController();
-        Method method = UploadController.class.getDeclaredMethod("buildTemporaryUri", String.class, File.class);
-        method.setAccessible(true);
 
-        String rootUri = (String) method.invoke(controller, AdminConstants.ADMIN_DB_ATTACHED_TMP, file);
-        String nestedUri = (String) method.invoke(controller,
-                AdminConstants.ADMIN_DB_ATTACHED_TMP + "/article-cover", file);
+        String rootUri = controller.buildTemporaryUri(AdminConstants.ADMIN_DB_ATTACHED_TMP, file);
+        String nestedUri = controller.buildTemporaryUri(AdminConstants.ADMIN_DB_ATTACHED_TMP + "/article-cover", file);
 
         assertTrue(rootUri.startsWith(AdminConstants.ADMIN_DB_ATTACHED_TMP + "/"));
         assertTrue(rootUri.endsWith(".png"));
         assertTrue(nestedUri.startsWith(AdminConstants.ADMIN_DB_ATTACHED_TMP + "/article-cover/"));
         assertTrue(nestedUri.endsWith(".png"));
-        assertNull(method.invoke(controller, "/attached/normal", file));
+        assertNull(controller.buildTemporaryUri("/attached/normal", file));
     }
 
     private void withRootPath() throws Exception {

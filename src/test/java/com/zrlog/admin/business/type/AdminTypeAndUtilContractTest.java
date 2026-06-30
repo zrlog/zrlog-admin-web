@@ -1,29 +1,25 @@
-package com.zrlog.admin.business.type;
+package com.zrlog.admin.util;
 
-import com.hibegin.http.server.config.ServerConfig;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
+import com.hibegin.http.server.config.ServerConfig;
 import com.zrlog.admin.business.AdminConstants;
+import com.zrlog.admin.business.type.AdminAuditAction;
+import com.zrlog.admin.business.type.FileDirectoryAction;
+import com.zrlog.admin.business.type.FileEntryAccess;
+import com.zrlog.admin.business.type.FileEntryAction;
 import com.zrlog.admin.plugin.rest.response.UploadServiceResponseEntity;
-import com.zrlog.admin.util.AdminStaticSiteProgress;
-import com.zrlog.admin.util.AdminWebTools;
-import com.zrlog.admin.util.DevKit;
-import com.zrlog.admin.util.ServerInfo;
-import com.zrlog.admin.util.ServerInfoUtils;
-import com.zrlog.admin.util.SystemLoad;
-import com.zrlog.admin.util.UploadFileUtils;
 import com.zrlog.business.plugin.type.StaticSiteType;
 import org.junit.Test;
 
 import java.io.File;
-import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.HashMap;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -149,23 +145,16 @@ public class AdminTypeAndUtilContractTest {
 
     @Test
     public void shouldParseSystemLoadLines() throws Exception {
-        Method method = SystemLoad.class.getDeclaredMethod("parseLine", String.class);
-        method.setAccessible(true);
-
-        assertEquals("1.23, 0.50, 0.10", method.invoke(null,
+        assertEquals("1.23, 0.50, 0.10", SystemLoad.parseLine(
                 "up 1 day, load averages: 1.23, 0.50, 0.10"));
-        assertEquals("1.23, 0.50, 0.10", method.invoke(null,
+        assertEquals("1.23, 0.50, 0.10", SystemLoad.parseLine(
                 "load average: 1.23, 0.50, 0.10"));
-        assertEquals("---", method.invoke(null, "no load here"));
+        assertEquals("---", SystemLoad.parseLine("no load here"));
     }
 
     @Test
     public void shouldBuildStaticSiteProgressMap() throws Exception {
-        Method method = AdminStaticSiteProgress.class.getDeclaredMethod(
-                "toMap", int.class, int.class, int.class, int.class, int.class, List.class);
-        method.setAccessible(true);
-
-        Map<?, ?> map = (Map<?, ?>) method.invoke(null, 4, 1, 1, 1, 1, List.of(StaticSiteType.BLOG.name()));
+        Map<?, ?> map = AdminStaticSiteProgress.toMap(4, 1, 1, 1, 1, List.of(StaticSiteType.BLOG.name()));
 
         assertEquals(4, map.get("total"));
         assertEquals(1, map.get("handled"));
@@ -199,12 +188,10 @@ public class AdminTypeAndUtilContractTest {
         assertEquals("runtime", infos.get(2).getKey());
         assertEquals("VM - 21", infos.get(2).getValue());
 
-        Method method = ServerInfoUtils.class.getDeclaredMethod("formatFileSize", long.class);
-        method.setAccessible(true);
-        assertEquals(".00B", method.invoke(null, 0L));
-        assertEquals("1.00K", method.invoke(null, 1024L));
-        assertEquals("1.00M", method.invoke(null, 1024L * 1024));
-        assertEquals("1.00G", method.invoke(null, 1024L * 1024 * 1024));
+        assertEquals(".00B", ServerInfoUtils.formatFileSize(0L));
+        assertEquals("1.00K", ServerInfoUtils.formatFileSize(1024L));
+        assertEquals("1.00M", ServerInfoUtils.formatFileSize(1024L * 1024));
+        assertEquals("1.00G", ServerInfoUtils.formatFileSize(1024L * 1024 * 1024));
     }
 
     private static HttpRequest requestWithFile(File file) {

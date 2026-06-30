@@ -18,7 +18,7 @@ public class SystemLoad {
         return osName.contains("windows");
     }
 
-    private static String parseLine(String line) {
+    static String parseLine(String line) {
         String loadPattern = "load averages?: ([\\d.]+),? ([\\d.]+),? ([\\d.]+)";
         Pattern pattern = Pattern.compile(loadPattern);
         Matcher matcher = pattern.matcher(line);

@@ -41,8 +41,8 @@ import com.zrlog.admin.business.service.MfaService;
 import com.zrlog.admin.business.service.PersonalDataService;
 import com.zrlog.admin.business.service.TagManagementService;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
+import com.zrlog.admin.support.MfaTestCodeGenerator;
 import com.zrlog.admin.support.UploadFallbackZrLogConfig;
-import com.zrlog.admin.util.MfaUtils;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.business.rest.response.CheckVersionResponse;
 import com.zrlog.business.rest.response.PreCheckVersionResponse;
@@ -678,10 +678,7 @@ public class AdminControllerDelegationTest {
     }
 
     private static String currentCode(String secret) throws Exception {
-        Method method = MfaUtils.class.getDeclaredMethod("generateCode", String.class, long.class);
-        method.setAccessible(true);
-        long currentCounter = System.currentTimeMillis() / 1000 / 30;
-        return (String) method.invoke(null, secret, currentCounter);
+        return MfaTestCodeGenerator.currentCode(secret);
     }
 
     private static void insertPersonalComment(InMemoryZrLogDatabase db, int id, String comment, String mail,

@@ -81,7 +81,7 @@ public class WebSiteService {
         return normalizeArticleEditWebSiteInfo(articleEdit);
     }
 
-    private ArticleEditWebSiteInfo normalizeArticleEditWebSiteInfo(ArticleEditWebSiteInfo articleEdit) {
+    ArticleEditWebSiteInfo normalizeArticleEditWebSiteInfo(ArticleEditWebSiteInfo articleEdit) {
         if (Objects.isNull(articleEdit.getArticle_auto_digest_length()) || articleEdit.getArticle_auto_digest_length() <= 0) {
             articleEdit.setArticle_auto_digest_length(WebSiteUtils.DEFAULT_ARTICLE_DIGEST_LENGTH);
         }
@@ -110,7 +110,7 @@ public class WebSiteService {
     }
 
 
-    private static String buildCacheKey(Long articleId) {
+    static String buildCacheKey(Long articleId) {
         return "ai_chat_message_" + articleId;
     }
 
@@ -179,7 +179,7 @@ public class WebSiteService {
         return new ArticleEditorContext(ai, articleEdit);
     }
 
-    private void fillAiMessages(AIWebSiteInfoWithAIMessages info, Map<String, Object> map, String aiMessageKey) {
+    void fillAiMessages(AIWebSiteInfoWithAIMessages info, Map<String, Object> map, String aiMessageKey) {
         String messages = (String) map.get(aiMessageKey);
         if (StringUtils.isNotEmpty(messages)) {
             AIResponseEntry.AIContentEntry[] aiContentEntries = new Gson().fromJson(messages, AIResponseEntry.AIContentEntry[].class);
@@ -254,7 +254,7 @@ public class WebSiteService {
         }
     }
 
-    private AIResponseEntry.AIContentEntry.ArticleContextMeta buildArticleContextMeta(
+    AIResponseEntry.AIContentEntry.ArticleContextMeta buildArticleContextMeta(
             AddArticleAIContextRequest contextRequest) {
         AIResponseEntry.AIContentEntry.ArticleContextMeta meta =
                 new AIResponseEntry.AIContentEntry.ArticleContextMeta();
@@ -265,7 +265,7 @@ public class WebSiteService {
         return meta;
     }
 
-    private String buildArticleContextContent(AddArticleAIContextRequest contextRequest) {
+    String buildArticleContextContent(AddArticleAIContextRequest contextRequest) {
         StringBuilder sb = new StringBuilder();
         sb.append("Article context snapshot.\n");
         if (contextRequest.getArticleVersion() != null) {
@@ -278,11 +278,11 @@ public class WebSiteService {
         return sb.toString();
     }
 
-    private String emptyToBlank(String value) {
+    String emptyToBlank(String value) {
         return value == null ? "" : value;
     }
 
-    private void fillMissingMessageIds(List<AIResponseEntry.AIContentEntry> messages) {
+    void fillMissingMessageIds(List<AIResponseEntry.AIContentEntry> messages) {
         for (AIResponseEntry.AIContentEntry message : messages) {
             if (StringUtils.isEmpty(message.getMessageId())) {
                 message.setMessageId(UUID.randomUUID().toString());
