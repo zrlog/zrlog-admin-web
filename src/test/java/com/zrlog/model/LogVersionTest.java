@@ -7,7 +7,6 @@ import org.apache.commons.dbutils.QueryRunner;
 import org.apache.commons.dbutils.ResultSetHandler;
 import org.junit.Test;
 
-import java.lang.reflect.Field;
 import java.lang.reflect.Proxy;
 import java.sql.SQLException;
 import java.util.Arrays;
@@ -25,7 +24,7 @@ public class LogVersionTest {
     @Test
     public void shouldBuildSqlForArticleVersionWritesAndQueries() throws Exception {
         CapturingQueryRunner queryRunner = new CapturingQueryRunner();
-        Object previousDataSource = setDefaultDataSource(dataSource(queryRunner));
+        DataSourceWrapper previousDataSource = setDefaultDataSource(dataSource(queryRunner));
         try {
             LogVersion logVersion = new LogVersion();
             Date createdAt = new Date(1_000);
@@ -57,18 +56,14 @@ public class LogVersionTest {
         }
     }
 
-    private static Object setDefaultDataSource(DataSourceWrapper dataSource) throws Exception {
-        Field field = DAO.class.getDeclaredField("defaultDataSource");
-        field.setAccessible(true);
-        Object previous = field.get(null);
+    private static DataSourceWrapper setDefaultDataSource(DataSourceWrapper dataSource) {
+        DataSourceWrapper previous = DAO.getDefaultDataSource();
         DAO.setDs(dataSource);
         return previous;
     }
 
-    private static void restoreDefaultDataSource(Object previousDataSource) throws Exception {
-        Field field = DAO.class.getDeclaredField("defaultDataSource");
-        field.setAccessible(true);
-        field.set(null, previousDataSource);
+    private static void restoreDefaultDataSource(DataSourceWrapper previousDataSource) {
+        DAO.setDs(previousDataSource);
     }
 
     private static DataSourceWrapper dataSource(CapturingQueryRunner queryRunner) {
