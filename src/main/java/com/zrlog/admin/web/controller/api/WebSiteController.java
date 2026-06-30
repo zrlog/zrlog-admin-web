@@ -100,13 +100,26 @@ public class WebSiteController extends BaseController {
         Map<String, Object> requestMap = BeanUtil.convert(t, Map.class);
         if (Objects.nonNull(requestMap)) {
             for (Entry<String, Object> param : requestMap.entrySet()) {
-                new WebSite().updateByKV(param.getKey(), param.getValue());
+                new WebSite().updateByKV(param.getKey(), toWebsiteValue(param.getValue()));
             }
         }
         BaseDataInitVO dataInitVO = Constants.zrLogConfig.getCacheService().getInitData();
         if (Objects.nonNull(dataInitVO)) {
             dataInitVO.setWebSite(new WebSite().getPublicWebSite());
         }
+    }
+
+    private Object toWebsiteValue(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Number) {
+            double number = ((Number) value).doubleValue();
+            if (Double.isFinite(number) && Math.rint(number) == number) {
+                return Long.toString((long) number);
+            }
+        }
+        return value.toString();
     }
 
     private String getSettingAuditContent(Object t) {

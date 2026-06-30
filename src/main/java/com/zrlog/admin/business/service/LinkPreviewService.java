@@ -35,11 +35,24 @@ public class LinkPreviewService {
     private static final String BROWSER_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
             + "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
 
-    private final HttpClient client = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(3))
-            .followRedirects(HttpClient.Redirect.NEVER)
-            .version(HttpClient.Version.HTTP_1_1)
-            .build();
+    private final HttpSender httpSender;
+
+    public LinkPreviewService() {
+        this(defaultHttpSender());
+    }
+
+    LinkPreviewService(HttpSender httpSender) {
+        this.httpSender = httpSender;
+    }
+
+    private static HttpSender defaultHttpSender() {
+        HttpClient client = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(3))
+                .followRedirects(HttpClient.Redirect.NEVER)
+                .version(HttpClient.Version.HTTP_1_1)
+                .build();
+        return request -> client.send(request, HttpResponse.BodyHandlers.ofInputStream());
+    }
 
     public LinkPreviewResponse fetch(String rawUrl, String userAgent) {
         LinkPreviewResponse emptyResponse = emptyResponse(rawUrl);
@@ -117,7 +130,7 @@ public class LinkPreviewService {
                     .header("User-Agent", normalizeUserAgent(userAgent))
                     .GET()
                     .build();
-            HttpResponse<InputStream> httpResponse = client.send(request, HttpResponse.BodyHandlers.ofInputStream());
+            HttpResponse<InputStream> httpResponse = httpSender.send(request);
             int statusCode = httpResponse.statusCode();
             if (statusCode >= 300 && statusCode < 400) {
                 if (redirects >= MAX_REDIRECTS) {
@@ -224,7 +237,7 @@ public class LinkPreviewService {
         }
     }
 
-    private boolean isSafeHost(String host) throws IOException {
+    boolean isSafeHost(String host) throws IOException {
         if (StringUtils.isEmpty(host)) {
             return false;
         }
@@ -423,5 +436,10 @@ public class LinkPreviewService {
         public void setAccessedAt(long accessedAt) {
             this.accessedAt = accessedAt;
         }
+    }
+
+    @FunctionalInterface
+    interface HttpSender {
+        HttpResponse<InputStream> send(HttpRequest request) throws IOException, InterruptedException;
     }
 }

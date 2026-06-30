@@ -61,10 +61,30 @@ public class CreateLinkRequestTest {
     public void shouldStripHtmlFromLinkIcon() {
         CreateLinkRequest request = new CreateLinkRequest();
         request.setUrl("/about");
+        request.setAlt("<b>About</b><script>alert(1)</script>");
+        request.setLinkName("<i>Link</i><script>alert(1)</script>");
         request.setIcon("fa-link <img src=x onerror=alert(1)>");
         request.doClean();
+        assertEquals("<b>About</b>", request.getAlt());
+        assertEquals("<i>Link</i>", request.getLinkName());
         assertTrue(request.getIcon().contains("fa-link"));
         assertFalse(request.getIcon().contains("<"));
         assertFalse(request.getIcon().contains("onerror"));
+    }
+
+    @Test(expected = ArgsException.class)
+    public void shouldRejectMissingLinkUrl() {
+        CreateLinkRequest request = new CreateLinkRequest();
+        request.setLinkName("Docs");
+
+        request.doValid();
+    }
+
+    @Test(expected = ArgsException.class)
+    public void shouldRejectMissingLinkName() {
+        CreateLinkRequest request = new CreateLinkRequest();
+        request.setUrl("/docs");
+
+        request.doValid();
     }
 }

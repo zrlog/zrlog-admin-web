@@ -43,10 +43,28 @@ public class CreateNavRequestTest {
     public void shouldStripHtmlFromNavIcon() {
         CreateNavRequest request = new CreateNavRequest();
         request.setUrl("/archive");
+        request.setNavName("<b>Archive</b><script>alert(1)</script>");
         request.setIcon("fa-nav <svg onload=alert(1)></svg>");
         request.doClean();
+        assertEquals("Archive", request.getNavName());
         assertTrue(request.getIcon().contains("fa-nav"));
         assertFalse(request.getIcon().contains("<"));
         assertFalse(request.getIcon().contains("onload"));
+    }
+
+    @Test(expected = ArgsException.class)
+    public void shouldRejectMissingNavUrl() {
+        CreateNavRequest request = new CreateNavRequest();
+        request.setNavName("Archive");
+
+        request.doValid();
+    }
+
+    @Test(expected = ArgsException.class)
+    public void shouldRejectMissingNavName() {
+        CreateNavRequest request = new CreateNavRequest();
+        request.setUrl("/archive");
+
+        request.doValid();
     }
 }

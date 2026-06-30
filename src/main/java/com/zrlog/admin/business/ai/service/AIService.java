@@ -27,12 +27,20 @@ import java.util.stream.Collectors;
 
 public class AIService {
 
-    private final HttpClient client = HttpClient.newBuilder()
-            .version(HttpClient.Version.HTTP_1_1)
-            .connectTimeout(Duration.ofSeconds(30))
-            .build();
+    private final HttpClient client;
 
     protected final Gson gson = new Gson();
+
+    public AIService() {
+        this(HttpClient.newBuilder()
+                .version(HttpClient.Version.HTTP_1_1)
+                .connectTimeout(Duration.ofSeconds(30))
+                .build());
+    }
+
+    protected AIService(HttpClient client) {
+        this.client = client;
+    }
 
     protected HttpClient client() {
         return client;

@@ -21,12 +21,20 @@ import com.zrlog.common.exception.ArgsException;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.http.HttpClient;
 import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse;
 import java.sql.SQLException;
 import java.util.*;
 
 public class AIImageService extends AIService {
+
+    public AIImageService() {
+    }
+
+    AIImageService(HttpClient client) {
+        super(client);
+    }
 
     public GenerateArticleCoverResponse generateArticleCover(GenerateArticleFieldRequest generateRequest)
             throws IOException, InterruptedException, SQLException {

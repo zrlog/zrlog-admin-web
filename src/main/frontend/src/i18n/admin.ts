@@ -1206,7 +1206,7 @@ type WidenI18n<T> = {
 
 export type AdminI18nResource = WidenI18n<typeof zhCN>;
 
-const enUS = {
+const enUS: AdminI18nResource = {
     "goBack": "Back",
     "key": "Name",
     "value": "Value",
@@ -2404,7 +2404,7 @@ const enUS = {
     "offline": {
         "short": "Offline"
     }
-} satisfies AdminI18nResource;
+};
 
 const adminI18nResources: Record<AdminLang, AdminI18nResource> = {
     zh_CN: zhCN,

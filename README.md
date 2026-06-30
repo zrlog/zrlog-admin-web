@@ -79,6 +79,7 @@ sh shell/admin-static-page.sh
 
 ## 开发规则
 
+- 大功能、跨前后端改动和 AI 辅助开发必须遵守 [工程协作约定](docs/engineering-conventions.md)。
 - 前端可见文案必须维护在 `src/main/frontend/src/i18n/admin.ts`，详见 [i18n 规则](docs/i18n.md)。
 - 后台主题样式、圆角和链接颜色必须复用主题配置，详见 [前端主题规则](docs/frontend-theme.md)。
 - 后台 UI 调整必须使用真实页面验收，详见 [后台 UI 真实页面验收](docs/admin-ui-real-page-validation.md)。

@@ -10,6 +10,7 @@ import com.zrlog.admin.business.service.WebSiteService;
 import com.zrlog.common.exception.ArgsException;
 
 import java.io.IOException;
+import java.net.http.HttpClient;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -29,6 +30,13 @@ public class AIToolService extends AIService {
             Pattern.compile("!?\\[[^\\]]*]\\(([^)\\s]+)(?:\\s+[\"'][^\"']*[\"'])?\\)");
     private static final Pattern BARE_URL_PATTERN = Pattern.compile("\\bhttps?://[^\\s<>\"')]+",
             Pattern.CASE_INSENSITIVE);
+
+    public AIToolService() {
+    }
+
+    AIToolService(HttpClient client) {
+        super(client);
+    }
 
     public OptimizeWebsiteDescriptionResponse optimizeWebsiteDescription(OptimizeWebsiteDescriptionRequest optimizeRequest)
             throws IOException, InterruptedException {

@@ -34,6 +34,8 @@ import com.zrlog.util.ZrLogUtil;
 import org.jsoup.Jsoup;
 import org.jsoup.safety.Safelist;
 
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -223,8 +225,8 @@ public class AdminArticleService {
             String lastUpdateDate = obj.getLastUpdateDate();
             ArticleResponseEntry entry = BeanUtil.convert(obj, ArticleResponseEntry.class);
             entry.setUrl(getAccessUrl(entry, request));
-            entry.setLastUpdateDate(ResultValueConvertUtils.formatDate(lastUpdateDate, "yyyy-MM-dd"));
-            entry.setReleaseTime(ResultValueConvertUtils.formatDate(obj.getReleaseTime(), "yyyy-MM-dd"));
+            entry.setLastUpdateDate(formatDateValue(lastUpdateDate, "yyyy-MM-dd"));
+            entry.setReleaseTime(formatDateValue(obj.getReleaseTime(), "yyyy-MM-dd"));
             dataList.add(entry);
         }
         PageData<ArticleResponseEntry> pageData = new PageData<>();
@@ -405,7 +407,7 @@ public class AdminArticleService {
     }
 
     private LoadEditArticleResponse toResponse(ArticleBasicDTO log, HttpRequest request) {
-        Long lastUpdateDate = ResultValueConvertUtils.parseDate(log.getLastUpdateDate());
+        Long lastUpdateDate = parseDateValue(log.getLastUpdateDate());
         //remove convert error str
         log.setLastUpdateDate(null);
         LoadEditArticleResponse loadEditArticleResponse = BeanUtil.convert(log, LoadEditArticleResponse.class);
@@ -455,5 +457,47 @@ public class AdminArticleService {
             throw new NotFindDbEntryException();
         }
         return toResponse(log, request);
+    }
+
+    private static String formatDateValue(Object date, String format) {
+        Long time = parseDateValue(date);
+        if (Objects.isNull(time)) {
+            if (Objects.isNull(date)) {
+                return "";
+            }
+            return date.toString();
+        }
+        return new SimpleDateFormat(format).format(new Date(time));
+    }
+
+    private static Long parseDateValue(Object date) {
+        try {
+            return ResultValueConvertUtils.parseDate(date);
+        } catch (RuntimeException e) {
+            Long parsed = parseGsonDateString(date);
+            if (parsed != null) {
+                return parsed;
+            }
+            throw e;
+        }
+    }
+
+    private static Long parseGsonDateString(Object date) {
+        if (!(date instanceof String)) {
+            return null;
+        }
+        String value = ((String) date).replace('\u202f', ' ').replace('\u00a0', ' ');
+        List<DateFormat> formats = Arrays.asList(
+                DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.MEDIUM, Locale.getDefault()),
+                DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.MEDIUM, Locale.ENGLISH),
+                new SimpleDateFormat("MMM d, yyyy, h:mm:ss a", Locale.ENGLISH)
+        );
+        for (DateFormat format : formats) {
+            try {
+                return format.parse(value).getTime();
+            } catch (java.text.ParseException ignored) {
+            }
+        }
+        return null;
     }
 }

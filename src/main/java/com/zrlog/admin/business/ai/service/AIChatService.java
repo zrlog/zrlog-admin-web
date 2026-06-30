@@ -19,6 +19,7 @@ import com.zrlog.util.ThreadUtils;
 import com.zrlog.util.I18nUtil;
 
 import java.io.*;
+import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
@@ -37,6 +38,13 @@ public class AIChatService extends AIService {
     private static final Set<String> COMPLETE_FINISH_REASONS = Set.of("stop", "stop_sequence", "tool_calls", "function_call");
     private static final Set<String> CONTINUABLE_FINISH_REASONS = Set.of("length", "max_tokens",
             "max_output_tokens", "max_completion_tokens");
+
+    public AIChatService() {
+    }
+
+    AIChatService(HttpClient client) {
+        super(client);
+    }
 
     public AIStreamResponse startStreamResponse(String input, Long articleId)
             throws IOException, InterruptedException, SQLException {
@@ -68,7 +76,7 @@ public class AIChatService extends AIService {
             if (response.statusCode() != 200) {
                 String lastError = readErrorBody(response.body());
                 if (response.statusCode() == 503 && i < maxRetries - 1) {
-                    Thread.sleep((long) Math.pow(2, i + 1) * 1000);
+                    pauseBeforeStreamRetry(i);
                     continue;
                 }
                 return new AIStreamResponse(response.statusCode(), lastError, null);
@@ -386,7 +394,7 @@ public class AIChatService extends AIService {
             }
             String lastError = readErrorBody(response.body());
             if (response.statusCode() == 503 && i < maxRetries - 1) {
-                Thread.sleep((long) Math.pow(2, i + 1) * 1000);
+                pauseBeforeStreamRetry(i);
                 continue;
             }
             throw new AIRequestException(buildProviderErrorDetail(response.statusCode(), lastError));
@@ -404,6 +412,10 @@ public class AIChatService extends AIService {
                 "Continue exactly from where the previous response stopped. Do not repeat earlier content. "
                         + "Do not add a preface or summary."));
         return buildRequestBody(continuationMessages, info, true);
+    }
+
+    void pauseBeforeStreamRetry(int attempt) throws InterruptedException {
+        Thread.sleep((long) Math.pow(2, attempt + 1) * 1000);
     }
 
     List<AIResponseEntry.AIContentEntry> toProviderChatMessages(List<AIResponseEntry.AIContentEntry> messages,
