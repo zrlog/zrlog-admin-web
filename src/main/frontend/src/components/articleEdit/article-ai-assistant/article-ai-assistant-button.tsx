@@ -1,4 +1,4 @@
-import { Alert, App, Button, Drawer, Grid, Space, Tag, Typography } from "antd";
+import { Alert, App, Button, Collapse, Drawer, Grid, Space, Tag, Typography } from "antd";
 import { EyeOutlined } from "@ant-design/icons";
 import { FunctionComponent, useEffect, useMemo, useRef, useState } from "react";
 import { AIContent } from "@editor/dist/ai/AIContentItem";
@@ -378,12 +378,14 @@ export const useArticleAiAssistantConfig = ({
         baseContent: AIContent,
         content: string,
         thinking: boolean,
+        reasoningContent?: string,
         toolPayload?: AssistantToolPayload,
         messageId?: string
     ): ToolAwareAIContent => ({
         ...baseContent,
         content,
         thinking,
+        ...(reasoningContent ? { reasoningContent } : {}),
         ...(messageId ? { messageId } : {}),
         ...(toolPayload ? { tool: toolPayload.tool, payload: toolPayload.payload } : {}),
     });
@@ -557,6 +559,7 @@ export const useArticleAiAssistantConfig = ({
                                 assistantContent,
                                 currentContent,
                                 true,
+                                parsed.reasoningContent,
                                 parsed.toolPayload,
                                 parsed.messageId
                             ),
@@ -582,7 +585,14 @@ export const useArticleAiAssistantConfig = ({
             onAiMessagesChange?.([
                 ...baseContents,
                 userContent,
-                buildAssistantContent(assistantContent, currentContent, false, parsed.toolPayload, parsed.messageId),
+                buildAssistantContent(
+                    assistantContent,
+                    currentContent,
+                    false,
+                    parsed.reasoningContent,
+                    parsed.toolPayload,
+                    parsed.messageId
+                ),
             ]);
         } catch (e) {
             await showRequestError(e instanceof Error ? e.message : getRes().error.unknown);
@@ -741,6 +751,34 @@ export const useArticleAiAssistantConfig = ({
         );
     };
 
+    const renderReasoningProcess = (content: ToolAwareAIContent) => {
+        if (content.role !== "assistant" || !content.reasoningContent) {
+            return null;
+        }
+        return (
+            <div style={{ maxWidth: CHAT_CONTENT_MAX_WIDTH, marginBottom: 8 }}>
+                <Collapse
+                    size="small"
+                    ghost
+                    items={[
+                        {
+                            key: "reasoning",
+                            label: getRes().articleEdit.assistant.reasoningProcess,
+                            children: (
+                                <Typography.Paragraph
+                                    type="secondary"
+                                    style={{ whiteSpace: "pre-wrap", marginBottom: 0 }}
+                                >
+                                    {content.reasoningContent}
+                                </Typography.Paragraph>
+                            ),
+                        },
+                    ]}
+                />
+            </div>
+        );
+    };
+
     const renderArticleContextPreviewDrawer = () => {
         const drawerWidth = screens.lg ? 800 : screens.md ? 640 : "100%";
         const versionText =
@@ -821,6 +859,7 @@ export const useArticleAiAssistantConfig = ({
         }
         return (
             <>
+                {renderReasoningProcess(toolAwareContent)}
                 {messageTool && (
                     <Space style={{ display: "flex", justifyContent: "flex-end" }}>
                         <Tag color="processing">{getAssistantToolLabel(messageTool)}</Tag>

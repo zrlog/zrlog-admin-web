@@ -74,7 +74,14 @@ public class AIService {
         if (Objects.nonNull(info.getAi_max_completion_tokens()) && info.getAi_max_completion_tokens() > 0) {
             params.put(getMaxCompletionTokensParameter(info.getAi_provider()), info.getAi_max_completion_tokens());
         }
+        applyReasoningRequestParams(params, info);
         return gson.toJson(params);
+    }
+
+    private void applyReasoningRequestParams(Map<String, Object> params, AIWebSiteInfo info) {
+        if (Objects.equals(info.getAi_provider(), AIProviderType.QWEN)) {
+            params.put("enable_thinking", info.isReasoningEnabled());
+        }
     }
 
     private String getMaxCompletionTokensParameter(AIProviderType provider) {

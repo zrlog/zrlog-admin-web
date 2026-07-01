@@ -141,6 +141,7 @@ public class WebSiteControllerDatabaseTest {
                             "{\"ai_provider\":\"OPEN_AI\",\"ai_model\":\"gpt-5-mini\","
                                     + "\"ai_api_key\":\"\",\"ai_prompt\":\"Prompt\","
                                     + "\"ai_max_completion_tokens\":1024,"
+                                    + "\"ai_reasoning_enabled\":false,"
                                     + "\"ai_image_provider\":\"OPEN_AI\","
                                     + "\"ai_image_model\":\"gpt-image-2\","
                                     + "\"ai_image_api_key\":\"\"}").ai();
@@ -149,12 +150,29 @@ public class WebSiteControllerDatabaseTest {
             assertEquals("gpt-5-mini", response.getData().getAi_model());
             assertEquals("", response.getData().getAi_api_key());
             assertEquals("", response.getData().getAi_image_api_key());
+            assertEquals(Boolean.FALSE, response.getData().getAi_reasoning_enabled());
             assertTrue(response.getData().isHasAiApiKey());
             assertTrue(response.getData().isHasAiImageApiKey());
             assertFalse(response.getData().getAllProviders().isEmpty());
             assertFalse(response.getData().getAllImageProviders().isEmpty());
             assertEquals("existing-key", value(db, "ai_api_key"));
             assertEquals("existing-image-key", value(db, "ai_image_api_key"));
+            assertEquals("false", value(db, "ai_reasoning_enabled"));
+        }
+    }
+
+    @Test
+    public void shouldDefaultAiReasoningEnabledWhenUnset() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            db.putWebsite("ai_provider", "OPEN_AI");
+            db.putWebsite("ai_model", "gpt-5");
+            db.putWebsite("ai_api_key", "existing-key");
+
+            AdminPageDataResponse<AIWebSiteInfoResponse> response =
+                    controller(HttpMethod.GET, "/api/admin/website/ai", null).ai();
+
+            assertEquals(Boolean.TRUE, response.getData().getAi_reasoning_enabled());
+            assertTrue(response.getData().isReasoningEnabled());
         }
     }
 

@@ -261,10 +261,20 @@ public class AIChatServiceTest {
         AIChatService service = new AIChatService();
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         StringBuilder fullResponse = new StringBuilder();
+        ByteArrayOutputStream reasoningOut = new ByteArrayOutputStream();
+        StringBuilder responseWithReasoning = new StringBuilder();
+        StringBuilder reasoningResponse = new StringBuilder();
 
         Object stopResult = invoke(service, "processChunk",
                 "{\"choices\":[{\"delta\":{\"content\":\"hello\"},\"finish_reason\":\"stop\"}]}",
                 out, fullResponse);
+        invoke(service, "processChunk",
+                "{\"choices\":[{\"delta\":{\"reasoning_content\":\"think \",\"content\":\"answer\"},"
+                        + "\"finish_reason\":\"stop\"}]}",
+                reasoningOut, responseWithReasoning, reasoningResponse, true);
+        invoke(service, "processChunk",
+                "{\"choices\":[{\"delta\":{\"reasoning_content\":\"hidden\",\"content\":\"visible\"}}]}",
+                reasoningOut, responseWithReasoning, reasoningResponse, false);
         Object lengthResult = invoke(service, "processChunk",
                 "{\"choices\":[{\"finish_reason\":\"length\"}]}",
                 new ByteArrayOutputStream(), new StringBuilder());
@@ -277,6 +287,11 @@ public class AIChatServiceTest {
 
         assertEquals("hello", fullResponse.toString());
         assertEquals("data: {\"content\":\"hello\"}\n\n", out.toString(StandardCharsets.UTF_8));
+        assertEquals("answervisible", responseWithReasoning.toString());
+        assertEquals("think ", reasoningResponse.toString());
+        assertEquals("data: {\"content\":\"answer\"}\n\n"
+                + "data: {\"reasoningContent\":\"think \"}\n\n"
+                + "data: {\"content\":\"visible\"}\n\n", reasoningOut.toString(StandardCharsets.UTF_8));
         assertEquals("stop", invoke(stopResult, "getFinishReason"));
         assertFalse((Boolean) invoke(stopResult, "isNeedContinuation"));
         assertEquals("length", invoke(lengthResult, "getFinishReason"));
@@ -393,7 +408,8 @@ public class AIChatServiceTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             seedAiConfig(db);
             FakeHttpClient client = new FakeHttpClient(
-                    streamResponse("data: {\"choices\":[{\"delta\":{\"content\":\"first\"}}]}\n\n"
+                    streamResponse("data: {\"choices\":[{\"delta\":{\"reasoning_content\":\"plan \","
+                            + "\"content\":\"first\"}}]}\n\n"
                             + "data: {\"choices\":[{\"finish_reason\":\"stop\"}]}\n\n"
                             + "data: [DONE]\n\n"),
                     streamResponse("data: {\"choices\":[{\"delta\":{\"content\":\"second\"}}]}\n\n"
@@ -409,11 +425,39 @@ public class AIChatServiceTest {
             assertEquals(200, first.getStatusCode());
             assertEquals(200, second.getStatusCode());
             assertTrue(firstPayload.contains("first"));
+            assertTrue(firstPayload.contains("\"reasoningContent\":\"plan \""));
             assertTrue(secondPayload.contains("second"));
-            assertTrue(String.valueOf(db.queryOne(
-                    "select value from website where name=?", "ai_chat_message_36").get("value")).contains("first"));
+            String firstStored = String.valueOf(db.queryOne(
+                    "select value from website where name=?", "ai_chat_message_36").get("value"));
+            assertTrue(firstStored.contains("first"));
+            assertTrue(firstStored.contains("\"reasoningContent\":\"plan \""));
             assertTrue(String.valueOf(db.queryOne(
                     "select value from website where name=?", "ai_chat_message_37").get("value")).contains("second"));
+        }
+    }
+
+    @Test
+    public void shouldDropProviderReasoningWhenDisabledThroughRealWebsiteTable() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            seedAiConfig(db);
+            db.putWebsite("ai_reasoning_enabled", false);
+            FakeHttpClient client = new FakeHttpClient(
+                    streamResponse("data: {\"choices\":[{\"delta\":{\"reasoning_content\":\"hidden\","
+                            + "\"content\":\"answer\"}}]}\n\n"
+                            + "data: {\"choices\":[{\"finish_reason\":\"stop\"}]}\n\n"
+                            + "data: [DONE]\n\n"));
+            AIChatService service = new NoSleepAIChatService(client);
+
+            AIStreamResponse response = service.startStreamResponse("Question", 39L);
+            String payload = new String(response.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+            String stored = String.valueOf(db.queryOne(
+                    "select value from website where name=?", "ai_chat_message_39").get("value"));
+
+            assertEquals(200, response.getStatusCode());
+            assertTrue(payload.contains("answer"));
+            assertFalse(payload.contains("reasoningContent"));
+            assertTrue(stored.contains("answer"));
+            assertFalse(stored.contains("reasoningContent"));
         }
     }
 

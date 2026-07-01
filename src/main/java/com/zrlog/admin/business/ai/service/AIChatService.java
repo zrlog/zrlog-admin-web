@@ -87,20 +87,23 @@ public class AIChatService extends AIService {
 
             ThreadUtils.start(() -> {
                 StringBuilder fullResponse = new StringBuilder();
+                StringBuilder reasoningResponse = new StringBuilder();
                 try {
-                    StreamReadResult streamResult = readStreamResponse(response, pout, fullResponse);
+                    StreamReadResult streamResult = readStreamResponse(response, pout, fullResponse, reasoningResponse,
+                            info.isReasoningEnabled());
                     int continuationRounds = 0;
                     while (streamResult.isNeedContinuation() && continuationRounds < MAX_CONTINUATION_ROUNDS) {
                         continuationRounds++;
                         HttpResponse<InputStream> continuationResponse =
                                 sendStreamRequestWithRetry(info, buildContinuationRequestBody(messages, info,
                                         fullResponse, includeArticleContext));
-                        streamResult = readStreamResponse(continuationResponse, pout, fullResponse);
+                        streamResult = readStreamResponse(continuationResponse, pout, fullResponse, reasoningResponse,
+                                info.isReasoningEnabled());
                     }
                     if (streamResult.isNeedContinuation()) {
                         throw new AIIncompleteResponseException(streamResult.getFinishReason(), continuationRounds);
                     }
-                    saveMessages(messages, articleId, fullResponse.toString(), info);
+                    saveMessages(messages, articleId, fullResponse.toString(), reasoningResponse.toString(), info);
                 } catch (Exception e) {
                     sendStreamError(pout, e, info, null);
                 } finally {
@@ -430,6 +433,12 @@ public class AIChatService extends AIService {
 
     private StreamReadResult readStreamResponse(HttpResponse<InputStream> response, OutputStream out,
                                                 StringBuilder fullResponse) throws IOException {
+        return readStreamResponse(response, out, fullResponse, new StringBuilder(), true);
+    }
+
+    private StreamReadResult readStreamResponse(HttpResponse<InputStream> response, OutputStream out,
+                                                StringBuilder fullResponse, StringBuilder reasoningResponse,
+                                                boolean reasoningEnabled) throws IOException {
         boolean streamCompleted = false;
         StreamReadResult streamResult = StreamReadResult.noFinishReason();
         try (InputStream aiStream = response.body();
@@ -443,7 +452,8 @@ public class AIChatService extends AIService {
                         continue;
                     }
                     if (StringUtils.isNotEmpty(dataLine)) {
-                        StreamReadResult chunkResult = processChunk(dataLine, out, fullResponse);
+                        StreamReadResult chunkResult = processChunk(dataLine, out, fullResponse, reasoningResponse,
+                                reasoningEnabled);
                         if (chunkResult.hasFinishReason()) {
                             streamResult = chunkResult;
                             streamCompleted = true;
@@ -459,6 +469,12 @@ public class AIChatService extends AIService {
     }
 
     private StreamReadResult processChunk(String jsonData, OutputStream out, StringBuilder fullResponse)
+            throws IOException {
+        return processChunk(jsonData, out, fullResponse, new StringBuilder(), true);
+    }
+
+    private StreamReadResult processChunk(String jsonData, OutputStream out, StringBuilder fullResponse,
+                                          StringBuilder reasoningResponse, boolean reasoningEnabled)
             throws IOException {
         try {
             Map map = gson.fromJson(jsonData, Map.class);
@@ -478,6 +494,15 @@ public class AIChatService extends AIService {
                     out.write(("data: " + jsonChunk + "\n\n").getBytes(StandardCharsets.UTF_8));
                     out.flush();
                 }
+                if (reasoningEnabled && delta != null) {
+                    String reasoningContent = getReasoningContent(delta);
+                    if (StringUtils.isNotEmpty(reasoningContent)) {
+                        reasoningResponse.append(reasoningContent);
+                        String jsonChunk = gson.toJson(Map.of("reasoningContent", reasoningContent));
+                        out.write(("data: " + jsonChunk + "\n\n").getBytes(StandardCharsets.UTF_8));
+                        out.flush();
+                    }
+                }
                 if (isIncompleteFinishReason(finishReason)) {
                     throw new AIIncompleteResponseException(finishReason);
                 }
@@ -491,6 +516,17 @@ public class AIChatService extends AIService {
         } catch (Exception e) {
             throw new AIResponseException("stream chunk");
         }
+    }
+
+    private String getReasoningContent(Map<String, Object> delta) {
+        Object reasoningContent = delta.get("reasoning_content");
+        if (reasoningContent == null) {
+            reasoningContent = delta.get("reasoningContent");
+        }
+        if (reasoningContent == null) {
+            reasoningContent = delta.get("reasoning");
+        }
+        return reasoningContent instanceof String ? (String) reasoningContent : "";
     }
 
     private AIStreamResponse buildStreamErrorResponse(Exception e, AIWebSiteInfoWithAIMessages info, String tool) {
@@ -653,8 +689,11 @@ public class AIChatService extends AIService {
     }
 
     private void saveMessages(List<AIResponseEntry.AIContentEntry> messages, Long articleId, String content,
-                              AIWebSiteInfoWithAIMessages info) throws SQLException {
+                              String reasoningContent, AIWebSiteInfoWithAIMessages info) throws SQLException {
         AIResponseEntry.AIContentEntry entry = new AIResponseEntry.AIContentEntry("assistant", content);
+        if (StringUtils.isNotEmpty(reasoningContent)) {
+            entry.setReasoningContent(reasoningContent);
+        }
         fillModelTrace(entry, info);
         messages.add(entry);
         if (!new WebSiteService().saveAIMessage(messages, articleId)) {

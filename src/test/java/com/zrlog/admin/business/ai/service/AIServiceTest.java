@@ -32,14 +32,21 @@ public class AIServiceTest {
 
         Map<String, Object> openAiBody = GSON.fromJson(service.body(messages, openAi, true), Map.class);
         Map<String, Object> qwenBody = GSON.fromJson(service.body(messages, qwen, false), Map.class);
+        AIWebSiteInfo qwenWithoutReasoning = info(AIProviderType.QWEN);
+        qwenWithoutReasoning.setAi_reasoning_enabled(false);
+        Map<String, Object> qwenWithoutReasoningBody =
+                GSON.fromJson(service.body(messages, qwenWithoutReasoning, false), Map.class);
 
         assertEquals("gpt-test", openAiBody.get("model"));
         assertEquals(true, openAiBody.get("stream"));
         assertEquals(512.0, openAiBody.get("max_completion_tokens"));
         assertFalse(openAiBody.containsKey("max_tokens"));
+        assertFalse(openAiBody.containsKey("enable_thinking"));
         assertEquals("qwen-test", qwenBody.get("model"));
         assertEquals(false, qwenBody.get("stream"));
         assertEquals(256.0, qwenBody.get("max_tokens"));
+        assertEquals(true, qwenBody.get("enable_thinking"));
+        assertEquals(false, qwenWithoutReasoningBody.get("enable_thinking"));
         List<Map<String, Object>> providerMessages = (List<Map<String, Object>>) openAiBody.get("messages");
         assertEquals(2, providerMessages.size());
         assertEquals("system", providerMessages.get(0).get("role"));

@@ -60,6 +60,7 @@ export const parseSseResponse = (responseText: string): ParsedSseResponse => {
         (entry) => entry.trim().length > 0
     );
     let content = "";
+    let reasoningContent = "";
     let toolPayload: AssistantToolPayload | undefined;
     let messageId: string | undefined;
     let errorMessage: string | undefined;
@@ -95,6 +96,12 @@ export const parseSseResponse = (responseText: string): ParsedSseResponse => {
                 if (typeof chunk.messageId === "string") {
                     messageId = chunk.messageId;
                 }
+                if (typeof chunk.reasoningContent === "string") {
+                    reasoningContent += chunk.reasoningContent;
+                }
+                if (typeof chunk.reasoning_content === "string") {
+                    reasoningContent += chunk.reasoning_content;
+                }
                 if (typeof chunk.content === "string") {
                     content += chunk.content;
                 }
@@ -103,5 +110,5 @@ export const parseSseResponse = (responseText: string): ParsedSseResponse => {
             }
         }
     }
-    return { content, toolPayload, messageId, errorMessage, errorMeta };
+    return { content, reasoningContent, toolPayload, messageId, errorMessage, errorMeta };
 };

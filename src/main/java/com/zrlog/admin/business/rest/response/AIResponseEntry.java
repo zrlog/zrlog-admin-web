@@ -45,6 +45,7 @@ public class AIResponseEntry {
 
         private String role;
         private String content;
+        private String reasoningContent;
         private String messageId;
         private String messageType;
         private ArticleContextMeta contextMeta;
@@ -67,6 +68,14 @@ public class AIResponseEntry {
 
         public void setContent(String content) {
             this.content = content;
+        }
+
+        public String getReasoningContent() {
+            return reasoningContent;
+        }
+
+        public void setReasoningContent(String reasoningContent) {
+            this.reasoningContent = reasoningContent;
         }
 
         public String getMessageId() {

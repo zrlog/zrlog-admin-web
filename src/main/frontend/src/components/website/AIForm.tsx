@@ -1,5 +1,6 @@
 import Form from "antd/es/form";
 import Button from "antd/es/button";
+import Switch from "antd/es/switch";
 import { getRes, tryAppendBackendServerUrl } from "../../utils/constants";
 import { useEffect, useState } from "react";
 
@@ -24,6 +25,11 @@ const layout = {
     wrapperCol: { span: 16 },
 };
 
+const normalizeAiSettings = (settings: AI): AI => ({
+    ...settings,
+    ai_reasoning_enabled: settings.ai_reasoning_enabled ?? true,
+});
+
 const AIForm = ({
     data,
     offline,
@@ -37,7 +43,7 @@ const AIForm = ({
     onSubmit: (data: AI) => void;
     loading?: boolean;
 }) => {
-    const [state, setState] = useState<AI>(data);
+    const [state, setState] = useState<AI>(normalizeAiSettings(data));
     const [promptEditorOpen, setPromptEditorOpen] = useState(false);
     const [promptDraft, setPromptDraft] = useState(data.ai_prompt);
     const [promptHtml, setPromptHtml] = useState("");
@@ -135,10 +141,11 @@ const AIForm = ({
     };
 
     useEffect(() => {
-        setState(data);
+        const normalizedData = normalizeAiSettings(data);
+        setState(normalizedData);
         setPromptDraft(data.ai_prompt);
         form.setFieldsValue({
-            ...data,
+            ...normalizedData,
             ai_api_key: "",
             ai_image_api_key: "",
         });
@@ -236,7 +243,12 @@ const AIForm = ({
                     setState(nextValues);
                 }}
                 onFinish={(nv) =>
-                    onSubmit({ ...state, ...nv, ai_max_completion_tokens: nv.ai_max_completion_tokens ?? null })
+                    onSubmit({
+                        ...state,
+                        ...nv,
+                        ai_max_completion_tokens: nv.ai_max_completion_tokens ?? null,
+                        ai_reasoning_enabled: nv.ai_reasoning_enabled ?? true,
+                    })
                 }
             >
                 <Alert
@@ -304,6 +316,14 @@ const AIForm = ({
                         style={textModelSelectStyle}
                         placeholder={getRes().websiteAi.aiMaxCompletionTokensPlaceholder}
                     />
+                </Form.Item>
+                <Form.Item
+                    valuePropName="checked"
+                    name={"ai_reasoning_enabled"}
+                    label={getRes().websiteAi.aiReasoningEnabled}
+                    tooltip={getRes().websiteAi.aiReasoningEnabledTip}
+                >
+                    <Switch />
                 </Form.Item>
                 <Form.Item
                     name={"ai_api_key"}

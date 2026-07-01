@@ -72,6 +72,7 @@ export interface AI {
     ai_model: string;
     ai_prompt: string;
     ai_max_completion_tokens?: number | null;
+    ai_reasoning_enabled?: boolean;
     ai_image_provider?: string;
     ai_image_api_key?: string;
     ai_image_model?: string;

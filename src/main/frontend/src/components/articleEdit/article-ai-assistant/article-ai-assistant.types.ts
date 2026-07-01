@@ -124,6 +124,7 @@ export type AssistantToolPayload =
 
 export type ParsedSseResponse = {
     content: string;
+    reasoningContent?: string;
     toolPayload?: AssistantToolPayload;
     messageId?: string;
     errorMessage?: string;
@@ -131,6 +132,7 @@ export type ParsedSseResponse = {
 };
 
 export type ToolAwareAIContent = AIContent & {
+    reasoningContent?: string;
     messageId?: string;
     messageType?: "articleContext" | "error" | string;
     contextMeta?: ArticleContextMeta;

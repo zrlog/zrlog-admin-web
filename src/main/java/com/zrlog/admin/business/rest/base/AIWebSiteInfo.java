@@ -17,6 +17,7 @@ public class AIWebSiteInfo implements Validator {
     private String ai_api_key;
     private String ai_prompt;
     private Integer ai_max_completion_tokens;
+    private Boolean ai_reasoning_enabled = Boolean.TRUE;
     private AIProviderType ai_image_provider;
     private String ai_image_model;
     private String ai_image_api_key;
@@ -59,6 +60,18 @@ public class AIWebSiteInfo implements Validator {
 
     public void setAi_max_completion_tokens(Integer ai_max_completion_tokens) {
         this.ai_max_completion_tokens = ai_max_completion_tokens;
+    }
+
+    public Boolean getAi_reasoning_enabled() {
+        return ai_reasoning_enabled;
+    }
+
+    public void setAi_reasoning_enabled(Boolean ai_reasoning_enabled) {
+        this.ai_reasoning_enabled = ai_reasoning_enabled;
+    }
+
+    public boolean isReasoningEnabled() {
+        return !Objects.equals(ai_reasoning_enabled, false);
     }
 
     public AIProviderType getAi_image_provider() {
