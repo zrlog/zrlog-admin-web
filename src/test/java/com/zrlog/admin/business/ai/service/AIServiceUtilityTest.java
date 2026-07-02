@@ -1,11 +1,11 @@
 package com.zrlog.admin.business.ai.service;
 
+import com.google.gson.JsonParser;
 import com.zrlog.common.exception.ArgsException;
 import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.Map;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -59,8 +59,9 @@ public class AIServiceUtilityTest {
         AIChatService service = new AIChatService();
 
         assertEquals("length", service.normalizeFinishReason(" Length "));
-        assertEquals("provider error", service.toProviderStreamErrorDetail(Map.of("message", "provider error")));
-        assertEquals("fallback", service.toProviderStreamErrorDetail("fallback"));
+        assertEquals("provider error", service.toProviderStreamErrorDetail(
+                JsonParser.parseString("{\"message\":\"provider error\"}")));
+        assertEquals("fallback", service.toProviderStreamErrorDetail(JsonParser.parseString("\"fallback\"")));
         assertEquals("line1line2", service.readErrorBody(
                 new ByteArrayInputStream("line1\nline2".getBytes(StandardCharsets.UTF_8))));
         assertEquals(AIChatService.ToolContextPolicy.FULL_CONVERSATION, service.getToolContextPolicy("title"));

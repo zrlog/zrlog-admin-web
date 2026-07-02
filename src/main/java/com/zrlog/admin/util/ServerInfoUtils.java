@@ -21,18 +21,18 @@ import java.text.DecimalFormat;
 import java.util.*;
 
 public class ServerInfoUtils {
-    public static List<ServerInfo> convertToServerInfos(Map<String, Object> data) {
+    public static List<ServerInfo> convertToServerInfos(ServerInfoSnapshot data) {
         List<ServerInfo> systemInfo = new ArrayList<>();
-        systemInfo.add(new ServerInfo(I18nUtil.getAdminBackendStringFromRes("admin.system.serverInfo.system"), data.get("os.name") + " - " + data.get("os.arch") + " - " + data.get("os.version"), "system"));
-        systemInfo.add(new ServerInfo(I18nUtil.getAdminBackendStringFromRes("admin.system.serverInfo.runPath"), (String) data.get("zrlog.runtime.path"), "runPath"));
-        systemInfo.add(new ServerInfo(I18nUtil.getAdminBackendStringFromRes("admin.system.serverInfo.runtime"), data.get("java.vm.name") + " - " + data.get("java.version"), "runtime"));
-        systemInfo.add(new ServerInfo(I18nUtil.getAdminBackendStringFromRes("admin.system.serverInfo.webServer"), (String) data.get("server.info"), "webServer"));
-        systemInfo.add(new ServerInfo(I18nUtil.getAdminBackendStringFromRes("admin.system.serverInfo.timezone"), (String) data.get("user.timezone"), "timezone"));
+        systemInfo.add(new ServerInfo(I18nUtil.getAdminBackendStringFromRes("admin.system.serverInfo.system"), data.getOsName() + " - " + data.getOsArch() + " - " + data.getOsVersion(), "system"));
+        systemInfo.add(new ServerInfo(I18nUtil.getAdminBackendStringFromRes("admin.system.serverInfo.runPath"), data.getRuntimePath(), "runPath"));
+        systemInfo.add(new ServerInfo(I18nUtil.getAdminBackendStringFromRes("admin.system.serverInfo.runtime"), data.getJavaVmName() + " - " + data.getJavaVersion(), "runtime"));
+        systemInfo.add(new ServerInfo(I18nUtil.getAdminBackendStringFromRes("admin.system.serverInfo.webServer"), data.getWebServer(), "webServer"));
+        systemInfo.add(new ServerInfo(I18nUtil.getAdminBackendStringFromRes("admin.system.serverInfo.timezone"), data.getTimezone(), "timezone"));
         Locale locale = Locale.getDefault();
         systemInfo.add(new ServerInfo(I18nUtil.getAdminBackendStringFromRes("admin.system.serverInfo.locale"), locale.getLanguage() + "/" + (StringUtils.isNotEmpty(locale.getCountry()) ? locale.getCountry() : "Unknown"), "locale"));
-        systemInfo.add(new ServerInfo(I18nUtil.getAdminBackendStringFromRes("admin.system.serverInfo.dbInfo"), (String) data.get("dbServer.version"), "dbInfo"));
+        systemInfo.add(new ServerInfo(I18nUtil.getAdminBackendStringFromRes("admin.system.serverInfo.dbInfo"), data.getDbServerVersion(), "dbInfo"));
         systemInfo.add(new ServerInfo(I18nUtil.getAdminBackendStringFromRes("admin.system.serverInfo.cpuInfo"), CPUInfo.getInstance().getCpuModel(), "cpuInfo"));
-        systemInfo.add(new ServerInfo(I18nUtil.getAdminBackendStringFromRes("admin.system.serverInfo.encoding"), (String) data.get("file.encoding"), "encoding"));
+        systemInfo.add(new ServerInfo(I18nUtil.getAdminBackendStringFromRes("admin.system.serverInfo.encoding"), data.getFileEncoding(), "encoding"));
         systemInfo.add(new ServerInfo(I18nUtil.getAdminBackendStringFromRes("admin.system.serverInfo.programInfo"), BlogBuildInfoUtil.getVersionInfo(), "programInfo"));
         return systemInfo;
     }
@@ -137,4 +137,3 @@ public class ServerInfoUtils {
     }
 
 }
-

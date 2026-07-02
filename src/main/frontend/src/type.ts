@@ -59,6 +59,17 @@ export type PublicVersionResponse = {
     buildId?: string;
 };
 
+export type AdminAuditLogEntry = {
+    timestamp: number;
+    ip: string;
+    action: string;
+    type: string;
+    content?: string;
+    os?: string;
+    browser?: string;
+    crawler?: boolean;
+};
+
 export type StatisticsInfoState = {
     clickCount: number;
     articleCount: number;
@@ -69,7 +80,7 @@ export type StatisticsInfoState = {
     publishedCount: number;
     typeData: { typeName: string, alias: string, typeamount: number }[];
     tagData: { text: string, count: number }[];
-    auditLogs?: { timestamp: number, ip: string, action: string, type: string, content?: string, os?: string, browser?: string, crawler?: boolean }[];
+    auditLogs?: AdminAuditLogEntry[];
     loading: boolean;
     usedCacheSpace: number | string;
     usedDiskSpace: number | string;

@@ -167,18 +167,9 @@ public class AdminTypeAndUtilContractTest {
     }
 
     @Test
-    public void shouldConvertServerInfoMapAndFormatFileSizes() throws Exception {
-        Map<String, Object> data = new HashMap<>();
-        data.put("os.name", "Linux");
-        data.put("os.arch", "amd64");
-        data.put("os.version", "6.0");
-        data.put("zrlog.runtime.path", "/app");
-        data.put("java.vm.name", "VM");
-        data.put("java.version", "21");
-        data.put("server.info", "SWS/1");
-        data.put("user.timezone", "Asia/Shanghai");
-        data.put("dbServer.version", "MySQL");
-        data.put("file.encoding", "UTF-8");
+    public void shouldConvertServerInfoSnapshotAndFormatFileSizes() throws Exception {
+        ServerInfoSnapshot data = new ServerInfoSnapshot("Linux", "amd64", "6.0", "/app", "VM", "21",
+                "SWS/1", "Asia/Shanghai", "MySQL", "UTF-8");
 
         List<ServerInfo> infos = ServerInfoUtils.convertToServerInfos(data);
 

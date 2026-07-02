@@ -1,6 +1,10 @@
 package com.zrlog.admin.business.ai.service;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.hibegin.common.util.StringUtils;
+import com.zrlog.admin.business.ai.dto.AIStreamPayloads;
 import com.zrlog.admin.business.ai.dto.AIStreamResponse;
 import com.zrlog.admin.business.ai.exception.AIIncompleteResponseException;
 import com.zrlog.admin.business.ai.exception.AIRequestException;
@@ -91,13 +95,13 @@ public class AIChatServiceTest {
     public void shouldBuildIncompleteStreamErrorPayload() {
         AIWebSiteInfoWithAIMessages info = new AIWebSiteInfoWithAIMessages();
         info.setAi_model("gpt-test");
-        Map<String, Object> payload = new AIChatService().buildStreamErrorPayload(
+        AIStreamPayloads.ErrorPayload payload = new AIChatService().buildStreamErrorPayload(
                 new AIIncompleteResponseException("length", 3), info);
 
-        assertEquals("incomplete_response", payload.get("errorType"));
-        assertEquals("length", payload.get("finishReason"));
-        assertEquals(3, payload.get("continuationRounds"));
-        assertEquals("gpt-test", payload.get("model"));
+        assertEquals("incomplete_response", payload.getErrorType());
+        assertEquals("length", payload.getFinishReason());
+        assertEquals(Integer.valueOf(3), payload.getContinuationRounds());
+        assertEquals("gpt-test", payload.getModel());
     }
 
     @Test
@@ -105,9 +109,9 @@ public class AIChatServiceTest {
         AIChatService service = new AIChatService();
 
         assertEquals("provider_request",
-                service.buildStreamErrorPayload(new AIRequestException("429"), null).get("errorType"));
+                service.buildStreamErrorPayload(new AIRequestException("429"), null).getErrorType());
         assertEquals("provider_response",
-                service.buildStreamErrorPayload(new AIResponseException("stream chunk"), null).get("errorType"));
+                service.buildStreamErrorPayload(new AIResponseException("stream chunk"), null).getErrorType());
     }
 
     @Test
@@ -115,9 +119,9 @@ public class AIChatServiceTest {
         AIChatService service = new AIChatService();
 
         assertEquals("unsupported_tool",
-                service.buildStreamErrorPayload(new UnsupportedAIToolException("x"), null).get("errorType"));
+                service.buildStreamErrorPayload(new UnsupportedAIToolException("x"), null).getErrorType());
         assertEquals("configuration_required",
-                service.buildStreamErrorPayload(new ArgsException("ai_image_provider"), null).get("errorType"));
+                service.buildStreamErrorPayload(new ArgsException("ai_image_provider"), null).getErrorType());
     }
 
     @Test
@@ -128,12 +132,12 @@ public class AIChatServiceTest {
         info.setAi_image_provider(AIProviderType.OPEN_AI);
         info.setAi_image_model("gpt-image-test");
 
-        Map<String, Object> payload = new AIChatService().buildStreamErrorPayload(
+        AIStreamPayloads.ErrorPayload payload = new AIChatService().buildStreamErrorPayload(
                 new UnsupportedAIImageGenerationException("model: gpt-image-test"), info, "cover");
 
-        assertEquals("unsupported_image_generation", payload.get("errorType"));
-        assertEquals("OPEN_AI", payload.get("provider"));
-        assertEquals("gpt-image-test", payload.get("model"));
+        assertEquals("unsupported_image_generation", payload.getErrorType());
+        assertEquals("OPEN_AI", payload.getProvider());
+        assertEquals("gpt-image-test", payload.getModel());
     }
 
     @Test
@@ -194,7 +198,6 @@ public class AIChatServiceTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     public void shouldPrepareMessagesAndBuildContinuationRequestWithoutArticleContext() throws Exception {
         AIChatService service = new AIChatService();
         AIWebSiteInfoWithAIMessages info = new AIWebSiteInfoWithAIMessages();
@@ -210,21 +213,25 @@ public class AIChatServiceTest {
 
         String requestBody = (String) invoke(service, "buildContinuationRequestBody", prepared, info,
                 new StringBuilder("partial answer"), false);
-        Map<String, Object> body = GSON.fromJson(requestBody, Map.class);
-        List<Map<String, Object>> providerMessages = (List<Map<String, Object>>) body.get("messages");
+        JsonObject body = GSON.fromJson(requestBody, JsonObject.class);
+        JsonArray providerMessages = body.getAsJsonArray("messages");
 
         assertEquals(3, prepared.size());
         assertEquals("system", prepared.get(0).getRole());
         assertEquals("question", prepared.get(2).getContent());
         assertEquals("score", prepared.get(2).getTool());
-        assertEquals(true, body.get("stream"));
-        assertEquals("gpt-test", body.get("model"));
+        assertEquals(true, body.get("stream").getAsBoolean());
+        assertEquals("gpt-test", body.get("model").getAsString());
         assertEquals(4, providerMessages.size());
-        assertFalse(providerMessages.stream().anyMatch(message -> "article".equals(message.get("content"))));
-        assertEquals("assistant", providerMessages.get(2).get("role"));
-        assertEquals("partial answer", providerMessages.get(2).get("content"));
-        assertEquals("user", providerMessages.get(3).get("role"));
-        assertTrue(providerMessages.get(3).get("content").toString().startsWith("Continue exactly"));
+        for (int i = 0; i < providerMessages.size(); i++) {
+            assertFalse("article".equals(providerMessages.get(i).getAsJsonObject().get("content").getAsString()));
+        }
+        JsonObject assistantMessage = providerMessages.get(2).getAsJsonObject();
+        JsonObject continuationMessage = providerMessages.get(3).getAsJsonObject();
+        assertEquals("assistant", assistantMessage.get("role").getAsString());
+        assertEquals("partial answer", assistantMessage.get("content").getAsString());
+        assertEquals("user", continuationMessage.get("role").getAsString());
+        assertTrue(continuationMessage.get("content").getAsString().startsWith("Continue exactly"));
     }
 
     @Test
@@ -393,14 +400,14 @@ public class AIChatServiceTest {
 
     @Test
     public void shouldClassifyUnknownStreamErrorPayload() {
-        Map<String, Object> payload = new AIChatService().buildStreamErrorPayload(new RuntimeException(), null);
-        Map<String, Object> incomplete = new AIChatService().buildStreamErrorPayload(
+        AIStreamPayloads.ErrorPayload payload = new AIChatService().buildStreamErrorPayload(new RuntimeException(), null);
+        AIStreamPayloads.ErrorPayload incomplete = new AIChatService().buildStreamErrorPayload(
                 new AIIncompleteResponseException(""), null);
 
-        assertEquals("unknown", payload.get("errorType"));
-        assertTrue(payload.containsKey("message"));
-        assertEquals("incomplete_response", incomplete.get("errorType"));
-        assertFalse(incomplete.containsKey("finishReason"));
+        assertEquals("unknown", payload.getErrorType());
+        assertTrue(StringUtils.isNotEmpty(payload.getMessage()));
+        assertEquals("incomplete_response", incomplete.getErrorType());
+        assertEquals(null, incomplete.getFinishReason());
     }
 
     @Test

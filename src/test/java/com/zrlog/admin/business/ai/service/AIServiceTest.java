@@ -1,6 +1,8 @@
 package com.zrlog.admin.business.ai.service;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 import com.zrlog.admin.business.ai.exception.AIPromptResourceException;
 import com.zrlog.admin.business.ai.model.AIProviderType;
 import com.zrlog.admin.business.rest.base.AIWebSiteInfo;
@@ -10,7 +12,6 @@ import org.junit.Test;
 
 import java.net.http.HttpRequest;
 import java.util.List;
-import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -21,7 +22,6 @@ public class AIServiceTest {
     private static final Gson GSON = new Gson();
 
     @Test
-    @SuppressWarnings("unchecked")
     public void shouldBuildProviderRequestBodyWithTokenParameterByProvider() {
         TestAIService service = new TestAIService();
         AIWebSiteInfo openAi = info(AIProviderType.OPEN_AI);
@@ -30,27 +30,28 @@ public class AIServiceTest {
         qwen.setAi_max_completion_tokens(256);
         List<AIResponseEntry.AIContentEntry> messages = List.of(message("system", "prompt"), message("user", "hi"));
 
-        Map<String, Object> openAiBody = GSON.fromJson(service.body(messages, openAi, true), Map.class);
-        Map<String, Object> qwenBody = GSON.fromJson(service.body(messages, qwen, false), Map.class);
+        JsonObject openAiBody = GSON.fromJson(service.body(messages, openAi, true), JsonObject.class);
+        JsonObject qwenBody = GSON.fromJson(service.body(messages, qwen, false), JsonObject.class);
         AIWebSiteInfo qwenWithoutReasoning = info(AIProviderType.QWEN);
         qwenWithoutReasoning.setAi_reasoning_enabled(false);
-        Map<String, Object> qwenWithoutReasoningBody =
-                GSON.fromJson(service.body(messages, qwenWithoutReasoning, false), Map.class);
+        JsonObject qwenWithoutReasoningBody =
+                GSON.fromJson(service.body(messages, qwenWithoutReasoning, false), JsonObject.class);
 
-        assertEquals("gpt-test", openAiBody.get("model"));
-        assertEquals(true, openAiBody.get("stream"));
-        assertEquals(512.0, openAiBody.get("max_completion_tokens"));
-        assertFalse(openAiBody.containsKey("max_tokens"));
-        assertFalse(openAiBody.containsKey("enable_thinking"));
-        assertEquals("qwen-test", qwenBody.get("model"));
-        assertEquals(false, qwenBody.get("stream"));
-        assertEquals(256.0, qwenBody.get("max_tokens"));
-        assertEquals(true, qwenBody.get("enable_thinking"));
-        assertEquals(false, qwenWithoutReasoningBody.get("enable_thinking"));
-        List<Map<String, Object>> providerMessages = (List<Map<String, Object>>) openAiBody.get("messages");
+        assertEquals("gpt-test", openAiBody.get("model").getAsString());
+        assertEquals(true, openAiBody.get("stream").getAsBoolean());
+        assertEquals(512, openAiBody.get("max_completion_tokens").getAsInt());
+        assertFalse(openAiBody.has("max_tokens"));
+        assertFalse(openAiBody.has("enable_thinking"));
+        assertEquals("qwen-test", qwenBody.get("model").getAsString());
+        assertEquals(false, qwenBody.get("stream").getAsBoolean());
+        assertEquals(256, qwenBody.get("max_tokens").getAsInt());
+        assertEquals(true, qwenBody.get("enable_thinking").getAsBoolean());
+        assertEquals(false, qwenWithoutReasoningBody.get("enable_thinking").getAsBoolean());
+        JsonArray providerMessages = openAiBody.getAsJsonArray("messages");
         assertEquals(2, providerMessages.size());
-        assertEquals("system", providerMessages.get(0).get("role"));
-        assertEquals("prompt", providerMessages.get(0).get("content"));
+        JsonObject firstMessage = providerMessages.get(0).getAsJsonObject();
+        assertEquals("system", firstMessage.get("role").getAsString());
+        assertEquals("prompt", firstMessage.get("content").getAsString());
     }
 
     @Test

@@ -1,6 +1,8 @@
 package com.zrlog.admin.business.ai.service;
 
+import com.google.gson.JsonElement;
 import com.hibegin.common.util.StringUtils;
+import com.zrlog.admin.business.ai.dto.AIStreamPayloads;
 import com.zrlog.admin.business.ai.dto.AIStreamResponse;
 import com.zrlog.admin.business.ai.exception.AIMessageSaveException;
 import com.zrlog.admin.business.ai.exception.AIIncompleteResponseException;
@@ -8,6 +10,7 @@ import com.zrlog.admin.business.ai.exception.AIRequestException;
 import com.zrlog.admin.business.ai.exception.AIResponseException;
 import com.zrlog.admin.business.ai.exception.UnsupportedAIImageGenerationException;
 import com.zrlog.admin.business.ai.exception.UnsupportedAIToolException;
+import com.zrlog.admin.business.ai.model.AIProviderResponses;
 import com.zrlog.admin.business.rest.base.AIWebSiteInfoWithAIMessages;
 import com.zrlog.admin.business.rest.request.GenerateArticleFieldRequest;
 import com.zrlog.admin.business.rest.request.GenerateArticleTitleRequest;
@@ -25,10 +28,8 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
@@ -144,9 +145,9 @@ public class AIChatService extends AIService {
         try {
             ToolResult toolResult = runTool(tool, articleContext, buildToolConversationContext(tool, messages));
             AIResponseEntry.AIContentEntry savedMessage = saveToolMessage(messages, articleId, tool, toolResult, info);
-            String payload = "data: " + gson.toJson(Map.of("tool", tool, "payload", toolResult.payload, "content", "",
-                    "messageId", savedMessage.getMessageId())) + "\n\n"
-                    + "data: " + gson.toJson(Map.of("content", toolResult.content)) + "\n\n";
+            String payload = "data: " + gson.toJson(AIStreamPayloads.Chunk.tool(tool, toolResult.payload,
+                    savedMessage.getMessageId())) + "\n\n"
+                    + "data: " + gson.toJson(AIStreamPayloads.Chunk.content(toolResult.content)) + "\n\n";
             return new AIStreamResponse(200, "", new ByteArrayInputStream(payload.getBytes(StandardCharsets.UTF_8)));
         } catch (Exception e) {
             return buildStreamErrorResponse(e, info, tool);
@@ -209,7 +210,7 @@ public class AIChatService extends AIService {
             case "cover": {
                 com.zrlog.admin.business.rest.response.GenerateArticleCoverResponse response =
                         new AIImageService().generateArticleCover(articleContext);
-                return new ToolResult("已生成文章封面", Map.of("url", response.getUrl()));
+                return new ToolResult("已生成文章封面", new AIStreamPayloads.CoverPayload(response.getUrl()));
             }
             default:
                 throw new UnsupportedAIToolException(tool);
@@ -477,20 +478,21 @@ public class AIChatService extends AIService {
                                           StringBuilder reasoningResponse, boolean reasoningEnabled)
             throws IOException {
         try {
-            Map map = gson.fromJson(jsonData, Map.class);
-            Object error = map.get("error");
-            if (error != null) {
+            AIProviderResponses.CompletionResponse chunk =
+                    gson.fromJson(jsonData, AIProviderResponses.CompletionResponse.class);
+            JsonElement error = chunk == null ? null : chunk.getError();
+            if (error != null && !error.isJsonNull()) {
                 throw new AIRequestException(toProviderStreamErrorDetail(error));
             }
-            List<Map<String, Object>> choices = (List<Map<String, Object>>) map.get("choices");
+            List<AIProviderResponses.Choice> choices = chunk == null ? null : chunk.getChoices();
             if (choices != null && !choices.isEmpty()) {
-                Map<String, Object> choice = choices.get(0);
+                AIProviderResponses.Choice choice = choices.get(0);
                 String finishReason = getFinishReason(choice);
-                Map<String, Object> delta = (Map<String, Object>) choice.get("delta");
-                if (delta != null && delta.get("content") != null) {
-                    String content = (String) delta.get("content");
+                AIProviderResponses.Delta delta = choice.getDelta();
+                if (delta != null && delta.getContent() != null) {
+                    String content = delta.getContent();
                     fullResponse.append(content);
-                    String jsonChunk = gson.toJson(Map.of("content", content));
+                    String jsonChunk = gson.toJson(AIStreamPayloads.Chunk.content(content));
                     out.write(("data: " + jsonChunk + "\n\n").getBytes(StandardCharsets.UTF_8));
                     out.flush();
                 }
@@ -498,7 +500,7 @@ public class AIChatService extends AIService {
                     String reasoningContent = getReasoningContent(delta);
                     if (StringUtils.isNotEmpty(reasoningContent)) {
                         reasoningResponse.append(reasoningContent);
-                        String jsonChunk = gson.toJson(Map.of("reasoningContent", reasoningContent));
+                        String jsonChunk = gson.toJson(AIStreamPayloads.Chunk.reasoning(reasoningContent));
                         out.write(("data: " + jsonChunk + "\n\n").getBytes(StandardCharsets.UTF_8));
                         out.flush();
                     }
@@ -518,13 +520,10 @@ public class AIChatService extends AIService {
         }
     }
 
-    private String getReasoningContent(Map<String, Object> delta) {
-        Object reasoningContent = delta.get("reasoning_content");
+    private String getReasoningContent(AIProviderResponses.Delta delta) {
+        Object reasoningContent = delta.getReasoningContent();
         if (reasoningContent == null) {
-            reasoningContent = delta.get("reasoningContent");
-        }
-        if (reasoningContent == null) {
-            reasoningContent = delta.get("reasoning");
+            reasoningContent = delta.getReasoning();
         }
         return reasoningContent instanceof String ? (String) reasoningContent : "";
     }
@@ -546,24 +545,24 @@ public class AIChatService extends AIService {
         }
     }
 
-    Map<String, Object> buildStreamErrorPayload(Exception e, AIWebSiteInfoWithAIMessages info) {
+    AIStreamPayloads.ErrorPayload buildStreamErrorPayload(Exception e, AIWebSiteInfoWithAIMessages info) {
         return buildStreamErrorPayload(e, info, null);
     }
 
-    Map<String, Object> buildStreamErrorPayload(Exception e, AIWebSiteInfoWithAIMessages info, String tool) {
-        Map<String, Object> payload = new LinkedHashMap<>();
+    AIStreamPayloads.ErrorPayload buildStreamErrorPayload(Exception e, AIWebSiteInfoWithAIMessages info, String tool) {
+        AIStreamPayloads.ErrorPayload payload = new AIStreamPayloads.ErrorPayload();
         String message = StringUtils.isNotEmpty(e.getMessage())
                 ? e.getMessage()
                 : I18nUtil.getAdminBackendStringFromRes("admin.ai.error.request");
-        payload.put("message", message);
-        payload.put("errorType", getStreamErrorType(e));
+        payload.setMessage(message);
+        payload.setErrorType(getStreamErrorType(e));
         if (e instanceof AIIncompleteResponseException) {
             AIIncompleteResponseException incomplete = (AIIncompleteResponseException) e;
             if (StringUtils.isNotEmpty(incomplete.getFinishReason())) {
-                payload.put("finishReason", incomplete.getFinishReason());
+                payload.setFinishReason(incomplete.getFinishReason());
             }
             if (incomplete.getContinuationRounds() != null) {
-                payload.put("continuationRounds", incomplete.getContinuationRounds());
+                payload.setContinuationRounds(incomplete.getContinuationRounds());
             }
         }
         if (info != null) {
@@ -572,21 +571,22 @@ public class AIChatService extends AIService {
         return payload;
     }
 
-    private void fillStreamErrorProvider(Map<String, Object> payload, AIWebSiteInfoWithAIMessages info, String tool) {
+    private void fillStreamErrorProvider(AIStreamPayloads.ErrorPayload payload, AIWebSiteInfoWithAIMessages info,
+                                         String tool) {
         if (Objects.equals(tool, "cover")) {
             if (info.getAi_image_provider() != null) {
-                payload.put("provider", info.getAi_image_provider().name());
+                payload.setProvider(info.getAi_image_provider().name());
             }
             if (StringUtils.isNotEmpty(info.getAi_image_model())) {
-                payload.put("model", info.getAi_image_model());
+                payload.setModel(info.getAi_image_model());
             }
             return;
         }
         if (info.getAi_provider() != null) {
-            payload.put("provider", info.getAi_provider().name());
+            payload.setProvider(info.getAi_provider().name());
         }
         if (StringUtils.isNotEmpty(info.getAi_model())) {
-            payload.put("model", info.getAi_model());
+            payload.setModel(info.getAi_model());
         }
     }
 
@@ -612,12 +612,8 @@ public class AIChatService extends AIService {
         return "unknown";
     }
 
-    private String getFinishReason(Map<String, Object> choice) {
-        Object finishReason = choice.get("finish_reason");
-        if (finishReason == null) {
-            finishReason = choice.get("finishReason");
-        }
-        return finishReason == null ? "" : finishReason.toString();
+    private String getFinishReason(AIProviderResponses.Choice choice) {
+        return choice.getFinishReason() == null ? "" : choice.getFinishReason();
     }
 
     private boolean isIncompleteFinishReason(String finishReason) {
@@ -640,14 +636,8 @@ public class AIChatService extends AIService {
         return finishReason.trim().toLowerCase(Locale.ROOT);
     }
 
-    String toProviderStreamErrorDetail(Object error) {
-        if (error instanceof Map) {
-            Object message = ((Map<?, ?>) error).get("message");
-            if (message != null && StringUtils.isNotEmpty(message.toString())) {
-                return message.toString();
-            }
-        }
-        return error.toString();
+    String toProviderStreamErrorDetail(JsonElement error) {
+        return toProviderErrorDetail(error);
     }
 
     private static class StreamReadResult {

@@ -6,12 +6,13 @@ import com.hibegin.common.util.StringUtils;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.util.PathUtil;
 import com.zrlog.common.Constants;
-import com.zrlog.util.BlogBuildInfoUtil;
 import com.zrlog.util.ZrLogUtil;
 
 import javax.sql.DataSource;
 import java.sql.SQLException;
-import java.util.*;
+import java.util.List;
+import java.util.Objects;
+import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -57,16 +58,15 @@ public class SystemInfoUtils {
 
 
     public static List<ServerInfo> serverInfo(HttpRequest httpRequest) throws SQLException {
-        Map<String, Object> info = new HashMap<>();
-        getSystemProp().forEach((key, value) -> info.put(key.toString(), value));
-        BlogBuildInfoUtil.getBlogProp().forEach((key, value) -> info.put("zrlog." + key.toString(), value));
+        ServerInfoSnapshot snapshot = ServerInfoSnapshot.fromProperties(getSystemProp());
         String applicationName = httpRequest.getServerConfig().getApplicationName();
         if (applicationName.startsWith("zrlog")) {
-            info.put("server.info", com.hibegin.http.server.util.ServerInfo.getName() + "/" + com.hibegin.http.server.util.ServerInfo.getVersion());
+            snapshot = snapshot.withWebServer(com.hibegin.http.server.util.ServerInfo.getName()
+                    + "/" + com.hibegin.http.server.util.ServerInfo.getVersion());
         } else {
-            info.put("server.info", applicationName + "/" + httpRequest.getServerConfig().getApplicationVersion());
+            snapshot = snapshot.withWebServer(applicationName + "/" + httpRequest.getServerConfig().getApplicationVersion());
         }
-        return ServerInfoUtils.convertToServerInfos(info);
+        return ServerInfoUtils.convertToServerInfos(snapshot);
     }
 
     public static List<ServerInfo> systemIOInfoVO() {

@@ -1,5 +1,7 @@
 package com.zrlog.admin.business.service;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 import com.zrlog.admin.business.rest.response.MessageCenterNoticeResponse;
 import com.zrlog.admin.business.rest.response.MessageCenterOperationNoticeEntry;
 import com.zrlog.admin.business.rest.response.ReplaceArticleResourceUrlResponse;
@@ -23,6 +25,8 @@ import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
 public class MessageCenterOperationServiceTest {
+
+    private static final Gson GSON = new Gson();
 
     @Test
     @SuppressWarnings("unchecked")
@@ -143,11 +147,12 @@ public class MessageCenterOperationServiceTest {
                 (MessageCenterNoticeResponse.OperationTaskPayload) notice.getPayload();
         assertEquals("/article-edit?id=7", payload.getActionPath());
         assertEquals(Boolean.TRUE, payload.getClosable());
-        Map<?, ?> rawPayload = (Map<?, ?>) payload.getPayload();
-        assertEquals(7L, rawPayload.get("articleId"));
-        assertEquals("Article", rawPayload.get("articleTitle"));
-        assertEquals(90, rawPayload.get("score"));
-        assertEquals(1, rawPayload.get("itemCount"));
+        MessageCenterOperationNoticeEntry.PublishCheckPayload rawPayload =
+                (MessageCenterOperationNoticeEntry.PublishCheckPayload) payload.getPayload();
+        assertEquals(Long.valueOf(7L), rawPayload.getArticleId());
+        assertEquals("Article", rawPayload.getArticleTitle());
+        assertEquals(Integer.valueOf(90), rawPayload.getScore());
+        assertEquals(Integer.valueOf(1), rawPayload.getItemCount());
         assertTrue(service.markOperationNoticeRead(notice.getTaskKey()));
         assertTrue(state.changed);
         assertEquals(List.of(), service.listOperationNotices());
@@ -214,10 +219,10 @@ public class MessageCenterOperationServiceTest {
             if (!actionPath.equals(payload.getActionPath())) {
                 continue;
             }
-            Map<?, ?> rawPayload = (Map<?, ?>) payload.getPayload();
+            JsonObject rawPayload = GSON.toJsonTree(payload.getPayload()).getAsJsonObject();
             boolean matches = true;
             for (Map.Entry<String, Object> entry : expectedValues.entrySet()) {
-                if (!entry.getValue().equals(rawPayload.get(entry.getKey()))) {
+                if (!GSON.toJsonTree(entry.getValue()).equals(rawPayload.get(entry.getKey()))) {
                     matches = false;
                     break;
                 }

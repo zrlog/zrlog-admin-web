@@ -3,7 +3,10 @@ package com.zrlog.admin.business.ai.service;
 import com.hibegin.common.util.StringUtils;
 import com.hibegin.http.server.api.HttpRequest;
 import com.zrlog.admin.business.AdminConstants;
+import com.zrlog.admin.business.ai.dto.AIStreamPayloads;
 import com.zrlog.admin.business.ai.exception.*;
+import com.zrlog.admin.business.ai.model.AIProviderRequests;
+import com.zrlog.admin.business.ai.model.AIProviderResponses;
 import com.zrlog.admin.business.rest.base.AIWebSiteInfo;
 import com.zrlog.admin.business.rest.base.ArticleEditWebSiteInfo;
 import com.zrlog.admin.business.rest.request.ApplyArticleCoverRequest;
@@ -25,7 +28,9 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse;
 import java.sql.SQLException;
-import java.util.*;
+import java.util.Base64;
+import java.util.List;
+import java.util.Objects;
 
 public class AIImageService extends AIService {
 
@@ -70,7 +75,7 @@ public class AIImageService extends AIService {
         }
         if (StringUtils.isNotEmpty(applyRequest.getMessageId())) {
             new WebSiteService().updateAIMessagePayload(articleId, applyRequest.getMessageId(), "cover",
-                    Map.of("url", uploadFileResponse.getUrl()));
+                    new AIStreamPayloads.CoverPayload(uploadFileResponse.getUrl()));
         }
         return uploadFileResponse;
     }
@@ -110,36 +115,34 @@ public class AIImageService extends AIService {
     }
 
     private ImageResult requestImage(AIWebSiteInfo info, String prompt, String size) throws IOException, InterruptedException {
-        Map<String, Object> params = new HashMap<>();
-        params.put("model", info.getAi_image_model());
-        params.put("prompt", prompt);
-        params.put("n", 1);
-        params.put("size", size);
+        AIProviderRequests.ImageGenerationRequest providerRequest =
+                new AIProviderRequests.ImageGenerationRequest(info.getAi_image_model(), prompt, 1, size);
 
         java.net.http.HttpRequest request = java.net.http.HttpRequest.newBuilder()
                 .uri(URI.create(info.getAi_image_provider().getImageGenerationBaseUrl()))
                 .header("Content-Type", "application/json")
                 .header("Authorization", "Bearer " + info.getAi_image_api_key())
                 .header("Accept-Encoding", "identity")
-                .POST(BodyPublishers.ofString(gson.toJson(params)))
+                .POST(BodyPublishers.ofString(gson.toJson(providerRequest)))
                 .build();
         HttpResponse<String> response = client().send(request, HttpResponse.BodyHandlers.ofString());
         if (response.statusCode() != 200) {
             throw new AIRequestException(buildProviderErrorDetail(response.statusCode(), response.body()));
         }
-        Map responseMap = gson.fromJson(response.body(), Map.class);
-        List<Map<String, Object>> data = (List<Map<String, Object>>) responseMap.get("data");
+        AIProviderResponses.ImageGenerationResponse responseBody =
+                gson.fromJson(response.body(), AIProviderResponses.ImageGenerationResponse.class);
+        List<AIProviderResponses.ImageData> data = responseBody == null ? null : responseBody.getData();
         if (data == null || data.isEmpty()) {
             throw new AIResponseException("image data is empty");
         }
-        Map<String, Object> first = data.get(0);
-        Object b64Json = first.get("b64_json");
-        if (b64Json != null && StringUtils.isNotEmpty(b64Json.toString())) {
-            return new ImageResult(Base64.getDecoder().decode(b64Json.toString()), "png", "image/png");
+        AIProviderResponses.ImageData first = data.get(0);
+        String b64Json = first.getB64Json();
+        if (StringUtils.isNotEmpty(b64Json)) {
+            return new ImageResult(Base64.getDecoder().decode(b64Json), "png", "image/png");
         }
-        Object url = first.get("url");
-        if (url != null && StringUtils.isNotEmpty(url.toString())) {
-            return downloadImage(url.toString());
+        String url = first.getUrl();
+        if (StringUtils.isNotEmpty(url)) {
+            return downloadImage(url);
         }
         throw new AIResponseException("image data has no b64_json or url");
     }

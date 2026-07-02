@@ -10,14 +10,15 @@ import com.hibegin.http.server.api.HttpResponse;
 import com.hibegin.http.server.config.ServerConfig;
 import com.hibegin.http.server.web.Controller;
 import com.zrlog.admin.business.exception.AdminAuthException;
-import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
-import com.zrlog.admin.business.rest.response.AdminDashboardCardResponse;
+import com.zrlog.admin.business.rest.response.AdminAuditLogEntryResponse;
 import com.zrlog.admin.business.rest.response.AdminDashboardAuditTrailDataResponse;
+import com.zrlog.admin.business.rest.response.AdminDashboardCardResponse;
 import com.zrlog.admin.business.rest.response.AdminDashboardConfigResponse;
 import com.zrlog.admin.business.rest.response.AdminDashboardDataInsightsResponse;
 import com.zrlog.admin.business.rest.response.AdminDashboardQuickActionDataResponse;
 import com.zrlog.admin.business.rest.response.AdminDashboardWelcomeDataResponse;
 import com.zrlog.admin.business.rest.response.AdminManifestResponse;
+import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
 import com.zrlog.admin.business.rest.response.ArticleActivityData;
 import com.zrlog.admin.business.rest.request.PersonalDataPreviewRequest;
 import com.zrlog.admin.business.rest.request.ReadCommentRequest;
@@ -597,7 +598,9 @@ public class AdminControllerDelegationTest {
         config.setCards(List.of(welcome, quickAction, statistics, activity, auditTrail, dataInsights, pluginSurface));
         StatisticsInfoResponse statisticsInfo = new StatisticsInfoResponse();
         statisticsInfo.setDraftCount(4L);
-        statisticsInfo.setAuditLogs(List.of(Map.of("action", "login")));
+        AdminAuditLogEntryResponse auditLog = new AdminAuditLogEntryResponse();
+        auditLog.setAction("login");
+        statisticsInfo.setAuditLogs(List.of(auditLog));
         ArticleActivityData activityData = new ArticleActivityData("2026-06-29", 3L);
 
         Method method = AdminController.class.getDeclaredMethod("attachDashboardCardData",
@@ -615,7 +618,7 @@ public class AdminControllerDelegationTest {
         assertSame(statisticsInfo, statistics.getData());
         assertEquals(List.of(activityData), activity.getData());
         AdminDashboardAuditTrailDataResponse auditTrailData = (AdminDashboardAuditTrailDataResponse) auditTrail.getData();
-        assertEquals(List.of(Map.of("action", "login")), auditTrailData.getAuditLogs());
+        assertEquals(List.of(auditLog), auditTrailData.getAuditLogs());
         assertEquals(false, auditTrailData.getLoading());
         assertEquals(null, pluginSurface.getData());
         assertEquals(null, ((AdminDashboardDataInsightsResponse) dataInsights.getData()).getTypeData());

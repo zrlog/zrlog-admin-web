@@ -1,26 +1,25 @@
 package com.zrlog.admin.business.rest.response;
 
 import java.util.List;
-import java.util.Map;
 
 public class AdminDashboardAuditTrailDataResponse {
 
-    private List<Map<String, Object>> auditLogs;
+    private List<AdminAuditLogEntryResponse> auditLogs;
     private Boolean loading;
 
     public AdminDashboardAuditTrailDataResponse() {
     }
 
-    public AdminDashboardAuditTrailDataResponse(List<Map<String, Object>> auditLogs, Boolean loading) {
+    public AdminDashboardAuditTrailDataResponse(List<AdminAuditLogEntryResponse> auditLogs, Boolean loading) {
         this.auditLogs = auditLogs;
         this.loading = loading;
     }
 
-    public List<Map<String, Object>> getAuditLogs() {
+    public List<AdminAuditLogEntryResponse> getAuditLogs() {
         return auditLogs;
     }
 
-    public void setAuditLogs(List<Map<String, Object>> auditLogs) {
+    public void setAuditLogs(List<AdminAuditLogEntryResponse> auditLogs) {
         this.auditLogs = auditLogs;
     }
 

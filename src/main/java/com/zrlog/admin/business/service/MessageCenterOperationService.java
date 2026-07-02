@@ -46,11 +46,8 @@ public class MessageCenterOperationService {
         notice.setClosable(true);
         notice.setCreatedAt(now);
         notice.setUpdatedAt(now);
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("scannedArticles", response.getScannedArticles());
-        payload.put("updatedArticles", response.getUpdatedArticles());
-        payload.put("updatedFields", response.getUpdatedFields());
-        notice.setPayload(payload);
+        notice.setPayload(new MessageCenterOperationNoticeEntry.ReplaceArticleResourceUrlPayload(
+                response.getScannedArticles(), response.getUpdatedArticles(), response.getUpdatedFields()));
         saveNotice(notice);
     }
 
@@ -71,14 +68,11 @@ public class MessageCenterOperationService {
         notice.setClosable(true);
         notice.setCreatedAt(now);
         notice.setUpdatedAt(now);
-        Map<String, Object> payload = new LinkedHashMap<>();
         List<String> siteTypeNames = new ArrayList<>();
         for (StaticSiteType siteType : siteTypes) {
             siteTypeNames.add(siteType.name());
         }
-        payload.put("siteTypes", siteTypeNames);
-        payload.put("synced", synced);
-        notice.setPayload(payload);
+        notice.setPayload(new MessageCenterOperationNoticeEntry.StaticSiteSyncPayload(siteTypeNames, synced));
         saveNotice(notice);
     }
 
@@ -103,10 +97,8 @@ public class MessageCenterOperationService {
         notice.setClosable(true);
         notice.setCreatedAt(now);
         notice.setUpdatedAt(now);
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("siteTypes", List.of(StaticSiteType.BLOG.name()));
-        payload.put("synced", synced);
-        notice.setPayload(payload);
+        notice.setPayload(new MessageCenterOperationNoticeEntry.StaticSiteSyncPayload(
+                List.of(StaticSiteType.BLOG.name()), synced));
         saveNotice(notice);
     }
 
@@ -169,9 +161,7 @@ public class MessageCenterOperationService {
         notice.setClosable(true);
         notice.setCreatedAt(now);
         notice.setUpdatedAt(now);
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("buildId", buildIdText);
-        notice.setPayload(payload);
+        notice.setPayload(new MessageCenterOperationNoticeEntry.UpgradeRestartPayload(buildIdText));
         saveNotice(notice);
     }
 
@@ -189,14 +179,8 @@ public class MessageCenterOperationService {
                 score != null && score >= PUBLISH_CHECK_SUCCESS_SCORE ? "success" : "warning",
                 articleId
         );
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("articleId", articleId);
-        payload.put("articleTitle", articleTitle);
-        if (score != null) {
-            payload.put("score", score);
-        }
-        payload.put("itemCount", itemCount);
-        notice.setPayload(payload);
+        notice.setPayload(new MessageCenterOperationNoticeEntry.PublishCheckPayload(
+                articleId, articleTitle, score, itemCount));
         saveNotice(notice);
     }
 
@@ -214,10 +198,8 @@ public class MessageCenterOperationService {
                 "error",
                 articleId
         );
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("articleId", articleId);
-        payload.put("articleTitle", articleTitle);
-        notice.setPayload(payload);
+        notice.setPayload(new MessageCenterOperationNoticeEntry.PublishCheckPayload(
+                articleId, articleTitle, null, null));
         saveNotice(notice);
     }
 
@@ -299,10 +281,7 @@ public class MessageCenterOperationService {
         notice.setClosable(true);
         notice.setCreatedAt(now);
         notice.setUpdatedAt(now);
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("finish", finish);
-        payload.put("message", message);
-        notice.setPayload(payload);
+        notice.setPayload(new MessageCenterOperationNoticeEntry.UpgradePayload(finish, message));
         saveNotice(notice);
     }
 

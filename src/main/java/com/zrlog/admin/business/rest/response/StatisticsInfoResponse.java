@@ -16,7 +16,7 @@ public class StatisticsInfoResponse {
     private Long publishedCount;
     private List<TypeDTO> typeData;
     private List<TagDTO> tagData;
-    private List<java.util.Map<String, Object>> auditLogs;
+    private List<AdminAuditLogEntryResponse> auditLogs;
     private String usedCacheSpace;
     private String usedDiskSpace;
 
@@ -92,11 +92,11 @@ public class StatisticsInfoResponse {
         this.tagData = tagData;
     }
 
-    public List<java.util.Map<String, Object>> getAuditLogs() {
+    public List<AdminAuditLogEntryResponse> getAuditLogs() {
         return auditLogs;
     }
 
-    public void setAuditLogs(List<java.util.Map<String, Object>> auditLogs) {
+    public void setAuditLogs(List<AdminAuditLogEntryResponse> auditLogs) {
         this.auditLogs = auditLogs;
     }
 

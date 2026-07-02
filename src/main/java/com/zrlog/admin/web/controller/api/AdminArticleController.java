@@ -149,7 +149,7 @@ public class AdminArticleController extends BaseController {
             AdminPageDataResponse<ArticleGlobalResponse> detail = toResponseByArticle(saveResponse, false);
             detailRef.set(detail);
             emitter.send("article", detail);
-            emitter.send("publish-start", Map.of("message", detail.getMessage()));
+            emitter.send("publish-start", AdminSsePayloads.message(detail.getMessage()));
             return detail;
         });
     }
@@ -160,7 +160,7 @@ public class AdminArticleController extends BaseController {
         AtomicReference<AdminPageDataResponse<ArticleGlobalResponse>> detailRef = new AtomicReference<>(detail);
         writeTransparentPublishStream(body, detailRef, emitter -> {
             emitter.send("article", detail);
-            emitter.send("publish-start", Map.of("message", detail.getMessage()));
+            emitter.send("publish-start", AdminSsePayloads.message(detail.getMessage()));
             return detail;
         });
     }
@@ -182,14 +182,14 @@ public class AdminArticleController extends BaseController {
                     CompletableFuture<PublishCheckResponse> publishCheckFuture = startPublishCheck(detail, body);
                     if (publishCheckFuture != null) {
                         publishCheckFutureRef.set(publishCheckFuture);
-                        emitter.send("publish-check-start", Map.of("tool", "publishCheck"));
+                        emitter.send("publish-check-start", AdminSsePayloads.tool("publishCheck"));
                     }
                 },
                 this::updateBlogCacheWithStaticSyncNotice,
                 emitter -> sendPublishCheckIfReady(publishCheckFutureRef.get(), publishCheckSent, emitter, false),
                 emitter -> {
                     AdminPageDataResponse<ArticleGlobalResponse> detail = detailRef.get();
-                    emitter.send("publish-complete", Map.of("message", detail.getMessage()));
+                    emitter.send("publish-complete", AdminSsePayloads.message(detail.getMessage()));
                     sendPublishCheckIfReady(publishCheckFutureRef.get(), publishCheckSent, emitter, true);
                 }
         );
@@ -301,7 +301,8 @@ public class AdminArticleController extends BaseController {
             emitter.send("publish-check-complete", publishCheckFuture.join());
         } catch (CompletionException e) {
             Throwable cause = Objects.requireNonNullElse(e.getCause(), e);
-            emitter.send("publish-check-error", Map.of("message", Objects.requireNonNullElse(cause.getMessage(), "")));
+            emitter.send("publish-check-error",
+                    AdminSsePayloads.message(Objects.requireNonNullElse(cause.getMessage(), "")));
         } finally {
             publishCheckSent.set(true);
         }
@@ -358,7 +359,7 @@ public class AdminArticleController extends BaseController {
                 Long.parseLong(getParamWithEmptyCheck("id")), tool, articleContext, includeArticleContext);
         AdminSseEmitter.setHeaders(response);
         if (streamResponse.getInputStream() == null) {
-            String errorPayload = new Gson().toJson(Map.of("error", 1, "message",
+            String errorPayload = new Gson().toJson(AdminSsePayloads.error(1,
                     Objects.requireNonNullElse(streamResponse.getErrorBody(), "")));
             response.write(new ByteArrayInputStream(errorPayload.getBytes(StandardCharsets.UTF_8)),
                     streamResponse.getStatusCode());

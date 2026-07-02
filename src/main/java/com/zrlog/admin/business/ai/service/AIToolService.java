@@ -1,6 +1,9 @@
 package com.zrlog.admin.business.ai.service;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.hibegin.common.util.StringUtils;
+import com.zrlog.admin.business.ai.dto.AIToolResponsePayloads;
 import com.zrlog.admin.business.ai.exception.AIResponseException;
 import com.zrlog.admin.business.ai.prompt.AIPromptVO;
 import com.zrlog.admin.business.rest.base.AIWebSiteInfo;
@@ -14,7 +17,6 @@ import java.net.http.HttpClient;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -325,16 +327,15 @@ public class AIToolService extends AIService {
     }
 
     private List<String> parseTitles(String content) {
-        String jsonContent = cleanJsonContent(content);
-        Map responseMap = gson.fromJson(jsonContent, Map.class);
-        Object titlesObj = responseMap.get("titles");
-        if (!(titlesObj instanceof List)) {
+        AIToolResponsePayloads.Titles payload = parseToolPayload(content, AIToolResponsePayloads.Titles.class);
+        List<String> rawTitles = payload.getTitles();
+        if (rawTitles == null) {
             throw new AIResponseException("title response is invalid");
         }
         List<String> titles = new ArrayList<>();
-        for (Object titleObj : (List<?>) titlesObj) {
-            if (titleObj != null && StringUtils.isNotEmpty(titleObj.toString())) {
-                titles.add(cleanPrompt(titleObj.toString()));
+        for (String title : rawTitles) {
+            if (title != null && StringUtils.isNotEmpty(title)) {
+                titles.add(cleanPrompt(title));
             }
             if (titles.size() >= 3) {
                 break;
@@ -347,21 +348,20 @@ public class AIToolService extends AIService {
     }
 
     private String parseStringField(String content, String fieldName, String errorMessage) {
-        String jsonContent = cleanJsonContent(content);
-        Map responseMap = gson.fromJson(jsonContent, Map.class);
-        Object value = responseMap.get(fieldName);
-        if (value == null || StringUtils.isEmpty(value.toString())) {
+        JsonObject responseObject = parseToolJsonObject(content);
+        JsonElement value = responseObject.get(fieldName);
+        String text = jsonElementToString(value);
+        if (StringUtils.isEmpty(text)) {
             throw new AIResponseException(errorMessage);
         }
-        return value.toString();
+        return text;
     }
 
     private GenerateArticleMarkdownResponse parseArticleMarkdown(String content) {
-        String jsonContent = cleanJsonContent(content);
-        Map responseMap = gson.fromJson(jsonContent, Map.class);
+        AIToolResponsePayloads.Markdown payload = parseToolPayload(content, AIToolResponsePayloads.Markdown.class);
         GenerateArticleMarkdownResponse response = new GenerateArticleMarkdownResponse();
-        response.setSummary(cleanPrompt(valueToString(responseMap.get("summary"))));
-        response.setMarkdown(cleanPrompt(valueToString(responseMap.get("markdown"))));
+        response.setSummary(cleanPrompt(payload.getSummary()));
+        response.setMarkdown(cleanPrompt(payload.getMarkdown()));
         if (StringUtils.isEmpty(response.getMarkdown())) {
             throw new AIResponseException("markdown response is invalid");
         }
@@ -369,16 +369,15 @@ public class AIToolService extends AIService {
     }
 
     private List<String> parseTags(String content) {
-        String jsonContent = cleanJsonContent(content);
-        Map responseMap = gson.fromJson(jsonContent, Map.class);
-        Object tagsObj = responseMap.get("tags");
-        if (!(tagsObj instanceof List)) {
+        AIToolResponsePayloads.Tags payload = parseToolPayload(content, AIToolResponsePayloads.Tags.class);
+        List<String> rawTags = payload.getTags();
+        if (rawTags == null) {
             throw new AIResponseException("tags response is invalid");
         }
         List<String> tags = new ArrayList<>();
-        for (Object tagObj : (List<?>) tagsObj) {
-            if (tagObj != null && StringUtils.isNotEmpty(tagObj.toString())) {
-                String tag = cleanPrompt(tagObj.toString());
+        for (String tagObj : rawTags) {
+            if (tagObj != null && StringUtils.isNotEmpty(tagObj)) {
+                String tag = cleanPrompt(tagObj);
                 if (!tags.contains(tag)) {
                     tags.add(tag);
                 }
@@ -405,26 +404,24 @@ public class AIToolService extends AIService {
     }
 
     private ScoreArticleResponse parseArticleScore(String content) {
-        String jsonContent = cleanJsonContent(content);
-        Map responseMap = gson.fromJson(jsonContent, Map.class);
+        AIToolResponsePayloads.ArticleScore payload =
+                parseToolPayload(content, AIToolResponsePayloads.ArticleScore.class);
         ScoreArticleResponse response = new ScoreArticleResponse();
-        response.setScore(normalizeScore(responseMap.get("score")));
-        response.setSummary(cleanPrompt(valueToString(responseMap.get("summary"))));
-        Object itemsObj = responseMap.get("items");
+        response.setScore(normalizeScore(payload.getScore()));
+        response.setSummary(cleanPrompt(payload.getSummary()));
         List<ScoreArticleResponse.ScoreItem> items = new ArrayList<>();
-        if (itemsObj instanceof List) {
-            for (Object itemObj : (List<?>) itemsObj) {
-                if (!(itemObj instanceof Map)) {
-                    continue;
-                }
-                Map itemMap = (Map) itemObj;
-                ScoreArticleResponse.ScoreItem item = new ScoreArticleResponse.ScoreItem();
-                item.setName(cleanPrompt(valueToString(itemMap.get("name"))));
-                item.setScore(normalizeScore(itemMap.get("score")));
-                item.setSuggestion(cleanPrompt(valueToString(itemMap.get("suggestion"))));
-                if (StringUtils.isNotEmpty(item.getName()) || StringUtils.isNotEmpty(item.getSuggestion())) {
-                    items.add(item);
-                }
+        for (JsonElement itemElement : jsonArrayElements(payload.getItems())) {
+            AIToolResponsePayloads.ArticleScoreItem itemPayload =
+                    parseJsonItem(itemElement, AIToolResponsePayloads.ArticleScoreItem.class);
+            if (itemPayload == null) {
+                continue;
+            }
+            ScoreArticleResponse.ScoreItem item = new ScoreArticleResponse.ScoreItem();
+            item.setName(cleanPrompt(itemPayload.getName()));
+            item.setScore(normalizeScore(itemPayload.getScore()));
+            item.setSuggestion(cleanPrompt(itemPayload.getSuggestion()));
+            if (StringUtils.isNotEmpty(item.getName()) || StringUtils.isNotEmpty(item.getSuggestion())) {
+                items.add(item);
             }
         }
         if (StringUtils.isEmpty(response.getSummary()) || items.isEmpty()) {
@@ -435,26 +432,24 @@ public class AIToolService extends AIService {
     }
 
     private ArticleSeoCheckResponse parseArticleSeo(String content) {
-        String jsonContent = cleanJsonContent(content);
-        Map responseMap = gson.fromJson(jsonContent, Map.class);
+        AIToolResponsePayloads.ArticleSeo payload =
+                parseToolPayload(content, AIToolResponsePayloads.ArticleSeo.class);
         ArticleSeoCheckResponse response = new ArticleSeoCheckResponse();
-        response.setScore(normalizeScore(responseMap.get("score")));
-        response.setSummary(cleanPrompt(valueToString(responseMap.get("summary"))));
-        Object itemsObj = responseMap.get("items");
+        response.setScore(normalizeScore(payload.getScore()));
+        response.setSummary(cleanPrompt(payload.getSummary()));
         List<ArticleSeoCheckResponse.SeoItem> items = new ArrayList<>();
-        if (itemsObj instanceof List) {
-            for (Object itemObj : (List<?>) itemsObj) {
-                if (!(itemObj instanceof Map)) {
-                    continue;
-                }
-                Map itemMap = (Map) itemObj;
-                ArticleSeoCheckResponse.SeoItem item = new ArticleSeoCheckResponse.SeoItem();
-                item.setName(cleanPrompt(valueToString(itemMap.get("name"))));
-                item.setStatus(cleanPrompt(valueToString(itemMap.get("status"))));
-                item.setSuggestion(cleanPrompt(valueToString(itemMap.get("suggestion"))));
-                if (StringUtils.isNotEmpty(item.getName()) || StringUtils.isNotEmpty(item.getSuggestion())) {
-                    items.add(item);
-                }
+        for (JsonElement itemElement : jsonArrayElements(payload.getItems())) {
+            AIToolResponsePayloads.ArticleSeoItem itemPayload =
+                    parseJsonItem(itemElement, AIToolResponsePayloads.ArticleSeoItem.class);
+            if (itemPayload == null) {
+                continue;
+            }
+            ArticleSeoCheckResponse.SeoItem item = new ArticleSeoCheckResponse.SeoItem();
+            item.setName(cleanPrompt(itemPayload.getName()));
+            item.setStatus(cleanPrompt(itemPayload.getStatus()));
+            item.setSuggestion(cleanPrompt(itemPayload.getSuggestion()));
+            if (StringUtils.isNotEmpty(item.getName()) || StringUtils.isNotEmpty(item.getSuggestion())) {
+                items.add(item);
             }
         }
         if (StringUtils.isEmpty(response.getSummary()) || items.isEmpty()) {
@@ -465,25 +460,23 @@ public class AIToolService extends AIService {
     }
 
     private ArticleProofreadResponse parseArticleProofread(String content) {
-        String jsonContent = cleanJsonContent(content);
-        Map responseMap = gson.fromJson(jsonContent, Map.class);
+        AIToolResponsePayloads.ArticleProofread payload =
+                parseToolPayload(content, AIToolResponsePayloads.ArticleProofread.class);
         ArticleProofreadResponse response = new ArticleProofreadResponse();
-        response.setSummary(cleanPrompt(valueToString(responseMap.get("summary"))));
-        Object itemsObj = responseMap.get("items");
+        response.setSummary(cleanPrompt(payload.getSummary()));
         List<ArticleProofreadResponse.ProofreadItem> items = new ArrayList<>();
-        if (itemsObj instanceof List) {
-            for (Object itemObj : (List<?>) itemsObj) {
-                if (!(itemObj instanceof Map)) {
-                    continue;
-                }
-                Map itemMap = (Map) itemObj;
-                ArticleProofreadResponse.ProofreadItem item = new ArticleProofreadResponse.ProofreadItem();
-                item.setOriginal(cleanPrompt(valueToString(itemMap.get("original"))));
-                item.setIssue(cleanPrompt(valueToString(itemMap.get("issue"))));
-                item.setSuggestion(cleanPrompt(valueToString(itemMap.get("suggestion"))));
-                if (StringUtils.isNotEmpty(item.getOriginal()) || StringUtils.isNotEmpty(item.getSuggestion())) {
-                    items.add(item);
-                }
+        for (JsonElement itemElement : jsonArrayElements(payload.getItems())) {
+            AIToolResponsePayloads.ArticleProofreadItem itemPayload =
+                    parseJsonItem(itemElement, AIToolResponsePayloads.ArticleProofreadItem.class);
+            if (itemPayload == null) {
+                continue;
+            }
+            ArticleProofreadResponse.ProofreadItem item = new ArticleProofreadResponse.ProofreadItem();
+            item.setOriginal(cleanPrompt(itemPayload.getOriginal()));
+            item.setIssue(cleanPrompt(itemPayload.getIssue()));
+            item.setSuggestion(cleanPrompt(itemPayload.getSuggestion()));
+            if (StringUtils.isNotEmpty(item.getOriginal()) || StringUtils.isNotEmpty(item.getSuggestion())) {
+                items.add(item);
             }
         }
         if (StringUtils.isEmpty(response.getSummary())) {
@@ -494,26 +487,24 @@ public class AIToolService extends AIService {
     }
 
     private ArticleStructureAdviceResponse parseArticleStructure(String content) {
-        String jsonContent = cleanJsonContent(content);
-        Map responseMap = gson.fromJson(jsonContent, Map.class);
+        AIToolResponsePayloads.ArticleStructure payload =
+                parseToolPayload(content, AIToolResponsePayloads.ArticleStructure.class);
         ArticleStructureAdviceResponse response = new ArticleStructureAdviceResponse();
-        response.setSummary(cleanPrompt(valueToString(responseMap.get("summary"))));
-        Object itemsObj = responseMap.get("items");
+        response.setSummary(cleanPrompt(payload.getSummary()));
         List<ArticleStructureAdviceResponse.StructureItem> items = new ArrayList<>();
-        if (itemsObj instanceof List) {
-            for (Object itemObj : (List<?>) itemsObj) {
-                if (!(itemObj instanceof Map)) {
-                    continue;
-                }
-                Map itemMap = (Map) itemObj;
-                ArticleStructureAdviceResponse.StructureItem item =
-                        new ArticleStructureAdviceResponse.StructureItem();
-                item.setName(cleanPrompt(valueToString(itemMap.get("name"))));
-                item.setStatus(cleanPrompt(valueToString(itemMap.get("status"))));
-                item.setSuggestion(cleanPrompt(valueToString(itemMap.get("suggestion"))));
-                if (StringUtils.isNotEmpty(item.getName()) || StringUtils.isNotEmpty(item.getSuggestion())) {
-                    items.add(item);
-                }
+        for (JsonElement itemElement : jsonArrayElements(payload.getItems())) {
+            AIToolResponsePayloads.ArticleStructureItem itemPayload =
+                    parseJsonItem(itemElement, AIToolResponsePayloads.ArticleStructureItem.class);
+            if (itemPayload == null) {
+                continue;
+            }
+            ArticleStructureAdviceResponse.StructureItem item =
+                    new ArticleStructureAdviceResponse.StructureItem();
+            item.setName(cleanPrompt(itemPayload.getName()));
+            item.setStatus(cleanPrompt(itemPayload.getStatus()));
+            item.setSuggestion(cleanPrompt(itemPayload.getSuggestion()));
+            if (StringUtils.isNotEmpty(item.getName()) || StringUtils.isNotEmpty(item.getSuggestion())) {
+                items.add(item);
             }
         }
         if (StringUtils.isEmpty(response.getSummary()) || items.isEmpty()) {
@@ -524,26 +515,24 @@ public class AIToolService extends AIService {
     }
 
     private ArticleReaderQuestionsResponse parseReaderQuestions(String content) {
-        String jsonContent = cleanJsonContent(content);
-        Map responseMap = gson.fromJson(jsonContent, Map.class);
+        AIToolResponsePayloads.ReaderQuestions payload =
+                parseToolPayload(content, AIToolResponsePayloads.ReaderQuestions.class);
         ArticleReaderQuestionsResponse response = new ArticleReaderQuestionsResponse();
-        response.setSummary(cleanPrompt(valueToString(responseMap.get("summary"))));
-        Object itemsObj = responseMap.get("items");
+        response.setSummary(cleanPrompt(payload.getSummary()));
         List<ArticleReaderQuestionsResponse.ReaderQuestionItem> items = new ArrayList<>();
-        if (itemsObj instanceof List) {
-            for (Object itemObj : (List<?>) itemsObj) {
-                if (!(itemObj instanceof Map)) {
-                    continue;
-                }
-                Map itemMap = (Map) itemObj;
-                ArticleReaderQuestionsResponse.ReaderQuestionItem item =
-                        new ArticleReaderQuestionsResponse.ReaderQuestionItem();
-                item.setQuestion(cleanPrompt(valueToString(itemMap.get("question"))));
-                item.setReason(cleanPrompt(valueToString(itemMap.get("reason"))));
-                item.setSuggestion(cleanPrompt(valueToString(itemMap.get("suggestion"))));
-                if (StringUtils.isNotEmpty(item.getQuestion())) {
-                    items.add(item);
-                }
+        for (JsonElement itemElement : jsonArrayElements(payload.getItems())) {
+            AIToolResponsePayloads.ReaderQuestionItem itemPayload =
+                    parseJsonItem(itemElement, AIToolResponsePayloads.ReaderQuestionItem.class);
+            if (itemPayload == null) {
+                continue;
+            }
+            ArticleReaderQuestionsResponse.ReaderQuestionItem item =
+                    new ArticleReaderQuestionsResponse.ReaderQuestionItem();
+            item.setQuestion(cleanPrompt(itemPayload.getQuestion()));
+            item.setReason(cleanPrompt(itemPayload.getReason()));
+            item.setSuggestion(cleanPrompt(itemPayload.getSuggestion()));
+            if (StringUtils.isNotEmpty(item.getQuestion())) {
+                items.add(item);
             }
         }
         if (StringUtils.isEmpty(response.getSummary()) || items.isEmpty()) {
@@ -551,6 +540,60 @@ public class AIToolService extends AIService {
         }
         response.setItems(items);
         return response;
+    }
+
+    private <T> T parseToolPayload(String content, Class<T> clazz) {
+        try {
+            T payload = gson.fromJson(cleanJsonContent(content), clazz);
+            if (payload == null) {
+                throw new AIResponseException("AI response is invalid");
+            }
+            return payload;
+        } catch (AIResponseException e) {
+            throw e;
+        } catch (RuntimeException e) {
+            throw new AIResponseException("AI response is invalid");
+        }
+    }
+
+    private JsonObject parseToolJsonObject(String content) {
+        try {
+            JsonObject responseObject = gson.fromJson(cleanJsonContent(content), JsonObject.class);
+            if (responseObject == null) {
+                throw new AIResponseException("AI response is invalid");
+            }
+            return responseObject;
+        } catch (AIResponseException e) {
+            throw e;
+        } catch (RuntimeException e) {
+            throw new AIResponseException("AI response is invalid");
+        }
+    }
+
+    private List<JsonElement> jsonArrayElements(JsonElement value) {
+        List<JsonElement> elements = new ArrayList<>();
+        if (value == null || value.isJsonNull() || !value.isJsonArray()) {
+            return elements;
+        }
+        value.getAsJsonArray().forEach(elements::add);
+        return elements;
+    }
+
+    private <T> T parseJsonItem(JsonElement value, Class<T> clazz) {
+        if (value == null || value.isJsonNull() || !value.isJsonObject()) {
+            return null;
+        }
+        return gson.fromJson(value, clazz);
+    }
+
+    private String jsonElementToString(JsonElement value) {
+        if (value == null || value.isJsonNull()) {
+            return "";
+        }
+        if (value.isJsonPrimitive()) {
+            return value.getAsString();
+        }
+        return value.toString();
     }
 
     private int normalizeScore(Object value) {

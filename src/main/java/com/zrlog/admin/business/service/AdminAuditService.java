@@ -1,9 +1,12 @@
 package com.zrlog.admin.business.service;
 
 import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.hibegin.common.util.StringUtils;
 import com.hibegin.http.server.api.HttpRequest;
+import com.zrlog.admin.business.rest.response.AdminAuditLogEntryResponse;
 import com.zrlog.admin.business.type.AdminAuditAction;
 import com.zrlog.blog.web.util.WebTools;
 import com.zrlog.business.service.WebsiteKvService;
@@ -11,12 +14,16 @@ import com.zrlog.util.I18nUtil;
 import com.zrlog.util.UserAgentUtils;
 
 import java.sql.SQLException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
 
 public class AdminAuditService {
 
     private static final String AUDIT_LOG_KEY = "admin_audit_log";
     private static final int MAX_LOG_SIZE = 100;
+    private static final Gson GSON = new Gson();
 
     public void record(HttpRequest request, AdminAuditAction action) {
         record(request, action, "");
@@ -26,21 +33,21 @@ public class AdminAuditService {
         try {
             WebsiteKvService kvService = new WebsiteKvService();
             String json = kvService.getString(AUDIT_LOG_KEY);
-            List<Map<String, Object>> logs = readLogs(json);
+            List<AdminAuditLogEntryResponse> logs = readLogs(json);
 
-            Map<String, Object> newLog = new java.util.HashMap<>();
-            newLog.put("timestamp", System.currentTimeMillis());
-            newLog.put("ip", WebTools.getRealIp(request));
-            newLog.put("action", action.name());
-            newLog.put("type", action.getType());
-            newLog.put("content", sanitizeContent(action, content));
+            AdminAuditLogEntryResponse newLog = new AdminAuditLogEntryResponse();
+            newLog.setTimestamp(System.currentTimeMillis());
+            newLog.setIp(WebTools.getRealIp(request));
+            newLog.setAction(action.name());
+            newLog.setType(action.getType());
+            newLog.setContent(sanitizeContent(action, content));
 
             String uaString = request.getHeader("User-Agent");
             if (StringUtils.isNotEmpty(uaString)) {
                 UserAgentUtils.UserAgentInfo uaInfo = UserAgentUtils.parse(uaString);
-                newLog.put("os", uaInfo.getOs());
-                newLog.put("browser", uaInfo.getFullBrowser());
-                newLog.put("crawler", uaInfo.isCrawler());
+                newLog.setOs(uaInfo.getOs());
+                newLog.setBrowser(uaInfo.getFullBrowser());
+                newLog.setCrawler(uaInfo.isCrawler());
             }
 
             logs.add(0, newLog); // Add to the beginning
@@ -49,7 +56,7 @@ public class AdminAuditService {
                 logs = logs.subList(0, MAX_LOG_SIZE);
             }
 
-            kvService.putString(AUDIT_LOG_KEY, new Gson().toJson(logs));
+            kvService.putString(AUDIT_LOG_KEY, GSON.toJson(logs));
         } catch (SQLException e) {
             // Ignore audit log error to not break business
         }
@@ -62,51 +69,55 @@ public class AdminAuditService {
         return content == null ? "" : content;
     }
 
-    public List<Map<String, Object>> getRecentLogs() {
+    public List<AdminAuditLogEntryResponse> getRecentLogs() {
         String json = new WebsiteKvService().getString(AUDIT_LOG_KEY);
-        List<Map<String, Object>> logs = readLogs(json);
+        List<AdminAuditLogEntryResponse> logs = readLogs(json);
         if (logs.isEmpty()) {
             return Collections.emptyList();
         }
-        List<Map<String, Object>> displayLogs = new ArrayList<>();
-        for (Map<String, Object> log : logs) {
+        List<AdminAuditLogEntryResponse> displayLogs = new ArrayList<>();
+        for (AdminAuditLogEntryResponse log : logs) {
             displayLogs.add(toDisplayLog(log));
         }
         return displayLogs;
     }
 
-    Map<String, Object> toDisplayLog(Map<String, Object> log) {
-        Map<String, Object> displayLog = new HashMap<>(log);
-        Object action = log.get("action");
+    AdminAuditLogEntryResponse toDisplayLog(AdminAuditLogEntryResponse log) {
+        String action = log.getAction();
         AdminAuditAction auditAction = toAuditAction(action);
+        AdminAuditLogEntryResponse displayLog = new AdminAuditLogEntryResponse();
+        displayLog.setTimestamp(log.getTimestamp());
+        displayLog.setIp(log.getIp());
+        displayLog.setAction(action);
+        displayLog.setType(log.getType());
+        displayLog.setContent(log.getContent());
+        displayLog.setOs(log.getOs());
+        displayLog.setBrowser(log.getBrowser());
+        displayLog.setCrawler(log.getCrawler());
         if (isSecurityLog(log, auditAction)) {
-            displayLog.put("content", "");
+            displayLog.setContent("");
         }
         if (auditAction == null) {
             return displayLog;
         }
         String label = I18nUtil.getAdminBackendStringFromRes(auditAction.getI18nKey());
-        displayLog.put("action", StringUtils.isEmpty(label) ? action : label);
+        displayLog.setAction(StringUtils.isEmpty(label) ? action : label);
         return displayLog;
     }
 
-    List<Map<String, Object>> readLogs(String json) {
+    List<AdminAuditLogEntryResponse> readLogs(String json) {
         if (StringUtils.isEmpty(json)) {
             return new ArrayList<>();
         }
         try {
-            List<?> logs = new Gson().fromJson(json, new TypeToken<List<?>>() {}.getType());
-            if (logs == null) {
+            JsonElement root = JsonParser.parseString(json);
+            if (root == null || !root.isJsonArray()) {
                 return new ArrayList<>();
             }
-            List<Map<String, Object>> validLogs = new ArrayList<>();
-            for (Object log : logs) {
-                if (log instanceof Map) {
-                    Map<String, Object> validLog = new HashMap<>();
-                    for (Map.Entry<?, ?> entry : ((Map<?, ?>) log).entrySet()) {
-                        validLog.put(String.valueOf(entry.getKey()), entry.getValue());
-                    }
-                    validLogs.add(validLog);
+            List<AdminAuditLogEntryResponse> validLogs = new ArrayList<>();
+            for (JsonElement log : root.getAsJsonArray()) {
+                if (log != null && log.isJsonObject()) {
+                    validLogs.add(toAuditLogEntry(log.getAsJsonObject()));
                 }
             }
             return validLogs;
@@ -115,19 +126,71 @@ public class AdminAuditService {
         }
     }
 
-    AdminAuditAction toAuditAction(Object action) {
-        if (!(action instanceof String)) {
+    private AdminAuditLogEntryResponse toAuditLogEntry(JsonObject log) {
+        AdminAuditLogEntryResponse entry = new AdminAuditLogEntryResponse();
+        entry.setTimestamp(toLong(log.get("timestamp")));
+        entry.setIp(toStringValue(log.get("ip")));
+        entry.setAction(toStringValue(log.get("action")));
+        entry.setType(toStringValue(log.get("type")));
+        entry.setContent(toStringValue(log.get("content")));
+        entry.setOs(toStringValue(log.get("os")));
+        entry.setBrowser(toStringValue(log.get("browser")));
+        entry.setCrawler(toBoolean(log.get("crawler")));
+        return entry;
+    }
+
+    AdminAuditAction toAuditAction(String action) {
+        if (action == null) {
             return null;
         }
         try {
-            return AdminAuditAction.valueOf((String) action);
+            return AdminAuditAction.valueOf(action);
         } catch (IllegalArgumentException e) {
             return null;
         }
     }
 
-    private boolean isSecurityLog(Map<String, Object> log, AdminAuditAction auditAction) {
-        return Objects.equals(log.get("type"), "security")
+    private boolean isSecurityLog(AdminAuditLogEntryResponse log, AdminAuditAction auditAction) {
+        return Objects.equals(log.getType(), "security")
                 || (auditAction != null && Objects.equals(auditAction.getType(), "security"));
+    }
+
+    private Long toLong(JsonElement value) {
+        if (value == null || value.isJsonNull() || !value.isJsonPrimitive()) {
+            return null;
+        }
+        if (value.getAsJsonPrimitive().isNumber()) {
+            return value.getAsNumber().longValue();
+        }
+        String stringValue = value.getAsString();
+        if (StringUtils.isNotEmpty(stringValue)) {
+            try {
+                return Long.parseLong(stringValue);
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private Boolean toBoolean(JsonElement value) {
+        if (value == null || value.isJsonNull() || !value.isJsonPrimitive()) {
+            return null;
+        }
+        if (value.getAsJsonPrimitive().isBoolean()) {
+            return value.getAsBoolean();
+        }
+        String stringValue = value.getAsString();
+        if (StringUtils.isNotEmpty(stringValue)) {
+            return Boolean.parseBoolean(stringValue);
+        }
+        return null;
+    }
+
+    private String toStringValue(JsonElement value) {
+        if (value == null || value.isJsonNull() || !value.isJsonPrimitive()) {
+            return null;
+        }
+        return value.getAsString();
     }
 }
