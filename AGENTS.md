@@ -45,6 +45,21 @@ cd src/main/frontend && yarn build
 
 修改后端 Java 行为时至少运行相关测试或 `mvn -q -DskipTests compile`。修改前端 TypeScript、页面或主题时至少运行 `cd src/main/frontend && yarn type-check`，必要时运行 `yarn build`。修改跨前后端协议、native/Gson DTO、插件交互面板或 AI SSE 时，需要补充对应专项验证。
 
+## MemoryApplication
+
+`com.zrlog.admin.MemoryApplication` 是本地开发辅助入口，用于启动干净的内存数据库后台环境，不是发布产物入口。
+
+关键约束：
+
+- 安装配置模板放在工程外部配置目录 `conf/memory-install.json`，不要放进 `src/main/resources`。
+- 启动时使用工程目录下的 `.zrlog-memory/` 作为隔离 runtime root；每次启动前清空该目录，再生成 `conf/db.properties`、`conf/install.lock` 和 `conf/memory-install.generated.json`。
+- `.zrlog-memory/` 必须被 git 忽略；不要写入或覆盖仓库已有的 `conf/db.properties`、`conf/install.lock`。
+- 内存模式仍通过 install-web 的配置文件安装链路：读取 JSON，反序列化 `InstallConfigVO`，创建 `InstallService`，调用 `install()`；不要手工拼完整安装流程。
+- `configMsg.secretKey` 等需要稳定的安装字段应固定在 `conf/memory-install.json`，避免每次启动随机变化。
+- `MemoryApplication*.class` 和 memory 安装配置不得进入最终 jar；修改后用 jar 条目检查确认。
+- `MemoryApplicationTest` 必须覆盖两层：install-web 写入和种子数据，以及 `ZrLogConfig` 从生成的 `conf/db.properties` 构建 datasource 的启动链路。
+- 本地启动优先使用 `bash shell/memory-run.sh`；端口可用 `--port=18080` 或 `ZRLOG_MEMORY_PORT=18080` 覆盖。该脚本会在后台静态资源缺失时先完成前端打包。
+
 ## i18n
 
 后台 i18n 相关工作必须遵守 `docs/i18n.md`。

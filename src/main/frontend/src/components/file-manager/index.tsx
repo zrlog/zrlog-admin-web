@@ -11,6 +11,7 @@ import {
 } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
+    Alert,
     App,
     Button,
     Checkbox,
@@ -885,6 +886,7 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
     const isRootOverview = effectivePath === "";
     const canUpload = hasDirectoryAction(directoryActions, "UPLOAD");
     const canMkdir = hasDirectoryAction(directoryActions, "MKDIR");
+    const directoryActionDisabledHint = isRootOverview ? res.rootOverviewActionHint : res.readOnlyHint;
     const getResourceType = useCallback((entry: FileEntry) => {
         if (entry.missing === true) return "broken";
         if (entry.type === "directory") return "directory";
@@ -1164,7 +1166,7 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
             }
             toolbarActions={
                 <>
-                    <Tooltip title={!canUpload || isRootOverview ? res.readOnlyHint : undefined}>
+                    <Tooltip title={!canUpload || isRootOverview ? directoryActionDisabledHint : undefined}>
                         <BaseDragger
                             onSuccess={() => {
                                 void refreshData();
@@ -1188,16 +1190,18 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                             </Button>
                         </BaseDragger>
                     </Tooltip>
-                    <Button
-                        icon={<FolderAddOutlined />}
-                        onClick={() => {
-                            setNewFolderName("");
-                            setNewFolderOpen(true);
-                        }}
-                        disabled={!canMkdir || isRootOverview}
-                    >
-                        {res.newFolder}
-                    </Button>
+                    <Tooltip title={!canMkdir || isRootOverview ? directoryActionDisabledHint : undefined}>
+                        <Button
+                            icon={<FolderAddOutlined />}
+                            onClick={() => {
+                                setNewFolderName("");
+                                setNewFolderOpen(true);
+                            }}
+                            disabled={!canMkdir || isRootOverview}
+                        >
+                            {res.newFolder}
+                        </Button>
+                    </Tooltip>
                     {referenceResourceView && (
                         <Button
                             icon={<ReloadOutlined />}
@@ -1208,6 +1212,11 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                         </Button>
                     )}
                 </>
+            }
+            contentNotice={
+                isRootOverview ? (
+                    <Alert type="info" showIcon message={res.rootOverviewTitle} description={res.rootOverviewHint} />
+                ) : undefined
             }
             detailPanel={
                 <div style={{ padding: token.padding }}>

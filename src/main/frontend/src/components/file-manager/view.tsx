@@ -29,6 +29,7 @@ export type FileManagerViewProps = {
     toolbarActions?: ReactNode;
     filterActions?: ReactNode;
     categoryActions?: ReactNode;
+    contentNotice?: ReactNode;
     detailPanel?: ReactNode;
     overlays?: ReactNode;
     loading?: boolean;
@@ -136,6 +137,7 @@ const FileManagerView: FunctionComponent<FileManagerViewProps> = ({
     toolbarActions,
     filterActions,
     categoryActions,
+    contentNotice,
     detailPanel,
     overlays,
     loading = false,
@@ -294,6 +296,7 @@ const FileManagerView: FunctionComponent<FileManagerViewProps> = ({
                             background: workspaceBackground,
                         }}
                     >
+                        {contentNotice ? <div style={{ marginBottom: token.marginSM }}>{contentNotice}</div> : null}
                         <div
                             ref={contentKeyboardRef}
                             style={{
