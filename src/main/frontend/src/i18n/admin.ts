@@ -927,6 +927,7 @@ const zhCN = {
         "download": "下载"
     },
     "templateConfig": {
+        "title": "主题配置",
         "inUse": "使用中",
         "inPreview": "预览中"
     },
@@ -2139,6 +2140,7 @@ const enUS: AdminI18nResource = {
         "download": "Download"
     },
     "templateConfig": {
+        "title": "Template Config",
         "inUse": "In Use",
         "inPreview": "In Preview"
     },

@@ -27,6 +27,9 @@ const layout = {
 };
 
 type TemplateConfigState = {
+    name?: string;
+    shortTemplate?: string;
+    template?: string;
     dataMap: Record<string, any>;
     config: ConfigParam[];
     loading: boolean;
@@ -290,30 +293,46 @@ const TemplateConfig = ({
         });
     }, [data]);
 
+    const largeConfig = isLarge();
+    const templateTitle =
+        data.name ||
+        data.shortTemplate ||
+        (typeof state.dataMap.template === "string"
+            ? state.dataMap.template.split("/").filter(Boolean).pop()
+            : undefined) ||
+        getRes().templateConfig.title;
+    const formContent = (
+        <Form
+            form={form}
+            disabled={offline || offlineData}
+            onFinish={() => onFinish()}
+            initialValues={state.dataMap}
+            onValuesChange={(_k, v) => setValue(v)}
+            {...formLayout}
+        >
+            {getFormItems()}
+            <Divider />
+            <Button loading={state.loading} disabled={offline || offlineData} type="primary" htmlType="submit">
+                {getRes().submit}
+            </Button>
+        </Form>
+    );
+
     return (
         <>
             {contextHolder}
             <Row>
-                <Col xs={24} style={{ maxWidth: isLarge() ? 900 : 600 }}>
-                    <Form
-                        form={form}
-                        disabled={offline || offlineData}
-                        onFinish={() => onFinish()}
-                        initialValues={state.dataMap}
-                        onValuesChange={(_k, v) => setValue(v)}
-                        {...formLayout}
-                    >
-                        {getFormItems()}
-                        <Divider />
-                        <Button
-                            loading={state.loading}
-                            disabled={offline || offlineData}
-                            type="primary"
-                            htmlType="submit"
+                <Col xs={24} style={{ maxWidth: largeConfig ? 900 : 600, width: "100%" }}>
+                    {largeConfig ? (
+                        formContent
+                    ) : (
+                        <Card
+                            title={templateTitle}
+                            styles={{ body: { padding: narrow ? theme.padding : theme.paddingLG } }}
                         >
-                            {getRes().submit}
-                        </Button>
-                    </Form>
+                            {formContent}
+                        </Card>
+                    )}
                 </Col>
             </Row>
         </>

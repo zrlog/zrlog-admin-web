@@ -186,6 +186,9 @@ const AdminManageLayout: FunctionComponent<AdminManageLayoutProps> = ({
         if (pathname.startsWith("/template-center")) {
             return { title: getRes().templateCenter.title, subtitle: navigationSubtitle };
         }
+        if (pathname.startsWith("/template-config")) {
+            return { title: getRes().templateConfig.title, subtitle: navigationSubtitle };
+        }
         if (pathname.startsWith("/template")) {
             return { title: getRes().websiteTemplate.title, subtitle: navigationSubtitle };
         }
