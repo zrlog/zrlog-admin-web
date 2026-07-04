@@ -17,7 +17,6 @@ import com.zrlog.common.Updater;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.install.business.service.InstallService;
 import com.zrlog.install.business.vo.InstallConfigVO;
-import com.zrlog.install.business.vo.InstallSiteConfig;
 import com.zrlog.install.web.InstallConstants;
 import com.zrlog.install.web.config.DefaultInstallConfig;
 import com.zrlog.plugin.IPlugin;
@@ -53,7 +52,7 @@ public class MemoryApplication {
     static void start(String[] args) throws Exception {
         System.getProperties().put("sws.run.mode", "dev");
         int port = resolvePort(args);
-        Constants.zrLogConfig = prepareConfig(port);
+
         prepareRuntime(port);
         WebServerBuilder build = new WebServerBuilder.Builder().config(Constants.zrLogConfig).build();
         LOGGER.info("Start ZrLog admin memory application at http://127.0.0.1:" + port + Constants.zrLogConfig.getServerConfig().getContextPath()
@@ -70,10 +69,11 @@ public class MemoryApplication {
         applyRuntimeConfig(installConfig, port);
         InstallConstants.installConfig = new MemoryInstallConfig();
         installFromConfig(installConfig);
+        Constants.zrLogConfig = prepareConfig(port, installConfig.getContextPath());
     }
 
-    static DevZrLogConfig prepareConfig(int port) {
-        return new MemoryZrLogConfig(port, null, Constants.zrLogConfig.getServerConfig().getContextPath());
+    static DevZrLogConfig prepareConfig(int port, String contextPath) {
+        return new MemoryZrLogConfig(port, null, contextPath);
     }
 
     static int resolvePort(String[] args) {
@@ -129,26 +129,6 @@ public class MemoryApplication {
         installConfigVO.getDbConfig().setJdbcUrl(properties.getProperty("jdbcUrl"));
         installConfigVO.getDbConfig().setDriverClass(properties.getProperty("driverClass"));
         return installConfigVO;
-    }
-
-    private static InstallSiteConfig getMemorySiteConfig(InstallConfigVO installConfig) {
-        InstallSiteConfig configMsg = installConfig.getConfigMsg();
-        if (configMsg == null) {
-            throw new IllegalStateException("Missing memory install config value: configMsg");
-        }
-        requireConfigString(configMsg.getUsername(), "configMsg.username");
-        requireConfigString(configMsg.getPassword(), "configMsg.password");
-        return configMsg;
-    }
-
-    private static String requireConfigString(String value, String path) {
-        if (value == null) {
-            throw new IllegalStateException("Missing memory install config value: " + path);
-        }
-        if (value.isEmpty()) {
-            throw new IllegalStateException("Empty memory install config value: " + path);
-        }
-        return value;
     }
 
     private static void installFromConfig(InstallConfigVO config) throws Exception {

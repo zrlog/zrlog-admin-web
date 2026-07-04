@@ -10,6 +10,7 @@ import com.zrlog.common.CacheService;
 import com.zrlog.install.business.vo.InstallConfigVO;
 import com.zrlog.install.web.InstallConstants;
 import com.zrlog.install.web.config.DefaultInstallConfig;
+import com.zrlog.install.web.config.InstallConfig;
 import org.junit.Test;
 
 import java.nio.file.Files;
@@ -19,10 +20,7 @@ import java.sql.PreparedStatement;
 import java.util.Comparator;
 import java.util.Properties;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 public class MemoryApplicationTest {
 
@@ -33,7 +31,7 @@ public class MemoryApplicationTest {
     @Test
     public void shouldPrepareRuntimeFromMemoryInstallConfig() throws Exception {
         String previousRootPath = PathUtil.getRootPath();
-        var previousInstallConfig = InstallConstants.installConfig;
+        InstallConfig previousInstallConfig = InstallConstants.installConfig;
         Path projectRoot = Path.of(System.getProperty("user.dir")).toAbsolutePath().normalize();
         Path runtimeRoot = memoryRoot(projectRoot);
         DevZrLogConfig config = null;
@@ -64,7 +62,8 @@ public class MemoryApplicationTest {
                                 installConfig.getConfigMsg().getUsername()));
             }
 
-            config = MemoryApplication.prepareConfig(18080);
+            config = MemoryApplication.prepareConfig(18080, installConfig.getContextPath());
+            assertEquals(installConfig.getContextPath(), config.getServerConfig().getContextPath());
             assertNotNull(config.getDataSource());
             assertEquals("localhost:18080", scalar(config, "select value from website where name=?", "host"));
         } finally {
@@ -80,7 +79,7 @@ public class MemoryApplicationTest {
     public void shouldUseDatabaseNameFromInstallConfigTemplate() throws Exception {
         String previousUserDir = System.getProperty("user.dir");
         String previousRootPath = PathUtil.getRootPath();
-        var previousInstallConfig = InstallConstants.installConfig;
+        InstallConfig previousInstallConfig = InstallConstants.installConfig;
         Path testProjectRoot = Files.createTempDirectory("zrlog-admin-memory-test-");
         Path runtimeRoot = memoryRoot(testProjectRoot);
         try {
@@ -154,10 +153,10 @@ public class MemoryApplicationTest {
         }
     }
 
-    private static void restoreRuntime(String previousRootPath, Object previousInstallConfig) {
+    private static void restoreRuntime(String previousRootPath, InstallConfig previousInstallConfig) {
         PathUtil.setRootPath(previousRootPath);
         InstallConstants.installConfig = previousInstallConfig == null
                 ? new DefaultInstallConfig()
-                : (DefaultInstallConfig) previousInstallConfig;
+                : previousInstallConfig;
     }
 }
