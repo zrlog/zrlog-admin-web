@@ -1,4 +1,3 @@
-import { getAppState } from "../base/ConfigProviderApp";
 import { useEffect, useRef, useState } from "react";
 import Card from "antd/es/card";
 
@@ -176,10 +175,10 @@ const AccountSecurity = ({ offline, data, updateCache }: AdminCommonProps<Accoun
                                     bottom: 0,
                                     paddingTop: 16,
                                     paddingBottom: "calc(16px + env(safe-area-inset-bottom))",
-                                    background: getAppState().dark ? "#141414" : "#ffffff",
+                                    background: theme.colorBgContainer,
                                     zIndex: 10,
                                     marginTop: 24,
-                                    borderTop: "1px solid " + (getAppState().dark ? "#424242" : "#f0f0f0"),
+                                    borderTop: `${theme.lineWidth}px ${theme.lineType} ${theme.colorBorderSecondary}`,
                                 }}
                             >
                                 <Button disabled={offline} type="primary" htmlType="submit">

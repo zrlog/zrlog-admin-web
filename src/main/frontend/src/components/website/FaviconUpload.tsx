@@ -3,11 +3,11 @@ import { message } from "antd";
 import Image from "antd/es/image";
 import { FunctionComponent, useState } from "react";
 import { RcFile } from "antd/es/upload";
-import { getAppState } from "../../base/ConfigProviderApp";
 import ResourceDragger from "../../common/ResourceDragger";
 import { useTheme } from "antd-style";
 import ImageCropper from "../../common/ImageCropper";
 import { resolveBackendCropImageUrl } from "../../utils/crop-image-url";
+import { colorToRgba } from "../../layout/slider";
 
 type ThumbnailUploadProps = {
     onChange?: (e: string | null) => void;
@@ -75,7 +75,7 @@ const FaviconUpload: FunctionComponent<ThumbnailUploadProps> = ({ onChange, url 
                             alignItems: "center",
                         }}
                     >
-                        <CameraOutlined style={{ fontSize: "28px" }} />
+                        <CameraOutlined style={{ color: theme.colorTextSecondary, fontSize: theme.fontSizeHeading3 }} />
                     </p>
                 )}
                 {url != null && url !== "" && (
@@ -92,9 +92,9 @@ const FaviconUpload: FunctionComponent<ThumbnailUploadProps> = ({ onChange, url 
                                 right: 0,
                                 top: 0,
                                 padding: 4,
-                                background: getAppState().colorPrimary + "5e",
-                                color: "white",
-                                fontSize: 16,
+                                background: colorToRgba(theme.colorText, 0.72),
+                                color: theme.colorWhite,
+                                fontSize: theme.fontSizeLG,
                             }}
                             onClick={(e) => {
                                 changeToDataUrl(null);

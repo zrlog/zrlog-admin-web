@@ -229,15 +229,7 @@ const Index: FunctionComponent<ArticleEditProps> = ({
         }
         return getRes().articleEdit.contentSource.server;
     })();
-    const contentSourceColor = (() => {
-        if (state.contentSource === "localEdit") {
-            return "warning";
-        }
-        if (state.contentSource === "localDraft") {
-            return "processing";
-        }
-        return "default";
-    })();
+    const contentSourceColor = state.contentSource === "localEdit" ? "warning" : undefined;
     const showContentSourceTag = state.contentSource !== "server";
     const statusBarLastUpdateDate =
         state.contentSource !== "server" && state.contentSourceUpdatedAt

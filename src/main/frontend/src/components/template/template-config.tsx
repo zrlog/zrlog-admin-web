@@ -132,7 +132,9 @@ const TemplateConfig = ({
                                 alignItems: "center",
                             }}
                         >
-                            <CameraOutlined style={{ fontSize: 36 }} />
+                            <CameraOutlined
+                                style={{ color: theme.colorTextSecondary, fontSize: theme.fontSizeHeading2 }}
+                            />
                         </p>
                     )}
                 </ResourceDragger>

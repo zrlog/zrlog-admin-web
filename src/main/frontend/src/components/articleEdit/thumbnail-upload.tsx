@@ -2,11 +2,11 @@ import { CameraOutlined, DeleteFilled, LoadingOutlined } from "@ant-design/icons
 import { FunctionComponent, ReactNode, useState } from "react";
 import { getRes } from "../../utils/constants";
 import { message, Typography } from "antd";
-import { getAppState } from "../../base/ConfigProviderApp";
 import ResourceDragger from "../../common/ResourceDragger";
 import { useAxiosBaseInstance } from "../../base/AppBase";
 import { useTheme } from "antd-style";
 import BackendImage from "../../common/BackendImage";
+import { colorToRgba } from "../../layout/slider";
 
 type ThumbnailUploadProps = {
     onChange?: (e: string) => void;
@@ -78,7 +78,7 @@ const ThumbnailUpload: FunctionComponent<ThumbnailUploadProps> = ({
                             alignItems: "center",
                         }}
                     >
-                        <CameraOutlined style={{ fontSize: 28, color: getAppState().colorPrimary }} />
+                        <CameraOutlined style={{ fontSize: 28, color: theme.colorTextSecondary }} />
                     </p>
                     <Typography
                         style={{
@@ -106,8 +106,8 @@ const ThumbnailUpload: FunctionComponent<ThumbnailUploadProps> = ({
                             top: 0,
                             borderRadius: `0 ${theme.borderRadiusLG}px`,
                             padding: 12,
-                            background: getAppState().colorPrimary + "5e",
-                            color: "white",
+                            background: colorToRgba(theme.colorText, 0.72),
+                            color: theme.colorWhite,
                             fontSize: 20,
                         }}
                         onClick={(e) => {

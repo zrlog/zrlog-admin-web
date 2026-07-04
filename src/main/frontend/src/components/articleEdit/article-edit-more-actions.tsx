@@ -22,6 +22,7 @@ import { SocialPreview } from "./index.types";
 import type { ArticlePrintableEntry } from "../article/ArticlePreviewAction";
 import { exportArticlePdf } from "../article/ArticlePdfAction";
 import { addToCache, getCacheByKey } from "../../utils/cache";
+import { useTheme } from "antd-style";
 
 type ArticleEditMoreActionsProps = {
     fullScreen: boolean;
@@ -62,6 +63,7 @@ const ArticleEditMoreActions: FunctionComponent<ArticleEditMoreActionsProps> = (
     onExitFullScreen,
     onFullScreen,
 }) => {
+    const theme = useTheme();
     const { message } = App.useApp();
     const assetPickerOpenCacheKey = `${stateCacheKey}/assetPickerOpen`;
     const socialPreviewOpenCacheKey = `${stateCacheKey}/socialPreviewOpen`;
@@ -208,7 +210,7 @@ const ArticleEditMoreActions: FunctionComponent<ArticleEditMoreActionsProps> = (
                         justifyContent: "center",
                         alignItems: "center",
                         cursor: "pointer",
-                        color: "rgb(119, 119, 119)",
+                        color: theme.colorTextTertiary,
                     }}
                 />
             </Dropdown>

@@ -13,9 +13,9 @@ import { ArticleChangeableValue, ArticleEntry } from "./index.types";
 import Button from "antd/es/button";
 import DigestEditorCard from "./digest-editor-card";
 import { getAppState } from "../../base/ConfigProviderApp";
-import { colorToRgba } from "../../layout/slider";
 import { getShortcutTitle } from "./shortcut-utils";
 import { parseCoverAspectRatio } from "./cover-aspect-ratio";
+import { useTheme } from "antd-style";
 
 const ArticleEditSettingButton = ({
     article,
@@ -49,6 +49,7 @@ const ArticleEditSettingButton = ({
     coverAspectRatio?: string;
 }) => {
     const screens = Grid.useBreakpoint();
+    const theme = useTheme();
     const [innerOpen, setInnerOpen] = useState(false);
     const settingsOpen = open ?? innerOpen;
 
@@ -82,7 +83,7 @@ const ArticleEditSettingButton = ({
                     justifyContent: "center",
                     alignItems: "center",
                     cursor: "pointer",
-                    color: "rgb(119, 119, 119)",
+                    color: theme.colorTextTertiary,
                 }}
                 icon={
                     settingsOpen ? (
@@ -108,12 +109,12 @@ const ArticleEditSettingButton = ({
                 styles={{
                     header: {
                         padding: 12,
-                        background: getAppState().dark ? "auto" : colorToRgba(getAppState().colorPrimary, 0.04),
+                        background: theme.colorBgContainer,
                     },
                     body: {
                         padding: 12,
                         overflowX: "hidden",
-                        background: getAppState().dark ? "auto" : colorToRgba(getAppState().colorPrimary, 0.04),
+                        background: theme.colorBgLayout,
                     },
                 }}
                 open={settingsOpen}

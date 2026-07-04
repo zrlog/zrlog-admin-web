@@ -84,8 +84,7 @@ const ResourceDragger: FunctionComponent<ResourceDraggerProps> = ({
                             icon={<FolderOpenOutlined />}
                             onClick={() => setPickerOpen(true)}
                             size="small"
-                            style={{ height: "auto", padding: 0 }}
-                            type="link"
+                            type="text"
                         >
                             {resourcePicker?.buttonText ?? getRes().common.chooseFromAssets}
                         </Button>

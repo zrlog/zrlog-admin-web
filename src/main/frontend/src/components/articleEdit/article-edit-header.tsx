@@ -10,6 +10,7 @@ import ArticleEditSettingButton from "./article-edit-setting-button";
 import { ArticleChangeableValue, ArticleEditState, ArticleEntry } from "./index.types";
 import { AIContent } from "@editor/dist/ai/AIContentItem";
 import { AIStateCache } from "@editor/dist/ai/AIStateCache";
+import { useTheme } from "antd-style";
 
 type ArticleEditHeaderProps = {
     articleVersion: number;
@@ -89,6 +90,7 @@ const ArticleEditHeader: FunctionComponent<ArticleEditHeaderProps> = ({
     onFullScreen,
     getSelectStyle,
 }) => {
+    const theme = useTheme();
     const getContainer = () => editCardRef.current as HTMLElement;
     const contentSourceText = (() => {
         if (state.contentSource === "localDraft") {
@@ -99,7 +101,7 @@ const ArticleEditHeader: FunctionComponent<ArticleEditHeaderProps> = ({
         }
         return getRes().articleEdit.contentSource.server;
     })();
-    const contentSourceColor = state.contentSource === "localEdit" ? "warning" : "processing";
+    const contentSourceColor = state.contentSource === "localEdit" ? "warning" : undefined;
     const categorySelect = (
         <Select
             getPopupContainer={(triggerNode) => triggerNode.parentElement}
@@ -155,7 +157,7 @@ const ArticleEditHeader: FunctionComponent<ArticleEditHeaderProps> = ({
                                     </Button>
                                 )}
                                 {state.article.privacy && (
-                                    <LockOutlined style={{ color: "rgb(119, 119, 119)", fontSize: 16 }} />
+                                    <LockOutlined style={{ color: theme.colorTextTertiary, fontSize: 16 }} />
                                 )}
                                 {state.article.recommended && (
                                     <Tag

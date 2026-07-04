@@ -43,6 +43,9 @@ export const getColorByTheme = (theme: string) => {
     if (theme === "illustration") {
         return "#52C41A";
     }
+    if (theme === "desk") {
+        return "#172033";
+    }
     const color: string | undefined = getRes().admin_color_primary;
     if (color === undefined || (color as string).length === 0) {
         return "#1677ff";
@@ -74,6 +77,7 @@ export const isDarkByTheme = (theme: string) => {
         theme === "shadcn" ||
         theme === "illustration" ||
         theme === "bootstrap" ||
+        theme === "desk" ||
         theme === "glass"
     ) {
         return false;

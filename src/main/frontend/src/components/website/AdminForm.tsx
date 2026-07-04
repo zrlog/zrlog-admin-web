@@ -179,6 +179,7 @@ const BlogForm = ({
                     }}
                     options={[
                         { label: getRes().websiteAdmin.theme.option.default, value: "default" },
+                        { label: getRes().websiteAdmin.theme.option.desk, value: "desk" },
                         { label: getRes().websiteAdmin.theme.option.antd, value: "antd" },
                         { label: getRes().websiteAdmin.theme.option.bootstrap, value: "bootstrap" },
                         { label: getRes().websiteAdmin.theme.option.geek, value: "geek" },

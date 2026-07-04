@@ -47,13 +47,6 @@ const StyledIndexLayout = styled.div<StyledIndexLayoutProps>`
         border: 0;
     }
 
-    /* Icon baseline sizing */
-
-    .ant-menu-item .anticon,
-    .ant-menu-submenu-title .anticon {
-        font-size: 22px;
-    }
-
     /* Vertical menu items with stacked icon+text */
 
     .ant-menu-title-content > a {
@@ -125,7 +118,6 @@ const StyledIndexLayout = styled.div<StyledIndexLayoutProps>`
             text-align: center !important;
             margin-left: 0 !important;
             display: block !important;
-            font-size: 13px;
             font-weight: 500;
         }
 
@@ -226,7 +218,6 @@ const StyledIndexLayout = styled.div<StyledIndexLayoutProps>`
         thead > tr > th {
             background: ${(props) => props.colorFillQuaternary};
             font-weight: 600;
-            font-size: 13px;
             color: ${(props) => props.textSecondaryColor};
             border-bottom: ${(props) => `${props.lineWidth * 2}px ${props.lineType} ${props.colorBorderSecondary}`};
             padding: 16px;
@@ -273,7 +264,6 @@ const StyledIndexLayout = styled.div<StyledIndexLayoutProps>`
     h3.ant-typography {
         margin-bottom: 0.5em;
         font-weight: 700;
-        font-size: 24px;
         line-height: 1.35;
     }
 
@@ -281,7 +271,6 @@ const StyledIndexLayout = styled.div<StyledIndexLayoutProps>`
     h4.ant-typography {
         margin-bottom: 0.5em;
         font-weight: 600;
-        font-size: 20px;
         line-height: 1.4;
     }
 
@@ -321,7 +310,6 @@ const StyledIndexLayout = styled.div<StyledIndexLayoutProps>`
 
     .ant-menu .menu-title {
         margin-left: 0 !important;
-        font-size: 12px;
         line-height: 1.2;
         display: block;
         margin-top: 4px;
@@ -396,11 +384,6 @@ const StyledIndexLayout = styled.div<StyledIndexLayoutProps>`
         display: flex;
         align-items: center;
         justify-content: center;
-    }
-
-    .ant-float-btn-icon {
-        color: ${(props) => props.colorPrimary} !important;
-        font-size: 24px;
     }
 
     .ant-float-btn {
@@ -584,10 +567,6 @@ const StyledIndexLayout = styled.div<StyledIndexLayoutProps>`
         -webkit-box-orient: vertical;
     }
 
-    .sidebar-rail.ant-menu .ant-menu-item .anticon {
-        font-size: ${(props) => (props.compactMode ? 22 : 24)}px;
-    }
-
     .sidebar-rail.ant-menu .ant-menu-title-content > a {
         color: ${(props) => props.textColor} !important;
     }
@@ -704,10 +683,6 @@ const StyledIndexLayout = styled.div<StyledIndexLayoutProps>`
     .sidebar-rail.ant-menu .ant-menu-item,
     .sidebar-panel.ant-menu .ant-menu-item {
         color: ${(props) => props.textColor};
-    }
-
-    .sidebar-panel.ant-menu .ant-menu-item .anticon {
-        font-size: 19px;
     }
 
     .sidebar-panel.ant-menu .ant-menu-item-selected .menu-title {

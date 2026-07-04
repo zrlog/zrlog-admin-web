@@ -230,7 +230,11 @@ const Index = ({ data, offline }: { data: ArticlePageDataSource; offline: boolea
         );
         const titleWithState = wrapperArticleStateInfo(record, titleLink);
         if (!compact) {
-            return titleWithState;
+            return (
+                <div className="article-desk-title-cell" style={surface.compactTitleMeta}>
+                    {titleWithState}
+                </div>
+            );
         }
         return (
             <div style={surface.compactTitleMeta}>
@@ -385,8 +389,8 @@ const Index = ({ data, offline }: { data: ArticlePageDataSource; offline: boolea
     const [searchKey, setSearchKey] = useState<string>(data.key ? data.key : "");
 
     return (
-        <>
-            <div style={surface.toolbar}>
+        <div className="article-desk-list">
+            <div className="article-desk-list-toolbar" style={surface.toolbar}>
                 <div style={surface.toolbarControlWrap}>
                     <Segmented
                         options={statusOptions}
@@ -435,7 +439,7 @@ const Index = ({ data, offline }: { data: ArticlePageDataSource; offline: boolea
                 deleteApi={getDeleteApiUri()}
                 searchKey={searchKey}
             />
-        </>
+        </div>
     );
 };
 

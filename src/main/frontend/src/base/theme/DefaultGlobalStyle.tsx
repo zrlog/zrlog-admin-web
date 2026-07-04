@@ -1,17 +1,12 @@
-import { FunctionComponent, PropsWithChildren } from "react";
 import { theme as antdTheme } from "antd";
+import { FunctionComponent } from "react";
 
-type StyledAppProps = {
-    theme: string;
-};
-
-const StyledApp: FunctionComponent<PropsWithChildren<StyledAppProps>> = ({ theme: themeName }) => {
+const DefaultGlobalStyle: FunctionComponent = () => {
     const { token } = antdTheme.useToken();
 
-    if (themeName === "default") {
-        return (
-            <style>
-                {`
+    return (
+        <style>
+            {`
             .ant-modal-close {
               border-radius: 50% !important;
             }
@@ -31,10 +26,8 @@ const StyledApp: FunctionComponent<PropsWithChildren<StyledAppProps>> = ({ theme
                 border-radius: ${token.borderRadiusLG}px !important;
             }
           `}
-            </style>
-        );
-    }
-    return <></>;
+        </style>
+    );
 };
 
-export default StyledApp;
+export default DefaultGlobalStyle;

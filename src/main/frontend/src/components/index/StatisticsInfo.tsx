@@ -20,6 +20,7 @@ const StatisticsInfo = ({ data }: { data: StatisticsInfoState }) => {
     const theme = useTheme();
     const cardBackground = theme.colorFillQuaternary;
     const cardHoverBackground = theme.colorFillTertiary;
+    const accentColor = theme.colorText;
     const tileStyle = {
         borderRadius: theme.borderRadiusLG,
         background: cardBackground,
@@ -63,7 +64,7 @@ const StatisticsInfo = ({ data }: { data: StatisticsInfoState }) => {
             key: "draft",
             label: getRes().article.status.draft,
             value: data.draftCount,
-            color: theme.colorPrimary,
+            color: theme.colorTextSecondary,
         },
     ].filter((item) => item.value > 0 || totalArticles === 0);
 
@@ -85,7 +86,7 @@ const StatisticsInfo = ({ data }: { data: StatisticsInfoState }) => {
             }}
         >
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                <span style={{ color: theme.colorPrimary }}>{icon}</span>
+                <span style={{ color: accentColor }}>{icon}</span>
                 <Typography.Text type="secondary">{title}</Typography.Text>
             </div>
             <Typography.Text style={{ display: "block", fontSize: 24, fontWeight: 700, lineHeight: 1.2 }}>
@@ -112,7 +113,7 @@ const StatisticsInfo = ({ data }: { data: StatisticsInfoState }) => {
                     whiteSpace: "nowrap",
                 }}
             >
-                <span style={{ color: theme.colorPrimary, fontSize: 22, lineHeight: 1 }}>{icon}</span>
+                <span style={{ color: accentColor, fontSize: 22, lineHeight: 1 }}>{icon}</span>
                 <Typography.Text
                     style={{ color: theme.colorTextHeading, fontSize: 24, fontWeight: 600, lineHeight: 1.5 }}
                     ellipsis={true}
@@ -226,7 +227,7 @@ const StatisticsInfo = ({ data }: { data: StatisticsInfoState }) => {
                         }}
                     >
                         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                            <span style={{ color: theme.colorPrimary }}>
+                            <span style={{ color: accentColor }}>
                                 <FileTextOutlined />
                             </span>
                             <Typography.Text type="secondary">{getRes().index.status}</Typography.Text>

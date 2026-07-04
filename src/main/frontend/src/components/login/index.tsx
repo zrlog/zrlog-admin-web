@@ -20,7 +20,7 @@ import { LoginUserResponseInfo } from "../../type";
 import { AxiosInstance } from "axios";
 import { getSsDate, ssKeyStorageKey } from "../../base/SsData";
 import { getAppState } from "../../base/ConfigProviderApp";
-import { Theme, useTheme } from "antd-style";
+import { useTheme } from "antd-style";
 import { ADMIN_ERROR_CODE } from "../../common/admin-error-code";
 
 const md5 = require("md5");
@@ -40,17 +40,29 @@ export const classes = {
 interface StyledLoginPageProps {
     mainColor: string;
     dark: boolean;
+    desk: boolean;
     colorBgContainer: string;
     colorBgLayout: string;
-    theme: Theme;
+    theme: {
+        borderRadiusLG: number;
+        boxShadowSecondary: string;
+        colorText: string;
+        colorTextSecondary: string;
+        colorWhite: string;
+    };
 }
 
 export const StyledLoginPage = styled(Layout)<StyledLoginPageProps>(
-    ({ mainColor, dark, colorBgContainer, colorBgLayout, theme }) => {
+    ({ mainColor, dark, desk, colorBgContainer, colorBgLayout, theme }) => {
         return {
             height: "100vh",
             background: colorBgLayout,
-            backgroundImage: dark
+            backgroundImage: desk
+                ? `
+            linear-gradient(rgba(23, 32, 51, 0.035) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(23, 32, 51, 0.035) 1px, transparent 1px)
+        `
+                : dark
                 ? `
             radial-gradient(at 0% 0%, rgba(24, 144, 255, 0.08) 0px, transparent 50%),
             radial-gradient(at 100% 100%, rgba(114, 46, 209, 0.08) 0px, transparent 50%),
@@ -61,6 +73,7 @@ export const StyledLoginPage = styled(Layout)<StyledLoginPageProps>(
             radial-gradient(at 100% 100%, rgba(114, 46, 209, 0.15) 0px, transparent 50%),
             linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)
         `,
+            backgroundSize: desk ? "72px 72px" : undefined,
             position: "relative",
             display: "flex",
             alignItems: "center",
@@ -73,7 +86,9 @@ export const StyledLoginPage = styled(Layout)<StyledLoginPageProps>(
                 height: "600px",
                 background: colorBgContainer,
                 borderRadius: theme.borderRadiusLG,
-                boxShadow: dark
+                boxShadow: desk
+                    ? theme.boxShadowSecondary
+                    : dark
                     ? "0 20px 40px rgba(0, 0, 0, 0.4), 0 10px 20px rgba(0, 0, 0, 0.3)"
                     : "0 20px 40px rgba(0, 0, 0, 0.08), 0 10px 20px rgba(0, 0, 0, 0.05)",
                 overflow: "hidden",
@@ -109,12 +124,12 @@ export const StyledLoginPage = styled(Layout)<StyledLoginPageProps>(
                 },
                 "& .side-content": {
                     position: "relative",
-                    color: "#fff",
+                    color: theme.colorWhite,
                     h2: {
                         fontSize: "28px",
                         fontWeight: 700,
                         marginBottom: "12px",
-                        color: "#fff",
+                        color: theme.colorWhite,
                         textShadow: "0 2px 4px rgba(0,0,0,0.2)",
                     },
                     p: {
@@ -141,14 +156,15 @@ export const StyledLoginPage = styled(Layout)<StyledLoginPageProps>(
                     fontWeight: 700,
                     marginBottom: "8px",
                     textAlign: "left",
-                    background: `linear-gradient(135deg, ${mainColor} 0%, #764ba2 100%)`,
-                    WebkitBackgroundClip: "text",
-                    WebkitTextFillColor: "transparent",
+                    background: desk ? "none" : `linear-gradient(135deg, ${mainColor} 0%, #764ba2 100%)`,
+                    color: theme.colorText,
+                    WebkitBackgroundClip: desk ? undefined : "text",
+                    WebkitTextFillColor: desk ? "currentColor" : "transparent",
                     padding: 0,
                 },
                 "& .subtitle": {
                     fontSize: "14px",
-                    color: dark ? "rgba(255, 255, 255, 0.45)" : "#6b7280",
+                    color: desk ? theme.colorTextSecondary : dark ? "rgba(255, 255, 255, 0.45)" : "#6b7280",
                     marginBottom: "32px",
                     textAlign: "left",
                     fontWeight: 500,
@@ -179,7 +195,7 @@ export const StyledLoginPage = styled(Layout)<StyledLoginPageProps>(
                 textAlign: "left",
                 paddingBottom: "6px",
                 label: {
-                    color: dark ? "rgba(255, 255, 255, 0.65)" : "#374151",
+                    color: desk ? theme.colorTextSecondary : dark ? "rgba(255, 255, 255, 0.65)" : "#374151",
                     fontSize: "14px",
                     fontWeight: 600,
                 },
@@ -329,6 +345,7 @@ const Index = ({ offline }: { offline: boolean }) => {
                 theme={theme}
                 mainColor={getAppState().colorPrimary}
                 dark={getAppState().dark}
+                desk={getAppState().theme === "desk"}
                 colorBgContainer={theme.colorBgContainer}
                 colorBgLayout={theme.colorBgLayout}
             >

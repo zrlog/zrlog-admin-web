@@ -4,6 +4,7 @@ import useGlassTheme from "../base/theme/glassTheme";
 import useShadcnTheme from "../base/theme/shadcnTheme";
 import useGeekTheme from "../base/theme/geekTheme";
 import useCartoonTheme from "../base/theme/cartoonTheme";
+import useDeskTheme from "../base/theme/deskTheme";
 import useIllustrationTheme from "../base/theme/illustrationTheme";
 import useBootstrapTheme from "../base/theme/bootstrapTheme";
 import useMuiTheme from "../base/theme/muiTheme";
@@ -32,6 +33,7 @@ export const useThemeConfig = (appState: AppState): ConfigProviderProps => {
     const cartoon = useCartoonTheme();
     const illustration = useIllustrationTheme();
     const bootstrap = useBootstrapTheme(appState);
+    const desk = useDeskTheme(appState);
     const defaultTheme = useMuiTheme(appState);
 
     let theme: ConfigProviderProps;
@@ -56,6 +58,8 @@ export const useThemeConfig = (appState: AppState): ConfigProviderProps => {
         theme = illustration;
     } else if (appState.theme === "bootstrap") {
         theme = bootstrap;
+    } else if (appState.theme === "desk") {
+        theme = desk;
     } else {
         theme = defaultTheme;
     }

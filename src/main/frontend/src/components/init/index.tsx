@@ -48,6 +48,8 @@ const Init: FunctionComponent<InitProps> = ({ onSubmit, lang }) => {
             colorBgContainer={token.colorBgContainer}
             colorBgLayout={token.colorBgLayout}
             mainColor={getAppState().colorPrimary}
+            desk={getAppState().theme === "desk"}
+            theme={token}
         >
             <div className={classes.container}>
                 <div className={classes.sideImage}></div>

@@ -18,7 +18,8 @@ type QuickActionCardData = {
 const QuickActionCard = ({ data, embedded = false }: { data?: QuickActionCardData; embedded?: boolean }) => {
     const theme = useTheme();
     const draftCount = data?.draftCount || 0;
-    const iconBgColor = embedded ? theme.colorFillQuaternary : theme.colorPrimaryBg;
+    const iconBgColor = embedded ? theme.colorFillQuaternary : theme.colorFillSecondary;
+    const iconColor = embedded ? theme.colorTextSecondary : theme.colorText;
     const textColor = embedded ? theme.colorText : undefined;
     const mutedTextColor = embedded ? theme.colorTextSecondary : undefined;
     const embeddedBorder = `${theme.lineWidth}px ${theme.lineType} ${theme.colorBorderSecondary}`;
@@ -53,7 +54,7 @@ const QuickActionCard = ({ data, embedded = false }: { data?: QuickActionCardDat
                         border: embedded ? embeddedBorder : transparentBorder,
                     }}
                 >
-                    <Badge count={count} offset={[-5, 5]} size="small" color={theme.colorPrimary}>
+                    <Badge count={count} offset={[-5, 5]} size="small" color={theme.colorText}>
                         <div
                             className="dashboard-action-tile-icon"
                             style={{
@@ -65,7 +66,7 @@ const QuickActionCard = ({ data, embedded = false }: { data?: QuickActionCardDat
                                 alignItems: "center",
                                 justifyContent: "center",
                                 marginBottom: 10,
-                                color: theme.colorPrimary,
+                                color: iconColor,
                                 fontSize: 22,
                             }}
                         >

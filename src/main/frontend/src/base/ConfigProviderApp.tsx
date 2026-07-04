@@ -22,7 +22,7 @@ import {
     AppThemeState,
 } from "../type";
 import { useThemeConfig } from "../utils/theme-utils";
-import StyledApp from "./StyledApp";
+import ThemeGlobalStyle from "./theme/ThemeGlobalStyle";
 
 type ChangeAbleState = AppCompactModeState | AppColorPrimaryState | AppDarkState | AppLangState | AppThemeState;
 
@@ -72,7 +72,7 @@ const ConfiguredAppContent = ({ appState, basePath, onInit }: ConfiguredAppConte
         >
             <App>
                 <StyleProvider transformers={[legacyLogicalPropertiesTransformer]}>
-                    <StyledApp theme={appState.theme} />
+                    <ThemeGlobalStyle theme={appState.theme} />
                     <BrowserRouter
                         basename={basePath}
                         future={{

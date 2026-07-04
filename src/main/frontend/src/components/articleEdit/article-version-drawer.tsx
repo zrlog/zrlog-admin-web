@@ -313,13 +313,13 @@ const ArticleVersionDrawer: React.FC<ArticleVersionDrawerProps> = ({
         {
             key: "removed",
             label: getRes().articleEdit.version.resourceRemoved,
-            color: "red",
+            color: theme.colorError,
             values: referenceChanges.removed,
         },
         {
             key: "added",
             label: getRes().articleEdit.version.resourceAdded,
-            color: "green",
+            color: theme.colorSuccess,
             values: referenceChanges.added,
         },
     ].filter((item) => item.values.length > 0);
@@ -342,7 +342,7 @@ const ArticleVersionDrawer: React.FC<ArticleVersionDrawerProps> = ({
                         justifyContent: "center",
                         alignItems: "center",
                         cursor: !logId ? "not-allowed" : "pointer",
-                        color: "rgb(119, 119, 119)",
+                        color: theme.colorTextTertiary,
                     }}
                     icon={
                         <HistoryOutlined style={{ fontSize: getAppState().compactMode ? 18 : 24, display: "flex" }} />

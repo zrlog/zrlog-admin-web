@@ -611,6 +611,7 @@ const zhCN = {
             "label": "主题",
             "option": {
                 "default": "默认",
+                "desk": "Desk",
                 "antd": "Ant Design",
                 "bootstrap": "Bootstrap",
                 "geek": "极客",
@@ -1822,6 +1823,7 @@ const enUS: AdminI18nResource = {
             "label": "Theme",
             "option": {
                 "default": "Default",
+                "desk": "Desk",
                 "antd": "Ant Design",
                 "bootstrap": "Bootstrap",
                 "geek": "Geek",

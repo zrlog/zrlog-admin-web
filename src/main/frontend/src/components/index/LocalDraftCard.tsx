@@ -62,7 +62,7 @@ const LocalDraftCard: FunctionComponent<LocalDraftCardProps> = ({ localDrafts, o
                 </div>
             }
             extra={
-                <Tag color={localEdit ? "warning" : "processing"}>
+                <Tag color={localEdit ? "warning" : undefined}>
                     {localEdit ? getRes().index.quickAction.localEditTag : getRes().index.quickAction.localDraftTag}
                 </Tag>
             }
