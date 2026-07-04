@@ -97,13 +97,12 @@
             <groupId>com.hibegin</groupId>
             <artifactId>zrlog-install-web</artifactId>
             <version>3.3.5</version>
-            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
             <version>2.2.224</version>
-            <scope>test</scope>
+            <scope>runtime</scope>
         </dependency>
     </dependencies>
 
@@ -269,6 +268,7 @@
                 <configuration>
                     <excludes>
                         <exclude>**/Application.class</exclude>
+                        <exclude>**/MemoryApplication*.class</exclude>
                         <exclude>**/DevZrLogConfig.class</exclude>
                     </excludes>
                 </configuration>

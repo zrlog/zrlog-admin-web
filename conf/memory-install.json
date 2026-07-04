@@ -1,0 +1,39 @@
+{
+  "dbConfig": {
+    "driverClass": "",
+    "jdbcUrl": "",
+    "user": "",
+    "password": "",
+    "dbType": "h2",
+    "dbHost": "localhost",
+    "dbPort": "0",
+    "dbName": "zrlog"
+  },
+  "configMsg": {
+    "title": "ZrLog Memory",
+    "second_title": "Clean admin workspace",
+    "username": "admin",
+    "password": "123456",
+    "email": "admin@example.com",
+    "secretKey": "2c87c6f9-56e7-4d02-a0a2-7d6a53685a21"
+  },
+  "appendWebsite": {
+    "host": "localhost:17080",
+    "keywords": "zrlog,memory,admin",
+    "description": "In-memory ZrLog admin workspace",
+    "author": "admin",
+    "generator_html_status": "false",
+    "disable_comment_status": "false",
+    "article_thumbnail_status": "true",
+    "article_auto_digest_length": "200",
+    "admin_darkMode": "false",
+    "admin_compactMode": "false",
+    "admin_color_primary": "#1677ff",
+    "admin_theme": "default",
+    "session_timeout": "1440",
+    "cache_timeout_minutes": "5",
+    "system_notification": "",
+    "default_setting": "{}"
+  },
+  "contextPath": "/sub"
+}

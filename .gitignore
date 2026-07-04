@@ -51,3 +51,6 @@ conf/temp.properties
 src/main/resources/admin
 src/main/frontend/build
 lib
+output
+.zrlog-memory/
+.playwright-cli/
