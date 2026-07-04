@@ -1,8 +1,27 @@
-# Agent 说明
+# AGENTS.md
+
+这份文档是 AI Agent 在 `zrlog-admin-web` 工程内工作的入口规则。进入本仓库后，先读本文件，再按任务打开 `docs/engineering-conventions.md`、具体 controller/service、前端页面或 `zrlog-ops` 验收规则。
+
+## 工程定位
+
+`zrlog-admin-web` 是 ZrLog 的后台管理工程，主要负责后台 API、React 管理界面、插件交互面板宿主、AI 写作辅助、资源管理和后台运行时状态展示。
+
+## 目录职责
+
+| 路径 | 职责 |
+| --- | --- |
+| `src/main/java` | 后台 controller、service、DTO、插件宿主协议和后台业务。 |
+| `src/main/frontend` | React 后台页面、路由、组件、主题、i18n 和前端构建。 |
+| `src/main/resources` | 后台 i18n、AI prompt、静态资源和 native 相关资源。 |
+| `docs/` | 工程协作、i18n、主题、native-image 和安装说明。 |
+| `doc/` | 产品设计、审计记录和功能规划材料。 |
+| `scripts/` | 本地启动和工程护栏脚本。 |
+| `conf/` | 本地运行配置，修改前确认不是用户调试状态。 |
 
 ## 工程协作
 
 后台大功能、跨前后端改动、插件交互面板和 AI 辅助开发必须遵守 `docs/engineering-conventions.md`。
+跨仓库边界和统一验收入口见 `zrlog-ops/docs/repository-structure-guide.md` 与 `zrlog-ops/acceptance/zrlog-admin-web.yaml`。
 
 关键约束：
 
@@ -12,6 +31,19 @@
 - 涉及 URL、资源地址、插件地址或 context path 时，必须检查后端生成、前端拼接、页面显示、表单提交和持久化完整链路，避免重复拼接。
 - 新增接口结构优先使用 typed DTO，并同步维护 native image 注册；不要用临时 `Map` 贯穿业务逻辑。
 - 不做无关重构，不引入无关依赖，不改变构建、发布、目录和运行约定。
+
+## 构建与验证
+
+常用命令：
+
+```bash
+scripts/check-admin-guardrails.sh
+mvn -q -DskipTests compile
+cd src/main/frontend && yarn type-check
+cd src/main/frontend && yarn build
+```
+
+修改后端 Java 行为时至少运行相关测试或 `mvn -q -DskipTests compile`。修改前端 TypeScript、页面或主题时至少运行 `cd src/main/frontend && yarn type-check`，必要时运行 `yarn build`。修改跨前后端协议、native/Gson DTO、插件交互面板或 AI SSE 时，需要补充对应专项验证。
 
 ## i18n
 
