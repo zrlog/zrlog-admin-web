@@ -1,9 +1,7 @@
 package com.zrlog.admin;
 
 import com.google.gson.Gson;
-import com.google.gson.JsonObject;
 import com.hibegin.common.dao.InMemoryDatabase;
-import com.hibegin.common.util.IOUtil;
 import com.hibegin.common.util.LoggerUtil;
 import com.hibegin.common.util.http.handle.CloseResponseHandle;
 import com.hibegin.http.HttpMethod;
@@ -19,22 +17,17 @@ import com.zrlog.common.Updater;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.install.business.service.InstallService;
 import com.zrlog.install.business.vo.InstallConfigVO;
+import com.zrlog.install.business.vo.InstallSiteConfig;
 import com.zrlog.install.web.InstallConstants;
 import com.zrlog.install.web.config.DefaultInstallConfig;
 import com.zrlog.plugin.IPlugin;
 import com.zrlog.plugin.Plugins;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.net.URISyntaxException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-import java.util.UUID;
+import java.util.*;
 import java.util.logging.Logger;
 
 public class MemoryApplication {
@@ -43,11 +36,12 @@ public class MemoryApplication {
     private static final int DEFAULT_PORT = 17080;
     private static final Gson GSON = new Gson();
     private static final String CONTEXT_PATH = "/sub";
-    private static final String DEFAULT_USER = "admin";
-    private static final String DEFAULT_PASSWORD = "123456";
     private static final String MEMORY_RUNTIME_DIR = ".zrlog-memory";
     private static final String MEMORY_INSTALL_CONFIG_TEMPLATE_FILE = "conf/memory-install.json";
-    private static final String MEMORY_INSTALL_CONFIG_FILE = "conf/memory-install.generated.json";
+
+    static {
+        Constants.init();
+    }
 
     public static void main(String[] args) {
         try {
@@ -60,36 +54,26 @@ public class MemoryApplication {
     static void start(String[] args) throws Exception {
         System.getProperties().put("sws.run.mode", "dev");
         int port = resolvePort(args);
-        MemoryRuntime runtime = prepareRuntime(port);
-        Constants.zrLogConfig = prepareConfig(runtime, port);
+        Constants.zrLogConfig = prepareConfig(port);
+        prepareRuntime(port);
         WebServerBuilder build = new WebServerBuilder.Builder().config(Constants.zrLogConfig).build();
         LOGGER.info("Start ZrLog admin memory application at http://127.0.0.1:" + port + CONTEXT_PATH
-                + "/admin/login, root=" + runtime.getRootPath()
-                + ", user=" + DEFAULT_USER + ", password=" + DEFAULT_PASSWORD);
+                + "/admin/login, root=" + PathUtil.getRootPath());
         build.start();
     }
 
-    static MemoryRuntime prepareRuntime() throws Exception {
-        return prepareRuntime(DEFAULT_PORT);
-    }
-
-    static MemoryRuntime prepareRuntime(int port) throws Exception {
+    static void prepareRuntime(int port) throws Exception {
         Path rootPath = memoryRootPath();
         resetMemoryRoot(rootPath);
-        Files.createDirectories(rootPath.resolve("conf/plugins/installed-plugins"));
-        Files.createDirectories(rootPath.resolve("static"));
-        Files.createDirectories(rootPath.resolve("logs"));
         PathUtil.setRootPath(rootPath.toString());
 
-        Properties databaseProperties = InMemoryDatabase.h2Properties("zrlog_admin_memory_" + UUID.randomUUID());
-        Path installConfigPath = writeInstallConfig(rootPath, databaseProperties, port);
+        InstallConfigVO installConfig = readInstallConfigTemplate();
+        applyRuntimeConfig(installConfig, port);
         InstallConstants.installConfig = new MemoryInstallConfig();
-        installFromConfigFile(installConfigPath);
-        return new MemoryRuntime(rootPath, databaseProperties, installConfigPath);
+        installFromConfig(installConfig);
     }
 
-    static DevZrLogConfig prepareConfig(MemoryRuntime runtime, int port) {
-        PathUtil.setRootPath(runtime.getRootPath().toString());
+    static DevZrLogConfig prepareConfig(int port) {
         return new MemoryZrLogConfig(port, null, CONTEXT_PATH);
     }
 
@@ -127,59 +111,52 @@ public class MemoryApplication {
         }
     }
 
-    private static Path writeInstallConfig(Path rootPath, Properties databaseProperties, int port) throws Exception {
-        JsonObject installConfig = readInstallConfigTemplate();
-        JsonObject dbConfig = installConfig.getAsJsonObject("dbConfig");
-        dbConfig.addProperty("driverClass", databaseProperties.getProperty("driverClass"));
-        dbConfig.addProperty("jdbcUrl", databaseProperties.getProperty("jdbcUrl"));
-        dbConfig.addProperty("user", databaseProperties.getProperty("user"));
-        dbConfig.addProperty("password", databaseProperties.getProperty("password"));
-        installConfig.getAsJsonObject("appendWebsite").addProperty("host", "localhost:" + port);
-
-        Path installConfigPath = rootPath.resolve(MEMORY_INSTALL_CONFIG_FILE);
-        Files.writeString(installConfigPath, GSON.toJson(installConfig), StandardCharsets.UTF_8);
-        return installConfigPath;
+    private static void applyRuntimeConfig(InstallConfigVO installConfig, int port) {
+        Map<String, String> appendWebsite = installConfig.getAppendWebsite();
+        if (appendWebsite == null) {
+            appendWebsite = new LinkedHashMap<>();
+            installConfig.setAppendWebsite(appendWebsite);
+        }
+        appendWebsite.put("host", "localhost:" + port);
     }
 
-    private static JsonObject readInstallConfigTemplate() throws Exception {
+    private static InstallConfigVO readInstallConfigTemplate() throws Exception {
         Path configPath = Path.of(System.getProperty("user.dir"), MEMORY_INSTALL_CONFIG_TEMPLATE_FILE);
         if (!Files.exists(configPath)) {
             throw new IllegalStateException("Missing " + configPath);
         }
-        return GSON.fromJson(Files.readString(configPath), JsonObject.class);
+        InstallConfigVO installConfigVO = GSON.fromJson(Files.readString(configPath), InstallConfigVO.class);
+        Properties properties = InMemoryDatabase.h2Properties(installConfigVO.getDbConfig().getDbName());
+        installConfigVO.getDbConfig().setJdbcUrl(properties.getProperty("jdbcUrl"));
+        installConfigVO.getDbConfig().setDriverClass(properties.getProperty("driverClass"));
+        return installConfigVO;
     }
 
-    private static void installFromConfigFile(Path installConfigPath) throws Exception {
-        String jsonStr = IOUtil.getStringInputStream(new FileInputStream(installConfigPath.toFile()));
-        InstallConfigVO config = GSON.fromJson(jsonStr, InstallConfigVO.class);
+    private static InstallSiteConfig getMemorySiteConfig(InstallConfigVO installConfig) {
+        InstallSiteConfig configMsg = installConfig.getConfigMsg();
+        if (configMsg == null) {
+            throw new IllegalStateException("Missing memory install config value: configMsg");
+        }
+        requireConfigString(configMsg.getUsername(), "configMsg.username");
+        requireConfigString(configMsg.getPassword(), "configMsg.password");
+        return configMsg;
+    }
+
+    private static String requireConfigString(String value, String path) {
+        if (value == null) {
+            throw new IllegalStateException("Missing memory install config value: " + path);
+        }
+        if (value.isEmpty()) {
+            throw new IllegalStateException("Empty memory install config value: " + path);
+        }
+        return value;
+    }
+
+    private static void installFromConfig(InstallConfigVO config) throws Exception {
         InstallService installService = new InstallService(InstallConstants.installConfig, config);
         boolean install = installService.install();
         if (!install) {
-            throw new IllegalStateException("Install memory database failed: " + installConfigPath);
-        }
-    }
-
-    static final class MemoryRuntime {
-        private final Path rootPath;
-        private final Properties databaseProperties;
-        private final Path installConfigPath;
-
-        private MemoryRuntime(Path rootPath, Properties databaseProperties, Path installConfigPath) {
-            this.rootPath = rootPath;
-            this.databaseProperties = databaseProperties;
-            this.installConfigPath = installConfigPath;
-        }
-
-        Path getRootPath() {
-            return rootPath;
-        }
-
-        Properties getDatabaseProperties() {
-            return databaseProperties;
-        }
-
-        Path getInstallConfigPath() {
-            return installConfigPath;
+            throw new IllegalStateException("Install memory database failed");
         }
     }
 

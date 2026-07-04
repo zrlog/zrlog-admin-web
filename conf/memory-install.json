@@ -2,12 +2,12 @@
   "dbConfig": {
     "driverClass": "",
     "jdbcUrl": "",
-    "user": "",
+    "user": "sa",
     "password": "",
     "dbType": "h2",
     "dbHost": "localhost",
     "dbPort": "0",
-    "dbName": "zrlog"
+    "dbName": "zrlog_admin_memory"
   },
   "configMsg": {
     "title": "ZrLog Memory",

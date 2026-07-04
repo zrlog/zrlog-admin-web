@@ -52,9 +52,9 @@ cd src/main/frontend && yarn build
 关键约束：
 
 - 安装配置模板放在工程外部配置目录 `conf/memory-install.json`，不要放进 `src/main/resources`。
-- 启动时使用工程目录下的 `.zrlog-memory/` 作为隔离 runtime root；每次启动前清空该目录，再生成 `conf/db.properties`、`conf/install.lock` 和 `conf/memory-install.generated.json`。
+- 启动时使用工程目录下的 `.zrlog-memory/` 作为隔离 runtime root；每次启动前清空该目录，再生成 `conf/db.properties` 和 `conf/install.lock`，不要生成无必要的安装配置中间文件。
 - `.zrlog-memory/` 必须被 git 忽略；不要写入或覆盖仓库已有的 `conf/db.properties`、`conf/install.lock`。
-- 内存模式仍通过 install-web 的配置文件安装链路：读取 JSON，反序列化 `InstallConfigVO`，创建 `InstallService`，调用 `install()`；不要手工拼完整安装流程。
+- 内存模式仍通过 install-web 的安装链路：读取 `conf/memory-install.json` 模板，补入运行时 DB/host，反序列化 `InstallConfigVO`，创建 `InstallService`，调用 `install()`；不要手工拼完整安装流程。
 - `configMsg.secretKey` 等需要稳定的安装字段应固定在 `conf/memory-install.json`，避免每次启动随机变化。
 - `MemoryApplication*.class` 和 memory 安装配置不得进入最终 jar；修改后用 jar 条目检查确认。
 - `MemoryApplicationTest` 必须覆盖两层：install-web 写入和种子数据，以及 `ZrLogConfig` 从生成的 `conf/db.properties` 构建 datasource 的启动链路。
