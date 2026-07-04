@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import javax.net.ssl.SSLSession;
 
 import static org.junit.Assert.assertEquals;
@@ -377,6 +378,33 @@ public class AdminDashboardServiceTest {
         }
     }
 
+    @Test
+    public void shouldTimeoutSlowSurfacePreloadWithoutBlockingDashboardConfig() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            SlowSurfacePluginCorePlugin plugin = new SlowSurfacePluginCorePlugin();
+            Constants.zrLogConfig.getAllPlugins().add(plugin);
+            try {
+                db.putWebsite(AdminDashboardService.DASHBOARD_CONFIG_KEY,
+                        "{\"cards\":[{\"kind\":\"plugin\",\"id\":\"reminder\",\"enabled\":true,\"sort\":1,"
+                                + "\"pluginName\":\"reminder\",\"type\":\"surface\","
+                                + "\"surfaceUrl\":\"/admin/plugins/reminder/surface\","
+                                + "\"actionUrl\":\"/admin/plugins/reminder/surfaceAction\"}]}");
+
+                long start = System.nanoTime();
+                AdminDashboardConfigResponse config = new AdminDashboardService(50).getConfig(null, token(), true);
+                long elapsedMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
+                AdminDashboardCardResponse pluginItem = findDashboardItem(config.getCards(), "reminder");
+
+                assertTrue("dashboard preload should timeout quickly, elapsed=" + elapsedMillis, elapsedMillis < 1000);
+                assertNotNull(pluginItem);
+                assertEquals(Boolean.FALSE, pluginItem.getSurfaceLoaded());
+                assertNotNull(pluginItem.getError());
+            } finally {
+                Constants.zrLogConfig.getAllPlugins().remove(plugin);
+            }
+        }
+    }
+
     private static AdminDashboardCardConfigResponse cardConfig(String id, Boolean enabled, Integer sort) {
         AdminDashboardCardConfigResponse card = new AdminDashboardCardConfigResponse();
         card.setId(id);
@@ -527,6 +555,23 @@ public class AdminDashboardServiceTest {
         @Override
         public boolean stop() {
             return true;
+        }
+    }
+
+    private static class SlowSurfacePluginCorePlugin extends FakePluginCorePlugin {
+        @Override
+        public CloseResponseHandle getContext(String uri, HttpMethod method,
+                                              com.hibegin.http.server.api.HttpRequest request,
+                                              AdminTokenVO adminTokenVO) {
+            if ("/admin/plugins/reminder/surface".equals(uri)) {
+                try {
+                    Thread.sleep(TimeUnit.SECONDS.toMillis(5));
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+                return closeResponse("{\"success\":true,\"data\":{\"title\":\"Late Surface\"}}");
+            }
+            return super.getContext(uri, method, request, adminTokenVO);
         }
     }
 }

@@ -26,6 +26,9 @@ import java.net.URI;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
@@ -42,6 +45,7 @@ public class AdminDashboardService {
     private static final String ITEM_KIND_PLUGIN = "plugin";
     private static final int DEFAULT_AUTO_REFRESH_INTERVAL_SECONDS = 60;
     private static final int MIN_AUTO_REFRESH_INTERVAL_SECONDS = 10;
+    private static final long DEFAULT_SURFACE_PRELOAD_TIMEOUT_MILLIS = TimeUnit.SECONDS.toMillis(10);
     private static final Pattern PLUGIN_NAME_PATTERN = Pattern.compile("[A-Za-z0-9_-]+");
     private static final Gson GSON = new Gson();
     private static final Type CONFIG_TYPE = new TypeToken<AdminDashboardConfigResponse>() {
@@ -51,6 +55,16 @@ public class AdminDashboardService {
     private static final Logger LOGGER = LoggerUtil.getLogger(AdminDashboardService.class);
 
     private final WebsiteKvService kvService = new WebsiteKvService();
+    private final long surfacePreloadTimeoutMillis;
+
+    public AdminDashboardService() {
+        this(DEFAULT_SURFACE_PRELOAD_TIMEOUT_MILLIS);
+    }
+
+    AdminDashboardService(long surfacePreloadTimeoutMillis) {
+        this.surfacePreloadTimeoutMillis = surfacePreloadTimeoutMillis <= 0
+                ? DEFAULT_SURFACE_PRELOAD_TIMEOUT_MILLIS : surfacePreloadTimeoutMillis;
+    }
 
     public AdminDashboardConfigResponse getConfig(HttpRequest request, AdminTokenVO adminTokenVO) {
         return getConfig(request, adminTokenVO, false);
@@ -286,14 +300,33 @@ public class AdminDashboardService {
             return;
         }
         ExecutorService executor = ThreadUtils.newFixedThreadPool(Math.min(loadablePanels.size(), 8));
+        List<CompletableFuture<SurfacePanelLoadResult>> futures = new ArrayList<>();
+        boolean forceShutdown = false;
+        String unfinishedError = adminMessage("admin.pluginSurface.error.loadFailed");
         try {
-            List<CompletableFuture<Void>> futures = new ArrayList<>();
             for (AdminDashboardCardResponse panel : loadablePanels) {
-                futures.add(CompletableFuture.runAsync(() -> preloadSurfacePanel(panel, request, adminTokenVO), executor));
+                futures.add(CompletableFuture.supplyAsync(() -> loadSurfacePanel(panel, request, adminTokenVO), executor));
             }
-            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+                    .get(surfacePreloadTimeoutMillis, TimeUnit.MILLISECONDS);
+        } catch (TimeoutException e) {
+            forceShutdown = true;
+            unfinishedError = adminMessage("admin.pluginSurface.error.timeout");
+            LOGGER.log(Level.FINE, "Load dashboard plugin surface timed out", e);
+        } catch (InterruptedException e) {
+            forceShutdown = true;
+            Thread.currentThread().interrupt();
+            LOGGER.log(Level.FINE, "Load dashboard plugin surface interrupted", e);
+        } catch (ExecutionException e) {
+            forceShutdown = true;
+            LOGGER.log(Level.FINE, "Load dashboard plugin surface failed", e);
         } finally {
-            executor.shutdown();
+            applySurfacePreloadResults(loadablePanels, futures, unfinishedError);
+            if (forceShutdown) {
+                executor.shutdownNow();
+            } else {
+                executor.shutdown();
+            }
         }
     }
 
@@ -302,18 +335,49 @@ public class AdminDashboardService {
                 && StringUtils.isNotEmpty(panel.getSurfaceUrl());
     }
 
-    private void preloadSurfacePanel(AdminDashboardCardResponse panel, HttpRequest request, AdminTokenVO adminTokenVO) {
+    private SurfacePanelLoadResult loadSurfacePanel(AdminDashboardCardResponse panel, HttpRequest request,
+                                                    AdminTokenVO adminTokenVO) {
         SurfaceLoadResult result = loadSurfaceData(panel.getSurfaceUrl(), request, adminTokenVO);
+        Object data = result.data;
+        String title = null;
+        if (StringUtils.isEmpty(panel.getTitle()) && data instanceof Map) {
+            Object titleValue = ((Map<?, ?>) data).get("title");
+            if (titleValue instanceof String && StringUtils.isNotEmpty((String) titleValue)) {
+                title = (String) titleValue;
+            }
+        }
+        return new SurfacePanelLoadResult(result, title);
+    }
+
+    private void applySurfacePreloadResults(List<AdminDashboardCardResponse> panels,
+                                            List<CompletableFuture<SurfacePanelLoadResult>> futures,
+                                            String unfinishedError) {
+        for (int i = 0; i < panels.size(); i++) {
+            AdminDashboardCardResponse panel = panels.get(i);
+            CompletableFuture<SurfacePanelLoadResult> future = futures.get(i);
+            if (future.isDone() && !future.isCompletedExceptionally() && !future.isCancelled()) {
+                applySurfacePanelLoadResult(panel, future.join());
+                continue;
+            }
+            future.cancel(true);
+            markSurfacePanelError(panel, unfinishedError);
+        }
+    }
+
+    private void applySurfacePanelLoadResult(AdminDashboardCardResponse panel, SurfacePanelLoadResult preloadResult) {
+        SurfaceLoadResult result = preloadResult.result;
         panel.setData(result.data);
         panel.setError(result.error);
         panel.setSurfaceLoaded(result.loaded);
-        Object data = result.data;
-        if (StringUtils.isEmpty(panel.getTitle()) && data instanceof Map) {
-            Object title = ((Map<?, ?>) data).get("title");
-            if (title instanceof String && StringUtils.isNotEmpty((String) title)) {
-                panel.setTitle((String) title);
-            }
+        if (StringUtils.isNotEmpty(preloadResult.title)) {
+            panel.setTitle(preloadResult.title);
         }
+    }
+
+    private void markSurfacePanelError(AdminDashboardCardResponse panel, String error) {
+        panel.setData(null);
+        panel.setError(error);
+        panel.setSurfaceLoaded(false);
     }
 
     private SurfaceLoadResult loadSurfaceData(String surfaceUrl, HttpRequest request, AdminTokenVO adminTokenVO) {
@@ -363,6 +427,16 @@ public class AdminDashboardService {
 
         private static SurfaceLoadResult error(String error) {
             return new SurfaceLoadResult(null, error, false);
+        }
+    }
+
+    private static class SurfacePanelLoadResult {
+        private final SurfaceLoadResult result;
+        private final String title;
+
+        private SurfacePanelLoadResult(SurfaceLoadResult result, String title) {
+            this.result = result;
+            this.title = title;
         }
     }
 

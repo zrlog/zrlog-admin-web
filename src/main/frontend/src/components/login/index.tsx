@@ -198,27 +198,32 @@ type LoginResponse = {
     pageBuildId: string;
 };
 
-const asyncSaveApiCache = async (axiosInstance: AxiosInstance, responseBody: LoginResponse) => {
+const preloadApiCache = (axiosInstance: AxiosInstance, uris: string[]) => {
+    void Promise.all(
+        uris.map(async (e) => {
+            const key = e.split("/api/admin")[1];
+            if (!key) {
+                return;
+            }
+            try {
+                const { data } = await getCsrData(key, 0, axiosInstance);
+                addToCache(key, data);
+            } catch (error) {
+                console.error("cache error:", error);
+            }
+        })
+    );
+};
+
+const saveApiCache = (axiosInstance: AxiosInstance, responseBody: LoginResponse) => {
     getSsDate().pageBuildId = responseBody.pageBuildId;
     getSsDate().user = responseBody.data;
     getSsDate().key = responseBody.data.key;
-    //save to local
     if (isStaticPage()) {
         localStorage.setItem(ssKeyStorageKey, responseBody.data.key);
     }
     addToCache("/user", responseBody.data);
-
-    const uris = responseBody.data.cacheableApiUris ?? [];
-
-    const promises = uris.map(async (e) => {
-        const key = e.split("/api/admin")[1];
-        const { data } = await getCsrData(key, 0, axiosInstance);
-        addToCache(key, data);
-    });
-
-    await Promise.all(promises).catch((error) => {
-        console.error("cache error：", error);
-    });
+    preloadApiCache(axiosInstance, responseBody.data.cacheableApiUris ?? []);
 };
 
 const Index = ({ offline }: { offline: boolean }) => {
@@ -236,11 +241,11 @@ const Index = ({ offline }: { offline: boolean }) => {
 
     const axiosInstance = useAxiosBaseInstance();
 
-    const completeLogin = async (data: LoginResponse) => {
+    const completeLogin = (data: LoginResponse) => {
         if (isStaticPage() && loginState.backendServerUrl != null) {
             setBackendServerUrl(loginState.backendServerUrl);
         }
-        await asyncSaveApiCache(axiosInstance, data);
+        saveApiCache(axiosInstance, data);
         const query = new URLSearchParams(window.location.search);
         const redirectFrom = query.get("redirectFrom") as string;
         if (redirectFrom !== null && redirectFrom !== "") {
@@ -285,7 +290,7 @@ const Index = ({ offline }: { offline: boolean }) => {
                 return;
             }
             if (data.error == 0) {
-                await completeLogin(data);
+                completeLogin(data);
                 return;
             }
             await messageApi.error(getRes().error.unknown);
