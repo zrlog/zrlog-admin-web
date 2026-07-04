@@ -1217,8 +1217,6 @@ const Index: FunctionComponent<ArticleEditProps> = ({
                                 marginInlineEnd: 0,
                                 borderRadius: theme.borderRadiusLG,
                                 paddingInline: 10,
-                                height: 28,
-                                lineHeight: "28px",
                                 fontSize: 12,
                                 fontWeight: 500,
                                 backgroundColor: theme.colorFillSecondary,
