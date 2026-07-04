@@ -35,7 +35,6 @@ public class MemoryApplication {
     private static final Logger LOGGER = LoggerUtil.getLogger(MemoryApplication.class);
     private static final int DEFAULT_PORT = 17080;
     private static final Gson GSON = new Gson();
-    private static final String CONTEXT_PATH = "/sub";
     private static final String MEMORY_RUNTIME_DIR = ".zrlog-memory";
     private static final String MEMORY_INSTALL_CONFIG_TEMPLATE_FILE = "conf/memory-install.json";
 
@@ -57,7 +56,7 @@ public class MemoryApplication {
         Constants.zrLogConfig = prepareConfig(port);
         prepareRuntime(port);
         WebServerBuilder build = new WebServerBuilder.Builder().config(Constants.zrLogConfig).build();
-        LOGGER.info("Start ZrLog admin memory application at http://127.0.0.1:" + port + CONTEXT_PATH
+        LOGGER.info("Start ZrLog admin memory application at http://127.0.0.1:" + port + Constants.zrLogConfig.getServerConfig().getContextPath()
                 + "/admin/login, root=" + PathUtil.getRootPath());
         build.start();
     }
@@ -74,7 +73,7 @@ public class MemoryApplication {
     }
 
     static DevZrLogConfig prepareConfig(int port) {
-        return new MemoryZrLogConfig(port, null, CONTEXT_PATH);
+        return new MemoryZrLogConfig(port, null, Constants.zrLogConfig.getServerConfig().getContextPath());
     }
 
     static int resolvePort(String[] args) {
