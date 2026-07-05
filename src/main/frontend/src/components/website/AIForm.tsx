@@ -6,14 +6,14 @@ import { useEffect, useState } from "react";
 
 import { AI } from "./index";
 import Select, { DefaultOptionType } from "antd/es/select";
-import { Alert, Input, InputNumber, message, Space, Typography } from "antd";
+import { Alert, Input, InputNumber, message } from "antd";
 import AIIcon from "@editor/dist/ai/AIIcon";
 import Editor from "@editor/dist/editor";
 import { getAppState } from "../../base/ConfigProviderApp";
 import { Locale } from "@editor/dist/editor/lang/editor-lang";
 import { useAxiosBaseInstance } from "../../base/AppBase";
 import Modal from "antd/es/modal";
-import { BulbOutlined, CopyOutlined, EditOutlined } from "@ant-design/icons";
+import { BulbOutlined, EditOutlined } from "@ant-design/icons";
 import { markdownToHtmlSyncWithCallback } from "@editor/dist/editor/utils/marked-utils";
 import HtmlPreviewPanel from "@editor/dist/editor/html-preview-panel";
 import { useTheme } from "antd-style";
@@ -57,31 +57,6 @@ const AIForm = ({
     const { formLayout, narrow } = useResponsiveFormLayout(layout);
     const textModelSelectStyle = narrow ? { width: "100%" } : { maxWidth: 200 };
     const imageModelSelectStyle = narrow ? { width: "100%" } : { maxWidth: 260 };
-    const formatPolicyText = (template: string, values: Record<string, string>) =>
-        Object.entries(values).reduce((text, [key, value]) => text.split(`{${key}}`).join(value), template);
-    const notConfigured = getRes().websiteAi.privacyPolicyNotConfigured;
-    const textProvider = state.ai_provider || notConfigured;
-    const textModel = state.ai_model || notConfigured;
-    const imageProvider = state.ai_image_provider || notConfigured;
-    const imageModel = state.ai_image_model || notConfigured;
-    const privacyPolicyDraft = [
-        getRes().websiteAi.privacyPolicyDraft.intro,
-        formatPolicyText(getRes().websiteAi.privacyPolicyDraft.aiRequest, {
-            provider: textProvider,
-            model: textModel,
-        }),
-        formatPolicyText(getRes().websiteAi.privacyPolicyDraft.imageRequest, {
-            provider: imageProvider,
-            model: imageModel,
-        }),
-        getRes().websiteAi.privacyPolicyDraft.storage,
-        getRes().websiteAi.privacyPolicyDraft.comments,
-        getRes().websiteAi.privacyPolicyDraft.webhookAndExternal,
-        getRes().websiteAi.privacyPolicyDraft.crawler,
-        getRes().websiteAi.privacyPolicyDraft.export,
-        getRes().websiteAi.privacyPolicyDraft.responsibility,
-    ].join("\n\n");
-
     const getModelOptions = (): DefaultOptionType[] => {
         return (data.allProviders || [])
             .filter((e) => {
@@ -199,18 +174,6 @@ const AIForm = ({
         }
     };
 
-    const copyPrivacyPolicyDraft = async () => {
-        try {
-            if (!navigator.clipboard) {
-                throw new Error("Clipboard is not available");
-            }
-            await navigator.clipboard.writeText(privacyPolicyDraft);
-            await messageApi.success(getRes().websiteAi.privacyPolicyDraftCopied);
-        } catch (e) {
-            await messageApi.error(getRes().websiteAi.privacyPolicyDraftCopyFailed);
-        }
-    };
-
     return (
         <>
             {contextHolder}
@@ -258,37 +221,6 @@ const AIForm = ({
                     description={getRes().websiteAi.privacyBoundaryDesc}
                     style={{ marginBottom: theme.marginMD }}
                 />
-                <div
-                    style={{
-                        border,
-                        borderRadius: theme.borderRadius,
-                        background: theme.colorFillQuaternary,
-                        padding: theme.paddingSM,
-                        marginBottom: theme.marginMD,
-                    }}
-                >
-                    <Space direction="vertical" size={theme.marginXS} style={{ width: "100%" }}>
-                        <Typography.Text strong>{getRes().websiteAi.privacyPolicyAssistTitle}</Typography.Text>
-                        <Typography.Text type="secondary">{getRes().websiteAi.privacyPolicyAssistDesc}</Typography.Text>
-                        <Input.TextArea
-                            readOnly
-                            value={privacyPolicyDraft}
-                            autoSize={{ minRows: 6, maxRows: 10 }}
-                            style={{
-                                background: theme.colorBgContainer,
-                                fontSize: theme.fontSizeSM,
-                            }}
-                        />
-                        <Button
-                            size="small"
-                            icon={<CopyOutlined />}
-                            disabled={offline || offlineData}
-                            onClick={copyPrivacyPolicyDraft}
-                        >
-                            {getRes().websiteAi.copyPrivacyPolicyDraft}
-                        </Button>
-                    </Space>
-                </div>
                 <div
                     style={{
                         color: theme.colorText,
