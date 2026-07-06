@@ -1,4 +1,5 @@
-import { ComponentType, lazy, ReactNode } from "react";
+import { lazy } from "react";
+import type { ComponentType, ReactNode } from "react";
 import {
     ApiFilled,
     ApiOutlined,
@@ -50,32 +51,14 @@ import {
 } from "@ant-design/icons";
 import { buildUriPaths } from "../base/AppBase";
 import { getRes } from "../utils/constants";
-import Index from "./index";
-import Comment from "./comment";
-import Plugin from "./plugin";
-import WebSite, { WebSiteProps } from "./website";
-import Template from "./template";
-import Type from "./type";
-import TagManagement from "./tag";
-import Link from "./link";
-import Nav from "./nav";
-import Article from "./article";
-import ArticleEdit from "./articleEdit";
-import { ArticleEditProps } from "./articleEdit/index.types";
-import User from "./user";
-import TemplateCenter from "./template/template-center";
-import AccountSecurity from "./account-security";
-import Upgrade from "./upgrade";
-import TemplateConfig from "./template/template-config";
-import UnknownErrorPage, { ErrorPageProps } from "./unknown-error-page";
-import Offline from "../common/Offline";
-import System from "./system";
-import Version from "./website/version";
-import StaticSite from "./StaticSite";
-import Dev from "./dev";
-import FileManagerPage from "./file-manager-page";
+import MyLoadingComponent from "./my-loading-component";
+import type { WebSiteProps } from "./website";
+import type { ArticleEditProps } from "./articleEdit/index.types";
+import type { ErrorPageProps } from "./unknown-error-page";
 import { RiWebhookFill } from "../icons/ri/RiWebhookFill";
 import { RiWebhookLine } from "../icons/ri/RiWebhookLine";
+
+const LightweightFallback = MyLoadingComponent as ComponentType<any>;
 
 const AsyncArticleEdit = lazy(() => import("components/articleEdit"));
 const AsyncOffline = lazy(() => import("common/Offline"));
@@ -96,6 +79,7 @@ const AsyncArticle = lazy(() => import("components/article"));
 const AsyncUser = lazy(() => import("components/user"));
 const AsyncError = lazy(() => import("components/unknown-error-page"));
 const AsyncSystem = lazy(() => import("components/system"));
+const AsyncVersion = lazy(() => import("components/website/version"));
 const AsyncStaticSite = lazy(() => import("components/StaticSite"));
 const DevAsync = lazy(() => import("components/dev"));
 const AsyncFileManagerPage = lazy(() => import("components/file-manager-page"));
@@ -225,7 +209,7 @@ export const createAdminDashboardRoutes = (
     {
         paths: [...buildUriPaths("index"), ...buildUriPaths("")],
         lazy: AsyncIndex,
-        fallback: Index,
+        fallback: LightweightFallback,
         search: [
             {
                 id: "dashboard",
@@ -239,7 +223,7 @@ export const createAdminDashboardRoutes = (
     {
         paths: buildUriPaths("comment"),
         lazy: AsyncComment,
-        fallback: Comment,
+        fallback: LightweightFallback,
         search: [
             {
                 id: "comment",
@@ -252,7 +236,7 @@ export const createAdminDashboardRoutes = (
     {
         paths: buildUriPaths("plugin"),
         lazy: AsyncPlugin,
-        fallback: Plugin,
+        fallback: LightweightFallback,
         search: [
             {
                 id: "plugin",
@@ -272,7 +256,7 @@ export const createAdminDashboardRoutes = (
     {
         paths: buildUriPaths("website"),
         lazy: AsyncWebSite,
-        fallback: WebSite,
+        fallback: LightweightFallback,
         props: { activeKey: "basic" } as WebSiteProps,
         search: [
             {
@@ -286,7 +270,7 @@ export const createAdminDashboardRoutes = (
     {
         paths: buildUriPaths("website/admin"),
         lazy: AsyncWebSite,
-        fallback: WebSite,
+        fallback: LightweightFallback,
         props: { activeKey: "admin" } as WebSiteProps,
         search: [
             {
@@ -300,7 +284,7 @@ export const createAdminDashboardRoutes = (
     {
         paths: buildUriPaths("website/webhook"),
         lazy: AsyncWebSite,
-        fallback: WebSite,
+        fallback: LightweightFallback,
         props: { activeKey: "webhook" } as WebSiteProps,
         search: [
             {
@@ -315,12 +299,12 @@ export const createAdminDashboardRoutes = (
     {
         paths: buildUriPaths("website/template"),
         lazy: AsyncTemplate,
-        fallback: Template,
+        fallback: LightweightFallback,
     },
     {
         paths: buildUriPaths("website/other"),
         lazy: AsyncWebSite,
-        fallback: WebSite,
+        fallback: LightweightFallback,
         props: { activeKey: "other" } as WebSiteProps,
         search: [
             {
@@ -334,7 +318,7 @@ export const createAdminDashboardRoutes = (
     {
         paths: buildUriPaths("website/blog"),
         lazy: AsyncWebSite,
-        fallback: WebSite,
+        fallback: LightweightFallback,
         props: { activeKey: "blog" } as WebSiteProps,
         search: [
             {
@@ -348,7 +332,7 @@ export const createAdminDashboardRoutes = (
     {
         paths: buildUriPaths("website/ai"),
         lazy: AsyncWebSite,
-        fallback: WebSite,
+        fallback: LightweightFallback,
         props: { activeKey: "ai" } as WebSiteProps,
         search: [
             {
@@ -362,7 +346,7 @@ export const createAdminDashboardRoutes = (
     {
         paths: buildUriPaths("website/privacy"),
         lazy: AsyncWebSite,
-        fallback: WebSite,
+        fallback: LightweightFallback,
         props: { activeKey: "privacy" } as WebSiteProps,
         search: [
             {
@@ -377,7 +361,7 @@ export const createAdminDashboardRoutes = (
     {
         paths: buildUriPaths("website/article-edit"),
         lazy: AsyncWebSite,
-        fallback: WebSite,
+        fallback: LightweightFallback,
         props: { activeKey: "article-edit" } as WebSiteProps,
         search: [
             {
@@ -391,7 +375,7 @@ export const createAdminDashboardRoutes = (
     {
         paths: buildUriPaths("website/content-protector"),
         lazy: AsyncWebSite,
-        fallback: WebSite,
+        fallback: LightweightFallback,
         props: { activeKey: "content-protector" } as WebSiteProps,
         search: [
             {
@@ -405,13 +389,13 @@ export const createAdminDashboardRoutes = (
     {
         paths: buildUriPaths("website/upgrade"),
         lazy: AsyncWebSite,
-        fallback: WebSite,
+        fallback: LightweightFallback,
         props: { activeKey: "upgrade" } as WebSiteProps,
     },
     {
         paths: buildUriPaths("website/lab"),
         lazy: AsyncWebSite,
-        fallback: WebSite,
+        fallback: LightweightFallback,
         props: { activeKey: "lab" } as WebSiteProps,
         search: [
             {
@@ -424,8 +408,8 @@ export const createAdminDashboardRoutes = (
     },
     {
         paths: buildUriPaths("website/version"),
-        lazy: Version,
-        fallback: Version,
+        lazy: AsyncVersion,
+        fallback: LightweightFallback,
         search: [
             {
                 id: "version",
@@ -438,7 +422,7 @@ export const createAdminDashboardRoutes = (
     {
         paths: buildUriPaths("article-type"),
         lazy: AsyncType,
-        fallback: Type,
+        fallback: LightweightFallback,
         search: [
             {
                 id: "category",
@@ -451,7 +435,7 @@ export const createAdminDashboardRoutes = (
     {
         paths: buildUriPaths("tag"),
         lazy: AsyncTagManagement,
-        fallback: TagManagement,
+        fallback: LightweightFallback,
         search: [
             {
                 id: "tag",
@@ -464,7 +448,7 @@ export const createAdminDashboardRoutes = (
     {
         paths: buildUriPaths("link"),
         lazy: AsyncLink,
-        fallback: Link,
+        fallback: LightweightFallback,
         search: [
             {
                 id: "link",
@@ -477,7 +461,7 @@ export const createAdminDashboardRoutes = (
     {
         paths: buildUriPaths("nav"),
         lazy: AsyncNav,
-        fallback: Nav,
+        fallback: LightweightFallback,
         search: [
             {
                 id: "nav",
@@ -490,7 +474,7 @@ export const createAdminDashboardRoutes = (
     {
         paths: buildUriPaths("article"),
         lazy: AsyncArticle,
-        fallback: Article,
+        fallback: LightweightFallback,
         search: [
             {
                 id: "article",
@@ -510,7 +494,7 @@ export const createAdminDashboardRoutes = (
     {
         paths: buildUriPaths("article-edit"),
         lazy: AsyncArticleEdit,
-        fallback: ArticleEdit,
+        fallback: LightweightFallback,
         props: articleEditProps as ArticleEditProps,
         getComponentKey: (data, cacheKey) => {
             const article = (data as ArticleEditProps["data"] | undefined)?.article;
@@ -531,7 +515,7 @@ export const createAdminDashboardRoutes = (
     {
         paths: buildUriPaths("user"),
         lazy: AsyncUser,
-        fallback: User,
+        fallback: LightweightFallback,
         search: [
             {
                 id: "user",
@@ -544,7 +528,7 @@ export const createAdminDashboardRoutes = (
     {
         paths: buildUriPaths("template-center"),
         lazy: AsyncTemplateCenter,
-        fallback: TemplateCenter,
+        fallback: LightweightFallback,
         search: [
             {
                 id: "theme_center",
@@ -557,7 +541,7 @@ export const createAdminDashboardRoutes = (
     {
         paths: buildUriPaths("template"),
         lazy: AsyncTemplate,
-        fallback: Template,
+        fallback: LightweightFallback,
         search: [
             {
                 id: "theme_setting",
@@ -570,7 +554,7 @@ export const createAdminDashboardRoutes = (
     {
         paths: [...buildUriPaths("account-security"), ...buildUriPaths("user-update-password")],
         lazy: AsyncAccountSecurity,
-        fallback: AccountSecurity,
+        fallback: LightweightFallback,
         search: [
             {
                 id: "account-security",
@@ -584,17 +568,17 @@ export const createAdminDashboardRoutes = (
     {
         paths: buildUriPaths("upgrade"),
         lazy: AsyncUpgrade,
-        fallback: Upgrade,
+        fallback: LightweightFallback,
     },
     {
         paths: buildUriPaths("template-config"),
         lazy: AsyncTemplateConfig,
-        fallback: TemplateConfig,
+        fallback: LightweightFallback,
     },
     {
         paths: buildUriPaths("403"),
         lazy: AsyncError,
-        fallback: UnknownErrorPage,
+        fallback: LightweightFallback,
         props: {
             code: 403,
         } as ErrorPageProps,
@@ -602,7 +586,7 @@ export const createAdminDashboardRoutes = (
     {
         paths: buildUriPaths("500"),
         lazy: AsyncError,
-        fallback: UnknownErrorPage,
+        fallback: LightweightFallback,
         props: {
             code: 500,
         } as ErrorPageProps,
@@ -610,12 +594,12 @@ export const createAdminDashboardRoutes = (
     {
         paths: buildUriPaths("offline"),
         lazy: AsyncOffline,
-        fallback: Offline,
+        fallback: LightweightFallback,
     },
     {
         paths: buildUriPaths("system"),
         lazy: AsyncSystem,
-        fallback: System,
+        fallback: LightweightFallback,
         search: [
             {
                 id: "system",
@@ -628,17 +612,17 @@ export const createAdminDashboardRoutes = (
     {
         paths: buildUriPaths("static-site"),
         lazy: AsyncStaticSite,
-        fallback: StaticSite,
+        fallback: LightweightFallback,
     },
     {
         paths: buildUriPaths("dev"),
         lazy: DevAsync,
-        fallback: Dev,
+        fallback: LightweightFallback,
     },
     {
         paths: buildUriPaths("file-manager"),
         lazy: AsyncFileManagerPage,
-        fallback: FileManagerPage,
+        fallback: LightweightFallback,
         search: [
             {
                 id: "file-manager",
