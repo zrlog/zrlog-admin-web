@@ -11,6 +11,8 @@ import com.zrlog.admin.business.type.FileEntryAccess;
 import com.zrlog.admin.business.type.FileEntryAction;
 import com.zrlog.admin.plugin.rest.response.UploadServiceResponseEntity;
 import com.zrlog.business.plugin.type.StaticSiteType;
+import com.zrlog.common.Constants;
+import com.zrlog.common.ZrLogConfig;
 import org.junit.Test;
 
 import java.io.File;
@@ -141,7 +143,14 @@ public class AdminTypeAndUtilContractTest {
 
     @Test
     public void shouldReturnEmptyAdminStaticBaseWhenConfigIsMissing() {
-        assertEquals("", AdminWebTools.getAdminStaticResourceBaseUrlByWebSite(request("/admin", "/blog", "")));
+        ZrLogConfig previousConfig = Constants.zrLogConfig;
+        try {
+            Constants.zrLogConfig = null;
+
+            assertEquals("", AdminWebTools.getAdminStaticResourceBaseUrlByWebSite(request("/admin", "/blog", "")));
+        } finally {
+            Constants.zrLogConfig = previousConfig;
+        }
     }
 
     @Test
