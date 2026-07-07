@@ -5,11 +5,11 @@
   "private": true,
   "license": "MIT",
   "dependencies": {
-    "@ant-design/cssinjs": "1.21.1",
+    "@ant-design/cssinjs": "2.1.2",
     "@ant-design/plots": "2.6.8",
     "@craco/craco": "7.1.0",
     "@editor": "https://raw.githubusercontent.com/zrlog-extensions/zrlog-editor/refs/heads/main/artifacts/v2.1.26.tgz?v=1",
-    "antd": "6.3.1",
+    "antd": "6.4.3",
     "antd-style": "4.1.0",
     "md5": "2.3.0",
     "react": "18.3.1",
@@ -18,6 +18,9 @@
     "react-router-dom": "6.28.0",
     "rxjs": "7.8.1",
     "styled-components": "6.1.15"
+  },
+  "resolutions": {
+    "@rc-component/util": "1.11.1"
   },
   "scripts": {
     "lint": "yarn type-check",
