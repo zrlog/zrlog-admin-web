@@ -55,8 +55,8 @@ const AIForm = ({
     const border = `${theme.lineWidth}px ${theme.lineType} ${theme.colorBorder}`;
     const [messageApi, contextHolder] = message.useMessage({ maxCount: 3 });
     const { formLayout, narrow } = useResponsiveFormLayout(layout);
-    const textModelSelectStyle = narrow ? { width: "100%" } : { maxWidth: 200 };
-    const imageModelSelectStyle = narrow ? { width: "100%" } : { maxWidth: 260 };
+    const textModelSelectStyle = { width: 200, maxWidth: "100%" };
+    const imageModelSelectStyle = { width: 260, maxWidth: "100%" };
     const getModelOptions = (): DefaultOptionType[] => {
         return (data.allProviders || [])
             .filter((e) => {
@@ -374,6 +374,30 @@ const AIForm = ({
                 style={{ top: narrow ? 12 : 24 }}
                 onOk={commitPromptDraft}
                 onCancel={() => setPromptEditorOpen(false)}
+                footer={(_, { OkBtn, CancelBtn }) => (
+                    <div
+                        style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            gap: theme.marginSM,
+                        }}
+                    >
+                        <Button
+                            type="link"
+                            icon={<BulbOutlined />}
+                            loading={optimizingPrompt}
+                            onClick={optimizePromptDraft}
+                            style={{ paddingInline: 0, color: getAppState().colorPrimary }}
+                        >
+                            {getRes().websiteAi.optimizeAiPrompt}
+                        </Button>
+                        <div style={{ display: "flex", gap: theme.marginXS }}>
+                            <CancelBtn />
+                            <OkBtn />
+                        </div>
+                    </div>
+                )}
             >
                 <Editor
                     key={promptEditorRevision}
@@ -402,15 +426,6 @@ const AIForm = ({
                         setPromptDraft(v.value);
                     }}
                 />
-                <Button
-                    type="link"
-                    icon={<BulbOutlined />}
-                    loading={optimizingPrompt}
-                    onClick={optimizePromptDraft}
-                    style={{ padding: 0, height: "auto", marginTop: 4, color: getAppState().colorPrimary }}
-                >
-                    {getRes().websiteAi.optimizeAiPrompt}
-                </Button>
             </Modal>
         </>
     );
