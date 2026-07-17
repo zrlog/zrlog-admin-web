@@ -51,7 +51,6 @@ import { AIContent } from "@editor/dist/ai/AIContentItem";
 import { AIStateCache } from "@editor/dist/ai/AIStateCache";
 import { useNavigate } from "react-router-dom";
 import { getStaticProgressText, postRefreshCacheSse } from "../../utils/sse-utils";
-import { useTheme } from "antd-style";
 import PublishStatusBar from "./publish-status-bar";
 import { useArticleAiAssistantConfig } from "./article-ai-assistant/article-ai-assistant-button";
 import TimeAgo from "@editor/dist/editor/TimeAgo";
@@ -115,7 +114,6 @@ const Index: FunctionComponent<ArticleEditProps> = ({
     fullScreen,
     updateCache,
 }) => {
-    const theme = useTheme();
     const location = useLocation();
     const editCardRef = useRef<HTMLDivElement>(null);
     const editorViewRef = useRef<EditorView | null>(null);
@@ -1211,18 +1209,7 @@ const Index: FunctionComponent<ArticleEditProps> = ({
             >
                 {!fullScreen ? (
                     <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                        <Tag
-                            bordered={false}
-                            style={{
-                                marginInlineEnd: 0,
-                                borderRadius: theme.borderRadiusLG,
-                                paddingInline: 10,
-                                fontSize: 12,
-                                fontWeight: 500,
-                                backgroundColor: theme.colorFillSecondary,
-                                color: theme.colorTextSecondary,
-                            }}
-                        >
+                        <Tag bordered={false} style={{ marginInlineEnd: 0 }}>
                             {articleStatusText}
                         </Tag>
                         {showContentSourceTag && (
