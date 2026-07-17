@@ -61,11 +61,43 @@ public class AIServiceTest {
 
         HttpRequest request = service.request(info, "{}");
 
-        assertEquals(AIProviderType.DEEP_SEEK.getBaseUrl(), request.uri().toString());
+        assertEquals(AIProviderType.DEEP_SEEK.getBaseUrl() + "/chat/completions", request.uri().toString());
         assertEquals("POST", request.method());
         assertEquals("application/json", request.headers().firstValue("Content-Type").orElse(""));
         assertEquals("Bearer key", request.headers().firstValue("Authorization").orElse(""));
         assertEquals("identity", request.headers().firstValue("Accept-Encoding").orElse(""));
+
+        info.setAi_base_url("http://localhost:11434/v1");
+        HttpRequest customRequest = service.request(info, "{}");
+        assertEquals("http://localhost:11434/v1/chat/completions", customRequest.uri().toString());
+
+        info.setAi_base_url("https://gateway.example.com/openai/chat/completions");
+        HttpRequest compatibleFullUrlRequest = service.request(info, "{}");
+        assertEquals("https://gateway.example.com/openai/chat/completions",
+                compatibleFullUrlRequest.uri().toString());
+
+        info.setAi_base_url("http://localhost:11434/v1");
+        info.setAi_api_key("");
+        HttpRequest requestWithoutKey = service.request(info, "{}");
+        assertFalse(requestWithoutKey.headers().firstValue("Authorization").isPresent());
+    }
+
+    @Test
+    public void shouldValidateAndNormalizeCustomServiceUrl() {
+        AIWebSiteInfo valid = info(AIProviderType.OPEN_AI);
+        valid.setAi_model(" local-model:latest ");
+        valid.setAi_base_url(" https://gateway.example.com/v1/?api-version=1 ");
+
+        valid.doValid();
+
+        assertEquals("local-model:latest", valid.getAi_model());
+        assertEquals("https://gateway.example.com/v1?api-version=1", valid.getAi_base_url());
+        for (String invalidUrl : List.of("ftp://example.com/chat", "/v1/chat/completions",
+                "https://user:pass@example.com/chat", "https://example.com/chat#fragment")) {
+            AIWebSiteInfo invalid = info(AIProviderType.OPEN_AI);
+            invalid.setAi_base_url(invalidUrl);
+            assertThrows(ArgsException.class, invalid::doValid);
+        }
     }
 
     @Test
@@ -93,9 +125,14 @@ public class AIServiceTest {
         AIWebSiteInfo missingModel = info(AIProviderType.OPEN_AI);
         missingModel.setAi_model("");
         assertThrows(ArgsException.class, () -> service.check(missingModel));
+        AIWebSiteInfo blankModel = info(AIProviderType.OPEN_AI);
+        blankModel.setAi_model("   ");
+        assertThrows(ArgsException.class, blankModel::doValid);
         AIWebSiteInfo missingKey = info(AIProviderType.OPEN_AI);
         missingKey.setAi_api_key("");
         assertThrows(ArgsException.class, () -> service.check(missingKey));
+        missingKey.setAi_base_url("http://localhost:11434/v1");
+        service.check(missingKey);
         assertEquals("", service.blank(null));
         assertEquals("value", service.blank("value"));
         assertEquals("prompt", service.selected("prompt", ""));

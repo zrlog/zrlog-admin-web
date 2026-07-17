@@ -25,8 +25,9 @@ public class WebSiteService {
     public static final String FEATURE_WEBHOOK_ENABLED_KEY = "feature_webhook_enabled";
     public static final String FEATURE_PERSONAL_DATA_ENABLED_KEY = "feature_personal_data_enabled";
     public static final String AI_REASONING_ENABLED_KEY = "ai_reasoning_enabled";
-    private static final List<String> AI_WEBSITE_INFO_KEYS = Arrays.asList("ai_provider", "ai_model", "ai_api_key", "ai_prompt",
-            "ai_max_completion_tokens", AI_REASONING_ENABLED_KEY, "ai_image_provider", "ai_image_model", "ai_image_api_key");
+    private static final List<String> AI_WEBSITE_INFO_KEYS = Arrays.asList("ai_provider", "ai_model", "ai_base_url", "ai_api_key", "ai_prompt",
+            "ai_max_completion_tokens", AI_REASONING_ENABLED_KEY, "ai_image_provider", "ai_image_model",
+            "ai_image_base_url", "ai_image_api_key");
     private static final List<String> ARTICLE_EDIT_WEBSITE_INFO_KEYS = Arrays.asList(WebSite.article_auto_digest_length,
             ARTICLE_EDITOR_LINK_PREVIEW_ENABLED_KEY, ARTICLE_PUBLISH_CHECK_ENABLED_KEY,
             ARTICLE_COVER_ASPECT_RATIO_KEY, ARTICLE_EDIT_AUTO_SAVE_INTERVAL_KEY);

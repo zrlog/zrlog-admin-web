@@ -47,6 +47,7 @@ public class AIWebSiteInfoResponse extends AIWebSiteInfo {
 
     public static class AIProvider {
         private AIProviderType name;
+        private String baseUrl;
         private List<String> models;
         private List<AIModelEntry> modelEntries;
 
@@ -56,6 +57,14 @@ public class AIWebSiteInfoResponse extends AIWebSiteInfo {
 
         public void setName(AIProviderType name) {
             this.name = name;
+        }
+
+        public String getBaseUrl() {
+            return baseUrl;
+        }
+
+        public void setBaseUrl(String baseUrl) {
+            this.baseUrl = baseUrl;
         }
 
         public List<String> getModels() {

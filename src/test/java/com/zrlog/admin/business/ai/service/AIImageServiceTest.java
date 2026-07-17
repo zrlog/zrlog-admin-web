@@ -2,6 +2,7 @@ package com.zrlog.admin.business.ai.service;
 
 import com.google.gson.Gson;
 import com.zrlog.admin.business.AdminConstants;
+import com.zrlog.admin.business.ai.exception.UnsupportedAIImageGenerationException;
 import com.zrlog.admin.business.rest.request.GenerateArticleFieldRequest;
 import com.zrlog.admin.business.rest.response.GenerateArticleCoverResponse;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
@@ -35,6 +36,8 @@ import java.util.concurrent.Flow;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 public class AIImageServiceTest {
@@ -91,9 +94,40 @@ public class AIImageServiceTest {
         }
     }
 
+    @Test
+    public void shouldUseCustomImageBaseUrlAndModelWithoutAuthorizationHeader() throws Exception {
+        byte[] coverBytes = "custom-cover".getBytes(StandardCharsets.UTF_8);
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            seedImageConfig(db, "1:1");
+            db.putWebsite("ai_image_base_url", "http://localhost:11434/v1/");
+            db.putWebsite("ai_image_model", "local-image:latest");
+            db.putWebsite("ai_image_api_key", "");
+            FakeHttpClient client = new FakeHttpClient(imageB64Response(coverBytes));
+
+            new AIImageService(client).generateArticleCover(articleRequest());
+
+            HttpRequest request = client.requests.get(0);
+            assertEquals("http://localhost:11434/v1/images/generations", request.uri().toString());
+            assertFalse(request.headers().firstValue("Authorization").isPresent());
+            assertTrue(client.requestBodies.get(0).contains("\"model\":\"local-image:latest\""));
+        }
+    }
+
+    @Test
+    public void shouldRejectUnknownImageModelForProviderDefaultEndpoint() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            seedImageConfig(db, "1:1");
+            db.putWebsite("ai_image_model", "local-image:latest");
+
+            assertThrows(UnsupportedAIImageGenerationException.class,
+                    () -> new AIImageService(new FakeHttpClient()).generateArticleCover(articleRequest()));
+        }
+    }
+
     private static void seedImageConfig(InMemoryZrLogDatabase db, String aspectRatio) throws Exception {
         db.putWebsite("ai_image_provider", "OPEN_AI");
         db.putWebsite("ai_image_model", "gpt-image-2");
+        db.putWebsite("ai_image_base_url", "");
         db.putWebsite("ai_image_api_key", "image-key");
         db.putWebsite("article_cover_aspect_ratio", aspectRatio);
     }

@@ -98,7 +98,6 @@ public class AdminDtoContractTest {
         assertTrue(AIProviderType.OPEN_AI.getModels().contains("gpt-5"));
         assertTrue(AIProviderType.OPEN_AI.getImageModels().contains("gpt-image-2"));
         assertNotNull(AIProviderType.OPEN_AI.getBaseUrl());
-        assertNotNull(AIProviderType.OPEN_AI.getImageGenerationBaseUrl());
         assertFalse(AIProviderType.DEEP_SEEK.getModels().isEmpty());
         assertTrue(AIProviderType.DEEP_SEEK.getImageModels().isEmpty());
 

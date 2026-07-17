@@ -102,13 +102,33 @@ public class AIService {
     }
 
     protected HttpRequest buildRequest(AIWebSiteInfo info, String body) {
-        return HttpRequest.newBuilder()
-                .uri(URI.create(info.getAi_provider().getBaseUrl()))
+        HttpRequest.Builder builder = HttpRequest.newBuilder()
+                .uri(URI.create(resolveRequestUrl(info)))
                 .header("Content-Type", "application/json")
-                .header("Authorization", "Bearer " + info.getAi_api_key())
                 .header("Accept-Encoding", "identity")
-                .POST(HttpRequest.BodyPublishers.ofString(body))
-                .build();
+                .POST(HttpRequest.BodyPublishers.ofString(body));
+        if (StringUtils.isNotEmpty(info.getAi_api_key())) {
+            builder.header("Authorization", "Bearer " + info.getAi_api_key());
+        }
+        return builder.build();
+    }
+
+    private String resolveRequestUrl(AIWebSiteInfo info) {
+        return resolveEndpointUrl(info.getAi_base_url(), info.getAi_provider().getBaseUrl(), "/chat/completions");
+    }
+
+    protected static String resolveEndpointUrl(String configuredBaseUrl, String defaultBaseUrl, String endpointPath) {
+        String baseUrl = StringUtils.isEmpty(configuredBaseUrl) ? defaultBaseUrl : configuredBaseUrl;
+        int queryIndex = baseUrl.indexOf('?');
+        String query = queryIndex >= 0 ? baseUrl.substring(queryIndex) : "";
+        String path = queryIndex >= 0 ? baseUrl.substring(0, queryIndex) : baseUrl;
+        while (path.endsWith("/")) {
+            path = path.substring(0, path.length() - 1);
+        }
+        if (!path.endsWith(endpointPath)) {
+            path += endpointPath;
+        }
+        return path + query;
     }
 
     protected String buildProviderErrorDetail(int statusCode, String body) {
@@ -170,7 +190,7 @@ public class AIService {
         if (StringUtils.isEmpty(info.getAi_model())) {
             throw new ArgsException("ai_model");
         }
-        if (StringUtils.isEmpty(info.getAi_api_key())) {
+        if (StringUtils.isEmpty(info.getAi_api_key()) && StringUtils.isEmpty(info.getAi_base_url())) {
             throw new ArgsException("ai_api_key");
         }
     }

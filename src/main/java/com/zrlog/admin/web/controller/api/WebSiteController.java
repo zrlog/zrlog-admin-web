@@ -224,18 +224,30 @@ public class WebSiteController extends BaseController {
             AIWebSiteInfo request = getRequestBodyWithNullCheck(AIWebSiteInfo.class);
             AIWebSiteInfo current = webSiteService.ai();
             if (StringUtils.isEmpty(request.getAi_api_key())) {
-                if (StringUtils.isEmpty(current.getAi_api_key())) {
+                boolean sameEndpoint = Objects.equals(request.getAi_provider(), current.getAi_provider())
+                        && Objects.equals(AIWebSiteInfo.normalizeBaseUrl(request.getAi_base_url()),
+                                AIWebSiteInfo.normalizeBaseUrl(current.getAi_base_url()));
+                if (sameEndpoint && StringUtils.isNotEmpty(current.getAi_api_key())) {
+                    request.setAi_api_key(current.getAi_api_key());
+                } else if (StringUtils.isEmpty(request.getAi_base_url())) {
                     throw new ArgsException("ai_api_key");
                 }
-                request.setAi_api_key(current.getAi_api_key());
             }
             if (Objects.isNull(request.getAi_image_provider())) {
                 request.setAi_image_api_key(current.getAi_image_api_key());
             } else if (StringUtils.isEmpty(request.getAi_image_api_key())) {
-                if (StringUtils.isNotEmpty(current.getAi_image_api_key())) {
+                boolean sameImageEndpoint = Objects.equals(request.getAi_image_provider(), current.getAi_image_provider())
+                        && Objects.equals(AIWebSiteInfo.normalizeImageBaseUrl(request.getAi_image_base_url()),
+                                AIWebSiteInfo.normalizeImageBaseUrl(current.getAi_image_base_url()));
+                boolean sameAsTextEndpoint = Objects.equals(request.getAi_image_provider(), request.getAi_provider())
+                        && Objects.equals(AIWebSiteInfo.normalizeImageBaseUrl(request.getAi_image_base_url()),
+                                AIWebSiteInfo.normalizeBaseUrl(request.getAi_base_url()));
+                if (sameImageEndpoint && StringUtils.isNotEmpty(current.getAi_image_api_key())) {
                     request.setAi_image_api_key(current.getAi_image_api_key());
-                } else {
+                } else if (sameAsTextEndpoint && StringUtils.isNotEmpty(request.getAi_api_key())) {
                     request.setAi_image_api_key(request.getAi_api_key());
+                } else if (StringUtils.isEmpty(request.getAi_image_base_url())) {
+                    throw new ArgsException("ai_image_api_key");
                 }
             }
             update(request);
@@ -249,6 +261,7 @@ public class WebSiteController extends BaseController {
         infoResponse.setAllProviders(Arrays.stream(AIProviderType.values()).map(e -> {
             AIWebSiteInfoResponse.AIProvider aiProvider = new AIWebSiteInfoResponse.AIProvider();
             aiProvider.setName(e);
+            aiProvider.setBaseUrl(e.getBaseUrl());
             aiProvider.setModels(e.getModels());
             aiProvider.setModelEntries(e.getModelEntries());
             return aiProvider;
@@ -256,6 +269,7 @@ public class WebSiteController extends BaseController {
         infoResponse.setAllImageProviders(Arrays.stream(AIProviderType.values()).filter(e -> !e.getImageModels().isEmpty()).map(e -> {
             AIWebSiteInfoResponse.AIProvider aiProvider = new AIWebSiteInfoResponse.AIProvider();
             aiProvider.setName(e);
+            aiProvider.setBaseUrl(e.getBaseUrl());
             aiProvider.setModels(e.getImageModels());
             aiProvider.setModelEntries(e.getModelEntries());
             return aiProvider;

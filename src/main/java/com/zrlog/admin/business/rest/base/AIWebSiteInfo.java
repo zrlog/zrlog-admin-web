@@ -5,6 +5,8 @@ import com.zrlog.admin.business.ai.model.AIProviderType;
 import com.zrlog.common.Validator;
 import com.zrlog.common.exception.ArgsException;
 
+import java.net.URI;
+import java.util.Locale;
 import java.util.Objects;
 
 /**
@@ -14,12 +16,14 @@ public class AIWebSiteInfo implements Validator {
 
     private AIProviderType ai_provider;
     private String ai_model;
+    private String ai_base_url;
     private String ai_api_key;
     private String ai_prompt;
     private Integer ai_max_completion_tokens;
     private Boolean ai_reasoning_enabled = Boolean.TRUE;
     private AIProviderType ai_image_provider;
     private String ai_image_model;
+    private String ai_image_base_url;
     private String ai_image_api_key;
 
     public AIProviderType getAi_provider() {
@@ -36,6 +40,14 @@ public class AIWebSiteInfo implements Validator {
 
     public void setAi_model(String ai_model) {
         this.ai_model = ai_model;
+    }
+
+    public String getAi_base_url() {
+        return ai_base_url;
+    }
+
+    public void setAi_base_url(String ai_base_url) {
+        this.ai_base_url = ai_base_url;
     }
 
     public String getAi_api_key() {
@@ -90,6 +102,14 @@ public class AIWebSiteInfo implements Validator {
         this.ai_image_model = ai_image_model;
     }
 
+    public String getAi_image_base_url() {
+        return ai_image_base_url;
+    }
+
+    public void setAi_image_base_url(String ai_image_base_url) {
+        this.ai_image_base_url = ai_image_base_url;
+    }
+
     public String getAi_image_api_key() {
         return ai_image_api_key;
     }
@@ -98,20 +118,68 @@ public class AIWebSiteInfo implements Validator {
         this.ai_image_api_key = ai_image_api_key;
     }
 
-
     @Override
     public void doValid() {
         if (Objects.isNull(ai_provider)) {
             throw new ArgsException("ai_provider");
         }
-        if (StringUtils.isEmpty(ai_model)) {
+        if (StringUtils.isEmpty(ai_model) || StringUtils.isEmpty(ai_model.trim())) {
             throw new ArgsException("ai_model");
         }
+        ai_model = ai_model.trim();
+        ai_base_url = normalizeBaseUrl(ai_base_url);
         if (Objects.nonNull(ai_max_completion_tokens) && ai_max_completion_tokens < 1) {
             throw new ArgsException("ai_max_completion_tokens");
         }
-        if (Objects.nonNull(ai_image_provider) && StringUtils.isEmpty(ai_image_model)) {
-            throw new ArgsException("ai_image_model");
+        ai_image_base_url = normalizeImageBaseUrl(ai_image_base_url);
+        if (Objects.nonNull(ai_image_provider)) {
+            if (StringUtils.isEmpty(ai_image_model) || StringUtils.isEmpty(ai_image_model.trim())) {
+                throw new ArgsException("ai_image_model");
+            }
+            ai_image_model = ai_image_model.trim();
+            if (StringUtils.isEmpty(ai_image_base_url)
+                    && !ai_image_provider.getImageModels().contains(ai_image_model)) {
+                throw new ArgsException("ai_image_model");
+            }
         }
+    }
+
+    public static String normalizeBaseUrl(String baseUrl) {
+        return normalizeBaseUrl(baseUrl, "ai_base_url");
+    }
+
+    public static String normalizeImageBaseUrl(String baseUrl) {
+        return normalizeBaseUrl(baseUrl, "ai_image_base_url");
+    }
+
+    private static String normalizeBaseUrl(String baseUrl, String fieldName) {
+        if (StringUtils.isEmpty(baseUrl)) {
+            return "";
+        }
+        try {
+            URI uri = URI.create(baseUrl.trim());
+            String scheme = uri.getScheme();
+            if (StringUtils.isEmpty(scheme)
+                    || !(Objects.equals("http", scheme.toLowerCase(Locale.ROOT))
+                        || Objects.equals("https", scheme.toLowerCase(Locale.ROOT)))
+                    || StringUtils.isEmpty(uri.getHost())
+                    || StringUtils.isNotEmpty(uri.getUserInfo())
+                    || StringUtils.isNotEmpty(uri.getFragment())) {
+                throw new ArgsException(fieldName);
+            }
+            return trimTrailingSlashes(uri.toString());
+        } catch (IllegalArgumentException e) {
+            throw new ArgsException(fieldName);
+        }
+    }
+
+    private static String trimTrailingSlashes(String baseUrl) {
+        int queryIndex = baseUrl.indexOf('?');
+        String query = queryIndex >= 0 ? baseUrl.substring(queryIndex) : "";
+        String path = queryIndex >= 0 ? baseUrl.substring(0, queryIndex) : baseUrl;
+        while (path.endsWith("/")) {
+            path = path.substring(0, path.length() - 1);
+        }
+        return path + query;
     }
 }

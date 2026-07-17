@@ -87,17 +87,17 @@ public class AIImageService extends AIService {
         if (StringUtils.isEmpty(info.getAi_image_model())) {
             throw new ArgsException("ai_image_model");
         }
-        if (StringUtils.isEmpty(info.getAi_image_api_key())) {
+        boolean customEndpoint = StringUtils.isNotEmpty(info.getAi_image_base_url());
+        if (!customEndpoint && StringUtils.isEmpty(info.getAi_image_api_key())) {
             throw new ArgsException("ai_image_api_key");
         }
-        if (StringUtils.isEmpty(info.getAi_image_provider().getImageGenerationBaseUrl())) {
-            throw new UnsupportedAIImageGenerationException("provider: " + info.getAi_image_provider());
-        }
-        boolean supported = info.getAi_image_provider().getModelEntries().stream()
-                .anyMatch(model -> Objects.equals(model.getName(), info.getAi_image_model())
-                        && model.supports(AIModelCapability.IMAGE_GENERATION));
-        if (!supported) {
-            throw new UnsupportedAIImageGenerationException("model: " + info.getAi_image_model());
+        if (!customEndpoint) {
+            boolean supported = info.getAi_image_provider().getModelEntries().stream()
+                    .anyMatch(model -> Objects.equals(model.getName(), info.getAi_image_model())
+                            && model.supports(AIModelCapability.IMAGE_GENERATION));
+            if (!supported) {
+                throw new UnsupportedAIImageGenerationException("model: " + info.getAi_image_model());
+            }
         }
     }
 
@@ -118,13 +118,16 @@ public class AIImageService extends AIService {
         AIProviderRequests.ImageGenerationRequest providerRequest =
                 new AIProviderRequests.ImageGenerationRequest(info.getAi_image_model(), prompt, 1, size);
 
-        java.net.http.HttpRequest request = java.net.http.HttpRequest.newBuilder()
-                .uri(URI.create(info.getAi_image_provider().getImageGenerationBaseUrl()))
+        java.net.http.HttpRequest.Builder requestBuilder = java.net.http.HttpRequest.newBuilder()
+                .uri(URI.create(resolveEndpointUrl(info.getAi_image_base_url(),
+                        info.getAi_image_provider().getBaseUrl(), "/images/generations")))
                 .header("Content-Type", "application/json")
-                .header("Authorization", "Bearer " + info.getAi_image_api_key())
                 .header("Accept-Encoding", "identity")
-                .POST(BodyPublishers.ofString(gson.toJson(providerRequest)))
-                .build();
+                .POST(BodyPublishers.ofString(gson.toJson(providerRequest)));
+        if (StringUtils.isNotEmpty(info.getAi_image_api_key())) {
+            requestBuilder.header("Authorization", "Bearer " + info.getAi_image_api_key());
+        }
+        java.net.http.HttpRequest request = requestBuilder.build();
         HttpResponse<String> response = client().send(request, HttpResponse.BodyHandlers.ofString());
         if (response.statusCode() != 200) {
             throw new AIRequestException(buildProviderErrorDetail(response.statusCode(), response.body()));

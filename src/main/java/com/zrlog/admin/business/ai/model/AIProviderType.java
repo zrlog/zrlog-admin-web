@@ -6,11 +6,11 @@ import java.util.stream.Collectors;
 
 public enum AIProviderType {
 
-    DEEP_SEEK("https://api.deepseek.com/chat/completions", null, Arrays.asList(
+    DEEP_SEEK("https://api.deepseek.com", Arrays.asList(
             new AIModelEntry("deepseek-chat", AIModelCapability.TEXT),
             new AIModelEntry("deepseek-reasoner", AIModelCapability.TEXT)
     )),
-    OPEN_AI("https://api.openai.com/v1/completions", "https://api.openai.com/v1/images/generations",
+    OPEN_AI("https://api.openai.com/v1",
             Arrays.asList(
                     new AIModelEntry("gpt-5.1", AIModelCapability.TEXT),
                     new AIModelEntry("gpt-5", AIModelCapability.TEXT),
@@ -20,13 +20,12 @@ public enum AIProviderType {
                     new AIModelEntry("gpt-image-1.5", AIModelCapability.IMAGE_GENERATION),
                     new AIModelEntry("gpt-image-1-mini", AIModelCapability.IMAGE_GENERATION)
             )),
-    QWEN("https://dashscope.aliyuncs.com/compatible-mode/v1", null, Arrays.asList(
+    QWEN("https://dashscope.aliyuncs.com/compatible-mode/v1", Arrays.asList(
             new AIModelEntry("qwen3-max", AIModelCapability.TEXT),
             new AIModelEntry("qwen3-max-2025-09-23", AIModelCapability.TEXT),
             new AIModelEntry("qwen3-max-preview", AIModelCapability.TEXT)
     )),
-    GOOGLE_GEMINI("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
-            "https://generativelanguage.googleapis.com/v1beta/openai/images/generations",
+    GOOGLE_GEMINI("https://generativelanguage.googleapis.com/v1beta/openai",
             Arrays.asList(
                     new AIModelEntry("gemini-3.1-flash-lite-preview", AIModelCapability.TEXT),
                     new AIModelEntry("gemini-flash-latest", AIModelCapability.TEXT),
@@ -37,12 +36,10 @@ public enum AIProviderType {
             ));
 
     private final String baseUrl;
-    private final String imageGenerationBaseUrl;
     private final List<AIModelEntry> modelEntries;
 
-    AIProviderType(String baseUrl, String imageGenerationBaseUrl, List<AIModelEntry> modelEntries) {
+    AIProviderType(String baseUrl, List<AIModelEntry> modelEntries) {
         this.baseUrl = baseUrl;
-        this.imageGenerationBaseUrl = imageGenerationBaseUrl;
         this.modelEntries = modelEntries;
     }
 
@@ -56,10 +53,6 @@ public enum AIProviderType {
 
     public List<String> getImageModels() {
         return getModelsByCapability(AIModelCapability.IMAGE_GENERATION);
-    }
-
-    public String getImageGenerationBaseUrl() {
-        return imageGenerationBaseUrl;
     }
 
     public List<AIModelEntry> getModelEntries() {

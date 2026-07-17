@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 
 import { AI } from "./index";
 import Select, { DefaultOptionType } from "antd/es/select";
+import AutoComplete from "antd/es/auto-complete";
 import { Alert, Input, InputNumber, message } from "antd";
 import AIIcon from "@editor/dist/ai/AIIcon";
 import Editor from "@editor/dist/editor";
@@ -29,6 +30,21 @@ const normalizeAiSettings = (settings: AI): AI => ({
     ...settings,
     ai_reasoning_enabled: settings.ai_reasoning_enabled ?? true,
 });
+
+const validateAiServiceUrl = (_: unknown, value?: string) => {
+    if (!value) {
+        return Promise.resolve();
+    }
+    try {
+        const url = new URL(value.trim());
+        if ((url.protocol === "http:" || url.protocol === "https:") && !url.username && !url.password && !url.hash) {
+            return Promise.resolve();
+        }
+    } catch (_e) {
+        // Return the field validation message below.
+    }
+    return Promise.reject(new Error(getRes().websiteAi.aiBaseUrlInvalid));
+};
 
 const AIForm = ({
     data,
@@ -55,7 +71,20 @@ const AIForm = ({
     const border = `${theme.lineWidth}px ${theme.lineType} ${theme.colorBorder}`;
     const [messageApi, contextHolder] = message.useMessage({ maxCount: 3 });
     const { formLayout, narrow } = useResponsiveFormLayout(layout);
+    const endpointChanged =
+        state.ai_provider !== data.ai_provider || (state.ai_base_url || "") !== (data.ai_base_url || "");
+    const canReuseApiKey = Boolean(data.hasAiApiKey) && !endpointChanged;
+    const imageEndpointChanged =
+        state.ai_image_provider !== data.ai_image_provider ||
+        (state.ai_image_base_url || "") !== (data.ai_image_base_url || "");
+    const canReuseImageApiKey = Boolean(data.hasAiImageApiKey) && !imageEndpointChanged;
+    const imageUsesTextEndpoint =
+        Boolean(state.ai_image_provider) &&
+        state.ai_image_provider === state.ai_provider &&
+        (state.ai_image_base_url || "") === (state.ai_base_url || "");
+    const canReuseTextApiKeyForImage = imageUsesTextEndpoint && (canReuseApiKey || Boolean(state.ai_api_key));
     const textModelSelectStyle = { width: 200, maxWidth: "100%" };
+    const serviceUrlInputStyle = { width: 420, maxWidth: "100%" };
     const imageModelSelectStyle = { width: 260, maxWidth: "100%" };
     const getModelOptions = (): DefaultOptionType[] => {
         return (data.allProviders || [])
@@ -99,6 +128,14 @@ const AIForm = ({
                 value: e.name,
             } as DefaultOptionType;
         });
+    };
+
+    const getSelectedProvider = () => {
+        return (data.allProviders || []).find((provider) => provider.name === state.ai_provider);
+    };
+
+    const getSelectedImageProvider = () => {
+        return (data.allImageProviders || []).find((provider) => provider.name === state.ai_image_provider);
     };
 
     const getAiImageProviderOptions = (): DefaultOptionType[] => {
@@ -189,18 +226,26 @@ const AIForm = ({
                         ai_model: Object.prototype.hasOwnProperty.call(changedValues, "ai_provider")
                             ? ""
                             : values.ai_model,
+                        ai_base_url: Object.prototype.hasOwnProperty.call(changedValues, "ai_provider")
+                            ? ""
+                            : values.ai_base_url,
                         ai_image_model: Object.prototype.hasOwnProperty.call(changedValues, "ai_image_provider")
                             ? ""
                             : values.ai_image_model,
+                        ai_image_base_url: Object.prototype.hasOwnProperty.call(changedValues, "ai_image_provider")
+                            ? ""
+                            : values.ai_image_base_url,
                     };
                     if (Object.prototype.hasOwnProperty.call(changedValues, "ai_provider")) {
                         form.setFieldsValue({
                             ai_model: "",
+                            ai_base_url: "",
                         });
                     }
                     if (Object.prototype.hasOwnProperty.call(changedValues, "ai_image_provider")) {
                         form.setFieldsValue({
                             ai_image_model: "",
+                            ai_image_base_url: "",
                         });
                     }
                     setState(nextValues);
@@ -234,8 +279,24 @@ const AIForm = ({
                 <Form.Item name="ai_provider" label={getRes().websiteAi.aiProvider} required={true}>
                     <Select style={textModelSelectStyle} options={getAiProviderOptions()} />
                 </Form.Item>
-                <Form.Item name={"ai_model"} label={getRes().websiteAi.aiModel} required={true}>
-                    <Select style={textModelSelectStyle} options={getModelOptions()} />
+                <Form.Item
+                    name={"ai_model"}
+                    label={getRes().websiteAi.aiModel}
+                    rules={[{ required: true, whitespace: true, message: getRes().websiteAi.aiModelRequired }]}
+                >
+                    <AutoComplete
+                        style={textModelSelectStyle}
+                        options={getModelOptions()}
+                        placeholder={getRes().websiteAi.aiModelPlaceholder}
+                    />
+                </Form.Item>
+                <Form.Item
+                    name={"ai_base_url"}
+                    label={getRes().websiteAi.aiBaseUrl}
+                    tooltip={getRes().websiteAi.aiBaseUrlTip}
+                    rules={[{ validator: validateAiServiceUrl }]}
+                >
+                    <Input style={serviceUrlInputStyle} placeholder={getSelectedProvider()?.baseUrl} />
                 </Form.Item>
                 <Form.Item
                     name={"ai_max_completion_tokens"}
@@ -261,11 +322,17 @@ const AIForm = ({
                     name={"ai_api_key"}
                     label={getRes().websiteAi.aiApiKey}
                     tooltip={getRes().websiteAi.aiApiKeyTip}
-                    required={!data.hasAiApiKey}
+                    required={!state.ai_base_url && !canReuseApiKey}
                 >
                     <Input.Password
                         autoComplete="new-password"
-                        placeholder={data.hasAiApiKey ? getRes().websiteAi.aiApiKeyConfiguredPlaceholder : undefined}
+                        placeholder={
+                            canReuseApiKey
+                                ? getRes().websiteAi.aiApiKeyConfiguredPlaceholder
+                                : state.ai_base_url
+                                ? getRes().websiteAi.aiApiKeyOptionalPlaceholder
+                                : undefined
+                        }
                     />
                 </Form.Item>
                 <div
@@ -289,25 +356,69 @@ const AIForm = ({
                     name={"ai_image_model"}
                     label={getRes().websiteAi.aiImageModel}
                     tooltip={getRes().websiteAi.aiImageModelTip}
+                    dependencies={["ai_image_provider", "ai_image_base_url"]}
+                    rules={[
+                        {
+                            validator: (_, value?: string) => {
+                                const provider = form.getFieldValue("ai_image_provider");
+                                if (!provider) {
+                                    return Promise.resolve();
+                                }
+                                const model = value?.trim();
+                                if (!model) {
+                                    return Promise.reject(new Error(getRes().websiteAi.aiImageModelRequired));
+                                }
+                                const customBaseUrl = form.getFieldValue("ai_image_base_url");
+                                const knownModels =
+                                    (data.allImageProviders || []).find((item) => item.name === provider)?.models || [];
+                                if (!customBaseUrl && !knownModels.includes(model)) {
+                                    return Promise.reject(new Error(getRes().websiteAi.aiImageModelUnsupported));
+                                }
+                                return Promise.resolve();
+                            },
+                        },
+                    ]}
                 >
-                    <Select
-                        allowClear={true}
+                    <AutoComplete
                         disabled={!state.ai_image_provider}
                         style={imageModelSelectStyle}
                         options={getImageModelOptions()}
+                        placeholder={getRes().websiteAi.aiImageModelPlaceholder}
+                    />
+                </Form.Item>
+                <Form.Item
+                    name={"ai_image_base_url"}
+                    label={getRes().websiteAi.aiImageBaseUrl}
+                    tooltip={getRes().websiteAi.aiImageBaseUrlTip}
+                    rules={[{ validator: validateAiServiceUrl }]}
+                >
+                    <Input
+                        disabled={!state.ai_image_provider}
+                        style={serviceUrlInputStyle}
+                        placeholder={getSelectedImageProvider()?.baseUrl}
                     />
                 </Form.Item>
                 <Form.Item
                     name={"ai_image_api_key"}
                     label={getRes().websiteAi.aiImageApiKey}
                     tooltip={getRes().websiteAi.aiImageApiKeyTip}
+                    required={
+                        Boolean(state.ai_image_provider) &&
+                        !state.ai_image_base_url &&
+                        !canReuseImageApiKey &&
+                        !canReuseTextApiKeyForImage
+                    }
                 >
                     <Input.Password
                         autoComplete="new-password"
                         placeholder={
-                            data.hasAiImageApiKey
+                            canReuseImageApiKey
                                 ? getRes().websiteAi.aiApiKeyConfiguredPlaceholder
-                                : getRes().websiteAi.aiImageApiKeyPlaceholder
+                                : state.ai_image_base_url
+                                ? getRes().websiteAi.aiApiKeyOptionalPlaceholder
+                                : canReuseTextApiKeyForImage
+                                ? getRes().websiteAi.aiImageApiKeyPlaceholder
+                                : undefined
                         }
                     />
                 </Form.Item>

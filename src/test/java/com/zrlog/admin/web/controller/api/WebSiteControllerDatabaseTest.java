@@ -134,30 +134,107 @@ public class WebSiteControllerDatabaseTest {
             db.putWebsite("ai_api_key", "existing-key");
             db.putWebsite("ai_image_provider", "OPEN_AI");
             db.putWebsite("ai_image_model", "gpt-image-2");
+            db.putWebsite("ai_image_base_url", "");
             db.putWebsite("ai_image_api_key", "existing-image-key");
 
             AdminPageDataResponse<AIWebSiteInfoResponse> response =
                     controller(HttpMethod.POST, "/api/admin/website/ai",
-                            "{\"ai_provider\":\"OPEN_AI\",\"ai_model\":\"gpt-5-mini\","
+                            "{\"ai_provider\":\"OPEN_AI\",\"ai_model\":\" custom-model:latest \","
+                                    + "\"ai_base_url\":\"\","
                                     + "\"ai_api_key\":\"\",\"ai_prompt\":\"Prompt\","
                                     + "\"ai_max_completion_tokens\":1024,"
                                     + "\"ai_reasoning_enabled\":false,"
                                     + "\"ai_image_provider\":\"OPEN_AI\","
                                     + "\"ai_image_model\":\"gpt-image-2\","
+                                    + "\"ai_image_base_url\":\"\","
                                     + "\"ai_image_api_key\":\"\"}").ai();
 
             assertEquals(AIProviderType.OPEN_AI, response.getData().getAi_provider());
-            assertEquals("gpt-5-mini", response.getData().getAi_model());
+            assertEquals("custom-model:latest", response.getData().getAi_model());
+            assertEquals("", response.getData().getAi_base_url());
             assertEquals("", response.getData().getAi_api_key());
             assertEquals("", response.getData().getAi_image_api_key());
+            assertEquals("", response.getData().getAi_image_base_url());
             assertEquals(Boolean.FALSE, response.getData().getAi_reasoning_enabled());
             assertTrue(response.getData().isHasAiApiKey());
             assertTrue(response.getData().isHasAiImageApiKey());
             assertFalse(response.getData().getAllProviders().isEmpty());
+            assertEquals(AIProviderType.OPEN_AI.getBaseUrl(), response.getData().getAllProviders().stream()
+                    .filter(provider -> provider.getName() == AIProviderType.OPEN_AI)
+                    .findFirst().orElseThrow().getBaseUrl());
             assertFalse(response.getData().getAllImageProviders().isEmpty());
+            assertEquals(AIProviderType.OPEN_AI.getBaseUrl(), response.getData().getAllImageProviders().stream()
+                    .filter(provider -> provider.getName() == AIProviderType.OPEN_AI)
+                    .findFirst().orElseThrow().getBaseUrl());
             assertEquals("existing-key", value(db, "ai_api_key"));
             assertEquals("existing-image-key", value(db, "ai_image_api_key"));
             assertEquals("false", value(db, "ai_reasoning_enabled"));
+            assertEquals("", value(db, "ai_base_url"));
+            assertEquals("", value(db, "ai_image_base_url"));
+        }
+    }
+
+    @Test
+    public void shouldAllowCustomImageEndpointWithoutReusingExistingImageKey() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            db.putWebsite("ai_provider", "OPEN_AI");
+            db.putWebsite("ai_model", "gpt-5");
+            db.putWebsite("ai_api_key", "existing-key");
+            db.putWebsite("ai_image_provider", "OPEN_AI");
+            db.putWebsite("ai_image_model", "gpt-image-2");
+            db.putWebsite("ai_image_base_url", "");
+            db.putWebsite("ai_image_api_key", "existing-image-key");
+
+            AdminPageDataResponse<AIWebSiteInfoResponse> response =
+                    controller(HttpMethod.POST, "/api/admin/website/ai",
+                            "{\"ai_provider\":\"OPEN_AI\",\"ai_model\":\"gpt-5\","
+                                    + "\"ai_base_url\":\"\",\"ai_api_key\":\"\","
+                                    + "\"ai_image_provider\":\"OPEN_AI\","
+                                    + "\"ai_image_model\":\" local-image:latest \","
+                                    + "\"ai_image_base_url\":\"http://localhost:11434/v1/\","
+                                    + "\"ai_image_api_key\":\"\"}").ai();
+
+            assertEquals("local-image:latest", response.getData().getAi_image_model());
+            assertEquals("http://localhost:11434/v1", response.getData().getAi_image_base_url());
+            assertFalse(response.getData().isHasAiImageApiKey());
+            assertEquals("", value(db, "ai_image_api_key"));
+            assertEquals("http://localhost:11434/v1", value(db, "ai_image_base_url"));
+        }
+    }
+
+    @Test
+    public void shouldRejectUnknownImageModelForProviderDefaultEndpoint() throws Exception {
+        try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
+            WebSiteController controller = controller(HttpMethod.POST, "/api/admin/website/ai",
+                    "{\"ai_provider\":\"OPEN_AI\",\"ai_model\":\"gpt-5\","
+                            + "\"ai_api_key\":\"text-key\","
+                            + "\"ai_image_provider\":\"OPEN_AI\","
+                            + "\"ai_image_model\":\"local-image:latest\","
+                            + "\"ai_image_base_url\":\"\","
+                            + "\"ai_image_api_key\":\"image-key\"}");
+
+            assertThrows(ArgsException.class, controller::ai);
+        }
+    }
+
+    @Test
+    public void shouldNotReuseExistingAiKeyForChangedCustomEndpoint() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            db.putWebsite("ai_provider", "OPEN_AI");
+            db.putWebsite("ai_model", "gpt-5");
+            db.putWebsite("ai_api_key", "existing-key");
+
+            AdminPageDataResponse<AIWebSiteInfoResponse> response =
+                    controller(HttpMethod.POST, "/api/admin/website/ai",
+                            "{\"ai_provider\":\"OPEN_AI\",\"ai_model\":\"local-model\","
+                                    + "\"ai_base_url\":\"http://localhost:11434/v1\","
+                                    + "\"ai_api_key\":\"\",\"ai_prompt\":\"Prompt\"}").ai();
+
+            assertEquals("local-model", response.getData().getAi_model());
+            assertEquals("http://localhost:11434/v1", response.getData().getAi_base_url());
+            assertFalse(response.getData().isHasAiApiKey());
+            assertEquals("", value(db, "ai_api_key"));
+            assertEquals("http://localhost:11434/v1", value(db, "ai_base_url"));
         }
     }
 
