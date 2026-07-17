@@ -95,8 +95,16 @@ public class AdminDtoContractTest {
         assertFalse(new com.zrlog.admin.business.ai.model.AIModelEntry(
                 "text-model", AIModelCapability.TEXT).supports(AIModelCapability.IMAGE_GENERATION));
 
-        assertTrue(AIProviderType.OPEN_AI.getModels().contains("gpt-5"));
+        assertEquals("deepseek-v4-pro", AIProviderType.DEEP_SEEK.getModels().get(0));
+        assertEquals("gpt-5.6", AIProviderType.OPEN_AI.getModels().get(0));
+        assertTrue(AIProviderType.OPEN_AI.getModels().contains("gpt-5.6-sol"));
+        assertTrue(AIProviderType.OPEN_AI.getModels().contains("gpt-5.6-terra"));
+        assertTrue(AIProviderType.OPEN_AI.getModels().contains("gpt-5.6-luna"));
+        assertEquals("qwen3.7-max", AIProviderType.QWEN.getModels().get(0));
+        assertEquals("gemini-3.5-flash", AIProviderType.GOOGLE_GEMINI.getModels().get(0));
+        assertFalse(AIProviderType.GOOGLE_GEMINI.getModels().contains("gemini-3.1-flash-lite-preview"));
         assertTrue(AIProviderType.OPEN_AI.getImageModels().contains("gpt-image-2"));
+        assertEquals("gemini-3.1-flash-image", AIProviderType.GOOGLE_GEMINI.getImageModels().get(0));
         assertNotNull(AIProviderType.OPEN_AI.getBaseUrl());
         assertFalse(AIProviderType.DEEP_SEEK.getModels().isEmpty());
         assertTrue(AIProviderType.DEEP_SEEK.getImageModels().isEmpty());
