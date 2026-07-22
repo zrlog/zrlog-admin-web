@@ -37,7 +37,7 @@
     </repositories>
 
     <name>ZrLog Admin Web</name>
-    <url>https://github.com/zrlog-extensions/zrlog-admin-web</url>
+    <url>https://github.com/zrlog/zrlog-admin-web</url>
     <description>ZrLog admin web</description>
 
     <licenses>
@@ -54,13 +54,13 @@
         </developer>
     </developers>
     <scm>
-        <connection>scm:git:https://github.com/zrlog-extensions/zrlog-admin-web</connection>
-        <developerConnection>scm:git:https://github.com/zrlog-extensions/zrlog-admin-web</developerConnection>
-        <url>https://github.com/zrlog-extensions/zrlog-admin-web</url>
+        <connection>scm:git:https://github.com/zrlog/zrlog-admin-web</connection>
+        <developerConnection>scm:git:https://github.com/zrlog/zrlog-admin-web</developerConnection>
+        <url>https://github.com/zrlog/zrlog-admin-web</url>
     </scm>
     <issueManagement>
         <system>Github Issue</system>
-        <url>https://github.com/zrlog-extensions/zrlog-admin-web</url>
+        <url>https://github.com/zrlog/zrlog-admin-web</url>
     </issueManagement>
 
     <dependencies>

@@ -1944,9 +1944,9 @@
   resolved "https://registry.npmmirror.com/@csstools/selector-specificity/-/selector-specificity-2.2.0.tgz#2cbcf822bf3764c9658c4d2e568bd0c0cb748016"
   integrity sha512-+OJ9konv95ClSTOJCmMZqpd5+YGsB2S+x6w3E1oaM8UuR5j8nTNHYSz8c9BEPGDOCMQYIEEGlVPj/VY64iTbGw==
 
-"@editor@https://raw.githubusercontent.com/zrlog-extensions/zrlog-editor/refs/heads/main/artifacts/v2.1.27.tgz?v=1":
+"@editor@https://raw.githubusercontent.com/zrlog/zrlog-editor/refs/heads/main/artifacts/v2.1.27.tgz?v=1":
   version "2.1.27"
-  resolved "https://raw.githubusercontent.com/zrlog-extensions/zrlog-editor/refs/heads/main/artifacts/v2.1.27.tgz?v=1#cd8b73e27aeda9964fe031f9d9245595a0123505"
+  resolved "https://raw.githubusercontent.com/zrlog/zrlog-editor/refs/heads/main/artifacts/v2.1.27.tgz?v=1#cd8b73e27aeda9964fe031f9d9245595a0123505"
   dependencies:
     "@ant-design/cssinjs" "2.1.2"
     "@ant-design/icons" "6.2.3"
