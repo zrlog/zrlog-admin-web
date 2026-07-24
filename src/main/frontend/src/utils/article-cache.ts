@@ -3,6 +3,7 @@ import { getCachedData, putCache } from "./cache";
 
 const LOCAL_ARTICLE_CACHE_DRAFT_KEY = "local-article-cache-draft";
 const LOCAL_ARTICLE_CACHE_PREFIX = "local-article-cache-";
+const LEGACY_EMPTY_DRAFT_KEYS = new Set(["version", "title", "keywords", "rubbish"]);
 
 export type LocalArticleCacheEntry = {
     key: string;
@@ -36,6 +37,29 @@ const isArticleEntry = (value: unknown): value is ArticleEntry => {
     return typeof article.title === "string" && typeof article.version === "number";
 };
 
+export const isLegacyEmptyLocalDraft = (value: unknown): value is ArticleEntry => {
+    if (!isArticleEntry(value)) {
+        return false;
+    }
+    const article = value as ArticleEntry;
+    return (
+        Object.keys(article).every((key) => LEGACY_EMPTY_DRAFT_KEYS.has(key)) &&
+        article.version === -1 &&
+        article.title === "" &&
+        (article.keywords === "" || article.keywords === undefined) &&
+        article.rubbish === true
+    );
+};
+
+const removeLegacyEmptyLocalDraft = (record: Record<string, any>) => {
+    if (!isLegacyEmptyLocalDraft(record[LOCAL_ARTICLE_CACHE_DRAFT_KEY])) {
+        return false;
+    }
+    delete record[LOCAL_ARTICLE_CACHE_DRAFT_KEY];
+    delete record[buildCacheMetaKey(LOCAL_ARTICLE_CACHE_DRAFT_KEY)];
+    return true;
+};
+
 const getArticleCacheUpdatedAt = (record: Record<string, any>, key: string) => {
     const meta = record[buildCacheMetaKey(key)] as { updatedAt?: unknown } | undefined;
     const updatedAt = Number(meta?.updatedAt);
@@ -62,6 +86,9 @@ export const articleDataToState = (data: ArticleEditInfo, preferredTypeId?: numb
           };
     const cacheKey = buildCacheKey(article.logId);
     const record = getCachedData();
+    if (removeLegacyEmptyLocalDraft(record)) {
+        putCache(record);
+    }
     const cachedArticleValue = record[cacheKey];
     const cachedArticle = isArticleEntry(cachedArticleValue) ? cachedArticleValue : undefined;
     const cachedUpdatedAt = getArticleCacheUpdatedAt(record, cacheKey);
@@ -137,6 +164,9 @@ export const articleSaveToCache = (article: ArticleEntry, updatedAt: number = Da
 
 export const getLocalArticleCaches = (): LocalArticleCacheEntry[] => {
     const record = getCachedData();
+    if (removeLegacyEmptyLocalDraft(record)) {
+        putCache(record);
+    }
     return Object.entries(record)
         .filter(([key, value]) => isArticleCacheKey(key) && isArticleEntry(value))
         .map(([key, article]) => ({

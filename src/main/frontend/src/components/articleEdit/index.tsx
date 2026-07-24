@@ -54,6 +54,7 @@ import { getStaticProgressText, postRefreshCacheSse } from "../../utils/sse-util
 import PublishStatusBar from "./publish-status-bar";
 import { useArticleAiAssistantConfig } from "./article-ai-assistant/article-ai-assistant-button";
 import TimeAgo from "@editor/dist/editor/TimeAgo";
+import useArticleOfflineDraft, { ArticleOfflineSyncTask } from "./offline/use-article-offline-draft";
 
 const normalizeConflictValue = (value: unknown) => {
     if (value === undefined || value === null) {
@@ -291,8 +292,10 @@ const Index: FunctionComponent<ArticleEditProps> = ({
         }));
     }, [data, preferredTypeId, state.contentSource]);
 
-    const subjectRef = useRef<Subject<ArticleEntry> | null>(null);
+    const subjectRef = useRef<Subject<ArticleOfflineSyncTask> | null>(null);
     const subRef = useRef<Subscription | null>(null);
+    const markOfflineDraftSyncedRef = useRef<(task: ArticleOfflineSyncTask) => boolean>(() => false);
+    const markOfflineDraftCommittedRef = useRef<() => void>(() => undefined);
 
     const [messageApi, messageContextHolder] = message.useMessage({
         maxCount: 3,
@@ -385,10 +388,6 @@ const Index: FunctionComponent<ArticleEditProps> = ({
             rubbish: !release,
             transparentPublish: release && !autoSave && article.privacy !== true,
         };
-        if (isOffline()) {
-            persistToCache(newArticle);
-            return true;
-        }
         //do check
         if (isTitleError(article)) {
             messageApi.error({ content: getRes().articleEdit.requireTitle });
@@ -397,6 +396,10 @@ const Index: FunctionComponent<ArticleEditProps> = ({
         if (isTypeError(article)) {
             messageApi.error(getRes().articleEdit.requireType);
             return false;
+        }
+        if (isOffline()) {
+            persistToCache(newArticle);
+            return !autoSave;
         }
         //非自动保存的情况下，需要清空当前缓存队列
         if (!autoSave) {
@@ -660,7 +663,9 @@ const Index: FunctionComponent<ArticleEditProps> = ({
             logIdRef.current = responseArticle.logId;
             url.searchParams.set("id", responseArticle.logId);
             nextArticle = { ...baseArticle, ...responseArticle };
-            removeLocalArticleCache();
+            if (!autoSave) {
+                removeLocalArticleCache();
+            }
             navigate(location.pathname + url.search, { replace: true });
         } else {
             nextArticle = {
@@ -670,7 +675,12 @@ const Index: FunctionComponent<ArticleEditProps> = ({
                 lastUpdateDate: responseArticle.lastUpdateDate,
                 version: responseArticle.version,
             };
-            removeArticleCache(nextArticle);
+            if (!autoSave) {
+                removeArticleCache(nextArticle);
+            }
+        }
+        if (!autoSave) {
+            markOfflineDraftCommittedRef.current();
         }
         if (updateCache) {
             updateCache(data.data, getLocalCacheKey(url));
@@ -765,21 +775,6 @@ const Index: FunctionComponent<ArticleEditProps> = ({
         });
     }, [data.aiConfigured, data.aiModel, data.aiProvider, data.aiMessages]);
 
-    useEffect(() => {
-        //如果文章内容没有变更，不更新 state，避免触发更新导致文章状态不对
-        if (deepEqualWithSpecialJSON(state.article, data.article)) {
-            return;
-        }
-        if (offline) {
-            articleSaveToCache(state.article);
-            return;
-        } else {
-            //覆盖版本信息
-            versionRef.current = state.article.version;
-            handleValuesChange(state.article);
-        }
-    }, [offline]);
-
     const setSubject = () => {
         if (subRef.current) {
             subRef.current.unsubscribe();
@@ -799,14 +794,17 @@ const Index: FunctionComponent<ArticleEditProps> = ({
                 tap(() => {
                     pendingMessagesRef.current += 1; // 有新消息进入，标记为“待处理”
                 }),
-                concatMap(async (article) => {
+                concatMap(async (task) => {
                     // 确保顺序执行
                     const nextArticle = {
-                        ...article,
+                        ...task.article,
                         logId: logIdRef.current,
                     };
                     try {
-                        await onSubmit(nextArticle, false, false, true);
+                        const ok = await onSubmit(nextArticle, false, false, true);
+                        if (ok) {
+                            markOfflineDraftSyncedRef.current(task);
+                        }
                     } catch (e) {
                         console.error(e);
                     } finally {
@@ -843,27 +841,37 @@ const Index: FunctionComponent<ArticleEditProps> = ({
         return !(titleError || typeError);
     };
 
+    const offlineDraft = useArticleOfflineDraft({
+        article: state.article,
+        initialDirty: defaultState.contentSource !== "server",
+        offline,
+        isSyncable: validForm,
+        onPersist: articleSaveToCache,
+        onRemove: removeArticleCache,
+        onRequestSync: (task) => subjectRef.current?.next(task),
+        onSynced: () => {
+            setState((prev) => ({
+                ...prev,
+                contentSource: "server",
+                contentSourceUpdatedAt: undefined,
+            }));
+        },
+    });
+
+    markOfflineDraftSyncedRef.current = offlineDraft.markSynced;
+    markOfflineDraftCommittedRef.current = offlineDraft.markCommitted;
+
     const handleValuesChange = (cv: ArticleChangeableValue) => {
-        setState((prev) => {
-            const newArticle = { ...prev.article, ...cv };
-            //没有验证通过的情况下，保存本地缓存
-            if (!validForm(newArticle)) {
-                const updatedAt = Date.now();
-                articleSaveToCache(newArticle, updatedAt);
-                return {
-                    ...prev,
-                    article: newArticle,
-                    contentSource: getLocalContentSource(newArticle),
-                    contentSourceUpdatedAt: updatedAt,
-                };
-            } else {
-                const sub = subjectRef.current;
-                if (sub) {
-                    sub.next(newArticle);
-                }
-            }
-            return { ...prev, article: newArticle };
-        });
+        const change = offlineDraft.applyPatch(cv);
+        if (!change) {
+            return;
+        }
+        setState((prev) => ({
+            ...prev,
+            article: change.article,
+            contentSource: getLocalContentSource(change.article),
+            contentSourceUpdatedAt: change.updatedAt,
+        }));
     };
 
     const fieldAi = useArticleFieldAi({
