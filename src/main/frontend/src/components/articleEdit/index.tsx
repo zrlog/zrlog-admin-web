@@ -27,6 +27,7 @@ import useArticleFieldAi from "./use-article-field-ai";
 import {
     articleDataToState,
     articleSaveToCache,
+    getArticleDraftSyncState,
     removeArticleCache,
     removeLocalArticleCache,
 } from "../../utils/article-cache";
@@ -54,7 +55,23 @@ import { getStaticProgressText, postRefreshCacheSse } from "../../utils/sse-util
 import PublishStatusBar from "./publish-status-bar";
 import { useArticleAiAssistantConfig } from "./article-ai-assistant/article-ai-assistant-button";
 import TimeAgo from "@editor/dist/editor/TimeAgo";
-import useArticleOfflineDraft, { ArticleOfflineSyncTask } from "./offline/use-article-offline-draft";
+import useArticleDraftSync, { ArticleDraftSyncTask } from "./draft-sync/use-article-draft-sync";
+import { ApiResponse } from "../../type";
+import {
+    isRetryableArticleSyncError,
+    mergeArticleSynchronizationMetadata,
+} from "./draft-sync/article-draft-sync-helpers";
+
+const ARTICLE_UPDATE_EXPIRED_ERROR = 9094;
+
+type ArticleAutoSaveOutcome =
+    | {
+          type: "deferred";
+      }
+    | {
+          type: "blocked" | "conflict";
+          message: string;
+      };
 
 const normalizeConflictValue = (value: unknown) => {
     if (value === undefined || value === null) {
@@ -158,6 +175,8 @@ const Index: FunctionComponent<ArticleEditProps> = ({
 
     const defaultState = articleDataToState(data, preferredTypeId);
     const [state, setState] = useState<ArticleEditState>(defaultState);
+    const contentSourceRef = useRef(state.contentSource);
+    contentSourceRef.current = state.contentSource;
     const [settingsOpen, setSettingsOpenState] = useState(cachedArticleEditUiState.settingsOpen === true);
     const [versionDrawerOpen, setVersionDrawerOpenState] = useState(
         cachedArticleEditUiState.versionDrawerOpen === true
@@ -249,7 +268,7 @@ const Index: FunctionComponent<ArticleEditProps> = ({
     useEffect(() => {
         const newState = articleDataToState(data, preferredTypeId);
         const serverArticle = data.article.logId && data.article.logId > 0;
-        if (!serverArticle && state.contentSource === "localDraft") {
+        if (!serverArticle && contentSourceRef.current === "localDraft") {
             setState((prevState) => ({
                 ...prevState,
                 typeOptions: newState.typeOptions,
@@ -290,12 +309,21 @@ const Index: FunctionComponent<ArticleEditProps> = ({
             articleEditAutoSaveInterval: newState.articleEditAutoSaveInterval,
             editorVersion: newState.editorVersion,
         }));
-    }, [data, preferredTypeId, state.contentSource]);
+    }, [data, preferredTypeId]);
 
-    const subjectRef = useRef<Subject<ArticleOfflineSyncTask> | null>(null);
+    const subjectRef = useRef<Subject<ArticleDraftSyncTask> | null>(null);
     const subRef = useRef<Subscription | null>(null);
-    const markOfflineDraftSyncedRef = useRef<(task: ArticleOfflineSyncTask) => boolean>(() => false);
-    const markOfflineDraftCommittedRef = useRef<() => void>(() => undefined);
+    const markDraftSyncingRef = useRef<(task: ArticleDraftSyncTask) => boolean>(() => false);
+    const markDraftSyncedRef = useRef<(task: ArticleDraftSyncTask, savedArticle?: ArticleEntry) => boolean>(
+        () => false
+    );
+    const markDraftDeferredRef = useRef<(task: ArticleDraftSyncTask) => void>(() => undefined);
+    const markDraftFailedRef = useRef<(task: ArticleDraftSyncTask, error: unknown) => boolean>(() => false);
+    const markDraftConflictRef = useRef<(task: ArticleDraftSyncTask, error: unknown) => boolean>(() => false);
+    const markDraftBlockedRef = useRef<(task: ArticleDraftSyncTask, error: unknown) => boolean>(() => false);
+    const markDraftCommittedRef = useRef<() => void>(() => undefined);
+    const autoSaveOutcomeRef = useRef<ArticleAutoSaveOutcome | undefined>(undefined);
+    const autoSaveAcknowledgedArticleRef = useRef<ArticleEntry | undefined>(undefined);
 
     const [messageApi, messageContextHolder] = message.useMessage({
         maxCount: 3,
@@ -343,6 +371,22 @@ const Index: FunctionComponent<ArticleEditProps> = ({
         }));
     };
 
+    const finishAutoSave = (savedArticle?: ArticleEntry, create: boolean = false) => {
+        setState((prevState) => ({
+            ...prevState,
+            rubbish: true,
+            article: savedArticle
+                ? mergeArticleSynchronizationMetadata(prevState.article, savedArticle, create)
+                : prevState.article,
+            saving: {
+                ...prevState.saving,
+                rubbishSaving: false,
+                previewIng: false,
+                autoSaving: false,
+            },
+        }));
+    };
+
     const persistToCache = (newArticle: ArticleEntry) => {
         const updatedAt = Date.now();
         articleSaveToCache(newArticle, updatedAt);
@@ -382,6 +426,10 @@ const Index: FunctionComponent<ArticleEditProps> = ({
         preview: boolean,
         autoSave: boolean
     ): Promise<boolean> => {
+        if (autoSave) {
+            autoSaveOutcomeRef.current = undefined;
+            autoSaveAcknowledgedArticleRef.current = undefined;
+        }
         let newArticle: ArticleEntry = {
             ...article,
             version: versionRef.current,
@@ -398,6 +446,11 @@ const Index: FunctionComponent<ArticleEditProps> = ({
             return false;
         }
         if (isOffline()) {
+            if (autoSave) {
+                autoSaveOutcomeRef.current = {
+                    type: "deferred",
+                };
+            }
             persistToCache(newArticle);
             return !autoSave;
         }
@@ -438,19 +491,37 @@ const Index: FunctionComponent<ArticleEditProps> = ({
         }
 
         enableExitTips(getRes().articleEdit.editExitWithoutSave);
+        let saveSucceeded = false;
         try {
             let responseData;
             try {
                 const data = newArticle.transparentPublish
                     ? await postArticleWithTransparentPublish(uri, newArticle)
-                    : (await axiosInstance.post(uri, newArticle)).data;
+                    : (
+                          await axiosInstance.post(
+                              uri,
+                              newArticle,
+                              autoSave
+                                  ? ({
+                                        showError: false,
+                                    } as any)
+                                  : undefined
+                          )
+                      ).data;
                 responseData = data;
                 if (data.error) {
-                    modal.error({
-                        title: getRes().articleEdit.saveFailed,
-                        content: data.message,
-                        getContainer: () => editCardRef.current as HTMLElement,
-                    });
+                    if (autoSave) {
+                        autoSaveOutcomeRef.current = {
+                            type: data.error === ARTICLE_UPDATE_EXPIRED_ERROR ? "conflict" : "blocked",
+                            message: data.message || getRes().articleEdit.saveFailed,
+                        };
+                    } else {
+                        modal.error({
+                            title: getRes().articleEdit.saveFailed,
+                            content: data.message,
+                            getContainer: () => editCardRef.current as HTMLElement,
+                        });
+                    }
                     return false;
                 }
                 if (data.data) {
@@ -472,12 +543,20 @@ const Index: FunctionComponent<ArticleEditProps> = ({
             const data = responseData;
             if (data.error === 0) {
                 newArticle = handleArticleResponse(data, newArticle, create, autoSave, !newArticle.transparentPublish);
+                saveSucceeded = true;
+                if (autoSave) {
+                    autoSaveAcknowledgedArticleRef.current = newArticle;
+                }
                 return true;
             }
             return false;
         } finally {
-            // 根据 release 的值调用对应的状态更新回调函数
-            release ? updateReleaseState(newArticle, create) : updateRubbishState(newArticle, create);
+            if (autoSave) {
+                finishAutoSave(saveSucceeded ? newArticle : undefined, create);
+            } else {
+                // 根据 release 的值调用对应的状态更新回调函数
+                release ? updateReleaseState(newArticle, create) : updateRubbishState(newArticle, create);
+            }
         }
     };
 
@@ -680,7 +759,7 @@ const Index: FunctionComponent<ArticleEditProps> = ({
             }
         }
         if (!autoSave) {
-            markOfflineDraftCommittedRef.current();
+            markDraftCommittedRef.current();
         }
         if (updateCache) {
             updateCache(data.data, getLocalCacheKey(url));
@@ -775,6 +854,46 @@ const Index: FunctionComponent<ArticleEditProps> = ({
         });
     }, [data.aiConfigured, data.aiModel, data.aiProvider, data.aiMessages]);
 
+    const loadServerArticleForConflict = async (task: ArticleDraftSyncTask) => {
+        const logId = task.article.logId || logIdRef.current;
+        if (!logId || logId <= 0) {
+            return;
+        }
+        try {
+            const { data: response } = await axiosInstance.get<ApiResponse<ArticleEditInfo>>(
+                "/api/admin/article-edit",
+                {
+                    params: {
+                        id: logId,
+                    },
+                    showError: false,
+                } as any
+            );
+            if (response.error || !response.data?.article) {
+                return;
+            }
+            const serverArticle = response.data.article;
+            versionRef.current = serverArticle.version;
+            loadedArticleRef.current = serverArticle;
+            setState((prevState) => ({
+                ...prevState,
+                article: serverArticle,
+                rubbish: serverArticle.rubbish === true,
+                editorVersion: serverArticle.version,
+                contentConflict: {
+                    source: "localEdit",
+                    localArticle: task.article,
+                    localVersion: task.article.version,
+                    localUpdatedAt: prevState.contentSourceUpdatedAt,
+                    serverVersion: serverArticle.version,
+                },
+            }));
+            setRestoreInputRevision((revision) => revision + 1);
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
     const setSubject = () => {
         if (subRef.current) {
             subRef.current.unsubscribe();
@@ -796,6 +915,10 @@ const Index: FunctionComponent<ArticleEditProps> = ({
                 }),
                 concatMap(async (task) => {
                     // 确保顺序执行
+                    if (!markDraftSyncingRef.current(task)) {
+                        finishPendingAutoSave();
+                        return;
+                    }
                     const nextArticle = {
                         ...task.article,
                         logId: logIdRef.current,
@@ -803,10 +926,31 @@ const Index: FunctionComponent<ArticleEditProps> = ({
                     try {
                         const ok = await onSubmit(nextArticle, false, false, true);
                         if (ok) {
-                            markOfflineDraftSyncedRef.current(task);
+                            markDraftSyncedRef.current(task, autoSaveAcknowledgedArticleRef.current);
+                            return;
+                        }
+                        const outcome = autoSaveOutcomeRef.current;
+                        if (outcome?.type === "deferred") {
+                            markDraftDeferredRef.current(task);
+                        } else if (outcome?.type === "conflict") {
+                            if (markDraftConflictRef.current(task, outcome.message)) {
+                                await loadServerArticleForConflict(task);
+                            }
+                        } else if (outcome?.type === "blocked") {
+                            if (markDraftBlockedRef.current(task, outcome.message)) {
+                                void messageApi.error(outcome.message);
+                            }
+                        } else {
+                            markDraftFailedRef.current(task, getRes().articleEdit.saveFailed);
                         }
                     } catch (e) {
-                        console.error(e);
+                        if (isOffline()) {
+                            markDraftDeferredRef.current(task);
+                        } else if (isRetryableArticleSyncError(e)) {
+                            markDraftFailedRef.current(task, e);
+                        } else {
+                            markDraftBlockedRef.current(task, e);
+                        }
                     } finally {
                         finishPendingAutoSave();
                     }
@@ -841,9 +985,12 @@ const Index: FunctionComponent<ArticleEditProps> = ({
         return !(titleError || typeError);
     };
 
-    const offlineDraft = useArticleOfflineDraft({
+    const draftSync = useArticleDraftSync({
         article: state.article,
-        initialDirty: defaultState.contentSource !== "server",
+        initialDirty: defaultState.contentSource !== "server" || Boolean(defaultState.contentConflict),
+        initialConflict: Boolean(defaultState.contentConflict),
+        initialState: getArticleDraftSyncState(defaultState.article),
+        initialUpdatedAt: defaultState.contentSourceUpdatedAt,
         offline,
         isSyncable: validForm,
         onPersist: articleSaveToCache,
@@ -858,11 +1005,16 @@ const Index: FunctionComponent<ArticleEditProps> = ({
         },
     });
 
-    markOfflineDraftSyncedRef.current = offlineDraft.markSynced;
-    markOfflineDraftCommittedRef.current = offlineDraft.markCommitted;
+    markDraftSyncingRef.current = draftSync.markSyncing;
+    markDraftSyncedRef.current = draftSync.markSynced;
+    markDraftDeferredRef.current = draftSync.markDeferred;
+    markDraftFailedRef.current = draftSync.markFailed;
+    markDraftConflictRef.current = draftSync.markConflict;
+    markDraftBlockedRef.current = draftSync.markBlocked;
+    markDraftCommittedRef.current = draftSync.markCommitted;
 
     const handleValuesChange = (cv: ArticleChangeableValue) => {
-        const change = offlineDraft.applyPatch(cv);
+        const change = draftSync.applyPatch(cv);
         if (!change) {
             return;
         }
@@ -957,20 +1109,21 @@ const Index: FunctionComponent<ArticleEditProps> = ({
     };
 
     const useLocalConflictContent = () => {
+        const conflict = state.contentConflict;
+        if (!conflict) {
+            return;
+        }
+        const localArticle = {
+            ...conflict.localArticle,
+            logId: state.article.logId,
+            lastUpdateDate: state.article.lastUpdateDate,
+            previewUrl: state.article.previewUrl,
+            version: conflict.serverVersion,
+        };
+        versionRef.current = conflict.serverVersion;
+        enableExitTips(getRes().articleEdit.editExitWithoutSave);
+        draftSync.resolveConflict(localArticle);
         setState((prevState) => {
-            const conflict = prevState.contentConflict;
-            if (!conflict) {
-                return prevState;
-            }
-            const localArticle = {
-                ...conflict.localArticle,
-                logId: prevState.article.logId,
-                lastUpdateDate: prevState.article.lastUpdateDate,
-                previewUrl: prevState.article.previewUrl,
-                version: conflict.serverVersion,
-            };
-            versionRef.current = conflict.serverVersion;
-            enableExitTips(getRes().articleEdit.editExitWithoutSave);
             return {
                 ...prevState,
                 article: localArticle,
@@ -985,7 +1138,7 @@ const Index: FunctionComponent<ArticleEditProps> = ({
     };
 
     const keepServerConflictContent = () => {
-        removeArticleCache(state.article);
+        draftSync.discard();
         setState((prevState) => ({
             ...prevState,
             contentConflict: undefined,
