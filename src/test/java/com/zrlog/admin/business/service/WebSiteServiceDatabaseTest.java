@@ -127,6 +127,7 @@ public class WebSiteServiceDatabaseTest {
     public void shouldReadFeatureLabFlagsAndMigrateDraftAiMessages() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             db.putWebsite(WebSiteService.FEATURE_RESOURCE_REFERENCE_ENABLED_KEY, true);
+            db.putWebsite(WebSiteService.FEATURE_ARTICLE_EXTENSION_FILTER_ENABLED_KEY, true);
             db.putWebsite(WebSiteService.FEATURE_WEBHOOK_ENABLED_KEY, false);
             db.putWebsite(WebSiteService.FEATURE_PERSONAL_DATA_ENABLED_KEY, true);
             WebSiteService service = new WebSiteService();
@@ -137,9 +138,11 @@ public class WebSiteServiceDatabaseTest {
             FeatureLabWebSiteInfo featureLab = service.featureLab();
 
             assertEquals(Boolean.TRUE, featureLab.getFeature_resource_reference_enabled());
+            assertEquals(Boolean.TRUE, featureLab.getFeature_article_extension_filter_enabled());
             assertEquals(Boolean.FALSE, featureLab.getFeature_webhook_enabled());
             assertEquals(Boolean.TRUE, featureLab.getFeature_personal_data_enabled());
             assertTrue(service.isFeatureResourceReferenceEnabled());
+            assertTrue(service.isFeatureArticleExtensionFilterEnabled());
             assertTrue(service.migrateDraftAIMessageToArticle(12L));
             assertEquals(1, service.getAiMessageInfoByArticleId(12L).getAiMessages().size());
             assertEquals(0, service.getAiMessageInfoByArticleId(0L).getAiMessages().size());

@@ -70,6 +70,7 @@ public class WebSiteControllerDatabaseTest {
             AdminPageDataResponse<FeatureLabWebSiteInfo> lab =
                     controller(HttpMethod.POST, "/api/admin/website/lab",
                             "{\"feature_resource_reference_enabled\":true,"
+                                    + "\"feature_article_extension_filter_enabled\":true,"
                                     + "\"feature_webhook_enabled\":true,"
                                     + "\"feature_personal_data_enabled\":false}").lab();
 
@@ -84,6 +85,7 @@ public class WebSiteControllerDatabaseTest {
             assertEquals(Boolean.FALSE, articleEdit.getData().getArticle_publish_check_enabled());
             assertEquals("4:3", articleEdit.getData().getArticle_cover_aspect_ratio());
             assertEquals(Boolean.TRUE, lab.getData().getFeature_resource_reference_enabled());
+            assertEquals(Boolean.TRUE, lab.getData().getFeature_article_extension_filter_enabled());
             assertEquals(Boolean.TRUE, lab.getData().getFeature_webhook_enabled());
             assertEquals(Boolean.FALSE, lab.getData().getFeature_personal_data_enabled());
             assertTrue(String.valueOf(value(db, "generator_html_status")).equalsIgnoreCase("true"));

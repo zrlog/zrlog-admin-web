@@ -103,6 +103,7 @@ export interface Upgrade {
 
 export interface FeatureLab {
     feature_resource_reference_enabled: boolean;
+    feature_article_extension_filter_enabled: boolean;
     feature_webhook_enabled: boolean;
     feature_personal_data_enabled: boolean;
 }

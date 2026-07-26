@@ -22,6 +22,8 @@ public class WebSiteService {
     public static final String ARTICLE_COVER_ASPECT_RATIO_KEY = "article_cover_aspect_ratio";
     public static final String ARTICLE_EDIT_AUTO_SAVE_INTERVAL_KEY = "article_edit_auto_save_interval";
     public static final String FEATURE_RESOURCE_REFERENCE_ENABLED_KEY = "feature_resource_reference_enabled";
+    public static final String FEATURE_ARTICLE_EXTENSION_FILTER_ENABLED_KEY =
+            "feature_article_extension_filter_enabled";
     public static final String FEATURE_WEBHOOK_ENABLED_KEY = "feature_webhook_enabled";
     public static final String FEATURE_PERSONAL_DATA_ENABLED_KEY = "feature_personal_data_enabled";
     public static final String AI_REASONING_ENABLED_KEY = "ai_reasoning_enabled";
@@ -39,6 +41,7 @@ public class WebSiteService {
 
     public FeatureLabWebSiteInfo featureLab() {
         FeatureLabWebSiteInfo featureLab = queryToMap(Arrays.asList(FEATURE_RESOURCE_REFERENCE_ENABLED_KEY,
+                FEATURE_ARTICLE_EXTENSION_FILTER_ENABLED_KEY,
                 FEATURE_WEBHOOK_ENABLED_KEY, FEATURE_PERSONAL_DATA_ENABLED_KEY), FeatureLabWebSiteInfo.class);
         featureLab.doValid();
         return featureLab;
@@ -46,6 +49,10 @@ public class WebSiteService {
 
     public boolean isFeatureResourceReferenceEnabled() {
         return Objects.equals(true, featureLab().getFeature_resource_reference_enabled());
+    }
+
+    public boolean isFeatureArticleExtensionFilterEnabled() {
+        return Objects.equals(true, featureLab().getFeature_article_extension_filter_enabled());
     }
 
     public BlogWebSiteInfo blogWebSiteInfo() {

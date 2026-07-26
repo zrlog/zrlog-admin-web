@@ -5,7 +5,7 @@
     <parent>
         <groupId>com.hibegin</groupId>
         <artifactId>zrlog-base</artifactId>
-        <version>3.5.8</version>
+        <version>3.5.9-SNAPSHOT</version>
     </parent>
     <artifactId>zrlog-admin-web</artifactId>
     <version>3.5.9-SNAPSHOT</version>
@@ -96,7 +96,7 @@
         <dependency>
             <groupId>com.hibegin</groupId>
             <artifactId>zrlog-install-web</artifactId>
-            <version>3.3.6</version>
+            <version>${zrlog-install-web.version}</version>
         </dependency>
         <dependency>
             <groupId>com.h2database</groupId>

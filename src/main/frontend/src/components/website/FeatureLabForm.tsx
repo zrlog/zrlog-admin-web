@@ -57,6 +57,14 @@ const FeatureLabForm = ({
             </Form.Item>
             <Form.Item
                 valuePropName="checked"
+                name="feature_article_extension_filter_enabled"
+                label={getRes().websiteLab.articleExtensionFilter}
+                tooltip={getRes().websiteLab.articleExtensionFilterTip}
+            >
+                <Switch />
+            </Form.Item>
+            <Form.Item
+                valuePropName="checked"
                 name="feature_webhook_enabled"
                 label={getRes().websiteLab.webhook}
                 tooltip={getRes().websiteLab.webhookTip}

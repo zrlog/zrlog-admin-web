@@ -54,6 +54,10 @@ public class MemoryApplicationTest {
                 assertEquals(String.valueOf(UpgradeVersionHandler.SQL_VERSION),
                         database.scalar("select value from website where name=?", CacheService.ZRLOG_SQL_VERSION_KEY));
                 assertEquals("localhost:18080", database.scalar("select value from website where name=?", "host"));
+                assertEquals(0L, ((Number) database.scalar(
+                        "select count(extensions) from log")).longValue());
+                assertEquals(0L, ((Number) database.scalar(
+                        "select count(1) from log_extension_index")).longValue());
                 String password = (String) database.scalar("select password from user where userName=?",
                         installConfig.getConfigMsg().getUsername());
                 assertTrue(PasswordHashUtils.matches(SecurityUtils.md5(installConfig.getConfigMsg().getPassword()), password));
