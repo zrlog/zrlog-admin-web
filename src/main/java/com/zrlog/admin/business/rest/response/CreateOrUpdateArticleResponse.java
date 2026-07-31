@@ -9,6 +9,8 @@ public class CreateOrUpdateArticleResponse {
 
     private Boolean privacy;
 
+    private boolean publicCacheRefreshRequired;
+
     public Long getLogId() {
         return logId;
     }
@@ -31,5 +33,13 @@ public class CreateOrUpdateArticleResponse {
 
     public void setPrivacy(Boolean privacy) {
         this.privacy = privacy;
+    }
+
+    public boolean isPublicCacheRefreshRequired() {
+        return publicCacheRefreshRequired;
+    }
+
+    public void setPublicCacheRefreshRequired(boolean publicCacheRefreshRequired) {
+        this.publicCacheRefreshRequired = publicCacheRefreshRequired;
     }
 }

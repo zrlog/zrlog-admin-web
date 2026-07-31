@@ -58,7 +58,9 @@ public class AdminArticleService {
 
     public CreateOrUpdateArticleResponse create(AdminTokenVO adminTokenVO, CreateArticleRequest createArticleRequest) throws SQLException {
         CreateOrUpdateArticleResponse response = save(adminTokenVO, createArticleRequest);
-        migrateDraftAIMessage(response.getLogId());
+        if (!createArticleRequest.isPreserveDraftAiMessages()) {
+            migrateDraftAIMessage(response.getLogId());
+        }
         return response;
     }
 
@@ -87,32 +89,14 @@ public class AdminArticleService {
             if (createArticleRequest instanceof UpdateArticleRequest) {
                 oldLog = new Log().loadById(((UpdateArticleRequest) createArticleRequest).getLogId());
             }
-            Map<String, Object> log = getLog(adminTokenVO, createArticleRequest);
-            if (createArticleRequest instanceof UpdateArticleRequest) {
-                Number dbVersion = (Number) log.get("version");
-                if (dbVersion.longValue() > ((UpdateArticleRequest) createArticleRequest).getVersion()) {
-                    throw new UpdateArticleExpireException();
-                }
-                log.put("version", ((UpdateArticleRequest) createArticleRequest).getVersion() + 1);
-                Log logDao = new Log();
-                log.forEach((key, value) -> {
-                    if (Objects.equals(key, "logId")) {
-                        return;
-                    }
-                    logDao.set(key, value);
-                });
-                logDao.updateById(((UpdateArticleRequest) createArticleRequest).getLogId());
-                articleVersionService.recordReversePatch(oldLog, log, adminTokenVO.getUserId());
-            } else {
-                Log dbLog = new Log();
-                dbLog.getAttrs().putAll(log);
-                dbLog.save();
+            Map<String, Object> previousLog = oldLog;
+            boolean clearsPublicState = isPublicArticle(previousLog)
+                    && (createArticleRequest.isPrivacy() || createArticleRequest.isRubbish());
+            if (clearsPublicState) {
+                return ArticlePinningService.withOrderLock(
+                        () -> persistArticle(adminTokenVO, createArticleRequest, previousLog, true));
             }
-            CreateOrUpdateArticleResponse response = new CreateOrUpdateArticleResponse();
-            response.setLogId((long) Double.parseDouble(log.get("logId") + ""));
-            response.setPrivacy(createArticleRequest.isPrivacy());
-            response.setRubbish(createArticleRequest.isRubbish());
-            return response;
+            return persistArticle(adminTokenVO, createArticleRequest, previousLog, false);
         } finally {
             lock.unlock();
         }
@@ -120,11 +104,63 @@ public class AdminArticleService {
     }
 
     public boolean delete(Long logId) throws SQLException {
-        boolean deleted = new Log().deleteById(Math.toIntExact(logId));
+        boolean deleted = ArticlePinningService.withOrderLock(() -> {
+            boolean removed = new Log().deleteById(Math.toIntExact(logId));
+            if (removed) {
+                new ArticlePinningService().normalizeOrderLocked();
+            }
+            return removed;
+        });
         if (deleted) {
             removeAIMessage(logId);
         }
         return deleted;
+    }
+
+    private CreateOrUpdateArticleResponse persistArticle(AdminTokenVO adminTokenVO,
+                                                         CreateArticleRequest createArticleRequest,
+                                                         Map<String, Object> oldLog,
+                                                         boolean normalizePinning) throws SQLException {
+        Map<String, Object> log = getLog(adminTokenVO, createArticleRequest);
+        if (createArticleRequest instanceof UpdateArticleRequest) {
+            UpdateArticleRequest updateRequest = (UpdateArticleRequest) createArticleRequest;
+            Number dbVersion = (Number) log.get("version");
+            if (dbVersion.longValue() > updateRequest.getVersion()) {
+                throw new UpdateArticleExpireException();
+            }
+            log.put("version", updateRequest.getVersion() + 1);
+            Log logDao = new Log();
+            log.forEach((key, value) -> {
+                if (Objects.equals(key, "logId")
+                        || (Objects.equals(key, "sticky") && !normalizePinning)) {
+                    return;
+                }
+                logDao.set(key, value);
+            });
+            logDao.updateById(updateRequest.getLogId());
+            articleVersionService.recordReversePatch(oldLog, log, adminTokenVO.getUserId());
+            if (normalizePinning) {
+                new ArticlePinningService().normalizeOrderLocked();
+            }
+        } else {
+            Log dbLog = new Log();
+            dbLog.getAttrs().putAll(log);
+            dbLog.save();
+        }
+        CreateOrUpdateArticleResponse response = new CreateOrUpdateArticleResponse();
+        response.setLogId((long) Double.parseDouble(log.get("logId") + ""));
+        response.setPrivacy(createArticleRequest.isPrivacy());
+        response.setRubbish(createArticleRequest.isRubbish());
+        response.setPublicCacheRefreshRequired(
+                isPublicArticle(oldLog)
+                        || (!createArticleRequest.isPrivacy() && !createArticleRequest.isRubbish()));
+        return response;
+    }
+
+    private static boolean isPublicArticle(Map<String, Object> log) {
+        return log != null
+                && !ResultValueConvertUtils.toBoolean(log.get("privacy"))
+                && !ResultValueConvertUtils.toBoolean(log.get("rubbish"));
     }
 
     private void migrateDraftAIMessage(Long articleId) {
@@ -155,6 +191,7 @@ public class AdminArticleService {
             log.put("releaseTime", new Date());
             log.put("version", 0);
             log.put("logId", articleId);
+            log.put("sticky", 0);
         }
         log.put("content", createArticleRequest.getContent());
         log.put("title", Jsoup.clean(createArticleRequest.getTitle(), Safelist.basic()));
@@ -172,6 +209,9 @@ public class AdminArticleService {
         log.put("recommended", createArticleRequest.isRecommended());
         log.put("privacy", createArticleRequest.isPrivacy());
         log.put("rubbish", createArticleRequest.isRubbish());
+        if (createArticleRequest.isPrivacy() || createArticleRequest.isRubbish()) {
+            log.put("sticky", 0);
+        }
         if (StringUtils.isEmpty(createArticleRequest.getThumbnail())) {
             log.put("thumbnail", "");
         } else {

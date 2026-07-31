@@ -7,6 +7,7 @@ public enum AdminAuditAction {
     UPDATE_ARTICLE("admin.audit.action.updateArticle", "article"),
     DELETE_ARTICLE("admin.audit.action.deleteArticle", "article"),
     ROLLBACK_ARTICLE_VERSION("admin.audit.action.rollbackArticleVersion", "article"),
+    UPDATE_ARTICLE_PINNING("admin.audit.action.updateArticlePinning", "article"),
     UPDATE_SETTING("admin.audit.action.updateSetting", "setting"),
     REPLACE_ARTICLE_RESOURCE_URL("admin.audit.action.replaceArticleResourceUrl", "file-manager"),
     DELETE_FILE("admin.audit.action.deleteFile", "file-manager"),

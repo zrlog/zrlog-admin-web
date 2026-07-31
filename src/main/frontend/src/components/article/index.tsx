@@ -1,6 +1,14 @@
-import { AppstoreOutlined, EditOutlined, GlobalOutlined, LockOutlined, StarFilled } from "@ant-design/icons";
+import {
+    AppstoreOutlined,
+    EditOutlined,
+    GlobalOutlined,
+    LockOutlined,
+    PushpinFilled,
+    PushpinOutlined,
+    StarFilled,
+} from "@ant-design/icons";
 
-import { Button, Grid, Input, Segmented, Space, TableColumnsType, Tag, Tooltip, Typography, theme } from "antd";
+import { App, Button, Grid, Input, Segmented, Space, TableColumnsType, Tag, Tooltip, Typography, theme } from "antd";
 import Divider from "antd/es/divider";
 import { getLabelValueSeparator, getRealRouteUrl, getRes } from "../../utils/constants";
 import type * as React from "react";
@@ -14,6 +22,15 @@ import { ArticlePreviewAction } from "./ArticlePreviewAction";
 import { removeCacheDataByKey } from "../../utils/cache";
 import BackendImage from "../../common/BackendImage";
 import HighlightText from "../../common/HighlightText";
+import ArticlePinningManager from "./ArticlePinningManager";
+import {
+    ArticlePinningEntry,
+    canPinArticle,
+    finishArticlePinningRequest,
+    toStickyMap,
+    tryBeginArticlePinningRequest,
+    updateArticlePinning,
+} from "./article-pinning";
 
 const { Search } = Input;
 const { Text } = Typography;
@@ -45,8 +62,16 @@ const Index = ({ data, offline }: { data: ArticlePageDataSource; offline: boolea
     const compactArticleTable = screens.md !== true;
     const location = useLocation();
     const navigate = useNavigate();
+    const { message } = App.useApp();
     const ds = genTypes(data, location.search);
     const { token } = theme.useToken();
+    const pinningRes = getRes().article.pinning;
+    const [pinningManagerOpen, setPinningManagerOpen] = useState(false);
+    const [pinningLogId, setPinningLogId] = useState<number>();
+    const pinningRequestGuard = useRef(false);
+    const [stickyById, setStickyById] = useState<Map<number, number>>(
+        () => new Map((data.rows || []).map((row: any) => [row.id, Number(row.sticky) || 0]))
+    );
 
     const surface = {
         titleStateRow: {
@@ -111,6 +136,12 @@ const Index = ({ data, offline }: { data: ArticlePageDataSource; offline: boolea
         },
         editActionIcon: {
             color: token.colorPrimary,
+        },
+        pinActionIcon: {
+            color: token.colorPrimary,
+        },
+        pinningManagerButton: {
+            flexShrink: 0,
         },
     };
 
@@ -189,6 +220,44 @@ const Index = ({ data, offline }: { data: ArticlePageDataSource; offline: boolea
         jumped.current = true;
     }, [filters]);
 
+    useEffect(() => {
+        setStickyById(new Map((data.rows || []).map((row: any) => [row.id, Number(row.sticky) || 0])));
+    }, [data.rows]);
+
+    const getSticky = (record: any) => stickyById.get(record.id) ?? Number(record.sticky) ?? 0;
+
+    const applyPinningItems = (items: ArticlePinningEntry[]) => {
+        const latest = toStickyMap(items);
+        setStickyById(new Map((data.rows || []).map((row: any) => [row.id, latest.get(row.id) || 0])));
+    };
+
+    const updatePinning = async (record: any) => {
+        if (offline || !canPinArticle(record) || !tryBeginArticlePinningRequest(pinningRequestGuard)) {
+            return;
+        }
+        const pinned = getSticky(record) > 0;
+        setPinningLogId(record.id);
+        try {
+            const response = await updateArticlePinning(pinned ? "unpin" : "pin", record.id, {
+                messageApi: message,
+                backgroundTaskTitle: pinningRes.syncTask,
+            });
+            if (response.error) {
+                await message.error(response.message || pinningRes.actionFailed);
+                return;
+            }
+            applyPinningItems(response.data.items);
+            if (response.message) {
+                await message.success(response.message);
+            }
+        } catch {
+            await message.error(pinningRes.actionFailed);
+        } finally {
+            finishArticlePinningRequest(pinningRequestGuard);
+            setPinningLogId(undefined);
+        }
+    };
+
     const wrapperArticleStateInfo = (record: any, element: ReactElement) => {
         return (
             <span style={surface.titleStateRow}>
@@ -198,6 +267,11 @@ const Index = ({ data, offline }: { data: ArticlePageDataSource; offline: boolea
                 {record.recommended && (
                     <Tag color="gold" bordered={false} icon={<StarFilled />} style={{ marginInlineEnd: 0 }}>
                         {getRes().article.recommended}
+                    </Tag>
+                )}
+                {getSticky(record) > 0 && (
+                    <Tag color="blue" bordered={false} icon={<PushpinFilled />} style={{ marginInlineEnd: 0 }}>
+                        {pinningRes.label}
                     </Tag>
                 )}
                 {record.keywords && <Tags closeable={false} keywords={record.keywords} />}
@@ -276,7 +350,7 @@ const Index = ({ data, offline }: { data: ArticlePageDataSource; offline: boolea
                     title: getRes().title,
                     key: "title",
                     dataIndex: "title",
-                    width: 280,
+                    width: 220,
                     render: (text: string, record: any) => renderArticleTitle(text, record, true),
                 },
             ];
@@ -399,6 +473,17 @@ const Index = ({ data, offline }: { data: ArticlePageDataSource; offline: boolea
                         block={compactToolbar}
                         style={surface.segmented}
                     />
+                    <Tooltip title={pinningRes.manage}>
+                        <Button
+                            icon={<PushpinOutlined />}
+                            aria-label={pinningRes.manage}
+                            disabled={offline || pinningLogId !== undefined}
+                            style={surface.pinningManagerButton}
+                            onClick={() => setPinningManagerOpen(true)}
+                        >
+                            {compactToolbar ? null : pinningRes.manage}
+                        </Button>
+                    </Tooltip>
                 </div>
                 <Search
                     allowClear
@@ -416,11 +501,36 @@ const Index = ({ data, offline }: { data: ArticlePageDataSource; offline: boolea
                 offline={offline}
                 datasource={data}
                 columns={getColumns()}
-                actionColumnWidth={compactArticleTable ? 88 : 116}
+                actionColumnWidth={compactArticleTable ? 120 : 148}
                 hideId={compactArticleTable}
                 editBtnRender={(id, record) => (
                     <>
                         <ArticlePreviewAction article={record} />
+                        <Tooltip
+                            title={
+                                canPinArticle(record)
+                                    ? getSticky(record) > 0
+                                        ? pinningRes.unpin
+                                        : pinningRes.pin
+                                    : pinningRes.publicOnly
+                            }
+                        >
+                            <Button
+                                type="text"
+                                size="small"
+                                disabled={offline || pinningLogId !== undefined || !canPinArticle(record)}
+                                loading={pinningLogId === id}
+                                aria-label={getSticky(record) > 0 ? pinningRes.unpin : pinningRes.pin}
+                                icon={
+                                    getSticky(record) > 0 ? (
+                                        <PushpinFilled style={surface.pinActionIcon} />
+                                    ) : (
+                                        <PushpinOutlined style={surface.pinActionIcon} />
+                                    )
+                                }
+                                onClick={() => void updatePinning(record)}
+                            />
+                        </Tooltip>
                         <Tooltip title={getRes().edit}>
                             <Link to={getRealRouteUrl("/article-edit?id=" + id)}>
                                 <Button
@@ -438,6 +548,12 @@ const Index = ({ data, offline }: { data: ArticlePageDataSource; offline: boolea
                 }}
                 deleteApi={getDeleteApiUri()}
                 searchKey={searchKey}
+            />
+            <ArticlePinningManager
+                offline={offline}
+                open={pinningManagerOpen}
+                onOpenChange={setPinningManagerOpen}
+                onItemsChange={applyPinningItems}
             />
         </div>
     );

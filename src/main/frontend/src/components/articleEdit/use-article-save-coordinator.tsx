@@ -82,6 +82,8 @@ const useArticleSaveCoordinator = ({
     const defaultState = articleDataToState(data, preferredTypeId);
     const [state, setState] = useState<ArticleEditState>(defaultState);
     const [restoreInputRevision, setRestoreInputRevision] = useState(0);
+    const savingRef = useRef(state.saving);
+    savingRef.current = state.saving;
     const contentSourceRef = useRef(state.contentSource);
     contentSourceRef.current = state.contentSource;
     const loadedArticleRef = useRef<ArticleEntry>(defaultState.article);
@@ -91,6 +93,8 @@ const useArticleSaveCoordinator = ({
     const subjectRef = useRef<Subject<ArticleDraftSyncTask> | null>(null);
     const subRef = useRef<Subscription | null>(null);
     const pendingMessagesRef = useRef(0);
+    const latestAutoSaveTaskRef = useRef<ArticleDraftSyncTask>();
+    const importedDraftCreatePendingRef = useRef(false);
     const markDraftSyncingRef = useRef<(task: ArticleDraftSyncTask) => boolean>(() => false);
     const markDraftSyncedRef = useRef<(task: ArticleDraftSyncTask, savedArticle?: ArticleEntry) => boolean>(
         () => false
@@ -358,7 +362,7 @@ const useArticleSaveCoordinator = ({
             messageApi.error({ content: getRes().articleEdit.requireTitle });
             return false;
         }
-        if (article.typeId === undefined || article.typeId === null || article.typeId < 0) {
+        if (article.typeId === undefined || article.typeId === null || article.typeId <= 0) {
             messageApi.error(getRes().articleEdit.requireType);
             return false;
         }
@@ -441,6 +445,8 @@ const useArticleSaveCoordinator = ({
                 saveSucceeded = true;
                 if (autoSave) {
                     autoSaveAcknowledgedArticleRef.current = newArticle;
+                } else {
+                    latestAutoSaveTaskRef.current = undefined;
                 }
                 return true;
             }
@@ -528,6 +534,9 @@ const useArticleSaveCoordinator = ({
                         const saved = await onSubmit(nextArticle, false, false, true);
                         if (saved) {
                             markDraftSyncedRef.current(task, autoSaveAcknowledgedArticleRef.current);
+                            if (latestAutoSaveTaskRef.current?.revision === task.revision) {
+                                latestAutoSaveTaskRef.current = undefined;
+                            }
                             return;
                         }
                         const outcome = autoSaveOutcomeRef.current;
@@ -566,7 +575,7 @@ const useArticleSaveCoordinator = ({
     }, [state.articleEditAutoSaveInterval]);
 
     const isSyncable = (article: ArticleEntry) =>
-        Boolean(article.title) && article.typeId !== undefined && article.typeId !== null && article.typeId >= 0;
+        Boolean(article.title) && article.typeId !== undefined && article.typeId !== null && article.typeId > 0;
 
     const draftSync = useArticleDraftSync({
         article: state.article,
@@ -578,7 +587,12 @@ const useArticleSaveCoordinator = ({
         isSyncable,
         onPersist: articleSaveToCache,
         onRemove: removeArticleCache,
-        onRequestSync: (task) => subjectRef.current?.next(task),
+        onRequestSync: (task) => {
+            latestAutoSaveTaskRef.current = task;
+            if (!importedDraftCreatePendingRef.current) {
+                subjectRef.current?.next(task);
+            }
+        },
         onSynced: () => {
             setState((previousState) => ({
                 ...previousState,
@@ -599,7 +613,7 @@ const useArticleSaveCoordinator = ({
     const handleValuesChange = (changeableValue: ArticleChangeableValue) => {
         const change = draftSync.applyPatch(changeableValue);
         if (!change) {
-            return;
+            return undefined;
         }
         setState((previousState) => ({
             ...previousState,
@@ -607,6 +621,97 @@ const useArticleSaveCoordinator = ({
             contentSource: getLocalContentSource(change.article),
             contentSourceUpdatedAt: change.updatedAt,
         }));
+        return change;
+    };
+
+    const applyImportedArticle = (changeableValue: ArticleChangeableValue) => {
+        const saving = savingRef.current;
+        if (
+            importedDraftCreatePendingRef.current ||
+            pendingMessagesRef.current > 0 ||
+            saving.rubbishSaving ||
+            saving.releaseSaving ||
+            saving.previewIng
+        ) {
+            return false;
+        }
+        return Boolean(handleValuesChange(changeableValue));
+    };
+
+    const createImportedDraft = async (article: ArticleEntry): Promise<boolean> => {
+        const res = getRes().articleEdit.markdownImport;
+        if (
+            offline ||
+            importedDraftCreatePendingRef.current ||
+            pendingMessagesRef.current > 0 ||
+            state.saving.rubbishSaving ||
+            state.saving.releaseSaving ||
+            state.saving.previewIng
+        ) {
+            void messageApi.warning(offline ? res.offlineCreateUnavailable : res.waitForCurrentSave);
+            return false;
+        }
+        if (!article.title || !article.typeId || article.typeId <= 0) {
+            void messageApi.error(
+                !article.title ? getRes().articleEdit.requireTitle : getRes().articleEdit.requireType
+            );
+            return false;
+        }
+
+        importedDraftCreatePendingRef.current = true;
+        subRef.current?.unsubscribe();
+        subjectRef.current = null;
+        let succeeded = false;
+        try {
+            const { data: response } = await axiosInstance.post<ApiResponse<ArticleEditInfo>>(
+                createUri,
+                {
+                    title: article.title,
+                    alias: article.alias,
+                    digest: article.digest,
+                    keywords: article.keywords,
+                    markdown: article.markdown,
+                    content: article.content,
+                    typeId: article.typeId,
+                    thumbnail: article.thumbnail,
+                    canComment: article.canComment !== false,
+                    privacy: false,
+                    recommended: false,
+                    rubbish: true,
+                    editorType: "markdown",
+                    transparentPublish: false,
+                    preserveDraftAiMessages: true,
+                },
+                { showError: false } as any
+            );
+            const logId = response.data?.article?.logId;
+            if (response.error || !logId || logId <= 0) {
+                void messageApi.error(response.message || res.createFailed);
+                return false;
+            }
+
+            const url = new URL(window.location.href);
+            url.searchParams.set("id", String(logId));
+            updateCache?.(response.data, getLocalCacheKey(url));
+            latestAutoSaveTaskRef.current = undefined;
+            disableExitTips();
+            succeeded = true;
+            navigate(location.pathname + url.search, { replace: false });
+            return true;
+        } catch (_error) {
+            void messageApi.error(res.createResultUnknown);
+            return false;
+        } finally {
+            if (!succeeded) {
+                importedDraftCreatePendingRef.current = false;
+                resetAutoSaveQueue();
+                const queuedTask = latestAutoSaveTaskRef.current;
+                const retrySubject = subjectRef.current as Subject<ArticleDraftSyncTask> | null;
+                if (queuedTask && retrySubject) {
+                    retrySubject.next(queuedTask);
+                }
+            }
+        }
     };
 
     const onRollback = async (targetVersion: number) => {
@@ -678,7 +783,9 @@ const useArticleSaveCoordinator = ({
     };
 
     return {
+        applyImportedArticle,
         getLocalCacheKey,
+        createImportedDraft,
         handleValuesChange,
         isSaving: state.saving.rubbishSaving || state.saving.releaseSaving || state.saving.previewIng,
         keepServerConflictContent,

@@ -32,8 +32,7 @@ public class AdminArticleVersionController extends BaseController {
             CreateOrUpdateArticleResponse createOrUpdateArticleResponse) throws SQLException {
         AdminPageDataResponse<ArticleGlobalResponse> detail = articleService
                 .loadDetailById(createOrUpdateArticleResponse.getLogId() + "", request);
-        LoadEditArticleResponse loadEditArticleResponse = detail.getData().getArticle();
-        if (Objects.equals(loadEditArticleResponse.isRubbish(), false)) {
+        if (createOrUpdateArticleResponse.isPublicCacheRefreshRequired()) {
             CacheUtils.updateCache(false, request, List.of(StaticSiteType.BLOG));
         }
         detail.setMessage(getResponseMsg(createOrUpdateArticleResponse));

@@ -19,6 +19,7 @@ export type ArticleEntry = ChangedContent &
         previewUrl?: string;
         socialPreview?: SocialPreview;
         transparentPublish?: boolean;
+        editorType?: string;
     };
 
 export type SocialPreview = {

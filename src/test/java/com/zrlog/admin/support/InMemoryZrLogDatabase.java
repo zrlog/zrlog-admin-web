@@ -129,6 +129,7 @@ public class InMemoryZrLogDatabase implements AutoCloseable {
         private final PublicWebSiteInfo publicInfo = new PublicWebSiteInfo();
         private final List<TypeDTO> articleTypes = new ArrayList<>();
         private final List<TagDTO> tags = new ArrayList<>();
+        private int refreshCount;
 
         private TestCacheService() {
             publicInfo.setTitle("ZrLog Test");
@@ -157,7 +158,12 @@ public class InMemoryZrLogDatabase implements AutoCloseable {
 
         @Override
         public BaseDataInitVO refreshInitData() {
+            refreshCount++;
             return getInitData();
+        }
+
+        public int getRefreshCount() {
+            return refreshCount;
         }
 
         @Override

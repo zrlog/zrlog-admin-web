@@ -23,6 +23,7 @@ public class ArticleResponseEntry {
     private String arrange_plugin;
     private String typeAlias;
     private String thumbnail;
+    private Long sticky;
 
     public String getUserName() {
         return userName;
@@ -182,5 +183,13 @@ public class ArticleResponseEntry {
 
     public void setThumbnail(String thumbnail) {
         this.thumbnail = thumbnail;
+    }
+
+    public Long getSticky() {
+        return sticky;
+    }
+
+    public void setSticky(Long sticky) {
+        this.sticky = sticky;
     }
 }

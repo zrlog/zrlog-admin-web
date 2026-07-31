@@ -30,6 +30,8 @@ public class AdminBusinessExceptionContractTest {
         assertAdminError(new ArticleMissingTypeException(), AdminErrorCode.ARTICLE_TYPE_REQUIRED);
         assertAdminError(new StaticHtmlConfigException(), AdminErrorCode.WEBSITE_STATIC_HOST_REQUIRED);
         assertAdminError(new UpdateArticleExpireException(), AdminErrorCode.ARTICLE_UPDATE_EXPIRED);
+        assertAdminError(new ArticlePinningNotAllowedException(), AdminErrorCode.ARTICLE_PINNING_NOT_ALLOWED);
+        assertAdminError(new ArticleNotPinnedException(), AdminErrorCode.ARTICLE_NOT_PINNED);
     }
 
     @Test

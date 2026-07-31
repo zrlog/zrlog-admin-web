@@ -15,7 +15,7 @@
         <finalName>zrlog-admin-web</finalName>
         <libOutputPath>lib</libOutputPath>
         <frontendBuildOutputPath>../resources/admin</frontendBuildOutputPath>
-        <zrlog-xx-template.version>3.5.7</zrlog-xx-template.version>
+        <zrlog-xx-template.version>3.5.8-SNAPSHOT</zrlog-xx-template.version>
         <gpg.passphrase/>
     </properties>
 

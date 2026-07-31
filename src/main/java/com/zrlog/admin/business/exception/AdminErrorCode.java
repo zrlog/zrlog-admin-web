@@ -21,7 +21,9 @@ public enum AdminErrorCode {
     AI_IMAGE_GENERATION_UNSUPPORTED(9035, "ADMIN_AI_IMAGE_GENERATION_UNSUPPORTED", "admin.ai.error.unsupportedImageGeneration"),
     AI_IMAGE_DOWNLOAD_FAILED(9036, "ADMIN_AI_IMAGE_DOWNLOAD_FAILED", "admin.ai.error.imageDownload"),
     AI_RESPONSE_INCOMPLETE(9037, "ADMIN_AI_RESPONSE_INCOMPLETE", "admin.ai.error.incomplete"),
-    ARTICLE_UPDATE_EXPIRED(9094, "ADMIN_ARTICLE_UPDATE_EXPIRED", "admin.article.error.updateExpired");
+    ARTICLE_UPDATE_EXPIRED(9094, "ADMIN_ARTICLE_UPDATE_EXPIRED", "admin.article.error.updateExpired"),
+    ARTICLE_PINNING_NOT_ALLOWED(9095, "ADMIN_ARTICLE_PINNING_NOT_ALLOWED", "admin.article.error.pinningNotAllowed"),
+    ARTICLE_NOT_PINNED(9096, "ADMIN_ARTICLE_NOT_PINNED", "admin.article.error.notPinned");
 
     private final int legacyCode;
     private final String code;

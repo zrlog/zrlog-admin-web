@@ -15,6 +15,7 @@ import com.zrlog.admin.business.rest.response.LoadEditArticleResponse;
 import com.zrlog.admin.business.rest.response.PublishCheckResponse;
 import com.zrlog.admin.business.rest.response.PublishCheckToolPayload;
 import com.zrlog.admin.business.rest.response.UploadFileResponse;
+import com.zrlog.admin.business.service.ArticlePinningService;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.util.AdminSseEmitter;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
@@ -115,6 +116,28 @@ public class AdminArticleControllerDatabaseTest {
             assertEquals(false, row.get("privacy"));
             assertTrue(auditLog.contains("CREATE_ARTICLE"));
             assertTrue(auditLog.contains("UPDATE_ARTICLE"));
+        }
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void shouldRefreshBlogWhenPinnedArticleMovesToDraft() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            setAdminToken();
+            ResponseRecorder createResponse = new ResponseRecorder();
+            controller(Map.of(), articleBody("Pinned Published", "pinned-published", false), createResponse)
+                    .create();
+            AdminPageDataResponse<ArticleGlobalResponse> created =
+                    (AdminPageDataResponse<ArticleGlobalResponse>) createResponse.rendered;
+            Long logId = Long.valueOf(created.getData().getArticle().getLogId());
+            new ArticlePinningService().pin(logId);
+            int refreshCountBeforeDraft = db.cacheService().getRefreshCount();
+
+            controller(Map.of(), updateBody(logId.intValue(), "Pinned Draft", "pinned-draft", true),
+                    new ResponseRecorder()).update();
+
+            assertEquals(refreshCountBeforeDraft + 1, db.cacheService().getRefreshCount());
+            assertEquals(0, ((Number) db.scalar("select sticky from log where logId=?", logId)).intValue());
         }
     }
 

@@ -42,7 +42,8 @@ public class AdminNativeImageUtils {
                 OptimizeWebsiteDescriptionRequest.class, OptimizeAiPromptRequest.class, GenerateArticleTitleRequest.class,
                 ApplyArticleCoverRequest.class,
                 AddArticleAIContextRequest.class, GenerateArticleFieldRequest.class, ScoreArticleRequest.class,
-                ArticleVersionRollbackRequest.class, ReplaceArticleResourceUrlRequest.class, PersonalDataPreviewRequest.class));
+                ArticleVersionRollbackRequest.class, ArticlePinningRequest.class, MoveArticlePinningRequest.class,
+                ReplaceArticleResourceUrlRequest.class, PersonalDataPreviewRequest.class));
         NativeImageUtils.gsonNativeAgentByClazz(Arrays.asList(AdminDashboardConfigRequest.class,
                 AdminDashboardCardRequest.class, WebhookConfigRequest.class, WebhookMessageNoticeRequest.class,
                 TagManageRequest.class, ReadMessageCenterNoticeRequest.class, UpgradeRestartNoticeRequest.class,
@@ -123,6 +124,7 @@ public class AdminNativeImageUtils {
                 ArticleStructureAdviceResponse.class, ArticleStructureAdviceResponse.StructureItem.class,
                 ArticleReaderQuestionsResponse.class, ArticleReaderQuestionsResponse.ReaderQuestionItem.class,
                 ArticleStatusCountResponse.class, ArticleVersionCompareResponse.class, ArticleVersionResponse.class,
+                ArticlePinningEntryResponse.class, ArticlePinningResponse.class,
                 PluginInfoResponse.class,
                 TagManagementArticleImpactResponse.class, TagManagementEntryResponse.class, TagManagementPreviewResponse.class,
                 MessageCenterStatusResponse.class, MessageCenterNoticeResponse.class, MessageCenterNoticeResponse.VersionUpdatePayload.class,

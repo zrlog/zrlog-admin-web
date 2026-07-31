@@ -11,6 +11,7 @@ import { ArticleChangeableValue, ArticleEditState, ArticleEntry } from "./index.
 import { AIContent } from "@editor/dist/ai/AIContentItem";
 import { AIStateCache } from "@editor/dist/ai/AIStateCache";
 import { useTheme } from "antd-style";
+import { MarkdownImportApplyOptions } from "./markdown-import-modal";
 
 type ArticleEditHeaderProps = {
     articleVersion: number;
@@ -46,6 +47,8 @@ type ArticleEditHeaderProps = {
     onAiMessagesChange: (messages: AIContent[]) => void;
     onAiDrawerSizeChange: (newSize: number) => void;
     onInsertMarkdownFromAsset: (path: string) => void;
+    getCurrentMarkdown: () => string;
+    onImportMarkdown: (options: MarkdownImportApplyOptions) => Promise<boolean>;
     onExitFullScreen: () => void;
     onFullScreen: () => void;
     getSelectStyle: () => Record<string, any>;
@@ -85,6 +88,8 @@ const ArticleEditHeader: FunctionComponent<ArticleEditHeaderProps> = ({
     onAiMessagesChange,
     onAiDrawerSizeChange,
     onInsertMarkdownFromAsset,
+    getCurrentMarkdown,
+    onImportMarkdown,
 
     onExitFullScreen,
     onFullScreen,
@@ -271,6 +276,8 @@ const ArticleEditHeader: FunctionComponent<ArticleEditHeaderProps> = ({
                             fullScreen={fullScreen}
                             offline={offline}
                             article={state.article}
+                            contentConflict={Boolean(state.contentConflict)}
+                            typeOptions={state.typeOptions}
                             logId={state.article.logId}
                             socialPreview={state.article.socialPreview}
                             currentVersion={state.article.version}
@@ -283,6 +290,8 @@ const ArticleEditHeader: FunctionComponent<ArticleEditHeaderProps> = ({
                             onRollback={onRollback}
                             onVersionOpenChange={onVersionOpenChange}
                             onInsertMarkdownFromAsset={onInsertMarkdownFromAsset}
+                            getCurrentMarkdown={getCurrentMarkdown}
+                            onImportMarkdown={onImportMarkdown}
                             onExitFullScreen={onExitFullScreen}
                             onFullScreen={onFullScreen}
                         />

@@ -1,4 +1,4 @@
-import { FunctionComponent, useMemo, useRef } from "react";
+import { FunctionComponent, useMemo, useRef, useState } from "react";
 import { App, Grid, InputRef, message, Tag } from "antd";
 import Divider from "antd/es/divider";
 import Card from "antd/es/card";
@@ -24,6 +24,9 @@ import { useArticleAiAssistantConfig } from "./article-ai-assistant/article-ai-a
 import useArticleEditUiState from "./use-article-edit-ui-state";
 import ArticleContentConflictAlert from "./article-content-conflict-alert";
 import useArticleSaveCoordinator from "./use-article-save-coordinator";
+import { markdownToHtml } from "@editor/dist/editor/utils/marked-utils";
+import { buildMarkdownImportedArticle, buildMarkdownImportedPatch } from "./markdown-import";
+import { MarkdownImportApplyOptions } from "./markdown-import-modal";
 
 const Index: FunctionComponent<ArticleEditProps> = ({
     offline,
@@ -36,6 +39,7 @@ const Index: FunctionComponent<ArticleEditProps> = ({
     const location = useLocation();
     const editCardRef = useRef<HTMLDivElement>(null);
     const editorViewRef = useRef<EditorView | null>(null);
+    const suppressedEditorMarkdownRef = useRef<string>();
     const preferredTypeId = useMemo(() => {
         const rawTypeId = new URLSearchParams(location.search).get("typeId");
         const typeId = rawTypeId ? Number(rawTypeId) : undefined;
@@ -64,7 +68,9 @@ const Index: FunctionComponent<ArticleEditProps> = ({
     const axiosInstance = useAxiosBaseInstance(() => editCardRef.current as HTMLElement);
     const navigate = useNavigate();
     const {
+        applyImportedArticle,
         getLocalCacheKey,
+        createImportedDraft,
         handleValuesChange,
         isSaving,
         keepServerConflictContent,
@@ -167,6 +173,75 @@ const Index: FunctionComponent<ArticleEditProps> = ({
             void messageApi.success(getRes().articleEdit.assistant.applySuccess);
         },
     });
+    const [markdownImportInputRevision, setMarkdownImportInputRevision] = useState(0);
+
+    const getCurrentMarkdown = () => editorViewRef.current?.state.doc.toString() ?? state.article.markdown ?? "";
+
+    const importMarkdown = async ({
+        preview,
+        selectedFields,
+        selectedTypeId,
+        target,
+        expectedCurrentMarkdown,
+    }: MarkdownImportApplyOptions): Promise<boolean> => {
+        try {
+            const html = await markdownToHtml(preview.markdown, {
+                linkPreview: false,
+            });
+            if (target === "current" && getCurrentMarkdown() !== expectedCurrentMarkdown) {
+                await messageApi.warning(getRes().articleEdit.markdownImport.stateChanged);
+                return false;
+            }
+            const importedArticle = buildMarkdownImportedArticle({
+                article: {
+                    ...state.article,
+                    markdown: getCurrentMarkdown(),
+                },
+                preview,
+                selectedFields,
+                selectedTypeId,
+                target,
+                html,
+            });
+            if (target === "newDraft") {
+                return createImportedDraft(importedArticle);
+            }
+            const importedPatch = buildMarkdownImportedPatch({
+                preview,
+                selectedFields,
+                selectedTypeId,
+                html,
+            });
+            if (!applyImportedArticle(importedPatch)) {
+                await messageApi.warning(getRes().articleEdit.markdownImport.stateChanged);
+                return false;
+            }
+            const editorView = editorViewRef.current;
+            if (getCurrentMarkdown() !== preview.markdown) {
+                suppressedEditorMarkdownRef.current = preview.markdown;
+                if (editorView) {
+                    editorView.dispatch({
+                        changes: {
+                            from: 0,
+                            to: editorView.state.doc.length,
+                            insert: preview.markdown,
+                        },
+                    });
+                }
+            }
+            if (selectedFields.has("digest") && digestRef.current?.input) {
+                digestRef.current.input.value = importedPatch.digest || "";
+            }
+            setMarkdownImportInputRevision((revision) => revision + 1);
+            await messageApi.success(getRes().articleEdit.markdownImport.importedCurrent);
+            return true;
+        } catch (error) {
+            await messageApi.error(
+                error instanceof Error ? error.message : getRes().articleEdit.markdownImport.errors.unknown
+            );
+            return false;
+        }
+    };
 
     const applyGeneratedCover = async (cover?: {
         dataUrl: string;
@@ -388,8 +463,8 @@ const Index: FunctionComponent<ArticleEditProps> = ({
                     titleRef={titleRef}
                     aliasRef={aliasRef}
                     digestRef={digestRef}
-                    titleInputRevision={fieldAi.titleInputRevision + restoreInputRevision}
-                    aliasInputRevision={fieldAi.aliasInputRevision + restoreInputRevision}
+                    titleInputRevision={fieldAi.titleInputRevision + restoreInputRevision + markdownImportInputRevision}
+                    aliasInputRevision={fieldAi.aliasInputRevision + restoreInputRevision + markdownImportInputRevision}
                     settingsOpen={settingsOpen}
                     versionDrawerOpen={versionDrawerOpen}
                     axiosInstance={axiosInstance}
@@ -409,6 +484,8 @@ const Index: FunctionComponent<ArticleEditProps> = ({
                     onAiMessagesChange={updateAiMessageCache}
                     onAiDrawerSizeChange={updateAiDrawerWidth}
                     onInsertMarkdownFromAsset={insertAssetToMarkdown}
+                    getCurrentMarkdown={getCurrentMarkdown}
+                    onImportMarkdown={importMarkdown}
                     onExitFullScreen={onExitFullScreen}
                     onFullScreen={onFullScreen}
                     getSelectStyle={getSelectStyle}
@@ -470,6 +547,13 @@ const Index: FunctionComponent<ArticleEditProps> = ({
                     axiosInstance={axiosInstance}
                     value={state.article.markdown}
                     onChange={(v) => {
+                        if (suppressedEditorMarkdownRef.current !== undefined) {
+                            const suppress = suppressedEditorMarkdownRef.current === v.value;
+                            suppressedEditorMarkdownRef.current = undefined;
+                            if (suppress) {
+                                return;
+                            }
+                        }
                         if (
                             v.value === "" &&
                             (state.article.markdown === "" ||

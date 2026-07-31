@@ -62,6 +62,22 @@ public class AdminArticleServiceDatabaseTest {
     }
 
     @Test
+    public void shouldPreserveUnsavedDraftAiMessagesForIndependentCreate() throws Exception {
+        try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
+            AdminArticleService service = new AdminArticleService();
+            WebSiteService webSiteService = new WebSiteService();
+            assertTrue(webSiteService.saveAIMessage(List.of(new AIResponseEntry.AIContentEntry("user", "draft")), 0L));
+            CreateArticleRequest request = article("Imported draft", "imported-draft");
+            request.setPreserveDraftAiMessages(true);
+
+            CreateOrUpdateArticleResponse response = service.create(token(), request);
+
+            assertTrue(webSiteService.getAiMessageInfoByArticleId(response.getLogId()).getAiMessages().isEmpty());
+            assertEquals(1, webSiteService.getAiMessageInfoByArticleId(0L).getAiMessages().size());
+        }
+    }
+
+    @Test
     public void shouldUpdateArticleAndRecordReversePatchThroughRealDao() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             AdminArticleService service = new AdminArticleService();
@@ -85,6 +101,28 @@ public class AdminArticleServiceDatabaseTest {
             assertEquals(0, ((Number) patch.get("from_version")).intValue());
             assertEquals("First Title", patch.get("title"));
             assertTrue(String.valueOf(patch.get("patch_json")).contains("First Title"));
+        }
+    }
+
+    @Test
+    public void shouldClearStickyWhenPublishedArticleBecomesPrivate() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            AdminArticleService service = new AdminArticleService();
+            CreateOrUpdateArticleResponse created = service.create(token(), article("Pinned", "pinned"));
+            CreateOrUpdateArticleResponse other =
+                    service.create(token(), article("Pinned Other", "pinned-other"));
+            new ArticlePinningService().pin(created.getLogId());
+            new ArticlePinningService().pin(other.getLogId());
+            UpdateArticleRequest update = updateArticle(created.getLogId().intValue(), 0,
+                    "Pinned Private", "pinned-private");
+
+            CreateOrUpdateArticleResponse updated = service.update(token(), update);
+
+            assertEquals(0, ((Number) db.scalar("select sticky from log where logId=?",
+                    created.getLogId())).intValue());
+            assertEquals(1L, new ArticlePinningService().list().getItems().get(0).getSticky().longValue());
+            assertEquals(other.getLogId(), new ArticlePinningService().list().getItems().get(0).getLogId());
+            assertTrue(updated.isPublicCacheRefreshRequired());
         }
     }
 

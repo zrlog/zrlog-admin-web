@@ -80,9 +80,7 @@ public class AdminArticleController extends BaseController {
             CreateOrUpdateArticleResponse createOrUpdateArticleResponse, boolean refreshCache) throws SQLException {
         AdminPageDataResponse<ArticleGlobalResponse> detail = articleService
                 .loadDetailById(createOrUpdateArticleResponse.getLogId() + "", request);
-        LoadEditArticleResponse loadEditArticleResponse = detail.getData().getArticle();
-        // 为发布状态才需要更新缓存信息（避免无用更新）
-        if (refreshCache && Objects.equals(loadEditArticleResponse.isRubbish(), false)) {
+        if (refreshCache && createOrUpdateArticleResponse.isPublicCacheRefreshRequired()) {
             CacheUtils.updateCache(false, request, List.of(StaticSiteType.BLOG));
         }
         detail.setMessage(getResponseMsg(createOrUpdateArticleResponse));

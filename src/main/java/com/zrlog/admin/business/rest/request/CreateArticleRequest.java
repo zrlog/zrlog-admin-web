@@ -24,6 +24,7 @@ public class CreateArticleRequest implements Validator {
     private String digest;
     private String editorType;
     private boolean transparentPublish;
+    private boolean preserveDraftAiMessages;
 
     public String getContent() {
         return content;
@@ -135,6 +136,14 @@ public class CreateArticleRequest implements Validator {
 
     public void setTransparentPublish(boolean transparentPublish) {
         this.transparentPublish = transparentPublish;
+    }
+
+    public boolean isPreserveDraftAiMessages() {
+        return preserveDraftAiMessages;
+    }
+
+    public void setPreserveDraftAiMessages(boolean preserveDraftAiMessages) {
+        this.preserveDraftAiMessages = preserveDraftAiMessages;
     }
 
     @Override

@@ -2,6 +2,7 @@ import { App, Button, Dropdown, Grid, Modal } from "antd";
 import {
     EllipsisOutlined,
     EyeOutlined,
+    FileMarkdownOutlined,
     FilePdfOutlined,
     FolderOpenOutlined,
     FullscreenExitOutlined,
@@ -9,7 +10,7 @@ import {
     HistoryOutlined,
     ShareAltOutlined,
 } from "@ant-design/icons";
-import { FunctionComponent, RefObject, useCallback, useEffect, useState } from "react";
+import { ChangeEvent, FunctionComponent, RefObject, useCallback, useEffect, useRef, useState } from "react";
 import screenfull from "screenfull";
 import { getEnterFullscreen, getExitFullscreen, getRes } from "../../utils/constants";
 import ArticleVersionDrawer from "./article-version-drawer";
@@ -18,16 +19,25 @@ import { getAiDrawerOpen } from "@editor/dist/ai/AIDrawer";
 import { getAppState } from "../../base/ConfigProviderApp";
 import FileManagerPicker from "../file-manager/picker";
 import ArticleSocialPreviewDrawer from "./article-social-preview-drawer";
-import { SocialPreview } from "./index.types";
-import type { ArticlePrintableEntry } from "../article/ArticlePreviewAction";
+import { ArticleEntry, SocialPreview } from "./index.types";
 import { exportArticlePdf } from "../article/ArticlePdfAction";
 import { addToCache, getCacheByKey } from "../../utils/cache";
 import { useTheme } from "antd-style";
+import MarkdownImportModal, { MarkdownImportApplyOptions } from "./markdown-import-modal";
+import {
+    ArticleTypeOption,
+    MarkdownImportError,
+    MarkdownImportErrorCode,
+    MarkdownImportPreview,
+    readMarkdownImportFile,
+} from "./markdown-import";
 
 type ArticleEditMoreActionsProps = {
     fullScreen: boolean;
     offline: boolean;
-    article: ArticlePrintableEntry;
+    article: ArticleEntry;
+    contentConflict: boolean;
+    typeOptions: ArticleTypeOption[];
     logId?: number;
     socialPreview?: SocialPreview;
     currentVersion: number;
@@ -40,6 +50,8 @@ type ArticleEditMoreActionsProps = {
     onRollback: (targetVersion: number) => Promise<void>;
     onVersionOpenChange: (open: boolean) => void;
     onInsertMarkdownFromAsset: (path: string) => void;
+    getCurrentMarkdown: () => string;
+    onImportMarkdown: (options: MarkdownImportApplyOptions) => Promise<boolean>;
     onExitFullScreen: () => void;
     onFullScreen: () => void;
 };
@@ -48,6 +60,8 @@ const ArticleEditMoreActions: FunctionComponent<ArticleEditMoreActionsProps> = (
     fullScreen,
     offline,
     article,
+    contentConflict,
+    typeOptions,
     logId,
     socialPreview,
     currentVersion,
@@ -60,6 +74,8 @@ const ArticleEditMoreActions: FunctionComponent<ArticleEditMoreActionsProps> = (
     onRollback,
     onVersionOpenChange,
     onInsertMarkdownFromAsset,
+    getCurrentMarkdown,
+    onImportMarkdown,
     onExitFullScreen,
     onFullScreen,
 }) => {
@@ -73,6 +89,10 @@ const ArticleEditMoreActions: FunctionComponent<ArticleEditMoreActionsProps> = (
     const [socialPreviewOpen, setSocialPreviewOpenState] = useState(
         getCacheByKey<boolean>(socialPreviewOpenCacheKey) === true
     );
+    const [markdownImportPreview, setMarkdownImportPreview] = useState<MarkdownImportPreview>();
+    const [markdownImportSource, setMarkdownImportSource] = useState("");
+    const markdownFileInputRef = useRef<HTMLInputElement>(null);
+    const markdownImportReadGenerationRef = useRef(0);
     const screens = Grid.useBreakpoint();
     const narrow = screens.md !== true;
     const assetPickerWidth = narrow ? "100vw" : screens.lg ? 860 : 720;
@@ -95,6 +115,66 @@ const ArticleEditMoreActions: FunctionComponent<ArticleEditMoreActionsProps> = (
         setAssetPickerOpenState(getCacheByKey<boolean>(assetPickerOpenCacheKey) === true);
         setSocialPreviewOpenState(getCacheByKey<boolean>(socialPreviewOpenCacheKey) === true);
     }, [assetPickerOpenCacheKey, socialPreviewOpenCacheKey]);
+
+    const getMarkdownImportErrorMessage = (code: MarkdownImportErrorCode) => {
+        const errors = getRes().articleEdit.markdownImport.errors;
+        switch (code) {
+            case "invalid-extension":
+                return errors.invalidExtension;
+            case "too-large":
+                return errors.tooLarge;
+            case "invalid-utf8":
+                return errors.invalidUtf8;
+            case "empty-file":
+                return errors.emptyFile;
+            case "binary-file":
+                return errors.binaryFile;
+            case "unclosed-front-matter":
+                return errors.unclosedFrontMatter;
+            case "invalid-front-matter":
+                return errors.invalidFrontMatter;
+            case "front-matter-root":
+                return errors.frontMatterRoot;
+            case "front-matter-too-complex":
+                return errors.frontMatterTooComplex;
+        }
+    };
+
+    const selectMarkdownFile = () => {
+        markdownFileInputRef.current?.click();
+    };
+
+    const readMarkdownFile = async (event: ChangeEvent<HTMLInputElement>) => {
+        const file = event.currentTarget.files?.[0];
+        event.currentTarget.value = "";
+        if (!file) {
+            return;
+        }
+        const readGeneration = ++markdownImportReadGenerationRef.current;
+        try {
+            const preview = await readMarkdownImportFile(file);
+            if (readGeneration !== markdownImportReadGenerationRef.current) {
+                return;
+            }
+            setMarkdownImportSource(getCurrentMarkdown());
+            setMarkdownImportPreview(preview);
+        } catch (error) {
+            if (readGeneration !== markdownImportReadGenerationRef.current) {
+                return;
+            }
+            const errorMessage =
+                error instanceof MarkdownImportError
+                    ? getMarkdownImportErrorMessage(error.code)
+                    : getRes().articleEdit.markdownImport.errors.unknown;
+            void message.error(errorMessage);
+        }
+    };
+
+    const closeMarkdownImport = () => {
+        setMarkdownImportPreview(undefined);
+        setMarkdownImportSource("");
+    };
+
     const toggleFullScreen = useCallback(() => {
         if (fullScreen) {
             if (screenfull.isEnabled) {
@@ -169,6 +249,12 @@ const ArticleEditMoreActions: FunctionComponent<ArticleEditMoreActionsProps> = (
             onClick: () => exportArticlePdf(article, () => message.warning(getRes().article.exportPdfPopupBlocked)),
         },
         {
+            key: "import-markdown",
+            icon: <FileMarkdownOutlined />,
+            label: getRes().articleEdit.markdownImport.menu,
+            onClick: selectMarkdownFile,
+        },
+        {
             key: "asset",
             icon: <FolderOpenOutlined />,
             label: getRes().articleEdit.actions.chooseFromAssets,
@@ -193,6 +279,13 @@ const ArticleEditMoreActions: FunctionComponent<ArticleEditMoreActionsProps> = (
 
     return (
         <>
+            <input
+                ref={markdownFileInputRef}
+                type="file"
+                accept=".md,.markdown,text/markdown"
+                hidden
+                onChange={(event) => void readMarkdownFile(event)}
+            />
             <Dropdown
                 menu={{ items }}
                 trigger={["click"]}
@@ -229,6 +322,18 @@ const ArticleEditMoreActions: FunctionComponent<ArticleEditMoreActionsProps> = (
                 containerRef={containerRef}
                 open={socialPreviewOpen}
                 onOpenChange={setSocialPreviewOpen}
+            />
+            <MarkdownImportModal
+                article={article}
+                contentConflict={contentConflict}
+                containerRef={containerRef}
+                offline={offline}
+                open={Boolean(markdownImportPreview)}
+                preview={markdownImportPreview}
+                currentMarkdown={markdownImportSource}
+                typeOptions={typeOptions}
+                onApply={onImportMarkdown}
+                onCancel={closeMarkdownImport}
             />
             <Modal
                 title={getRes().articleEdit.actions.chooseFromAssets}
