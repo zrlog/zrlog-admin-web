@@ -14,6 +14,7 @@ import com.zrlog.admin.business.rest.request.TagManageRequest;
 import com.zrlog.admin.business.rest.request.UpdateAdminRequest;
 import com.zrlog.admin.business.rest.request.UpdatePasswordRequest;
 import com.zrlog.admin.business.rest.request.UpgradeRestartNoticeRequest;
+import com.zrlog.admin.business.rest.request.ExecuteUpgradeRequest;
 import com.zrlog.admin.business.rest.request.WebhookMessageNoticeRequest;
 import com.zrlog.admin.business.rest.response.AIResponseEntry;
 import com.zrlog.admin.business.rest.response.AdminStaticSiteSyncResponse;
@@ -370,6 +371,11 @@ public class AdminDtoContractTest {
         assertEquals("build-1", restartNotice.getBuildId());
         restartNotice.setStatus("done");
         assertThrows(ArgsException.class, restartNotice::doValid);
+
+        ExecuteUpgradeRequest executeUpgrade = new ExecuteUpgradeRequest();
+        assertFalse(executeUpgrade.isBackupRiskAccepted());
+        executeUpgrade.setBackupRiskAccepted(true);
+        assertTrue(executeUpgrade.isBackupRiskAccepted());
 
         UpdatePasswordRequest password = new UpdatePasswordRequest();
         assertThrows(ArgsException.class, password::doValid);

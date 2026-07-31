@@ -80,12 +80,27 @@ check_native_json_class() {
         NATIVE_JSON_STATUS=1
     fi
 }
+is_native_json_container() {
+    case "$1" in
+        SafeRequestUrl|AdminSsePayloads)
+            # Validation/factory containers are never serialized. Serialized
+            # AdminSsePayloads nested classes are checked separately below.
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
 for dto_dir in \
     src/main/java/com/zrlog/admin/business/rest/base \
     src/main/java/com/zrlog/admin/business/rest/request \
     src/main/java/com/zrlog/admin/business/rest/response; do
     for file in "$dto_dir"/*.java; do
         class_name="$(basename "$file" .java)"
+        if is_native_json_container "$class_name"; then
+            continue
+        fi
         check_native_json_class "$class_name"
     done
 done

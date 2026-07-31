@@ -1,5 +1,21 @@
 import { FunctionComponent, useEffect, useRef, useState } from "react";
-import { App, Button, Card, Col, Grid, message, Row, Steps, theme } from "antd";
+import {
+    Alert,
+    App,
+    Button,
+    Card,
+    Checkbox,
+    Col,
+    Descriptions,
+    Grid,
+    message,
+    Row,
+    Space,
+    Steps,
+    Tag,
+    theme,
+    Typography,
+} from "antd";
 import { CheckCircleOutlined, CloseCircleOutlined, InfoCircleOutlined, LoadingOutlined } from "@ant-design/icons";
 import Title from "antd/es/typography/Title";
 import { getRealRouteUrl, getRes } from "../utils/constants";
@@ -83,6 +99,7 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data, offline, offlineData }
         manualMessageHtml: "",
         progressItems: [],
     });
+    const [backupRiskAccepted, setBackupRiskAccepted] = useState(false);
 
     const { modal } = App.useApp();
 
@@ -419,6 +436,7 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data, offline, offlineData }
         ensureUpgradeTask(getRes().upgrade.preparing);
         try {
             const response = await postRefreshCacheSse<ApiResponse<UpgradeProcessResponse>>(API_DO_UPGRADE_PATH, {
+                body: { backupRiskAccepted },
                 messageApi,
                 messageKey: "upgrade",
                 onEvent: onUpgradeEvent,
@@ -465,7 +483,108 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data, offline, offlineData }
         if (!data.upgrade) {
             return true;
         }
+        if (data.onlineUpgradable && data.backupProtection?.requiresRiskAcceptance && !backupRiskAccepted) {
+            return true;
+        }
         return false;
+    };
+
+    const backupStatusText = () => {
+        const backupProtection = data.backupProtection;
+        if (!backupProtection || backupProtection.ready) {
+            return getRes().upgrade.backupProtection.ready;
+        }
+        switch (backupProtection.status) {
+            case "MISSING_BACKUP":
+                return getRes().upgrade.backupProtection.status.MISSING_BACKUP;
+            case "BACKUP_STALE":
+                return getRes().upgrade.backupProtection.status.BACKUP_STALE;
+            case "MISSING_VERIFICATION":
+                return getRes().upgrade.backupProtection.status.MISSING_VERIFICATION;
+            case "VERIFICATION_FAILED":
+                return getRes().upgrade.backupProtection.status.VERIFICATION_FAILED;
+            case "VERIFICATION_STALE":
+                return getRes().upgrade.backupProtection.status.VERIFICATION_STALE;
+            case "BACKUP_CHANGED_AFTER_VERIFICATION":
+                return getRes().upgrade.backupProtection.status.BACKUP_CHANGED_AFTER_VERIFICATION;
+            default:
+                return getRes().upgrade.backupProtection.status.INVALID_EVIDENCE;
+        }
+    };
+
+    const formatEvidenceTime = (value?: number) => {
+        return value ? new Date(value).toLocaleString() : getRes().upgrade.backupProtection.notAvailable;
+    };
+
+    const renderBackupProtection = () => {
+        const backupProtection = data.backupProtection;
+        if (!data.onlineUpgradable || !backupProtection) {
+            return null;
+        }
+        const res = getRes().upgrade.backupProtection;
+        const fileAndHash = (file?: string, sha256?: string) => (
+            <Space direction="vertical" size={0} style={{ minWidth: 0 }}>
+                <Typography.Text style={{ wordBreak: "break-all" }}>{file || res.notAvailable}</Typography.Text>
+                {sha256 && (
+                    <Typography.Text type="secondary" style={{ fontFamily: "monospace", wordBreak: "break-all" }}>
+                        {sha256}
+                    </Typography.Text>
+                )}
+            </Space>
+        );
+        return (
+            <div style={{ paddingTop: token.marginLG }}>
+                <Alert
+                    type={backupProtection.ready ? "success" : "warning"}
+                    showIcon
+                    message={
+                        <Space size="small" wrap>
+                            <span>{res.title}</span>
+                            <Tag color={backupProtection.ready ? "success" : "warning"}>
+                                {backupProtection.ready ? res.ready : res.warning}
+                            </Tag>
+                        </Space>
+                    }
+                    description={
+                        <Space direction="vertical" size="middle" style={{ width: "100%" }}>
+                            <Typography.Text>{backupStatusText()}</Typography.Text>
+                            <Descriptions size="small" column={1}>
+                                <Descriptions.Item label={`${res.lastBackup} / ${res.file}`}>
+                                    <Space direction="vertical" size={0}>
+                                        <Typography.Text type="secondary">
+                                            {formatEvidenceTime(backupProtection.lastBackupAt)}
+                                        </Typography.Text>
+                                        {fileAndHash(
+                                            backupProtection.lastBackupFile,
+                                            backupProtection.lastBackupSha256
+                                        )}
+                                    </Space>
+                                </Descriptions.Item>
+                                <Descriptions.Item label={`${res.lastVerification} / ${res.file}`}>
+                                    <Space direction="vertical" size={0}>
+                                        <Typography.Text type="secondary">
+                                            {formatEvidenceTime(backupProtection.lastVerifiedAt)}
+                                        </Typography.Text>
+                                        {fileAndHash(
+                                            backupProtection.lastVerifiedFile,
+                                            backupProtection.lastVerifiedSha256
+                                        )}
+                                    </Space>
+                                </Descriptions.Item>
+                            </Descriptions>
+                            {backupProtection.requiresRiskAcceptance && (
+                                <Checkbox
+                                    checked={backupRiskAccepted}
+                                    onChange={(event) => setBackupRiskAccepted(event.target.checked)}
+                                >
+                                    {res.riskAcceptance}
+                                </Checkbox>
+                            )}
+                        </Space>
+                    }
+                />
+            </div>
+        );
     };
 
     useEffect(() => {
@@ -505,6 +624,7 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data, offline, offlineData }
                                         {getRes().upgrade.changeLog}
                                     </Title>
                                     <UpgradeContent data={data} />
+                                    {renderBackupProtection()}
                                 </>
                             )}
                             {currentStepAlias === "doUpgrade" && (

@@ -982,7 +982,27 @@ const zhCN = {
         "restartCheckTimeout": "未确认新版本启动",
         "restartCheckTimeoutDetail": "版本检查已停止，请稍后刷新页面或检查服务状态",
         "staticSyncFailed": "后台静态资源同步未完成",
-        "staticSyncFailedDetail": "新版本已启动，但后台静态资源同步失败。进入后台后可手动同步静态资源"
+        "staticSyncFailedDetail": "新版本已启动，但后台静态资源同步失败。进入后台后可手动同步静态资源",
+        "backupProtection": {
+            "title": "更新前备份保护",
+            "ready": "已通过恢复验证",
+            "warning": "需要确认备份风险",
+            "lastBackup": "最近备份",
+            "lastVerification": "最近恢复验证",
+            "file": "文件",
+            "sha256": "SHA-256",
+            "notAvailable": "暂无记录",
+            "riskAcceptance": "我了解当前没有通过恢复验证的近期备份，并明确接受继续更新可能导致数据无法恢复的风险",
+            "status": {
+                "MISSING_BACKUP": "尚未记录近期数据库备份",
+                "BACKUP_STALE": "最近数据库备份已超过 36 小时",
+                "MISSING_VERIFICATION": "最近备份尚未完成恢复验证",
+                "VERIFICATION_FAILED": "最近一次恢复验证失败",
+                "VERIFICATION_STALE": "最近一次成功恢复验证已超过 8 天",
+                "BACKUP_CHANGED_AFTER_VERIFICATION": "最近备份不是已通过恢复验证的文件",
+                "INVALID_EVIDENCE": "备份保护记录格式无效"
+            }
+        }
     },
     "login": {
         "title": "登录",
@@ -2191,7 +2211,27 @@ const enUS: AdminI18nResource = {
         "restartCheckTimeout": "New version was not confirmed",
         "restartCheckTimeoutDetail": "Version checks stopped. Refresh the page later or check the service status",
         "staticSyncFailed": "Admin static resource sync did not complete",
-        "staticSyncFailedDetail": "The new version is live, but admin static resource sync failed. Open the admin console to sync static resources manually"
+        "staticSyncFailedDetail": "The new version is live, but admin static resource sync failed. Open the admin console to sync static resources manually",
+        "backupProtection": {
+            "title": "Pre-update backup protection",
+            "ready": "Restore verification passed",
+            "warning": "Backup risk acceptance required",
+            "lastBackup": "Latest backup",
+            "lastVerification": "Latest restore verification",
+            "file": "File",
+            "sha256": "SHA-256",
+            "notAvailable": "No record",
+            "riskAcceptance": "I understand that no recent backup has passed restore verification and explicitly accept the risk of being unable to recover data after this update",
+            "status": {
+                "MISSING_BACKUP": "No recent database backup has been recorded",
+                "BACKUP_STALE": "The latest database backup is older than 36 hours",
+                "MISSING_VERIFICATION": "The latest backup has not completed restore verification",
+                "VERIFICATION_FAILED": "The latest restore verification failed",
+                "VERIFICATION_STALE": "The latest successful restore verification is older than 8 days",
+                "BACKUP_CHANGED_AFTER_VERIFICATION": "The latest backup is not the file that passed restore verification",
+                "INVALID_EVIDENCE": "The backup protection record is invalid"
+            }
+        }
     },
     "login": {
         "title": "Sign in",

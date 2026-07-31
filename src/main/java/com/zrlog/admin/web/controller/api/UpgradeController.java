@@ -1,6 +1,10 @@
 package com.zrlog.admin.web.controller.api;
 
+import com.google.gson.Gson;
+import com.hibegin.common.util.IOUtil;
+import com.hibegin.common.util.StringUtils;
 import com.hibegin.http.annotation.ResponseBody;
+import com.zrlog.admin.business.rest.request.ExecuteUpgradeRequest;
 import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
 import com.zrlog.admin.business.service.AdminAuditService;
 import com.zrlog.admin.business.service.AdminStaticService;
@@ -43,19 +47,21 @@ public class UpgradeController extends BaseController {
 
     @ResponseBody
     public void doUpgrade() throws IOException {
+        ExecuteUpgradeRequest upgradeRequest = getOptionalUpgradeRequest();
         UpdateVersionInfoPlugin plugin = Constants.zrLogConfig.getPlugin(UpdateVersionInfoPlugin.class);
         Map<String, Object> backend = I18nUtil.getBackend();
         if (!isSseRequest()) {
             UpgradeProcessResponse upgradeProcessResponse;
             try {
                 upgradeProcessResponse = AdminStaticService.getInstance().getUpgradeService()
-                        .doUpgrade(plugin, UpgradeProgressListener.NONE, backend);
+                        .doUpgrade(plugin, UpgradeProgressListener.NONE, backend,
+                                upgradeRequest.isBackupRiskAccepted());
                 new MessageCenterOperationService().recordUpgradeResult(upgradeProcessResponse);
             } catch (RuntimeException e) {
                 new MessageCenterOperationService().recordUpgradeError(e.getMessage());
                 throw e;
             }
-            new AdminAuditService().record(request, AdminAuditAction.EXECUTE_UPGRADE);
+            recordUpgradeAudit(upgradeRequest);
             response.renderJson(new ApiStandardResponse<>(
                     upgradeProcessResponse));
             return;
@@ -64,13 +70,13 @@ public class UpgradeController extends BaseController {
             UpgradeProcessResponse upgradeProcessResponse;
             try {
                 upgradeProcessResponse = AdminStaticService.getInstance().getUpgradeService()
-                        .doUpgrade(plugin, emitter::send, backend);
+                        .doUpgrade(plugin, emitter::send, backend, upgradeRequest.isBackupRiskAccepted());
                 new MessageCenterOperationService().recordUpgradeResult(upgradeProcessResponse);
             } catch (Exception e) {
                 new MessageCenterOperationService().recordUpgradeError(e.getMessage());
                 throw e;
             }
-            new AdminAuditService().record(request, AdminAuditAction.EXECUTE_UPGRADE);
+            recordUpgradeAudit(upgradeRequest);
             emitter.send("response", new ApiStandardResponse<>(upgradeProcessResponse));
         });
     }
@@ -78,6 +84,23 @@ public class UpgradeController extends BaseController {
     private boolean isSseRequest() {
         String accept = request.getHeader("Accept");
         return Objects.nonNull(accept) && accept.contains("text/event-stream");
+    }
+
+    private ExecuteUpgradeRequest getOptionalUpgradeRequest() {
+        if (Objects.isNull(request.getInputStream())) {
+            return new ExecuteUpgradeRequest();
+        }
+        String body = IOUtil.getStringInputStream(request.getInputStream());
+        if (StringUtils.isEmpty(body)) {
+            return new ExecuteUpgradeRequest();
+        }
+        ExecuteUpgradeRequest upgradeRequest = new Gson().fromJson(body, ExecuteUpgradeRequest.class);
+        return Objects.requireNonNull(upgradeRequest, "Upgrade request must be a JSON object");
+    }
+
+    private void recordUpgradeAudit(ExecuteUpgradeRequest requestBody) {
+        new AdminAuditService().record(request, AdminAuditAction.EXECUTE_UPGRADE,
+                requestBody.isBackupRiskAccepted() ? "backupRiskAccepted" : "");
     }
 
 }

@@ -33,6 +33,31 @@ export type UpgradeData = {
     onlineUpgradable: boolean;
     disableUpgradeReason: string;
     version: UpgradeVersion;
+    backupProtection?: BackupProtectionStatus;
+};
+
+export type BackupProtectionStatus = {
+    ready: boolean;
+    requiresRiskAcceptance: boolean;
+    status:
+        | "READY"
+        | "MISSING_BACKUP"
+        | "BACKUP_STALE"
+        | "MISSING_VERIFICATION"
+        | "VERIFICATION_FAILED"
+        | "VERIFICATION_STALE"
+        | "BACKUP_CHANGED_AFTER_VERIFICATION"
+        | "INVALID_EVIDENCE";
+    lastBackupAt?: number;
+    lastBackupFile?: string;
+    lastBackupSha256?: string;
+    lastVerifiedAt?: number;
+    lastVerifiedFile?: string;
+    lastVerifiedSha256?: string;
+    verificationSuccess?: boolean;
+    verificationMessage?: string;
+    backupMaxAgeMillis: number;
+    verificationMaxAgeMillis: number;
 };
 
 export type ApiResponse<T> = {

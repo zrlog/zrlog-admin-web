@@ -45,14 +45,16 @@ public class AdminNativeImageUtils {
                 ArticleVersionRollbackRequest.class, ReplaceArticleResourceUrlRequest.class, PersonalDataPreviewRequest.class));
         NativeImageUtils.gsonNativeAgentByClazz(Arrays.asList(AdminDashboardConfigRequest.class,
                 AdminDashboardCardRequest.class, WebhookConfigRequest.class, WebhookMessageNoticeRequest.class,
-                TagManageRequest.class, ReadMessageCenterNoticeRequest.class, UpgradeRestartNoticeRequest.class));
+                TagManageRequest.class, ReadMessageCenterNoticeRequest.class, UpgradeRestartNoticeRequest.class,
+                ExecuteUpgradeRequest.class));
     }
 
     private static void adminResponseJson() {
         //
         NativeImageUtils.gsonNativeAgentByClazz(Arrays.asList(TemplateDownloadResponse.class, ArticleResponseEntry.class,
                 UpgradeProcessResponse.class,
-                PreCheckVersionResponse.class, BlogWebSiteInfo.class, OtherWebSiteInfo.class, AdminWebSiteInfo.class,
+                PreCheckVersionResponse.class, BackupProtectionStatus.class,
+                BlogWebSiteInfo.class, OtherWebSiteInfo.class, AdminWebSiteInfo.class,
                 UpgradeWebSiteInfo.class, ArticleEditWebSiteInfo.class, TemplateVO.class, TemplateVO.TemplateConfigVO.class,
                 BaseTemplateVO.class, BasicWebSiteInfo.class, ArticleGlobalResponse.class,
                 FeatureLabWebSiteInfo.class, ContentProtectorWebSiteInfo.class,
