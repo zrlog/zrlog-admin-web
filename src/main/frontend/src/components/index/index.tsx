@@ -200,11 +200,11 @@ const Index: FunctionComponent<IndexProps> = ({ data, updateCache }) => {
         const welcomeData = getCardData<WelcomeCardData>(card);
         return (
             <Card
+                bordered={false}
                 className="dashboard-card"
                 style={{
                     overflow: "hidden",
                     borderRadius: theme.borderRadiusLG,
-                    border: `${theme.lineWidth}px ${theme.lineType} ${theme.colorBorder}`,
                 }}
                 title={
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -246,7 +246,6 @@ const Index: FunctionComponent<IndexProps> = ({ data, updateCache }) => {
                     header: {
                         background: theme.colorBgContainer,
                         color: theme.colorText,
-                        borderBottom: `${theme.lineWidth}px ${theme.lineType} ${theme.colorBorder}`,
                     },
                     body: {
                         padding: "16px 20px 20px",

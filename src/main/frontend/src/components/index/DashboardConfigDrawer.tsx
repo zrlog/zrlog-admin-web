@@ -572,12 +572,17 @@ const DashboardConfigDrawer: FunctionComponent<DashboardConfigDrawerProps> = ({
 
     const renderAddPanelItem = () => (
         <Button
+            type="dashed"
             icon={<PlusOutlined />}
             onClick={addPanel}
             style={{
                 width: "100%",
                 height: "100%",
                 minHeight: 48,
+                borderRadius: token.borderRadius,
+                borderColor: token.colorBorderSecondary,
+                boxShadow: "none",
+                color: token.colorTextSecondary,
             }}
         >
             {res.addPluginPanel}
