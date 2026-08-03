@@ -373,9 +373,11 @@ public class AdminDtoContractTest {
         assertThrows(ArgsException.class, restartNotice::doValid);
 
         ExecuteUpgradeRequest executeUpgrade = new ExecuteUpgradeRequest();
-        assertFalse(executeUpgrade.isBackupRiskAccepted());
-        executeUpgrade.setBackupRiskAccepted(true);
-        assertTrue(executeUpgrade.isBackupRiskAccepted());
+        assertFalse(executeUpgrade.isUpgradeRiskAccepted());
+        assertThrows(ArgsException.class, executeUpgrade::doValid);
+        executeUpgrade.setUpgradeRiskAccepted(true);
+        executeUpgrade.doValid();
+        assertTrue(executeUpgrade.isUpgradeRiskAccepted());
 
         UpdatePasswordRequest password = new UpdatePasswordRequest();
         assertThrows(ArgsException.class, password::doValid);

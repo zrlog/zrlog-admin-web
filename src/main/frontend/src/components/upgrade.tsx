@@ -1,5 +1,5 @@
 import { FunctionComponent, useEffect, useRef, useState } from "react";
-import { App, Button, Card, Col, Grid, message, Row, Steps, theme } from "antd";
+import { Alert, App, Button, Card, Checkbox, Col, Grid, message, Row, Steps, theme } from "antd";
 import { CheckCircleOutlined, CloseCircleOutlined, InfoCircleOutlined, LoadingOutlined } from "@ant-design/icons";
 import Title from "antd/es/typography/Title";
 import { getRealRouteUrl, getRes } from "../utils/constants";
@@ -83,6 +83,7 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data, offline, offlineData }
         manualMessageHtml: "",
         progressItems: [],
     });
+    const [upgradeRiskAccepted, setUpgradeRiskAccepted] = useState(false);
     const { modal } = App.useApp();
 
     const [messageApi, contextHolder] = message.useMessage({ maxCount: 3 });
@@ -425,8 +426,7 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data, offline, offlineData }
         ensureUpgradeTask(getRes().upgrade.preparing);
         try {
             const response = await postRefreshCacheSse<ApiResponse<UpgradeProcessResponse>>(API_DO_UPGRADE_PATH, {
-                // Keep cached gate-enabled backends compatible while the backup gate is disabled.
-                body: { backupRiskAccepted: true },
+                body: { upgradeRiskAccepted },
                 messageApi,
                 messageKey: "upgrade",
                 onEvent: onUpgradeEvent,
@@ -477,6 +477,9 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data, offline, offlineData }
         if (!data.upgrade) {
             return true;
         }
+        if (!upgradeRiskAccepted) {
+            return true;
+        }
         return false;
     };
 
@@ -517,6 +520,24 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data, offline, offlineData }
                                         {getRes().upgrade.changeLog}
                                     </Title>
                                     <UpgradeContent data={data} />
+                                    <Alert
+                                        type="warning"
+                                        showIcon
+                                        style={{ marginTop: token.marginLG }}
+                                        message={getRes().upgrade.risk.title}
+                                        description={
+                                            <>
+                                                <div>{getRes().upgrade.risk.description}</div>
+                                                <Checkbox
+                                                    checked={upgradeRiskAccepted}
+                                                    style={{ marginTop: token.marginSM }}
+                                                    onChange={(event) => setUpgradeRiskAccepted(event.target.checked)}
+                                                >
+                                                    {getRes().upgrade.risk.acceptance}
+                                                </Checkbox>
+                                            </>
+                                        }
+                                    />
                                 </>
                             )}
                             {currentStepAlias === "doUpgrade" && (

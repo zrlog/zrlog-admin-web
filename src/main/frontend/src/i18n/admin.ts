@@ -1050,6 +1050,11 @@ const zhCN = {
         "restartCheckTimeoutDetail": "版本检查已停止，请稍后刷新页面或检查服务状态",
         "staticSyncFailed": "后台静态资源同步未完成",
         "staticSyncFailedDetail": "新版本已启动，但后台静态资源同步失败。进入后台后可手动同步静态资源",
+        "risk": {
+            "title": "更新风险确认",
+            "description": "更新会替换当前程序并可能造成短暂服务中断。请先备份数据库和重要配置，并确认具备手动恢复条件。",
+            "acceptance": "我已完成必要备份，了解并同意承担本次更新风险"
+        },
         "backupProtection": {
             "title": "更新前备份保护",
             "ready": "已通过恢复验证",
@@ -2346,6 +2351,11 @@ const enUS: AdminI18nResource = {
         "restartCheckTimeoutDetail": "Version checks stopped. Refresh the page later or check the service status",
         "staticSyncFailed": "Admin static resource sync did not complete",
         "staticSyncFailedDetail": "The new version is live, but admin static resource sync failed. Open the admin console to sync static resources manually",
+        "risk": {
+            "title": "Update risk confirmation",
+            "description": "The update replaces the current application and may briefly interrupt service. Back up the database and important configuration, and make sure manual recovery is available.",
+            "acceptance": "I have completed the necessary backups and accept the risks of this update"
+        },
         "backupProtection": {
             "title": "Pre-update backup protection",
             "ready": "Restore verification passed",

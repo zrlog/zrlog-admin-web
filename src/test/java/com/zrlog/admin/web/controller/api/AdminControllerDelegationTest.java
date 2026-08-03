@@ -499,9 +499,13 @@ public class AdminControllerDelegationTest {
             assertEquals(Boolean.FALSE, notice.getData().getUpgrade());
             assertEquals(null, notice.getData().getVersion());
 
+            setControllerRequest(controller, request(HttpMethod.POST, "/api/admin/upgrade/doUpgrade", Map.of(),
+                    Map.of("Accept", "application/json"), "{\"upgradeRiskAccepted\":false}"));
+            assertThrows(ArgsException.class, controller::doUpgrade);
+
             ResponseRecorder responseRecorder = new ResponseRecorder();
-            setControllerRequest(controller, request(HttpMethod.POST, "/api/admin/upgrade/do", Map.of(),
-                    Map.of("Accept", "application/json"), "{\"backupRiskAccepted\":true}"));
+            setControllerRequest(controller, request(HttpMethod.POST, "/api/admin/upgrade/doUpgrade", Map.of(),
+                    Map.of("Accept", "application/json"), "{\"upgradeRiskAccepted\":true}"));
             setControllerResponse(controller, responseRecorder.response());
 
             controller.doUpgrade();
@@ -511,7 +515,7 @@ public class AdminControllerDelegationTest {
             assertEquals(Boolean.TRUE, process.getFinish());
             assertTrue(process.getMessage().length() > 0);
             assertWebsiteValueContains(db, "admin_audit_log", "EXECUTE_UPGRADE");
-            assertWebsiteValueContains(db, "admin_audit_log", "backupRiskAccepted");
+            assertWebsiteValueContains(db, "admin_audit_log", "upgradeRiskAccepted");
         }
     }
 

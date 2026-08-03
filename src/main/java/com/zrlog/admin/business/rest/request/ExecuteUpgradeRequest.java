@@ -1,24 +1,28 @@
 package com.zrlog.admin.business.rest.request;
 
 import com.zrlog.common.Validator;
+import com.zrlog.common.exception.ArgsException;
 
 public class ExecuteUpgradeRequest implements Validator {
 
-    private Boolean backupRiskAccepted;
+    private Boolean upgradeRiskAccepted;
 
     @Override
     public void doValid() {
+        if (!Boolean.TRUE.equals(upgradeRiskAccepted)) {
+            throw new ArgsException("upgradeRiskAccepted");
+        }
     }
 
-    public boolean isBackupRiskAccepted() {
-        return Boolean.TRUE.equals(backupRiskAccepted);
+    public boolean isUpgradeRiskAccepted() {
+        return Boolean.TRUE.equals(upgradeRiskAccepted);
     }
 
-    public Boolean getBackupRiskAccepted() {
-        return backupRiskAccepted;
+    public Boolean getUpgradeRiskAccepted() {
+        return upgradeRiskAccepted;
     }
 
-    public void setBackupRiskAccepted(Boolean backupRiskAccepted) {
-        this.backupRiskAccepted = backupRiskAccepted;
+    public void setUpgradeRiskAccepted(Boolean upgradeRiskAccepted) {
+        this.upgradeRiskAccepted = upgradeRiskAccepted;
     }
 }
