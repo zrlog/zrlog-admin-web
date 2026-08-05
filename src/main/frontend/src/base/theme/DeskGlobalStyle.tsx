@@ -188,6 +188,11 @@ const DeskGlobalStyle: FunctionComponent = () => {
               box-shadow: ${token.boxShadowTertiary};
               padding: 12px;
             }
+            @media (max-width: 991.98px) {
+              .article-pinning-manager-label {
+                display: none;
+              }
+            }
             body.light .article-desk-list > .ant-divider {
               margin: 12px 0 4px;
             }

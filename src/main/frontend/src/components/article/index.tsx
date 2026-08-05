@@ -12,7 +12,7 @@ import { App, Button, Grid, Input, Segmented, Space, TableColumnsType, Tag, Tool
 import Divider from "antd/es/divider";
 import { getLabelValueSeparator, getRealRouteUrl, getRes } from "../../utils/constants";
 import type * as React from "react";
-import { ReactElement, useEffect, useRef, useState } from "react";
+import { ReactElement, useEffect, useMemo, useRef, useState } from "react";
 import Tags from "../../common/Tags";
 import BaseTable, { ArticlePageDataSource } from "../../common/BaseTable";
 import { Link, useNavigate } from "react-router-dom";
@@ -24,13 +24,19 @@ import BackendImage from "../../common/BackendImage";
 import HighlightText from "../../common/HighlightText";
 import ArticlePinningManager from "./ArticlePinningManager";
 import {
+    applyArticlePinningSnapshot,
     ArticlePinningEntry,
+    ArticlePinningOverride,
     canPinArticle,
     finishArticlePinningRequest,
-    toStickyMap,
+    PinnableArticle,
+    resolveArticleStickyMap,
+    toArticleStickyMap,
     tryBeginArticlePinningRequest,
     updateArticlePinning,
 } from "./article-pinning";
+import { AdminCommonProps } from "../../type";
+import { getPageDataCacheKeyByPath } from "../../utils/cache";
 
 const { Search } = Input;
 const { Text } = Typography;
@@ -56,7 +62,9 @@ const genTypes = (d: ArticlePageDataSource, search: string): ArticleTypeFilter[]
         : [];
 };
 
-const Index = ({ data, offline }: { data: ArticlePageDataSource; offline: boolean }) => {
+type ArticleListRow = PinnableArticle & Record<string, any>;
+
+const Index = ({ data, offline, updateCache }: AdminCommonProps<ArticlePageDataSource>) => {
     const screens = useBreakpoint();
     const compactToolbar = screens.lg !== true;
     const compactArticleTable = screens.md !== true;
@@ -69,8 +77,11 @@ const Index = ({ data, offline }: { data: ArticlePageDataSource; offline: boolea
     const [pinningManagerOpen, setPinningManagerOpen] = useState(false);
     const [pinningLogId, setPinningLogId] = useState<number>();
     const pinningRequestGuard = useRef(false);
-    const [stickyById, setStickyById] = useState<Map<number, number>>(
-        () => new Map((data.rows || []).map((row: any) => [row.id, Number(row.sticky) || 0]))
+    const articleRows = data.rows as ArticleListRow[];
+    const [pinningOverride, setPinningOverride] = useState<ArticlePinningOverride>();
+    const stickyById = useMemo(
+        () => resolveArticleStickyMap(articleRows, pinningOverride),
+        [articleRows, pinningOverride]
     );
 
     const surface = {
@@ -128,7 +139,9 @@ const Index = ({ data, offline }: { data: ArticlePageDataSource; offline: boolea
         },
         segmented: {
             maxWidth: "100%",
-            width: compactToolbar ? "100%" : "auto",
+            width: "auto",
+            minWidth: 0,
+            flex: compactToolbar ? "1 1 0" : "none",
         },
         thumbnailImage: {
             objectFit: "contain" as const,
@@ -220,15 +233,18 @@ const Index = ({ data, offline }: { data: ArticlePageDataSource; offline: boolea
         jumped.current = true;
     }, [filters]);
 
-    useEffect(() => {
-        setStickyById(new Map((data.rows || []).map((row: any) => [row.id, Number(row.sticky) || 0])));
-    }, [data.rows]);
-
     const getSticky = (record: any) => stickyById.get(record.id) ?? Number(record.sticky) ?? 0;
 
     const applyPinningItems = (items: ArticlePinningEntry[]) => {
-        const latest = toStickyMap(items);
-        setStickyById(new Map((data.rows || []).map((row: any) => [row.id, latest.get(row.id) || 0])));
+        const nextRows = applyArticlePinningSnapshot(articleRows, items);
+        setPinningOverride({
+            sourceRows: articleRows,
+            stickyById: toArticleStickyMap(nextRows),
+        });
+        updateCache?.(
+            { ...data, rows: nextRows as ArticlePageDataSource["rows"] },
+            getPageDataCacheKeyByPath(location.pathname, location.search)
+        );
     };
 
     const updatePinning = async (record: any) => {
@@ -481,7 +497,7 @@ const Index = ({ data, offline }: { data: ArticlePageDataSource; offline: boolea
                             style={surface.pinningManagerButton}
                             onClick={() => setPinningManagerOpen(true)}
                         >
-                            {compactToolbar ? null : pinningRes.manage}
+                            <span className="article-pinning-manager-label">{pinningRes.manage}</span>
                         </Button>
                     </Tooltip>
                 </div>
