@@ -20,6 +20,25 @@ const isAbsoluteOrSpecialUrl = (value: string) => {
     return /^(?:[a-z][a-z\d+.-]*:|#|\/\/)/i.test(value);
 };
 
+const isSafePrintableResourceUrl = (attributeName: string, value: string) => {
+    const trimmedValue = value.trim();
+    if (!trimmedValue) {
+        return true;
+    }
+    try {
+        const parsedUrl = new URL(trimmedValue, window.location.origin);
+        if (parsedUrl.protocol === "http:" || parsedUrl.protocol === "https:") {
+            return true;
+        }
+        if (attributeName === "href") {
+            return parsedUrl.protocol === "mailto:" || parsedUrl.protocol === "tel:";
+        }
+        return /^data:image\/(?:gif|jpe?g|png|webp);base64,/i.test(trimmedValue);
+    } catch {
+        return false;
+    }
+};
+
 const normalizePrintableResourceUrl = (value: string) => {
     const trimmedValue = value.trim();
     if (!trimmedValue || isAbsoluteOrSpecialUrl(trimmedValue)) {
@@ -41,15 +60,14 @@ const sanitizeArticleHtml = (html: string) => {
     doc.body.querySelectorAll("*").forEach((element) => {
         Array.from(element.attributes).forEach((attribute) => {
             const name = attribute.name.toLowerCase();
-            const normalizedValue = attribute.value.replace(/\s+/g, "").toLowerCase();
             if (name.startsWith("on")) {
                 element.removeAttribute(attribute.name);
             }
-            if ((name === "href" || name === "src") && normalizedValue.startsWith("javascript:")) {
-                element.removeAttribute(attribute.name);
-                return;
-            }
             if (name === "href" || name === "src") {
+                if (!isSafePrintableResourceUrl(name, attribute.value)) {
+                    element.removeAttribute(attribute.name);
+                    return;
+                }
                 element.setAttribute(attribute.name, normalizePrintableResourceUrl(attribute.value));
             }
         });
