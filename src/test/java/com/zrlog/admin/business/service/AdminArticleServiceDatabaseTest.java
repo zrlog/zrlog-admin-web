@@ -48,6 +48,7 @@ public class AdminArticleServiceDatabaseTest {
             assertEquals(Long.valueOf(1), response.getLogId());
             assertEquals("hello-article", row.get("alias"));
             assertEquals("Hello Article", row.get("title"));
+            assertEquals("<p>Hello Article content</p>", row.get("content"));
             assertEquals(1, ((Number) row.get("userId")).intValue());
             assertEquals(1, ((Number) row.get("typeId")).intValue());
             assertEquals(Boolean.TRUE, row.get("canComment"));
@@ -58,6 +59,23 @@ public class AdminArticleServiceDatabaseTest {
             assertNotNull(loaded.getSocialPreview());
             assertEquals(1, webSiteService.getAiMessageInfoByArticleId(response.getLogId()).getAiMessages().size());
             assertNull(db.queryOne("select value from website where name=?", "ai_chat_message_0").get("value"));
+        }
+    }
+
+    @Test
+    public void shouldRenderMarkdownWhenClientContentIsMissing() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            CreateArticleRequest request = article("Server Rendered", "server-rendered");
+            request.setContent(null);
+            request.setMarkdown("# Server Rendered\n\nfirst line\nsecond line");
+
+            CreateOrUpdateArticleResponse response = new AdminArticleService().create(token(), request);
+            Map<String, Object> row = db.queryOne(
+                    "select content, plain_content from log where logId=?", response.getLogId());
+
+            assertEquals("<h1>Server Rendered</h1>\n<p>first line<br>second line</p>\n", row.get("content"));
+            assertTrue(String.valueOf(row.get("plain_content")).contains("first line"));
+            assertTrue(String.valueOf(row.get("plain_content")).contains("second line"));
         }
     }
 
