@@ -1,6 +1,7 @@
 package com.zrlog.admin.business.service;
 
 import com.zrlog.admin.business.rest.response.UpdateRecordResponse;
+import com.zrlog.admin.business.rest.response.UploadTemplateResponse;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.common.Constants;
 import com.zrlog.common.vo.BaseTemplateVO;
@@ -16,6 +17,9 @@ import java.nio.file.Files;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -86,6 +90,69 @@ public class TemplateServiceTest {
         });
     }
 
+    @Test
+    public void shouldInstallValidatedThemePackage() throws Exception {
+        withRootPath(() -> {
+            File zipFile = createThemeZip(Map.of("index.ftl", "<html>new</html>"));
+
+            UploadTemplateResponse response = new TemplateService().upload("uploaded-theme", false, zipFile);
+
+            File installed = new File(temporaryFolder.getRoot(),
+                    "static/include/templates/uploaded-theme/index.ftl");
+            assertEquals(0, response.getError());
+            assertEquals("uploaded-theme", response.getData().getShortTemplate());
+            assertFalse(response.getData().isOverwritten());
+            assertEquals("<html>new</html>", Files.readString(installed.toPath()));
+        });
+    }
+
+    @Test
+    public void shouldRequireExplicitOverwriteAndRemoveStaleThemeFiles() throws Exception {
+        withRootPath(() -> {
+            createLocalTemplate("replace-theme");
+            File themeDir = new File(temporaryFolder.getRoot(), "static/include/templates/replace-theme");
+            File staleFile = new File(themeDir, "stale.txt");
+            Files.writeString(staleFile.toPath(), "stale", StandardCharsets.UTF_8);
+            File zipFile = createThemeZip(Map.of("index.ftl", "<html>replacement</html>"));
+            TemplateService service = new TemplateService();
+
+            UploadTemplateResponse rejected = service.upload("replace-theme", false, zipFile);
+            assertEquals(1, rejected.getError());
+            assertTrue(staleFile.exists());
+
+            UploadTemplateResponse installed = service.upload("replace-theme", true, zipFile);
+            assertEquals(0, installed.getError());
+            assertTrue(installed.getData().isOverwritten());
+            assertFalse(staleFile.exists());
+            assertEquals("<html>replacement</html>", Files.readString(new File(themeDir, "index.ftl").toPath()));
+        });
+    }
+
+    @Test
+    public void shouldRejectThemePackageThatEscapesInstallDirectory() throws Exception {
+        withRootPath(() -> {
+            File zipFile = createThemeZip(Map.of("../outside.txt", "outside"));
+
+            UploadTemplateResponse response = new TemplateService().upload("unsafe-theme", false, zipFile);
+
+            assertEquals(1, response.getError());
+            assertFalse(new File(temporaryFolder.getRoot(), "static/include/outside.txt").exists());
+            assertFalse(new File(temporaryFolder.getRoot(), "static/include/templates/unsafe-theme").exists());
+        });
+    }
+
+    @Test
+    public void shouldRejectPackageWithoutThemeMetadata() throws Exception {
+        withRootPath(() -> {
+            File zipFile = createZip(Map.of("index.ftl", "<html></html>"));
+
+            UploadTemplateResponse response = new TemplateService().upload("missing-metadata", false, zipFile);
+
+            assertEquals(1, response.getError());
+            assertFalse(new File(temporaryFolder.getRoot(), "static/include/templates/missing-metadata").exists());
+        });
+    }
+
     private String createLocalTemplate(String shortName) throws Exception {
         File templateDir = new File(temporaryFolder.getRoot(), "static/include/templates/" + shortName);
         File settingDir = new File(templateDir, "setting");
@@ -108,6 +175,28 @@ public class TemplateServiceTest {
                         + "}",
                 StandardCharsets.UTF_8);
         return Constants.TEMPLATE_BASE_PATH + shortName;
+    }
+
+    private File createThemeZip(Map<String, String> extraEntries) throws Exception {
+        Map<String, String> entries = new LinkedHashMap<>();
+        entries.put("template.properties", "name=Uploaded Theme\n"
+                + "author=ZrLog\n"
+                + "digest=Uploaded digest\n"
+                + "version=2.0.0\n");
+        entries.putAll(extraEntries);
+        return createZip(entries);
+    }
+
+    private File createZip(Map<String, String> entries) throws Exception {
+        File zipFile = temporaryFolder.newFile(UUID.randomUUID() + ".zip");
+        try (ZipOutputStream output = new ZipOutputStream(Files.newOutputStream(zipFile.toPath()))) {
+            for (Map.Entry<String, String> entry : entries.entrySet()) {
+                output.putNextEntry(new ZipEntry(entry.getKey()));
+                output.write(entry.getValue().getBytes(StandardCharsets.UTF_8));
+                output.closeEntry();
+            }
+        }
+        return zipFile;
     }
 
     private void withRootPath(ThrowingRunnable runnable) throws Exception {

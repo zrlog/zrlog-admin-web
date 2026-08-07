@@ -25,6 +25,7 @@ import { useAxiosBaseInstance } from "../../base/AppBase";
 import { getCsrData, getTimeInfoBySearchStr } from "../../api";
 import { addToCache } from "../../utils/cache";
 import TemplateCard from "./template-card";
+import ThemeUpload from "./theme-upload";
 import { Empty, Grid, Image, message, Popconfirm, Segmented, Select, Space, Statistic, Tag, Typography } from "antd";
 import Card from "antd/es/card";
 import { postRefreshCacheSse } from "../../utils/sse-utils";
@@ -287,6 +288,13 @@ const Template = ({ data }: { data: TemplateEntry[] }) => {
                         <Card>
                             <Statistic title={getRes().websiteTemplate.installedThemes} value={templateState.length} />
                         </Card>
+                        <ThemeUpload
+                            templates={templateState}
+                            onInstalled={(shortTemplate) => {
+                                setSelectedTemplateName(shortTemplate);
+                                load();
+                            }}
+                        />
                         <Link to={getRealRouteUrl(`/template-center?host=${getHost()}`)}>
                             <Button block icon={<CloudDownloadOutlined />} type="primary">
                                 {getRes().websiteTemplate.downloadMore}

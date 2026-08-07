@@ -7,6 +7,7 @@ import com.hibegin.http.server.web.cookie.Cookie;
 import com.zrlog.admin.business.rest.response.DeleteResponse;
 import com.zrlog.admin.business.rest.response.TemplateDownloadResponse;
 import com.zrlog.admin.business.rest.response.TemplateValuePreviewResponse;
+import com.zrlog.admin.business.rest.response.UploadTemplateResponse;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.common.Constants;
 import com.zrlog.common.exception.ArgsException;
@@ -24,6 +25,8 @@ import java.nio.file.Files;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -107,6 +110,36 @@ public class TemplateControllerTest {
     }
 
     @Test
+    public void shouldInstallUploadedThemeAndRecordAudit() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            withRootPath();
+            File zipFile = temporaryFolder.newFile("controller-theme.zip");
+            try (ZipOutputStream output = new ZipOutputStream(Files.newOutputStream(zipFile.toPath()))) {
+                output.putNextEntry(new ZipEntry("template.properties"));
+                output.write("name=Controller Theme\nversion=1.0.0\n".getBytes(StandardCharsets.UTF_8));
+                output.closeEntry();
+                output.putNextEntry(new ZipEntry("index.ftl"));
+                output.write("<html></html>".getBytes(StandardCharsets.UTF_8));
+                output.closeEntry();
+            }
+
+            UploadTemplateResponse response = controllerWithFile(Map.of(
+                    "shortTemplate", "controller-theme",
+                    "overwrite", "false"
+            ), zipFile, new ResponseRecorder()).upload();
+
+            assertEquals(0, response.getError());
+            assertEquals("controller-theme", response.getData().getShortTemplate());
+            assertTrue(new File(temporaryFolder.getRoot(),
+                    "static/include/templates/controller-theme/index.ftl").exists());
+            String audit = String.valueOf(db.queryOne("select value from website where name=?", "admin_audit_log")
+                    .get("value"));
+            assertTrue(audit.contains("UPLOAD_TEMPLATE"));
+            assertTrue(audit.contains("controller-theme"));
+        }
+    }
+
+    @Test
     public void shouldIgnoreConfigUpdateWhenTemplateIsBlank() throws Exception {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
             assertNotNull(controller(Map.of(), "{\"template\":\"\"}", new ResponseRecorder()).config());
@@ -171,8 +204,19 @@ public class TemplateControllerTest {
 
     private static TemplateController controller(Map<String, String> params, String body, ResponseRecorder response)
             throws Exception {
+        return controller(params, body, null, response);
+    }
+
+    private static TemplateController controllerWithFile(Map<String, String> params, File file,
+                                                         ResponseRecorder response)
+            throws Exception {
+        return controller(params, null, file, response);
+    }
+
+    private static TemplateController controller(Map<String, String> params, String body, File file,
+                                                 ResponseRecorder response) throws Exception {
         TemplateController controller = new TemplateController();
-        setControllerField(controller, "request", request(params, body));
+        setControllerField(controller, "request", request(params, body, file));
         setControllerField(controller, "response", response.response());
         return controller;
     }
@@ -183,7 +227,7 @@ public class TemplateControllerTest {
         field.set(controller, value);
     }
 
-    private static HttpRequest request(Map<String, String> params, String body) {
+    private static HttpRequest request(Map<String, String> params, String body, File file) {
         return (HttpRequest) Proxy.newProxyInstance(
                 TemplateControllerTest.class.getClassLoader(),
                 new Class[]{HttpRequest.class},
@@ -212,7 +256,7 @@ public class TemplateControllerTest {
                             }
                             return new ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8));
                         case "getFile":
-                            return null;
+                            return file;
                         case "toString":
                             return "HttpRequestProxy";
                         default:

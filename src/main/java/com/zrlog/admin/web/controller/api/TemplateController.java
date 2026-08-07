@@ -98,14 +98,22 @@ public class TemplateController extends BaseController {
     }
 
     @ResponseBody
+    @RequestMethod(method = HttpMethod.POST)
+    @RequestLock
+    @RefreshCache(async = true, updateStaticSites = StaticSiteType.BLOG)
     public UploadTemplateResponse upload() throws IOException {
         String uploadFieldName = "file";
-        File templateName = request.getFile(uploadFieldName);
-        if (Objects.isNull(templateName)) {
+        File uploadFile = request.getFile(uploadFieldName);
+        if (Objects.isNull(uploadFile)) {
             throw new ArgsException("file");
         }
-        UploadTemplateResponse response = templateService.upload("", templateName);
-        new AdminAuditService().record(request, AdminAuditAction.UPLOAD_TEMPLATE);
+        String shortTemplate = getParamWithEmptyCheck("shortTemplate");
+        boolean overwrite = Boolean.parseBoolean(request.getParaToStr("overwrite", "false"));
+        UploadTemplateResponse response = templateService.upload(shortTemplate, overwrite, uploadFile);
+        if (response.getError() == 0 && Objects.nonNull(response.getData())) {
+            new AdminAuditService().record(request, AdminAuditAction.UPLOAD_TEMPLATE,
+                    response.getData().getShortTemplate());
+        }
         return response;
     }
 

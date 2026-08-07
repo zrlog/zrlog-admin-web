@@ -71,6 +71,7 @@ public class AdminNativeImageUtils {
                 AdminSsePayloads.Message.class, AdminSsePayloads.Tool.class, AdminSsePayloads.Error.class,
                 UserInfoResponse.class, UserBasicInfoResponse.class, AdminTokenVO.class, AdminFullTokenVO.class,
                 VersionResponse.class, PublicVersionResponse.class, PluginStatusResponse.class, UploadTemplateResponse.class,
+                UploadTemplateResponse.UploadTemplateData.class,
                 DeleteResponse.class, DeleteResponse.DeleteResponseData.class, UpdateRecordResponse.class,
                 LoadEditArticleResponse.class, ServerInfo.class,
                 SystemResponse.class, ErrorPageResponse.class, DevInfoResponse.class, WebsiteKvEntryResponse.class,
