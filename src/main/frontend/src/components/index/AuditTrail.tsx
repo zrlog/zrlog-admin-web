@@ -1,10 +1,11 @@
-import { Button, Card, Drawer, Tag, Timeline, Typography } from "antd";
-import { EditOutlined, HistoryOutlined, LoginOutlined, RightOutlined, SettingOutlined } from "@ant-design/icons";
+import { Card, Drawer, Tag, Timeline, Typography } from "antd";
+import { EditOutlined, HistoryOutlined, LoginOutlined, SettingOutlined } from "@ant-design/icons";
 import TimeAgo from "@editor/dist/editor/TimeAgo";
 import React, { useState } from "react";
 import { getRes } from "../../utils/constants";
 import { useTheme } from "antd-style";
 import { StatisticsInfoState } from "../../type";
+import DashboardCardAction from "./DashboardCardAction";
 
 const { Text } = Typography;
 
@@ -93,14 +94,9 @@ const AuditTrail: React.FC<AuditTrailProps> = ({ data }) => {
                 }
                 extra={
                     logs.length > 3 && (
-                        <Button
-                            type="link"
-                            size="small"
-                            style={{ color: theme.colorPrimary }}
-                            onClick={() => setDrawerVisible(true)}
-                        >
-                            {getRes().index.audit.more} <RightOutlined />
-                        </Button>
+                        <DashboardCardAction onClick={() => setDrawerVisible(true)}>
+                            {getRes().index.audit.more}
+                        </DashboardCardAction>
                     )
                 }
                 bordered={false}

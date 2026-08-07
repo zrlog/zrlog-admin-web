@@ -17,8 +17,7 @@ import StatisticsInfo from "./StatisticsInfo";
 import QuickActionCard from "./QuickAction";
 import DataInsights from "./DataInsights";
 import AuditTrail from "./AuditTrail";
-import { BarChartOutlined, InfoCircleOutlined, RightOutlined, SmileOutlined } from "@ant-design/icons";
-import { Link } from "react-router-dom";
+import { BarChartOutlined, InfoCircleOutlined, SmileOutlined } from "@ant-design/icons";
 import { useAxiosBaseInstance } from "../../base/AppBase";
 import PluginSurfacePanels from "./PluginSurfacePanels";
 import DashboardConfigDrawer from "./DashboardConfigDrawer";
@@ -27,6 +26,7 @@ import { getPageDataCacheKeyByPath } from "../../utils/cache";
 import LocalDraftCard from "./LocalDraftCard";
 import { getLocalArticleCaches } from "../../utils/article-cache";
 import { useTheme } from "antd-style";
+import DashboardCardAction from "./DashboardCardAction";
 
 type IndexProps = AdminCommonProps<IndexData>;
 type WelcomeCardData = {
@@ -227,19 +227,9 @@ const Index: FunctionComponent<IndexProps> = ({ data, updateCache }) => {
                             subtle
                             onSaved={updateIndexData}
                         />
-                        <Link
-                            to={getRealRouteUrl("/system")}
-                            style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: 6,
-                                color: theme.colorText,
-                                whiteSpace: "nowrap",
-                            }}
-                        >
-                            <span>{getRes().index.welcome.viewSystem}</span>
-                            <RightOutlined />
-                        </Link>
+                        <DashboardCardAction to={getRealRouteUrl("/system")}>
+                            {getRes().index.welcome.viewSystem}
+                        </DashboardCardAction>
                     </div>
                 }
                 styles={{
