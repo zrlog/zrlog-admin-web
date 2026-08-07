@@ -5,17 +5,17 @@
     <parent>
         <groupId>com.hibegin</groupId>
         <artifactId>zrlog-base</artifactId>
-        <version>3.5.9-SNAPSHOT</version>
+        <version>3.5.10-SNAPSHOT</version>
     </parent>
     <artifactId>zrlog-admin-web</artifactId>
-    <version>3.5.9-SNAPSHOT</version>
+    <version>3.5.10-SNAPSHOT</version>
     <modelVersion>4.0.0</modelVersion>
 
     <properties>
         <finalName>zrlog-admin-web</finalName>
         <libOutputPath>lib</libOutputPath>
         <frontendBuildOutputPath>../resources/admin</frontendBuildOutputPath>
-        <zrlog-xx-template.version>3.5.8-SNAPSHOT</zrlog-xx-template.version>
+        <zrlog-xx-template.version>3.5.9-SNAPSHOT</zrlog-xx-template.version>
         <gpg.passphrase/>
     </properties>
 
