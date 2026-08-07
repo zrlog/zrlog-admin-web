@@ -19,7 +19,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useLocation } from "react-router";
 import { getAppState } from "../../base/ConfigProviderApp";
 import { ArticlePreviewAction } from "./ArticlePreviewAction";
-import { removeCacheDataByKey } from "../../utils/cache";
+import { getPageDataCacheKeyByPath, removeCacheDataByKey } from "../../utils/cache";
 import BackendImage from "../../common/BackendImage";
 import HighlightText from "../../common/HighlightText";
 import ArticlePinningManager from "./ArticlePinningManager";
@@ -36,7 +36,7 @@ import {
     updateArticlePinning,
 } from "./article-pinning";
 import { AdminCommonProps } from "../../type";
-import { getPageDataCacheKeyByPath } from "../../utils/cache";
+import styled from "styled-components";
 
 const { Search } = Input;
 const { Text } = Typography;
@@ -64,9 +64,72 @@ const genTypes = (d: ArticlePageDataSource, search: string): ArticleTypeFilter[]
 
 type ArticleListRow = PinnableArticle & Record<string, any>;
 
+const StyledArticleList = styled.div<{ $gap: number }>`
+    .article-desk-list-toolbar {
+        align-items: center;
+        display: flex;
+        flex-flow: row wrap;
+        gap: ${({ $gap }) => $gap}px;
+        justify-content: space-between;
+    }
+
+    .article-desk-list-toolbar-controls {
+        align-items: center;
+        display: flex;
+        flex: 1 1 0;
+        gap: ${({ $gap }) => $gap}px;
+        min-width: 0;
+    }
+
+    .article-status-segmented {
+        flex: none;
+        max-width: 100%;
+        min-width: 0;
+        width: auto;
+    }
+
+    .article-desk-list-search {
+        max-width: 100%;
+        width: 260px;
+    }
+
+    .article-pinning-manager-button {
+        flex: none;
+    }
+
+    @media (max-width: 991.98px) {
+        .article-desk-list-toolbar {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .article-desk-list-toolbar-controls {
+            flex: none;
+            width: 100%;
+        }
+
+        .article-status-segmented {
+            display: flex;
+            flex: 1 1 0;
+        }
+
+        .article-status-segmented .ant-segmented-item {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .article-desk-list-search {
+            width: 100%;
+        }
+
+        .article-pinning-manager-label {
+            display: none;
+        }
+    }
+`;
+
 const Index = ({ data, offline, updateCache }: AdminCommonProps<ArticlePageDataSource>) => {
     const screens = useBreakpoint();
-    const compactToolbar = screens.lg !== true;
     const compactArticleTable = screens.md !== true;
     const location = useLocation();
     const navigate = useNavigate();
@@ -117,32 +180,6 @@ const Index = ({ data, offline, updateCache }: AdminCommonProps<ArticlePageDataS
         compactTypeTag: {
             marginInlineEnd: 0,
         },
-        toolbar: {
-            justifyContent: "space-between",
-            display: "flex",
-            alignItems: compactToolbar ? ("stretch" as const) : ("center" as const),
-            gap: token.margin,
-            flexWrap: "wrap" as const,
-            flexDirection: compactToolbar ? ("column" as const) : ("row" as const),
-        },
-        toolbarControlWrap: {
-            display: "flex",
-            alignItems: "center",
-            gap: token.margin,
-            flex: 1,
-            minWidth: 0,
-            width: "100%",
-        },
-        search: {
-            width: compactToolbar ? "100%" : 260,
-            maxWidth: "100%",
-        },
-        segmented: {
-            maxWidth: "100%",
-            width: "auto",
-            minWidth: 0,
-            flex: compactToolbar ? "1 1 0" : "none",
-        },
         thumbnailImage: {
             objectFit: "contain" as const,
             maxHeight: 108,
@@ -152,9 +189,6 @@ const Index = ({ data, offline, updateCache }: AdminCommonProps<ArticlePageDataS
         },
         pinActionIcon: {
             color: token.colorPrimary,
-        },
-        pinningManagerButton: {
-            flexShrink: 0,
         },
     };
 
@@ -479,22 +513,21 @@ const Index = ({ data, offline, updateCache }: AdminCommonProps<ArticlePageDataS
     const [searchKey, setSearchKey] = useState<string>(data.key ? data.key : "");
 
     return (
-        <div className="article-desk-list">
-            <div className="article-desk-list-toolbar" style={surface.toolbar}>
-                <div style={surface.toolbarControlWrap}>
+        <StyledArticleList className="article-desk-list" $gap={token.margin}>
+            <div className="article-desk-list-toolbar">
+                <div className="article-desk-list-toolbar-controls">
                     <Segmented
+                        className="article-status-segmented"
                         options={statusOptions}
                         value={currentStatus}
                         onChange={handleStatusChange}
-                        block={compactToolbar}
-                        style={surface.segmented}
                     />
                     <Tooltip title={pinningRes.manage}>
                         <Button
+                            className="article-pinning-manager-button"
                             icon={<PushpinOutlined />}
                             aria-label={pinningRes.manage}
                             disabled={offline || pinningLogId !== undefined}
-                            style={surface.pinningManagerButton}
                             onClick={() => setPinningManagerOpen(true)}
                         >
                             <span className="article-pinning-manager-label">{pinningRes.manage}</span>
@@ -508,7 +541,7 @@ const Index = ({ data, offline, updateCache }: AdminCommonProps<ArticlePageDataS
                     onSearch={onSearch}
                     defaultValue={data.key}
                     enterButton={getRes().article.search}
-                    style={surface.search}
+                    className="article-desk-list-search"
                 />
             </div>
             <Divider />
@@ -571,7 +604,7 @@ const Index = ({ data, offline, updateCache }: AdminCommonProps<ArticlePageDataS
                 onOpenChange={setPinningManagerOpen}
                 onItemsChange={applyPinningItems}
             />
-        </div>
+        </StyledArticleList>
     );
 };
 
