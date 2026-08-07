@@ -14,7 +14,6 @@ import com.zrlog.admin.business.rest.base.ArticleEditWebSiteInfo;
 import com.zrlog.admin.business.rest.request.CreateArticleRequest;
 import com.zrlog.admin.business.rest.request.UpdateArticleRequest;
 import com.zrlog.admin.business.rest.response.*;
-import com.zrlog.blog.polyglot.markdown.MarkdownJsRenderer;
 import com.zrlog.business.plugin.StaticSitePlugin;
 import com.zrlog.common.Constants;
 import com.zrlog.common.cache.dto.TypeDTO;
@@ -52,10 +51,6 @@ public class AdminArticleService {
 
     private static final Logger LOGGER = LoggerUtil.getLogger(AdminArticleService.class);
     private final ArticleVersionService articleVersionService = new ArticleVersionService(this);
-
-    private static class MarkdownRendererHolder {
-        private static final MarkdownJsRenderer INSTANCE = new MarkdownJsRenderer();
-    }
 
     private Lock getWriteLock(AdminTokenVO adminTokenVO, Integer logId) {
         return new DistributedLock("write_article_" + adminTokenVO.getSessionId() + "_" + ObjectUtil.requireNonNullElse(logId, Integer.MAX_VALUE));
@@ -198,11 +193,7 @@ public class AdminArticleService {
             log.put("logId", articleId);
             log.put("sticky", 0);
         }
-        String content = createArticleRequest.getContent();
-        if (StringUtils.isEmpty(content) && Objects.equals("markdown", createArticleRequest.getEditorType())) {
-            content = MarkdownRendererHolder.INSTANCE.render(createArticleRequest.getMarkdown());
-        }
-        log.put("content", content);
+        log.put("content", createArticleRequest.getContent());
         log.put("title", Jsoup.clean(createArticleRequest.getTitle(), Safelist.basic()));
         if (StringUtils.isNotEmpty(createArticleRequest.getKeywords())) {
             log.put("keywords", Jsoup.clean(createArticleRequest.getKeywords(), Safelist.basic()));

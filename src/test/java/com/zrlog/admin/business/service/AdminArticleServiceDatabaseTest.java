@@ -63,23 +63,6 @@ public class AdminArticleServiceDatabaseTest {
     }
 
     @Test
-    public void shouldRenderMarkdownWhenClientContentIsMissing() throws Exception {
-        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-            CreateArticleRequest request = article("Server Rendered", "server-rendered");
-            request.setContent(null);
-            request.setMarkdown("# Server Rendered\n\nfirst line\nsecond line");
-
-            CreateOrUpdateArticleResponse response = new AdminArticleService().create(token(), request);
-            Map<String, Object> row = db.queryOne(
-                    "select content, plain_content from log where logId=?", response.getLogId());
-
-            assertEquals("<h1>Server Rendered</h1>\n<p>first line<br>second line</p>\n", row.get("content"));
-            assertTrue(String.valueOf(row.get("plain_content")).contains("first line"));
-            assertTrue(String.valueOf(row.get("plain_content")).contains("second line"));
-        }
-    }
-
-    @Test
     public void shouldPreserveUnsavedDraftAiMessagesForIndependentCreate() throws Exception {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
             AdminArticleService service = new AdminArticleService();

@@ -32,6 +32,8 @@ import {
 } from "./draft-sync/article-draft-sync-helpers";
 import useTransparentPublish from "./use-transparent-publish";
 import { AIContent } from "@editor/dist/ai/AIContentItem";
+import { renderMissingMarkdownContent } from "./article-save-content";
+import { markdownToHtml } from "@editor/dist/editor/utils/marked-utils";
 
 const ARTICLE_UPDATE_EXPIRED_ERROR = 9094;
 
@@ -396,6 +398,7 @@ const useArticleSaveCoordinator = ({
         enableExitTips(getRes().articleEdit.editExitWithoutSave);
         let saveSucceeded = false;
         try {
+            newArticle = await renderMissingMarkdownContent(newArticle, markdownToHtml);
             let responseData;
             try {
                 const response = newArticle.transparentPublish
