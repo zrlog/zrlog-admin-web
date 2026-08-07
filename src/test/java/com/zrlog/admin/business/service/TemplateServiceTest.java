@@ -7,6 +7,7 @@ import com.zrlog.common.Constants;
 import com.zrlog.common.vo.BaseTemplateVO;
 import com.zrlog.common.vo.TemplateVO;
 import com.zrlog.model.WebSite;
+import com.zrlog.util.StaticFileCacheUtils;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -24,6 +25,7 @@ import java.util.zip.ZipOutputStream;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
 public class TemplateServiceTest {
@@ -113,7 +115,16 @@ public class TemplateServiceTest {
             File themeDir = new File(temporaryFolder.getRoot(), "static/include/templates/replace-theme");
             File staleFile = new File(themeDir, "stale.txt");
             Files.writeString(staleFile.toPath(), "stale", StandardCharsets.UTF_8);
-            File zipFile = createThemeZip(Map.of("index.ftl", "<html>replacement</html>"));
+            File oldCss = new File(themeDir, "assets/theme.css");
+            assertTrue(oldCss.getParentFile().mkdirs());
+            Files.writeString(oldCss.toPath(), "old-content", StandardCharsets.UTF_8);
+            StaticFileCacheUtils cacheUtils = StaticFileCacheUtils.getInstance();
+            cacheUtils.refreshCacheFileMap();
+            String oldTag = cacheUtils.getFileFlagFirstByCache(
+                    "/include/templates/replace-theme/assets/theme.css");
+            File zipFile = createThemeZip(Map.of(
+                    "index.ftl", "<html>replacement</html>",
+                    "assets/theme.css", "new-content"));
             TemplateService service = new TemplateService();
 
             UploadTemplateResponse rejected = service.upload("replace-theme", false, zipFile);
@@ -125,6 +136,9 @@ public class TemplateServiceTest {
             assertTrue(installed.getData().isOverwritten());
             assertFalse(staleFile.exists());
             assertEquals("<html>replacement</html>", Files.readString(new File(themeDir, "index.ftl").toPath()));
+            assertTrue(cacheUtils.isCacheableByRequest("/include/templates/replace-theme/assets/theme.css"));
+            assertNotEquals(oldTag, cacheUtils.getFileFlagFirstByCache(
+                    "/include/templates/replace-theme/assets/theme.css"));
         });
     }
 
@@ -210,6 +224,7 @@ public class TemplateServiceTest {
             } else {
                 System.setProperty("sws.root.path", previousRootPath);
             }
+            StaticFileCacheUtils.getInstance().refreshCacheFileMap();
         }
     }
 

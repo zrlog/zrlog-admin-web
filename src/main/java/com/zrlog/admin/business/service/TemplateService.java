@@ -14,6 +14,7 @@ import com.zrlog.common.vo.BaseTemplateVO;
 import com.zrlog.common.vo.TemplateVO;
 import com.zrlog.model.WebSite;
 import com.zrlog.util.I18nUtil;
+import com.zrlog.util.StaticFileCacheUtils;
 import com.zrlog.util.ZrLogUtil;
 import org.jsoup.Jsoup;
 import org.jsoup.safety.Safelist;
@@ -135,6 +136,7 @@ public class TemplateService {
             cleanPathQuietly(staging);
             if (installed) {
                 cleanPathQuietly(backup);
+                StaticFileCacheUtils.getInstance().refreshCacheFileMap();
             }
         }
     }
