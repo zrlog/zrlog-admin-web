@@ -48,6 +48,7 @@
     "ws": "8.21.0"
   },
   "scripts": {
+    "api-docs:check": "node ../../../scripts/check-api-docs.mjs",
     "lint": "yarn type-check",
     "prepare": "cd ../../../ && husky install src/main/frontend/.husky",
     "pre-commit": "yarn lint",

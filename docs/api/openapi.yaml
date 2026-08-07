@@ -1,0 +1,189 @@
+openapi: 3.1.0
+info:
+  title: ZrLog Admin Web API
+  version: 3.5.9-SNAPSHOT
+  description: |-
+    ZrLog 后台管理接口契约。本文档采用渐进式覆盖，未列出的遗留接口不代表不存在。
+    路径不包含部署 context path；跨接口约定见 docs/api/conventions.md。
+x-zrlog-id: admin-web
+x-zrlog-display-name: 后台管理 API
+x-zrlog-owner-repository: https://github.com/zrlog/zrlog-admin-web
+x-zrlog-source-path: docs/api/openapi.yaml
+x-zrlog-audience: authenticated-admin
+externalDocs:
+  description: ZrLog API 文档网页
+  url: https://www.zrlog.com/docs/api?source=admin-web
+servers:
+  - url: "{baseUrl}"
+    description: ZrLog 后台服务基础地址，包含可选的 context path
+    variables:
+      baseUrl:
+        default: http://localhost:17080/sub
+tags:
+  - name: Template
+    description: 主题安装与管理
+paths:
+  /api/admin/template/upload:
+    post:
+      tags:
+        - Template
+      summary: 上传或覆盖主题
+      description: |-
+        上传 ZIP 主题包。`shortTemplate` 来自主题包文件名去掉 `.zip` 后的值。
+        新主题应传 `overwrite=false`；覆盖已有可删除主题前，调用方应先向用户确认并传 `overwrite=true`。
+        内置主题不能覆盖。主题包可以直接包含主题文件，也可以包含一个外层目录。
+
+        服务端在安装前校验主题标识、ZIP 路径、文件数量、解压总大小、主题元数据和入口模板。
+        覆盖时先备份旧目录，安装失败会尝试恢复。上传成功不会自动切换当前主题。
+      operationId: uploadTemplate
+      x-zrlog-controller: com.zrlog.admin.web.controller.api.TemplateController#upload
+      x-zrlog-response-kind: action
+      x-zrlog-side-effects:
+        - 创建或完整替换主题目录
+        - 成功后记录 UPLOAD_TEMPLATE 管理审计
+        - 异步刷新博客缓存并更新静态站状态
+      security:
+        - AdminTokenHeader: []
+        - AdminTokenCookie: []
+      parameters:
+        - name: shortTemplate
+          in: query
+          required: true
+          description: 主题唯一标识，应与上传 ZIP 文件名去掉扩展名后的值一致
+          schema:
+            type: string
+            pattern: "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+          example: sheshui
+        - name: overwrite
+          in: query
+          required: false
+          description: 是否允许完整替换已存在的非内置主题
+          schema:
+            type: boolean
+            default: false
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: |-
+                    ZIP 主题包。最多 5000 个条目，解压后总大小不超过 100 MB；
+                    必须包含受支持的主题元数据和入口模板。
+      responses:
+        "200":
+          description: |-
+            请求已处理。调用方仍需检查响应中的 `error`：0 表示安装成功，非零表示业务拒绝或主题包无效。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadTemplateResponse"
+              examples:
+                installed:
+                  summary: 新主题安装成功
+                  value:
+                    error: 0
+                    message: 主题已上传
+                    data:
+                      shortTemplate: sheshui
+                      name: 涉水
+                      version: 1.0.0
+                      overwritten: false
+                overwritten:
+                  summary: 已有主题覆盖成功
+                  value:
+                    error: 0
+                    message: 主题已上传
+                    data:
+                      shortTemplate: sheshui
+                      name: 涉水
+                      version: 1.1.0
+                      overwritten: true
+                rejected:
+                  summary: 未确认覆盖已有主题
+                  value:
+                    error: 1
+                    message: 主题已存在，请确认覆盖后重试
+        "401":
+          description: 管理员凭证缺失或无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorResponse"
+        default:
+          description: 参数缺失或未处理错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorResponse"
+components:
+  securitySchemes:
+    AdminTokenHeader:
+      type: apiKey
+      in: header
+      name: X-ZrLog-Admin-Token
+      description: 管理员令牌；存在时优先于 Cookie
+    AdminTokenCookie:
+      type: apiKey
+      in: cookie
+      name: admin-token
+      description: 后台登录建立的管理员会话 Cookie
+  schemas:
+    ApiErrorResponse:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: integer
+          description: 非零业务错误码
+          minimum: 1
+        message:
+          type: string
+          description: 本地化错误消息
+    UploadTemplateResponse:
+      oneOf:
+        - $ref: "#/components/schemas/UploadTemplateSuccessResponse"
+        - $ref: "#/components/schemas/ApiErrorResponse"
+    UploadTemplateSuccessResponse:
+      type: object
+      required:
+        - error
+        - message
+        - data
+      properties:
+        error:
+          type: integer
+          const: 0
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/UploadTemplateData"
+    UploadTemplateData:
+      type: object
+      required:
+        - shortTemplate
+        - name
+        - overwritten
+      properties:
+        shortTemplate:
+          type: string
+          pattern: "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+        name:
+          type: string
+          description: 主题元数据中的展示名称，缺失时回退为 shortTemplate
+        version:
+          type:
+            - string
+            - "null"
+          description: 主题元数据中的版本，未声明时为 null 或不输出
+        overwritten:
+          type: boolean
+          description: 本次安装是否替换了已有主题目录

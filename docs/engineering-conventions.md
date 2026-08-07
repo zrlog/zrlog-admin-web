@@ -19,6 +19,7 @@
 
 ## 接口和 DTO
 
+- 后台 API 文档统一从 [`api/README.md`](api/README.md) 进入。新增或修改接口时必须同步维护 `api/openapi.yaml`，并显式声明 HTTP 方法、鉴权、参数来源、响应类型和副作用。
 - 新增或调整接口时优先使用 typed DTO，不要用临时 `Map` 贯穿业务逻辑。
 - 保持已有 JSON 字段名和兼容语义。确实需要改字段时，先确认消费方和迁移策略。
 - 新增会被 Gson 序列化或反序列化的 request、response、VO、嵌套类时，必须同步维护 native image 注册，详见 [Native Image 规则](native-image.md)。

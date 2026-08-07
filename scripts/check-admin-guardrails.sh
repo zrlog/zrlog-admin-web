@@ -171,6 +171,9 @@ if [ "$FULL" -eq 1 ]; then
     section "Backend compile"
     mvn -q -DskipTests compile
 
+    section "API documentation contract"
+    (cd src/main/frontend && yarn api-docs:check)
+
     section "Frontend type check"
     (cd src/main/frontend && yarn type-check)
 

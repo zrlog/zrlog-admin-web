@@ -1,6 +1,6 @@
 # AGENTS.md
 
-这份文档是 AI Agent 在 `zrlog-admin-web` 工程内工作的入口规则。进入本仓库后，先读本文件，再按任务打开 `docs/engineering-conventions.md`、具体 controller/service、前端页面或 `zrlog-ops` 验收规则。
+这份文档是 AI Agent 在 `zrlog-admin-web` 工程内工作的入口规则。进入本仓库后，先读本文件，再按任务打开 `docs/engineering-conventions.md`、具体 controller/service、前端页面或 `zrlog-ops` 验收规则。涉及后台 API 时，先查 `docs/api/README.md` 和 `docs/api/openapi.yaml`。
 
 ## 工程定位
 
@@ -30,6 +30,7 @@
 - 保持 admin/plugin 边界：admin 只负责容器、协议、通用渲染、通用控制和运行时状态展示；插件保留业务接口、业务数据和动作处理。
 - 涉及 URL、资源地址、插件地址或 context path 时，必须检查后端生成、前端拼接、页面显示、表单提交和持久化完整链路，避免重复拼接。
 - 新增接口结构优先使用 typed DTO，并同步维护 native image 注册；不要用临时 `Map` 贯穿业务逻辑。
+- 新增或修改后台 API 时同步维护 `docs/api/openapi.yaml`，记录鉴权、响应边界、失败语义和副作用。
 - 不做无关重构，不引入无关依赖，不改变构建、发布、目录和运行约定。
 
 ## 构建与验证
