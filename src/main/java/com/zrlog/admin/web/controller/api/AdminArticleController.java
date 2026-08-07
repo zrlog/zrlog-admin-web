@@ -3,6 +3,8 @@ package com.zrlog.admin.web.controller.api;
 import com.google.gson.Gson;
 import com.hibegin.common.util.LoggerUtil;
 import com.hibegin.common.util.StringUtils;
+import com.hibegin.http.HttpMethod;
+import com.hibegin.http.annotation.RequestMethod;
 import com.hibegin.http.annotation.ResponseBody;
 import com.zrlog.admin.business.ai.dto.AIStreamResponse;
 import com.zrlog.admin.business.ai.service.AIChatService;
@@ -87,6 +89,7 @@ public class AdminArticleController extends BaseController {
         return detail;
     }
 
+    @RequestMethod(method = HttpMethod.POST)
     public void create() throws SQLException, IOException {
         CreateArticleRequest body = getRequestBodyWithNullCheck(CreateArticleRequest.class);
         AdminTokenVO adminToken = AdminTokenThreadLocal.getUser();
@@ -103,6 +106,7 @@ public class AdminArticleController extends BaseController {
         renderArticleSaveResponse(body, create);
     }
 
+    @RequestMethod(method = HttpMethod.POST)
     public void update() throws SQLException, IOException {
         UpdateArticleRequest body = getRequestBodyWithNullCheck(UpdateArticleRequest.class);
         AdminTokenVO adminToken = AdminTokenThreadLocal.getUser();

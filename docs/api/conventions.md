@@ -1,5 +1,7 @@
 # 后台 API 约定
 
+本约定适用于 `openapi.yaml` 中记录的受支持后台接口。未记录的 `/api/admin` 路由属于后台 UI 内部实现，不应仅根据 Controller 或前端调用推断为稳定公共接口。
+
 ## 路径与 Context Path
 
 OpenAPI `paths` 只记录应用内路径，例如 `/api/admin/template/upload`，不包含部署时的 context path。调用方应在基础地址中统一添加 context path；本地开发后端默认基础地址为 `http://localhost:17080/sub`。
@@ -8,7 +10,7 @@ OpenAPI `paths` 只记录应用内路径，例如 `/api/admin/template/upload`�
 
 ## HTTP 方法与参数
 
-- 新增或修改接口必须显式声明 HTTP 方法，不能依赖框架默认值。
+- 文档中的接口必须显式声明 HTTP 方法，不能依赖框架默认值。
 - 查询条件使用 query 参数；结构化写入使用 JSON request body；文件上传使用 `multipart/form-data`。
 - 修改、删除、上传和触发任务等有副作用的操作使用 `POST`，除非已有兼容契约要求其他方法。
 - 参数来源必须在 OpenAPI 中明确，不能只依赖前端调用示例推断。
@@ -50,7 +52,7 @@ OpenAPI `paths` 只记录应用内路径，例如 `/api/admin/template/upload`�
 
 ## 副作用
 
-OpenAPI 操作必须在描述或 `x-zrlog-side-effects` 中记录调用方无法从 Schema 看出的行为，包括：
+OpenAPI 中记录的操作必须在描述或 `x-zrlog-side-effects` 中说明调用方无法从 Schema 看出的行为，包括：
 
 - 数据库写入与审计记录
 - 文件创建、替换或删除

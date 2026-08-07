@@ -2,6 +2,8 @@ package com.zrlog.admin.web.controller.api;
 
 import com.hibegin.common.util.FileUtils;
 import com.hibegin.common.util.IOUtil;
+import com.hibegin.http.HttpMethod;
+import com.hibegin.http.annotation.RequestMethod;
 import com.hibegin.http.annotation.ResponseBody;
 import com.hibegin.http.server.util.PathUtil;
 import com.hibegin.http.server.web.Controller;
@@ -24,6 +26,7 @@ public class UploadController extends Controller {
     //private static final Logger LOGGER = LoggerUtil.getLogger(UploadController.class);
 
     @ResponseBody
+    @RequestMethod(method = HttpMethod.POST)
     public ApiStandardResponse<UploadFileResponse> index() throws IOException, SQLException {
         String uploadFieldName = "imgFile";
         File imgFile = request.getFile(uploadFieldName);

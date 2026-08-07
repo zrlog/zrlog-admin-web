@@ -19,7 +19,8 @@
 
 ## 接口和 DTO
 
-- 后台 API 文档统一从 [`api/README.md`](api/README.md) 进入。新增或修改接口时必须同步维护 `api/openapi.yaml`，并显式声明 HTTP 方法、鉴权、参数来源、响应类型和副作用。
+- 后台 API 文档统一从 [`api/README.md`](api/README.md) 进入。`api/openapi.yaml` 只维护已发布或明确支持的关键接口，不要求枚举全部后台路由；文档中的接口发生变化时必须同步维护方法、鉴权、参数来源、响应类型和副作用。
+- 新后台路由默认视为 admin UI 内部实现。只有业务边界稳定、对自动化调用有独立价值、兼容责任明确并经过显式评审后，才进入 OpenAPI 受支持范围。
 - 新增或调整接口时优先使用 typed DTO，不要用临时 `Map` 贯穿业务逻辑。
 - 保持已有 JSON 字段名和兼容语义。确实需要改字段时，先确认消费方和迁移策略。
 - 新增会被 Gson 序列化或反序列化的 request、response、VO、嵌套类时，必须同步维护 native image 注册，详见 [Native Image 规则](native-image.md)。

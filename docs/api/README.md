@@ -10,7 +10,9 @@
 
 人类可浏览的聚合页面由 `zrlog-www` 提供：`https://www.zrlog.com/docs/api?source=admin-web`。该页面读取本仓库契约，不拥有或改写接口定义。
 
-当前采用渐进式覆盖，首个完整样板是 `POST /api/admin/template/upload`。遗留接口可以逐步补齐，但新增或修改接口时必须同步维护 OpenAPI 契约。
+本文档只维护业务边界稳定、对自动化调用有独立价值且愿意承担兼容责任的关键接口，不是后台路由清单。未列出的后台路由仍可能存在，但属于 admin UI 内部实现，不承诺对第三方调用保持兼容。
+
+当前记录主题上传、文章创建与更新、通用附件上传。博客前台公开 `/api` 文档由 `zrlog-blog-web` 独立维护，不受后台文档范围影响。
 
 ## 查找接口
 
@@ -27,9 +29,20 @@ rg -n '/api/admin/template/upload|operationId: uploadTemplate' docs/api/openapi.
 - `stream`：SSE 或其他流式响应，必须单独记录事件协议。
 - `download`：文件或导出响应，不使用 JSON 响应包装。
 
+## 文档范围
+
+适合写入 OpenAPI 文档的接口应同时满足：
+
+- 调用目标可以脱离某个具体后台页面独立描述。
+- 鉴权、参数、响应、错误和副作用已经稳定。
+- 对脚本、集成或 AI 辅助调用有明确价值。
+- 维护者愿意为已发布字段和行为承担兼容责任。
+
+以下路由默认不写入：页面初始化数据、预览或搜索辅助、轮询、AI 助手内部流程、开发与错误测试入口、临时上传路径，以及插件私有业务接口。确有外部价值时，应单独评审并明确支持，不能因为路由已经存在就自动公开。
+
 ## 维护接口
 
-新增或修改 API 时同时完成以下事项：
+维护文档中的 API，或明确支持新 API 时，同时完成以下事项：
 
 1. 在 `AdminRouters` 和 Controller 中确认真实路径与方法；变更接口必须显式声明 HTTP 方法。
 2. 使用 typed request/response DTO，不用临时 `Map` 代替稳定协议。
@@ -38,6 +51,8 @@ rg -n '/api/admin/template/upload|operationId: uploadTemplate' docs/api/openapi.
 5. 为每个操作填写稳定且唯一的 `operationId`、`x-zrlog-controller` 和 `x-zrlog-response-kind`。
 6. DTO 有变化时同步维护 Native Image 注册和协议测试。
 7. 运行文档校验和相关代码测试。
+
+新建或修改一个尚未记录的内部路由，不需要仅为追求数量而补入 OpenAPI。反过来，文档中接口的实现、DTO 或错误语义发生变化时，必须在同一改动中更新；移除已记录接口前必须先给出兼容和迁移方案。
 
 ```shell
 cd src/main/frontend
