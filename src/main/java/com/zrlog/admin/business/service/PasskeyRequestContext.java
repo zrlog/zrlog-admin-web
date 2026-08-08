@@ -27,23 +27,11 @@ public class PasskeyRequestContext {
     }
 
     public Context resolve(HttpRequest request) {
-        return resolve(request, true);
-    }
-
-    public Context resolvePage(HttpRequest request) {
-        return resolve(request, false);
-    }
-
-    private Context resolve(HttpRequest request, boolean originRequired) {
         try {
             String originHeader = request.getHeader("Origin");
             String hostHeader = request.getHeader("Host");
             String requestScheme = Objects.toString(request.getScheme(), "").split(",", 2)[0].trim()
                     .toLowerCase(Locale.ROOT);
-            if (originHeader == null && !originRequired) {
-                hostHeader = normalizeGeneratedPageHost(hostHeader);
-                originHeader = requestScheme + "://" + Objects.toString(hostHeader, "").trim();
-            }
             if (StringUtils.isEmpty(originHeader) || StringUtils.isEmpty(hostHeader)
                     || hostHeader.contains(",") || hostHeader.contains("/") || hostHeader.contains("\\")
                     || hostHeader.contains("@") || hostHeader.contains("?") || hostHeader.contains("#")) {
@@ -112,21 +100,6 @@ public class PasskeyRequestContext {
     private boolean isSecureApiOrigin(Origin requestOrigin) {
         return "https".equals(requestOrigin.getScheme())
                 || ("http".equals(requestOrigin.getScheme()) && isLocalHost(requestOrigin.getHost()));
-    }
-
-    private String normalizeGeneratedPageHost(String hostHeader) {
-        String normalizedHost = Objects.toString(hostHeader, "").trim();
-        if (!normalizedHost.endsWith("/")) {
-            return normalizedHost;
-        }
-        String configuredHost = Objects.toString(configuredSiteHostSupplier.get(), "").trim();
-        if (!normalizedHost.equals(configuredHost)) {
-            return normalizedHost;
-        }
-        while (normalizedHost.endsWith("/")) {
-            normalizedHost = normalizedHost.substring(0, normalizedHost.length() - 1);
-        }
-        return normalizedHost;
     }
 
     private boolean isValidPort(Origin origin) {

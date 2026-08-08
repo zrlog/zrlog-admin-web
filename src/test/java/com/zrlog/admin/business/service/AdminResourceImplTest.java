@@ -87,28 +87,29 @@ public class AdminResourceImplTest {
             assertTrue(passkeys.save(1, "other-credential-hash", "other-credential-id", "public-key",
                     0, "internal", "Other origin passkey", "aaguid", true, false,
                     "https://localhost:18080", "localhost", System.currentTimeMillis()));
-            assertEquals(false, resource.adminResourceInfo(request("Browser")).getPasskeyLoginEnabled());
+            assertEquals(true, resource.adminResourceInfo(request("Browser")).getPasskeyLoginEnabled());
+            assertEquals(true, resource.adminResourceInfo(request(BaseStaticSitePlugin.STATIC_USER_AGENT))
+                    .getPasskeyLoginEnabled());
             assertEquals(true, resource.adminResourceInfo(
                     request("Browser", "https://localhost:18080", "faas.example.com"))
                     .getPasskeyLoginEnabled());
-            assertEquals(false, resource.adminResourceInfo(
+            assertEquals(true, resource.adminResourceInfo(
                     request("Browser", "https://evil.example.com", "faas.example.com"))
                     .getPasskeyLoginEnabled());
             assertTrue(passkeys.save(1, "credential-hash", "credential-id", "public-key",
                     0, "internal", "Test passkey", "aaguid", true, false,
                     "https://request.example.com", "request.example.com", System.currentTimeMillis()));
-            assertTrue(passkeys.save(1, "credential-hash-2", "credential-id-2", "public-key",
-                    0, "internal", "Second test passkey", "aaguid", true, false,
-                    "https://request.example.com", "request.example.com", System.currentTimeMillis()));
+
+            long otherPasskeyId = ((Number) passkeys.findByCredentialIdHash("other-credential-hash").get("id"))
+                    .longValue();
+            assertTrue(passkeys.deleteByIdAndUserId(otherPasskeyId, 1));
             assertEquals(true, resource.adminResourceInfo(request("Browser")).getPasskeyLoginEnabled());
 
             long passkeyId = ((Number) passkeys.findByCredentialIdHash("credential-hash").get("id")).longValue();
             assertTrue(passkeys.deleteByIdAndUserId(passkeyId, 1));
-            assertEquals(true, resource.adminResourceInfo(request("Browser")).getPasskeyLoginEnabled());
-
-            long secondPasskeyId = ((Number) passkeys.findByCredentialIdHash("credential-hash-2").get("id")).longValue();
-            assertTrue(passkeys.deleteByIdAndUserId(secondPasskeyId, 1));
             assertEquals(false, resource.adminResourceInfo(request("Browser")).getPasskeyLoginEnabled());
+            assertEquals(false, resource.adminResourceInfo(request(BaseStaticSitePlugin.STATIC_USER_AGENT))
+                    .getPasskeyLoginEnabled());
         }
     }
 

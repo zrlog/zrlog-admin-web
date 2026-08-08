@@ -76,7 +76,7 @@ final class AdminInterceptorSupport {
                 "refresh-cache-" + request.getUri(),
                 siteTypes,
                 emitter -> emitter.send("response", invoke),
-                () -> CacheUtils.updateCache(false, request, siteTypes),
+                () -> CacheUtils.updateCacheSynchronouslyOrThrow(request, siteTypes),
                 emitter -> emitter.send("refresh-complete", invoke)
         );
     }

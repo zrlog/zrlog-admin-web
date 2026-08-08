@@ -40,6 +40,17 @@
 - 前端不应通过“显示能跑”的局部字符串拼接掩盖接口契约问题。跨前后端数据形状变化时，应先修 DTO 和调用类型。
 - 修改页面行为后，优先用真实页面或现有脚本验证用户路径，而不是只检查静态代码。
 
+## 静态刷新与 SSE
+
+- Controller 写入会影响后台或博客静态页面的数据时，使用 `@RefreshCache` 声明需要更新的 `StaticSiteType`，不要在业务 Controller 中重复实现 SSE emitter。
+- `@RefreshCache` 的 SSE 分支必须使用可传播异常的同步缓存刷新入口：刷新失败发送 `static-error`，且不得继续发送 `refresh-complete`。普通 JSON 分支保留既有的容错与异步语义。
+- 与 `@RefreshCache` 写接口配对的前端请求统一使用 `postRefreshCacheSse`。只读查询、预览和仅生成 options/challenge 的请求继续使用普通 JSON 请求。
+- `response` 事件只表示业务方法已经返回，后续静态生成仍可能进行。已经完成数据库写入的 CRUD 操作应保持默认行为：收到 `response` 后更新业务界面，同时在后台继续消费静态进度与错误，不能把后续静态失败误报成业务写入失败。
+- 对静态资源是否完成敏感的调用应设置 `requiredCompletionEvent: "refresh-complete"`，用于识别业务响应后、资源完成事件前的异常断流；断流只影响资源刷新阶段的提示。
+- `waitForComplete: true` 会等待整个 SSE 流结束，仅用于“流内后续步骤本身就是当前业务的一部分”的操作；不要用它补偿已经提交的数据库事务与静态资源刷新之间的非原子性。
+- SSE 调用仍需检查 `ApiStandardResponse.error`。不支持 SSE 或服务端返回 JSON 时由公共 helper 降级，页面不应另写一套请求分支。
+- multipart 等公共 helper 尚未支持的请求不得用临时 JSON 或手写流协议绕过；先扩展并验证公共 helper，再迁移调用点。
+
 ## 验证要求
 
 - 后端 Java 行为变更至少运行相关单测；影响共享服务或接口契约时运行 `mvn -q test`。

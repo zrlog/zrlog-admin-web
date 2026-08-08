@@ -5,7 +5,6 @@ import com.google.gson.reflect.TypeToken;
 import com.hibegin.common.util.*;
 import com.hibegin.http.server.api.HttpRequest;
 import com.zrlog.admin.business.AdminConstants;
-import com.zrlog.admin.business.exception.PasskeyVerificationException;
 import com.zrlog.admin.business.rest.base.FeatureLabWebSiteInfo;
 import com.zrlog.admin.business.rest.response.AdminResourceInfoResponse;
 import com.zrlog.admin.util.AdminWebTools;
@@ -205,25 +204,13 @@ public class AdminResourceImpl implements AdminResource {
         FeatureLabWebSiteInfo featureLab = new WebSiteService().featureLab();
         response.setFeature_webhook_enabled(featureLab.getFeature_webhook_enabled());
         response.setFeature_personal_data_enabled(featureLab.getFeature_personal_data_enabled());
-        PasskeyRequestContext.Context passkeyContext = resolvePasskeyContext(request);
-        response.setPasskeyLoginEnabled(isPasskeyLoginEnabled(passkeyContext));
+        response.setPasskeyLoginEnabled(isPasskeyLoginEnabled());
         return response;
     }
 
-    private PasskeyRequestContext.Context resolvePasskeyContext(HttpRequest request) {
+    private boolean isPasskeyLoginEnabled() {
         try {
-            return new PasskeyRequestContext().resolvePage(request);
-        } catch (PasskeyVerificationException e) {
-            return null;
-        }
-    }
-
-    private boolean isPasskeyLoginEnabled(PasskeyRequestContext.Context context) {
-        if (context == null) {
-            return false;
-        }
-        try {
-            return new UserPasskey().hasAny(context.getOrigin(), context.getRpId());
+            return new UserPasskey().hasAny();
         } catch (SQLException e) {
             LOGGER.warning("Query Passkey login status error, " + e.getMessage());
             return false;

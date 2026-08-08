@@ -27,9 +27,8 @@ public class UserPasskey extends BasePageableDAO {
         return ((Number) queryFirstObj("select count(1) from " + tableName + " where userId=?", userId)).longValue();
     }
 
-    public boolean hasAny(String origin, String rpId) throws SQLException {
-        return queryFirstObj("select 1 from " + tableName + " where origin=? and rpId=? limit 1", origin, rpId)
-                != null;
+    public boolean hasAny() throws SQLException {
+        return queryFirstObj("select 1 from " + tableName + " limit 1") != null;
     }
 
     public boolean save(int userId, String credentialIdHash, String credentialId, String publicKeyCose,

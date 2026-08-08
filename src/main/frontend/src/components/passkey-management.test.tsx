@@ -1,7 +1,7 @@
 import { act } from "react";
 import { createRoot, Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
-import type { ApiResponse, PasskeySummary } from "../type";
+import type { ApiResponse, PasskeyRegistrationVerifyRequest, PasskeySummary } from "../type";
 import PasskeyManagement from "./passkey-management";
 
 type PasskeyListAxiosResponse = {
@@ -9,7 +9,10 @@ type PasskeyListAxiosResponse = {
 };
 
 const mockAxiosGet = jest.fn<Promise<PasskeyListAxiosResponse>, []>();
-const mockAxiosPost = jest.fn();
+const mockAxiosPost = jest.fn<Promise<unknown>, unknown[]>();
+const mockPostPasskeyRegistrationVerification = jest.fn<Promise<unknown>, unknown[]>();
+const mockPostPasskeyRemoval = jest.fn<Promise<unknown>, unknown[]>();
+const mockRegisterPasskey = jest.fn<Promise<unknown>, unknown[]>();
 let mockCanUsePasskeys = true;
 let mockPreviewMode = false;
 const mockMessageError = jest.fn<PromiseLike<boolean>, [string]>();
@@ -17,11 +20,69 @@ const mockMessageSuccess = jest.fn<PromiseLike<boolean>, [string]>();
 
 jest.mock("antd", () => {
     const React = require("react") as typeof import("react");
-    const Form = ({ children, disabled }: { children?: React.ReactNode; disabled?: boolean }) =>
-        React.createElement("form", { "data-disabled": disabled ? "true" : "false" }, children);
-    Form.Item = ({ children, label }: { children?: React.ReactNode; label?: React.ReactNode }) =>
-        React.createElement("label", null, label, children);
-    Form.useForm = () => [{ resetFields: () => undefined, submit: () => undefined }];
+    type MockFormController = {
+        element: HTMLFormElement | null;
+        onFinish?: (values: Record<string, FormDataEntryValue>) => void;
+        resetFields: () => void;
+        submit: () => void;
+    };
+    const Form = ({
+        children,
+        disabled,
+        form,
+        onFinish,
+    }: {
+        children?: React.ReactNode;
+        disabled?: boolean;
+        form?: MockFormController;
+        onFinish?: (values: Record<string, FormDataEntryValue>) => void;
+    }) => {
+        if (form) {
+            form.onFinish = onFinish;
+        }
+        return React.createElement(
+            "form",
+            {
+                "data-disabled": disabled ? "true" : "false",
+                ref: (element: HTMLFormElement | null) => {
+                    if (form) {
+                        form.element = element;
+                    }
+                },
+            },
+            children
+        );
+    };
+    Form.Item = ({ children, label, name }: { children?: React.ReactNode; label?: React.ReactNode; name?: string }) =>
+        React.createElement(
+            "label",
+            null,
+            label,
+            React.isValidElement(children)
+                ? React.cloneElement(children as React.ReactElement<Record<string, unknown>>, { name })
+                : children
+        );
+    Form.useForm = () => {
+        const formRef = React.useRef<MockFormController | null>(null);
+        if (!formRef.current) {
+            const controller: MockFormController = {
+                element: null,
+                resetFields: () => controller.element?.reset(),
+                submit: () => {
+                    if (!controller.element || !controller.onFinish) {
+                        return;
+                    }
+                    const values: Record<string, FormDataEntryValue> = {};
+                    new FormData(controller.element).forEach((value, key) => {
+                        values[key] = value;
+                    });
+                    controller.onFinish(values);
+                },
+            };
+            formRef.current = controller;
+        }
+        return [formRef.current];
+    };
 
     const Input = (props: Record<string, unknown>) => React.createElement("input", props);
     Input.Password = (props: Record<string, unknown>) => React.createElement("input", { ...props, type: "password" });
@@ -106,8 +167,35 @@ jest.mock("antd", () => {
                 null,
             ],
         },
-        Modal: ({ children, open }: { children?: React.ReactNode; open?: boolean }) =>
-            open ? React.createElement("div", null, children) : null,
+        Modal: ({
+            children,
+            confirmLoading,
+            okText,
+            onOk,
+            open,
+        }: {
+            children?: React.ReactNode;
+            confirmLoading?: boolean;
+            okText?: React.ReactNode;
+            onOk?: () => void;
+            open?: boolean;
+        }) =>
+            open
+                ? React.createElement(
+                      "div",
+                      { role: "dialog" },
+                      children,
+                      React.createElement(
+                          "button",
+                          {
+                              "data-modal-action": "ok",
+                              disabled: confirmLoading,
+                              onClick: onOk,
+                          },
+                          okText
+                      )
+                  )
+                : null,
         Space: ({ children, style }: { children?: React.ReactNode; style?: React.CSSProperties }) =>
             React.createElement("div", { style }, children),
         Tooltip: ({ children, title }: { children?: React.ReactNode; title?: React.ReactNode }) =>
@@ -165,7 +253,15 @@ jest.mock("../utils/constants", () => ({
 jest.mock("../utils/passkey", () => ({
     canUsePasskeys: () => mockCanUsePasskeys,
     isPasskeyCancellation: () => false,
-    registerPasskey: require("@jest/globals").jest.fn(),
+    registerPasskey: (...args: unknown[]) => mockRegisterPasskey(...args),
+}));
+
+jest.mock("./passkey-management-api", () => ({
+    PASSKEY_API_BASE: "/api/admin/account-security/passkey",
+    PASSKEY_REGISTRATION_MESSAGE_KEY: "passkeyRegistration",
+    PASSKEY_REMOVE_MESSAGE_KEY: "passkeyRemove",
+    postPasskeyRegistrationVerification: (...args: unknown[]) => mockPostPasskeyRegistrationVerification(...args),
+    postPasskeyRemoval: (...args: unknown[]) => mockPostPasskeyRemoval(...args),
 }));
 
 const reactActEnvironment = globalThis as typeof globalThis & {
@@ -337,5 +433,119 @@ describe("PasskeyManagement", () => {
         expect(removeButton).toBeDefined();
         expect(removeButton?.disabled).toBe(true);
         expect(addButton?.parentElement?.dataset.tooltip).toBe("Passkeys cannot be changed in preview mode");
+    });
+
+    it("submits registration through the SSE API wrapper, closes the modal, and reloads the list", async () => {
+        const addedPasskey: PasskeySummary = {
+            id: 2,
+            name: "Work computer",
+            createdAt: 2,
+        };
+        const credentialResponse = {
+            id: "credential-id",
+            rawId: "credential-id",
+            response: {
+                clientDataJSON: "client-data",
+                attestationObject: "attestation-object",
+            },
+            clientExtensionResults: {},
+            type: "public-key" as const,
+        };
+        mockAxiosGet
+            .mockResolvedValueOnce({ data: apiResponse<PasskeySummary[]>([]) })
+            .mockResolvedValueOnce({ data: apiResponse([addedPasskey]) });
+        mockAxiosPost.mockResolvedValueOnce({
+            data: apiResponse({
+                requestId: "registration-request",
+                options: { challenge: "challenge" },
+            }),
+        });
+        mockRegisterPasskey.mockResolvedValueOnce(credentialResponse);
+        mockPostPasskeyRegistrationVerification.mockResolvedValueOnce(apiResponse(addedPasskey));
+
+        await render(false);
+        const addButton = Array.from(container.querySelectorAll("button")).find(
+            (button) => button.textContent === "Add Passkey"
+        );
+        await act(async () => {
+            addButton?.click();
+        });
+
+        const dialog = container.querySelector<HTMLElement>("[role='dialog']");
+        const nameInput = dialog?.querySelector<HTMLInputElement>("input[name='name']");
+        const passwordInput = dialog?.querySelector<HTMLInputElement>("input[name='password']");
+        expect(nameInput).not.toBeNull();
+        expect(passwordInput).not.toBeNull();
+        nameInput!.value = "  Work computer  ";
+        passwordInput!.value = "current-password";
+
+        await act(async () => {
+            dialog?.querySelector<HTMLButtonElement>("[data-modal-action='ok']")?.click();
+            for (let index = 0; index < 8; index += 1) {
+                await Promise.resolve();
+            }
+        });
+
+        const expectedVerifyRequest: PasskeyRegistrationVerifyRequest = {
+            requestId: "registration-request",
+            response: credentialResponse,
+            name: "Work computer",
+        };
+        expect(mockPostPasskeyRegistrationVerification).toHaveBeenCalledWith(expectedVerifyRequest, expect.anything());
+        expect(mockMessageSuccess).toHaveBeenCalledWith({
+            key: "passkeyRegistration",
+            content: "Passkey added",
+        });
+        expect(container.querySelector("[role='dialog']")).toBeNull();
+        expect(mockAxiosGet).toHaveBeenCalledTimes(2);
+        expect(container.textContent).toContain("Work computer");
+    });
+
+    it("submits removal through the SSE API wrapper, closes the modal, and reloads the list", async () => {
+        const passkey: PasskeySummary = {
+            id: 3,
+            name: "Old computer",
+            createdAt: 3,
+        };
+        mockAxiosGet
+            .mockResolvedValueOnce({ data: apiResponse([passkey]) })
+            .mockResolvedValueOnce({ data: apiResponse<PasskeySummary[]>([]) });
+        mockPostPasskeyRemoval.mockResolvedValueOnce(apiResponse(true));
+
+        await render(false);
+        const removeButton = Array.from(container.querySelectorAll("button")).find(
+            (button) => button.textContent === "Remove"
+        );
+        await act(async () => {
+            removeButton?.click();
+        });
+
+        const dialog = container.querySelector<HTMLElement>("[role='dialog']");
+        const passwordInput = dialog?.querySelector<HTMLInputElement>("input[name='password']");
+        expect(passwordInput).not.toBeNull();
+        passwordInput!.value = "current-password";
+
+        await act(async () => {
+            dialog?.querySelector<HTMLButtonElement>("[data-modal-action='ok']")?.click();
+            for (let index = 0; index < 5; index += 1) {
+                await Promise.resolve();
+            }
+        });
+
+        expect(mockPostPasskeyRemoval).toHaveBeenCalledWith(
+            {
+                id: 3,
+                password: expect.any(String),
+                mfaCode: undefined,
+            },
+            expect.anything()
+        );
+        expect(mockMessageSuccess).toHaveBeenCalledWith({
+            key: "passkeyRemove",
+            content: "Passkey removed",
+        });
+        expect(container.querySelector("[role='dialog']")).toBeNull();
+        expect(mockAxiosGet).toHaveBeenCalledTimes(2);
+        expect(container.textContent).toContain("No passkeys added");
     });
 });

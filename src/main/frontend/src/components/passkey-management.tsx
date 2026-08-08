@@ -12,10 +12,15 @@ import type {
 } from "../type";
 import { getBackendServerUrl, getRes } from "../utils/constants";
 import { canUsePasskeys, isPasskeyCancellation, registerPasskey } from "../utils/passkey";
+import {
+    PASSKEY_API_BASE,
+    PASSKEY_REGISTRATION_MESSAGE_KEY,
+    PASSKEY_REMOVE_MESSAGE_KEY,
+    postPasskeyRegistrationVerification,
+    postPasskeyRemoval,
+} from "./passkey-management-api";
 
 const md5 = require("md5");
-
-const passkeyApiBase = "/api/admin/account-security/passkey";
 
 type PasskeyManagementProps = {
     offline: boolean;
@@ -34,6 +39,9 @@ type PasskeyRemoveFormValues = {
     password: string;
     mfaCode?: string;
 };
+
+const getRequestFailureMessage = (error: unknown, fallback: string) =>
+    error instanceof Error && error.message ? error.message : fallback;
 
 const ReauthenticationFields = ({ mfaEnabled }: { mfaEnabled: boolean }) => {
     return (
@@ -137,7 +145,7 @@ const PasskeyManagement = ({ offline, mfaEnabled, cardStyle, modalWidth }: Passk
             try {
                 optionsResponse = (
                     await axiosInstance.post<ApiResponse<PasskeyRegistrationOptionsResponse>>(
-                        `${passkeyApiBase}/registration/options`,
+                        `${PASSKEY_API_BASE}/registration/options`,
                         {
                             name,
                             password: md5(values.password),
@@ -166,22 +174,27 @@ const PasskeyManagement = ({ offline, mfaEnabled, cardStyle, modalWidth }: Passk
                 response,
                 name,
             };
-            let verifyResponse: ApiResponse<unknown>;
+            let verifyResponse: ApiResponse<PasskeySummary>;
             try {
-                verifyResponse = (
-                    await axiosInstance.post<ApiResponse<unknown>>(
-                        `${passkeyApiBase}/registration/verify`,
-                        verifyRequest
-                    )
-                ).data;
-            } catch {
+                verifyResponse = await postPasskeyRegistrationVerification(verifyRequest, messageApi);
+            } catch (error) {
+                void messageApi.error({
+                    key: PASSKEY_REGISTRATION_MESSAGE_KEY,
+                    content: getRequestFailureMessage(error, getRes().accountSecurity.passkeyRegistrationFailed),
+                });
                 return;
             }
             if (verifyResponse.error) {
-                void messageApi.error(verifyResponse.message);
+                void messageApi.error({
+                    key: PASSKEY_REGISTRATION_MESSAGE_KEY,
+                    content: verifyResponse.message,
+                });
                 return;
             }
-            void messageApi.success(verifyResponse.message || getRes().accountSecurity.passkeyAdded);
+            void messageApi.success({
+                key: PASSKEY_REGISTRATION_MESSAGE_KEY,
+                content: verifyResponse.message || getRes().accountSecurity.passkeyAdded,
+            });
             setRegistrationOpen(false);
             registrationForm.resetFields();
             try {
@@ -203,23 +216,31 @@ const PasskeyManagement = ({ offline, mfaEnabled, cardStyle, modalWidth }: Passk
         }
         const targetId = removeTarget.id;
         try {
-            let data: ApiResponse<unknown>;
+            let data: ApiResponse<boolean>;
             try {
-                data = (
-                    await axiosInstance.post<ApiResponse<unknown>>(`${passkeyApiBase}/remove`, {
+                data = await postPasskeyRemoval(
+                    {
                         id: targetId,
                         password: md5(values.password),
                         mfaCode: values.mfaCode,
-                    })
-                ).data;
-            } catch {
+                    },
+                    messageApi
+                );
+            } catch (error) {
+                void messageApi.error({
+                    key: PASSKEY_REMOVE_MESSAGE_KEY,
+                    content: getRequestFailureMessage(error, getRes().accountSecurity.passkeyRemoveFailed),
+                });
                 return;
             }
             if (data.error) {
-                void messageApi.error(data.message);
+                void messageApi.error({ key: PASSKEY_REMOVE_MESSAGE_KEY, content: data.message });
                 return;
             }
-            void messageApi.success(data.message || getRes().accountSecurity.passkeyRemoved);
+            void messageApi.success({
+                key: PASSKEY_REMOVE_MESSAGE_KEY,
+                content: data.message || getRes().accountSecurity.passkeyRemoved,
+            });
             setRemoveTarget(null);
             removeForm.resetFields();
             try {

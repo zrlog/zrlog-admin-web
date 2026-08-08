@@ -199,7 +199,7 @@ public class AdminArticleController extends BaseController {
 
     private void updateBlogCacheWithStaticSyncNotice() {
         try {
-            CacheUtils.updateCache(false, request, List.of(StaticSiteType.BLOG));
+            CacheUtils.updateCacheSynchronouslyOrThrow(request, List.of(StaticSiteType.BLOG));
             recordBlogStaticSiteSync(true, "");
         } catch (RuntimeException e) {
             recordBlogStaticSiteSync(false, e.getMessage());

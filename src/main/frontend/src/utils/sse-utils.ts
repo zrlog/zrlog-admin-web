@@ -29,6 +29,7 @@ export type RefreshCacheSseOptions<T> = {
     onEvent?: (event: SseEvent) => void;
     onResponse?: (data: T) => void;
     responseEvents?: string[];
+    requiredCompletionEvent?: string;
     waitForComplete?: boolean;
     resolveWhenStarted?: boolean;
     backgroundTaskTitle?: string;
@@ -52,6 +53,29 @@ const getRequestErrorDescription = (error: unknown) => {
         return formatLabelValue(getRes().error.requestError, error.message);
     }
     return getRes().error.requestError;
+};
+
+const toRequestError = (error: unknown) =>
+    error instanceof Error ? error : new Error(getRequestErrorDescription(error));
+
+const reportBackgroundStreamError = <T>(
+    options: RefreshCacheSseOptions<T>,
+    backgroundTaskId: string | undefined,
+    error: Error
+) => {
+    const syncFailed = getRes().staticSite.syncFailed;
+    const description = error.message && error.message !== syncFailed
+        ? formatLabelValue(getRes().staticSite.syncFailed, error.message)
+        : syncFailed;
+    if (options.showErrorMessage !== false) {
+        options.messageApi?.error({
+            key: options.messageKey || "refreshCache",
+            content: description,
+        });
+    }
+    if (backgroundTaskId) {
+        finishBackgroundTask(backgroundTaskId, "error", description);
+    }
 };
 
 export const getStaticProgressText = (progress: StaticProgress) => {
@@ -117,6 +141,7 @@ export const parseSseEvent = (chunk: string): SseEvent | null => {
     };
 };
 
+/** Shared POST transport for controller methods annotated with @RefreshCache. */
 export const postRefreshCacheSse = async <T>(uri: string, options: RefreshCacheSseOptions<T> = {}): Promise<T> => {
     const messageKey = options.messageKey || "refreshCache";
     const supportSse = getRes().supportSse !== false;
@@ -200,28 +225,40 @@ const readRefreshCacheSseImmediate = async <T>(
     backgroundTaskId?: string
 ): Promise<T> => {
     return await new Promise<T>((resolve, reject) => {
-        let resolved = false;
+        let settled = false;
+        let fatalEventReported = false;
+        const rejectOnce = (error: Error) => {
+            if (settled) {
+                return;
+            }
+            settled = true;
+            reject(error);
+        };
         consumeRefreshCacheSse(
             response,
             options,
             (data) => {
-                if (resolved) {
+                if (settled) {
                     return;
                 }
-                resolved = true;
+                settled = true;
                 resolve(data);
             },
             (error) => {
-                if (resolved) {
-                    return;
-                }
-                resolved = true;
-                reject(error);
+                fatalEventReported = true;
+                rejectOnce(error);
             },
             backgroundTaskId
-        ).catch(() => {
-            // background consume errors are already surfaced through UI.
-        });
+        )
+            .then(() => rejectOnce(new Error(getRes().error.requestError)))
+            .catch((error) => {
+                const requestError = toRequestError(error);
+                if (settled && !fatalEventReported) {
+                    reportBackgroundStreamError(options, backgroundTaskId, requestError);
+                    return;
+                }
+                rejectOnce(requestError);
+            });
     });
 };
 
@@ -246,11 +283,13 @@ const consumeRefreshCacheSse = async <T>(
     let buffer = "";
     let latestResponseMessage = "";
     let hasError = false;
+    let responseEventSeen = false;
+    let requiredCompletionEventSeen = !options.requiredCompletionEvent;
     let responseHasError = false;
     let responseTaskResult: BackgroundTaskResult | undefined;
     const showProgressMessage = !backgroundTaskId;
     const showSuccessMessage = !backgroundTaskId;
-    for (;;) {
+    readLoop: for (;;) {
         const { done, value } = await reader.read();
         if (done) {
             buffer += decoder.decode();
@@ -265,7 +304,11 @@ const consumeRefreshCacheSse = async <T>(
                 continue;
             }
             options.onEvent?.(event);
+            if (event.event === options.requiredCompletionEvent) {
+                requiredCompletionEventSeen = true;
+            }
             if (responseEvents.includes(event.event)) {
+                responseEventSeen = true;
                 const data = event.data as T;
                 onResponseData?.(data);
                 options.onResponse?.(data);
@@ -379,10 +422,21 @@ const consumeRefreshCacheSse = async <T>(
                 onFatal?.(error);
                 throw error;
             }
+            if (event.event === options.requiredCompletionEvent) {
+                try {
+                    await reader.cancel?.();
+                } catch {
+                    // The required terminal event already confirmed completion.
+                }
+                break readLoop;
+            }
         }
         if (done) {
             break;
         }
+    }
+    if (!requiredCompletionEventSeen) {
+        throw new Error(responseEventSeen ? getRes().staticSite.syncFailed : getRes().error.requestError);
     }
     if (backgroundTaskId && !hasError) {
         const finishStatus = responseTaskResult?.status || (responseHasError ? "error" : "success");

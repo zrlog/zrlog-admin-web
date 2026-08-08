@@ -57,39 +57,6 @@ public class PasskeyRequestContextTest {
     }
 
     @Test
-    public void shouldResolvePageContextFromRequestWhenOriginHeaderIsAbsent() {
-        PasskeyRequestContext.Context context = requestContext.resolvePage(
-                request(null, "admin.example.com:8443", "https"));
-
-        assertEquals("https://admin.example.com:8443", context.getOrigin());
-        assertEquals("admin.example.com", context.getRpId());
-        assertEquals("https", context.getProtocol());
-    }
-
-    @Test
-    public void shouldNormalizeConfiguredHostForGeneratedPageContext() {
-        PasskeyRequestContext configuredContext = new PasskeyRequestContext(() -> "demo.zrlog.com/");
-
-        PasskeyRequestContext.Context context = configuredContext.resolvePage(
-                request(null, "demo.zrlog.com/", "https"));
-
-        assertEquals("https://demo.zrlog.com", context.getOrigin());
-        assertEquals("demo.zrlog.com", context.getRpId());
-    }
-
-    @Test
-    public void shouldApplyTrustedOriginValidationWhenResolvingPageContext() {
-        PasskeyRequestContext.Context context = requestContext.resolvePage(
-                request("https://admin.example.com", "admin.example.com", "https"));
-
-        assertEquals("https://admin.example.com", context.getOrigin());
-        assertThrows(PasskeyVerificationException.class, () -> requestContext.resolvePage(
-                request("https://untrusted.example.net", "admin.example.com", "https")));
-        assertThrows(PasskeyVerificationException.class, () -> requestContext.resolvePage(
-                request("", "admin.example.com", "https")));
-    }
-
-    @Test
     public void shouldRejectCrossOriginRequest() {
         assertThrows(PasskeyVerificationException.class, () -> requestContext.resolve(
                 request("https://admin.example.com", "other.example.com", "https")));

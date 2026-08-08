@@ -39,11 +39,11 @@ public class UserPasskeyDatabaseTest {
             UserPasskey passkeys = new UserPasskey();
             long now = System.currentTimeMillis();
 
+            assertFalse(passkeys.hasAny());
             assertTrue(passkeys.save(1, "credential-hash", "credential-id", "public-key",
                     0, "internal", "Test passkey", "aaguid", true, false,
                     "https://example.com", "example.com", now));
-            assertTrue(passkeys.hasAny("https://example.com", "example.com"));
-            assertFalse(passkeys.hasAny("https://other.example.com", "other.example.com"));
+            assertTrue(passkeys.hasAny());
             Map<String, Object> stored = passkeys.findByCredentialIdHash("credential-hash");
             long id = ((Number) stored.get("id")).longValue();
 
@@ -54,6 +54,8 @@ public class UserPasskeyDatabaseTest {
             Map<String, Object> updated = passkeys.findByCredentialIdHash("credential-hash");
             assertEquals(2L, ((Number) updated.get("signatureCount")).longValue());
             assertEquals(now + 2, ((Number) updated.get("lastUsedAt")).longValue());
+            assertTrue(passkeys.deleteByIdAndUserId(id, 1));
+            assertFalse(passkeys.hasAny());
         }
     }
 }

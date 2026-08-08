@@ -61,6 +61,39 @@ public class AdminStaticSiteSsePublisherTest {
         }
     }
 
+    @Test
+    public void shouldSendStaticErrorAndSkipCompletionWhenCacheRefreshFails() throws Exception {
+        ZrLogConfig previousConfig = Constants.zrLogConfig;
+        CapturedResponse capturedResponse = new CapturedResponse();
+        AtomicInteger cacheRuns = new AtomicInteger();
+        try {
+            PathUtil.setRootPath(temporaryFolder.newFolder("zrlog-root-failed-refresh").getAbsolutePath());
+            Constants.zrLogConfig = new DisabledStaticConfig();
+
+            AdminStaticSiteSsePublisher.write(
+                    capturedResponse.response(),
+                    "static-refresh-failure-test",
+                    "static-error",
+                    List.of(StaticSiteType.ADMIN),
+                    emitter -> emitter.send("response", Map.of("error", 0)),
+                    () -> {
+                        cacheRuns.incrementAndGet();
+                        throw new IllegalStateException("refresh failed");
+                    },
+                    emitter -> emitter.send("refresh-complete", Map.of("error", 0))
+            );
+
+            String body = capturedResponse.body();
+            assertEquals(1, cacheRuns.get());
+            assertTrue(body.contains("event: response"));
+            assertTrue(body.contains("event: static-error"));
+            assertTrue(body.contains("refresh failed"));
+            assertFalse(body.contains("event: refresh-complete"));
+        } finally {
+            Constants.zrLogConfig = previousConfig;
+        }
+    }
+
     private static class DisabledStaticConfig extends ZrLogConfig {
 
         DisabledStaticConfig() {
