@@ -1,5 +1,5 @@
 import { DeleteOutlined, KeyOutlined, PlusOutlined } from "@ant-design/icons";
-import { Button, Card, Empty, Form, Input, List, message, Modal, Space, Typography } from "antd";
+import { Button, Card, Empty, Form, Input, List, message, Modal, Space, Tooltip, Typography } from "antd";
 import { useTheme } from "antd-style";
 import type { CSSProperties } from "react";
 import { useEffect, useRef, useState } from "react";
@@ -68,6 +68,7 @@ const PasskeyManagement = ({ offline, mfaEnabled, cardStyle, modalWidth }: Passk
     const [removeForm] = Form.useForm<PasskeyRemoveFormValues>();
     const submissionInFlightRef = useRef(false);
     const registrationSupported = canUsePasskeys(getBackendServerUrl());
+    const readOnlyPreview = Boolean(getRes().defaultLoginInfo);
     const listLoading = loading || (!offline && !hasLoaded);
 
     const loadPasskeys = async () => {
@@ -245,14 +246,16 @@ const PasskeyManagement = ({ offline, mfaEnabled, cardStyle, modalWidth }: Passk
                 title={getRes().accountSecurity.passkeyTitle}
                 style={cardStyle}
                 extra={
-                    <Button
-                        disabled={offline || listLoading || submitting || !registrationSupported}
-                        icon={<PlusOutlined />}
-                        type="primary"
-                        onClick={() => setRegistrationOpen(true)}
-                    >
-                        {getRes().accountSecurity.passkeyAdd}
-                    </Button>
+                    <Tooltip title={readOnlyPreview ? getRes().accountSecurity.passkeyPreviewModeDisabled : undefined}>
+                        <Button
+                            disabled={offline || listLoading || submitting || !registrationSupported || readOnlyPreview}
+                            icon={<PlusOutlined />}
+                            type="primary"
+                            onClick={() => setRegistrationOpen(true)}
+                        >
+                            {getRes().accountSecurity.passkeyAdd}
+                        </Button>
+                    </Tooltip>
                 }
             >
                 <Typography.Paragraph type="secondary">
@@ -272,16 +275,24 @@ const PasskeyManagement = ({ offline, mfaEnabled, cardStyle, modalWidth }: Passk
                     renderItem={(passkey) => (
                         <List.Item
                             actions={[
-                                <Button
+                                <Tooltip
                                     key="remove"
-                                    danger
-                                    disabled={offline || listLoading || submitting}
-                                    icon={<DeleteOutlined />}
-                                    type="text"
-                                    onClick={() => setRemoveTarget(passkey)}
+                                    title={
+                                        readOnlyPreview
+                                            ? getRes().accountSecurity.passkeyPreviewModeDisabled
+                                            : undefined
+                                    }
                                 >
-                                    {getRes().accountSecurity.passkeyRemove}
-                                </Button>,
+                                    <Button
+                                        danger
+                                        disabled={offline || listLoading || submitting || readOnlyPreview}
+                                        icon={<DeleteOutlined />}
+                                        type="text"
+                                        onClick={() => setRemoveTarget(passkey)}
+                                    >
+                                        {getRes().accountSecurity.passkeyRemove}
+                                    </Button>
+                                </Tooltip>,
                             ]}
                         >
                             <List.Item.Meta

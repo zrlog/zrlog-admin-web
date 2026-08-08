@@ -11,6 +11,7 @@ type PasskeyListAxiosResponse = {
 const mockAxiosGet = jest.fn<Promise<PasskeyListAxiosResponse>, []>();
 const mockAxiosPost = jest.fn();
 let mockCanUsePasskeys = true;
+let mockPreviewMode = false;
 const mockMessageError = jest.fn<PromiseLike<boolean>, [string]>();
 const mockMessageSuccess = jest.fn<PromiseLike<boolean>, [string]>();
 
@@ -109,6 +110,8 @@ jest.mock("antd", () => {
             open ? React.createElement("div", null, children) : null,
         Space: ({ children, style }: { children?: React.ReactNode; style?: React.CSSProperties }) =>
             React.createElement("div", { style }, children),
+        Tooltip: ({ children, title }: { children?: React.ReactNode; title?: React.ReactNode }) =>
+            React.createElement("span", { "data-tooltip": title }, children),
         Typography: {
             Paragraph: TypographyParagraph,
             Text: TypographyText,
@@ -134,6 +137,7 @@ jest.mock("../utils/constants", () => ({
     getBackendServerUrl: () => globalThis.location.origin,
     getRes: () => ({
         cancel: "Cancel",
+        defaultLoginInfo: mockPreviewMode ? {} : undefined,
         accountSecurity: {
             mfaCode: "MFA code",
             passkeyAdd: "Add Passkey",
@@ -147,6 +151,7 @@ jest.mock("../utils/constants", () => ({
             passkeyName: "Name",
             passkeyNamePlaceholder: "Work computer",
             passkeyNeverUsed: "Not used yet",
+            passkeyPreviewModeDisabled: "Passkeys cannot be changed in preview mode",
             passkeyRegistrationFailed: "Could not add passkey",
             passkeyRemove: "Remove",
             passkeyRemoved: "Passkey removed",
@@ -200,6 +205,7 @@ describe("PasskeyManagement", () => {
         root = createRoot(container);
         jest.clearAllMocks();
         mockCanUsePasskeys = true;
+        mockPreviewMode = false;
     });
 
     afterEach(() => {
@@ -304,5 +310,32 @@ describe("PasskeyManagement", () => {
         );
         expect(addButton).toBeDefined();
         expect(addButton?.disabled).toBe(true);
+    });
+
+    it("keeps Passkey actions visible but disables them in preview mode", async () => {
+        mockPreviewMode = true;
+        mockAxiosGet.mockResolvedValueOnce({
+            data: apiResponse<PasskeySummary[]>([
+                {
+                    id: 1,
+                    name: "Work computer",
+                    createdAt: 1,
+                },
+            ]),
+        });
+
+        await render(false);
+
+        const addButton = Array.from(container.querySelectorAll("button")).find(
+            (button) => button.textContent === "Add Passkey"
+        );
+        const removeButton = Array.from(container.querySelectorAll("button")).find(
+            (button) => button.textContent === "Remove"
+        );
+        expect(addButton).toBeDefined();
+        expect(addButton?.disabled).toBe(true);
+        expect(removeButton).toBeDefined();
+        expect(removeButton?.disabled).toBe(true);
+        expect(addButton?.parentElement?.dataset.tooltip).toBe("Passkeys cannot be changed in preview mode");
     });
 });
