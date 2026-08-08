@@ -1,1 +1,1 @@
-./mvnw -PnodeBuild package
+./mvnw -U -PnodeBuild package
