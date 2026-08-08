@@ -21,7 +21,6 @@ const DashboardCardAction = (props: DashboardCardActionProps) => {
     const actionStyle: CSSProperties = {
         display: "flex",
         alignItems: "center",
-        gap: 6,
         color: theme.colorText,
         whiteSpace: "nowrap",
     };
