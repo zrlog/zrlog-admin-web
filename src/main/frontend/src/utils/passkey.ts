@@ -11,7 +11,7 @@ type PasskeyAvailabilityOptions = {
 };
 
 const isAbsoluteOrRootRelativeUrl = (url: string): boolean => {
-    if (url.startsWith("/")) {
+    if (url.startsWith("/") && !url.startsWith("//")) {
         return true;
     }
     try {
@@ -22,9 +22,18 @@ const isAbsoluteOrRootRelativeUrl = (url: string): boolean => {
     }
 };
 
+const isLocalHost = (hostname: string): boolean => {
+    const normalizedHostname = hostname.toLowerCase();
+    return normalizedHostname === "localhost" || normalizedHostname.endsWith(".localhost");
+};
+
 const isIpLiteral = (hostname: string): boolean => {
     const normalizedHostname = hostname.startsWith("[") && hostname.endsWith("]") ? hostname.slice(1, -1) : hostname;
     return normalizedHostname.includes(":") || /^(?:\d{1,3}\.){3}\d{1,3}$/.test(normalizedHostname);
+};
+
+const isSecureHttpOrigin = (url: URL): boolean => {
+    return url.protocol === "https:" || (url.protocol === "http:" && isLocalHost(url.hostname));
 };
 
 export const canUsePasskeys = (
@@ -39,11 +48,20 @@ export const canUsePasskeys = (
         return false;
     }
     try {
+        const pageUrl = new URL(window.location.href);
         const backendUrl = new URL(normalizedBackendServerUrl, window.location.href);
+        if (isIpLiteral(pageUrl.hostname) || !isSecureHttpOrigin(pageUrl)) {
+            return false;
+        }
+        if (backendUrl.username || backendUrl.password) {
+            return false;
+        }
+        if (!isSecureHttpOrigin(backendUrl)) {
+            return false;
+        }
         return (
-            !isIpLiteral(backendUrl.hostname) &&
-            (backendUrl.protocol === "https:" || backendUrl.protocol === "http:") &&
-            backendUrl.origin === window.location.origin
+            backendUrl.protocol === "https:" ||
+            (pageUrl.protocol === "http:" && isLocalHost(pageUrl.hostname) && isLocalHost(backendUrl.hostname))
         );
     } catch {
         return false;

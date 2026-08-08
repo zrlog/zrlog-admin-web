@@ -59,6 +59,10 @@ public class AdminResourceImplTest {
             AdminResourceInfoResponse response = resource.adminResourceInfo(request("Browser"));
             AdminResourceInfoResponse staticResponse =
                     resource.adminResourceInfo(request(BaseStaticSitePlugin.STATIC_USER_AGENT));
+            AdminResourceInfoResponse trustedCrossOriginResponse = resource.adminResourceInfo(
+                    request("Browser", "https://localhost:18080", "faas.example.com"));
+            AdminResourceInfoResponse untrustedCrossOriginResponse = resource.adminResourceInfo(
+                    request("Browser", "https://evil.example.com", "faas.example.com"));
 
             assertEquals("ZrLog Test", response.getWebsiteTitle());
             assertEquals(false, response.getAdmin_darkMode());
@@ -73,11 +77,23 @@ public class AdminResourceImplTest {
             assertEquals("https://cdn.example.com/blog", response.getAdmin_static_resource_base_url());
             assertEquals(true, response.getFeature_webhook_enabled());
             assertEquals(true, response.getFeature_personal_data_enabled());
+            assertEquals(true, response.getPasskeyRegistrationEnabled());
             assertEquals(false, response.getPasskeyLoginEnabled());
             assertEquals(true, staticResponse.getStaticPage());
             assertEquals("/blog", staticResponse.getAdmin_static_resource_base_url());
+            assertEquals(true, trustedCrossOriginResponse.getPasskeyRegistrationEnabled());
+            assertEquals(false, trustedCrossOriginResponse.getPasskeyLoginEnabled());
+            assertEquals(false, untrustedCrossOriginResponse.getPasskeyRegistrationEnabled());
+            assertEquals(false, untrustedCrossOriginResponse.getPasskeyLoginEnabled());
 
             UserPasskey passkeys = new UserPasskey();
+            assertTrue(passkeys.save(1, "other-credential-hash", "other-credential-id", "public-key",
+                    0, "internal", "Other origin passkey", "aaguid", true, false,
+                    "https://localhost:18080", "localhost", System.currentTimeMillis()));
+            assertEquals(false, resource.adminResourceInfo(request("Browser")).getPasskeyLoginEnabled());
+            assertEquals(true, resource.adminResourceInfo(
+                    request("Browser", "https://localhost:18080", "faas.example.com"))
+                    .getPasskeyLoginEnabled());
             assertTrue(passkeys.save(1, "credential-hash", "credential-id", "public-key",
                     0, "internal", "Test passkey", "aaguid", true, false,
                     "https://request.example.com", "request.example.com", System.currentTimeMillis()));
@@ -96,6 +112,10 @@ public class AdminResourceImplTest {
     }
 
     private static HttpRequest request(String userAgent) {
+        return request(userAgent, null, "request.example.com");
+    }
+
+    private static HttpRequest request(String userAgent, String origin, String host) {
         Map<String, Object> attrs = new HashMap<>();
         return (HttpRequest) Proxy.newProxyInstance(
                 AdminResourceImplTest.class.getClassLoader(),
@@ -113,11 +133,20 @@ public class AdminResourceImplTest {
                                 return userAgent;
                             }
                             if ("Host".equals(args[0])) {
-                                return "request.example.com";
+                                return host;
+                            }
+                            if ("Origin".equals(args[0])) {
+                                return origin;
                             }
                             return null;
                         case "getHeaderMap":
-                            return Map.of("User-Agent", userAgent, "Host", "request.example.com");
+                            Map<String, String> headers = new HashMap<>();
+                            headers.put("User-Agent", userAgent);
+                            headers.put("Host", host);
+                            if (origin != null) {
+                                headers.put("Origin", origin);
+                            }
+                            return headers;
                         case "getRemoteHost":
                             return "127.0.0.1";
                         case "getScheme":

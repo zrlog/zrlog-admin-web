@@ -67,7 +67,7 @@ const PasskeyManagement = ({ offline, mfaEnabled, cardStyle, modalWidth }: Passk
     const [registrationForm] = Form.useForm<PasskeyRegistrationFormValues>();
     const [removeForm] = Form.useForm<PasskeyRemoveFormValues>();
     const submissionInFlightRef = useRef(false);
-    const registrationAvailable = canUsePasskeys(getBackendServerUrl());
+    const registrationAvailable = getRes().passkeyRegistrationEnabled === true && canUsePasskeys(getBackendServerUrl());
     const listLoading = loading || (!offline && !hasLoaded);
 
     const loadPasskeys = async () => {

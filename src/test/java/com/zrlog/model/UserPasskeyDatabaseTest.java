@@ -42,6 +42,8 @@ public class UserPasskeyDatabaseTest {
             assertTrue(passkeys.save(1, "credential-hash", "credential-id", "public-key",
                     0, "internal", "Test passkey", "aaguid", true, false,
                     "https://example.com", "example.com", now));
+            assertTrue(passkeys.hasAny("https://example.com", "example.com"));
+            assertFalse(passkeys.hasAny("https://other.example.com", "other.example.com"));
             Map<String, Object> stored = passkeys.findByCredentialIdHash("credential-hash");
             long id = ((Number) stored.get("id")).longValue();
 

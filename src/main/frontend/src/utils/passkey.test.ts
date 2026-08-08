@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { browserSupportsWebAuthn, startAuthentication, startRegistration } from "@simplewebauthn/browser";
 import type {
     PublicKeyCredentialCreationOptionsJSON,
@@ -19,6 +19,14 @@ describe("passkey helpers", () => {
     const supportsWebAuthn = jest.mocked(browserSupportsWebAuthn);
     const startAuthenticationMock = jest.mocked(startAuthentication);
     const startRegistrationMock = jest.mocked(startRegistration);
+    const originalLocation = window.location;
+
+    const setPageUrl = (url: string) => {
+        Object.defineProperty(window, "location", {
+            configurable: true,
+            value: new URL(url) as unknown as Location,
+        });
+    };
 
     beforeEach(() => {
         jest.clearAllMocks();
@@ -26,25 +34,58 @@ describe("passkey helpers", () => {
         Object.defineProperty(window, "isSecureContext", { configurable: true, value: true });
     });
 
-    it("only enables passkeys for a supported secure same-origin backend", () => {
-        expect(canUsePasskeys(window.location.origin + "/blog/")).toBe(true);
+    afterEach(() => {
+        Object.defineProperty(window, "location", { configurable: true, value: originalLocation });
+    });
+
+    it("allows an HTTPS API on another origin while keeping the page as the WebAuthn RP", () => {
+        setPageUrl("https://demo.zrlog.com/admin/login");
+
+        expect(canUsePasskeys("https://faas-demo.zrlog.com/")).toBe(true);
+        expect(canUsePasskeys("https://demo.zrlog.com/blog/")).toBe(true);
         expect(canUsePasskeys("/blog/")).toBe(true);
+    });
+
+    it("rejects unsafe API URLs without requiring an HTTPS API to be same-origin", () => {
+        setPageUrl("https://demo.zrlog.com/admin/login");
+
         expect(canUsePasskeys("blog/")).toBe(false);
-        expect(canUsePasskeys("https://admin.example.com/")).toBe(false);
+        expect(canUsePasskeys("//malicious.example/api/")).toBe(false);
+        expect(canUsePasskeys("javascript:alert(1)")).toBe(false);
+        expect(canUsePasskeys("https://user:password@faas-demo.zrlog.com/")).toBe(false);
+        expect(canUsePasskeys("http://faas-demo.zrlog.com/")).toBe(false);
+        expect(canUsePasskeys("http://localhost:18080/")).toBe(false);
         expect(canUsePasskeys("http://127.0.0.1/")).toBe(false);
-        expect(canUsePasskeys("https://[::1]/")).toBe(false);
+    });
+
+    it("allows HTTP only for localhost and rejects IP or insecure page origins", () => {
+        setPageUrl("http://localhost:18080/admin/login");
+
+        expect(canUsePasskeys("http://localhost:28080/")).toBe(true);
+        expect(canUsePasskeys("http://api.localhost:28080/")).toBe(true);
+
+        setPageUrl("https://127.0.0.1/admin/login");
+        expect(canUsePasskeys("https://faas-demo.zrlog.com/")).toBe(false);
+
+        setPageUrl("http://demo.zrlog.com/admin/login");
+        expect(canUsePasskeys("https://faas-demo.zrlog.com/")).toBe(false);
+    });
+
+    it("requires configured backend, secure context, and WebAuthn browser support", () => {
+        setPageUrl("https://demo.zrlog.com/admin/login");
+
         expect(
-            canUsePasskeys(window.location.origin, {
+            canUsePasskeys("https://faas-demo.zrlog.com/", {
                 backendServerUrlConfigured: false,
             })
         ).toBe(false);
 
         Object.defineProperty(window, "isSecureContext", { configurable: true, value: false });
-        expect(canUsePasskeys(window.location.origin)).toBe(false);
+        expect(canUsePasskeys("https://faas-demo.zrlog.com/")).toBe(false);
 
         Object.defineProperty(window, "isSecureContext", { configurable: true, value: true });
         supportsWebAuthn.mockReturnValue(false);
-        expect(canUsePasskeys(window.location.origin)).toBe(false);
+        expect(canUsePasskeys("https://faas-demo.zrlog.com/")).toBe(false);
     });
 
     it("passes authentication options to SimpleWebAuthn", async () => {
