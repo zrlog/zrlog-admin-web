@@ -34,7 +34,6 @@ export type AdminRuntimeResourceInfo = {
     feature_webhook_enabled?: boolean;
     homeUrl?: string;
     lang?: AdminLang;
-    passkeyRegistrationEnabled?: boolean;
     passkeyLoginEnabled?: boolean;
     staticPage?: boolean;
     staticPlugin?: boolean;
@@ -64,7 +63,6 @@ const toRuntimeResourceInfo = (res?: AdminRuntimeResourceInfo | null): AdminRunt
         feature_webhook_enabled: res.feature_webhook_enabled,
         homeUrl: res.homeUrl,
         lang: res.lang,
-        passkeyRegistrationEnabled: res.passkeyRegistrationEnabled,
         passkeyLoginEnabled: res.passkeyLoginEnabled,
         staticPage: res.staticPage,
         staticPlugin: res.staticPlugin,

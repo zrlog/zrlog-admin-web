@@ -48,7 +48,9 @@ import com.zrlog.admin.business.service.TagManagementService;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.support.MfaTestCodeGenerator;
 import com.zrlog.admin.support.UploadFallbackZrLogConfig;
+import com.zrlog.admin.web.annotation.RefreshCache;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
+import com.zrlog.business.plugin.type.StaticSiteType;
 import com.zrlog.business.rest.response.CheckVersionResponse;
 import com.zrlog.business.rest.response.PreCheckVersionResponse;
 import com.zrlog.business.rest.response.UpgradeProcessResponse;
@@ -76,6 +78,7 @@ import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
@@ -378,6 +381,18 @@ public class AdminControllerDelegationTest {
 
         assertThrows(AdminAuthException.class, controller::index);
         assertThrows(AdminAuthException.class, controller::info);
+    }
+
+    @Test
+    public void shouldRefreshAdminStaticPagesAfterPasskeyChanges() throws Exception {
+        for (String methodName : List.of("passkeyRegistrationVerify", "passkeyRemove")) {
+            RefreshCache refreshCache = AdminUserController.class.getDeclaredMethod(methodName)
+                    .getAnnotation(RefreshCache.class);
+
+            assertNotNull(refreshCache);
+            assertFalse(refreshCache.async());
+            assertEquals(List.of(StaticSiteType.ADMIN), List.of(refreshCache.updateStaticSites()));
+        }
     }
 
     @Test

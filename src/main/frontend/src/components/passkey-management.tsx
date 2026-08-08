@@ -67,7 +67,7 @@ const PasskeyManagement = ({ offline, mfaEnabled, cardStyle, modalWidth }: Passk
     const [registrationForm] = Form.useForm<PasskeyRegistrationFormValues>();
     const [removeForm] = Form.useForm<PasskeyRemoveFormValues>();
     const submissionInFlightRef = useRef(false);
-    const registrationAvailable = getRes().passkeyRegistrationEnabled === true && canUsePasskeys(getBackendServerUrl());
+    const registrationSupported = canUsePasskeys(getBackendServerUrl());
     const listLoading = loading || (!offline && !hasLoaded);
 
     const loadPasskeys = async () => {
@@ -245,16 +245,14 @@ const PasskeyManagement = ({ offline, mfaEnabled, cardStyle, modalWidth }: Passk
                 title={getRes().accountSecurity.passkeyTitle}
                 style={cardStyle}
                 extra={
-                    registrationAvailable ? (
-                        <Button
-                            disabled={offline || listLoading || submitting}
-                            icon={<PlusOutlined />}
-                            type="primary"
-                            onClick={() => setRegistrationOpen(true)}
-                        >
-                            {getRes().accountSecurity.passkeyAdd}
-                        </Button>
-                    ) : null
+                    <Button
+                        disabled={offline || listLoading || submitting || !registrationSupported}
+                        icon={<PlusOutlined />}
+                        type="primary"
+                        onClick={() => setRegistrationOpen(true)}
+                    >
+                        {getRes().accountSecurity.passkeyAdd}
+                    </Button>
                 }
             >
                 <Typography.Paragraph type="secondary">

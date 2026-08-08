@@ -10,7 +10,7 @@ type PasskeyListAxiosResponse = {
 
 const mockAxiosGet = jest.fn<Promise<PasskeyListAxiosResponse>, []>();
 const mockAxiosPost = jest.fn();
-let mockPasskeyRegistrationEnabled = true;
+let mockCanUsePasskeys = true;
 const mockMessageError = jest.fn<PromiseLike<boolean>, [string]>();
 const mockMessageSuccess = jest.fn<PromiseLike<boolean>, [string]>();
 
@@ -134,7 +134,6 @@ jest.mock("../utils/constants", () => ({
     getBackendServerUrl: () => globalThis.location.origin,
     getRes: () => ({
         cancel: "Cancel",
-        passkeyRegistrationEnabled: mockPasskeyRegistrationEnabled,
         accountSecurity: {
             mfaCode: "MFA code",
             passkeyAdd: "Add Passkey",
@@ -159,7 +158,7 @@ jest.mock("../utils/constants", () => ({
 }));
 
 jest.mock("../utils/passkey", () => ({
-    canUsePasskeys: () => true,
+    canUsePasskeys: () => mockCanUsePasskeys,
     isPasskeyCancellation: () => false,
     registerPasskey: require("@jest/globals").jest.fn(),
 }));
@@ -200,7 +199,7 @@ describe("PasskeyManagement", () => {
         document.body.appendChild(container);
         root = createRoot(container);
         jest.clearAllMocks();
-        mockPasskeyRegistrationEnabled = true;
+        mockCanUsePasskeys = true;
     });
 
     afterEach(() => {
@@ -288,18 +287,22 @@ describe("PasskeyManagement", () => {
         });
     });
 
-    it("shows registration only when the server trusts the current page context", async () => {
+    it("keeps the registration action visible when WebAuthn is unavailable", async () => {
         mockAxiosGet.mockResolvedValueOnce({ data: apiResponse<PasskeySummary[]>([]) });
 
         await render(false);
-        expect(
-            Array.from(container.querySelectorAll("button")).some((button) => button.textContent === "Add Passkey")
-        ).toBe(true);
+        let addButton = Array.from(container.querySelectorAll("button")).find(
+            (button) => button.textContent === "Add Passkey"
+        );
+        expect(addButton).toBeDefined();
+        expect(addButton?.disabled).toBe(false);
 
-        mockPasskeyRegistrationEnabled = false;
+        mockCanUsePasskeys = false;
         await render(false);
-        expect(
-            Array.from(container.querySelectorAll("button")).some((button) => button.textContent === "Add Passkey")
-        ).toBe(false);
+        addButton = Array.from(container.querySelectorAll("button")).find(
+            (button) => button.textContent === "Add Passkey"
+        );
+        expect(addButton).toBeDefined();
+        expect(addButton?.disabled).toBe(true);
     });
 });

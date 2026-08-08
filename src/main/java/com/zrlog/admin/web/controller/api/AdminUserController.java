@@ -124,6 +124,7 @@ public class AdminUserController extends BaseController {
                 passkeyService.startRegistration(AdminTokenThreadLocal.getUserId(), body, getRequest()));
     }
 
+    @RefreshCache(updateStaticSites = StaticSiteType.ADMIN)
     @ResponseBody
     @RequestMethod(method = HttpMethod.POST)
     public ApiStandardResponse<PasskeySummaryResponse> passkeyRegistrationVerify()
@@ -135,6 +136,7 @@ public class AdminUserController extends BaseController {
                 I18nUtil.getAdminBackendStringFromRes("admin.passkey.register.success"));
     }
 
+    @RefreshCache(updateStaticSites = StaticSiteType.ADMIN)
     @ResponseBody
     @RequestMethod(method = HttpMethod.POST)
     public ApiStandardResponse<Boolean> passkeyRemove() throws SQLException {

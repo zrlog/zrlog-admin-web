@@ -206,7 +206,6 @@ public class AdminResourceImpl implements AdminResource {
         response.setFeature_webhook_enabled(featureLab.getFeature_webhook_enabled());
         response.setFeature_personal_data_enabled(featureLab.getFeature_personal_data_enabled());
         PasskeyRequestContext.Context passkeyContext = resolvePasskeyContext(request);
-        response.setPasskeyRegistrationEnabled(passkeyContext != null);
         response.setPasskeyLoginEnabled(isPasskeyLoginEnabled(passkeyContext));
         return response;
     }
