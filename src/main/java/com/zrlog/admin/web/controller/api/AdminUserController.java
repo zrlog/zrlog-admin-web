@@ -6,18 +6,18 @@ import com.hibegin.http.annotation.ResponseBody;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
 import com.zrlog.admin.business.exception.AdminAuthException;
-import com.zrlog.admin.business.rest.request.UpdateAdminRequest;
-import com.zrlog.admin.business.rest.request.UpdateMfaRequest;
-import com.zrlog.admin.business.rest.request.UpdatePasswordRequest;
+import com.zrlog.admin.business.rest.request.*;
 import com.zrlog.admin.business.rest.response.*;
 import com.zrlog.admin.business.service.AdminAuditService;
 import com.zrlog.admin.business.service.MfaService;
+import com.zrlog.admin.business.service.PasskeyService;
 import com.zrlog.admin.business.service.UserService;
 import com.zrlog.admin.business.type.AdminAuditAction;
 import com.zrlog.admin.web.annotation.RefreshCache;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.business.plugin.type.StaticSiteType;
 import com.zrlog.common.controller.BaseController;
+import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.util.I18nUtil;
 
@@ -28,16 +28,19 @@ public class AdminUserController extends BaseController {
 
     private final UserService userService;
     private final MfaService mfaService;
+    private final PasskeyService passkeyService;
 
     public AdminUserController() {
         this.userService = new UserService();
         this.mfaService = new MfaService();
+        this.passkeyService = new PasskeyService();
     }
 
     public AdminUserController(HttpRequest request, HttpResponse response) {
         super(request, response);
         this.userService = new UserService();
         this.mfaService = new MfaService();
+        this.passkeyService = new PasskeyService();
     }
 
     @ResponseBody
@@ -103,5 +106,42 @@ public class AdminUserController extends BaseController {
         UpdateRecordResponse response = mfaService.disableMfa(AdminTokenThreadLocal.getUserId(), getRequestBodyWithNullCheck(UpdateMfaRequest.class));
         new AdminAuditService().record(request, AdminAuditAction.DISABLE_MFA);
         return response;
+    }
+
+    @ResponseBody
+    public ApiStandardResponse<java.util.List<PasskeySummaryResponse>> passkeys()
+            throws SQLException {
+        return new ApiStandardResponse<>(
+                passkeyService.list(AdminTokenThreadLocal.getUserId()));
+    }
+
+    @ResponseBody
+    @RequestMethod(method = HttpMethod.POST)
+    public ApiStandardResponse<PasskeyOptionsResponse<PasskeyRegistrationOptionsResponse>>
+    passkeyRegistrationOptions() throws SQLException {
+        PasskeyRegistrationOptionsRequest body = getRequestBodyWithNullCheck(PasskeyRegistrationOptionsRequest.class);
+        return new ApiStandardResponse<>(
+                passkeyService.startRegistration(AdminTokenThreadLocal.getUserId(), body, getRequest()));
+    }
+
+    @ResponseBody
+    @RequestMethod(method = HttpMethod.POST)
+    public ApiStandardResponse<PasskeySummaryResponse> passkeyRegistrationVerify()
+            throws SQLException {
+        PasskeySummaryResponse summary = passkeyService.finishRegistration(AdminTokenThreadLocal.getUserId(),
+                getRequestBodyWithNullCheck(PasskeyRegistrationVerifyRequest.class), getRequest());
+        new AdminAuditService().record(request, AdminAuditAction.REGISTER_PASSKEY, summary.getName());
+        return new ApiStandardResponse<>(summary,
+                I18nUtil.getAdminBackendStringFromRes("admin.passkey.register.success"));
+    }
+
+    @ResponseBody
+    @RequestMethod(method = HttpMethod.POST)
+    public ApiStandardResponse<Boolean> passkeyRemove() throws SQLException {
+        PasskeyRemoveRequest body = getRequestBodyWithNullCheck(PasskeyRemoveRequest.class);
+        passkeyService.remove(AdminTokenThreadLocal.getUserId(), body);
+        new AdminAuditService().record(request, AdminAuditAction.REMOVE_PASSKEY, String.valueOf(body.getId()));
+        return new ApiStandardResponse<>(true,
+                I18nUtil.getAdminBackendStringFromRes("admin.passkey.remove.success"));
     }
 }

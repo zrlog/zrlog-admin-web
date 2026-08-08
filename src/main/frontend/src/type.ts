@@ -1,3 +1,9 @@
+import type {
+    AuthenticationResponseJSON,
+    PublicKeyCredentialCreationOptionsJSON,
+    PublicKeyCredentialRequestOptionsJSON,
+    RegistrationResponseJSON,
+} from "@simplewebauthn/browser";
 import type {BackgroundTaskStatus} from "./utils/background-task-store";
 
 export type AppCompactModeState = {
@@ -190,6 +196,36 @@ export type LoginUserResponseInfo = BasicUserInfo & {
     key: string;
     mfaEnabled?: boolean;
     cacheableApiUris?: string[];
+};
+
+export type LoginResponse = ApiResponse<LoginUserResponseInfo>;
+
+export type PasskeyOptionsResponse<T> = {
+    requestId: string;
+    options: T;
+};
+
+export type PasskeyAuthenticationOptionsResponse = PasskeyOptionsResponse<PublicKeyCredentialRequestOptionsJSON>;
+
+export type PasskeyRegistrationOptionsResponse = PasskeyOptionsResponse<PublicKeyCredentialCreationOptionsJSON>;
+
+export type PasskeyAuthenticationVerifyRequest = {
+    requestId: string;
+    response: AuthenticationResponseJSON;
+};
+
+export type PasskeyRegistrationVerifyRequest = {
+    requestId: string;
+    response: RegistrationResponseJSON;
+    name: string;
+};
+
+export type PasskeySummary = {
+    id: number;
+    name: string;
+    createdAt: number;
+    lastUsedAt?: number;
+    transports?: string[];
 };
 
 export type MfaStatusResponse = {

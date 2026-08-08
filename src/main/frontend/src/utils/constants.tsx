@@ -34,6 +34,7 @@ export type AdminRuntimeResourceInfo = {
     feature_webhook_enabled?: boolean;
     homeUrl?: string;
     lang?: AdminLang;
+    passkeyLoginEnabled?: boolean;
     staticPage?: boolean;
     staticPlugin?: boolean;
     supportSse?: boolean;
@@ -62,6 +63,7 @@ const toRuntimeResourceInfo = (res?: AdminRuntimeResourceInfo | null): AdminRunt
         feature_webhook_enabled: res.feature_webhook_enabled,
         homeUrl: res.homeUrl,
         lang: res.lang,
+        passkeyLoginEnabled: res.passkeyLoginEnabled,
         staticPage: res.staticPage,
         staticPlugin: res.staticPlugin,
         supportSse: res.supportSse,
@@ -129,12 +131,22 @@ export const isStaticPage = () => {
     return getRes().staticPage;
 };
 
+const backendServerUrlStorageKey = "_backend_server_url";
+
+export const hasConfiguredBackendServerUrl = (): boolean => {
+    const storedBackendServerUrl = window.localStorage.getItem(backendServerUrlStorageKey);
+    if (storedBackendServerUrl?.trim()) {
+        return true;
+    }
+    return Boolean(getRes().defaultLoginInfo?.backendServerUrl?.trim());
+};
+
 export const setBackendServerUrl = (url: string) => {
-    window.localStorage.setItem("_backend_server_url", url);
+    window.localStorage.setItem(backendServerUrlStorageKey, url);
 };
 
 export const getBackendServerUrl = (): string => {
-    const val = window.localStorage.getItem("_backend_server_url");
+    const val = window.localStorage.getItem(backendServerUrlStorageKey);
     if (val) {
         if (val.endsWith("/")) {
             return val;
@@ -146,7 +158,7 @@ export const getBackendServerUrl = (): string => {
 
 export const tryAppendBackendServerUrl = (url: string): string => {
     if (url.startsWith("/")) {
-        const backendServerUrl = window.localStorage.getItem("_backend_server_url");
+        const backendServerUrl = window.localStorage.getItem(backendServerUrlStorageKey);
         if (!backendServerUrl) {
             return url;
         }

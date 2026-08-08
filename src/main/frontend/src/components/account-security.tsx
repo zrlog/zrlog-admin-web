@@ -12,6 +12,7 @@ import { AdminCommonProps, MfaStatusResponse } from "../type";
 import { getPageDataCacheKeyByPath } from "../utils/cache";
 import { useLocation } from "react-router-dom";
 import { useResponsiveFormLayout } from "../utils/responsive-form";
+import PasskeyManagement from "./passkey-management";
 
 const layout = {
     labelCol: { span: 8 },
@@ -205,6 +206,14 @@ const AccountSecurity = ({ offline, data, updateCache }: AdminCommonProps<Accoun
                             </Button>
                         )}
                     </Card>
+                </Col>
+                <Col xs={24}>
+                    <PasskeyManagement
+                        offline={offline}
+                        mfaEnabled={mfaStatus?.enabled ?? data?.mfaEnabled === true}
+                        cardStyle={securitySurface.card}
+                        modalWidth={securitySurface.modalWidth}
+                    />
                 </Col>
             </Row>
             <Modal

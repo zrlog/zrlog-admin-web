@@ -1,0 +1,139 @@
+[
+  {
+    "name": "com.webauthn4j.data.client.CollectedClientData",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "com.webauthn4j.data.client.ClientDataType",
+          "com.webauthn4j.data.client.challenge.Challenge",
+          "com.webauthn4j.data.client.Origin",
+          "java.lang.Boolean",
+          "com.webauthn4j.data.client.Origin",
+          "com.webauthn4j.data.client.TokenBinding"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "com.webauthn4j.data.client.ClientDataType",
+    "methods": [
+      {
+        "name": "create",
+        "parameterTypes": ["java.lang.String"]
+      }
+    ]
+  },
+  {
+    "name": "com.webauthn4j.data.client.Origin",
+    "methods": [
+      {
+        "name": "deserialize",
+        "parameterTypes": ["java.lang.String"]
+      }
+    ]
+  },
+  {
+    "name": "com.webauthn4j.data.extension.client.AuthenticationExtensionsClientOutputs",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "com.webauthn4j.data.attestation.AttestationObject",
+    "fields": [
+      {"name": "authenticatorData"},
+      {"name": "attestationStatement"}
+    ],
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "com.webauthn4j.data.attestation.authenticator.AuthenticatorData",
+          "com.webauthn4j.data.attestation.statement.AttestationStatement"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "com.webauthn4j.data.attestation.statement.NoneAttestationStatement",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "com.webauthn4j.data.attestation.authenticator.EC2COSEKey",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "byte[]",
+          "com.webauthn4j.data.attestation.statement.COSEAlgorithmIdentifier",
+          "java.util.List",
+          "com.webauthn4j.data.attestation.authenticator.Curve",
+          "byte[]",
+          "byte[]",
+          "byte[]"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "com.webauthn4j.data.attestation.statement.COSEAlgorithmIdentifier",
+    "methods": [
+      {
+        "name": "deserialize",
+        "parameterTypes": ["long"]
+      },
+      {
+        "name": "getValue",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "com.webauthn4j.data.attestation.authenticator.Curve",
+    "methods": [
+      {
+        "name": "deserialize",
+        "parameterTypes": ["int"]
+      },
+      {
+        "name": "getValue",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "com.webauthn4j.data.attestation.statement.COSEKeyOperation",
+    "methods": [
+      {
+        "name": "deserialize",
+        "parameterTypes": ["int"]
+      },
+      {
+        "name": "getValue",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "com.webauthn4j.data.attestation.statement.COSEKeyType",
+    "methods": [
+      {
+        "name": "deserialize",
+        "parameterTypes": ["int"]
+      },
+      {
+        "name": "getValue",
+        "parameterTypes": []
+      }
+    ]
+  }
+]

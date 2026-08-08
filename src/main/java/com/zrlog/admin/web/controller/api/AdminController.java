@@ -5,6 +5,7 @@ import com.hibegin.http.annotation.RequestMethod;
 import com.hibegin.http.annotation.ResponseBody;
 import com.zrlog.admin.business.dto.UserLoginDTO;
 import com.zrlog.admin.business.rest.request.LoginRequest;
+import com.zrlog.admin.business.rest.request.PasskeyAuthenticationVerifyRequest;
 import com.zrlog.admin.business.rest.response.*;
 import com.zrlog.admin.business.service.*;
 import com.zrlog.admin.business.type.AdminAuditAction;
@@ -29,6 +30,7 @@ import java.util.concurrent.ExecutorService;
 public class AdminController extends BaseController {
 
     private final UserService userService = new UserService();
+    private final PasskeyService passkeyService = new PasskeyService();
 
     @ResponseBody
     @RequestMethod(method = HttpMethod.POST)
@@ -41,6 +43,32 @@ public class AdminController extends BaseController {
         Constants.zrLogConfig.getTokenService().setAdminToken(dto.getId(), dto.getSecretKey(), dto.getUserBasicInfoResponse().getKey(),
                 Objects.equals(loginRequest.getHttps(), true) ? "https" : "http", getRequest(), getResponse());
         new AdminAuditService().record(request, AdminAuditAction.LOGIN_SUCCESS, dto.getUserBasicInfoResponse().getUserName());
+        return new AdminPageDataResponse<>(dto.getUserBasicInfoResponse());
+    }
+
+    @ResponseBody
+    @RequestMethod(method = HttpMethod.POST)
+    public ApiStandardResponse<PasskeyOptionsResponse<PasskeyAuthenticationOptionsResponse>> passkeyAuthenticationOptions()
+            throws SQLException {
+        if (!Constants.zrLogConfig.isInstalled()) {
+            throw new MissingInstallException();
+        }
+        return new ApiStandardResponse<>(passkeyService.startAuthentication(getRequest()));
+    }
+
+    @ResponseBody
+    @RequestMethod(method = HttpMethod.POST)
+    public AdminPageDataResponse<UserBasicInfoResponse> passkeyAuthenticationVerify() throws Exception {
+        if (!Constants.zrLogConfig.isInstalled()) {
+            throw new MissingInstallException();
+        }
+        UserLoginDTO dto = passkeyService.finishAuthentication(
+                getRequestBodyWithNullCheck(PasskeyAuthenticationVerifyRequest.class), getRequest());
+        String protocol = new PasskeyRequestContext().resolve(getRequest()).getProtocol();
+        Constants.zrLogConfig.getTokenService().setAdminToken(dto.getId(), dto.getSecretKey(),
+                dto.getUserBasicInfoResponse().getKey(), protocol, getRequest(), getResponse());
+        new AdminAuditService().record(request, AdminAuditAction.LOGIN_WITH_PASSKEY,
+                dto.getUserBasicInfoResponse().getUserName());
         return new AdminPageDataResponse<>(dto.getUserBasicInfoResponse());
     }
 

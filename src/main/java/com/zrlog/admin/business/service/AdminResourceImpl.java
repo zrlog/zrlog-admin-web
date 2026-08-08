@@ -13,6 +13,7 @@ import com.zrlog.common.CacheService;
 import com.zrlog.common.Constants;
 import com.zrlog.common.vo.PublicWebSiteInfo;
 import com.zrlog.data.util.WebSiteUtils;
+import com.zrlog.model.UserPasskey;
 import com.zrlog.plugin.BaseStaticSitePlugin;
 import com.zrlog.util.BlogBuildInfoUtil;
 import com.zrlog.util.I18nUtil;
@@ -22,11 +23,14 @@ import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.sql.SQLException;
 import java.util.*;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 public class AdminResourceImpl implements AdminResource {
 
+    private static final Logger LOGGER = LoggerUtil.getLogger(AdminResourceImpl.class);
 
     private final Set<String> pageUris;
     private final Set<String> staticUris;
@@ -200,7 +204,17 @@ public class AdminResourceImpl implements AdminResource {
         FeatureLabWebSiteInfo featureLab = new WebSiteService().featureLab();
         response.setFeature_webhook_enabled(featureLab.getFeature_webhook_enabled());
         response.setFeature_personal_data_enabled(featureLab.getFeature_personal_data_enabled());
+        response.setPasskeyLoginEnabled(isPasskeyLoginEnabled());
         return response;
+    }
+
+    private boolean isPasskeyLoginEnabled() {
+        try {
+            return new UserPasskey().hasAny();
+        } catch (SQLException e) {
+            LOGGER.warning("Query Passkey login status error, " + e.getMessage());
+            return false;
+        }
     }
 
 }

@@ -3,6 +3,7 @@ package com.zrlog.admin.business.type;
 public enum AdminAuditAction {
 
     LOGIN_SUCCESS("admin.audit.action.loginSuccess", "login"),
+    LOGIN_WITH_PASSKEY("admin.audit.action.loginWithPasskey", "login"),
     CREATE_ARTICLE("admin.audit.action.createArticle", "article"),
     UPDATE_ARTICLE("admin.audit.action.updateArticle", "article"),
     DELETE_ARTICLE("admin.audit.action.deleteArticle", "article"),
@@ -18,6 +19,8 @@ public enum AdminAuditAction {
     UPDATE_PASSWORD("admin.audit.action.updatePassword", "security"),
     ENABLE_MFA("admin.audit.action.enableMfa", "security"),
     DISABLE_MFA("admin.audit.action.disableMfa", "security"),
+    REGISTER_PASSKEY("admin.audit.action.registerPasskey", "security"),
+    REMOVE_PASSKEY("admin.audit.action.removePasskey", "security"),
     UPDATE_WEBHOOK_CONFIG("admin.audit.action.updateWebhookConfig", "security"),
     ROTATE_WEBHOOK_TOKEN("admin.audit.action.rotateWebhookToken", "security"),
     REVOKE_WEBHOOK_TOKEN("admin.audit.action.revokeWebhookToken", "security"),

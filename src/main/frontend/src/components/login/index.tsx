@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { Button, Form, Input, Layout, message, Space } from "antd";
+import { Button, Divider, Form, Input, Layout, message, Space } from "antd";
 import {
+    getBackendServerUrl,
     getDefaultLoginInfo,
     getRealRouteUrl,
     getRes,
+    hasConfiguredBackendServerUrl,
     isStaticPage,
     LoginUserInfo,
     setBackendServerUrl,
@@ -16,13 +18,20 @@ import styled from "styled-components";
 import { getContextPath } from "../../utils/helpers";
 import { useAxiosBaseInstance } from "../../base/AppBase";
 import { getCsrData } from "../../api";
-import { LoginUserResponseInfo } from "../../type";
+import {
+    ApiResponse,
+    LoginResponse,
+    PasskeyAuthenticationOptionsResponse,
+    PasskeyAuthenticationVerifyRequest,
+} from "../../type";
 import { AxiosInstance } from "axios";
 import { getSsDate, ssKeyStorageKey } from "../../base/SsData";
 import { getAppState } from "../../base/ConfigProviderApp";
 import { useTheme } from "antd-style";
 import { ADMIN_ERROR_CODE } from "../../common/admin-error-code";
 import loginPublishingWorkspace from "../../assets/login-publishing-workspace.webp";
+import { KeyOutlined } from "@ant-design/icons";
+import { authenticateWithPasskey, canUsePasskeys, isPasskeyCancellation } from "../../utils/passkey";
 
 const md5 = require("md5");
 
@@ -210,11 +219,6 @@ export const StyledLoginPage = styled(Layout)<StyledLoginPageProps>(
     }
 );
 
-type LoginResponse = {
-    data: LoginUserResponseInfo;
-    pageBuildId: string;
-};
-
 const preloadApiCache = (axiosInstance: AxiosInstance, uris: string[]) => {
     void Promise.all(
         uris.map(async (e) => {
@@ -245,11 +249,16 @@ const saveApiCache = (axiosInstance: AxiosInstance, responseBody: LoginResponse)
 
 const Index = ({ offline }: { offline: boolean }) => {
     const [logging, setLogging] = useState<boolean>(false);
+    const [passkeyLogging, setPasskeyLogging] = useState(false);
     const defaultUserInfo = getDefaultLoginInfo();
     const [loginState, setLoginState] = useState<LoginUserInfo>(defaultUserInfo);
+    const [backendServerUrlConfigured, setBackendServerUrlConfigured] = useState(
+        () => !isStaticPage() || hasConfiguredBackendServerUrl()
+    );
     const [mfaCode, setMfaCode] = useState("");
     const [mfaStep, setMfaStep] = useState(false);
     const lastAutoSubmittedMfaCodeRef = useRef("");
+    const passkeyLoginInFlightRef = useRef(false);
 
     const [messageApi, contextHolder] = message.useMessage({ maxCount: 3 });
 
@@ -257,6 +266,11 @@ const Index = ({ offline }: { offline: boolean }) => {
     const theme = useTheme();
 
     const axiosInstance = useAxiosBaseInstance();
+    const passkeyAvailable =
+        getRes().passkeyLoginEnabled === true &&
+        canUsePasskeys(loginState.backendServerUrl || getBackendServerUrl(), {
+            backendServerUrlConfigured,
+        });
 
     const completeLogin = (data: LoginResponse) => {
         if (isStaticPage() && loginState.backendServerUrl != null) {
@@ -294,7 +308,7 @@ const Index = ({ offline }: { offline: boolean }) => {
             if (isStaticPage()) {
                 axiosInstance.defaults.baseURL = loginState.backendServerUrl;
             }
-            const { data } = await axiosInstance.post("/api/admin/login", loginForm);
+            const { data } = await axiosInstance.post<LoginResponse>("/api/admin/login", loginForm);
             if (data.error) {
                 if (data.error === ADMIN_ERROR_CODE.mfaCodeRequired || data.error === ADMIN_ERROR_CODE.mfaCodeInvalid) {
                     setMfaStep(true);
@@ -314,6 +328,70 @@ const Index = ({ offline }: { offline: boolean }) => {
         } finally {
             setLogging(false);
         }
+    };
+
+    const submitPasskeyLogin = async () => {
+        if (passkeyLoginInFlightRef.current) {
+            return;
+        }
+        passkeyLoginInFlightRef.current = true;
+        setPasskeyLogging(true);
+        try {
+            if (isStaticPage()) {
+                axiosInstance.defaults.baseURL = loginState.backendServerUrl;
+            }
+            let optionsResponse: ApiResponse<PasskeyAuthenticationOptionsResponse>;
+            try {
+                optionsResponse = (
+                    await axiosInstance.post<ApiResponse<PasskeyAuthenticationOptionsResponse>>(
+                        "/api/admin/passkey/authentication/options",
+                        {}
+                    )
+                ).data;
+            } catch {
+                return;
+            }
+            if (optionsResponse.error) {
+                void messageApi.error(optionsResponse.message);
+                return;
+            }
+            let response: PasskeyAuthenticationVerifyRequest["response"];
+            try {
+                response = await authenticateWithPasskey(optionsResponse.data.options);
+            } catch (error) {
+                if (!isPasskeyCancellation(error)) {
+                    void messageApi.error(getRes().login.passkeyFailed);
+                }
+                return;
+            }
+            const verifyRequest: PasskeyAuthenticationVerifyRequest = {
+                requestId: optionsResponse.data.requestId,
+                response,
+            };
+            let loginResponse: LoginResponse;
+            try {
+                loginResponse = (
+                    await axiosInstance.post<LoginResponse>("/api/admin/passkey/authentication/verify", verifyRequest)
+                ).data;
+            } catch {
+                return;
+            }
+            if (loginResponse.error) {
+                void messageApi.error(loginResponse.message);
+                return;
+            }
+            completeLogin(loginResponse);
+        } finally {
+            passkeyLoginInFlightRef.current = false;
+            setPasskeyLogging(false);
+        }
+    };
+
+    const handleLoginValuesChange = (changedValues: LoginUserInfo, values: LoginUserInfo) => {
+        if (isStaticPage() && Object.prototype.hasOwnProperty.call(changedValues, "backendServerUrl")) {
+            setBackendServerUrlConfigured(Boolean(changedValues.backendServerUrl?.trim()));
+        }
+        setLoginState(values);
     };
 
     const onFinish = async () => {
@@ -365,41 +443,66 @@ const Index = ({ offline }: { offline: boolean }) => {
                         {mfaStep && <div className="subtitle">{getRes().login.mfaStepHint}</div>}
 
                         {!mfaStep && (
-                            <Form
-                                layout="vertical"
-                                initialValues={defaultUserInfo}
-                                onFinish={() => onFinish()}
-                                onValuesChange={(_k, v) => setLoginState(v)}
-                            >
-                                {isStaticPage() && (
+                            <>
+                                <Form
+                                    layout="vertical"
+                                    initialValues={defaultUserInfo}
+                                    onFinish={() => onFinish()}
+                                    onValuesChange={handleLoginValuesChange}
+                                >
+                                    {isStaticPage() && (
+                                        <Form.Item
+                                            label={getRes().login.backendServerUrl}
+                                            name={"backendServerUrl"}
+                                            rules={[{ required: true }]}
+                                        >
+                                            <Input autoComplete={"url"} />
+                                        </Form.Item>
+                                    )}
                                     <Form.Item
-                                        label={getRes().login.backendServerUrl}
-                                        name={"backendServerUrl"}
+                                        label={getRes().login.userName}
+                                        name="userName"
                                         rules={[{ required: true }]}
                                     >
-                                        <Input autoComplete={"url"} />
+                                        <Input autoComplete={"username"} />
                                     </Form.Item>
-                                )}
-                                <Form.Item label={getRes().login.userName} name="userName" rules={[{ required: true }]}>
-                                    <Input autoComplete={"username"} />
-                                </Form.Item>
 
-                                <Form.Item label={getRes().login.password} name="password" rules={[{ required: true }]}>
-                                    <Input.Password autoComplete={"current-password"} />
-                                </Form.Item>
-
-                                <Form.Item style={{ marginTop: "20px" }}>
-                                    <Button
-                                        disabled={offline}
-                                        loading={logging}
-                                        type="primary"
-                                        size={"large"}
-                                        htmlType="submit"
+                                    <Form.Item
+                                        label={getRes().login.password}
+                                        name="password"
+                                        rules={[{ required: true }]}
                                     >
-                                        {getRes().login.submit}
-                                    </Button>
-                                </Form.Item>
-                            </Form>
+                                        <Input.Password autoComplete={"current-password"} />
+                                    </Form.Item>
+
+                                    <Form.Item style={{ marginTop: "20px", marginBottom: 0 }}>
+                                        <Button
+                                            disabled={offline || passkeyLogging}
+                                            loading={logging}
+                                            type="primary"
+                                            size={"large"}
+                                            htmlType="submit"
+                                        >
+                                            {getRes().login.submit}
+                                        </Button>
+                                    </Form.Item>
+                                </Form>
+                                {passkeyAvailable && (
+                                    <>
+                                        <Divider plain>{getRes().login.passkeyDivider}</Divider>
+                                        <Button
+                                            block
+                                            disabled={offline || logging}
+                                            icon={<KeyOutlined />}
+                                            loading={passkeyLogging}
+                                            size="large"
+                                            onClick={() => void submitPasskeyLogin()}
+                                        >
+                                            {getRes().login.passkeySubmit}
+                                        </Button>
+                                    </>
+                                )}
+                            </>
                         )}
 
                         {mfaStep && (

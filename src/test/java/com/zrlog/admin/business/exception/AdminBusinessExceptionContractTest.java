@@ -25,6 +25,9 @@ public class AdminBusinessExceptionContractTest {
         assertAdminError(new MfaCodeRequiredException(), AdminErrorCode.MFA_CODE_REQUIRED);
         assertAdminError(new InvalidMfaCodeException(), AdminErrorCode.MFA_CODE_INVALID);
         assertAdminError(new PermissionErrorException(), AdminErrorCode.PERMISSION_DENIED);
+        assertAdminError(new PasskeyVerificationException(), AdminErrorCode.PASSKEY_REQUEST_INVALID);
+        assertAdminError(new PasskeyRequestBusyException(), AdminErrorCode.PASSKEY_REQUEST_BUSY);
+        assertAdminError(new PasskeyLimitExceededException(), AdminErrorCode.PASSKEY_LIMIT_EXCEEDED);
         assertAdminError(new DeleteTypeException(), AdminErrorCode.ARTICLE_TYPE_DELETE_HAS_ARTICLE);
         assertAdminError(new ArticleMissingTitleException(), AdminErrorCode.ARTICLE_TITLE_REQUIRED);
         assertAdminError(new ArticleMissingTypeException(), AdminErrorCode.ARTICLE_TYPE_REQUIRED);

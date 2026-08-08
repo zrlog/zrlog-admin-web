@@ -11,6 +11,11 @@ import java.util.Objects;
 
 public class AdminLoginInterceptor implements HandleAbleInterceptor {
 
+    private static final String PASSKEY_AUTHENTICATION_OPTIONS =
+            "/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/passkey/authentication/options";
+    private static final String PASSKEY_AUTHENTICATION_VERIFY =
+            "/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/passkey/authentication/verify";
+
     @Override
     public boolean doInterceptor(HttpRequest request, HttpResponse response) throws Exception {
         try {
@@ -35,6 +40,8 @@ public class AdminLoginInterceptor implements HandleAbleInterceptor {
         String uri = request.getUri();
         return AdminConstants.ADMIN_LOGIN_URI_PATH.equals(uri)
                 || (AdminConstants.ADMIN_URI_BASE_PATH + "/logout").equals(uri)
-                || ("/api" + AdminConstants.ADMIN_LOGIN_URI_PATH).equals(uri);
+                || ("/api" + AdminConstants.ADMIN_LOGIN_URI_PATH).equals(uri)
+                || PASSKEY_AUTHENTICATION_OPTIONS.equals(uri)
+                || PASSKEY_AUTHENTICATION_VERIFY.equals(uri);
     }
 }

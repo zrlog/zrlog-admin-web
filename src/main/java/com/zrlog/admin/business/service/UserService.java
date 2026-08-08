@@ -115,6 +115,19 @@ public class UserService {
         int userId = ((Number) user.get("userId")).intValue();
         upgradePasswordIfNeeded(userDao, userId, dbPassword, submittedPassword);
         mfaService.verifyLoginMfa(user, loginRequest.getMfaCode());
+        return buildLoginDTO(user);
+    }
+
+    public void verifyCurrentCredentials(int userId, String submittedPassword, String mfaCode) throws SQLException {
+        Map<String, Object> user = new User().loadById(userId);
+        if (Objects.isNull(user) || !verifyPassword(submittedPassword, Objects.toString(user.get("password"), ""))) {
+            throw new OldPasswordException();
+        }
+        mfaService.verifyLoginMfa(user, mfaCode);
+    }
+
+    public UserLoginDTO buildLoginDTO(Map<String, Object> user) {
+        int userId = ((Number) user.get("userId")).intValue();
         UserBasicDTO basicDTO = BeanUtil.convert(user, UserBasicDTO.class);
         UserBasicInfoResponse userInfoByUser = getUserInfoByUser(basicDTO, UUID.randomUUID().toString());
         userInfoByUser.setEmail(ObjectHelpers.requireNonNullElse((String) user.get("email"), ""));

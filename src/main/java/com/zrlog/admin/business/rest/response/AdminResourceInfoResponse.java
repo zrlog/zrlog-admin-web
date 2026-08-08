@@ -20,6 +20,7 @@ public class AdminResourceInfoResponse {
     private String admin_static_resource_base_url;
     private Boolean feature_webhook_enabled;
     private Boolean feature_personal_data_enabled;
+    private Boolean passkeyLoginEnabled;
 
     public String getCurrentVersion() {
         return currentVersion;
@@ -163,6 +164,14 @@ public class AdminResourceInfoResponse {
 
     public void setFeature_personal_data_enabled(Boolean feature_personal_data_enabled) {
         this.feature_personal_data_enabled = feature_personal_data_enabled;
+    }
+
+    public Boolean getPasskeyLoginEnabled() {
+        return passkeyLoginEnabled;
+    }
+
+    public void setPasskeyLoginEnabled(Boolean passkeyLoginEnabled) {
+        this.passkeyLoginEnabled = passkeyLoginEnabled;
     }
 
     public static class DefaultLoginInfo {

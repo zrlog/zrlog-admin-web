@@ -26,6 +26,10 @@ public class AdminRouters {
         router.addMapper(TemplateInfoHelper.ADMIN_PREVIEW_IMAGE_URI, AdminTemplatePageController.class, "previewImage");
         // api
         router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH, AdminController.class);
+        router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/passkey/authentication/options",
+                AdminController.class, "passkeyAuthenticationOptions");
+        router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/passkey/authentication/verify",
+                AdminController.class, "passkeyAuthenticationVerify");
         router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/403", AdminController.class, "error");
         router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/404", AdminController.class, "error");
         router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/500", AdminController.class, "error");
@@ -91,6 +95,14 @@ public class AdminRouters {
         router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/upgrade/notice", UpgradeController.class, "notice");
         router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/user", AdminUserController.class);
         router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/account-security", AdminUserController.class);
+        router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/account-security/passkeys",
+                AdminUserController.class, "passkeys");
+        router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/account-security/passkey/registration/options",
+                AdminUserController.class, "passkeyRegistrationOptions");
+        router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/account-security/passkey/registration/verify",
+                AdminUserController.class, "passkeyRegistrationVerify");
+        router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/account-security/passkey/remove",
+                AdminUserController.class, "passkeyRemove");
         router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/system", AdminSystemController.class);
         router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/static-site", AdminStaticSiteController.class);
         router.addMapper("/api" + AdminConstants.ADMIN_DEV_URI_BASE_PATH, AdminDevController.class);

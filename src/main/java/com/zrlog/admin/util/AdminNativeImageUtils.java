@@ -48,6 +48,11 @@ public class AdminNativeImageUtils {
                 AdminDashboardCardRequest.class, WebhookConfigRequest.class, WebhookMessageNoticeRequest.class,
                 TagManageRequest.class, ReadMessageCenterNoticeRequest.class, UpgradeRestartNoticeRequest.class,
                 ExecuteUpgradeRequest.class));
+        NativeImageUtils.gsonNativeAgentByClazz(Arrays.asList(
+                PasskeyAuthenticationVerifyRequest.class, PasskeyRegistrationOptionsRequest.class,
+                PasskeyRegistrationVerifyRequest.class, PasskeyRemoveRequest.class,
+                PasskeyCredential.class, PasskeyCredential.AuthenticatorResponse.class,
+                com.zrlog.admin.business.service.PasskeyService.ChallengeState.class));
     }
 
     private static void adminResponseJson() {
@@ -142,6 +147,11 @@ public class AdminNativeImageUtils {
                 PersonalDataPreviewResponse.class, PersonalDataCommentExportResponse.class,
                 PersonalDataCommentExportResponse.CommentEntry.class,
                 MfaStatusResponse.class, StaticSiteProgressResponse.class, StoredUpgradeNotice.class,
+                PasskeyOptionsResponse.class, PasskeyCredentialDescriptor.class,
+                PasskeyRegistrationOptionsResponse.class, PasskeyRegistrationOptionsResponse.RelyingParty.class,
+                PasskeyRegistrationOptionsResponse.User.class, PasskeyRegistrationOptionsResponse.CredentialParameter.class,
+                PasskeyRegistrationOptionsResponse.AuthenticatorSelection.class,
+                PasskeyAuthenticationOptionsResponse.class, PasskeySummaryResponse.class,
                 AdminPageDataResponse.class, FileEntryVO.class, FileReferenceVO.class,
                 FileReferenceIndexCacheVO.class, FileManagerResponse.class, ReplaceArticleResourceUrlResponse.class,
                 LinkPreviewResponse.class, LinkPreviewService.LinkPreviewCacheEntry.class,
