@@ -16,6 +16,7 @@ public class PasskeyRequestContext {
 
     private static final int MAX_RP_ID_LENGTH = 255;
     private static final int MAX_ORIGIN_LENGTH = 512;
+    private static final int MAX_REFERER_LENGTH = 2048;
     private final Supplier<String> configuredSiteHostSupplier;
 
     public PasskeyRequestContext() {
@@ -56,7 +57,9 @@ public class PasskeyRequestContext {
                 throw new PasskeyVerificationException();
             }
             boolean sameOrigin = suppliedOrigin.equals(requestOrigin);
-            if (!sameOrigin && (!isConfiguredSiteOrigin(suppliedOrigin) || !isSecureApiOrigin(requestOrigin))) {
+            boolean proxiedSameOrigin = !sameOrigin && isProxiedSameOriginBrowserRequest(request, suppliedOrigin);
+            if (!sameOrigin && !proxiedSameOrigin
+                    && (!isConfiguredSiteOrigin(suppliedOrigin) || !isSecureApiOrigin(requestOrigin))) {
                 throw new PasskeyVerificationException();
             }
             if (!"https".equals(suppliedOrigin.getScheme())
@@ -68,6 +71,27 @@ public class PasskeyRequestContext {
             throw e;
         } catch (RuntimeException e) {
             throw new PasskeyVerificationException();
+        }
+    }
+
+    private boolean isProxiedSameOriginBrowserRequest(HttpRequest request, Origin suppliedOrigin) {
+        String fetchSite = Objects.toString(request.getHeader("Sec-Fetch-Site"), "").trim()
+                .toLowerCase(Locale.ROOT);
+        String refererHeader = Objects.toString(request.getHeader("Referer"), "").trim();
+        if (!"same-origin".equals(fetchSite) || refererHeader.isEmpty()
+                || refererHeader.length() > MAX_REFERER_LENGTH) {
+            return false;
+        }
+        try {
+            URI referer = URI.create(refererHeader);
+            if (StringUtils.isEmpty(referer.getScheme()) || StringUtils.isEmpty(referer.getHost())
+                    || referer.getUserInfo() != null || referer.getFragment() != null) {
+                return false;
+            }
+            Origin refererOrigin = new Origin(referer.getScheme() + "://" + referer.getRawAuthority());
+            return isValidPort(refererOrigin) && suppliedOrigin.equals(refererOrigin);
+        } catch (RuntimeException e) {
+            return false;
         }
     }
 

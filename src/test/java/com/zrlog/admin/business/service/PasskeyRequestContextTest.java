@@ -57,6 +57,34 @@ public class PasskeyRequestContextTest {
     }
 
     @Test
+    public void shouldAcceptSameOriginBrowserRequestBehindReverseProxy() {
+        PasskeyRequestContext configuredContext = new PasskeyRequestContext(() -> "blog.zrlog.com");
+
+        PasskeyRequestContext.Context context = configuredContext.resolve(
+                request("https://blog-admin.zrlog.com", "localhost:18080", "http",
+                        "https://blog-admin.zrlog.com/admin/account-security", "same-origin"));
+
+        assertEquals("https://blog-admin.zrlog.com", context.getOrigin());
+        assertEquals("blog-admin.zrlog.com", context.getRpId());
+        assertEquals("https", context.getProtocol());
+    }
+
+    @Test
+    public void shouldRejectProxyOriginFallbackWithoutTrustedBrowserMetadata() {
+        PasskeyRequestContext configuredContext = new PasskeyRequestContext(() -> "blog.zrlog.com");
+
+        assertThrows(PasskeyVerificationException.class, () -> configuredContext.resolve(
+                request("https://blog-admin.zrlog.com", "localhost:18080", "http",
+                        "https://blog-admin.zrlog.com/admin/account-security", null)));
+        assertThrows(PasskeyVerificationException.class, () -> configuredContext.resolve(
+                request("https://blog-admin.zrlog.com", "localhost:18080", "http",
+                        "https://evil.example/admin/account-security", "same-origin")));
+        assertThrows(PasskeyVerificationException.class, () -> configuredContext.resolve(
+                request("https://blog-admin.zrlog.com", "localhost:18080", "http",
+                        "https://blog-admin.zrlog.com/admin/account-security", "cross-site")));
+    }
+
+    @Test
     public void shouldRejectCrossOriginRequest() {
         assertThrows(PasskeyVerificationException.class, () -> requestContext.resolve(
                 request("https://admin.example.com", "other.example.com", "https")));
@@ -140,6 +168,11 @@ public class PasskeyRequestContextTest {
     }
 
     private static HttpRequest request(String origin, String host, String scheme) {
+        return request(origin, host, scheme, null, null);
+    }
+
+    private static HttpRequest request(String origin, String host, String scheme,
+                                       String referer, String fetchSite) {
         return (HttpRequest) Proxy.newProxyInstance(
                 PasskeyRequestContextTest.class.getClassLoader(),
                 new Class[]{HttpRequest.class},
@@ -151,6 +184,12 @@ public class PasskeyRequestContextTest {
                             }
                             if ("Host".equals(args[0])) {
                                 return host;
+                            }
+                            if ("Referer".equals(args[0])) {
+                                return referer;
+                            }
+                            if ("Sec-Fetch-Site".equals(args[0])) {
+                                return fetchSite;
                             }
                             return null;
                         case "getScheme":

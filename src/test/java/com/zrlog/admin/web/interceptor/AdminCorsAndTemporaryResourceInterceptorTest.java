@@ -120,6 +120,23 @@ public class AdminCorsAndTemporaryResourceInterceptorTest {
     }
 
     @Test
+    public void shouldApplyCorsHeadersForSameOriginBrowserBehindReverseProxy() {
+        ResponseRecorder response = new ResponseRecorder();
+
+        boolean proceed = new AdminCrossOriginInterceptor().doInterceptor(
+                request(HttpMethod.POST, "/api/admin/account-security/passkey/registration/options",
+                        Map.of("Origin", "https://blog-admin.zrlog.com", "Host", "localhost:18080",
+                                "Referer", "https://blog-admin.zrlog.com/admin/account-security",
+                                "Sec-Fetch-Site", "same-origin"), "http"),
+                response.response());
+
+        assertTrue(proceed);
+        assertEquals("https://blog-admin.zrlog.com", response.headers.get("Access-Control-Allow-Origin"));
+        assertEquals("true", response.headers.get("Access-Control-Allow-Credentials"));
+        assertEquals("Origin", response.headers.get("Vary"));
+    }
+
+    @Test
     public void shouldNotApplyCorsHeadersForUntrustedPasskeyOrigin() {
         ResponseRecorder response = new ResponseRecorder();
 
