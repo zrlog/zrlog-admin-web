@@ -1976,9 +1976,9 @@
   resolved "https://registry.npmmirror.com/@csstools/selector-specificity/-/selector-specificity-2.2.0.tgz#2cbcf822bf3764c9658c4d2e568bd0c0cb748016"
   integrity sha512-+OJ9konv95ClSTOJCmMZqpd5+YGsB2S+x6w3E1oaM8UuR5j8nTNHYSz8c9BEPGDOCMQYIEEGlVPj/VY64iTbGw==
 
-"@editor@https://raw.githubusercontent.com/zrlog/zrlog-editor/refs/heads/main/artifacts/v2.1.27.tgz?v=1":
-  version "2.1.27"
-  resolved "https://raw.githubusercontent.com/zrlog/zrlog-editor/refs/heads/main/artifacts/v2.1.27.tgz?v=1#cd8b73e27aeda9964fe031f9d9245595a0123505"
+"@editor@https://raw.githubusercontent.com/zrlog/zrlog-editor/refs/heads/main/artifacts/v2.1.31.tgz?v=1":
+  version "2.1.31"
+  resolved "https://raw.githubusercontent.com/zrlog/zrlog-editor/refs/heads/main/artifacts/v2.1.31.tgz?v=1#d9c16eca30624ea0dbaccb69828666b15487d015"
   dependencies:
     "@ant-design/cssinjs" "2.1.2"
     "@ant-design/icons" "6.2.3"
@@ -1995,8 +1995,8 @@
     marked "16.0.0"
     react "18.3.1"
     react-dom "18.3.1"
-    react-router "6.28.0"
-    react-router-dom "6.28.0"
+    react-router "6.30.3"
+    react-router-dom "6.30.3"
     react-sequence-diagram "0.0.12"
     screenfull "6.0.2"
     styled-components "6.1.15"
@@ -3093,7 +3093,7 @@
     "@rc-component/util" "^1.4.0"
     clsx "^2.1.1"
 
-"@remix-run/router@1.21.0", "@remix-run/router@1.23.2":
+"@remix-run/router@1.23.2":
   version "1.23.2"
   resolved "https://registry.npmmirror.com/@remix-run/router/-/router-1.23.2.tgz#156c4b481c0bee22a19f7924728a67120de06971"
   integrity sha512-Ic6m2U/rMjTkhERIa/0ZtXJP17QUi2CbWE7cqx4J58M8aA3QTfW+2UlQ4psvTX9IO1RfNVhK3pcpdjej7L+t2w==
@@ -9866,14 +9866,6 @@ react-refresh@^0.11.0:
   resolved "https://registry.npmmirror.com/react-refresh/-/react-refresh-0.11.0.tgz#77198b944733f0f1f1a90e791de4541f9f074046"
   integrity sha512-F27qZr8uUqwhWZboondsPx8tnC3Ct3SxZA3V5WyEvujRyyNv0VYPhoBg1gZ8/MV5tubQp76Trw8lTv9hzRBa+A==
 
-react-router-dom@6.28.0:
-  version "6.28.0"
-  resolved "https://registry.npmmirror.com/react-router-dom/-/react-router-dom-6.28.0.tgz#f73ebb3490e59ac9f299377062ad1d10a9f579e6"
-  integrity sha512-kQ7Unsl5YdyOltsPGl31zOjLrDv+m2VcIEcIHqYYD3Lp0UppLjrzcfJqDJwXxFw3TH/yvapbnUvPlAj7Kx5nbg==
-  dependencies:
-    "@remix-run/router" "1.21.0"
-    react-router "6.28.0"
-
 react-router-dom@6.30.3:
   version "6.30.3"
   resolved "https://registry.npmmirror.com/react-router-dom/-/react-router-dom-6.30.3.tgz#42ae6dc4c7158bfb0b935f162b9621b29dddf740"
@@ -9881,13 +9873,6 @@ react-router-dom@6.30.3:
   dependencies:
     "@remix-run/router" "1.23.2"
     react-router "6.30.3"
-
-react-router@6.28.0:
-  version "6.28.0"
-  resolved "https://registry.npmmirror.com/react-router/-/react-router-6.28.0.tgz#29247c86d7ba901d7e5a13aa79a96723c3e59d0d"
-  integrity sha512-HrYdIFqdrnhDw0PqG/AKjAqEqM7AvxCz0DQ4h2W8k6nqmc5uRBYDag0SBxx9iYz5G8gnuNVLzUe13wl9eAsXXg==
-  dependencies:
-    "@remix-run/router" "1.21.0"
 
 react-router@6.30.3:
   version "6.30.3"
