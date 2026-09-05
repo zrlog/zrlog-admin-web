@@ -90,6 +90,61 @@ public class AdminArticleControllerDatabaseTest {
 
     @Test
     @SuppressWarnings("unchecked")
+    public void shouldRenderMissingMarkdownContentAndPreserveExplicitHtml() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            setAdminToken();
+            String markdownOnly = "{"
+                    + "\"title\":\"Rendered Draft\","
+                    + "\"alias\":\"rendered-draft\","
+                    + "\"markdown\":\"# Rendered\\n\\nfirst line\\nsecond line\","
+                    + "\"typeId\":1,"
+                    + "\"canComment\":true,"
+                    + "\"recommended\":false,"
+                    + "\"privacy\":false,"
+                    + "\"rubbish\":true,"
+                    + "\"transparentPublish\":false,"
+                    + "\"editorType\":\"markdown\""
+                    + "}";
+            ResponseRecorder renderedResponse = new ResponseRecorder();
+
+            controller(Map.of(), markdownOnly, renderedResponse).create();
+
+            AdminPageDataResponse<ArticleGlobalResponse> rendered =
+                    (AdminPageDataResponse<ArticleGlobalResponse>) renderedResponse.rendered;
+            Long renderedId = Long.valueOf(rendered.getData().getArticle().getLogId());
+            assertEquals("<h1>Rendered</h1>\n<p>first line<br>second line</p>\n",
+                    db.queryOne("select content from log where logId=?", renderedId).get("content"));
+
+            String markdownUpdate = "{"
+                    + "\"logId\":" + renderedId + ","
+                    + "\"version\":0,"
+                    + "\"title\":\"Updated Markdown\","
+                    + "\"alias\":\"updated-markdown\","
+                    + "\"markdown\":\"## Updated\\n\\nnew body\","
+                    + "\"typeId\":1,"
+                    + "\"canComment\":true,"
+                    + "\"recommended\":false,"
+                    + "\"privacy\":false,"
+                    + "\"rubbish\":true,"
+                    + "\"transparentPublish\":false,"
+                    + "\"editorType\":\"markdown\""
+                    + "}";
+            controller(Map.of(), markdownUpdate, new ResponseRecorder()).update();
+            assertEquals("<h2>Updated</h2>\n<p>new body</p>\n",
+                    db.queryOne("select content from log where logId=?", renderedId).get("content"));
+
+            ResponseRecorder explicitResponse = new ResponseRecorder();
+            controller(Map.of(), articleBody("Explicit HTML", "explicit-html", true), explicitResponse).create();
+            AdminPageDataResponse<ArticleGlobalResponse> explicit =
+                    (AdminPageDataResponse<ArticleGlobalResponse>) explicitResponse.rendered;
+            Long explicitId = Long.valueOf(explicit.getData().getArticle().getLogId());
+            assertEquals("<p>Explicit HTML content</p>",
+                    db.queryOne("select content from log where logId=?", explicitId).get("content"));
+        }
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
     public void shouldCreateAndUpdatePublishedArticleWithRefreshCachePathThroughRealDao() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             setAdminToken();

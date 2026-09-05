@@ -23,6 +23,7 @@ import com.zrlog.business.plugin.type.StaticSiteType;
 import com.zrlog.business.plugin.StaticSitePlugin;
 import com.zrlog.business.util.CacheUtils;
 import com.zrlog.business.util.ControllerUtil;
+import com.zrlog.blog.polyglot.markdown.MarkdownJsRenderer;
 import com.zrlog.common.controller.BaseController;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.rest.response.ApiStandardResponse;
@@ -48,6 +49,7 @@ import java.util.logging.Logger;
 public class AdminArticleController extends BaseController {
 
     private static final Logger LOGGER = LoggerUtil.getLogger(AdminArticleController.class);
+    private static final MarkdownJsRenderer MARKDOWN_RENDERER = new MarkdownJsRenderer();
 
     private final AdminArticleService articleService = new AdminArticleService();
 
@@ -92,6 +94,7 @@ public class AdminArticleController extends BaseController {
     @RequestMethod(method = HttpMethod.POST)
     public void create() throws SQLException, IOException {
         CreateArticleRequest body = getRequestBodyWithNullCheck(CreateArticleRequest.class);
+        renderMissingMarkdownContent(body);
         AdminTokenVO adminToken = AdminTokenThreadLocal.getUser();
         if (shouldUseTransparentPublishStream(body)) {
             writeTransparentPublishStream(body, () -> {
@@ -109,6 +112,7 @@ public class AdminArticleController extends BaseController {
     @RequestMethod(method = HttpMethod.POST)
     public void update() throws SQLException, IOException {
         UpdateArticleRequest body = getRequestBodyWithNullCheck(UpdateArticleRequest.class);
+        renderMissingMarkdownContent(body);
         AdminTokenVO adminToken = AdminTokenThreadLocal.getUser();
         if (shouldUseTransparentPublishStream(body)) {
             writeTransparentPublishStream(body, () -> {
@@ -142,6 +146,14 @@ public class AdminArticleController extends BaseController {
 
     private boolean shouldUseTransparentPublishStream(CreateArticleRequest body) {
         return body.isTransparentPublish() && !body.isRubbish() && !body.isPrivacy();
+    }
+
+    private void renderMissingMarkdownContent(CreateArticleRequest body) {
+        if ("markdown".equals(body.getEditorType())
+                && StringUtils.isEmpty(body.getContent())
+                && StringUtils.isNotEmpty(body.getMarkdown())) {
+            body.setContent(MARKDOWN_RENDERER.render(body.getMarkdown()));
+        }
     }
 
     private void writeTransparentPublishStream(CreateArticleRequest body, ArticleSaveTask saveTask) throws IOException {
