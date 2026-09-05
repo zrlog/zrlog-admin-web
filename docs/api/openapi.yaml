@@ -35,7 +35,8 @@ paths:
       summary: 创建文章
       description: |-
         创建草稿、私密文章或公开文章。`editorType=markdown`、`markdown` 非空且 `content` 为空或省略时，
-        服务端使用内置 marked 渲染 HTML；调用方显式提供的 `content` 保持不变。
+        Java 17 及以上的服务端使用内置 marked 渲染 HTML；Java 11 跳过渲染并记录警告，仍继续保存。
+        调用方显式提供的 `content` 保持不变；Java 11 调用方应自行提供 HTML，否则正文可能为空。
 
         `rubbish=true` 表示草稿并保持非公开；`rubbish=false, privacy=true` 表示私密文章；
         `rubbish=false, privacy=false` 表示公开发布。调用方必须显式传递这两个状态，避免意外发布。
@@ -129,7 +130,8 @@ paths:
 
         调用方应先取得完整文章快照，只修改目标字段后再提交。省略可写字符串字段可能导致清空、重算或把别名重置为数字 ID；
         省略布尔字段会按 false 处理。`editorType=markdown`、`markdown` 非空且 `content` 为空或省略时，
-        服务端使用内置 marked 重新生成 HTML；调用方显式提供的 `content` 保持不变。状态组合与创建接口相同。
+        Java 17 及以上的服务端使用内置 marked 重新生成 HTML；Java 11 跳过渲染并记录警告，仍继续保存。
+        调用方显式提供的 `content` 保持不变；Java 11 调用方应自行提供 HTML，否则正文可能被清空。状态组合与创建接口相同。
         当前文档只支持 `transparentPublish=false` 的普通 JSON 响应。
 
         本操作不能在响应丢失后使用旧 `version` 无条件重试；应重新读取最新快照并判断实际保存结果。
@@ -432,12 +434,12 @@ components:
           type:
             - string
             - "null"
-          description: 已渲染的 HTML 正文；Markdown 模式下为空或省略时由服务端根据 markdown 生成
+          description: 已渲染的 HTML 正文；Markdown 模式下为空或省略时，Java 17 及以上根据 markdown 生成，Java 11 跳过渲染并记录警告
         markdown:
           type:
             - string
             - "null"
-          description: 可选的 Markdown 编辑源；Markdown 模式且 content 为空时用于生成 HTML
+          description: 可选的 Markdown 编辑源；Java 17 及以上在 Markdown 模式且 content 为空时用于生成 HTML
         thumbnail:
           type:
             - string
