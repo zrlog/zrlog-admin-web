@@ -34,8 +34,8 @@ paths:
         - Article
       summary: 创建文章
       description: |-
-        创建草稿、私密文章或公开文章。`content` 必须是已经渲染的 HTML；`markdown` 仅作为编辑源保存，
-        Java 后端不会把 Markdown 自动渲染为 HTML。
+        创建草稿、私密文章或公开文章。`editorType=markdown`、`markdown` 非空且 `content` 为空或省略时，
+        服务端使用内置 marked 渲染 HTML；调用方显式提供的 `content` 保持不变。
 
         `rubbish=true` 表示草稿并保持非公开；`rubbish=false, privacy=true` 表示私密文章；
         `rubbish=false, privacy=false` 表示公开发布。调用方必须显式传递这两个状态，避免意外发布。
@@ -128,7 +128,8 @@ paths:
         当前文档未记录文章读取接口；本操作只适用于已经从受信任后台上下文取得当前完整快照的调用者。
 
         调用方应先取得完整文章快照，只修改目标字段后再提交。省略可写字符串字段可能导致清空、重算或把别名重置为数字 ID；
-        省略布尔字段会按 false 处理。`content` 必须是已经渲染的 HTML，状态组合与创建接口相同。
+        省略布尔字段会按 false 处理。`editorType=markdown`、`markdown` 非空且 `content` 为空或省略时，
+        服务端使用内置 marked 重新生成 HTML；调用方显式提供的 `content` 保持不变。状态组合与创建接口相同。
         当前文档只支持 `transparentPublish=false` 的普通 JSON 响应。
 
         本操作不能在响应丢失后使用旧 `version` 无条件重试；应重新读取最新快照并判断实际保存结果。
@@ -413,7 +414,6 @@ components:
       required:
         - title
         - typeId
-        - content
         - canComment
         - privacy
         - recommended
@@ -429,13 +429,15 @@ components:
           minimum: 1
           description: 已存在的文章分类 ID
         content:
-          type: string
-          description: 已渲染的 HTML 正文；Markdown 编辑器也必须提交该字段
+          type:
+            - string
+            - "null"
+          description: 已渲染的 HTML 正文；Markdown 模式下为空或省略时由服务端根据 markdown 生成
         markdown:
           type:
             - string
             - "null"
-          description: 可选的 Markdown 编辑源；后端不会据此生成 content
+          description: 可选的 Markdown 编辑源；Markdown 模式且 content 为空时用于生成 HTML
         thumbnail:
           type:
             - string
