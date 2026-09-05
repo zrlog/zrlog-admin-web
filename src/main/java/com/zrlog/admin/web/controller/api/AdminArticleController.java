@@ -152,7 +152,10 @@ public class AdminArticleController extends BaseController {
         if ("markdown".equals(body.getEditorType())
                 && StringUtils.isEmpty(body.getContent())
                 && StringUtils.isNotEmpty(body.getMarkdown())) {
-            body.setContent(MARKDOWN_RENDERER.render(body.getMarkdown()));
+            String renderedContent = MARKDOWN_RENDERER.render(body.getMarkdown());
+            if (renderedContent != null) {
+                body.setContent(renderedContent);
+            }
         }
     }
 

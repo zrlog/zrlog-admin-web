@@ -90,7 +90,7 @@ public class AdminArticleControllerDatabaseTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    public void shouldRenderMissingMarkdownContentAndPreserveExplicitHtml() throws Exception {
+    public void shouldHandleMissingMarkdownContentForCurrentJvmAndPreserveExplicitHtml() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             setAdminToken();
             String markdownOnly = "{"
@@ -112,14 +112,18 @@ public class AdminArticleControllerDatabaseTest {
             AdminPageDataResponse<ArticleGlobalResponse> rendered =
                     (AdminPageDataResponse<ArticleGlobalResponse>) renderedResponse.rendered;
             Long renderedId = Long.valueOf(rendered.getData().getArticle().getLogId());
-            assertEquals("<h1>Rendered</h1>\n<p>first line<br>second line</p>\n",
+            assertEquals(Runtime.version().feature() >= 17
+                            ? "<h1>Rendered</h1>\n<p>first line<br>second line</p>\n" : null,
                     db.queryOne("select content from log where logId=?", renderedId).get("content"));
+            assertEquals("# Rendered\n\nfirst line\nsecond line",
+                    db.queryOne("select markdown from log where logId=?", renderedId).get("markdown"));
 
             String markdownUpdate = "{"
                     + "\"logId\":" + renderedId + ","
                     + "\"version\":0,"
                     + "\"title\":\"Updated Markdown\","
                     + "\"alias\":\"updated-markdown\","
+                    + "\"content\":\"\","
                     + "\"markdown\":\"## Updated\\n\\nnew body\","
                     + "\"typeId\":1,"
                     + "\"canComment\":true,"
@@ -130,8 +134,10 @@ public class AdminArticleControllerDatabaseTest {
                     + "\"editorType\":\"markdown\""
                     + "}";
             controller(Map.of(), markdownUpdate, new ResponseRecorder()).update();
-            assertEquals("<h2>Updated</h2>\n<p>new body</p>\n",
+            assertEquals(Runtime.version().feature() >= 17 ? "<h2>Updated</h2>\n<p>new body</p>\n" : "",
                     db.queryOne("select content from log where logId=?", renderedId).get("content"));
+            assertEquals("## Updated\n\nnew body",
+                    db.queryOne("select markdown from log where logId=?", renderedId).get("markdown"));
 
             ResponseRecorder explicitResponse = new ResponseRecorder();
             controller(Map.of(), articleBody("Explicit HTML", "explicit-html", true), explicitResponse).create();
