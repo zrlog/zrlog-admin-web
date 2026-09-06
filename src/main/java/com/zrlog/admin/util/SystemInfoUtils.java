@@ -9,6 +9,7 @@ import com.zrlog.common.Constants;
 import com.zrlog.util.ZrLogUtil;
 
 import javax.sql.DataSource;
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Objects;
@@ -42,18 +43,36 @@ public class SystemInfoUtils {
 
 
     private static String getDatabaseServerVersion() {
-        DataSource dataSource = Constants.zrLogConfig.getDataSource();
+        return getDatabaseServerVersion(Constants.zrLogConfig.getDataSource());
+    }
+
+    static String getDatabaseServerVersion(DataSource dataSource) {
         if (Objects.isNull(dataSource)) {
             return "Unknown";
         }
         try {
             if (dataSource instanceof DataSourceWrapperImpl) {
-                return ((DataSourceWrapperImpl) dataSource).getDbInfo();
+                DataSourceWrapperImpl dataSourceWrapper = (DataSourceWrapperImpl) dataSource;
+                if (isSqlite(dataSourceWrapper)) {
+                    try (Connection connection = dataSourceWrapper.getConnection()) {
+                        String version = connection.getMetaData().getDatabaseProductVersion();
+                        return StringUtils.isEmpty(version) ? "Unknown" : version;
+                    }
+                }
+                return dataSourceWrapper.getDbInfo();
             }
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "DB connect error ", e);
         }
         return "Unknown";
+    }
+
+    private static boolean isSqlite(DataSourceWrapperImpl dataSource) {
+        String jdbcUrl = dataSource.getJdbcUrl();
+        if (StringUtils.isEmpty(jdbcUrl)) {
+            jdbcUrl = dataSource.getDataSourceProperties().getProperty("jdbcUrl");
+        }
+        return jdbcUrl != null && jdbcUrl.startsWith("jdbc:sqlite:");
     }
 
 

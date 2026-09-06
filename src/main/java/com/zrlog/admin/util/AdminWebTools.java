@@ -27,6 +27,7 @@ public class AdminWebTools {
         } else {
             String url = AdminConstants.ADMIN_LOGIN_URI_PATH + "?redirectFrom="
                     + URLEncoder.encode(getRequestUriWithQueryString(request), StandardCharsets.UTF_8);
+            response.addHeader("Content-Length", "0");
             response.redirect(url);
         }
     }

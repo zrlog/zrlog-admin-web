@@ -13,9 +13,11 @@ import com.zrlog.admin.business.rest.request.AdminDashboardConfigRequest;
 import com.zrlog.admin.business.rest.response.AdminDashboardCardConfigResponse;
 import com.zrlog.admin.business.rest.response.AdminDashboardCardResponse;
 import com.zrlog.admin.business.rest.response.AdminDashboardConfigResponse;
+import com.zrlog.admin.business.rest.response.FirstUseChecklistResponse;
 import com.zrlog.business.plugin.PluginCorePlugin;
 import com.zrlog.business.service.WebsiteKvService;
 import com.zrlog.common.Constants;
+import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.util.I18nUtil;
 import com.zrlog.util.ThreadUtils;
@@ -23,6 +25,7 @@ import com.zrlog.util.ThreadUtils;
 import java.io.InputStream;
 import java.lang.reflect.Type;
 import java.net.URI;
+import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -36,6 +39,10 @@ import java.util.regex.Pattern;
 public class AdminDashboardService {
 
     public static final String DASHBOARD_CONFIG_KEY = "admin_dashboard_config";
+    public static final String FIRST_USE_CHECKLIST_KEY = "admin_first_use_v4";
+    public static final int FIRST_USE_CHECKLIST_VERSION = 1;
+    private static final String FIRST_USE_CHECKLIST_PENDING = "pending";
+    private static final String FIRST_USE_CHECKLIST_DISMISSED = "dismissed";
     private static final List<String> DEFAULT_CARD_IDS = Arrays.asList(
             "welcome", "localDraft", "quickAction", "statistics", "activity", "auditTrail", "dataInsights"
     );
@@ -68,6 +75,23 @@ public class AdminDashboardService {
 
     public AdminDashboardConfigResponse getConfig(HttpRequest request, AdminTokenVO adminTokenVO) {
         return getConfig(request, adminTokenVO, false);
+    }
+
+    public FirstUseChecklistResponse getFirstUseChecklist() {
+        if (!FIRST_USE_CHECKLIST_PENDING.equals(kvService.getString(FIRST_USE_CHECKLIST_KEY))) {
+            return null;
+        }
+        return new FirstUseChecklistResponse(FIRST_USE_CHECKLIST_VERSION, FIRST_USE_CHECKLIST_PENDING);
+    }
+
+    public FirstUseChecklistResponse dismissFirstUseChecklist(int version) throws SQLException {
+        if (version != FIRST_USE_CHECKLIST_VERSION) {
+            throw new ArgsException("version");
+        }
+        if (!kvService.putString(FIRST_USE_CHECKLIST_KEY, FIRST_USE_CHECKLIST_DISMISSED)) {
+            throw new SQLException("Unable to persist first-use checklist status");
+        }
+        return new FirstUseChecklistResponse(FIRST_USE_CHECKLIST_VERSION, FIRST_USE_CHECKLIST_DISMISSED);
     }
 
     public AdminDashboardConfigResponse getConfig(HttpRequest request, AdminTokenVO adminTokenVO, boolean preloadSurfaces) {

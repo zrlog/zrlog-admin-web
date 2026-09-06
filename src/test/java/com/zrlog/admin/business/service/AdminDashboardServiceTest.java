@@ -7,6 +7,7 @@ import com.zrlog.admin.business.rest.request.AdminDashboardConfigRequest;
 import com.zrlog.admin.business.rest.response.AdminDashboardCardConfigResponse;
 import com.zrlog.admin.business.rest.response.AdminDashboardCardResponse;
 import com.zrlog.admin.business.rest.response.AdminDashboardConfigResponse;
+import com.zrlog.admin.business.rest.response.FirstUseChecklistResponse;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.business.plugin.PluginCorePlugin;
 import com.zrlog.common.Constants;
@@ -375,6 +376,27 @@ public class AdminDashboardServiceTest {
 
             assertEquals(7, fallback.getCards().size());
             assertNotNull(findDashboardItem(fallback.getCards(), "welcome"));
+        }
+    }
+
+    @Test
+    public void shouldOnlyExposePendingFirstUseChecklistAndPersistDismissal() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            AdminDashboardService service = new AdminDashboardService();
+
+            assertNull(service.getFirstUseChecklist());
+
+            db.putWebsite(AdminDashboardService.FIRST_USE_CHECKLIST_KEY, "pending");
+            FirstUseChecklistResponse pending = service.getFirstUseChecklist();
+            assertNotNull(pending);
+            assertEquals(1, pending.getVersion());
+            assertEquals("pending", pending.getStatus());
+
+            FirstUseChecklistResponse dismissed = service.dismissFirstUseChecklist(1);
+            assertEquals("dismissed", dismissed.getStatus());
+            assertNull(service.getFirstUseChecklist());
+            assertEquals("dismissed", db.queryOne("select value from website where name=?",
+                    AdminDashboardService.FIRST_USE_CHECKLIST_KEY).get("value"));
         }
     }
 

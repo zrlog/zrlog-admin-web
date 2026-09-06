@@ -43,7 +43,7 @@ jobs:
         run: ./mvnw -q -PnodeBuild generate-resources -DskipTests=true -Dmaven.test.skip=true
 
       - name: Run tests and generate coverage
-        run: ./mvnw -q -DskipTests=false -Dmaven.test.skip=false org.jacoco:jacoco-maven-plugin:0.8.12:prepare-agent test org.jacoco:jacoco-maven-plugin:0.8.12:report
+        run: ./mvnw -q -DskipTests=false -Dmaven.test.skip=false -Djacoco.append=true -DforkCount=1 -DreuseForks=false org.jacoco:jacoco-maven-plugin:0.8.12:prepare-agent test org.jacoco:jacoco-maven-plugin:0.8.12:report
 
       - name: Summarize JaCoCo coverage
         shell: bash

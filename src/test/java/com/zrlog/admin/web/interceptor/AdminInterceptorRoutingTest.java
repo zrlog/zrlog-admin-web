@@ -111,6 +111,7 @@ public class AdminInterceptorRoutingTest {
 
         assertTrue(response.redirected.contains("/admin/login"));
         assertTrue(response.redirected.contains("redirectFrom="));
+        assertEquals("0", response.contentLengthAtRedirect);
     }
 
     @Test
@@ -293,6 +294,8 @@ public class AdminInterceptorRoutingTest {
     }
 
     private static class ResponseRecorder {
+        private String contentLength;
+        private String contentLengthAtRedirect;
         private Object rendered;
         private String redirected;
 
@@ -302,10 +305,16 @@ public class AdminInterceptorRoutingTest {
                     new Class[]{HttpResponse.class},
                     (proxy, method, args) -> {
                         switch (method.getName()) {
+                            case "addHeader":
+                                if ("Content-Length".equals(args[0])) {
+                                    contentLength = args[1].toString();
+                                }
+                                return null;
                             case "renderJson":
                                 rendered = args[0];
                                 return null;
                             case "redirect":
+                                contentLengthAtRedirect = contentLength;
                                 redirected = args[0].toString();
                                 return null;
                             default:

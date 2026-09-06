@@ -410,7 +410,7 @@ public class AdminArticleService {
             response.setAiProvider(ai.getAi_provider());
             response.setAiModel(ai.getAi_model());
             response.setAiConfigured(ai.getAi_provider() != null && StringUtils.isNotEmpty(ai.getAi_model())
-                    && StringUtils.isNotEmpty(ai.getAi_api_key()));
+                    && (StringUtils.isNotEmpty(ai.getAi_api_key()) || StringUtils.isNotEmpty(ai.getAi_base_url())));
             response.setAiMessages(ai.getAiMessages().stream().filter(e -> !Objects.equals(e.getRole(), "system")).collect(Collectors.toList()));
             ArticleEditWebSiteInfo articleEdit = context.getArticleEdit();
             response.setLinkPreviewEnabled(articleEdit.getArticle_editor_link_preview_enabled());

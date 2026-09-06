@@ -6,6 +6,7 @@ import com.hibegin.http.annotation.ResponseBody;
 import com.zrlog.admin.business.dto.UserLoginDTO;
 import com.zrlog.admin.business.rest.request.LoginRequest;
 import com.zrlog.admin.business.rest.request.PasskeyAuthenticationVerifyRequest;
+import com.zrlog.admin.business.rest.request.FirstUseChecklistRequest;
 import com.zrlog.admin.business.rest.response.*;
 import com.zrlog.admin.business.service.*;
 import com.zrlog.admin.business.type.AdminAuditAction;
@@ -122,7 +123,8 @@ public class AdminController extends BaseController {
                     I18nUtil.getAdminBackendStringFromRes("admin.index.welcomeTip"),
                     new ArrayList<>(Collections.singletonList(tips.get(0))),
                     BlogBuildInfoUtil.getVersionInfo(), dataList.join());
-            return new AdminPageDataResponse<>(new IndexResponse(dashboardConfig), "", request.getUri());
+            return new AdminPageDataResponse<>(new IndexResponse(dashboardConfig,
+                    dashboardService.getFirstUseChecklist()), "", request.getUri());
         } finally {
             executor.shutdown();
         }
@@ -180,6 +182,13 @@ public class AdminController extends BaseController {
             config = new AdminDashboardService().getConfig(request, AdminTokenThreadLocal.getUser());
         }
         return new ApiStandardResponse<>(config, message);
+    }
+
+    @ResponseBody
+    @RequestMethod(method = HttpMethod.POST)
+    public ApiStandardResponse<FirstUseChecklistResponse> dismissFirstUseChecklist() throws SQLException {
+        FirstUseChecklistRequest body = getRequestBodyWithNullCheck(FirstUseChecklistRequest.class);
+        return new ApiStandardResponse<>(new AdminDashboardService().dismissFirstUseChecklist(body.getVersion()));
     }
 
     private List<String> loadWelcomeTips() {

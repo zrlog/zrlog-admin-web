@@ -12,18 +12,23 @@ import { getShortcutTitle, isMacLikeDevice, isTouchLikeDevice } from "./shortcut
 import ArticleAiAssistantButton, {
     getArticleAiAssistantDrawerOpen,
 } from "./article-ai-assistant/article-ai-assistant-button";
+import { DraftAiSaveGate } from "./draft-ai-save-gate";
 
 type ArticleEditActionBarProps = {
     data: ArticleEditState;
+    draftAiPending: boolean;
+    draftAiSaveGate: DraftAiSaveGate;
     fullScreen: boolean;
     offline: boolean;
+    shortcutsDisabled?: boolean;
     onSubmit: (article: ArticleEntry, release: boolean, preview: boolean, autoSave: boolean) => Promise<boolean>;
+    onRequestPublish: () => void;
     onPreview?: () => Promise<void>;
     onOpenSettings?: () => void;
     onOpenVersionHistory?: () => void;
     canOpenVersionHistory?: boolean;
     getContainer?: () => HTMLElement;
-    onAiMessagesChange?: (messages: AIContent[]) => void;
+    onAiMessagesChange?: (messages: AIContent[], articleId?: number) => void;
     onAiDrawerSizeChange?: (newSize: number) => void;
     aiDrawerOpen?: boolean;
     onAiDrawerOpenChange?: (open: boolean) => void;
@@ -47,9 +52,13 @@ const StyledActionBar = styled(`div`)`
 
 const ArticleEditActionBar: FunctionComponent<ArticleEditActionBarProps> = ({
     data,
+    draftAiPending,
+    draftAiSaveGate,
     offline,
+    shortcutsDisabled = false,
     fullScreen,
     onSubmit,
+    onRequestPublish,
     onPreview,
     onOpenSettings,
     onOpenVersionHistory,
@@ -74,6 +83,9 @@ const ArticleEditActionBar: FunctionComponent<ArticleEditActionBarProps> = ({
 
     useEffect(() => {
         const handleKeyPress = (event: KeyboardEvent) => {
+            if (shortcutsDisabled) {
+                return;
+            }
             const isMac = isMacLikeDevice();
             const metaPressed = isMac ? event.metaKey : event.ctrlKey;
             const key = event.key.toLowerCase();
@@ -84,7 +96,12 @@ const ArticleEditActionBar: FunctionComponent<ArticleEditActionBarProps> = ({
 
             if (metaPressed && key === "s") {
                 event.preventDefault();
-                if (saveDraftBtnRef.current && !offline && !(data.saving.rubbishSaving && !data.saving.autoSaving)) {
+                if (
+                    saveDraftBtnRef.current &&
+                    !offline &&
+                    !draftAiPending &&
+                    !(data.saving.rubbishSaving && !data.saving.autoSaving)
+                ) {
                     saveDraftBtnRef.current.click();
                 }
                 return;
@@ -100,7 +117,7 @@ const ArticleEditActionBar: FunctionComponent<ArticleEditActionBarProps> = ({
 
             if (metaPressed && event.key === "Enter") {
                 event.preventDefault();
-                if (enterBtnRef.current && !getAiDrawerOpen()) {
+                if (enterBtnRef.current && !draftAiPending && !getAiDrawerOpen()) {
                     enterBtnRef.current.click();
                 }
                 return;
@@ -130,10 +147,12 @@ const ArticleEditActionBar: FunctionComponent<ArticleEditActionBarProps> = ({
         data.article,
         data.saving.autoSaving,
         data.saving.rubbishSaving,
+        draftAiPending,
         offline,
         onPreview,
         onOpenSettings,
         onOpenVersionHistory,
+        shortcutsDisabled,
     ]);
 
     return (
@@ -146,6 +165,7 @@ const ArticleEditActionBar: FunctionComponent<ArticleEditActionBarProps> = ({
         >
             <ArticleAiAssistantButton
                 data={data}
+                draftAiSaveGate={draftAiSaveGate}
                 offline={offline}
                 axiosInstance={axiosInstance}
                 getContainer={getContainer}
@@ -168,7 +188,7 @@ const ArticleEditActionBar: FunctionComponent<ArticleEditActionBarProps> = ({
                     key: "S",
                 })}
                 icon={<SaveOutlined hidden={data.saving.rubbishSaving} />}
-                disabled={offline || (data.saving.rubbishSaving && !data.saving.autoSaving)}
+                disabled={offline || draftAiPending || (data.saving.rubbishSaving && !data.saving.autoSaving)}
                 onClick={async () => await onSubmit(data.article, false, false, false)}
             >
                 {screens.sm && (
@@ -192,10 +212,14 @@ const ArticleEditActionBar: FunctionComponent<ArticleEditActionBarProps> = ({
                         key: "Enter",
                     }
                 )}
-                disabled={offline || data.saving.releaseSaving}
+                disabled={offline || draftAiPending || data.saving.releaseSaving}
                 icon={<SendOutlined />}
                 onClick={async () => {
-                    await onSubmit(data.article, true, false, false);
+                    if (data.article.privacy === true) {
+                        await onSubmit(data.article, true, false, false);
+                        return;
+                    }
+                    onRequestPublish();
                 }}
             >
                 {screens.sm && (

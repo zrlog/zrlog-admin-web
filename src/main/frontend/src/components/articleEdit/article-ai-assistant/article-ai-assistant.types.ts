@@ -75,7 +75,7 @@ export type ArticleReaderQuestionsResult = {
 export type AssistantToolPayload =
     | {
           tool: "rewrite";
-          payload: { summary?: string; markdown?: string };
+          payload: { summary?: string; markdown?: string; discarded?: boolean };
       }
     | {
           tool: "title";
@@ -180,7 +180,7 @@ export type AssistantToolButton = {
     icon: ReactNode;
     label: string;
     prompt: string;
-    group: "writing" | "publish" | "check";
+    group: "ideation" | "editing" | "publishCheck";
     disabled?: boolean;
     disabledReason?: string;
 };

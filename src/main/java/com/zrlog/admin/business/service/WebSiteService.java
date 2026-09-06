@@ -34,6 +34,11 @@ public class WebSiteService {
             ARTICLE_EDITOR_LINK_PREVIEW_ENABLED_KEY, ARTICLE_PUBLISH_CHECK_ENABLED_KEY,
             ARTICLE_COVER_ASPECT_RATIO_KEY, ARTICLE_EDIT_AUTO_SAVE_INTERVAL_KEY);
     private static final long DRAFT_ARTICLE_ID = 0L;
+    private static final Object[] AI_MESSAGE_LOCKS = new Object[64];
+
+    static {
+        Arrays.setAll(AI_MESSAGE_LOCKS, ignored -> new Object());
+    }
 
     public UpgradeWebSiteInfo upgradeWebSiteInfo() {
         return new WebsiteKvService().upgradeWebSiteInfo();
@@ -134,6 +139,25 @@ public class WebSiteService {
         if (articleId == null || articleId <= DRAFT_ARTICLE_ID) {
             return false;
         }
+        int draftLockIndex = aiMessageLockIndex(DRAFT_ARTICLE_ID);
+        int articleLockIndex = aiMessageLockIndex(articleId);
+        Object draftLock = AI_MESSAGE_LOCKS[draftLockIndex];
+        Object articleLock = AI_MESSAGE_LOCKS[articleLockIndex];
+        if (draftLock == articleLock) {
+            synchronized (draftLock) {
+                return migrateDraftAIMessageToArticleUnlocked(articleId);
+            }
+        }
+        Object firstLock = draftLockIndex < articleLockIndex ? draftLock : articleLock;
+        Object secondLock = draftLockIndex < articleLockIndex ? articleLock : draftLock;
+        synchronized (firstLock) {
+            synchronized (secondLock) {
+                return migrateDraftAIMessageToArticleUnlocked(articleId);
+            }
+        }
+    }
+
+    private boolean migrateDraftAIMessageToArticleUnlocked(Long articleId) throws SQLException {
         WebsiteKvService kvService = new WebsiteKvService();
         String draftAIMessageKey = buildCacheKey(DRAFT_ARTICLE_ID);
         String draftAIMessage = kvService.getString(draftAIMessageKey);
@@ -158,7 +182,9 @@ public class WebSiteService {
         if (articleId == null || articleId < DRAFT_ARTICLE_ID) {
             return false;
         }
-        return new WebsiteKvService().removeQuietly(buildCacheKey(articleId));
+        synchronized (aiMessageLock(articleId)) {
+            return new WebsiteKvService().removeQuietly(buildCacheKey(articleId));
+        }
     }
 
     public ArticleAIMessageExportResponse exportAIMessage(Long articleId) {
@@ -226,43 +252,83 @@ public class WebSiteService {
         }
     }
 
-    public boolean saveAIMessage(List<AIResponseEntry.AIContentEntry> messages, Long articleId) throws SQLException {
+    private static Object aiMessageLock(Long articleId) {
+        return AI_MESSAGE_LOCKS[aiMessageLockIndex(articleId)];
+    }
+
+    private static int aiMessageLockIndex(Long articleId) {
+        return Math.floorMod(Objects.hashCode(articleId), AI_MESSAGE_LOCKS.length);
+    }
+
+    private boolean saveAIMessageUnlocked(List<AIResponseEntry.AIContentEntry> messages, Long articleId)
+            throws SQLException {
         fillMissingMessageIds(messages);
         String jsonStr = new Gson().toJson(messages);
         return new WebsiteKvService().putString(buildCacheKey(articleId), jsonStr);
     }
 
+    public boolean saveAIMessage(List<AIResponseEntry.AIContentEntry> messages, Long articleId) throws SQLException {
+        synchronized (aiMessageLock(articleId)) {
+            return saveAIMessageUnlocked(messages, articleId);
+        }
+    }
+
+    public boolean appendAIMessageEntries(List<AIResponseEntry.AIContentEntry> entries, Long articleId)
+            throws SQLException {
+        synchronized (aiMessageLock(articleId)) {
+            AIWebSiteInfoWithAIMessages currentInfo = getAiMessageInfoByArticleId(articleId);
+            List<AIResponseEntry.AIContentEntry> currentMessages = currentInfo.getAiMessages();
+            ensureSystemMessage(currentMessages, currentInfo.getAi_prompt());
+            fillMissingMessageIds(currentMessages);
+            fillMissingMessageIds(entries);
+            Set<String> currentIds = new HashSet<>();
+            for (AIResponseEntry.AIContentEntry currentMessage : currentMessages) {
+                currentIds.add(currentMessage.getMessageId());
+            }
+            for (AIResponseEntry.AIContentEntry entry : entries) {
+                if (currentIds.add(entry.getMessageId())) {
+                    currentMessages.add(entry);
+                }
+            }
+            return saveAIMessageUnlocked(currentMessages, articleId);
+        }
+    }
+
     public boolean updateAIMessagePayload(Long articleId, String messageId, String tool, Object payload)
             throws SQLException {
-        AIWebSiteInfoWithAIMessages info = getAiMessageInfoByArticleId(articleId);
-        List<AIResponseEntry.AIContentEntry> messages = info.getAiMessages();
-        boolean changed = false;
-        for (AIResponseEntry.AIContentEntry message : messages) {
-            if (Objects.equals(messageId, message.getMessageId())) {
-                message.setTool(tool);
-                message.setPayload(payload);
-                changed = true;
-                break;
+        synchronized (aiMessageLock(articleId)) {
+            AIWebSiteInfoWithAIMessages info = getAiMessageInfoByArticleId(articleId);
+            List<AIResponseEntry.AIContentEntry> messages = info.getAiMessages();
+            boolean changed = false;
+            for (AIResponseEntry.AIContentEntry message : messages) {
+                if (Objects.equals(messageId, message.getMessageId())) {
+                    message.setTool(tool);
+                    message.setPayload(payload);
+                    changed = true;
+                    break;
+                }
             }
+            return changed && saveAIMessageUnlocked(messages, articleId);
         }
-        return changed && saveAIMessage(messages, articleId);
     }
 
     public List<AIResponseEntry.AIContentEntry> appendArticleContextMessage(Long articleId,
                                                                             AddArticleAIContextRequest contextRequest)
             throws SQLException {
-        AIWebSiteInfoWithAIMessages info = getAiMessageInfoByArticleId(articleId);
-        List<AIResponseEntry.AIContentEntry> messages = info.getAiMessages();
-        ensureSystemMessage(messages, info.getAi_prompt());
-        AIResponseEntry.AIContentEntry contextMessage =
-                new AIResponseEntry.AIContentEntry("user", buildArticleContextContent(contextRequest));
-        contextMessage.setMessageType("articleContext");
-        contextMessage.setContextMeta(buildArticleContextMeta(contextRequest));
-        messages.add(contextMessage);
-        if (!saveAIMessage(messages, articleId)) {
-            throw new SQLException("save article AI context message failed");
+        synchronized (aiMessageLock(articleId)) {
+            AIWebSiteInfoWithAIMessages info = getAiMessageInfoByArticleId(articleId);
+            List<AIResponseEntry.AIContentEntry> messages = info.getAiMessages();
+            ensureSystemMessage(messages, info.getAi_prompt());
+            AIResponseEntry.AIContentEntry contextMessage =
+                    new AIResponseEntry.AIContentEntry("user", buildArticleContextContent(contextRequest));
+            contextMessage.setMessageType("articleContext");
+            contextMessage.setContextMeta(buildArticleContextMeta(contextRequest));
+            messages.add(contextMessage);
+            if (!saveAIMessageUnlocked(messages, articleId)) {
+                throw new SQLException("save article AI context message failed");
+            }
+            return messages;
         }
-        return messages;
     }
 
     public void ensureSystemMessage(List<AIResponseEntry.AIContentEntry> messages, String aiPrompt) {

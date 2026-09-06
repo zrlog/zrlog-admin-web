@@ -7,6 +7,7 @@ import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.RequestMethod;
 import com.hibegin.http.annotation.ResponseBody;
 import com.zrlog.admin.business.ai.dto.AIStreamResponse;
+import com.zrlog.admin.business.ai.exception.AIMessageSaveException;
 import com.zrlog.admin.business.ai.service.AIChatService;
 import com.zrlog.admin.business.ai.service.AIImageService;
 import com.zrlog.admin.business.exception.PermissionErrorException;
@@ -38,9 +39,12 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.util.*;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
@@ -50,6 +54,7 @@ public class AdminArticleController extends BaseController {
 
     private static final Logger LOGGER = LoggerUtil.getLogger(AdminArticleController.class);
     private static final MarkdownJsRenderer MARKDOWN_RENDERER = new MarkdownJsRenderer();
+    private static final long PUBLISH_CHECK_WAIT_TIMEOUT_MILLIS = TimeUnit.SECONDS.toMillis(60);
 
     private final AdminArticleService articleService = new AdminArticleService();
 
@@ -165,8 +170,8 @@ public class AdminArticleController extends BaseController {
             CreateOrUpdateArticleResponse saveResponse = saveTask.save();
             AdminPageDataResponse<ArticleGlobalResponse> detail = toResponseByArticle(saveResponse, false);
             detailRef.set(detail);
-            emitter.send("article", detail);
             emitter.send("publish-start", AdminSsePayloads.message(detail.getMessage()));
+            emitter.send("article", detail);
             return detail;
         });
     }
@@ -176,8 +181,8 @@ public class AdminArticleController extends BaseController {
             throws IOException {
         AtomicReference<AdminPageDataResponse<ArticleGlobalResponse>> detailRef = new AtomicReference<>(detail);
         writeTransparentPublishStream(body, detailRef, emitter -> {
-            emitter.send("article", detail);
             emitter.send("publish-start", AdminSsePayloads.message(detail.getMessage()));
+            emitter.send("article", detail);
             return detail;
         });
     }
@@ -187,27 +192,28 @@ public class AdminArticleController extends BaseController {
                                                PublishStartWriter publishStartWriter)
             throws IOException {
         List<StaticSiteType> siteTypes = List.of(StaticSiteType.BLOG);
-        AtomicReference<CompletableFuture<PublishCheckResponse>> publishCheckFutureRef = new AtomicReference<>();
+        AtomicReference<PublishCheckTask> publishCheckTaskRef = new AtomicReference<>();
         AtomicBoolean publishCheckSent = new AtomicBoolean(false);
         AdminStaticSiteSsePublisher.write(
                 response,
                 "transparent-publish",
                 "publish-error",
+                "static-error",
                 siteTypes,
                 emitter -> {
                     AdminPageDataResponse<ArticleGlobalResponse> detail = publishStartWriter.write(emitter);
-                    CompletableFuture<PublishCheckResponse> publishCheckFuture = startPublishCheck(detail, body);
-                    if (publishCheckFuture != null) {
-                        publishCheckFutureRef.set(publishCheckFuture);
+                    PublishCheckTask publishCheckTask = startPublishCheck(detail, body);
+                    if (publishCheckTask != null) {
+                        publishCheckTaskRef.set(publishCheckTask);
                         emitter.send("publish-check-start", AdminSsePayloads.tool("publishCheck"));
                     }
                 },
                 this::updateBlogCacheWithStaticSyncNotice,
-                emitter -> sendPublishCheckIfReady(publishCheckFutureRef.get(), publishCheckSent, emitter, false),
+                emitter -> sendPublishCheckIfReady(publishCheckTaskRef.get(), publishCheckSent, emitter, false),
                 emitter -> {
                     AdminPageDataResponse<ArticleGlobalResponse> detail = detailRef.get();
+                    sendPublishCheckIfReady(publishCheckTaskRef.get(), publishCheckSent, emitter, true);
                     emitter.send("publish-complete", AdminSsePayloads.message(detail.getMessage()));
-                    sendPublishCheckIfReady(publishCheckFutureRef.get(), publishCheckSent, emitter, true);
                 }
         );
     }
@@ -245,7 +251,53 @@ public class AdminArticleController extends BaseController {
         AdminPageDataResponse<ArticleGlobalResponse> write(AdminSseEmitter emitter) throws Exception;
     }
 
-    private CompletableFuture<PublishCheckResponse> startPublishCheck(
+    @FunctionalInterface
+    interface PublishCheckCommit {
+
+        PublishCheckResponse commit() throws Exception;
+    }
+
+    static final class PublishCheckPersistenceGuard {
+
+        private boolean cancelled;
+        private PublishCheckResponse committedResponse;
+
+        synchronized PublishCheckResponse commit(PublishCheckCommit commit) throws Exception {
+            if (cancelled) {
+                throw new CancellationException();
+            }
+            PublishCheckResponse response = commit.commit();
+            committedResponse = response;
+            return response;
+        }
+
+        synchronized PublishCheckResponse cancelOrGetCommitted() {
+            if (committedResponse != null) {
+                return committedResponse;
+            }
+            cancelled = true;
+            return null;
+        }
+    }
+
+    static final class PublishCheckTask {
+
+        private final CompletableFuture<PublishCheckResponse> future;
+        private final PublishCheckPersistenceGuard persistenceGuard;
+        private final Long articleId;
+        private final String articleTitle;
+
+        PublishCheckTask(CompletableFuture<PublishCheckResponse> future,
+                         PublishCheckPersistenceGuard persistenceGuard,
+                         Long articleId, String articleTitle) {
+            this.future = future;
+            this.persistenceGuard = persistenceGuard;
+            this.articleId = articleId;
+            this.articleTitle = articleTitle;
+        }
+    }
+
+    private PublishCheckTask startPublishCheck(
             AdminPageDataResponse<ArticleGlobalResponse> detail, CreateArticleRequest body) {
         if (!Objects.equals(detail.getData().getPublishCheckEnabled(), true)) {
             return null;
@@ -260,7 +312,10 @@ public class AdminArticleController extends BaseController {
         articleContext.setDigest(body.getDigest());
         articleContext.setKeywords(body.getKeywords());
         fillPublishCheckContext(articleContext, body);
-        return CompletableFuture.supplyAsync(() -> buildPublishCheckPayload(articleId, articleContext));
+        PublishCheckPersistenceGuard persistenceGuard = new PublishCheckPersistenceGuard();
+        CompletableFuture<PublishCheckResponse> future = CompletableFuture.supplyAsync(
+                () -> buildPublishCheckPayload(articleId, articleContext, persistenceGuard));
+        return new PublishCheckTask(future, persistenceGuard, articleId, articleContext.getTitle());
     }
 
     private void fillPublishCheckContext(GenerateArticleFieldRequest articleContext, CreateArticleRequest body) {
@@ -274,20 +329,29 @@ public class AdminArticleController extends BaseController {
         articleContext.setStaticSitePluginEnabled(!StaticSitePlugin.isDisabled());
     }
 
-    private PublishCheckResponse buildPublishCheckPayload(Long articleId, GenerateArticleFieldRequest articleContext) {
+    private PublishCheckResponse buildPublishCheckPayload(Long articleId, GenerateArticleFieldRequest articleContext,
+                                                          PublishCheckPersistenceGuard persistenceGuard) {
         try {
             List<AIResponseEntry.AIContentEntry> aiMessages =
-                    new AIChatService().runToolResponse("publish-check", articleId, "publishCheck", articleContext);
-            AIResponseEntry.AIContentEntry assistantMessage = aiMessages.get(aiMessages.size() - 1);
-            Object checkPayload = assistantMessage.getPayload();
-            recordPublishCheckSuccess(articleId, articleContext.getTitle(), checkPayload);
-            return new PublishCheckResponse(
-                    new PublishCheckToolPayload("publishCheck", checkPayload),
-                    assistantMessage.getContent(),
-                    assistantMessage.getMessageId(),
-                    aiMessages);
+                    new AIChatService().runToolResponseWithoutPersistence(
+                            "publish-check", articleId, "publishCheck", articleContext);
+            return persistenceGuard.commit(() -> {
+                if (!new WebSiteService().appendAIMessageEntries(aiMessages, articleId)) {
+                    throw new AIMessageSaveException();
+                }
+                AIResponseEntry.AIContentEntry assistantMessage = aiMessages.get(aiMessages.size() - 1);
+                Object checkPayload = assistantMessage.getPayload();
+                PublishCheckResponse response = new PublishCheckResponse(
+                        new PublishCheckToolPayload("publishCheck", checkPayload),
+                        assistantMessage.getContent(),
+                        assistantMessage.getMessageId(),
+                        aiMessages);
+                recordPublishCheckSuccess(articleId, articleContext.getTitle(), checkPayload);
+                return response;
+            });
+        } catch (CancellationException e) {
+            throw e;
         } catch (Exception e) {
-            recordPublishCheckError(articleId, articleContext.getTitle(), Objects.requireNonNullElse(e.getMessage(), ""));
             throw new CompletionException(e);
         }
     }
@@ -308,21 +372,65 @@ public class AdminArticleController extends BaseController {
         }
     }
 
-    private void sendPublishCheckIfReady(CompletableFuture<PublishCheckResponse> publishCheckFuture,
+    private void sendPublishCheckIfReady(PublishCheckTask publishCheckTask,
                                          AtomicBoolean publishCheckSent, AdminSseEmitter emitter, boolean wait)
             throws Exception {
-        if (publishCheckFuture == null || publishCheckSent.get() || (!wait && !publishCheckFuture.isDone())) {
+        sendPublishCheckIfReady(publishCheckTask, publishCheckSent, emitter, wait,
+                PUBLISH_CHECK_WAIT_TIMEOUT_MILLIS);
+    }
+
+    private void sendPublishCheckIfReady(PublishCheckTask publishCheckTask,
+                                         AtomicBoolean publishCheckSent, AdminSseEmitter emitter, boolean wait,
+                                         long timeoutMillis) throws Exception {
+        if (publishCheckTask == null || (!wait && !publishCheckTask.future.isDone())) {
+            return;
+        }
+        if (!publishCheckSent.compareAndSet(false, true)) {
             return;
         }
         try {
-            emitter.send("publish-check-complete", publishCheckFuture.join());
-        } catch (CompletionException e) {
+            PublishCheckResponse result = wait
+                    ? publishCheckTask.future.get(timeoutMillis, TimeUnit.MILLISECONDS)
+                    : publishCheckTask.future.join();
+            emitter.send("publish-check-complete", result);
+        } catch (CompletionException | ExecutionException e) {
             Throwable cause = Objects.requireNonNullElse(e.getCause(), e);
-            emitter.send("publish-check-error",
-                    AdminSsePayloads.message(Objects.requireNonNullElse(cause.getMessage(), "")));
-        } finally {
-            publishCheckSent.set(true);
+            while (cause instanceof CompletionException && cause.getCause() != null) {
+                cause = cause.getCause();
+            }
+            String message = StringUtils.isNotEmpty(cause.getMessage())
+                    ? cause.getMessage()
+                    : I18nUtil.getAdminBackendStringFromRes("admin.article.publishCheck.error.failed");
+            if (publishCheckTask.articleId != null) {
+                recordPublishCheckError(publishCheckTask.articleId, publishCheckTask.articleTitle, message);
+            }
+            emitter.send("publish-check-error", AdminSsePayloads.message(message));
+        } catch (CancellationException e) {
+            sendCancelledPublishCheck(publishCheckTask, emitter,
+                    "admin.article.publishCheck.error.cancelled");
+        } catch (TimeoutException e) {
+            sendCancelledPublishCheck(publishCheckTask, emitter,
+                    "admin.article.publishCheck.error.timeout");
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            sendCancelledPublishCheck(publishCheckTask, emitter,
+                    "admin.article.publishCheck.error.interrupted");
         }
+    }
+
+    private void sendCancelledPublishCheck(PublishCheckTask publishCheckTask, AdminSseEmitter emitter,
+                                           String messageKey) throws IOException {
+        PublishCheckResponse committedResponse = publishCheckTask.persistenceGuard.cancelOrGetCommitted();
+        if (committedResponse != null) {
+            emitter.send("publish-check-complete", committedResponse);
+            return;
+        }
+        publishCheckTask.future.cancel(true);
+        String message = I18nUtil.getAdminBackendStringFromRes(messageKey);
+        if (publishCheckTask.articleId != null) {
+            recordPublishCheckError(publishCheckTask.articleId, publishCheckTask.articleTitle, message);
+        }
+        emitter.send("publish-check-error", AdminSsePayloads.message(message));
     }
 
     @ResponseBody

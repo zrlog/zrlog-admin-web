@@ -3,6 +3,7 @@ import {
     CheckCircleOutlined,
     CloseOutlined,
     ExclamationCircleOutlined,
+    ExportOutlined,
     InfoCircleOutlined,
     LoadingOutlined,
     MessageOutlined,
@@ -23,6 +24,8 @@ type PublishStatusBarProps = {
     onLocatePublishCheckTarget?: (target: PublishCheckTarget) => void;
     getContainer?: () => HTMLElement;
 };
+
+type DisplayStatus = "running" | "success" | "error" | "not-required";
 
 const PublishStatusBar: FunctionComponent<PublishStatusBarProps> = ({
     saving,
@@ -63,7 +66,7 @@ const PublishStatusBar: FunctionComponent<PublishStatusBarProps> = ({
         overflowWrap: "anywhere",
     };
 
-    const renderStatusRow = (status: "running" | "success" | "error", text: string) => (
+    const renderStatusRow = (status: DisplayStatus, text: string) => (
         <div style={{ display: "flex", alignItems: "flex-start", gap: theme.marginXS, width: "100%" }}>
             {buildStatusTag(status)}
             <Typography.Text style={statusTextStyle}>{text}</Typography.Text>
@@ -71,51 +74,79 @@ const PublishStatusBar: FunctionComponent<PublishStatusBarProps> = ({
     );
 
     const getStatusIcon = () => {
-        if (publishStatus.publishError) {
+        if (
+            publishStatus.publishState === "failed" ||
+            publishStatus.staticStatus === "failed" ||
+            publishStatus.checkStatus === "error"
+        ) {
             return <ExclamationCircleOutlined />;
         }
-        if (publishStatus.checkStatus === "running") {
+        if (
+            publishStatus.publishState === "running" ||
+            publishStatus.staticStatus === "running" ||
+            publishStatus.checkStatus === "running" ||
+            saving.releaseSaving
+        ) {
             return <LoadingOutlined />;
         }
-        if (publishStatus.checkStatus === "error") {
-            return <ExclamationCircleOutlined />;
-        }
-        if (publishStatus.checkStatus === "success") {
+        if (publishStatus.publishState === "success" || publishStatus.checkStatus === "success") {
             return <CheckCircleOutlined />;
-        }
-        if (saving.releaseSaving) {
-            return <LoadingOutlined />;
         }
         return <InfoCircleOutlined />;
     };
 
     const getTriggerText = () => {
-        if (publishStatus.publishError) {
+        if (publishStatus.publishState === "failed") {
             return getRes().articleEdit.publishStatus.failed;
+        }
+        if (publishStatus.staticStatus === "failed") {
+            return getRes().articleEdit.publishStatus.staticFailed;
+        }
+        if (publishStatus.checkStatus === "error") {
+            return getRes().articleEdit.publishStatus.checkFailed;
+        }
+        if (publishStatus.publishState === "running" || saving.releaseSaving) {
+            return getRes().articleEdit.publishStatus.publishing;
+        }
+        if (publishStatus.staticStatus === "running") {
+            return getRes().articleEdit.publishStatus.syncing;
         }
         if (publishStatus.checkStatus === "running") {
             return getRes().articleEdit.publishStatus.checking;
         }
-        if (publishStatus.checkStatus === "error") {
-            return getRes().articleEdit.publishStatus.failed;
-        }
-        if (publishStatus.checkStatus === "success") {
+        if (publishStatus.publishState === "success" || publishStatus.checkStatus === "success") {
             return getRes().articleEdit.publishStatus.completed;
-        }
-        if (saving.releaseSaving) {
-            return getRes().articleEdit.publishStatus.publishing;
         }
         return getRes().articleEdit.publishStatus.title;
     };
 
-    const buildStatusTag = (status: "running" | "success" | "error") => {
+    const buildStatusTag = (status: DisplayStatus) => {
         if (status === "success") {
             return <Tag color="success">{getRes().backgroundTask.status.success}</Tag>;
         }
         if (status === "error") {
             return <Tag color="error">{getRes().backgroundTask.status.error}</Tag>;
         }
+        if (status === "not-required") {
+            return <Tag>{getRes().articleEdit.publishStatus.notRequired}</Tag>;
+        }
         return <Tag color="processing">{getRes().backgroundTask.status.running}</Tag>;
+    };
+
+    const renderStaticStatus = () => {
+        if (publishStatus.staticStatus === "running") {
+            return renderStatusRow("running", publishStatus.staticText || getRes().staticSite.syncing);
+        }
+        if (publishStatus.staticStatus === "success") {
+            return renderStatusRow("success", getRes().staticSite.syncComplete);
+        }
+        if (publishStatus.staticStatus === "failed") {
+            return renderStatusRow("error", publishStatus.staticError || getRes().staticSite.syncFailed);
+        }
+        if (publishStatus.staticStatus === "not-required") {
+            return renderStatusRow("not-required", getRes().staticSite.syncNotRequired);
+        }
+        return null;
     };
 
     const content = (
@@ -134,14 +165,21 @@ const PublishStatusBar: FunctionComponent<PublishStatusBarProps> = ({
                 <Button size="small" type="text" icon={<CloseOutlined />} onClick={onClose} />
             </Space>
             <Space direction="vertical" size={6} style={{ width: "100%" }}>
-                {publishStatus.publishText &&
+                {publishStatus.publishState !== "idle" &&
                     renderStatusRow(
-                        publishStatus.publishError ? "error" : saving.releaseSaving ? "running" : "success",
-                        publishStatus.publishText
+                        publishStatus.publishState === "failed"
+                            ? "error"
+                            : publishStatus.publishState === "running"
+                            ? "running"
+                            : "success",
+                        publishStatus.publishState === "failed"
+                            ? publishStatus.publishError || getRes().articleEdit.saveFailed
+                            : publishStatus.publishText ||
+                                  (publishStatus.publishState === "running"
+                                      ? getRes().staticSite.publishStart
+                                      : getRes().staticSite.publishComplete)
                     )}
-                {publishStatus.publishError && renderStatusRow("error", publishStatus.publishError)}
-                {publishStatus.staticText &&
-                    renderStatusRow(saving.releaseSaving ? "running" : "success", publishStatus.staticText)}
+                {renderStaticStatus()}
                 {publishStatus.checkStatus !== "idle" &&
                     renderStatusRow(
                         publishStatus.checkStatus === "success"
@@ -156,6 +194,20 @@ const PublishStatusBar: FunctionComponent<PublishStatusBarProps> = ({
                             : getRes().articleEdit.publishCheck.running
                     )}
             </Space>
+            {publishStatus.publicUrl && (
+                <Space direction="vertical" size={2} style={{ width: "100%", minWidth: 0 }}>
+                    <Typography.Text type="secondary">{getRes().articleEdit.publishStatus.publicUrl}</Typography.Text>
+                    <Typography.Link
+                        href={publishStatus.publicUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ overflowWrap: "anywhere" }}
+                    >
+                        <ExportOutlined style={{ marginInlineEnd: theme.marginXXS }} />
+                        {publishStatus.publicUrl}
+                    </Typography.Link>
+                </Space>
+            )}
             {publishStatus.checkPayload && (
                 <PublishCheckResult
                     toolPayload={publishStatus.checkPayload}

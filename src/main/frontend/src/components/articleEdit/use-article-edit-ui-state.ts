@@ -1,5 +1,5 @@
-import { SetStateAction, useCallback, useEffect, useMemo, useState } from "react";
-import { addToCache, getCacheByKey } from "../../utils/cache";
+import { SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { addToCache, getCacheByKey, removeCacheDataByKey } from "../../utils/cache";
 import { PublishStatusPopoverState } from "./index.types";
 
 type ArticleEditUiState = {
@@ -9,11 +9,50 @@ type ArticleEditUiState = {
     publishStatus?: PublishStatusPopoverState;
 };
 
+type ArticleEditUiStateListener = (state: ArticleEditUiState) => void;
+
+const articleEditUiStateListeners = new Map<string, Set<ArticleEditUiStateListener>>();
+
+const notifyArticleEditUiState = (cacheKey: string, state: ArticleEditUiState) => {
+    articleEditUiStateListeners.get(cacheKey)?.forEach((listener) => listener(state));
+};
+
+const subscribeArticleEditUiState = (cacheKey: string, listener: ArticleEditUiStateListener) => {
+    const listeners = articleEditUiStateListeners.get(cacheKey) || new Set<ArticleEditUiStateListener>();
+    listeners.add(listener);
+    articleEditUiStateListeners.set(cacheKey, listeners);
+    return () => {
+        listeners.delete(listener);
+        if (listeners.size === 0) {
+            articleEditUiStateListeners.delete(cacheKey);
+        }
+    };
+};
+
 const getDefaultPublishStatus = (): PublishStatusPopoverState => ({
     open: false,
     visible: false,
+    publishState: "idle",
+    staticStatus: "idle",
     checkStatus: "idle",
 });
+
+const getArticleEditUiStateCacheKey = (scope: string) => `articleEdit/ui/${scope}`;
+const draftCacheKey = getArticleEditUiStateCacheKey("draft");
+
+const getCachedArticleEditUiState = (cacheKey: string): ArticleEditUiState =>
+    getCacheByKey<ArticleEditUiState>(cacheKey) || {};
+
+const writeCachedArticleEditUiState = (cacheKey: string, state: ArticleEditUiState) => {
+    addToCache(cacheKey, state);
+    notifyArticleEditUiState(cacheKey, state);
+};
+
+const normalizePublishState = (value: unknown): PublishStatusPopoverState["publishState"] =>
+    value === "running" || value === "success" || value === "failed" ? value : "idle";
+
+const normalizeStaticStatus = (value: unknown): PublishStatusPopoverState["staticStatus"] =>
+    value === "running" || value === "success" || value === "failed" || value === "not-required" ? value : "idle";
 
 const normalizeCachedPublishStatus = (value: unknown): PublishStatusPopoverState => {
     if (!value || typeof value !== "object") {
@@ -32,9 +71,13 @@ const normalizeCachedPublishStatus = (value: unknown): PublishStatusPopoverState
         open: status.open === true,
         visible: status.visible === true,
         updatedAt: typeof status.updatedAt === "number" ? status.updatedAt : undefined,
+        publishState: normalizePublishState(status.publishState),
         publishText: typeof status.publishText === "string" ? status.publishText : undefined,
         publishError: typeof status.publishError === "string" ? status.publishError : undefined,
+        publicUrl: typeof status.publicUrl === "string" ? status.publicUrl : undefined,
+        staticStatus: normalizeStaticStatus(status.staticStatus),
         staticText: typeof status.staticText === "string" ? status.staticText : undefined,
+        staticError: typeof status.staticError === "string" ? status.staticError : undefined,
         checkStatus: status.checkStatus,
         checkError: typeof status.checkError === "string" ? status.checkError : undefined,
         checkPayload: status.checkPayload,
@@ -49,36 +92,63 @@ const useArticleEditUiState = (logId: number | undefined, search: string) => {
             logId && logId > 0 ? logId : urlLogId && Number.isFinite(urlLogId) && urlLogId > 0 ? urlLogId : undefined;
         return articleLogId ? `article/${articleLogId}` : "draft";
     }, [logId, search]);
-    const cacheKey = useMemo(() => `articleEdit/ui/${scope}`, [scope]);
-    const getCachedState = useCallback(() => getCacheByKey<ArticleEditUiState>(cacheKey) || {}, [cacheKey]);
-    const persistState = useCallback(
-        (patch: ArticleEditUiState) => {
-            addToCache(cacheKey, {
-                ...getCachedState(),
-                ...patch,
-            });
-        },
-        [cacheKey, getCachedState]
-    );
-    const cachedState = getCachedState();
+    const cacheKey = useMemo(() => getArticleEditUiStateCacheKey(scope), [scope]);
+    const activeCacheKeyRef = useRef(cacheKey);
+    const persistState = useCallback((patch: ArticleEditUiState) => {
+        const activeCacheKey = activeCacheKeyRef.current;
+        writeCachedArticleEditUiState(activeCacheKey, {
+            ...getCachedArticleEditUiState(activeCacheKey),
+            ...patch,
+        });
+    }, []);
+    const cachedState = getCachedArticleEditUiState(cacheKey);
     const [settingsOpen, setSettingsOpenState] = useState(cachedState.settingsOpen === true);
     const [versionDrawerOpen, setVersionDrawerOpenState] = useState(cachedState.versionDrawerOpen === true);
     const [articleAssistantOpen, setArticleAssistantOpenState] = useState(cachedState.articleAssistantOpen === true);
     const [publishStatus, setPublishStatusState] = useState<PublishStatusPopoverState>(() =>
         normalizeCachedPublishStatus(cachedState.publishStatus)
     );
+    const publishStatusRef = useRef(publishStatus);
 
-    const restore = useCallback(() => {
-        const nextState = getCachedState();
+    const applyState = useCallback((nextState: ArticleEditUiState) => {
+        const nextPublishStatus = normalizeCachedPublishStatus(nextState.publishStatus);
         setSettingsOpenState(nextState.settingsOpen === true);
         setVersionDrawerOpenState(nextState.versionDrawerOpen === true);
         setArticleAssistantOpenState(nextState.articleAssistantOpen === true);
-        setPublishStatusState(normalizeCachedPublishStatus(nextState.publishStatus));
-    }, [getCachedState]);
+        publishStatusRef.current = nextPublishStatus;
+        setPublishStatusState(nextPublishStatus);
+    }, []);
+
+    const restore = useCallback(() => {
+        applyState(getCachedArticleEditUiState(activeCacheKeyRef.current));
+    }, [applyState]);
 
     useEffect(() => {
+        activeCacheKeyRef.current = cacheKey;
+        const unsubscribe = subscribeArticleEditUiState(cacheKey, applyState);
         restore();
-    }, [restore]);
+        return unsubscribe;
+    }, [applyState, cacheKey, restore]);
+
+    const migrateToArticle = useCallback((logId: number) => {
+        if (!Number.isFinite(logId) || logId <= 0) {
+            return;
+        }
+        const currentCacheKey = activeCacheKeyRef.current;
+        const nextCacheKey = getArticleEditUiStateCacheKey(`article/${logId}`);
+        if (currentCacheKey === nextCacheKey) {
+            return;
+        }
+        writeCachedArticleEditUiState(nextCacheKey, {
+            ...getCachedArticleEditUiState(nextCacheKey),
+            ...getCachedArticleEditUiState(currentCacheKey),
+        });
+        if (currentCacheKey === draftCacheKey) {
+            removeCacheDataByKey(currentCacheKey);
+            notifyArticleEditUiState(currentCacheKey, {});
+        }
+        activeCacheKeyRef.current = nextCacheKey;
+    }, []);
 
     const updateSettingsOpen = useCallback(
         (open: boolean) => {
@@ -103,11 +173,9 @@ const useArticleEditUiState = (logId: number | undefined, search: string) => {
     );
     const updatePublishStatus = useCallback(
         (action: SetStateAction<PublishStatusPopoverState>) => {
-            setPublishStatusState((previousState) => {
-                const nextState = typeof action === "function" ? action(previousState) : action;
-                persistState({ publishStatus: nextState });
-                return nextState;
-            });
+            const nextState = typeof action === "function" ? action(publishStatusRef.current) : action;
+            publishStatusRef.current = nextState;
+            persistState({ publishStatus: nextState });
         },
         [persistState]
     );
@@ -120,6 +188,7 @@ const useArticleEditUiState = (logId: number | undefined, search: string) => {
         articleAssistantOpen,
         publishStatus,
         restore,
+        migrateToArticle,
         updateSettingsOpen,
         updateVersionDrawerOpen,
         updateArticleAssistantOpen,

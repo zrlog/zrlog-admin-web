@@ -13,6 +13,7 @@ import HtmlPreviewPanel from "@editor/dist/editor/html-preview-panel";
 import { getAppState } from "../base/ConfigProviderApp";
 import { postRefreshCacheSse, SseEvent } from "../utils/sse-utils";
 import { createBackgroundTask, finishBackgroundTask, updateBackgroundTask } from "../utils/background-task-store";
+import UpgradeReadiness from "./upgrade-readiness";
 
 const RESTART_CHECK_INITIAL_DELAY_MS = 2000;
 const RESTART_CHECK_MAX_DELAY_MS = 10000;
@@ -520,6 +521,7 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data, offline, offlineData }
                                         {getRes().upgrade.changeLog}
                                     </Title>
                                     <UpgradeContent data={data} />
+                                    <UpgradeReadiness data={data} />
                                     <Alert
                                         type="warning"
                                         showIcon
@@ -528,6 +530,9 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data, offline, offlineData }
                                         description={
                                             <>
                                                 <div>{getRes().upgrade.risk.description}</div>
+                                                <div style={{ marginTop: token.marginXS }}>
+                                                    {getRes().upgrade.risk.rollback}
+                                                </div>
                                                 <Checkbox
                                                     checked={upgradeRiskAccepted}
                                                     style={{ marginTop: token.marginSM }}

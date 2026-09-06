@@ -1,4 +1,4 @@
-import { Card, Col, Grid, Row } from "antd";
+import { App, Card, Col, Grid, Row } from "antd";
 import { getRealRouteUrl, getRes } from "../../utils/constants";
 
 import { FunctionComponent, ReactNode, useEffect, useRef, useState } from "react";
@@ -9,6 +9,7 @@ import {
     AdminDashboardLayoutItem,
     AdminDashboardPluginPanelConfig,
     ApiResponse,
+    FirstUseChecklist as FirstUseChecklistState,
     IndexData,
     StatisticsInfoState,
 } from "../../type";
@@ -27,6 +28,7 @@ import LocalDraftCard from "./LocalDraftCard";
 import { getLocalArticleCaches } from "../../utils/article-cache";
 import { useTheme } from "antd-style";
 import DashboardCardAction from "./DashboardCardAction";
+import FirstUseChecklist from "./FirstUseChecklist";
 
 type IndexProps = AdminCommonProps<IndexData>;
 type WelcomeCardData = {
@@ -47,6 +49,7 @@ const Index: FunctionComponent<IndexProps> = ({ data, updateCache }) => {
     const location = useLocation();
     const theme = useTheme();
     const screens = Grid.useBreakpoint();
+    const { message } = App.useApp();
     const twoColumnDashboard = screens.lg === true;
     const dashboardGap = twoColumnDashboard ? theme.marginMD : theme.marginSM;
 
@@ -65,11 +68,17 @@ const Index: FunctionComponent<IndexProps> = ({ data, updateCache }) => {
         cards: defaultCards.map((card) => ({ ...card, kind: "card" as const })),
     };
     const [dashboardConfig, setDashboardConfig] = useState<AdminDashboardConfig>(data.dashboardConfig || defaultConfig);
+    const [firstUseChecklist, setFirstUseChecklist] = useState<FirstUseChecklistState | null>(
+        data.firstUseChecklist || null
+    );
+    const [dismissingFirstUseChecklist, setDismissingFirstUseChecklist] = useState(false);
     const [localDrafts, setLocalDrafts] = useState(() => getLocalArticleCaches());
     const refreshRunningRef = useRef(false);
+    const firstUseChecklistDismissedRef = useRef(false);
 
     useEffect(() => {
         setDashboardConfig(data.dashboardConfig || defaultConfig);
+        setFirstUseChecklist(firstUseChecklistDismissedRef.current ? null : data.firstUseChecklist || null);
     }, [data]);
 
     useEffect(() => {
@@ -133,7 +142,37 @@ const Index: FunctionComponent<IndexProps> = ({ data, updateCache }) => {
 
     const updateIndexData = (nextData: IndexData) => {
         setDashboardConfig(nextData.dashboardConfig || defaultConfig);
+        setFirstUseChecklist(firstUseChecklistDismissedRef.current ? null : nextData.firstUseChecklist || null);
         updateCache?.(nextData, getPageDataCacheKeyByPath(location.pathname, location.search));
+    };
+
+    const dismissFirstUseChecklist = async () => {
+        if (!firstUseChecklist || dismissingFirstUseChecklist) {
+            return;
+        }
+        setDismissingFirstUseChecklist(true);
+        try {
+            const { data: response } = await axiosInstance.post<ApiResponse<FirstUseChecklistState>>(
+                "/api/admin/index/first-use/dismiss",
+                { version: firstUseChecklist.version }
+            );
+            if (response.error) {
+                void message.error(response.message);
+                return;
+            }
+            if (response.data.status === "dismissed") {
+                firstUseChecklistDismissedRef.current = true;
+                setFirstUseChecklist(null);
+                updateCache?.(
+                    { dashboardConfig, firstUseChecklist: null },
+                    getPageDataCacheKeyByPath(location.pathname, location.search)
+                );
+            }
+        } catch {
+            // The shared Axios interceptor presents transport and server errors.
+        } finally {
+            setDismissingFirstUseChecklist(false);
+        }
     };
 
     useEffect(() => {
@@ -263,6 +302,12 @@ const Index: FunctionComponent<IndexProps> = ({ data, updateCache }) => {
                             </span>
                         ))}
                     </div>
+                    {firstUseChecklist?.status === "pending" && (
+                        <FirstUseChecklist
+                            dismissing={dismissingFirstUseChecklist}
+                            onDismiss={() => void dismissFirstUseChecklist()}
+                        />
+                    )}
                     {welcomeData?.versionInfo && (
                         <div
                             style={{

@@ -76,6 +76,33 @@ public class WebSiteServiceDatabaseTest {
     }
 
     @Test
+    public void shouldAppendAiMessagesWithoutOverwritingNewerEntriesAndDeduplicateMessageIds() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            db.putWebsite("ai_prompt", "system prompt");
+            WebSiteService service = new WebSiteService();
+            AIResponseEntry.AIContentEntry initial = new AIResponseEntry.AIContentEntry("user", "initial");
+            initial.setMessageId("initial-id");
+            assertTrue(service.saveAIMessage(List.of(initial), 8L));
+
+            AIResponseEntry.AIContentEntry newer = new AIResponseEntry.AIContentEntry("user", "newer");
+            newer.setMessageId("newer-id");
+            assertTrue(service.appendAIMessageEntries(List.of(newer), 8L));
+
+            AIResponseEntry.AIContentEntry late = new AIResponseEntry.AIContentEntry("assistant", "late response");
+            late.setMessageId("late-id");
+            assertTrue(service.appendAIMessageEntries(List.of(late), 8L));
+            assertTrue(service.appendAIMessageEntries(List.of(late), 8L));
+
+            List<AIResponseEntry.AIContentEntry> stored = service.getAiMessageInfoByArticleId(8L).getAiMessages();
+            assertEquals(4, stored.size());
+            assertEquals("system", stored.get(0).getRole());
+            assertEquals("initial", stored.get(1).getContent());
+            assertEquals("newer", stored.get(2).getContent());
+            assertEquals("late response", stored.get(3).getContent());
+        }
+    }
+
+    @Test
     public void shouldAppendArticleContextToPersistedAiMessages() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             db.putWebsite("ai_prompt", "system prompt");

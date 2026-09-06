@@ -37,7 +37,7 @@ export const buildAssistantToolButtons = (): AssistantToolButton[] => [
         icon: <EditOutlined />,
         label: getRes().articleEdit.assistant.rewriteSuggestion,
         prompt: getRes().articleEdit.assistant.rewriteSuggestionPrompt,
-        group: "writing",
+        group: "editing",
     },
     {
         key: "structure",
@@ -45,7 +45,7 @@ export const buildAssistantToolButtons = (): AssistantToolButton[] => [
         icon: <ApartmentOutlined />,
         label: getRes().articleEdit.assistant.structure,
         prompt: getRes().articleEdit.assistant.structurePrompt,
-        group: "writing",
+        group: "ideation",
     },
     {
         key: "questions",
@@ -53,7 +53,7 @@ export const buildAssistantToolButtons = (): AssistantToolButton[] => [
         icon: <MessageOutlined />,
         label: getRes().articleEdit.assistant.readerQuestions,
         prompt: getRes().articleEdit.assistant.readerQuestionsPrompt,
-        group: "writing",
+        group: "ideation",
     },
     {
         key: "title",
@@ -61,7 +61,7 @@ export const buildAssistantToolButtons = (): AssistantToolButton[] => [
         icon: <BulbOutlined />,
         label: getRes().articleEdit.assistant.titleSuggestion,
         prompt: getRes().articleEdit.assistant.titleSuggestionPrompt,
-        group: "publish",
+        group: "ideation",
     },
     {
         key: "alias",
@@ -69,7 +69,7 @@ export const buildAssistantToolButtons = (): AssistantToolButton[] => [
         icon: <LinkOutlined />,
         label: getRes().articleEdit.assistant.aliasSuggestion,
         prompt: getRes().articleEdit.assistant.aliasSuggestionPrompt,
-        group: "publish",
+        group: "editing",
     },
     {
         key: "digest",
@@ -77,7 +77,7 @@ export const buildAssistantToolButtons = (): AssistantToolButton[] => [
         icon: <FileTextOutlined />,
         label: getRes().articleEdit.assistant.digestSuggestion,
         prompt: getRes().articleEdit.assistant.digestSuggestionPrompt,
-        group: "publish",
+        group: "editing",
     },
     {
         key: "tags",
@@ -85,7 +85,7 @@ export const buildAssistantToolButtons = (): AssistantToolButton[] => [
         icon: <TagsOutlined />,
         label: getRes().articleEdit.assistant.tagsSuggestion,
         prompt: getRes().articleEdit.assistant.tagsSuggestionPrompt,
-        group: "publish",
+        group: "editing",
     },
     {
         key: "cover",
@@ -93,7 +93,7 @@ export const buildAssistantToolButtons = (): AssistantToolButton[] => [
         icon: <PictureOutlined />,
         label: getRes().articleEdit.assistant.coverSuggestion,
         prompt: getRes().articleEdit.assistant.coverSuggestionPrompt,
-        group: "publish",
+        group: "editing",
     },
     {
         key: "score",
@@ -101,7 +101,7 @@ export const buildAssistantToolButtons = (): AssistantToolButton[] => [
         icon: <StarOutlined />,
         label: getRes().articleEdit.assistant.score,
         prompt: getRes().articleEdit.assistant.scorePrompt,
-        group: "check",
+        group: "publishCheck",
     },
     {
         key: "publishCheck",
@@ -109,7 +109,7 @@ export const buildAssistantToolButtons = (): AssistantToolButton[] => [
         icon: <StarOutlined />,
         label: getRes().articleEdit.assistant.publishCheck,
         prompt: getRes().articleEdit.assistant.publishCheckPrompt,
-        group: "check",
+        group: "publishCheck",
     },
     {
         key: "seo",
@@ -117,7 +117,7 @@ export const buildAssistantToolButtons = (): AssistantToolButton[] => [
         icon: <SearchOutlined />,
         label: getRes().articleEdit.assistant.seo,
         prompt: getRes().articleEdit.assistant.seoPrompt,
-        group: "check",
+        group: "publishCheck",
     },
     {
         key: "proofread",
@@ -125,22 +125,22 @@ export const buildAssistantToolButtons = (): AssistantToolButton[] => [
         icon: <EditOutlined />,
         label: getRes().articleEdit.assistant.proofread,
         prompt: getRes().articleEdit.assistant.proofreadPrompt,
-        group: "check",
+        group: "publishCheck",
     },
 ];
 
 export const buildAssistantToolGroups = (): AssistantToolGroup[] => [
     {
-        key: "writing",
-        label: getRes().articleEdit.assistant.groupWriting,
+        key: "ideation",
+        label: getRes().articleEdit.assistant.groupIdeation,
     },
     {
-        key: "publish",
-        label: getRes().articleEdit.assistant.groupPublish,
+        key: "editing",
+        label: getRes().articleEdit.assistant.groupEditing,
     },
     {
-        key: "check",
-        label: getRes().articleEdit.assistant.groupCheck,
+        key: "publishCheck",
+        label: getRes().articleEdit.assistant.groupPublishCheck,
     },
 ];
 

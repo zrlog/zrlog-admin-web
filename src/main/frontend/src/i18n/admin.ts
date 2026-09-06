@@ -33,6 +33,17 @@ const zhCN = {
             "viewSystem": "查看系统信息",
             "currentVersion": "当前版本"
         },
+        "firstUse": {
+            "title": "完成首次发布",
+            "dismiss": "跳过",
+            "viewSite": "查看公开站点",
+            "openSite": "打开站点",
+            "createOrImport": "创建或导入文章",
+            "createArticle": "创建文章",
+            "importMarkdown": "导入 Markdown",
+            "previewAndPublish": "预览并发布",
+            "previewAndPublishTip": "在文章编辑器中检查桌面与移动预览，然后发布"
+        },
         "statistics": "数据概览",
         "status": "内容状态",
         "storage": {
@@ -239,12 +250,14 @@ const zhCN = {
         "assistant": {
             "apply": "应用",
             "applySuccess": "已应用到编辑器，请保存文章",
+            "rejectCandidate": "拒绝候选",
             "titleSuggestion": "标题建议",
             "titleSuggestionPrompt": "为这篇文章提供 3 个标题备选",
             "rewriteSuggestion": "整理正文",
             "rewriteSuggestionPrompt": "整理已有草稿，使表达更清晰，并保留事实、结构和 Markdown 资源链接",
             "rewriteCurrent": "当前正文",
             "rewriteCandidate": "候选正文",
+            "rewriteRejected": "已拒绝候选，正文未更改",
             "rewriteUnchanged": "候选正文与当前正文一致",
             "rewriteDraftRequired": "先写一段正文草稿后再整理，避免从空白生成整篇文章",
             "aliasSuggestion": "别名建议",
@@ -272,9 +285,9 @@ const zhCN = {
             "statusGood": "良好",
             "statusWarning": "提醒",
             "statusBad": "问题",
-            "groupWriting": "写作",
-            "groupPublish": "发布",
-            "groupCheck": "检查",
+            "groupIdeation": "构思",
+            "groupEditing": "编辑",
+            "groupPublishCheck": "发布检查",
             "skill": "技能",
             "skillHint": "输入 / 选择技能",
             "skillEmpty": "没有匹配的技能",
@@ -299,6 +312,7 @@ const zhCN = {
             "clearAiMessagesConfirmTitle": "清空 AI 对话？",
             "clearAiMessagesConfirmDescription": "只会删除当前文章的 AI 对话，不会修改文章正文、字段或封面",
             "clearAiMessagesSuccess": "AI 对话已清空",
+            "saveInProgress": "文章正在首次保存，请完成后再发起助手请求",
             "requestPreview": "请求预览",
             "requestPreviewTitle": "本次请求",
             "requestPreviewMode": "模式",
@@ -410,13 +424,51 @@ const zhCN = {
         "publishStatus": {
             "title": "发布状态",
             "publishing": "发布中",
+            "syncing": "同步中",
             "checking": "检查中",
-            "completed": "检查完成",
-            "failed": "检查异常"
+            "completed": "发布完成",
+            "failed": "发布失败",
+            "staticFailed": "已发布，同步失败",
+            "checkFailed": "已发布，检查异常",
+            "notRequired": "无需同步",
+            "publicUrl": "公开文章地址"
+        },
+        "publishReview": {
+            "title": "发布前确认",
+            "metadata": "发布检查",
+            "contentPreview": "内容预览",
+            "desktop": "桌面",
+            "mobile": "移动",
+            "confirm": "确认发布",
+            "ready": "已准备",
+            "untitled": "未命名文章",
+            "blocked": "标题和分类完整后才能发布",
+            "offline": "当前离线，恢复连接后才能发布",
+            "aiPending": "文章助手请求完成后才能发布",
+            "contentConflict": "请先处理内容冲突，再确认发布",
+            "fields": {
+                "title": "标题",
+                "category": "分类",
+                "markdown": "正文",
+                "alias": "别名",
+                "digest": "摘要",
+                "tags": "标签",
+                "cover": "封面"
+            },
+            "details": {
+                "titleMissing": "标题不能为空",
+                "categoryMissing": "请选择有效分类",
+                "markdownMissing": "正文为空，请确认是否发布空白文章",
+                "aliasMissing": "未设置别名，发布后将使用文章 ID",
+                "digestMissing": "未填写摘要，服务端可能按站点配置生成摘要",
+                "tagsMissing": "未设置标签",
+                "coverMissing": "未设置封面"
+            }
         },
         "settings": "设置",
         "saving": "保存中",
         "saveFailed": "保存失败",
+        "aiRequestPending": "文章助手请求完成后才能首次保存或发布",
         "rollbackFailed": "回滚失败",
         "rollbackConflictTip": "文章版本可能已变化，请刷新后重新打开版本历史比较并回滚",
         "rollbackRefresh": "刷新页面",
@@ -459,7 +511,8 @@ const zhCN = {
             "save": "保存",
             "release": "发布",
             "saveAsDraft": "保存草稿",
-            "chooseFromAssets": "从资源库选择"
+            "chooseFromAssets": "从资源库选择",
+            "more": "更多操作"
         },
         "markdownImport": {
             "menu": "导入 Markdown",
@@ -1089,19 +1142,45 @@ const zhCN = {
         "risk": {
             "title": "更新风险确认",
             "description": "更新会替换当前程序并可能造成短暂服务中断。请先备份数据库和重要配置，并确认具备手动恢复条件。",
+            "rollback": "更新或恢复失败时，先停止操作并保留现有数据库、附件和配置，再按当前部署方式回退程序；不要用失败流程产生的数据覆盖现有数据。",
             "acceptance": "我已完成必要备份，了解并同意承担本次更新风险"
+        },
+        "maintenance": {
+            "title": "维护就绪状态",
+            "runtime": "当前运行环境",
+            "updateMethod": "更新方式",
+            "onlineUpdate": "在线更新",
+            "manualUpdate": "按部署方式手动更新",
+            "viewSystem": "查看系统详情",
+            "runtimeMode": {
+                "docker": "Docker",
+                "faas": "FaaS",
+                "systemService": "系统服务",
+                "war": "Servlet / WAR",
+                "standalone": "独立运行包",
+                "native": "Native Image",
+                "jvm": "JVM",
+                "unknown": "未报告"
+            }
         },
         "backupProtection": {
             "title": "更新前备份保护",
             "ready": "已通过恢复验证",
-            "warning": "需要确认备份风险",
+            "warning": "备份保护未就绪",
             "lastBackup": "最近备份",
             "lastVerification": "最近恢复验证",
+            "time": "时间",
             "file": "文件",
             "sha256": "SHA-256",
+            "verificationResult": "验证结果",
+            "verificationPassed": "通过",
+            "verificationFailed": "失败",
+            "verificationDetail": "验证详情",
             "notAvailable": "暂无记录",
+            "recommendationLabel": "处理建议",
             "riskAcceptance": "我了解当前没有通过恢复验证的近期备份，并明确接受继续更新可能导致数据无法恢复的风险",
             "status": {
+                "READY": "最近备份已通过恢复验证",
                 "MISSING_BACKUP": "尚未记录近期数据库备份",
                 "BACKUP_STALE": "最近数据库备份已超过 36 小时",
                 "MISSING_VERIFICATION": "最近备份尚未完成恢复验证",
@@ -1109,6 +1188,16 @@ const zhCN = {
                 "VERIFICATION_STALE": "最近一次成功恢复验证已超过 8 天",
                 "BACKUP_CHANGED_AFTER_VERIFICATION": "最近备份不是已通过恢复验证的文件",
                 "INVALID_EVIDENCE": "备份保护记录格式无效"
+            },
+            "recommendation": {
+                "READY": "保留该备份文件和校验值，确认更新期间可以访问",
+                "MISSING_BACKUP": "先创建数据库备份，再对该文件执行恢复验证",
+                "BACKUP_STALE": "创建新的数据库备份，并验证新文件可以恢复",
+                "MISSING_VERIFICATION": "先在隔离环境恢复最近备份，并记录验证结果",
+                "VERIFICATION_FAILED": "停止更新，排查恢复失败原因后重新备份并验证",
+                "VERIFICATION_STALE": "使用最近备份重新执行恢复验证",
+                "BACKUP_CHANGED_AFTER_VERIFICATION": "验证最新备份，确认其 SHA-256 与恢复验证记录一致",
+                "INVALID_EVIDENCE": "重新创建备份并完成恢复验证，不要依赖当前无效记录"
             }
         }
     },
@@ -1181,6 +1270,7 @@ const zhCN = {
         "syncFailed": "同步失败",
         "syncComplete": "同步完成",
         "syncIncomplete": "同步未完成",
+        "syncNotRequired": "未启用静态生成，无需同步",
         "publishStart": "正在发布文章",
         "generatingHtml": "正在生成静态页面",
         "generatingHtmlBlog": "正在生成博客静态页面",
@@ -1372,6 +1462,17 @@ const enUS: AdminI18nResource = {
             "systemInfo": "System Info",
             "viewSystem": "View System Info",
             "currentVersion": "Current Version"
+        },
+        "firstUse": {
+            "title": "Complete Your First Publish",
+            "dismiss": "Skip",
+            "viewSite": "View the Public Site",
+            "openSite": "Open Site",
+            "createOrImport": "Create or Import an Article",
+            "createArticle": "Create Article",
+            "importMarkdown": "Import Markdown",
+            "previewAndPublish": "Preview and Publish",
+            "previewAndPublishTip": "Check the desktop and mobile previews in the editor, then publish"
         },
         "statistics": "Statistics Overview",
         "status": "Content Status",
@@ -1579,12 +1680,14 @@ const enUS: AdminI18nResource = {
         "assistant": {
             "apply": "Apply",
             "applySuccess": "Applied to the editor. Save the article to keep it",
+            "rejectCandidate": "Reject Candidate",
             "titleSuggestion": "Title Suggestions",
             "titleSuggestionPrompt": "Provide three title options for this article",
             "rewriteSuggestion": "Polish Draft",
             "rewriteSuggestionPrompt": "Polish the existing draft for clarity while preserving facts, structure, and Markdown resource links",
             "rewriteCurrent": "Current body",
             "rewriteCandidate": "Candidate body",
+            "rewriteRejected": "Candidate rejected. The article body was not changed",
             "rewriteUnchanged": "The candidate body is the same as the current body",
             "rewriteDraftRequired": "Write a body draft first, then polish it. This avoids generating a full article from a blank page",
             "aliasSuggestion": "Alias Suggestion",
@@ -1612,9 +1715,9 @@ const enUS: AdminI18nResource = {
             "statusGood": "Good",
             "statusWarning": "Warning",
             "statusBad": "Issue",
-            "groupWriting": "Writing",
-            "groupPublish": "Publish",
-            "groupCheck": "Check",
+            "groupIdeation": "Ideation",
+            "groupEditing": "Editing",
+            "groupPublishCheck": "Pre-publish Check",
             "skill": "Skills",
             "skillHint": "Type / to choose a skill",
             "skillEmpty": "No matching skills",
@@ -1639,6 +1742,7 @@ const enUS: AdminI18nResource = {
             "clearAiMessagesConfirmTitle": "Clear AI chat?",
             "clearAiMessagesConfirmDescription": "This only deletes AI chat for the current article. It will not change the article body, fields, or cover",
             "clearAiMessagesSuccess": "AI chat cleared",
+            "saveInProgress": "The article is being saved for the first time. Wait before starting another assistant request",
             "requestPreview": "Request Preview",
             "requestPreviewTitle": "This Request",
             "requestPreviewMode": "Mode",
@@ -1750,13 +1854,51 @@ const enUS: AdminI18nResource = {
         "publishStatus": {
             "title": "Publish Status",
             "publishing": "Publishing",
+            "syncing": "Syncing",
             "checking": "Checking",
-            "completed": "Check Complete",
-            "failed": "Check Failed"
+            "completed": "Published",
+            "failed": "Publish Failed",
+            "staticFailed": "Published, Sync Failed",
+            "checkFailed": "Published, Check Failed",
+            "notRequired": "Not Required",
+            "publicUrl": "Public Article URL"
+        },
+        "publishReview": {
+            "title": "Pre-publish Review",
+            "metadata": "Publish Checks",
+            "contentPreview": "Content Preview",
+            "desktop": "Desktop",
+            "mobile": "Mobile",
+            "confirm": "Confirm Publish",
+            "ready": "Ready",
+            "untitled": "Untitled Article",
+            "blocked": "Add a title and valid category before publishing",
+            "offline": "Reconnect before publishing",
+            "aiPending": "Wait for the assistant request to finish before publishing",
+            "contentConflict": "Resolve the content conflict before confirming publication",
+            "fields": {
+                "title": "Title",
+                "category": "Category",
+                "markdown": "Body",
+                "alias": "Alias",
+                "digest": "Summary",
+                "tags": "Tags",
+                "cover": "Cover"
+            },
+            "details": {
+                "titleMissing": "A title is required",
+                "categoryMissing": "Select a valid category",
+                "markdownMissing": "The body is empty; confirm whether to publish a blank article",
+                "aliasMissing": "No alias is set; the article ID will be used after publishing",
+                "digestMissing": "The summary is empty; the server may generate one from the site settings",
+                "tagsMissing": "No tags are set",
+                "coverMissing": "No cover is set"
+            }
         },
         "settings": "Settings",
         "saving": "Saving",
         "saveFailed": "Save failed",
+        "aiRequestPending": "Wait for the assistant request to finish before saving or publishing this new article",
         "rollbackFailed": "Rollback failed",
         "rollbackConflictTip": "The article version may have changed. Refresh the page, then compare and roll back from version history again",
         "rollbackRefresh": "Refresh Page",
@@ -1799,7 +1941,8 @@ const enUS: AdminI18nResource = {
             "save": "Save",
             "release": "Publish",
             "saveAsDraft": "Save Draft",
-            "chooseFromAssets": "Choose from Assets"
+            "chooseFromAssets": "Choose from Assets",
+            "more": "More actions"
         },
         "markdownImport": {
             "menu": "Import Markdown",
@@ -2429,19 +2572,45 @@ const enUS: AdminI18nResource = {
         "risk": {
             "title": "Update risk confirmation",
             "description": "The update replaces the current application and may briefly interrupt service. Back up the database and important configuration, and make sure manual recovery is available.",
+            "rollback": "If an update or restore fails, stop, preserve the current database, attachments, and configuration, then roll back the application for this deployment. Do not overwrite existing data with output from the failed operation.",
             "acceptance": "I have completed the necessary backups and accept the risks of this update"
+        },
+        "maintenance": {
+            "title": "Maintenance Readiness",
+            "runtime": "Current Runtime",
+            "updateMethod": "Update Method",
+            "onlineUpdate": "Online Update",
+            "manualUpdate": "Manual Update for This Deployment",
+            "viewSystem": "View System Details",
+            "runtimeMode": {
+                "docker": "Docker",
+                "faas": "FaaS",
+                "systemService": "System Service",
+                "war": "Servlet / WAR",
+                "standalone": "Standalone Package",
+                "native": "Native Image",
+                "jvm": "JVM",
+                "unknown": "Not reported"
+            }
         },
         "backupProtection": {
             "title": "Pre-update backup protection",
             "ready": "Restore verification passed",
-            "warning": "Backup risk acceptance required",
+            "warning": "Backup protection is not ready",
             "lastBackup": "Latest backup",
             "lastVerification": "Latest restore verification",
+            "time": "Time",
             "file": "File",
             "sha256": "SHA-256",
+            "verificationResult": "Verification result",
+            "verificationPassed": "Passed",
+            "verificationFailed": "Failed",
+            "verificationDetail": "Verification details",
             "notAvailable": "No record",
+            "recommendationLabel": "Recommended action",
             "riskAcceptance": "I understand that no recent backup has passed restore verification and explicitly accept the risk of being unable to recover data after this update",
             "status": {
+                "READY": "The latest backup passed restore verification",
                 "MISSING_BACKUP": "No recent database backup has been recorded",
                 "BACKUP_STALE": "The latest database backup is older than 36 hours",
                 "MISSING_VERIFICATION": "The latest backup has not completed restore verification",
@@ -2449,6 +2618,16 @@ const enUS: AdminI18nResource = {
                 "VERIFICATION_STALE": "The latest successful restore verification is older than 8 days",
                 "BACKUP_CHANGED_AFTER_VERIFICATION": "The latest backup is not the file that passed restore verification",
                 "INVALID_EVIDENCE": "The backup protection record is invalid"
+            },
+            "recommendation": {
+                "READY": "Keep this backup file and checksum accessible during the update",
+                "MISSING_BACKUP": "Create a database backup, then run a restore verification against that file",
+                "BACKUP_STALE": "Create a new database backup and verify that the new file can be restored",
+                "MISSING_VERIFICATION": "Restore the latest backup in an isolated environment and record the result",
+                "VERIFICATION_FAILED": "Stop the update, resolve the restore failure, then create and verify a new backup",
+                "VERIFICATION_STALE": "Run restore verification again using the latest backup",
+                "BACKUP_CHANGED_AFTER_VERIFICATION": "Verify the latest backup and confirm its SHA-256 matches the restore verification record",
+                "INVALID_EVIDENCE": "Create a new backup and complete restore verification instead of relying on the invalid record"
             }
         }
     },
@@ -2521,6 +2700,7 @@ const enUS: AdminI18nResource = {
         "syncFailed": "Sync failed",
         "syncComplete": "Sync completed",
         "syncIncomplete": "Sync not completed",
+        "syncNotRequired": "Static generation is disabled; no sync is required",
         "publishStart": "Publishing article",
         "generatingHtml": "Generating static pages",
         "generatingHtmlBlog": "Generating blog static pages",

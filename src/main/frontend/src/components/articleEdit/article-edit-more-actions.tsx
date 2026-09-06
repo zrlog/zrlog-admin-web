@@ -52,6 +52,7 @@ type ArticleEditMoreActionsProps = {
     onInsertMarkdownFromAsset: (path: string) => void;
     getCurrentMarkdown: () => string;
     onImportMarkdown: (options: MarkdownImportApplyOptions) => Promise<boolean>;
+    importMarkdownIntent?: boolean;
     onExitFullScreen: () => void;
     onFullScreen: () => void;
 };
@@ -76,6 +77,7 @@ const ArticleEditMoreActions: FunctionComponent<ArticleEditMoreActionsProps> = (
     onInsertMarkdownFromAsset,
     getCurrentMarkdown,
     onImportMarkdown,
+    importMarkdownIntent,
     onExitFullScreen,
     onFullScreen,
 }) => {
@@ -91,6 +93,7 @@ const ArticleEditMoreActions: FunctionComponent<ArticleEditMoreActionsProps> = (
     );
     const [markdownImportPreview, setMarkdownImportPreview] = useState<MarkdownImportPreview>();
     const [markdownImportSource, setMarkdownImportSource] = useState("");
+    const [moreActionsOpen, setMoreActionsOpen] = useState(importMarkdownIntent === true);
     const markdownFileInputRef = useRef<HTMLInputElement>(null);
     const markdownImportReadGenerationRef = useRef(0);
     const screens = Grid.useBreakpoint();
@@ -115,6 +118,12 @@ const ArticleEditMoreActions: FunctionComponent<ArticleEditMoreActionsProps> = (
         setAssetPickerOpenState(getCacheByKey<boolean>(assetPickerOpenCacheKey) === true);
         setSocialPreviewOpenState(getCacheByKey<boolean>(socialPreviewOpenCacheKey) === true);
     }, [assetPickerOpenCacheKey, socialPreviewOpenCacheKey]);
+
+    useEffect(() => {
+        if (importMarkdownIntent) {
+            setMoreActionsOpen(true);
+        }
+    }, [importMarkdownIntent]);
 
     const getMarkdownImportErrorMessage = (code: MarkdownImportErrorCode) => {
         const errors = getRes().articleEdit.markdownImport.errors;
@@ -287,13 +296,17 @@ const ArticleEditMoreActions: FunctionComponent<ArticleEditMoreActionsProps> = (
                 onChange={(event) => void readMarkdownFile(event)}
             />
             <Dropdown
-                menu={{ items }}
+                menu={{ items, selectedKeys: importMarkdownIntent ? ["import-markdown"] : [] }}
                 trigger={["click"]}
                 getPopupContainer={() => containerRef.current as HTMLElement}
                 placement="bottomRight"
+                open={moreActionsOpen}
+                onOpenChange={setMoreActionsOpen}
             >
                 <Button
                     type="text"
+                    aria-label={getRes().articleEdit.actions.more}
+                    title={getRes().articleEdit.actions.more}
                     icon={
                         <EllipsisOutlined style={{ fontSize: getAppState().compactMode ? 18 : 24, display: "flex" }} />
                     }
