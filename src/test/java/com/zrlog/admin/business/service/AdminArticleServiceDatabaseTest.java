@@ -63,6 +63,23 @@ public class AdminArticleServiceDatabaseTest {
     }
 
     @Test
+    public void shouldTreatCustomAiEndpointWithoutApiKeyAsConfigured() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            db.putWebsite("ai_provider", "OPEN_AI");
+            db.putWebsite("ai_model", "gpt-test");
+            db.putWebsite("ai_base_url", "http://127.0.0.1:18081/v1");
+            db.putWebsite("ai_api_key", "");
+
+            AdminArticleService service = new AdminArticleService();
+
+            assertEquals(Boolean.TRUE, service.loadDetailById("", request()).getData().getAiConfigured());
+
+            db.putWebsite("ai_base_url", "");
+            assertEquals(Boolean.FALSE, service.loadDetailById("", request()).getData().getAiConfigured());
+        }
+    }
+
+    @Test
     public void shouldPreserveUnsavedDraftAiMessagesForIndependentCreate() throws Exception {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
             AdminArticleService service = new AdminArticleService();

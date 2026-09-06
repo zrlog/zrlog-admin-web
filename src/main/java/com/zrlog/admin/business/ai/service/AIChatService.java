@@ -123,6 +123,17 @@ public class AIChatService extends AIService {
     public List<AIResponseEntry.AIContentEntry> runToolResponse(String input, Long articleId, String tool,
                                                                 GenerateArticleFieldRequest articleContext)
             throws SQLException, IOException, InterruptedException {
+        List<AIResponseEntry.AIContentEntry> generatedMessages =
+                runToolResponseWithoutPersistence(input, articleId, tool, articleContext);
+        if (!new WebSiteService().appendAIMessageEntries(generatedMessages, articleId)) {
+            throw new AIMessageSaveException();
+        }
+        return generatedMessages;
+    }
+
+    public List<AIResponseEntry.AIContentEntry> runToolResponseWithoutPersistence(
+            String input, Long articleId, String tool, GenerateArticleFieldRequest articleContext)
+            throws SQLException, IOException, InterruptedException {
         if (articleContext == null) {
             throw new ArgsException("articleContext");
         }
@@ -130,8 +141,7 @@ public class AIChatService extends AIService {
         List<AIResponseEntry.AIContentEntry> messages = prepareMessages(input, info, tool);
         AIResponseEntry.AIContentEntry userMessage = messages.get(messages.size() - 1);
         ToolResult toolResult = runTool(tool, articleContext, buildToolConversationContext(tool, messages));
-        AIResponseEntry.AIContentEntry savedMessage = saveToolMessage(messages, articleId, tool, toolResult, info);
-        return List.of(userMessage, savedMessage);
+        return List.of(userMessage, buildToolMessage(tool, toolResult, info));
     }
 
     private AIStreamResponse startToolStreamResponse(String input, Long articleId, String tool,
@@ -685,8 +695,8 @@ public class AIChatService extends AIService {
             entry.setReasoningContent(reasoningContent);
         }
         fillModelTrace(entry, info);
-        messages.add(entry);
-        if (!new WebSiteService().saveAIMessage(messages, articleId)) {
+        AIResponseEntry.AIContentEntry userMessage = messages.get(messages.size() - 1);
+        if (!new WebSiteService().appendAIMessageEntries(List.of(userMessage, entry), articleId)) {
             throw new AIMessageSaveException();
         }
     }
@@ -694,14 +704,20 @@ public class AIChatService extends AIService {
     private AIResponseEntry.AIContentEntry saveToolMessage(List<AIResponseEntry.AIContentEntry> messages, Long articleId,
                                                            String tool, ToolResult toolResult,
                                                            AIWebSiteInfoWithAIMessages info) throws SQLException {
+        AIResponseEntry.AIContentEntry entry = buildToolMessage(tool, toolResult, info);
+        AIResponseEntry.AIContentEntry userMessage = messages.get(messages.size() - 1);
+        if (!new WebSiteService().appendAIMessageEntries(List.of(userMessage, entry), articleId)) {
+            throw new AIMessageSaveException();
+        }
+        return entry;
+    }
+
+    private AIResponseEntry.AIContentEntry buildToolMessage(String tool, ToolResult toolResult,
+                                                            AIWebSiteInfoWithAIMessages info) {
         AIResponseEntry.AIContentEntry entry = new AIResponseEntry.AIContentEntry("assistant", toolResult.content);
         entry.setTool(tool);
         entry.setPayload(toolResult.payload);
         fillModelTrace(entry, info);
-        messages.add(entry);
-        if (!new WebSiteService().saveAIMessage(messages, articleId)) {
-            throw new AIMessageSaveException();
-        }
         return entry;
     }
 

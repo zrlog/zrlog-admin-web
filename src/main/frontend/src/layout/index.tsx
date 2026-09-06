@@ -456,10 +456,14 @@ const AdminManageLayout: FunctionComponent<AdminManageLayoutProps> = ({
                     <SliderMenu expanded={true} />
                 </AdminNavigationDrawer>
 
-                <FloatButton.Group>
-                    {syncStaticSite && <StaticSite data={{ synced: false }} offlineData={false} offline={offline} />}
-                    <FloatButton.BackTop />
-                </FloatButton.Group>
+                {(syncStaticSite || !mobileMode) && (
+                    <FloatButton.Group>
+                        {syncStaticSite && (
+                            <StaticSite data={{ synced: false }} offlineData={false} offline={offline} />
+                        )}
+                        {!mobileMode && <FloatButton.BackTop />}
+                    </FloatButton.Group>
+                )}
             </StyledIndexLayout>
         </PWAHandler>
     );

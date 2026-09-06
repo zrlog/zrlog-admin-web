@@ -39,6 +39,8 @@ public class AdminRouters {
         router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/plugin", AdminController.class, "plugin");
         router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/index", AdminController.class, "index");
         router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/index/config", AdminController.class, "indexConfig");
+        router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/index/first-use/dismiss",
+                AdminController.class, "dismissFirstUseChecklist");
         router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/comment", CommentController.class);
         router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/tag", AdminTagController.class);
         router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/type", TypeController.class);

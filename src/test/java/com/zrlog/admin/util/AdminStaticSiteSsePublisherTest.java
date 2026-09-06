@@ -54,8 +54,43 @@ public class AdminStaticSiteSsePublisherTest {
             assertTrue(body.contains("event: before-cache"));
             assertTrue(body.contains("event: during-cache"));
             assertTrue(body.contains("event: after-cache"));
+            assertTrue(body.contains("event: static-sync-skipped"));
             assertFalse(body.contains("event: static-sync-start"));
             assertFalse(body.contains("event: static-progress"));
+        } finally {
+            Constants.zrLogConfig = previousConfig;
+        }
+    }
+
+    @Test
+    public void shouldUseCacheErrorEventAfterBeforeStepSucceeds() throws Exception {
+        ZrLogConfig previousConfig = Constants.zrLogConfig;
+        CapturedResponse capturedResponse = new CapturedResponse();
+        try {
+            PathUtil.setRootPath(temporaryFolder.newFolder("zrlog-root-separated-errors").getAbsolutePath());
+            Constants.zrLogConfig = new DisabledStaticConfig();
+
+            AdminStaticSiteSsePublisher.write(
+                    capturedResponse.response(),
+                    "static-separated-error-test",
+                    "publish-error",
+                    "static-error",
+                    List.of(StaticSiteType.BLOG),
+                    emitter -> emitter.send("article", Map.of("error", 0)),
+                    () -> {
+                        throw new IllegalStateException("static sync failed");
+                    },
+                    emitter -> emitter.send("during-cache", Map.of("step", "during")),
+                    emitter -> emitter.send("publish-complete", Map.of("error", 0))
+            );
+
+            String body = capturedResponse.body();
+            assertTrue(body.contains("event: article"));
+            assertTrue(body.contains("event: static-error"));
+            assertTrue(body.contains("static sync failed"));
+            assertFalse(body.contains("event: publish-error"));
+            assertFalse(body.contains("event: static-sync-skipped"));
+            assertFalse(body.contains("event: publish-complete"));
         } finally {
             Constants.zrLogConfig = previousConfig;
         }

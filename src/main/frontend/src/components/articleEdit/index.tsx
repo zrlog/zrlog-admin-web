@@ -1,4 +1,4 @@
-import { FunctionComponent, useMemo, useRef, useState } from "react";
+import { FunctionComponent, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { App, Grid, InputRef, message, Tag } from "antd";
 import Divider from "antd/es/divider";
 import Card from "antd/es/card";
@@ -27,6 +27,9 @@ import useArticleSaveCoordinator from "./use-article-save-coordinator";
 import { markdownToHtml } from "@editor/dist/editor/utils/marked-utils";
 import { buildMarkdownImportedArticle, buildMarkdownImportedPatch } from "./markdown-import";
 import { MarkdownImportApplyOptions } from "./markdown-import-modal";
+import ArticlePublishReviewModal from "./article-publish-review-modal";
+import { ArticlePublishReviewTarget } from "./article-publish-review";
+import { createDraftAiSaveGate } from "./draft-ai-save-gate";
 
 const Index: FunctionComponent<ArticleEditProps> = ({
     offline,
@@ -40,11 +43,17 @@ const Index: FunctionComponent<ArticleEditProps> = ({
     const editCardRef = useRef<HTMLDivElement>(null);
     const editorViewRef = useRef<EditorView | null>(null);
     const suppressedEditorMarkdownRef = useRef<string>();
+    const [publishReviewOpen, setPublishReviewOpen] = useState(false);
+    const [publishReviewMode, setPublishReviewMode] = useState<"publish" | "preview">("publish");
     const preferredTypeId = useMemo(() => {
         const rawTypeId = new URLSearchParams(location.search).get("typeId");
         const typeId = rawTypeId ? Number(rawTypeId) : undefined;
         return typeId && Number.isFinite(typeId) && typeId > 0 ? typeId : undefined;
     }, [location.search]);
+    const importMarkdownIntent = useMemo(
+        () => new URLSearchParams(location.search).get("intent") === "import-markdown",
+        [location.search]
+    );
     const {
         cacheKey: articleEditUiStateCacheKey,
         settingsOpen,
@@ -52,6 +61,7 @@ const Index: FunctionComponent<ArticleEditProps> = ({
         articleAssistantOpen,
         publishStatus,
         restore: applyCachedArticleEditUiState,
+        migrateToArticle: migrateArticleEditUiState,
         updateSettingsOpen,
         updateVersionDrawerOpen,
         updateArticleAssistantOpen,
@@ -67,14 +77,20 @@ const Index: FunctionComponent<ArticleEditProps> = ({
     const { modal } = App.useApp();
     const axiosInstance = useAxiosBaseInstance(() => editCardRef.current as HTMLElement);
     const navigate = useNavigate();
+    const draftAiSaveGate = useMemo(createDraftAiSaveGate, []);
+    const draftAiPendingCount = useSyncExternalStore(
+        draftAiSaveGate.subscribe,
+        draftAiSaveGate.getPendingAiCount,
+        draftAiSaveGate.getPendingAiCount
+    );
     const {
+        applyGeneratedCover,
         applyImportedArticle,
         getLocalCacheKey,
         createImportedDraft,
         handleValuesChange,
         isSaving,
         keepServerConflictContent,
-        onPreview,
         onRollback,
         onSubmit,
         restoreInputRevision,
@@ -85,6 +101,8 @@ const Index: FunctionComponent<ArticleEditProps> = ({
         aliasRef,
         axiosInstance,
         data,
+        draftAiPendingCount,
+        draftAiSaveGate,
         digestRef,
         editCardRef,
         location,
@@ -93,10 +111,12 @@ const Index: FunctionComponent<ArticleEditProps> = ({
         navigate,
         offline,
         preferredTypeId,
+        migrateUiStateToArticle: migrateArticleEditUiState,
         restoreUiState: applyCachedArticleEditUiState,
         updateCache,
         updatePublishStatus,
     });
+    const draftAiPending = !state.article.logId && draftAiPendingCount > 0;
     const isNewArticle = !state.article.logId;
     const articleStatusText = isNewArticle
         ? getRes().articleEdit.new
@@ -165,6 +185,26 @@ const Index: FunctionComponent<ArticleEditProps> = ({
         if (target === "digest") {
             focusInputRef(digestRef);
         }
+    };
+
+    const locatePublishReviewTarget = (target: ArticlePublishReviewTarget) => {
+        setPublishReviewOpen(false);
+        if (target === "category") {
+            updateSettingsOpen(false);
+            editCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+            return;
+        }
+        locatePublishCheckTarget(target);
+    };
+
+    const openPublishReview = () => {
+        setPublishReviewMode("publish");
+        setPublishReviewOpen(true);
+    };
+
+    const openContentPreview = async () => {
+        setPublishReviewMode("preview");
+        setPublishReviewOpen(true);
     };
 
     const fieldAi = useArticleFieldAi({
@@ -243,37 +283,6 @@ const Index: FunctionComponent<ArticleEditProps> = ({
         }
     };
 
-    const applyGeneratedCover = async (cover?: {
-        dataUrl: string;
-        extension?: string;
-        messageId?: string;
-    }): Promise<string | undefined> => {
-        if (!cover?.dataUrl) {
-            return undefined;
-        }
-        try {
-            const { data } = await axiosInstance.post(
-                `/api/admin/article/cover/apply?id=${state.article.logId ? state.article.logId : 0}`,
-                {
-                    dataUrl: cover.dataUrl,
-                    extension: cover.extension,
-                    messageId: cover.messageId,
-                }
-            );
-            if (data.error) {
-                await messageApi.error(data.message);
-                return undefined;
-            }
-            handleValuesChange({ thumbnail: data.data.url });
-            // setGeneratedCover(undefined);
-            await messageApi.success(getRes().articleEdit.coverApplySuccess);
-            return data.data.url;
-        } catch (e) {
-            await messageApi.error(e instanceof Error ? e.message : getRes().error.unknown);
-            return undefined;
-        }
-    };
-
     const { useBreakpoint } = Grid;
     const rawScreens = useBreakpoint();
     const screens =
@@ -320,6 +329,7 @@ const Index: FunctionComponent<ArticleEditProps> = ({
 
     const assistantConfig = useArticleAiAssistantConfig({
         data: state,
+        draftAiSaveGate,
         offline,
         axiosInstance,
         onAiMessagesChange: updateAiMessageCache,
@@ -413,13 +423,17 @@ const Index: FunctionComponent<ArticleEditProps> = ({
                         key={data.article.logId + "actionbar_offline:" + offline}
                         fullScreen={fullScreen}
                         offline={offline}
+                        draftAiPending={draftAiPending}
+                        draftAiSaveGate={draftAiSaveGate}
+                        shortcutsDisabled={publishReviewOpen}
                         data={state}
                         onSubmit={onSubmit}
-                        onPreview={onPreview}
+                        onRequestPublish={openPublishReview}
+                        onPreview={openContentPreview}
                         onOpenSettings={() => updateSettingsOpen(true)}
                         onOpenVersionHistory={() => updateVersionDrawerOpen(true)}
                         canOpenVersionHistory={Boolean(state.article.logId)}
-                        onAiMessagesChange={(messages) => updateAiMessageCache(messages)}
+                        onAiMessagesChange={updateAiMessageCache}
                         onAiDrawerSizeChange={updateAiDrawerWidth}
                         aiDrawerOpen={articleAssistantOpen}
                         onAiDrawerOpenChange={updateArticleAssistantOpen}
@@ -454,8 +468,11 @@ const Index: FunctionComponent<ArticleEditProps> = ({
                     articleVersion={state.article.version}
                     dataDigest={state.article.digest}
                     state={state}
+                    draftAiPending={draftAiPending}
+                    draftAiSaveGate={draftAiSaveGate}
                     fullScreen={fullScreen}
                     offline={offline}
+                    shortcutsDisabled={publishReviewOpen}
                     screens={screens}
                     editorActionGroupGap={editorActionGroupGap}
                     editCardRef={editCardRef}
@@ -480,12 +497,14 @@ const Index: FunctionComponent<ArticleEditProps> = ({
                     onVersionOpenChange={updateVersionDrawerOpen}
                     onRollback={onRollback}
                     onSubmit={onSubmit}
-                    onPreview={onPreview}
+                    onRequestPublish={openPublishReview}
+                    onPreview={openContentPreview}
                     onAiMessagesChange={updateAiMessageCache}
                     onAiDrawerSizeChange={updateAiDrawerWidth}
                     onInsertMarkdownFromAsset={insertAssetToMarkdown}
                     getCurrentMarkdown={getCurrentMarkdown}
                     onImportMarkdown={importMarkdown}
+                    importMarkdownIntent={importMarkdownIntent}
                     onExitFullScreen={onExitFullScreen}
                     onFullScreen={onFullScreen}
                     getSelectStyle={getSelectStyle}
@@ -590,6 +609,20 @@ const Index: FunctionComponent<ArticleEditProps> = ({
                     extraPlacement="right"
                 />
             </Card>
+            <ArticlePublishReviewModal
+                open={publishReviewOpen}
+                previewOnly={publishReviewMode === "preview"}
+                article={state.article}
+                typeOptions={state.typeOptions}
+                offline={offline}
+                draftAiPending={draftAiPending}
+                saving={isSaving}
+                contentConflict={Boolean(state.contentConflict)}
+                getContainer={() => editCardRef.current as HTMLElement}
+                onOpenChange={setPublishReviewOpen}
+                onLocate={locatePublishReviewTarget}
+                onConfirm={() => onSubmit(state.article, true, false, false)}
+            />
         </>
     );
 };

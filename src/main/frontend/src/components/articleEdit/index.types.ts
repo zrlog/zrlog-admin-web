@@ -148,9 +148,13 @@ export type PublishStatusPopoverState = {
     open: boolean;
     visible: boolean;
     updatedAt?: number;
+    publishState: "idle" | "running" | "success" | "failed";
     publishText?: string;
     publishError?: string;
+    publicUrl?: string;
+    staticStatus: "idle" | "running" | "success" | "failed" | "not-required";
     staticText?: string;
+    staticError?: string;
     checkStatus: "idle" | "running" | "success" | "error";
     checkError?: string;
     checkPayload?: Extract<AssistantToolPayload, { tool: "publishCheck" }>;

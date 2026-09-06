@@ -204,6 +204,7 @@ describe("postRefreshCacheSse", () => {
 
     it("reports a missing required completion event after the business response", async () => {
         let readCount = 0;
+        const onBackgroundError = jest.fn();
         mockFetch.mockResolvedValueOnce(
             sseResponse(() => {
                 readCount += 1;
@@ -221,6 +222,7 @@ describe("postRefreshCacheSse", () => {
         await expect(
             postRefreshCacheSse("/refresh", {
                 messageApi,
+                onBackgroundError,
                 requiredCompletionEvent: "refresh-complete",
             })
         ).resolves.toEqual({ error: 0, data: true });
@@ -230,6 +232,7 @@ describe("postRefreshCacheSse", () => {
             key: "refreshCache",
             content: "Sync failed",
         });
+        expect(onBackgroundError).toHaveBeenCalledWith(expect.objectContaining({ message: "Sync failed" }));
     });
 
     it("stops consuming after the required completion event", async () => {

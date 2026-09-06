@@ -40,12 +40,14 @@ import { ApiResponse } from "../../../type";
 import { markdownToHtmlSyncWithCallback } from "@editor/dist/editor/utils/marked-utils";
 import ArticlePreviewSnapshot from "../../article/article-preview-snapshot";
 import { collectMarkdownReferenceSummary } from "../markdown-reference-utils";
+import { DraftAiSaveGate } from "../draft-ai-save-gate";
 
 type ArticleAiAssistantConfigProps = {
     data: ArticleEditState;
+    draftAiSaveGate: DraftAiSaveGate;
     offline: boolean;
     axiosInstance: AxiosInstance;
-    onAiMessagesChange?: (messages: AIContent[]) => void;
+    onAiMessagesChange?: (messages: AIContent[], articleId?: number) => void;
     onApplyValues: (cv: ArticleChangeableValue) => void;
 
     onApplyGeneratedCover?: (cover: {
@@ -133,6 +135,7 @@ const buildRequestPreviewSnippet = (value: string) => {
 
 export const useArticleAiAssistantConfig = ({
     data,
+    draftAiSaveGate,
     offline,
     axiosInstance,
     onAiMessagesChange,
@@ -296,10 +299,16 @@ export const useArticleAiAssistantConfig = ({
         if (aiMessagesClearing || aiMessages.length === 0) {
             return;
         }
-        setAiMessagesClearing(true);
+        const articleId = latestDataRef.current.article.logId || 0;
+        const releaseRequest = draftAiSaveGate.tryBeginAiRequest(articleId);
+        if (!releaseRequest) {
+            void message.warning(getRes().articleEdit.assistant.saveInProgress);
+            return;
+        }
         try {
+            setAiMessagesClearing(true);
             const { data: response } = await axiosInstance.post<ApiResponse<boolean>>(
-                `/api/admin/article/ai/messages/clear?id=${getArticleIdParam()}`
+                `/api/admin/article/ai/messages/clear?id=${articleId}`
             );
             if (response.error) {
                 await message.error(response.message || getRes().error.unknown);
@@ -307,12 +316,13 @@ export const useArticleAiAssistantConfig = ({
             }
             setToolPayloads({});
             setSelectedTitles({});
-            onAiMessagesChange?.([]);
+            onAiMessagesChange?.([], articleId);
             await message.success(getRes().articleEdit.assistant.clearAiMessagesSuccess);
         } catch (e) {
             await message.error(e instanceof Error ? e.message : getRes().error.unknown);
         } finally {
             setAiMessagesClearing(false);
+            releaseRequest();
         }
     };
 
@@ -415,31 +425,52 @@ export const useArticleAiAssistantConfig = ({
         return toolPayloads[messageIndex];
     };
 
-    const updateToolPayload = (messageIndex: number, toolPayload: AssistantToolPayload, persist = true) => {
-        setToolPayloads((prevState) => ({ ...prevState, [messageIndex]: toolPayload }));
+    const updateToolPayload = (
+        messageIndex: number,
+        toolPayload: AssistantToolPayload,
+        persist = true,
+        startedArticleId?: number
+    ) => {
         const messageId = (aiMessages[messageIndex] as ToolAwareAIContent | undefined)?.messageId;
-        onAiMessagesChange?.(
-            aiMessages.map((content, index) => {
-                if (index !== messageIndex) {
-                    return content;
-                }
-                return {
-                    ...content,
-                    tool: toolPayload.tool,
-                    payload: toolPayload.payload,
-                } as ToolAwareAIContent;
-            })
-        );
-        if (messageId && persist) {
-            void axiosInstance
-                .post(`/api/admin/article/ai/message?id=${data.article.logId ? data.article.logId : 0}`, {
-                    messageId,
-                    tool: toolPayload.tool,
-                    payload: toolPayload.payload,
-                })
-                .catch(() => {
+        const articleId = startedArticleId ?? latestDataRef.current.article.logId ?? 0;
+        const releaseRequest = messageId && persist ? draftAiSaveGate.tryBeginAiRequest(articleId) : undefined;
+        if (messageId && persist && !releaseRequest) {
+            void message.warning(getRes().articleEdit.assistant.saveInProgress);
+            return;
+        }
+        try {
+            setToolPayloads((prevState) => ({ ...prevState, [messageIndex]: toolPayload }));
+            onAiMessagesChange?.(
+                aiMessages.map((content, index) => {
+                    if (index !== messageIndex) {
+                        return content;
+                    }
+                    return {
+                        ...content,
+                        tool: toolPayload.tool,
+                        payload: toolPayload.payload,
+                    } as ToolAwareAIContent;
+                }),
+                articleId
+            );
+        } catch (error) {
+            releaseRequest?.();
+            throw error;
+        }
+        if (messageId && persist && releaseRequest) {
+            void (async () => {
+                try {
+                    await axiosInstance.post(`/api/admin/article/ai/message?id=${articleId}`, {
+                        messageId,
+                        tool: toolPayload.tool,
+                        payload: toolPayload.payload,
+                    });
+                } catch {
                     // Local state is already updated; the next AI response refresh can reconcile persistence failures.
-                });
+                } finally {
+                    releaseRequest();
+                }
+            })();
         }
     };
 
@@ -466,21 +497,28 @@ export const useArticleAiAssistantConfig = ({
         if (contextAppending || loadingKey || !hasArticleContextSource()) {
             return;
         }
+        const articleId = latestDataRef.current.article.logId || 0;
+        const releaseRequest = draftAiSaveGate.tryBeginAiRequest(articleId);
+        if (!releaseRequest) {
+            void message.warning(getRes().articleEdit.assistant.saveInProgress);
+            return;
+        }
         setContextAppending(true);
         try {
             const { data: response } = await axiosInstance.post<ApiResponse<ToolAwareAIContent[]>>(
-                `/api/admin/article/ai/context?id=${data.article.logId ? data.article.logId : 0}`,
+                `/api/admin/article/ai/context?id=${articleId}`,
                 getArticleAiContextRequestBody()
             );
             if (response.error) {
                 await message.error(response.message || getRes().error.unknown);
                 return;
             }
-            onAiMessagesChange?.(response.data || []);
+            onAiMessagesChange?.(response.data || [], articleId);
         } catch (e) {
             await message.error(e instanceof Error ? e.message : getRes().error.unknown);
         } finally {
             setContextAppending(false);
+            releaseRequest();
         }
     };
 
@@ -498,6 +536,12 @@ export const useArticleAiAssistantConfig = ({
         if (!normalizedInput || loadingKey) {
             return;
         }
+        const articleId = latestDataRef.current.article.logId || 0;
+        const releaseRequest = draftAiSaveGate.tryBeginAiRequest(articleId);
+        if (!releaseRequest) {
+            void message.warning(getRes().articleEdit.assistant.saveInProgress);
+            return;
+        }
         const baseContents = [...aiMessages];
         const userContent: ToolAwareAIContent = {
             role: "user",
@@ -512,17 +556,20 @@ export const useArticleAiAssistantConfig = ({
         };
         const assistantIndex = baseContents.length + 1;
         const initialContents = [...baseContents, userContent, assistantContent];
-        onAiMessagesChange?.(initialContents);
+        onAiMessagesChange?.(initialContents, articleId);
         setLoadingKey(tool || "chat");
         const showRequestError = async (errorMessage: string, status?: number, errorMeta?: ArticleAiErrorMeta) => {
             await message.error(errorMessage);
-            onAiMessagesChange?.([...baseContents, userContent, buildErrorContent(errorMessage, status, errorMeta)]);
+            onAiMessagesChange?.(
+                [...baseContents, userContent, buildErrorContent(errorMessage, status, errorMeta)],
+                articleId
+            );
         };
 
         try {
             // Removed local cover generation short-circuit
             const query = new URLSearchParams({
-                id: `${data.article.logId ? data.article.logId : 0}`,
+                id: `${articleId}`,
                 input: normalizedInput,
             });
             if (tool) {
@@ -552,18 +599,21 @@ export const useArticleAiAssistantConfig = ({
                         }
                         currentContent = parsed.content;
                         cacheToolPayload(assistantIndex, parsed.toolPayload);
-                        onAiMessagesChange?.([
-                            ...baseContents,
-                            userContent,
-                            buildAssistantContent(
-                                assistantContent,
-                                currentContent,
-                                true,
-                                parsed.reasoningContent,
-                                parsed.toolPayload,
-                                parsed.messageId
-                            ),
-                        ]);
+                        onAiMessagesChange?.(
+                            [
+                                ...baseContents,
+                                userContent,
+                                buildAssistantContent(
+                                    assistantContent,
+                                    currentContent,
+                                    true,
+                                    parsed.reasoningContent,
+                                    parsed.toolPayload,
+                                    parsed.messageId
+                                ),
+                            ],
+                            articleId
+                        );
                     },
                 }
             );
@@ -582,22 +632,26 @@ export const useArticleAiAssistantConfig = ({
             }
             currentContent = parsed.content || currentContent;
             cacheToolPayload(assistantIndex, parsed.toolPayload);
-            onAiMessagesChange?.([
-                ...baseContents,
-                userContent,
-                buildAssistantContent(
-                    assistantContent,
-                    currentContent,
-                    false,
-                    parsed.reasoningContent,
-                    parsed.toolPayload,
-                    parsed.messageId
-                ),
-            ]);
+            onAiMessagesChange?.(
+                [
+                    ...baseContents,
+                    userContent,
+                    buildAssistantContent(
+                        assistantContent,
+                        currentContent,
+                        false,
+                        parsed.reasoningContent,
+                        parsed.toolPayload,
+                        parsed.messageId
+                    ),
+                ],
+                articleId
+            );
         } catch (e) {
             await showRequestError(e instanceof Error ? e.message : getRes().error.unknown);
         } finally {
             setLoadingKey(undefined);
+            releaseRequest();
         }
     };
 
@@ -905,6 +959,12 @@ export const useArticleAiAssistantConfig = ({
                 onCancel={() => setCropModalOpen(false)}
                 onError={(errorMessage) => message.error(errorMessage)}
                 onOk={async (croppedDataUrl) => {
+                    const articleId = latestDataRef.current.article.logId || 0;
+                    const releaseRequest = draftAiSaveGate.tryBeginAiRequest(articleId);
+                    if (!releaseRequest) {
+                        void message.warning(getRes().articleEdit.assistant.saveInProgress);
+                        return;
+                    }
                     try {
                         const targetIndex = aiMessages.findIndex((m, index) => {
                             const tp = getToolPayload(m, index);
@@ -917,16 +977,23 @@ export const useArticleAiAssistantConfig = ({
                         });
                         if (targetIndex >= 0) {
                             const tempUrl = await uploadTempImage(croppedDataUrl);
-                            updateToolPayload(targetIndex, {
-                                tool: "cover",
-                                payload: {
-                                    url: tempUrl,
+                            updateToolPayload(
+                                targetIndex,
+                                {
+                                    tool: "cover",
+                                    payload: {
+                                        url: tempUrl,
+                                    },
                                 },
-                            });
+                                true,
+                                articleId
+                            );
                         }
                         setCropModalOpen(false);
                     } catch (e) {
                         await message.error(e instanceof Error ? e.message : getRes().error.unknown);
+                    } finally {
+                        releaseRequest();
                     }
                 }}
             />
@@ -945,6 +1012,7 @@ export const useArticleAiAssistantConfig = ({
 
 const ArticleAiAssistantButton: FunctionComponent<ArticleAiAssistantButtonProps> = ({
     data,
+    draftAiSaveGate,
     offline,
     axiosInstance,
     getContainer,
@@ -968,6 +1036,7 @@ const ArticleAiAssistantButton: FunctionComponent<ArticleAiAssistantButtonProps>
     };
     const assistantConfig = useArticleAiAssistantConfig({
         data,
+        draftAiSaveGate,
         offline,
         axiosInstance,
         onAiMessagesChange,

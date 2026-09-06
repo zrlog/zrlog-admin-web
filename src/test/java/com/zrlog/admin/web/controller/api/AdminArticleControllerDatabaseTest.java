@@ -16,11 +16,14 @@ import com.zrlog.admin.business.rest.response.PublishCheckResponse;
 import com.zrlog.admin.business.rest.response.PublishCheckToolPayload;
 import com.zrlog.admin.business.rest.response.UploadFileResponse;
 import com.zrlog.admin.business.service.ArticlePinningService;
+import com.zrlog.admin.business.service.MessageCenterOperationService;
+import com.zrlog.admin.business.service.WebSiteService;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.util.AdminSseEmitter;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.common.vo.AdminTokenVO;
+import com.zrlog.util.I18nUtil;
 import org.junit.After;
 import org.junit.Test;
 
@@ -34,6 +37,8 @@ import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.HashMap;
 import java.util.List;
@@ -217,8 +222,16 @@ public class AdminArticleControllerDatabaseTest {
             assertEquals("stream-published", row.get("alias"));
             assertEquals(false, row.get("rubbish"));
             assertEquals(false, row.get("privacy"));
-            assertTrue(response.writtenBody.contains("event: article"));
-            assertTrue(response.writtenBody.contains("event: publish-start"));
+            int publishStartIndex = response.writtenBody.indexOf("event: publish-start");
+            int articleEventIndex = response.writtenBody.indexOf("event: article");
+            int articleEventEnd = response.writtenBody.indexOf("\n\n", articleEventIndex);
+            assertTrue(publishStartIndex >= 0);
+            assertTrue(articleEventIndex > publishStartIndex);
+            assertTrue(articleEventEnd > articleEventIndex);
+            String articleEvent = response.writtenBody.substring(articleEventIndex, articleEventEnd);
+            assertTrue(articleEvent.contains("\"previewUrl\":\""));
+            assertTrue(articleEvent.contains("stream-published"));
+            assertTrue(response.writtenBody.contains("event: static-sync-skipped"));
             assertTrue(response.writtenBody.contains("event: publish-complete"));
             assertTrue(response.writtenBody.contains("Stream Published"));
         }
@@ -456,6 +469,161 @@ public class AdminArticleControllerDatabaseTest {
         }
     }
 
+    @Test(timeout = 5000)
+    public void shouldEmitPublishCheckErrorWhenWaitTimesOut() throws Exception {
+        try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
+            String payload = emitPublishCheck(new CompletableFuture<>(), true, 20);
+
+            assertTrue(payload.contains("event: publish-check-error"));
+            assertTrue(payload.contains(I18nUtil.getAdminBackendStringFromRes(
+                    "admin.article.publishCheck.error.timeout")));
+        }
+    }
+
+    @Test(timeout = 5000)
+    public void shouldPreventLatePublishCheckPersistenceAfterTimeout() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            db.putWebsite("admin_cache:message_center_operation_notices", "[]");
+            CountDownLatch generationStarted = new CountDownLatch(1);
+            CountDownLatch releaseGeneration = new CountDownLatch(1);
+            CountDownLatch generationFinished = new CountDownLatch(1);
+            AtomicBoolean commitAttempted = new AtomicBoolean(false);
+            AtomicBoolean persistenceCalled = new AtomicBoolean(false);
+            AdminArticleController.PublishCheckPersistenceGuard guard =
+                    new AdminArticleController.PublishCheckPersistenceGuard();
+            CompletableFuture<PublishCheckResponse> future = CompletableFuture.supplyAsync(() -> {
+                generationStarted.countDown();
+                try {
+                    awaitIgnoringInterrupts(releaseGeneration);
+                    commitAttempted.set(true);
+                    return guard.commit(() -> {
+                        persistenceCalled.set(true);
+                        AIResponseEntry.AIContentEntry entry =
+                                new AIResponseEntry.AIContentEntry("assistant", "late AI result");
+                        entry.setMessageId("late-ai-message");
+                        new WebSiteService().appendAIMessageEntries(List.of(entry), 42L);
+                        new MessageCenterOperationService().recordPublishCheckSuccess(
+                                42L, "Late publish check", Map.of("score", 100));
+                        return publishCheckResponse();
+                    });
+                } catch (Exception e) {
+                    throw new CompletionException(e);
+                } finally {
+                    generationFinished.countDown();
+                }
+            });
+            AdminArticleController.PublishCheckTask task = new AdminArticleController.PublishCheckTask(
+                    future, guard, 42L, "Late publish check");
+
+            assertTrue(generationStarted.await(1, TimeUnit.SECONDS));
+            String payload = emitPublishCheck(task, true, 20);
+            releaseGeneration.countDown();
+            assertTrue(generationFinished.await(1, TimeUnit.SECONDS));
+
+            assertTrue(payload.contains("event: publish-check-error"));
+            assertTrue(payload.contains(I18nUtil.getAdminBackendStringFromRes(
+                    "admin.article.publishCheck.error.timeout")));
+            assertTrue(future.isCancelled());
+            assertTrue(commitAttempted.get());
+            assertFalse(persistenceCalled.get());
+            assertNull(db.queryOne("select value from website where name=?", "ai_chat_message_42"));
+            String storedNotices = String.valueOf(db.queryOne(
+                    "select value from website where name=?", "admin_cache:message_center_operation_notices")
+                    .get("value"));
+            assertEquals(1, countOccurrences(storedNotices, "Late publish check"));
+            assertFalse(storedNotices.contains(I18nUtil.getAdminBackendStringFromRes(
+                    "admin.messageCenter.operation.publishCheck.title")));
+        }
+    }
+
+    @Test(timeout = 5000)
+    public void shouldIgnoreLatePublishCheckFailureAfterTimeoutNotice() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            db.putWebsite("admin_cache:message_center_operation_notices", "[]");
+            CountDownLatch generationStarted = new CountDownLatch(1);
+            CountDownLatch releaseGeneration = new CountDownLatch(1);
+            CountDownLatch generationFinished = new CountDownLatch(1);
+            AdminArticleController.PublishCheckPersistenceGuard guard =
+                    new AdminArticleController.PublishCheckPersistenceGuard();
+            CompletableFuture<PublishCheckResponse> future = CompletableFuture.supplyAsync(() -> {
+                generationStarted.countDown();
+                try {
+                    awaitIgnoringInterrupts(releaseGeneration);
+                    throw new CompletionException(new IllegalStateException("late provider failure"));
+                } finally {
+                    generationFinished.countDown();
+                }
+            });
+            AdminArticleController.PublishCheckTask task = new AdminArticleController.PublishCheckTask(
+                    future, guard, 43L, "Late failed publish check");
+
+            assertTrue(generationStarted.await(1, TimeUnit.SECONDS));
+            String payload = emitPublishCheck(task, true, 20);
+            releaseGeneration.countDown();
+            assertTrue(generationFinished.await(1, TimeUnit.SECONDS));
+
+            assertTrue(payload.contains("event: publish-check-error"));
+            String storedNotices = String.valueOf(db.queryOne(
+                    "select value from website where name=?", "admin_cache:message_center_operation_notices")
+                    .get("value"));
+            assertEquals(1, countOccurrences(storedNotices, "Late failed publish check"));
+            assertFalse(storedNotices.contains("late provider failure"));
+        }
+    }
+
+    @Test(timeout = 5000)
+    public void shouldEmitCommittedPublishCheckWhenCommitWinsTimeoutRace() throws Exception {
+        try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
+            AdminArticleController.PublishCheckPersistenceGuard guard =
+                    new AdminArticleController.PublishCheckPersistenceGuard();
+            PublishCheckResponse response = guard.commit(AdminArticleControllerDatabaseTest::publishCheckResponse);
+            CompletableFuture<PublishCheckResponse> future = new CompletableFuture<>();
+            AdminArticleController.PublishCheckTask task = new AdminArticleController.PublishCheckTask(
+                    future, guard, null, "Committed publish check");
+
+            String payload = emitPublishCheck(task, true, 20);
+
+            assertNotNull(response);
+            assertTrue(payload.contains("event: publish-check-complete"));
+            assertTrue(payload.contains("\"ok\":true"));
+            assertFalse(future.isCancelled());
+        }
+    }
+
+    @Test
+    public void shouldSendCompletedPublishCheckOnlyOnceAcrossCompetingCallbacks() throws Exception {
+        try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
+            CompletableFuture<PublishCheckResponse> future =
+                    CompletableFuture.completedFuture(publishCheckResponse());
+            AdminArticleController.PublishCheckTask task = new AdminArticleController.PublishCheckTask(
+                    future, new AdminArticleController.PublishCheckPersistenceGuard(), null, null);
+
+            String payload = emitPublishCheck(task, false, null, 2);
+
+            assertEquals(1, countOccurrences(payload, "event: publish-check-complete"));
+        }
+    }
+
+    @Test
+    public void shouldRecordFailedPublishCheckOnlyOnceAcrossCompetingCallbacks() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            db.putWebsite("admin_cache:message_center_operation_notices", "[]");
+            CompletableFuture<PublishCheckResponse> future = new CompletableFuture<>();
+            future.completeExceptionally(new IllegalStateException("provider unavailable"));
+            AdminArticleController.PublishCheckTask task = new AdminArticleController.PublishCheckTask(
+                    future, new AdminArticleController.PublishCheckPersistenceGuard(), 44L, "Failed publish check");
+
+            String payload = emitPublishCheck(task, true, null, 2);
+            String storedNotices = String.valueOf(db.queryOne(
+                    "select value from website where name=?", "admin_cache:message_center_operation_notices")
+                    .get("value"));
+
+            assertEquals(1, countOccurrences(payload, "event: publish-check-error"));
+            assertEquals(1, countOccurrences(storedNotices, "Failed publish check"));
+            assertEquals(1, countOccurrences(storedNotices, "provider unavailable"));
+        }
+    }
+
     @Test
     @SuppressWarnings("unchecked")
     public void shouldStartPublishCheckAndRecordConfigurationErrorThroughRealWebsiteTable() throws Exception {
@@ -473,15 +641,13 @@ public class AdminArticleControllerDatabaseTest {
             global.setAiConfigured(true);
             AdminPageDataResponse<ArticleGlobalResponse> detail = new AdminPageDataResponse<>(global);
 
-            CompletableFuture<PublishCheckResponse> future = (CompletableFuture<PublishCheckResponse>)
+            AdminArticleController.PublishCheckTask task = (AdminArticleController.PublishCheckTask)
                     invoke(controller, "startPublishCheck", detail, request);
 
-            assertNotNull(future);
-            try {
-                future.join();
-            } catch (CompletionException e) {
-                assertTrue(e.getMessage().contains("ArgsException") || e.getCause() != null);
-            }
+            assertNotNull(task);
+            String payload = emitPublishCheck(task, true, null);
+
+            assertTrue(payload.contains("event: publish-check-error"));
             String stored = String.valueOf(db.queryOne(
                     "select value from website where name=?", "admin_cache:message_center_operation_notices")
                     .get("value"));
@@ -584,13 +750,70 @@ public class AdminArticleControllerDatabaseTest {
 
     private static String emitPublishCheck(CompletableFuture<PublishCheckResponse> future, boolean wait)
             throws Exception {
+        return emitPublishCheck(future, wait, null);
+    }
+
+    private static String emitPublishCheck(CompletableFuture<PublishCheckResponse> future, boolean wait,
+                                           Integer timeoutMillis) throws Exception {
+        return emitPublishCheck(new AdminArticleController.PublishCheckTask(
+                future, new AdminArticleController.PublishCheckPersistenceGuard(), null, null), wait, timeoutMillis);
+    }
+
+    private static String emitPublishCheck(AdminArticleController.PublishCheckTask task, boolean wait,
+                                           Integer timeoutMillis) throws Exception {
+        return emitPublishCheck(task, wait, timeoutMillis, 1);
+    }
+
+    private static String emitPublishCheck(AdminArticleController.PublishCheckTask task, boolean wait,
+                                           Integer timeoutMillis, int attempts) throws Exception {
         AdminArticleController controller = controller(Map.of(), null, new ResponseRecorder());
         try (PipedInputStream inputStream = new PipedInputStream();
              PipedOutputStream outputStream = new PipedOutputStream(inputStream)) {
             AdminSseEmitter emitter = new AdminSseEmitter(outputStream);
-            invoke(controller, "sendPublishCheckIfReady", future, new AtomicBoolean(false), emitter, wait);
+            AtomicBoolean sent = new AtomicBoolean(false);
+            for (int i = 0; i < attempts; i++) {
+                if (timeoutMillis == null) {
+                    invoke(controller, "sendPublishCheckIfReady", task, sent, emitter, wait);
+                } else {
+                    invoke(controller, "sendPublishCheckIfReady", task, sent, emitter, wait,
+                            timeoutMillis.longValue());
+                }
+            }
             outputStream.close();
             return new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+        }
+    }
+
+    private static PublishCheckResponse publishCheckResponse() {
+        return new PublishCheckResponse(
+                new PublishCheckToolPayload("publishCheck", Map.of("ok", true)),
+                "ready",
+                "publish-check-message",
+                List.of());
+    }
+
+    private static int countOccurrences(String value, String needle) {
+        int count = 0;
+        int start = 0;
+        while ((start = value.indexOf(needle, start)) >= 0) {
+            count++;
+            start += needle.length();
+        }
+        return count;
+    }
+
+    private static void awaitIgnoringInterrupts(CountDownLatch latch) {
+        boolean interrupted = false;
+        while (true) {
+            try {
+                latch.await();
+                break;
+            } catch (InterruptedException ignored) {
+                interrupted = true;
+            }
+        }
+        if (interrupted) {
+            Thread.currentThread().interrupt();
         }
     }
 

@@ -40,6 +40,11 @@ export type UpgradeData = {
     disableUpgradeReason: string;
     version: UpgradeVersion;
     backupProtection?: BackupProtectionStatus;
+    dockerMode?: boolean;
+    systemServiceMode?: boolean;
+    faasMode?: boolean;
+    warMode?: boolean;
+    nativeImageMode?: boolean;
 };
 
 export type BackupProtectionStatus = {
@@ -259,6 +264,12 @@ export type ServerInfoEntry = {
 
 export type IndexData = {
     dashboardConfig: AdminDashboardConfig;
+    firstUseChecklist?: FirstUseChecklist | null;
+};
+
+export type FirstUseChecklist = {
+    version: number;
+    status: "pending" | "dismissed";
 };
 
 export type AdminDashboardCardConfig = {

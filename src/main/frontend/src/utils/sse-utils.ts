@@ -35,6 +35,7 @@ export type RefreshCacheSseOptions<T> = {
     backgroundTaskTitle?: string;
     removeBackgroundTaskOnSuccess?: boolean;
     showErrorMessage?: boolean;
+    onBackgroundError?: (error: Error) => void;
     getBackgroundTaskResult?: (data: T) => BackgroundTaskResult | undefined;
 };
 
@@ -226,6 +227,7 @@ const readRefreshCacheSseImmediate = async <T>(
 ): Promise<T> => {
     return await new Promise<T>((resolve, reject) => {
         let settled = false;
+        let responseReceived = false;
         let fatalEventReported = false;
         const rejectOnce = (error: Error) => {
             if (settled) {
@@ -238,6 +240,7 @@ const readRefreshCacheSseImmediate = async <T>(
             response,
             options,
             (data) => {
+                responseReceived = true;
                 if (settled) {
                     return;
                 }
@@ -253,8 +256,11 @@ const readRefreshCacheSseImmediate = async <T>(
             .then(() => rejectOnce(new Error(getRes().error.requestError)))
             .catch((error) => {
                 const requestError = toRequestError(error);
-                if (settled && !fatalEventReported) {
-                    reportBackgroundStreamError(options, backgroundTaskId, requestError);
+                if (responseReceived) {
+                    if (!fatalEventReported) {
+                        reportBackgroundStreamError(options, backgroundTaskId, requestError);
+                    }
+                    options.onBackgroundError?.(requestError);
                     return;
                 }
                 rejectOnce(requestError);

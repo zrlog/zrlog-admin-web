@@ -1,8 +1,12 @@
 package com.zrlog.admin.util;
 
 import com.hibegin.common.dao.DataSourceWrapper;
+import com.hibegin.http.HttpVersion;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
+import com.hibegin.http.server.config.ResponseConfig;
+import com.hibegin.http.server.config.ServerConfig;
+import com.hibegin.http.server.impl.SimpleHttpResponse;
 import com.zrlog.admin.business.exception.AdminAuthException;
 import com.zrlog.business.exception.MissingInstallException;
 import com.zrlog.common.Constants;
@@ -46,6 +50,16 @@ public class AdminWebToolsTest {
     }
 
     @Test
+    public void shouldFrameAdminPageRedirectAsEmptyResponse() {
+        HttpRequest request = request("/admin", "/blog", null);
+        HttpResponse response = new SimpleHttpResponse(request, new ResponseConfig());
+
+        AdminWebTools.blockUnLoginRequestHandler(request, response);
+
+        assertEquals("0", response.getHeader().get("Content-Length"));
+    }
+
+    @Test
     public void shouldUseContextPathForStaticPluginAdminAssets() throws Exception {
         Constants.zrLogConfig = new TestZrLogConfig(true);
 
@@ -56,6 +70,7 @@ public class AdminWebToolsTest {
     }
 
     private static HttpRequest request(String uri, String contextPath, String userAgent) {
+        ServerConfig serverConfig = new ServerConfig();
         return (HttpRequest) Proxy.newProxyInstance(
                 AdminWebToolsTest.class.getClassLoader(),
                 new Class[]{HttpRequest.class},
@@ -65,6 +80,12 @@ public class AdminWebToolsTest {
                     }
                     if ("getContextPath".equals(method.getName())) {
                         return contextPath;
+                    }
+                    if ("getServerConfig".equals(method.getName())) {
+                        return serverConfig;
+                    }
+                    if ("getHttpVersion".equals(method.getName())) {
+                        return HttpVersion.HTTP_1_1;
                     }
                     if ("getHeader".equals(method.getName()) && "User-Agent".equals(args[0])) {
                         return userAgent;

@@ -33,24 +33,47 @@ public class AdminStaticSiteSsePublisher {
             SseStep duringCacheTask,
             SseStep afterCacheTask
     ) throws IOException {
-        AdminSseEmitter.write(response, threadName, errorEvent, emitter -> {
+        write(response, threadName, errorEvent, errorEvent, siteTypes, beforeCacheTask, cacheTask, duringCacheTask,
+                afterCacheTask);
+    }
+
+    public static void write(
+            HttpResponse response,
+            String threadName,
+            String beforeCacheErrorEvent,
+            String cacheErrorEvent,
+            List<StaticSiteType> siteTypes,
+            SseStep beforeCacheTask,
+            CacheTask cacheTask,
+            SseStep duringCacheTask,
+            SseStep afterCacheTask
+    ) throws IOException {
+        AdminSseEmitter.write(response, threadName, beforeCacheErrorEvent, emitter -> {
             beforeCacheTask.write(emitter);
-            if (StaticSitePlugin.isDisabled()) {
-                cacheTask.run();
-                duringCacheTask.write(emitter);
-                afterCacheTask.write(emitter);
+            try {
+                if (StaticSitePlugin.isDisabled()) {
+                    cacheTask.run();
+                    duringCacheTask.write(emitter);
+                    emitter.send("static-sync-skipped", AdminStaticSiteProgress.snapshot(siteTypes));
+                } else {
+                    emitter.send("static-sync-start", AdminStaticSiteProgress.snapshot(siteTypes));
+                    CompletableFuture<Void> cacheFuture = CompletableFuture.runAsync(cacheTask::run);
+                    while (!cacheFuture.isDone()) {
+                        duringCacheTask.write(emitter);
+                        emitter.send("static-progress", AdminStaticSiteProgress.snapshot(siteTypes));
+                        Thread.sleep(1000);
+                    }
+                    cacheFuture.join();
+                    duringCacheTask.write(emitter);
+                    emitter.send("static-sync-complete", AdminStaticSiteProgress.snapshot(siteTypes));
+                }
+            } catch (Exception e) {
+                if (e instanceof InterruptedException) {
+                    Thread.currentThread().interrupt();
+                }
+                emitter.sendError(cacheErrorEvent, e);
                 return;
             }
-            emitter.send("static-sync-start", AdminStaticSiteProgress.snapshot(siteTypes));
-            CompletableFuture<Void> cacheFuture = CompletableFuture.runAsync(cacheTask::run);
-            while (!cacheFuture.isDone()) {
-                duringCacheTask.write(emitter);
-                emitter.send("static-progress", AdminStaticSiteProgress.snapshot(siteTypes));
-                Thread.sleep(1000);
-            }
-            cacheFuture.join();
-            duringCacheTask.write(emitter);
-            emitter.send("static-sync-complete", AdminStaticSiteProgress.snapshot(siteTypes));
             afterCacheTask.write(emitter);
         });
     }

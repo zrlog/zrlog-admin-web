@@ -12,13 +12,17 @@ import { AIContent } from "@editor/dist/ai/AIContentItem";
 import { AIStateCache } from "@editor/dist/ai/AIStateCache";
 import { useTheme } from "antd-style";
 import { MarkdownImportApplyOptions } from "./markdown-import-modal";
+import { DraftAiSaveGate } from "./draft-ai-save-gate";
 
 type ArticleEditHeaderProps = {
     articleVersion: number;
     dataDigest?: string;
     state: ArticleEditState;
+    draftAiPending: boolean;
+    draftAiSaveGate: DraftAiSaveGate;
     fullScreen: boolean;
     offline: boolean;
+    shortcutsDisabled?: boolean;
     screens: any;
     editorActionGroupGap: number;
     editCardRef: RefObject<HTMLDivElement>;
@@ -43,12 +47,14 @@ type ArticleEditHeaderProps = {
     onVersionOpenChange: (open: boolean) => void;
     onRollback: (targetVersion: number) => Promise<void>;
     onSubmit: (article: ArticleEntry, release: boolean, preview: boolean, autoSave: boolean) => Promise<boolean>;
+    onRequestPublish: () => void;
     onPreview?: () => Promise<void>;
-    onAiMessagesChange: (messages: AIContent[]) => void;
+    onAiMessagesChange: (messages: AIContent[], articleId?: number) => void;
     onAiDrawerSizeChange: (newSize: number) => void;
     onInsertMarkdownFromAsset: (path: string) => void;
     getCurrentMarkdown: () => string;
     onImportMarkdown: (options: MarkdownImportApplyOptions) => Promise<boolean>;
+    importMarkdownIntent?: boolean;
     onExitFullScreen: () => void;
     onFullScreen: () => void;
     getSelectStyle: () => Record<string, any>;
@@ -58,8 +64,11 @@ const ArticleEditHeader: FunctionComponent<ArticleEditHeaderProps> = ({
     articleVersion,
     dataDigest,
     state,
+    draftAiPending,
+    draftAiSaveGate,
     fullScreen,
     offline,
+    shortcutsDisabled,
     screens,
     editorActionGroupGap,
     editCardRef,
@@ -84,13 +93,14 @@ const ArticleEditHeader: FunctionComponent<ArticleEditHeaderProps> = ({
     onVersionOpenChange,
     onRollback,
     onSubmit,
+    onRequestPublish,
     onPreview,
     onAiMessagesChange,
     onAiDrawerSizeChange,
     onInsertMarkdownFromAsset,
     getCurrentMarkdown,
     onImportMarkdown,
-
+    importMarkdownIntent,
     onExitFullScreen,
     onFullScreen,
     getSelectStyle,
@@ -235,6 +245,9 @@ const ArticleEditHeader: FunctionComponent<ArticleEditHeaderProps> = ({
                         <ArticleEditActionBar
                             getContainer={getContainer}
                             offline={offline}
+                            draftAiPending={draftAiPending}
+                            draftAiSaveGate={draftAiSaveGate}
+                            shortcutsDisabled={shortcutsDisabled}
                             fullScreen={fullScreen}
                             data={state}
                             onPreview={onPreview}
@@ -243,6 +256,7 @@ const ArticleEditHeader: FunctionComponent<ArticleEditHeaderProps> = ({
                             canOpenVersionHistory={Boolean(state.article.logId)}
                             onAiMessagesChange={onAiMessagesChange}
                             onSubmit={onSubmit}
+                            onRequestPublish={onRequestPublish}
                             aiDrawerOpen={articleAssistantOpen}
                             onAiDrawerOpenChange={onArticleAssistantOpenChange}
                             aiDrawerWidth={aiDrawerWidth}
@@ -292,6 +306,7 @@ const ArticleEditHeader: FunctionComponent<ArticleEditHeaderProps> = ({
                             onInsertMarkdownFromAsset={onInsertMarkdownFromAsset}
                             getCurrentMarkdown={getCurrentMarkdown}
                             onImportMarkdown={onImportMarkdown}
+                            importMarkdownIntent={importMarkdownIntent}
                             onExitFullScreen={onExitFullScreen}
                             onFullScreen={onFullScreen}
                         />

@@ -4,6 +4,11 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
+MAVEN=(mvn)
+if [ -x "$ROOT_DIR/mvnw" ]; then
+    MAVEN=("$ROOT_DIR/mvnw")
+fi
+
 FULL=0
 if [ "${1:-}" = "--full" ]; then
     FULL=1
@@ -169,7 +174,7 @@ fi
 
 if [ "$FULL" -eq 1 ]; then
     section "Backend compile"
-    mvn -q -DskipTests compile
+    "${MAVEN[@]}" -q -DskipTests compile
 
     section "API documentation contract"
     (cd src/main/frontend && yarn api-docs:check)

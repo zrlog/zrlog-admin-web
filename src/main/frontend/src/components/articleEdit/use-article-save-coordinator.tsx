@@ -1,4 +1,4 @@
-import { RefObject, useEffect, useRef, useState } from "react";
+import { RefObject, SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { InputRef, Space } from "antd";
 import { MessageInstance } from "antd/es/message/interface";
 import { HookAPI as ModalHookAPI } from "antd/es/modal/useModal";
@@ -16,7 +16,7 @@ import {
     removeLocalArticleCache,
 } from "../../utils/article-cache";
 import { deepEqualWithSpecialJSON, disableExitTips, enableExitTips, updateDocumentTitle } from "../../utils/helpers";
-import { getCacheByKey, getPageDataCacheKeyByPath } from "../../utils/cache";
+import { getCacheByKey, getPageDataCacheKeyByPath, removeCacheDataByKey } from "../../utils/cache";
 import { ApiResponse } from "../../type";
 import {
     ArticleChangeableValue,
@@ -34,12 +34,134 @@ import useTransparentPublish from "./use-transparent-publish";
 import { AIContent } from "@editor/dist/ai/AIContentItem";
 import { renderMissingMarkdownContent } from "./article-save-content";
 import { markdownToHtml } from "@editor/dist/editor/utils/marked-utils";
+import { DraftAiSaveGate, DraftArticleOperationRelease } from "./draft-ai-save-gate";
 
 const ARTICLE_UPDATE_EXPIRED_ERROR = 9094;
 
+type ArticleAiMessagesListener = (messages: AIContent[]) => void;
+
+const articleAiMessagesStore = new Map<string, AIContent[]>();
+const articleAiMessagesListeners = new Map<string, Set<ArticleAiMessagesListener>>();
+
+const readArticleAiMessages = (cacheKey: string, fallback: AIContent[]) => {
+    const cachedData = getCacheByKey<ArticleEditInfo | undefined>(cacheKey);
+    const messages = cachedData?.aiMessages || articleAiMessagesStore.get(cacheKey) || fallback;
+    articleAiMessagesStore.set(cacheKey, messages);
+    return messages;
+};
+
+const publishArticleAiMessages = (cacheKey: string, messages: AIContent[]) => {
+    const listeners = articleAiMessagesListeners.get(cacheKey);
+    if (!listeners || listeners.size === 0) {
+        articleAiMessagesStore.delete(cacheKey);
+        return;
+    }
+    articleAiMessagesStore.set(cacheKey, messages);
+    listeners.forEach((listener) => listener(messages));
+};
+
+const subscribeArticleAiMessages = (cacheKey: string, listener: ArticleAiMessagesListener) => {
+    const listeners = articleAiMessagesListeners.get(cacheKey) || new Set<ArticleAiMessagesListener>();
+    listeners.add(listener);
+    articleAiMessagesListeners.set(cacheKey, listeners);
+    return () => {
+        listeners.delete(listener);
+        if (listeners.size === 0) {
+            articleAiMessagesListeners.delete(cacheKey);
+            articleAiMessagesStore.delete(cacheKey);
+        }
+    };
+};
+
+const mergeArticleAiMessages = (...groups: Array<AIContent[] | undefined>) => {
+    const merged: AIContent[] = [];
+    const messageIds = new Set<string>();
+    const messageReferences = new Set<AIContent>();
+    const getMessageId = (message: AIContent) => (message as AIContent & { messageId?: string }).messageId;
+    const getSemanticKey = (message: AIContent) => {
+        const toolAwareMessage = message as AIContent & {
+            messageType?: string;
+            tool?: string;
+        };
+        return JSON.stringify([
+            toolAwareMessage.role || "",
+            toolAwareMessage.content || "",
+            toolAwareMessage.messageType || "",
+            toolAwareMessage.tool || "",
+        ]);
+    };
+
+    groups.forEach((messages) => {
+        const previousSemanticIndexes = new Map<string, number[]>();
+        merged.forEach((message, index) => {
+            const key = getSemanticKey(message);
+            const indexes = previousSemanticIndexes.get(key) || [];
+            indexes.push(index);
+            previousSemanticIndexes.set(key, indexes);
+        });
+        const reconciledIndexes = new Set<number>();
+
+        messages?.forEach((message) => {
+            const messageId = (message as AIContent & { messageId?: string }).messageId;
+            if (messageId ? messageIds.has(messageId) : messageReferences.has(message)) {
+                return;
+            }
+            const semanticMatch = previousSemanticIndexes.get(getSemanticKey(message))?.find((index) => {
+                if (reconciledIndexes.has(index)) {
+                    return false;
+                }
+                const existingMessageId = getMessageId(merged[index]);
+                return !messageId || !existingMessageId;
+            });
+            if (semanticMatch !== undefined) {
+                reconciledIndexes.add(semanticMatch);
+                messageReferences.add(message);
+                if (messageId) {
+                    const existingMessage = merged[semanticMatch];
+                    merged[semanticMatch] = {
+                        ...message,
+                        ...existingMessage,
+                        messageId,
+                    } as AIContent;
+                    messageIds.add(messageId);
+                }
+                return;
+            }
+            if (messageId) {
+                messageIds.add(messageId);
+            } else {
+                messageReferences.add(message);
+            }
+            merged.push(message);
+        });
+    });
+    return merged;
+};
+
+const migrateArticleAiMessageScope = (
+    sourceCacheKey: string,
+    targetCacheKey: string,
+    responseMessages: AIContent[]
+) => {
+    const sourceCachedMessages = getCacheByKey<ArticleEditInfo | undefined>(sourceCacheKey)?.aiMessages;
+    const targetCachedMessages = getCacheByKey<ArticleEditInfo | undefined>(targetCacheKey)?.aiMessages;
+    const mergedMessages = mergeArticleAiMessages(
+        sourceCachedMessages,
+        articleAiMessagesStore.get(sourceCacheKey),
+        responseMessages,
+        targetCachedMessages,
+        articleAiMessagesStore.get(targetCacheKey)
+    );
+    articleAiMessagesStore.delete(sourceCacheKey);
+    articleAiMessagesListeners.delete(sourceCacheKey);
+    removeCacheDataByKey(sourceCacheKey);
+    publishArticleAiMessages(targetCacheKey, mergedMessages);
+    return mergedMessages;
+};
+
 type ArticleAutoSaveOutcome =
     | {
-          type: "deferred";
+          type: "aiPending" | "deferred";
       }
     | {
           type: "blocked" | "conflict";
@@ -50,6 +172,8 @@ type UseArticleSaveCoordinatorOptions = {
     aliasRef: RefObject<InputRef>;
     axiosInstance: AxiosInstance;
     data: ArticleEditInfo;
+    draftAiPendingCount: number;
+    draftAiSaveGate: DraftAiSaveGate;
     digestRef: RefObject<InputRef>;
     editCardRef: RefObject<HTMLDivElement>;
     location: Location;
@@ -58,6 +182,7 @@ type UseArticleSaveCoordinatorOptions = {
     navigate: NavigateFunction;
     offline: boolean;
     preferredTypeId?: number;
+    migrateUiStateToArticle: (logId: number) => void;
     restoreUiState: () => void;
     updateCache?: (cache: ArticleEditInfo, cacheKey: string) => void;
     updatePublishStatus: (
@@ -69,6 +194,8 @@ const useArticleSaveCoordinator = ({
     aliasRef,
     axiosInstance,
     data,
+    draftAiPendingCount,
+    draftAiSaveGate,
     digestRef,
     editCardRef,
     location,
@@ -77,6 +204,7 @@ const useArticleSaveCoordinator = ({
     navigate,
     offline,
     preferredTypeId,
+    migrateUiStateToArticle,
     restoreUiState,
     updateCache,
     updatePublishStatus,
@@ -90,7 +218,6 @@ const useArticleSaveCoordinator = ({
     contentSourceRef.current = state.contentSource;
     const loadedArticleRef = useRef<ArticleEntry>(defaultState.article);
     const versionRef = useRef(defaultState.article.version);
-    const previewUrlRef = useRef(defaultState.article.previewUrl);
     const logIdRef = useRef(defaultState.article.logId || -1);
     const subjectRef = useRef<Subject<ArticleDraftSyncTask> | null>(null);
     const subRef = useRef<Subscription | null>(null);
@@ -108,37 +235,65 @@ const useArticleSaveCoordinator = ({
     const markDraftCommittedRef = useRef<() => void>(() => undefined);
     const autoSaveOutcomeRef = useRef<ArticleAutoSaveOutcome>();
     const autoSaveAcknowledgedArticleRef = useRef<ArticleEntry>();
+    const previousDraftAiPendingCountRef = useRef(draftAiPendingCount);
 
-    const getLocalCacheKey = (url: URL) =>
-        getPageDataCacheKeyByPath(location.pathname, "?" + url.searchParams.toString());
+    const articlePageCacheKey = useMemo(
+        () => getPageDataCacheKeyByPath(location.pathname, location.search),
+        [location.pathname, location.search]
+    );
+
+    const getLocalCacheKey = (url: URL) => getPageDataCacheKeyByPath(url.pathname, "?" + url.searchParams.toString());
+
+    const getArticleRouteUrl = () => new URL(`${location.pathname}${location.search}`, window.location.origin);
 
     const getLocalContentSource = (article: ArticleEntry): ArticleEditState["contentSource"] =>
         article.logId && article.logId > 0 ? "localEdit" : "localDraft";
 
-    const updateAiMessageCache = (aiMessages: AIContent[]) => {
-        const url = new URL(window.location.href);
-        const cacheKey = getLocalCacheKey(url);
-        const cachedData = getCacheByKey(cacheKey) as ArticleEditInfo | undefined;
-        const newData = {
-            ...(cachedData || data),
-            aiMessages,
-        };
-        updateCache?.(newData, cacheKey);
-        setState((previousState) => ({
-            ...previousState,
-            aiMessages,
-        }));
-    };
+    const updateAiMessageCache = useCallback(
+        (action: SetStateAction<AIContent[]>, articleId?: number) => {
+            const url = getArticleRouteUrl();
+            if (articleId !== undefined) {
+                if (articleId > 0) {
+                    url.searchParams.set("id", String(articleId));
+                } else {
+                    url.searchParams.delete("id");
+                }
+            }
+            const cacheKey = getLocalCacheKey(url);
+            const cachedData = getCacheByKey<ArticleEditInfo | undefined>(cacheKey);
+            const currentMessages = readArticleAiMessages(cacheKey, cachedData?.aiMessages || data.aiMessages);
+            const aiMessages = typeof action === "function" ? action(currentMessages) : action;
+            const newData = {
+                ...(cachedData || data),
+                aiMessages,
+            };
+            updateCache?.(newData, cacheKey);
+            publishArticleAiMessages(cacheKey, aiMessages);
+        },
+        [data, location.pathname, location.search, updateCache]
+    );
 
     const postArticleWithTransparentPublish = useTransparentPublish({
-        aiMessages: state.aiMessages,
         messageApi,
         onAiMessagesChange: updateAiMessageCache,
         updatePublishStatus,
     });
 
     useEffect(() => {
+        const applyMessages = (aiMessages: AIContent[]) => {
+            setState((previousState) => ({
+                ...previousState,
+                aiMessages,
+            }));
+        };
+        const unsubscribe = subscribeArticleAiMessages(articlePageCacheKey, applyMessages);
+        applyMessages(readArticleAiMessages(articlePageCacheKey, data.aiMessages));
+        return unsubscribe;
+    }, [articlePageCacheKey, data.aiMessages]);
+
+    useEffect(() => {
         const newState = articleDataToState(data, preferredTypeId);
+        const aiMessages = readArticleAiMessages(articlePageCacheKey, newState.aiMessages);
         const serverArticle = data.article.logId && data.article.logId > 0;
         if (!serverArticle && contentSourceRef.current === "localDraft") {
             setState((previousState) => ({
@@ -148,7 +303,7 @@ const useArticleSaveCoordinator = ({
                 aiProvider: newState.aiProvider,
                 aiModel: newState.aiModel,
                 aiConfigured: newState.aiConfigured,
-                aiMessages: newState.aiMessages,
+                aiMessages,
                 linkPreviewEnabled: newState.linkPreviewEnabled,
                 publishCheckEnabled: newState.publishCheckEnabled,
                 articleCoverAspectRatio: newState.articleCoverAspectRatio,
@@ -158,11 +313,10 @@ const useArticleSaveCoordinator = ({
         }
         if (!deepEqualWithSpecialJSON(loadedArticleRef.current, newState.article)) {
             loadedArticleRef.current = newState.article;
-            setState(newState);
+            setState({ ...newState, aiMessages });
             restoreUiState();
             setRestoreInputRevision((revision) => revision + 1);
             versionRef.current = newState.article.version;
-            previewUrlRef.current = newState.article.previewUrl;
             logIdRef.current = newState.article.logId || -1;
             return;
         }
@@ -173,28 +327,29 @@ const useArticleSaveCoordinator = ({
             aiProvider: newState.aiProvider,
             aiModel: newState.aiModel,
             aiConfigured: newState.aiConfigured,
-            aiMessages: newState.aiMessages,
+            aiMessages,
             linkPreviewEnabled: newState.linkPreviewEnabled,
             publishCheckEnabled: newState.publishCheckEnabled,
             articleCoverAspectRatio: newState.articleCoverAspectRatio,
             articleEditAutoSaveInterval: newState.articleEditAutoSaveInterval,
             editorVersion: newState.editorVersion,
         }));
-    }, [data, preferredTypeId]);
+    }, [articlePageCacheKey, data, preferredTypeId]);
 
     useEffect(() => {
+        const aiMessages = readArticleAiMessages(articlePageCacheKey, data.aiMessages);
         setState((previousState) => ({
             ...previousState,
             aiProvider: data.aiProvider,
             aiModel: data.aiModel,
             aiConfigured: data.aiConfigured === true,
-            aiMessages: data.aiMessages,
+            aiMessages,
         }));
-    }, [data.aiConfigured, data.aiMessages, data.aiModel, data.aiProvider]);
+    }, [articlePageCacheKey, data.aiConfigured, data.aiMessages, data.aiModel, data.aiProvider]);
 
-    const finishPendingAutoSave = () => {
+    const finishPendingAutoSave = (preserveExitTips = false) => {
         pendingMessagesRef.current = Math.max(0, pendingMessagesRef.current - 1);
-        if (pendingMessagesRef.current === 0) {
+        if (pendingMessagesRef.current === 0 && !preserveExitTips) {
             disableExitTips();
         }
     };
@@ -248,6 +403,19 @@ const useArticleSaveCoordinator = ({
             ...previousState,
             rubbish: false,
             article: mergeArticleResponse(previousState.article, newArticle, create),
+            saving: {
+                ...previousState.saving,
+                releaseSaving: false,
+                rubbishSaving: false,
+                previewIng: false,
+                autoSaving: false,
+            },
+        }));
+    };
+
+    const finishFailedManualSave = () => {
+        setState((previousState) => ({
+            ...previousState,
             saving: {
                 ...previousState.saving,
                 releaseSaving: false,
@@ -312,8 +480,8 @@ const useArticleSaveCoordinator = ({
             messageApi.info(response.message);
         }
         const responseArticle = response.data.article;
-        previewUrlRef.current = responseArticle.previewUrl;
-        const url = new URL(window.location.href);
+        const url = getArticleRouteUrl();
+        const sourceCacheKey = getLocalCacheKey(url);
         let nextArticle: ArticleEntry;
         if (create) {
             logIdRef.current = responseArticle.logId;
@@ -322,6 +490,7 @@ const useArticleSaveCoordinator = ({
             if (!autoSave) {
                 removeLocalArticleCache();
             }
+            migrateUiStateToArticle(responseArticle.logId);
             navigate(location.pathname + url.search, { replace: true });
         } else {
             nextArticle = {
@@ -338,7 +507,17 @@ const useArticleSaveCoordinator = ({
         if (!autoSave) {
             markDraftCommittedRef.current();
         }
-        updateCache?.(response.data, getLocalCacheKey(url));
+        const cacheKey = getLocalCacheKey(url);
+        const aiMessages = create
+            ? migrateArticleAiMessageScope(sourceCacheKey, cacheKey, response.data.aiMessages)
+            : readArticleAiMessages(cacheKey, response.data.aiMessages);
+        updateCache?.(
+            {
+                ...response.data,
+                aiMessages,
+            },
+            cacheKey
+        );
         return nextArticle;
     };
 
@@ -348,7 +527,8 @@ const useArticleSaveCoordinator = ({
         article: ArticleEntry,
         release: boolean,
         preview: boolean,
-        autoSave: boolean
+        autoSave: boolean,
+        acquiredCreateRelease?: DraftArticleOperationRelease
     ): Promise<boolean> => {
         if (autoSave) {
             autoSaveOutcomeRef.current = undefined;
@@ -361,24 +541,42 @@ const useArticleSaveCoordinator = ({
             transparentPublish: release && !autoSave && article.privacy !== true,
         };
         if (!article.title) {
+            acquiredCreateRelease?.();
             messageApi.error({ content: getRes().articleEdit.requireTitle });
             return false;
         }
         if (article.typeId === undefined || article.typeId === null || article.typeId <= 0) {
+            acquiredCreateRelease?.();
             messageApi.error(getRes().articleEdit.requireType);
             return false;
         }
         if (isOffline()) {
+            acquiredCreateRelease?.();
             if (autoSave) {
                 autoSaveOutcomeRef.current = { type: "deferred" };
+                persistToCache(newArticle);
+                return false;
+            }
+            if (release) {
+                messageApi.error(getRes().articleEdit.publishReview.offline);
+                return false;
             }
             persistToCache(newArticle);
-            return !autoSave;
+            return true;
+        }
+        const create = article.logId === undefined || article.logId === null || article.logId <= 0;
+        const releaseCreate = acquiredCreateRelease || draftAiSaveGate.tryBeginCreate(article.logId);
+        if (!releaseCreate) {
+            if (autoSave) {
+                autoSaveOutcomeRef.current = { type: "aiPending" };
+            } else {
+                void messageApi.error(getRes().articleEdit.aiRequestPending);
+            }
+            return false;
         }
         if (!autoSave) {
             resetAutoSaveQueue();
         }
-        const create = article.logId === undefined || article.logId === null || article.logId <= 0;
         const uri = create ? createUri : updateUri;
         setState((previousState) => ({
             ...previousState,
@@ -457,18 +655,16 @@ const useArticleSaveCoordinator = ({
         } finally {
             if (autoSave) {
                 finishAutoSave(saveSucceeded ? newArticle : undefined, create);
-            } else if (release) {
-                updateReleaseState(newArticle, create);
+            } else if (saveSucceeded) {
+                if (release) {
+                    updateReleaseState(newArticle, create);
+                } else {
+                    updateRubbishState(newArticle, create);
+                }
             } else {
-                updateRubbishState(newArticle, create);
+                finishFailedManualSave();
             }
-        }
-    };
-
-    const onPreview = async () => {
-        const saved = await onSubmit(state.article, false, true, false);
-        if (saved && previewUrlRef.current) {
-            window.open(previewUrlRef.current, "_blank", "noopener,noreferrer");
+            releaseCreate();
         }
     };
 
@@ -525,16 +721,22 @@ const useArticleSaveCoordinator = ({
                     pendingMessagesRef.current += 1;
                 }),
                 concatMap(async (task) => {
-                    if (!markDraftSyncingRef.current(task)) {
-                        finishPendingAutoSave();
-                        return;
-                    }
                     const nextArticle = {
                         ...task.article,
                         logId: logIdRef.current,
                     };
+                    const releaseCreate = draftAiSaveGate.tryBeginCreate(nextArticle.logId);
+                    if (!releaseCreate) {
+                        finishPendingAutoSave(true);
+                        return;
+                    }
+                    if (!markDraftSyncingRef.current(task)) {
+                        releaseCreate();
+                        finishPendingAutoSave();
+                        return;
+                    }
                     try {
-                        const saved = await onSubmit(nextArticle, false, false, true);
+                        const saved = await onSubmit(nextArticle, false, false, true, releaseCreate);
                         if (saved) {
                             markDraftSyncedRef.current(task, autoSaveAcknowledgedArticleRef.current);
                             if (latestAutoSaveTaskRef.current?.revision === task.revision) {
@@ -543,7 +745,9 @@ const useArticleSaveCoordinator = ({
                             return;
                         }
                         const outcome = autoSaveOutcomeRef.current;
-                        if (outcome?.type === "deferred") {
+                        if (outcome?.type === "aiPending") {
+                            return;
+                        } else if (outcome?.type === "deferred") {
                             markDraftDeferredRef.current(task);
                         } else if (outcome?.type === "conflict") {
                             if (markDraftConflictRef.current(task, outcome.message)) {
@@ -576,6 +780,18 @@ const useArticleSaveCoordinator = ({
         resetAutoSaveQueue();
         return () => subRef.current?.unsubscribe();
     }, [state.articleEditAutoSaveInterval]);
+
+    useEffect(() => {
+        const previousCount = previousDraftAiPendingCountRef.current;
+        previousDraftAiPendingCountRef.current = draftAiPendingCount;
+        if (previousCount <= 0 || draftAiPendingCount !== 0 || logIdRef.current > 0) {
+            return;
+        }
+        const latestTask = latestAutoSaveTaskRef.current;
+        if (latestTask) {
+            subjectRef.current?.next(latestTask);
+        }
+    }, [draftAiPendingCount]);
 
     const isSyncable = (article: ArticleEntry) =>
         Boolean(article.title) && article.typeId !== undefined && article.typeId !== null && article.typeId > 0;
@@ -661,11 +877,18 @@ const useArticleSaveCoordinator = ({
             return false;
         }
 
-        importedDraftCreatePendingRef.current = true;
-        subRef.current?.unsubscribe();
-        subjectRef.current = null;
+        const releaseCreate = draftAiSaveGate.tryBeginCreate(0);
+        if (!releaseCreate) {
+            void messageApi.warning(
+                draftAiSaveGate.getPendingAiCount() > 0 ? getRes().articleEdit.aiRequestPending : res.waitForCurrentSave
+            );
+            return false;
+        }
         let succeeded = false;
         try {
+            importedDraftCreatePendingRef.current = true;
+            subRef.current?.unsubscribe();
+            subjectRef.current = null;
             const { data: response } = await axiosInstance.post<ApiResponse<ArticleEditInfo>>(
                 createUri,
                 {
@@ -698,22 +921,61 @@ const useArticleSaveCoordinator = ({
             updateCache?.(response.data, getLocalCacheKey(url));
             latestAutoSaveTaskRef.current = undefined;
             disableExitTips();
-            succeeded = true;
             navigate(location.pathname + url.search, { replace: false });
+            succeeded = true;
             return true;
         } catch (_error) {
             void messageApi.error(res.createResultUnknown);
             return false;
         } finally {
-            if (!succeeded) {
-                importedDraftCreatePendingRef.current = false;
-                resetAutoSaveQueue();
-                const queuedTask = latestAutoSaveTaskRef.current;
-                const retrySubject = subjectRef.current as Subject<ArticleDraftSyncTask> | null;
-                if (queuedTask && retrySubject) {
-                    retrySubject.next(queuedTask);
+            try {
+                if (!succeeded) {
+                    importedDraftCreatePendingRef.current = false;
+                    resetAutoSaveQueue();
+                    const queuedTask = latestAutoSaveTaskRef.current;
+                    const retrySubject = subjectRef.current as Subject<ArticleDraftSyncTask> | null;
+                    if (queuedTask && retrySubject) {
+                        retrySubject.next(queuedTask);
+                    }
                 }
+            } finally {
+                releaseCreate();
             }
+        }
+    };
+
+    const applyGeneratedCover = async (cover?: {
+        dataUrl: string;
+        extension?: string;
+        messageId?: string;
+    }): Promise<string | undefined> => {
+        if (!cover?.dataUrl) {
+            return undefined;
+        }
+        const articleId = state.article.logId || 0;
+        const releaseRequest = draftAiSaveGate.tryBeginAiRequest(articleId);
+        if (!releaseRequest) {
+            void messageApi.warning(getRes().articleEdit.assistant.saveInProgress);
+            return undefined;
+        }
+        try {
+            const { data } = await axiosInstance.post(`/api/admin/article/cover/apply?id=${articleId}`, {
+                dataUrl: cover.dataUrl,
+                extension: cover.extension,
+                messageId: cover.messageId,
+            });
+            if (data.error) {
+                await messageApi.error(data.message);
+                return undefined;
+            }
+            handleValuesChange({ thumbnail: data.data.url });
+            await messageApi.success(getRes().articleEdit.coverApplySuccess);
+            return data.data.url;
+        } catch (error) {
+            await messageApi.error(error instanceof Error ? error.message : getRes().error.unknown);
+            return undefined;
+        } finally {
+            releaseRequest();
         }
     };
 
@@ -786,13 +1048,13 @@ const useArticleSaveCoordinator = ({
     };
 
     return {
+        applyGeneratedCover,
         applyImportedArticle,
         getLocalCacheKey,
         createImportedDraft,
         handleValuesChange,
         isSaving: state.saving.rubbishSaving || state.saving.releaseSaving || state.saving.previewIng,
         keepServerConflictContent,
-        onPreview,
         onRollback,
         onSubmit,
         restoreInputRevision,
