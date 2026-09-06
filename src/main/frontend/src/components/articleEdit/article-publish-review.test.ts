@@ -67,4 +67,17 @@ describe("buildArticlePublishReview", () => {
         expect(review.warnings).toEqual([]);
         expect(review.categoryLabel).toBe("Engineering");
     });
+
+    it("does not treat script content as an article body", () => {
+        const review = buildArticlePublishReview(
+            {
+                ...completeArticle,
+                markdown: undefined,
+                content: "<script>document.body.innerHTML = 'injected';</script>",
+            },
+            typeOptions
+        );
+
+        expect(review.warnings.map((check) => check.field)).toContain("markdown");
+    });
 });

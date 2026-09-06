@@ -24,15 +24,21 @@ export type ArticlePublishTypeOption = {
 
 const hasText = (value?: string) => Boolean(value?.trim());
 
+const getRenderedText = (content?: string) => {
+    if (!content) {
+        return "";
+    }
+
+    const parsedDocument = new DOMParser().parseFromString(content, "text/html");
+    parsedDocument.querySelectorAll("script, style, noscript, template").forEach((element) => element.remove());
+    return (parsedDocument.body.textContent || "").replace(/\u00a0/g, " ").trim();
+};
+
 const hasArticleBody = (article: ArticleEntry) => {
     if (hasText(article.markdown)) {
         return true;
     }
-    const renderedText = article.content
-        ?.replace(/<[^>]*>/g, "")
-        .replace(/&nbsp;/gi, " ")
-        .trim();
-    return Boolean(renderedText);
+    return Boolean(getRenderedText(article.content));
 };
 
 export const buildArticlePublishReview = (
