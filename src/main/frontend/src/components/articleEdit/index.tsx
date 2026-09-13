@@ -30,6 +30,7 @@ import { MarkdownImportApplyOptions } from "./markdown-import-modal";
 import ArticlePublishReviewModal from "./article-publish-review-modal";
 import { ArticlePublishReviewTarget } from "./article-publish-review";
 import { createDraftAiSaveGate } from "./draft-ai-save-gate";
+import { getArticleEditorChange } from "./article-editor-change";
 
 const Index: FunctionComponent<ArticleEditProps> = ({
     offline,
@@ -573,19 +574,14 @@ const Index: FunctionComponent<ArticleEditProps> = ({
                                 return;
                             }
                         }
-                        if (
-                            v.value === "" &&
-                            (state.article.markdown === "" ||
-                                state.article.markdown === undefined ||
-                                state.article.markdown === null)
-                        ) {
-                            return;
+                        const change = getArticleEditorChange(
+                            v,
+                            state.article.markdown,
+                            editorViewRef.current?.state.doc.toString()
+                        );
+                        if (change) {
+                            handleValuesChange(change);
                         }
-                        //不检查 content，避免因为 markdown 渲染库升级，载入文章时自动更新为草稿
-                        if (v.value === state.article.markdown) {
-                            return;
-                        }
-                        handleValuesChange({ markdown: v.value, content: v.previewContent });
                     }}
                 />
                 <EditorStatusBar

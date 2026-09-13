@@ -11,7 +11,10 @@ const useArticleFieldAi = ({ onValuesChange, onApplied }: ArticleFieldAiOptions)
     const [aliasInputRevision, setAliasInputRevision] = useState(0);
 
     const applyGeneratedValues = (cv: ArticleChangeableValue) => {
-        onValuesChange(cv);
+        const values = "markdown" in cv && cv.markdown !== undefined
+            ? { ...cv, content: "" }
+            : cv;
+        onValuesChange(values);
         if ("title" in cv && cv.title !== undefined) {
             setTitleInputRevision((revision) => revision + 1);
         }
