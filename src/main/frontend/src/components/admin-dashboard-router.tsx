@@ -143,6 +143,9 @@ const AdminDashboardRouter: FunctionComponent<AdminDashboardRouterProps> = ({ of
             getTimeInfoBySearchStr(location.search),
             axiosBaseInstance
         );
+        if (requestSeq !== latestRequestSeqRef.current) {
+            return;
+        }
         if (responseData.error) {
             setState((prevState) => {
                 return {
@@ -150,9 +153,6 @@ const AdminDashboardRouter: FunctionComponent<AdminDashboardRouterProps> = ({ of
                     axiosRequesting: false,
                 };
             });
-            return;
-        }
-        if (requestSeq !== latestRequestSeqRef.current) {
             return;
         }
         const { data, documentTitle, pageBuildId } = responseData;
@@ -233,7 +233,10 @@ const AdminDashboardRouter: FunctionComponent<AdminDashboardRouterProps> = ({ of
                 };
             });
         });
-    }, [location.pathname, location.search]);
+        return () => {
+            latestRequestSeqRef.current += 1;
+        };
+    }, [location.pathname, location.search, offline]);
 
     const handleFullScreen = useCallback(() => {
         const currentLocation = locationRef.current;

@@ -79,7 +79,13 @@ const Index: FunctionComponent<IndexProps> = ({ data, updateCache }) => {
     useEffect(() => {
         setDashboardConfig(data.dashboardConfig || defaultConfig);
         setFirstUseChecklist(firstUseChecklistDismissedRef.current ? null : data.firstUseChecklist || null);
-    }, [data]);
+        if (firstUseChecklistDismissedRef.current && data.firstUseChecklist) {
+            updateCache?.(
+                { ...data, firstUseChecklist: null },
+                getPageDataCacheKeyByPath(location.pathname, location.search)
+            );
+        }
+    }, [data, location.pathname, location.search, updateCache]);
 
     useEffect(() => {
         const refreshLocalDraft = () => {
@@ -141,9 +147,12 @@ const Index: FunctionComponent<IndexProps> = ({ data, updateCache }) => {
         .sort((a, b) => (a.sort ?? a.order ?? 0) - (b.sort ?? b.order ?? 0));
 
     const updateIndexData = (nextData: IndexData) => {
-        setDashboardConfig(nextData.dashboardConfig || defaultConfig);
-        setFirstUseChecklist(firstUseChecklistDismissedRef.current ? null : nextData.firstUseChecklist || null);
-        updateCache?.(nextData, getPageDataCacheKeyByPath(location.pathname, location.search));
+        const normalizedData = firstUseChecklistDismissedRef.current
+            ? { ...nextData, firstUseChecklist: null }
+            : nextData;
+        setDashboardConfig(normalizedData.dashboardConfig || defaultConfig);
+        setFirstUseChecklist(normalizedData.firstUseChecklist || null);
+        updateCache?.(normalizedData, getPageDataCacheKeyByPath(location.pathname, location.search));
     };
 
     const dismissFirstUseChecklist = async () => {
