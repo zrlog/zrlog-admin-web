@@ -16,6 +16,7 @@ import { getAppState } from "../../base/ConfigProviderApp";
 import { getShortcutTitle } from "./shortcut-utils";
 import { parseCoverAspectRatio } from "./cover-aspect-ratio";
 import { useTheme } from "antd-style";
+import BaseInput from "../../common/BaseInput";
 
 const ArticleEditSettingButton = ({
     article,
@@ -24,6 +25,8 @@ const ArticleEditSettingButton = ({
     tags,
     containerRef,
     digestRef,
+    aliasRef,
+    aliasInputKey,
     handleValuesChange,
     open,
     onOpenChange,
@@ -39,6 +42,8 @@ const ArticleEditSettingButton = ({
     tags: any;
     containerRef: RefObject<HTMLDivElement>;
     digestRef: RefObject<InputRef>;
+    aliasRef: RefObject<InputRef>;
+    aliasInputKey: string;
     handleValuesChange: (cv: ArticleChangeableValue) => void;
     open?: boolean;
     onOpenChange?: (open: boolean) => void;
@@ -99,7 +104,8 @@ const ArticleEditSettingButton = ({
                 }}
             />
             <Drawer
-                title={getRes().articleEdit.settings + (saving ? "[" + getRes().articleEdit.saving + "]" : "")}
+                title={saving ? getRes().articleEdit.saving : undefined}
+                aria-label={getRes().articleEdit.settings}
                 placement="right"
                 autoFocus={false}
                 keyboard={true}
@@ -133,6 +139,20 @@ const ArticleEditSettingButton = ({
                                     handleValuesChange({ thumbnail: e });
                                 }}
                             />
+                        </Col>
+                        <Col span={24}>
+                            <Card title={getRes().articleEdit.articleLink}>
+                                <Form.Item label={getRes().alias} style={{ marginBottom: 0 }}>
+                                    <BaseInput
+                                        ref={aliasRef}
+                                        key={aliasInputKey}
+                                        defaultValue={article.alias}
+                                        onChange={(value) => handleValuesChange({ alias: value })}
+                                        maxLength={256}
+                                        placeholder={getRes().articleEdit.inputAlias}
+                                    />
+                                </Form.Item>
+                            </Card>
                         </Col>
                         <Col span={24}>
                             <Card title={getRes().articleEdit.settings}>

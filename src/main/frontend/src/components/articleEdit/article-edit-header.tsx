@@ -1,4 +1,4 @@
-import { Button, InputRef, Space, Tag } from "antd";
+import { InputRef, Tag } from "antd";
 import Select from "antd/es/select";
 import { LockOutlined, StarFilled } from "@ant-design/icons";
 import { FunctionComponent, RefObject } from "react";
@@ -16,6 +16,7 @@ import { DraftAiSaveGate } from "./draft-ai-save-gate";
 
 type ArticleEditHeaderProps = {
     articleVersion: number;
+    articleStatusText: string;
     dataDigest?: string;
     state: ArticleEditState;
     draftAiPending: boolean;
@@ -43,6 +44,7 @@ type ArticleEditHeaderProps = {
     saving: boolean;
     onValuesChange: (cv: ArticleChangeableValue) => void;
     onApplyAiValues: (cv: ArticleChangeableValue) => void;
+    onApplyGeneratedCover: (cover: { dataUrl: string; extension?: string }) => Promise<string | undefined>;
     onSettingsOpenChange: (open: boolean) => void;
     onVersionOpenChange: (open: boolean) => void;
     onRollback: (targetVersion: number) => Promise<void>;
@@ -62,6 +64,7 @@ type ArticleEditHeaderProps = {
 
 const ArticleEditHeader: FunctionComponent<ArticleEditHeaderProps> = ({
     articleVersion,
+    articleStatusText,
     dataDigest,
     state,
     draftAiPending,
@@ -89,6 +92,7 @@ const ArticleEditHeader: FunctionComponent<ArticleEditHeaderProps> = ({
     saving,
     onValuesChange,
     onApplyAiValues,
+    onApplyGeneratedCover,
     onSettingsOpenChange,
     onVersionOpenChange,
     onRollback,
@@ -149,15 +153,15 @@ const ArticleEditHeader: FunctionComponent<ArticleEditHeaderProps> = ({
                 alignItems: "center",
                 gap: editorActionGroupGap,
                 minHeight: screens.sm ? undefined : 78,
-                flexWrap: screens.sm ? "nowrap" : "wrap",
+                flexWrap: "wrap",
             }}
         >
             <div
                 style={{
                     display: "flex",
                     alignItems: "center",
-                    flex: screens.sm ? "0 0 50%" : "1 1 100%",
-                    maxWidth: screens.sm ? "50%" : "100%",
+                    flex: screens.sm ? "1 1 280px" : "1 1 100%",
+                    maxWidth: "100%",
                     minWidth: 0,
                 }}
             >
@@ -166,11 +170,9 @@ const ArticleEditHeader: FunctionComponent<ArticleEditHeaderProps> = ({
                         ref={titleRef}
                         suffix={
                             <div style={{ display: "flex", gap: 4, height: 32, alignItems: "center" }}>
-                                {state.article.rubbish && (
-                                    <Button disabled={true} style={{ padding: 0, fontSize: 16 }} type={"text"}>
-                                        {getRes().articleEdit.status.draft}
-                                    </Button>
-                                )}
+                                <Tag bordered={false} style={{ marginInlineEnd: 0 }}>
+                                    {articleStatusText}
+                                </Tag>
                                 {state.article.privacy && (
                                     <LockOutlined style={{ color: theme.colorTextTertiary, fontSize: 16 }} />
                                 )}
@@ -184,7 +186,7 @@ const ArticleEditHeader: FunctionComponent<ArticleEditHeaderProps> = ({
                                         {getRes().articleEdit.recommended}
                                     </Tag>
                                 )}
-                                {fullScreen && state.contentSource !== "server" && (
+                                {state.contentSource !== "server" && (
                                     <Tag color={contentSourceColor} bordered={false} style={{ marginInlineEnd: 0 }}>
                                         {contentSourceText}
                                     </Tag>
@@ -206,32 +208,21 @@ const ArticleEditHeader: FunctionComponent<ArticleEditHeaderProps> = ({
                         }}
                     />
                 </div>
-                {!screens.sm && categorySelect}
+                {!screens.lg && categorySelect}
             </div>
             <div
                 style={{
                     display: "flex",
-                    flex: screens.sm ? "1 1 0" : "1 1 100%",
+                    flex: screens.sm ? "0 1 auto" : "1 1 100%",
+                    marginInlineStart: "auto",
+                    justifyContent: "flex-end",
                     minWidth: 0,
                     alignItems: "center",
                     gap: editorActionGroupGap,
                     paddingInlineStart: screens.sm ? 0 : editorActionGroupGap,
                 }}
             >
-                <Space.Compact style={{ display: "flex", flex: "1 1 0", minWidth: 0 }}>
-                    {screens.sm && categorySelect}
-                    <BaseInput
-                        ref={aliasRef}
-                        defaultValue={state.article.alias}
-                        onChange={(e) => onValuesChange({ alias: e })}
-                        key={`${articleVersion}-${aliasInputRevision}`}
-                        maxLength={256}
-                        size={"large"}
-                        variant={"borderless"}
-                        placeholder={getRes().articleEdit.inputAlias}
-                        style={{ fontSize: 16, minWidth: 48, paddingLeft: 0, textOverflow: "ellipsis" }}
-                    />
-                </Space.Compact>
+                {screens.lg && categorySelect}
                 <div
                     style={{
                         display: "flex",
@@ -241,30 +232,29 @@ const ArticleEditHeader: FunctionComponent<ArticleEditHeaderProps> = ({
                         gap: editorActionGroupGap,
                     }}
                 >
-                    {fullScreen && (
-                        <ArticleEditActionBar
-                            getContainer={getContainer}
-                            offline={offline}
-                            draftAiPending={draftAiPending}
-                            draftAiSaveGate={draftAiSaveGate}
-                            shortcutsDisabled={shortcutsDisabled}
-                            fullScreen={fullScreen}
-                            data={state}
-                            onPreview={onPreview}
-                            onOpenSettings={() => onSettingsOpenChange(true)}
-                            onOpenVersionHistory={() => onVersionOpenChange(true)}
-                            canOpenVersionHistory={Boolean(state.article.logId)}
-                            onAiMessagesChange={onAiMessagesChange}
-                            onSubmit={onSubmit}
-                            onRequestPublish={onRequestPublish}
-                            aiDrawerOpen={articleAssistantOpen}
-                            onAiDrawerOpenChange={onArticleAssistantOpenChange}
-                            aiDrawerWidth={aiDrawerWidth}
-                            aiStateCache={aiStateCache}
-                            onAiDrawerSizeChange={onAiDrawerSizeChange}
-                            onApplyAiValues={onApplyAiValues}
-                        />
-                    )}
+                    <ArticleEditActionBar
+                        getContainer={getContainer}
+                        offline={offline}
+                        draftAiPending={draftAiPending}
+                        draftAiSaveGate={draftAiSaveGate}
+                        shortcutsDisabled={shortcutsDisabled}
+                        fullScreen={fullScreen}
+                        data={state}
+                        onPreview={onPreview}
+                        onOpenSettings={() => onSettingsOpenChange(true)}
+                        onOpenVersionHistory={() => onVersionOpenChange(true)}
+                        canOpenVersionHistory={Boolean(state.article.logId)}
+                        onAiMessagesChange={onAiMessagesChange}
+                        onSubmit={onSubmit}
+                        onRequestPublish={onRequestPublish}
+                        aiDrawerOpen={articleAssistantOpen}
+                        onAiDrawerOpenChange={onArticleAssistantOpenChange}
+                        aiDrawerWidth={aiDrawerWidth}
+                        aiStateCache={aiStateCache}
+                        onAiDrawerSizeChange={onAiDrawerSizeChange}
+                        onApplyAiValues={onApplyAiValues}
+                        onApplyGeneratedCover={onApplyGeneratedCover}
+                    />
                     <div
                         style={{
                             alignItems: "center",
@@ -275,6 +265,8 @@ const ArticleEditHeader: FunctionComponent<ArticleEditHeaderProps> = ({
                         }}
                     >
                         <ArticleEditSettingButton
+                            aliasRef={aliasRef}
+                            aliasInputKey={`${articleVersion}-${aliasInputRevision}`}
                             initDigest={dataDigest ? dataDigest : ""}
                             digestRef={digestRef}
                             article={state.article}

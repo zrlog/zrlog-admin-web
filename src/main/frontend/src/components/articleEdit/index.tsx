@@ -1,11 +1,10 @@
 import { FunctionComponent, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { App, Grid, InputRef, message, Tag } from "antd";
+import { App, Grid, InputRef, message } from "antd";
 import Divider from "antd/es/divider";
 import Card from "antd/es/card";
 import { getRealRouteUrl, getRes, tryAppendBackendServerUrl } from "../../utils/constants";
 import { useAxiosBaseInstance } from "../../base/AppBase";
 import { ArticleEditProps, PublishCheckTarget } from "./index.types";
-import ArticleEditActionBar from "./article-edit-action-bar";
 import ArticleEditHeader from "./article-edit-header";
 import useArticleFieldAi from "./use-article-field-ai";
 import { getEditorUser } from "../../utils/helpers";
@@ -126,17 +125,6 @@ const Index: FunctionComponent<ArticleEditProps> = ({
         : state.article.privacy
         ? getRes().articleEdit.status.private
         : getRes().articleEdit.status.published;
-    const contentSourceText = (() => {
-        if (state.contentSource === "localDraft") {
-            return getRes().articleEdit.contentSource.localDraft;
-        }
-        if (state.contentSource === "localEdit") {
-            return getRes().articleEdit.contentSource.localEdit;
-        }
-        return getRes().articleEdit.contentSource.server;
-    })();
-    const contentSourceColor = state.contentSource === "localEdit" ? "warning" : undefined;
-    const showContentSourceTag = state.contentSource !== "server";
     const statusBarLastUpdateDate =
         state.contentSource !== "server" && state.contentSourceUpdatedAt
             ? state.contentSourceUpdatedAt
@@ -177,8 +165,7 @@ const Index: FunctionComponent<ArticleEditProps> = ({
             return;
         }
         if (target === "alias") {
-            updateSettingsOpen(false);
-            editCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+            updateSettingsOpen(true);
             focusInputRef(aliasRef);
             return;
         }
@@ -292,20 +279,12 @@ const Index: FunctionComponent<ArticleEditProps> = ({
             : rawScreens;
     const editorActionGroupGap = screens.sm ? 8 : 6;
 
-    // header + bar + hr + bottom
-    const rawBaseHeight = 64 + 64 + 32 + 14;
+    // Admin header and content padding; article actions now share the editor header.
+    const rawBaseHeight = (getAppState().compactMode ? 54 : 64) + 24;
 
     const getBaseHeight = () => {
-        if (fullScreen) {
-            return 0;
-        }
-        if (screens.md) {
-            return rawBaseHeight;
-        }
-        if (screens.sm) {
-            return rawBaseHeight + 38;
-        }
-        return rawBaseHeight + 38 + 58;
+        const editorHeaderWrapHeight = screens.lg ? 0 : screens.sm ? 48 + 38 : 38 + 58;
+        return (fullScreen ? 0 : rawBaseHeight) + editorHeaderWrapHeight;
     };
 
     const getEditorHeight = () => {
@@ -399,53 +378,6 @@ const Index: FunctionComponent<ArticleEditProps> = ({
 
     return (
         <>
-            <div
-                style={{
-                    gap: 8,
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                }}
-            >
-                {!fullScreen ? (
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                        <Tag bordered={false} style={{ marginInlineEnd: 0 }}>
-                            {articleStatusText}
-                        </Tag>
-                        {showContentSourceTag && (
-                            <Tag color={contentSourceColor} bordered={false} style={{ marginInlineEnd: 0 }}>
-                                {contentSourceText}
-                            </Tag>
-                        )}
-                    </div>
-                ) : null}
-                {!fullScreen && (
-                    <ArticleEditActionBar
-                        key={data.article.logId + "actionbar_offline:" + offline}
-                        fullScreen={fullScreen}
-                        offline={offline}
-                        draftAiPending={draftAiPending}
-                        draftAiSaveGate={draftAiSaveGate}
-                        shortcutsDisabled={publishReviewOpen}
-                        data={state}
-                        onSubmit={onSubmit}
-                        onRequestPublish={openPublishReview}
-                        onPreview={openContentPreview}
-                        onOpenSettings={() => updateSettingsOpen(true)}
-                        onOpenVersionHistory={() => updateVersionDrawerOpen(true)}
-                        canOpenVersionHistory={Boolean(state.article.logId)}
-                        onAiMessagesChange={updateAiMessageCache}
-                        onAiDrawerSizeChange={updateAiDrawerWidth}
-                        aiDrawerOpen={articleAssistantOpen}
-                        onAiDrawerOpenChange={updateArticleAssistantOpen}
-                        aiDrawerWidth={getDefaultAiDrawerWidth()}
-                        aiStateCache={articleAiStateCache}
-                        onApplyAiValues={fieldAi.applyGeneratedValues}
-                        onApplyGeneratedCover={applyGeneratedCover}
-                    />
-                )}
-            </div>
-            {!fullScreen && <Divider style={{ marginTop: 16, marginBottom: 16 }} />}
             {messageContextHolder}
             {state.contentConflict ? (
                 <ArticleContentConflictAlert
@@ -467,6 +399,7 @@ const Index: FunctionComponent<ArticleEditProps> = ({
             >
                 <ArticleEditHeader
                     articleVersion={state.article.version}
+                    articleStatusText={articleStatusText}
                     dataDigest={state.article.digest}
                     state={state}
                     draftAiPending={draftAiPending}
@@ -494,6 +427,7 @@ const Index: FunctionComponent<ArticleEditProps> = ({
                     saving={isSaving}
                     onValuesChange={handleValuesChange}
                     onApplyAiValues={fieldAi.applyGeneratedValues}
+                    onApplyGeneratedCover={applyGeneratedCover}
                     onSettingsOpenChange={updateSettingsOpen}
                     onVersionOpenChange={updateVersionDrawerOpen}
                     onRollback={onRollback}
