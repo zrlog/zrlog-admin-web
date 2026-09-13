@@ -1152,6 +1152,11 @@ const zhCN = {
             "onlineUpdate": "在线更新",
             "manualUpdate": "按部署方式手动更新",
             "viewSystem": "查看系统详情",
+            "refresh": "刷新检查",
+            "manageBackups": "管理备份",
+            "lastChecked": "最近检查",
+            "refreshFailed": "检查失败，当前仍显示上次记录；该状态不代表最新检查结果。",
+            "offlineUnavailable": "离线时不可用",
             "runtimeMode": {
                 "docker": "Docker",
                 "faas": "FaaS",
@@ -2582,6 +2587,11 @@ const enUS: AdminI18nResource = {
             "onlineUpdate": "Online Update",
             "manualUpdate": "Manual Update for This Deployment",
             "viewSystem": "View System Details",
+            "refresh": "Refresh Check",
+            "manageBackups": "Manage Backups",
+            "lastChecked": "Last Checked",
+            "refreshFailed": "The check failed. Previous records are still shown and do not represent a fresh check.",
+            "offlineUnavailable": "Unavailable offline",
             "runtimeMode": {
                 "docker": "Docker",
                 "faas": "FaaS",

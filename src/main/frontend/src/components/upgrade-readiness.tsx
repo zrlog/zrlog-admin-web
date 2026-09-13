@@ -1,5 +1,5 @@
-import { SafetyCertificateOutlined } from "@ant-design/icons";
-import { Alert, Descriptions, Space, Tag, Typography } from "antd";
+import { DatabaseOutlined, ReloadOutlined, SafetyCertificateOutlined } from "@ant-design/icons";
+import { Alert, Button, Descriptions, Space, Tag, Tooltip, Typography } from "antd";
 import { useTheme } from "antd-style";
 import { Link } from "react-router-dom";
 import { BackupProtectionStatus, UpgradeData } from "../type";
@@ -10,11 +10,32 @@ import {
     UpgradeRuntimeMode,
 } from "./upgrade-readiness-utils";
 
-const UpgradeReadiness = ({ data }: { data: UpgradeData }) => {
+type UpgradeReadinessProps = {
+    data: UpgradeData;
+    onRefresh?: () => void;
+    refreshing?: boolean;
+    refreshDisabled?: boolean;
+    refreshError?: string;
+    checkedAt?: number;
+    offline?: boolean;
+};
+
+const UpgradeReadiness = ({
+    data,
+    onRefresh,
+    refreshing = false,
+    refreshDisabled = false,
+    refreshError,
+    checkedAt,
+    offline = false,
+}: UpgradeReadinessProps) => {
     const theme = useTheme();
     const res = getRes().upgrade.maintenance;
     const backupRes = getRes().upgrade.backupProtection;
     const backupProtection = data.backupProtection;
+    const refreshUnavailable = refreshing || refreshDisabled || offline || !onRefresh;
+    const checkedDate = typeof checkedAt === "number" ? new Date(checkedAt) : undefined;
+    const hasCheckedDate = checkedDate !== undefined && Number.isFinite(checkedDate.getTime());
     const runtimeModeLabels: Record<UpgradeRuntimeMode, string> = res.runtimeMode;
     const formatEvidenceTime = (value?: number) =>
         typeof value === "number" && Number.isFinite(value) ? new Date(value).toLocaleString() : backupRes.notAvailable;
@@ -72,6 +93,17 @@ const UpgradeReadiness = ({ data }: { data: UpgradeData }) => {
                         <Typography.Text type="secondary">
                             {backupRes.recommendationLabel}: {backupRes.recommendation[statusKey]}
                         </Typography.Text>
+                        {offline ? (
+                            <Tooltip title={res.offlineUnavailable}>
+                                <Typography.Text disabled role="link" aria-disabled="true" tabIndex={-1}>
+                                    <DatabaseOutlined /> {res.manageBackups}
+                                </Typography.Text>
+                            </Tooltip>
+                        ) : (
+                            <Link to={getRealRouteUrl("/plugin?page=backup-sql-file/files")}>
+                                <DatabaseOutlined /> {res.manageBackups}
+                            </Link>
+                        )}
                         <Descriptions size="small" column={1}>
                             <Descriptions.Item label={backupRes.lastBackup}>
                                 {renderEvidence(status?.lastBackupAt, status?.lastBackupFile, status?.lastBackupSha256)}
@@ -93,11 +125,49 @@ const UpgradeReadiness = ({ data }: { data: UpgradeData }) => {
     };
 
     return (
-        <section aria-label={res.title} style={{ marginTop: theme.marginLG }}>
-            <div style={{ alignItems: "center", display: "flex", gap: 8, marginBottom: theme.marginSM }}>
+        <section aria-label={res.title} aria-busy={refreshing} style={{ marginTop: theme.marginLG }}>
+            <div
+                style={{
+                    alignItems: "center",
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: theme.marginXS,
+                    marginBottom: theme.marginSM,
+                }}
+            >
                 <SafetyCertificateOutlined />
                 <Typography.Text strong>{res.title}</Typography.Text>
+                <Tooltip title={offline ? res.offlineUnavailable : res.refresh}>
+                    <span>
+                        <Button
+                            type="text"
+                            size="small"
+                            icon={<ReloadOutlined />}
+                            aria-label={res.refresh}
+                            loading={refreshing}
+                            disabled={refreshUnavailable}
+                            onClick={refreshUnavailable ? undefined : onRefresh}
+                        />
+                    </span>
+                </Tooltip>
             </div>
+            {hasCheckedDate && (
+                <Typography.Paragraph
+                    type="secondary"
+                    style={{ fontSize: theme.fontSizeSM, marginBottom: theme.marginSM }}
+                >
+                    {res.lastChecked}: <time dateTime={checkedDate.toISOString()}>{checkedDate.toLocaleString()}</time>
+                </Typography.Paragraph>
+            )}
+            {refreshError && (
+                <Alert
+                    type="error"
+                    role="alert"
+                    showIcon
+                    message={refreshError}
+                    style={{ marginBottom: theme.marginSM, overflowWrap: "anywhere" }}
+                />
+            )}
             <Descriptions size="small" column={{ xs: 1, sm: 2 }} style={{ marginBottom: theme.marginSM }}>
                 <Descriptions.Item label={res.runtime}>
                     <Space size={4} wrap>

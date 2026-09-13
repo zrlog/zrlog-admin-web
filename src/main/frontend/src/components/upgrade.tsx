@@ -56,7 +56,7 @@ type UpgradeProgressItem = UpgradeProgressEvent & {
     key: string;
 };
 
-const Upgrade: FunctionComponent<UpgradeProps> = ({ data, offline, offlineData }) => {
+const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, offlineData }) => {
     const steps: StepInfo[] = [
         {
             title: getRes().upgrade.changeLog,
@@ -73,6 +73,9 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data, offline, offlineData }
     const restartCheckReady = useRef(false);
     const progressEventReceived = useRef(false);
     const upgradeFinishing = useRef(false);
+    const readinessRequest = useRef(0);
+    const readinessRefreshing = useRef(false);
+    const upgradeStarting = useRef(false);
     const screens = Grid.useBreakpoint();
     const { token } = theme.useToken();
     const breakpointReady = screens.xs !== undefined;
@@ -85,10 +88,67 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data, offline, offlineData }
         progressItems: [],
     });
     const [upgradeRiskAccepted, setUpgradeRiskAccepted] = useState(false);
+    const [data, setData] = useState(initialData);
+    const [refreshing, setRefreshing] = useState(false);
+    const [refreshError, setRefreshError] = useState<string>();
+    const [checkedAt, setCheckedAt] = useState<number>();
     const { modal } = App.useApp();
 
     const [messageApi, contextHolder] = message.useMessage({ maxCount: 3 });
     const axiosInstance = useAxiosBaseInstance();
+
+    useEffect(() => {
+        setData(initialData);
+        setUpgradeRiskAccepted(false);
+        setRefreshing(false);
+        setRefreshError(undefined);
+        setCheckedAt(undefined);
+        readinessRefreshing.current = false;
+        return () => {
+            readinessRequest.current += 1;
+        };
+    }, [initialData, offline]);
+
+    const refreshReadiness = async () => {
+        if (offline || readinessRefreshing.current || upgradeStarting.current || state.current !== 0) {
+            return;
+        }
+        const request = ++readinessRequest.current;
+        readinessRefreshing.current = true;
+        setRefreshing(true);
+        setRefreshError(undefined);
+        setUpgradeRiskAccepted(false);
+        try {
+            const requestConfig = { showError: false, timeout: 30000 };
+            const { data: response } = await axiosInstance.get<ApiResponse<UpgradeData>>(
+                "/api/admin/upgrade",
+                requestConfig
+            );
+            if (request !== readinessRequest.current) {
+                return;
+            }
+            if (
+                response.error !== 0 ||
+                !response.data?.version ||
+                typeof response.data.upgrade !== "boolean" ||
+                typeof response.data.onlineUpgradable !== "boolean"
+            ) {
+                setRefreshError(getRes().upgrade.maintenance.refreshFailed);
+                return;
+            }
+            setData(response.data);
+            setCheckedAt(Date.now());
+        } catch {
+            if (request === readinessRequest.current) {
+                setRefreshError(getRes().upgrade.maintenance.refreshFailed);
+            }
+        } finally {
+            if (request === readinessRequest.current) {
+                readinessRefreshing.current = false;
+                setRefreshing(false);
+            }
+        }
+    };
 
     const clearUpgradeTimer = () => {
         if (upgradeTimer.current) {
@@ -410,6 +470,10 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data, offline, offlineData }
     const newBuildId = data.version.buildId;
 
     const upgrade = async () => {
+        if (upgradeStarting.current || readinessRefreshing.current || nextDisabled()) {
+            return;
+        }
+        upgradeStarting.current = true;
         const current = getStepIndex("doUpgrade");
         setState((prevState) => {
             return {
@@ -459,6 +523,8 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data, offline, offlineData }
             messageApi.error(errorMessage);
             finishUpgradeTask("error", errorMessage);
             returnToChangeLog();
+        } finally {
+            upgradeStarting.current = false;
         }
     };
 
@@ -469,7 +535,7 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data, offline, offlineData }
     };
 
     const nextDisabled = (): boolean => {
-        if (offlineData) {
+        if (refreshing || refreshError || (offlineData && checkedAt === undefined)) {
             return true;
         }
         if (offline) {
@@ -521,7 +587,15 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data, offline, offlineData }
                                         {getRes().upgrade.changeLog}
                                     </Title>
                                     <UpgradeContent data={data} />
-                                    <UpgradeReadiness data={data} />
+                                    <UpgradeReadiness
+                                        data={data}
+                                        offline={offline}
+                                        onRefresh={() => void refreshReadiness()}
+                                        refreshing={refreshing}
+                                        refreshDisabled={offline || upgradeStarting.current}
+                                        refreshError={refreshError}
+                                        checkedAt={checkedAt}
+                                    />
                                     <Alert
                                         type="warning"
                                         showIcon
@@ -535,6 +609,7 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data, offline, offlineData }
                                                 </div>
                                                 <Checkbox
                                                     checked={upgradeRiskAccepted}
+                                                    disabled={offline || refreshing || !!refreshError}
                                                     style={{ marginTop: token.marginSM }}
                                                     onChange={(event) => setUpgradeRiskAccepted(event.target.checked)}
                                                 >
@@ -575,7 +650,7 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data, offline, offlineData }
                             {state.current < steps.length - 1 && (
                                 <Button
                                     type="primary"
-                                    loading={offlineData}
+                                    loading={offlineData && checkedAt === undefined}
                                     disabled={nextDisabled()}
                                     onClick={() => next()}
                                     block={narrow}

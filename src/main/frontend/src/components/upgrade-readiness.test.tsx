@@ -1,11 +1,19 @@
-import { act } from "react";
+import { act, ComponentProps } from "react";
 import { createRoot, Root } from "react-dom/client";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, useLocation } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { BackupProtectionStatus, UpgradeData } from "../type";
 import UpgradeReadiness from "./upgrade-readiness";
+import { getAdminI18n } from "../i18n/admin";
+
+let mockSsData: {
+    pageBuildId: string;
+    resourceInfo: { lang: "zh_CN" | "en_US"; staticPage: boolean };
+};
 
 jest.mock("@ant-design/icons", () => ({
+    DatabaseOutlined: () => null,
+    ReloadOutlined: () => null,
     SafetyCertificateOutlined: () => null,
 }));
 
@@ -15,8 +23,13 @@ jest.mock("antd", () => {
     const Space = ({ children }: { children?: import("react").ReactNode }) =>
         React.createElement("div", null, children);
     const Tag = ({ children }: { children?: import("react").ReactNode }) => React.createElement("span", null, children);
-    const Text = ({ children }: { children?: import("react").ReactNode }) =>
-        React.createElement("span", null, children);
+    const Text = ({
+        children,
+        role,
+        tabIndex,
+        "aria-disabled": ariaDisabled,
+    }: import("react").HTMLAttributes<HTMLSpanElement>) =>
+        React.createElement("span", { role, tabIndex, "aria-disabled": ariaDisabled }, children);
     const Descriptions = ({ children }: { children?: import("react").ReactNode }) =>
         React.createElement("dl", null, children);
     Descriptions.Item = ({
@@ -37,26 +50,40 @@ jest.mock("antd", () => {
         Alert: ({
             description,
             message,
+            role,
             type,
         }: {
             description?: import("react").ReactNode;
             message?: import("react").ReactNode;
+            role?: string;
             type?: string;
-        }) => React.createElement("div", { "data-alert-type": type }, message, description),
+        }) => React.createElement("div", { "data-alert-type": type, role }, message, description),
+        Button: ({ children, icon, loading, disabled, onClick, "aria-label": ariaLabel }: import("antd").ButtonProps) =>
+            React.createElement(
+                "button",
+                { disabled, onClick, "aria-label": ariaLabel, type: "button", "data-loading": String(loading) },
+                icon,
+                children
+            ),
         Descriptions,
         Space,
         Tag,
-        Typography: { Text },
+        Tooltip: ({ children, title }: { children?: import("react").ReactNode; title?: string }) =>
+            React.createElement("span", { "data-tooltip": title }, children),
+        Typography: { Text, Paragraph: Text },
     };
 });
 
 jest.mock("antd-style", () => ({
-    useTheme: () => ({ fontSizeSM: 12, marginLG: 24, marginSM: 12 }),
+    useTheme: () => ({ fontSizeSM: 12, marginLG: 24, marginSM: 12, marginXS: 8 }),
 }));
 
-jest.mock("../utils/constants", () => ({
-    getRealRouteUrl: (path: string) => path,
-    getRes: () => require("../i18n/admin").getAdminI18n("zh_CN"),
+jest.mock("../utils/helpers", () => ({
+    getContextPath: () => new URL(globalThis.document.baseURI).pathname,
+}));
+
+jest.mock("../base/SsData", () => ({
+    getSsDate: () => mockSsData,
 }));
 
 const reactActEnvironment = globalThis as typeof globalThis & {
@@ -96,12 +123,27 @@ const upgradeData = (overrides: Partial<UpgradeData> = {}): UpgradeData => ({
 describe("UpgradeReadiness", () => {
     let container: HTMLDivElement;
     let root: Root;
+    const originalNodeEnv = process.env.NODE_ENV;
+    const res = getAdminI18n("zh_CN").upgrade.maintenance;
+    const Location = () => {
+        const location = useLocation();
+        return <span data-router-location={location.pathname + location.search} />;
+    };
 
-    const render = (data: UpgradeData) => {
+    const render = (
+        data: UpgradeData,
+        props: Omit<ComponentProps<typeof UpgradeReadiness>, "data"> = {},
+        basename = "/"
+    ) => {
         act(() => {
             root.render(
-                <MemoryRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
-                    <UpgradeReadiness data={data} />
+                <MemoryRouter
+                    basename={basename}
+                    initialEntries={[basename === "/" ? "/upgrade" : basename + "/upgrade"]}
+                    future={{ v7_relativeSplatPath: true, v7_startTransition: true }}
+                >
+                    <UpgradeReadiness data={data} {...props} />
+                    <Location />
                 </MemoryRouter>
             );
         });
@@ -109,6 +151,8 @@ describe("UpgradeReadiness", () => {
 
     beforeEach(() => {
         reactActEnvironment.IS_REACT_ACT_ENVIRONMENT = true;
+        (process.env as Record<string, string | undefined>).NODE_ENV = "production";
+        mockSsData = { pageBuildId: "", resourceInfo: { lang: "zh_CN", staticPage: false } };
         container = document.createElement("div");
         document.body.appendChild(container);
         root = createRoot(container);
@@ -120,6 +164,7 @@ describe("UpgradeReadiness", () => {
         });
         container.remove();
         reactActEnvironment.IS_REACT_ACT_ENVIRONMENT = false;
+        (process.env as Record<string, string | undefined>).NODE_ENV = originalNodeEnv;
     });
 
     it("shows runtime, update method, and complete backup and restore evidence", () => {
@@ -138,6 +183,9 @@ describe("UpgradeReadiness", () => {
         expect(text).toContain("SQLite isolated restore completed");
         expect(text).toContain("保留该备份文件和校验值");
         expect(container.querySelector('a[href="/system"]')).not.toBeNull();
+        expect(container.querySelector("time")).toBeNull();
+        expect(container.textContent).not.toContain(res.lastChecked);
+        expect(container.querySelector<HTMLButtonElement>("button")?.disabled).toBe(true);
     });
 
     it("makes missing evidence and unreported runtime explicit", () => {
@@ -174,5 +222,113 @@ describe("UpgradeReadiness", () => {
         expect(text).toContain("失败");
         expect(text).toContain("restore exited with code 1");
         expect(text).toContain("停止更新，排查恢复失败原因后重新备份并验证");
+    });
+
+    it("refreshes only when the user requests a check", () => {
+        const onRefresh = jest.fn();
+        render(upgradeData(), { onRefresh });
+
+        const refresh = container.querySelector<HTMLButtonElement>(`button[aria-label="${res.refresh}"]`);
+        expect(refresh?.disabled).toBe(false);
+        expect(container.querySelector(`[data-tooltip="${res.refresh}"]`)).not.toBeNull();
+        expect(onRefresh).not.toHaveBeenCalled();
+        act(() => refresh?.click());
+        expect(onRefresh).toHaveBeenCalledTimes(1);
+    });
+
+    it.each(["refreshing", "refreshDisabled", "offline"] as const)("blocks refresh while %s", (disabledState) => {
+        const onRefresh = jest.fn();
+        render(upgradeData(), { onRefresh, [disabledState]: true });
+
+        const refresh = container.querySelector<HTMLButtonElement>(`button[aria-label="${res.refresh}"]`);
+        expect(refresh?.disabled).toBe(true);
+        expect(refresh?.getAttribute("data-loading")).toBe(String(disabledState === "refreshing"));
+        act(() => refresh?.click());
+        expect(onRefresh).not.toHaveBeenCalled();
+    });
+
+    it("retains the previous evidence and successful-check time on failure, and permits retry", () => {
+        const onRefresh = jest.fn();
+        const checkedAt = Date.UTC(2026, 8, 8, 1, 0);
+        render(upgradeData(), { onRefresh, checkedAt, refreshError: res.refreshFailed });
+
+        expect(container.querySelector('[role="alert"]')?.textContent).toBe(res.refreshFailed);
+        expect(container.textContent).toContain("backup-20260905.sql");
+        expect(container.textContent).toContain("最近备份已通过恢复验证");
+        expect(container.querySelector("time")?.dateTime).toBe(new Date(checkedAt).toISOString());
+        act(() => container.querySelector<HTMLButtonElement>(`button[aria-label="${res.refresh}"]`)?.click());
+        expect(onRefresh).toHaveBeenCalledTimes(1);
+
+        const refreshedAt = checkedAt + 60_000;
+        render(upgradeData(), { onRefresh, checkedAt: refreshedAt });
+        expect(container.querySelector('[role="alert"]')).toBeNull();
+        expect(container.querySelector("time")?.dateTime).toBe(new Date(refreshedAt).toISOString());
+    });
+
+    it.each([undefined, NaN, Infinity, 1e20])("does not invent a successful-check time for %s", (checkedAt) => {
+        render(upgradeData(), { checkedAt, refreshError: res.refreshFailed });
+
+        expect(container.querySelector("time")).toBeNull();
+        expect(container.textContent).not.toContain(res.lastChecked);
+        expect(container.textContent).toContain("backup-20260905.sql");
+    });
+
+    it.each([
+        { basename: "/admin", staticPage: false, expectedPath: "/admin/plugin" },
+        { basename: "/blog/admin", staticPage: false, expectedPath: "/blog/admin/plugin" },
+        { basename: "/blog/admin", staticPage: true, expectedPath: "/blog/admin/plugin.html" },
+    ])(
+        "preserves the backup-management route with $basename and staticPage=$staticPage",
+        ({ basename, staticPage, expectedPath }) => {
+            mockSsData.pageBuildId = "400-test";
+            mockSsData.resourceInfo.staticPage = staticPage;
+            render(upgradeData(), {}, basename);
+
+            const management = Array.from(container.querySelectorAll("a")).find((link) =>
+                link.textContent?.includes(res.manageBackups)
+            );
+            expect(management).toBeDefined();
+            const url = new URL(management!.href);
+            expect(url.pathname).toBe(expectedPath);
+            expect(url.searchParams.get("page")).toBe("backup-sql-file/files");
+            expect(url.searchParams.get("v")).toBe("400-test");
+
+            act(() => management!.click());
+            const route = new URL(
+                container.querySelector("[data-router-location]")!.getAttribute("data-router-location")!,
+                window.location.origin
+            );
+            expect(route.pathname).toBe(staticPage ? "/plugin.html" : "/plugin");
+            expect(route.searchParams.get("page")).toBe("backup-sql-file/files");
+            expect(route.searchParams.get("v")).toBe("400-test");
+        }
+    );
+
+    it("keeps backup management non-navigable offline", () => {
+        render(upgradeData(), { offline: true }, "/blog/admin");
+
+        expect(
+            Array.from(container.querySelectorAll("a")).some((link) => link.textContent?.includes(res.manageBackups))
+        ).toBe(false);
+        const management = container.querySelector<HTMLElement>('[role="link"][aria-disabled="true"]');
+        expect(management?.textContent).toContain(res.manageBackups);
+        expect(management?.getAttribute("href")).toBeNull();
+        expect(management?.tabIndex).toBe(-1);
+        act(() => management?.click());
+        expect(container.querySelector("[data-router-location]")?.getAttribute("data-router-location")).toBe(
+            "/upgrade"
+        );
+        expect(container.querySelector(`[data-tooltip="${res.offlineUnavailable}"]`)).not.toBeNull();
+    });
+
+    it("uses English for maintenance actions, timestamps, and failed-check status", () => {
+        mockSsData.resourceInfo.lang = "en_US";
+        const english = getAdminI18n("en_US").upgrade.maintenance;
+        render(upgradeData(), { checkedAt: Date.UTC(2026, 8, 8), refreshError: english.refreshFailed });
+
+        expect(container.querySelector(`button[aria-label="${english.refresh}"]`)).not.toBeNull();
+        expect(container.textContent).toContain(english.manageBackups);
+        expect(container.textContent).toContain(english.lastChecked);
+        expect(container.querySelector('[role="alert"]')?.textContent).toBe(english.refreshFailed);
     });
 });
