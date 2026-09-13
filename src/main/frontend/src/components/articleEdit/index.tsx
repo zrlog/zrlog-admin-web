@@ -1,5 +1,5 @@
 import { FunctionComponent, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { App, Grid, InputRef, message } from "antd";
+import { App, InputRef, message } from "antd";
 import Divider from "antd/es/divider";
 import Card from "antd/es/card";
 import { getRealRouteUrl, getRes, tryAppendBackendServerUrl } from "../../utils/constants";
@@ -30,6 +30,7 @@ import ArticlePublishReviewModal from "./article-publish-review-modal";
 import { ArticlePublishReviewTarget } from "./article-publish-review";
 import { createDraftAiSaveGate } from "./draft-ai-save-gate";
 import { getArticleEditorChange } from "./article-editor-change";
+import useArticleEditorScreens from "./use-article-editor-screens";
 
 const Index: FunctionComponent<ArticleEditProps> = ({
     offline,
@@ -271,12 +272,7 @@ const Index: FunctionComponent<ArticleEditProps> = ({
         }
     };
 
-    const { useBreakpoint } = Grid;
-    const rawScreens = useBreakpoint();
-    const screens =
-        Object.keys(rawScreens).length === 0
-            ? { xs: false, sm: true, md: true, lg: true, xl: true, xxl: true }
-            : rawScreens;
+    const screens = useArticleEditorScreens();
     const editorActionGroupGap = screens.sm ? 8 : 6;
 
     // Admin header and content padding; article actions now share the editor header.

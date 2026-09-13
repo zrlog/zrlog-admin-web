@@ -1,4 +1,5 @@
-import { App, Button, Dropdown, Grid, Modal } from "antd";
+import { App, Button, Dropdown, Modal } from "antd";
+import useArticleEditorScreens from "./use-article-editor-screens";
 import {
     EllipsisOutlined,
     EyeOutlined,
@@ -16,13 +17,11 @@ import { getEnterFullscreen, getExitFullscreen, getRes } from "../../utils/const
 import ArticleVersionDrawer from "./article-version-drawer";
 import { getShortcutTitle, isTouchLikeDevice } from "./shortcut-utils";
 import { getAiDrawerOpen } from "@editor/dist/ai/AIDrawer";
-import { getAppState } from "../../base/ConfigProviderApp";
 import FileManagerPicker from "../file-manager/picker";
 import ArticleSocialPreviewDrawer from "./article-social-preview-drawer";
 import { ArticleEntry, SocialPreview } from "./index.types";
 import { exportArticlePdf } from "../article/ArticlePdfAction";
 import { addToCache, getCacheByKey } from "../../utils/cache";
-import { useTheme } from "antd-style";
 import MarkdownImportModal, { MarkdownImportApplyOptions } from "./markdown-import-modal";
 import {
     ArticleTypeOption,
@@ -81,7 +80,6 @@ const ArticleEditMoreActions: FunctionComponent<ArticleEditMoreActionsProps> = (
     onExitFullScreen,
     onFullScreen,
 }) => {
-    const theme = useTheme();
     const { message } = App.useApp();
     const assetPickerOpenCacheKey = `${stateCacheKey}/assetPickerOpen`;
     const socialPreviewOpenCacheKey = `${stateCacheKey}/socialPreviewOpen`;
@@ -96,7 +94,7 @@ const ArticleEditMoreActions: FunctionComponent<ArticleEditMoreActionsProps> = (
     const [moreActionsOpen, setMoreActionsOpen] = useState(importMarkdownIntent === true);
     const markdownFileInputRef = useRef<HTMLInputElement>(null);
     const markdownImportReadGenerationRef = useRef(0);
-    const screens = Grid.useBreakpoint();
+    const screens = useArticleEditorScreens();
     const narrow = screens.md !== true;
     const assetPickerWidth = narrow ? "100vw" : screens.lg ? 860 : 720;
     const setAssetPickerOpen = useCallback(
@@ -304,20 +302,10 @@ const ArticleEditMoreActions: FunctionComponent<ArticleEditMoreActionsProps> = (
                 onOpenChange={setMoreActionsOpen}
             >
                 <Button
-                    type="text"
+                    type="default"
                     aria-label={getRes().articleEdit.actions.more}
                     title={getRes().articleEdit.actions.more}
-                    icon={
-                        <EllipsisOutlined style={{ fontSize: getAppState().compactMode ? 18 : 24, display: "flex" }} />
-                    }
-                    style={{
-                        border: 0,
-                        display: "flex",
-                        justifyContent: "center",
-                        alignItems: "center",
-                        cursor: "pointer",
-                        color: theme.colorTextTertiary,
-                    }}
+                    icon={<EllipsisOutlined />}
                 />
             </Dropdown>
             <ArticleVersionDrawer

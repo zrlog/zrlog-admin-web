@@ -6,17 +6,17 @@ import ThumbnailUpload from "./thumbnail-upload";
 import Form from "antd/es/form";
 import Switch from "antd/es/switch";
 import ArticleEditTag from "./article-edit-tag";
-import { Drawer, Grid, InputRef } from "antd";
+import { Drawer, InputRef } from "antd";
 import { SettingFilled, SettingOutlined } from "@ant-design/icons";
 import { RefObject, useEffect, useState } from "react";
 import { ArticleChangeableValue, ArticleEntry } from "./index.types";
 import Button from "antd/es/button";
 import DigestEditorCard from "./digest-editor-card";
-import { getAppState } from "../../base/ConfigProviderApp";
 import { getShortcutTitle } from "./shortcut-utils";
 import { parseCoverAspectRatio } from "./cover-aspect-ratio";
 import { useTheme } from "antd-style";
 import BaseInput from "../../common/BaseInput";
+import useArticleEditorScreens from "./use-article-editor-screens";
 
 const ArticleEditSettingButton = ({
     article,
@@ -53,7 +53,7 @@ const ArticleEditSettingButton = ({
     onGenerateTags?: () => void;
     coverAspectRatio?: string;
 }) => {
-    const screens = Grid.useBreakpoint();
+    const screens = useArticleEditorScreens();
     const theme = useTheme();
     const [innerOpen, setInnerOpen] = useState(false);
     const settingsOpen = open ?? innerOpen;
@@ -76,27 +76,14 @@ const ArticleEditSettingButton = ({
         <>
             <Button
                 href={"#settings"}
-                type={"text"}
+                type="default"
+                aria-label={getRes().articleEdit.settings}
                 title={getShortcutTitle(getRes().articleEdit.settings, {
                     alt: true,
                     shift: true,
                     key: "S",
                 })}
-                style={{
-                    border: 0,
-                    display: "flex",
-                    justifyContent: "center",
-                    alignItems: "center",
-                    cursor: "pointer",
-                    color: theme.colorTextTertiary,
-                }}
-                icon={
-                    settingsOpen ? (
-                        <SettingFilled style={{ fontSize: getAppState().compactMode ? 18 : 24, display: "flex" }} />
-                    ) : (
-                        <SettingOutlined style={{ fontSize: getAppState().compactMode ? 18 : 24, display: "flex" }} />
-                    )
-                }
+                icon={settingsOpen ? <SettingFilled /> : <SettingOutlined />}
                 onClick={(e) => {
                     e.stopPropagation();
                     e.preventDefault();

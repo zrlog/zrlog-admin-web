@@ -126,8 +126,8 @@ const ArticleEditHeader: FunctionComponent<ArticleEditHeaderProps> = ({
             getPopupContainer={(triggerNode) => triggerNode.parentElement}
             variant={"borderless"}
             style={{
-                minWidth: screens.sm ? 156 : 120,
-                flex: screens.sm ? undefined : "0 0 120px",
+                width: screens.sm ? 156 : 120,
+                flex: `0 0 ${screens.sm ? 156 : 120}px`,
                 display: "flex",
                 zIndex: 20,
                 ...getSelectStyle(),
@@ -230,8 +230,23 @@ const ArticleEditHeader: FunctionComponent<ArticleEditHeaderProps> = ({
                         justifyContent: "flex-end",
                         flex: "none",
                         gap: editorActionGroupGap,
+                        paddingInlineEnd: 4,
                     }}
                 >
+                    <ArticleEditSettingButton
+                        aliasRef={aliasRef}
+                        aliasInputKey={`${articleVersion}-${aliasInputRevision}`}
+                        initDigest={dataDigest ? dataDigest : ""}
+                        digestRef={digestRef}
+                        article={state.article}
+                        saving={saving}
+                        tags={state.tags}
+                        containerRef={editCardRef}
+                        open={settingsOpen}
+                        onOpenChange={onSettingsOpenChange}
+                        handleValuesChange={onValuesChange}
+                        coverAspectRatio={state.articleCoverAspectRatio}
+                    />
                     <ArticleEditActionBar
                         getContainer={getContainer}
                         offline={offline}
@@ -255,54 +270,30 @@ const ArticleEditHeader: FunctionComponent<ArticleEditHeaderProps> = ({
                         onApplyAiValues={onApplyAiValues}
                         onApplyGeneratedCover={onApplyGeneratedCover}
                     />
-                    <div
-                        style={{
-                            alignItems: "center",
-                            display: "flex",
-                            gap: 2,
-                            justifyContent: "flex-end",
-                            paddingRight: 4,
-                        }}
-                    >
-                        <ArticleEditSettingButton
-                            aliasRef={aliasRef}
-                            aliasInputKey={`${articleVersion}-${aliasInputRevision}`}
-                            initDigest={dataDigest ? dataDigest : ""}
-                            digestRef={digestRef}
-                            article={state.article}
-                            saving={saving}
-                            tags={state.tags}
-                            containerRef={editCardRef}
-                            open={settingsOpen}
-                            onOpenChange={onSettingsOpenChange}
-                            handleValuesChange={onValuesChange}
-                            coverAspectRatio={state.articleCoverAspectRatio}
-                        />
-                        <ArticleEditMoreActions
-                            fullScreen={fullScreen}
-                            offline={offline}
-                            article={state.article}
-                            contentConflict={Boolean(state.contentConflict)}
-                            typeOptions={state.typeOptions}
-                            logId={state.article.logId}
-                            socialPreview={state.article.socialPreview}
-                            currentVersion={state.article.version}
-                            axiosInstance={axiosInstance}
-                            containerRef={editCardRef}
-                            getFullScreenElement={getFullScreenElement}
-                            stateCacheKey={stateCacheKey}
-                            versionDrawerOpen={versionDrawerOpen}
-                            onPreview={onPreview}
-                            onRollback={onRollback}
-                            onVersionOpenChange={onVersionOpenChange}
-                            onInsertMarkdownFromAsset={onInsertMarkdownFromAsset}
-                            getCurrentMarkdown={getCurrentMarkdown}
-                            onImportMarkdown={onImportMarkdown}
-                            importMarkdownIntent={importMarkdownIntent}
-                            onExitFullScreen={onExitFullScreen}
-                            onFullScreen={onFullScreen}
-                        />
-                    </div>
+                    <ArticleEditMoreActions
+                        fullScreen={fullScreen}
+                        offline={offline}
+                        article={state.article}
+                        contentConflict={Boolean(state.contentConflict)}
+                        typeOptions={state.typeOptions}
+                        logId={state.article.logId}
+                        socialPreview={state.article.socialPreview}
+                        currentVersion={state.article.version}
+                        axiosInstance={axiosInstance}
+                        containerRef={editCardRef}
+                        getFullScreenElement={getFullScreenElement}
+                        stateCacheKey={stateCacheKey}
+                        versionDrawerOpen={versionDrawerOpen}
+                        onPreview={onPreview}
+                        onRollback={onRollback}
+                        onVersionOpenChange={onVersionOpenChange}
+                        onInsertMarkdownFromAsset={onInsertMarkdownFromAsset}
+                        getCurrentMarkdown={getCurrentMarkdown}
+                        onImportMarkdown={onImportMarkdown}
+                        importMarkdownIntent={importMarkdownIntent}
+                        onExitFullScreen={onExitFullScreen}
+                        onFullScreen={onFullScreen}
+                    />
                 </div>
             </div>
         </div>

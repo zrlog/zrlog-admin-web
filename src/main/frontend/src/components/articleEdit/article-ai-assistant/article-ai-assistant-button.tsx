@@ -1,8 +1,10 @@
 import { Alert, App, Button, Collapse, Drawer, Grid, Space, Tag, Typography } from "antd";
-import { EyeOutlined } from "@ant-design/icons";
+import { EyeOutlined, RobotOutlined } from "@ant-design/icons";
 import { FunctionComponent, useEffect, useMemo, useRef, useState } from "react";
 import { AIContent } from "@editor/dist/ai/AIContentItem";
 import AIButton, { AIButtonRenderMessageOptions, AIStateCache, getAIButtonDrawerOpen } from "@editor/dist/ai/AIButton";
+import AIIcon from "@editor/dist/ai/AIIcon";
+import useArticleEditorScreens from "../use-article-editor-screens";
 import { resolveDrawerWidth } from "@editor/dist/ai/AIDrawer";
 import { AxiosInstance } from "axios";
 import {
@@ -1026,8 +1028,7 @@ const ArticleAiAssistantButton: FunctionComponent<ArticleAiAssistantButtonProps>
     onApplyGeneratedCover,
 }) => {
     const [innerOpen, setInnerOpen] = useState(false);
-    const { useBreakpoint } = Grid;
-    const screens = useBreakpoint();
+    const screens = useArticleEditorScreens();
     const theme = useTheme();
     const mergedOpen = open ?? innerOpen;
     const updateOpen = (nextOpen: boolean) => {
@@ -1093,13 +1094,6 @@ const ArticleAiAssistantButton: FunctionComponent<ArticleAiAssistantButtonProps>
             configUrl={getRealRouteUrl("/website/ai")}
             getContainer={getContainer}
             contentMaxWidth={assistantConfig.contentMaxWidth}
-            triggerClassName={"btn"}
-            triggerStyle={{
-                background: `linear-gradient(135deg, ${theme.colorInfo}, ${theme.colorPrimary})`,
-                border: "none",
-            }}
-            triggerTitle={getShortcutTitle(getRes().websiteAi.label, AI_ASSISTANT_SHORTCUT)}
-            triggerLabel={screens.sm ? <span>{getRes().websiteAi.label}</span> : undefined}
             onOpenChange={updateOpen}
             onSizeChange={(nextWidth: number) => {
                 onAiDrawerSizeChange?.(nextWidth);
@@ -1107,7 +1101,22 @@ const ArticleAiAssistantButton: FunctionComponent<ArticleAiAssistantButtonProps>
             renderMessage={assistantConfig.renderMessage}
             footer={assistantConfig.renderFooter()}
             overlays={assistantConfig.overlays}
-        />
+        >
+            <Button
+                type="primary"
+                className="btn"
+                style={{
+                    width: screens.sm ? 120 : undefined,
+                    background: `linear-gradient(135deg, ${theme.colorInfo}, ${theme.colorPrimary})`,
+                    border: "none",
+                }}
+                icon={aiConfigured ? <AIIcon name={data.aiProvider} /> : <RobotOutlined />}
+                title={getShortcutTitle(getRes().websiteAi.label, AI_ASSISTANT_SHORTCUT)}
+                aria-label={getRes().websiteAi.label}
+            >
+                {screens.sm && <span>{getRes().websiteAi.label}</span>}
+            </Button>
+        </AIButton>
     );
 };
 

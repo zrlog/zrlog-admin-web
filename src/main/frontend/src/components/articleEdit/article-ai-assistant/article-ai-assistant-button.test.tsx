@@ -57,6 +57,7 @@ jest.mock("@editor/dist/ai/AIButton", () => ({
     default: () => null,
     getAIButtonDrawerOpen: () => false,
 }));
+jest.mock("@editor/dist/ai/AIIcon", () => ({ __esModule: true, default: () => null }));
 jest.mock("@editor/dist/ai/AIDrawer", () => ({ resolveDrawerWidth: (width: unknown) => width }));
 jest.mock("@editor/dist/editor/utils/marked-utils", () => ({
     markdownToHtmlSyncWithCallback: (markdown: string) => markdown,

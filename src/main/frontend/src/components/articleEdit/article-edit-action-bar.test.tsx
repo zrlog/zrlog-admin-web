@@ -23,6 +23,7 @@ jest.mock("@ant-design/icons", () => {
 });
 
 jest.mock("../../base/AppBase", () => ({ useAxiosBaseInstance: () => ({}) }));
+jest.mock("antd-style", () => ({ useTheme: () => ({}) }));
 jest.mock("@editor/dist/ai/AIDrawer", () => ({ getAiDrawerOpen: () => false }));
 jest.mock("./article-ai-assistant/article-ai-assistant-button", () => ({
     __esModule: true,
@@ -170,7 +171,9 @@ describe("ArticleEditActionBar", () => {
         const onSubmit = jest.fn(async () => true);
         const { onRequestPublish } = renderActionBar(state, onSubmit, undefined, false, true);
         const buttons = Array.from(container.querySelectorAll("button"));
-        const saveButton = buttons.find((button) => button.textContent === "Save Draft") as HTMLButtonElement;
+        const saveButton = buttons.find(
+            (button) => button.getAttribute("aria-label") === "Save Draft"
+        ) as HTMLButtonElement;
         const publishButton = buttons.find((button) => button.textContent === "Publish") as HTMLButtonElement;
 
         expect(saveButton.disabled).toBe(true);
