@@ -1,0 +1,293 @@
+{
+  "schemaVersion": 1,
+  "providers": [
+    {
+      "name": "DEEP_SEEK",
+      "source": "https://api-docs.deepseek.com/quick_start/pricing",
+      "models": [
+        {
+          "name": "deepseek-flash",
+          "capabilities": [
+            "TEXT"
+          ]
+        },
+        {
+          "name": "deepseek-v4-pro",
+          "capabilities": [
+            "TEXT"
+          ]
+        },
+        {
+          "name": "deepseek-v4-flash",
+          "capabilities": [
+            "TEXT"
+          ]
+        },
+        {
+          "name": "deepseek-chat",
+          "capabilities": [
+            "TEXT"
+          ]
+        },
+        {
+          "name": "deepseek-reasoner",
+          "capabilities": [
+            "TEXT"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "OPEN_AI",
+      "source": "https://developers.openai.com/api/docs/models",
+      "models": [
+        {
+          "name": "gpt-6-astra",
+          "capabilities": [
+            "TEXT"
+          ]
+        },
+        {
+          "name": "gpt-5.6-terra",
+          "capabilities": [
+            "TEXT"
+          ]
+        },
+        {
+          "name": "gpt-5.6-luna",
+          "capabilities": [
+            "TEXT"
+          ]
+        },
+        {
+          "name": "gpt-5.6-sol",
+          "capabilities": [
+            "TEXT"
+          ]
+        },
+        {
+          "name": "gpt-image-2.5-sunburst",
+          "capabilities": [
+            "IMAGE_GENERATION"
+          ]
+        },
+        {
+          "name": "gpt-image-2.5-flare",
+          "capabilities": [
+            "IMAGE_GENERATION"
+          ]
+        },
+        {
+          "name": "gpt-5.6",
+          "capabilities": [
+            "TEXT"
+          ]
+        },
+        {
+          "name": "gpt-5.1",
+          "capabilities": [
+            "TEXT"
+          ]
+        },
+        {
+          "name": "gpt-5",
+          "capabilities": [
+            "TEXT"
+          ]
+        },
+        {
+          "name": "gpt-5-mini",
+          "capabilities": [
+            "TEXT"
+          ]
+        },
+        {
+          "name": "gpt-4.1",
+          "capabilities": [
+            "TEXT"
+          ]
+        },
+        {
+          "name": "gpt-image-2",
+          "capabilities": [
+            "IMAGE_GENERATION"
+          ]
+        },
+        {
+          "name": "gpt-image-1.5",
+          "capabilities": [
+            "IMAGE_GENERATION"
+          ]
+        },
+        {
+          "name": "gpt-image-1-mini",
+          "capabilities": [
+            "IMAGE_GENERATION"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "QWEN",
+      "source": "https://help.aliyun.com/zh/model-studio/models",
+      "models": [
+        {
+          "name": "qwen3.8-max",
+          "capabilities": [
+            "TEXT"
+          ]
+        },
+        {
+          "name": "qwen3.7-plus",
+          "capabilities": [
+            "TEXT"
+          ]
+        },
+        {
+          "name": "qwen3.8-flash",
+          "capabilities": [
+            "TEXT"
+          ]
+        },
+        {
+          "name": "qwen3.7-max",
+          "capabilities": [
+            "TEXT"
+          ]
+        },
+        {
+          "name": "qwen3.6-flash",
+          "capabilities": [
+            "TEXT"
+          ]
+        },
+        {
+          "name": "qwen3-max",
+          "capabilities": [
+            "TEXT"
+          ]
+        },
+        {
+          "name": "qwen3-max-2025-09-23",
+          "capabilities": [
+            "TEXT"
+          ]
+        },
+        {
+          "name": "qwen3-max-preview",
+          "capabilities": [
+            "TEXT"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "GOOGLE_GEMINI",
+      "source": "https://ai.google.dev/gemini-api/docs/models",
+      "models": [
+        {
+          "name": "gemini-3.8-flash",
+          "capabilities": [
+            "TEXT"
+          ]
+        },
+        {
+          "name": "gemini-3.7-flash",
+          "capabilities": [
+            "TEXT"
+          ]
+        },
+        {
+          "name": "gemini-3.6-flash",
+          "capabilities": [
+            "TEXT"
+          ]
+        },
+        {
+          "name": "gemini-3.5-flash",
+          "capabilities": [
+            "TEXT"
+          ]
+        },
+        {
+          "name": "gemini-3.5-flash-lite",
+          "capabilities": [
+            "TEXT"
+          ]
+        },
+        {
+          "name": "gemini-3.1-flash-lite",
+          "capabilities": [
+            "TEXT"
+          ]
+        },
+        {
+          "name": "gemini-3.1-flash-image",
+          "capabilities": [
+            "IMAGE_GENERATION"
+          ]
+        },
+        {
+          "name": "gemini-3.1-flash-lite-image",
+          "capabilities": [
+            "IMAGE_GENERATION"
+          ]
+        },
+        {
+          "name": "gemini-3-pro-image",
+          "capabilities": [
+            "IMAGE_GENERATION"
+          ]
+        },
+        {
+          "name": "gemini-3.1-pro-preview",
+          "capabilities": [
+            "TEXT"
+          ]
+        },
+        {
+          "name": "gemini-3-flash-preview",
+          "capabilities": [
+            "TEXT"
+          ]
+        },
+        {
+          "name": "gemini-2.5-flash",
+          "capabilities": [
+            "TEXT"
+          ]
+        },
+        {
+          "name": "gemini-2.5-flash-image",
+          "capabilities": [
+            "IMAGE_GENERATION"
+          ]
+        },
+        {
+          "name": "gemini-2.5-flash-lite",
+          "capabilities": [
+            "TEXT"
+          ]
+        },
+        {
+          "name": "gemini-2.5-pro",
+          "capabilities": [
+            "TEXT"
+          ]
+        },
+        {
+          "name": "gemini-flash-latest",
+          "capabilities": [
+            "TEXT"
+          ]
+        },
+        {
+          "name": "gemini-pro-latest",
+          "capabilities": [
+            "TEXT"
+          ]
+        }
+      ]
+    }
+  ]
+}

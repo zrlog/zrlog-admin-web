@@ -53,4 +53,8 @@ src/main/frontend/build
 lib
 output
 .zrlog-memory/
+/conf/ai-models.json
+/conf/ai-models.json.lock
+/src/main/resources/ai/*.lock
+/scripts/__pycache__/
 .playwright-cli/

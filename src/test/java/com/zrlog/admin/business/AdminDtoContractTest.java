@@ -96,15 +96,17 @@ public class AdminDtoContractTest {
         assertFalse(new com.zrlog.admin.business.ai.model.AIModelEntry(
                 "text-model", AIModelCapability.TEXT).supports(AIModelCapability.IMAGE_GENERATION));
 
-        assertEquals("deepseek-v4-pro", AIProviderType.DEEP_SEEK.getModels().get(0));
-        assertEquals("gpt-5.6", AIProviderType.OPEN_AI.getModels().get(0));
+        assertEquals("deepseek-flash", AIProviderType.DEEP_SEEK.getModels().get(0));
+        assertEquals("gpt-6-astra", AIProviderType.OPEN_AI.getModels().get(0));
         assertTrue(AIProviderType.OPEN_AI.getModels().contains("gpt-5.6-sol"));
         assertTrue(AIProviderType.OPEN_AI.getModels().contains("gpt-5.6-terra"));
         assertTrue(AIProviderType.OPEN_AI.getModels().contains("gpt-5.6-luna"));
-        assertEquals("qwen3.7-max", AIProviderType.QWEN.getModels().get(0));
-        assertEquals("gemini-3.5-flash", AIProviderType.GOOGLE_GEMINI.getModels().get(0));
+        assertEquals("qwen3.8-max", AIProviderType.QWEN.getModels().get(0));
+        assertEquals("gemini-3.8-flash", AIProviderType.GOOGLE_GEMINI.getModels().get(0));
         assertFalse(AIProviderType.GOOGLE_GEMINI.getModels().contains("gemini-3.1-flash-lite-preview"));
         assertTrue(AIProviderType.OPEN_AI.getImageModels().contains("gpt-image-2"));
+        assertEquals("gpt-image-2.5-sunburst", AIProviderType.OPEN_AI.getImageModels().get(0));
+        assertTrue(AIProviderType.OPEN_AI.getImageModels().contains("gpt-image-2.5-flare"));
         assertEquals("gemini-3.1-flash-image", AIProviderType.GOOGLE_GEMINI.getImageModels().get(0));
         assertNotNull(AIProviderType.OPEN_AI.getBaseUrl());
         assertFalse(AIProviderType.DEEP_SEEK.getModels().isEmpty());

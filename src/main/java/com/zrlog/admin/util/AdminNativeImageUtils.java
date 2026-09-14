@@ -107,6 +107,8 @@ public class AdminNativeImageUtils {
                 AIWebSiteInfoResponse.class, AIWebSiteInfoResponse.AIProvider.class, ArticleAIMessageExportResponse.class,
                 com.zrlog.admin.business.ai.model.AIModelCapability.class,
                 com.zrlog.admin.business.ai.model.AIModelEntry.class,
+                com.zrlog.admin.business.ai.model.AIModelCatalogDocument.class,
+                com.zrlog.admin.business.ai.model.AIModelCatalogDocument.Provider.class,
                 com.zrlog.admin.business.ai.model.AIProviderType.class,
                 com.zrlog.admin.business.ai.model.AIProviderRequests.CompletionRequest.class,
                 com.zrlog.admin.business.ai.model.AIProviderRequests.Message.class,
@@ -168,6 +170,7 @@ public class AdminNativeImageUtils {
 
     static List<String> getResources(AdminResource adminResource) {
         List<String> resourceUris = new ArrayList<>(adminResource.getAdminStaticResourceUris());
+        resourceUris.add(com.zrlog.admin.business.ai.model.AIModelCatalog.RESOURCE);
         resourceUris.add("/assets/admin/images/default-portrait.gif");
         resourceUris.add(AdminConstants.ADMIN_HTML_PAGE);
         resourceUris.add(AdminConstants.ADMIN_PWA_MANIFEST_JSON);

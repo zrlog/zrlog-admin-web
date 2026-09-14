@@ -1,0 +1,71 @@
+name: Sync AI model catalog
+
+on:
+  schedule:
+    # GitHub cron uses UTC: 20:23 UTC is 04:23 the next day in Asia/Shanghai.
+    - cron: "23 20 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sync-ai-models
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      TZ: Asia/Shanghai
+
+    steps:
+      - name: Checkout default branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Test catalog synchronization
+        run: python3 -m unittest discover -s scripts -p test_sync_ai_models.py -v
+
+      - name: Sync official model catalogs
+        run: python3 scripts/sync-ai-models.py --output src/main/resources/ai/models.json
+
+      - name: Validate generated catalog
+        run: |
+          python3 - <<'PY'
+          import runpy
+          from pathlib import Path
+
+          sync = runpy.run_path("scripts/sync-ai-models.py")
+          sync["read_catalog"](Path("src/main/resources/ai/models.json"))
+          PY
+          git diff --check
+
+      - name: Create or update model catalog PR
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          base: ${{ github.event.repository.default_branch }}
+          branch: automation/ai-model-catalog
+          delete-branch: true
+          add-paths: src/main/resources/ai/models.json
+          commit-message: "chore(ai): update model catalog"
+          title: "chore(ai): update model catalog"
+          body: |
+            Updates the bundled AI model catalog from the official DeepSeek, OpenAI, Qwen, and Gemini documentation so newly listed models appear in admin settings.
+
+            Existing models are retained. Execution timestamps are recorded in Actions logs; the catalog contains only model data.
+
+            Validation: Python synchronization tests, successful synchronization of all four providers, and generated catalog validation.
+
+            Merging this PR updates the bundled snapshot. Running installations receive the new catalog through their deployment process or an update to `conf/ai-models.json`.

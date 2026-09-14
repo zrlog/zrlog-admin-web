@@ -46,6 +46,7 @@ public class AdminNativeImageUtilsTest {
         assertTrue(resources.contains(AdminConstants.ADMIN_PWA_MANIFEST_JSON));
         assertTrue(resources.contains(AdminResource.ADMIN_ASSET_MANIFEST_JSON));
         assertTrue(resources.contains(AdminConstants.BUILD_SYSTEM_INFO_MD));
+        assertTrue(resources.contains(com.zrlog.admin.business.ai.model.AIModelCatalog.RESOURCE));
         assertTrue(resources.stream().anyMatch(resource -> resource.endsWith("zh_CN.md")));
         assertTrue(resources.stream().anyMatch(resource -> resource.endsWith("en_US.md")));
     }
