@@ -86,7 +86,7 @@ public final class AIModelCatalog {
         }
         // DTOs are mutable; callers must not be able to corrupt the shared snapshot.
         return current.get(provider).stream()
-                .map(model -> new AIModelEntry(model.getName(), model.getCapabilities().toArray(new AIModelCapability[0])))
+                .map(AIModelEntry::new)
                 .collect(Collectors.toList());
     }
 
@@ -115,6 +115,8 @@ public final class AIModelCatalog {
                         && new HashSet<>(capabilities).size() == capabilities.size());
                 require(!model.supports(AIModelCapability.IMAGE_GENERATION)
                         || provider.name == AIProviderType.OPEN_AI || provider.name == AIProviderType.GOOGLE_GEMINI);
+                require(!model.isRetired() || (model.getRetirementSource() != null
+                        && !model.getRetirementSource().isBlank() && model.getRetirementSource().length() <= 2048));
             }
             require(provider.models.stream().anyMatch(model -> model.supports(AIModelCapability.TEXT)));
             result.put(provider.name, List.copyOf(provider.models));

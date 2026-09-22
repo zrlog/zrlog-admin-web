@@ -18,7 +18,7 @@
 
 ## 手动同步与部署
 
-`scripts/sync-ai-models.py` 在 Linux/Unix 上使用 Python 3.8+ 标准库读取四家官方公开模型文档，无需 API Key。只识别已有协议支持的模型系列，区分文本与图像生成，过滤音频、向量、视频、专用受限模型。新型号排在前面，原有条目保留，避免目录变化使已有图像配置失效；已下线模型仍可能保留，需要维护者按官方退役公告清理。新系列或接口协议变化仍需调整规则，不能保证所有未来模型自动兼容。
+`scripts/sync-ai-models.py` 在 Linux/Unix 上使用 Python 3.8+ 标准库读取四家官方公开模型文档，无需 API Key。只识别已有协议支持的模型系列，区分文本与图像生成，过滤音频、向量、视频、专用受限模型。新型号排在前面，原有条目保留，避免目录变化使已有图像配置失效。明确下线的模型由维护者按官方公告在 JSON 中添加标记；同步会保留这些标记，即使官方列表再次出现该模型也不会自动清除。新系列或接口协议变化仍需调整规则，不能保证所有未来模型自动兼容。
 
 ```shell
 # 在仓库中更新内置快照（后续版本的离线兜底）
@@ -35,6 +35,10 @@ python3 /opt/zrlog-admin-web/scripts/sync-ai-models.py \
 ## 数据契约与验证
 
 JSON 使用 `schemaVersion: 1`，`providers` 必须包含四个已支持提供商且不能重复。每项包含 `name`、官方 `source` 以及 `models`；模型包含 `name` 和非空 `capabilities`（`TEXT` 或 `IMAGE_GENERATION`）。每家至少有一个文本模型；目前只为 OpenAI、Gemini 接受图像能力。完整文件限制为 1 MiB，每家最多 512 个模型，拒绝重复、未知能力和非法模型 ID。`source` 仅用于溯源，不会被 Java 当作请求地址。
+
+模型可设置 `retired: true`，同时提供非空的 `retirementSource` 官方公告地址（最多 2048 字符）。缺少 `retired` 表示未标记下线。后台通过已有的 `modelEntries` 返回状态，下拉列表显示“已下线 / Retired”，保留原始模型 ID、候选项、能力和已保存配置；该标记不阻止保存或调用，自定义服务仍按原规则使用模型。此状态是展示信息，不代表系统能继续调用提供商已经关闭的 API。`AIModelEntry` 已在 Gson/native-image 中注册，新增字段沿用该注册。
+
+当前标记：`deepseek-chat`、`deepseek-reasoner`。依据 [DeepSeek V4 发布公告](https://api-docs.deepseek.com/news/news260424)，这两个 ID 于 2026-07-24 15:59 UTC 后完全退役、不可访问。`deepseek-v4-flash` 仍由官方兼容转发到 `deepseek-flash`，因此未标记下线。官方列表暂时缺失某个模型、发布弃用公告但尚未到停止服务日期，都不作为已下线的证据。
 
 检查时间与成功、失败状态以 Actions 运行记录为准，模型目录只保存模型数据。模型顺序沿用官方页面推荐顺序，未出现在当次页面的历史模型追加到末尾。当前内置快照包含 `deepseek-flash`、`gpt-6-astra`、`gpt-image-2.5-sunburst`、`gpt-image-2.5-flare`、`qwen3.8-max`、`qwen3.8-flash`、`gemini-3.8-flash` 等公开模型 ID。
 

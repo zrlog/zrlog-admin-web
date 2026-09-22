@@ -158,7 +158,7 @@ public class MemoryApplication {
 
         @Override
         public String defaultTemplatePath() {
-            return Constants.DEFAULT_TEMPLATE_PATH;
+            return Constants.getDefaultTemplatePath();
         }
 
         @Override

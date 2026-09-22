@@ -1,37 +1,28 @@
-import { Badge, Card, message, Space, Tag, Tooltip, Typography } from "antd";
+import { Button, Card, message, Space, Tag, Tooltip, Typography, Popconfirm } from "antd";
 import { getBackendServerUrl, getRealRouteUrl, getRes } from "../../utils/constants";
 import Col from "antd/es/grid/col";
-import { TemplateEntry } from "./index";
-import { FunctionComponent, useState } from "react";
-import {
-    CheckOutlined,
-    DeleteOutlined,
-    EyeOutlined,
-    LoadingOutlined,
-    SettingOutlined,
-    TagsOutlined,
-} from "@ant-design/icons";
-import { Link } from "react-router-dom";
-import Popconfirm from "antd/es/popconfirm";
-import { useAxiosBaseInstance } from "../../base/AppBase";
-import { Meta } from "antd/es/list/Item";
+import type { TemplateEntry } from "./index";
+import { useState } from "react";
+import { CheckCircleOutlined, DeleteOutlined, EyeOutlined, SettingOutlined, SkinOutlined } from "@ant-design/icons";
 import { postRefreshCacheSse } from "../../utils/sse-utils";
+import { useAxiosBaseInstance } from "../../base/AppBase";
 import { useTheme } from "antd-style";
 
-type TemplateCardProps = {
+const TemplateCard = ({
+    template,
+    onUpdate,
+    selected = false,
+}: {
     template: TemplateEntry;
     onUpdate: () => void;
     selected?: boolean;
-    onSelect?: (template: TemplateEntry) => void;
-};
-
-const TemplateCard: FunctionComponent<TemplateCardProps> = ({ template, onUpdate, selected = false, onSelect }) => {
+}) => {
     const axiosInstance = useAxiosBaseInstance();
     const theme = useTheme();
-
-    const [applying, setApplying] = useState<boolean>(false);
+    const res = getRes().websiteTemplate;
+    const [applying, setApplying] = useState(false);
+    const [imageFailed, setImageFailed] = useState(false);
     const [messageApi, contextHolder] = message.useMessage({ maxCount: 3 });
-
     const preview = (shortTemplate: string) => {
         axiosInstance.post("/api/admin/template/preview?shortTemplate=" + shortTemplate).then(() => {
             window.open(document.baseURI, "_blank");
@@ -68,113 +59,155 @@ const TemplateCard: FunctionComponent<TemplateCardProps> = ({ template, onUpdate
         });
     };
 
-    const getActions = (template: TemplateEntry) => {
-        const links = [];
-        links.push(
-            <Tooltip title={getRes().websiteTemplate.actions.preview}>
-                <div onClick={() => preview(template.shortTemplate)}>
-                    <EyeOutlined key="preview" />
-                </div>
-            </Tooltip>,
-            <Tooltip title={getRes().websiteTemplate.actions.config}>
-                <Link to={getRealRouteUrl("/template-config?shortTemplate=" + template.shortTemplate)}>
-                    <SettingOutlined key="setting" />
-                </Link>
-            </Tooltip>,
-            <Tooltip title={getRes().websiteTemplate.actions.apply}>
-                <Link
-                    to={"#apply"}
-                    onClick={(e) => {
-                        e.preventDefault();
-                        apply(template.shortTemplate);
-                    }}
-                >
-                    {applying ? <LoadingOutlined /> : <CheckOutlined />}
-                </Link>
-            </Tooltip>
-        );
-        if (template.deleteAble) {
-            links.push(
-                <Popconfirm
-                    title={getRes().deleteTips}
-                    onConfirm={() => {
-                        deleteTemplate(template.shortTemplate);
-                    }}
-                >
-                    <Tooltip title={getRes().websiteTemplate.actions.delete}>
-                        <DeleteOutlined key="delete" />
-                    </Tooltip>
-                </Popconfirm>
-            );
-        }
-        return links;
-    };
-
     return (
-        <>
+        <Col xs={24} md={12} xl={8} style={{ display: "flex" }}>
             {contextHolder}
-            <Col lg={8} xl={6} xxl={4} md={12} xs={24}>
-                <Badge.Ribbon
-                    text={
-                        template.use
-                            ? getRes().templateConfig.inUse
-                            : template.preview
-                            ? getRes().templateConfig.inPreview
-                            : ""
-                    }
-                    style={{
-                        fontSize: 16,
-                        display: template.use || template.preview ? "" : "none",
-                    }}
-                >
-                    <Card
-                        hoverable={true}
-                        onClick={() => onSelect?.(template)}
+            <Card
+                style={{
+                    width: "100%",
+                    overflow: "hidden",
+                    borderColor: template.use || selected ? theme.colorPrimary : undefined,
+                }}
+                styles={{ body: { padding: theme.paddingLG } }}
+                cover={
+                    <div
                         style={{
-                            borderColor: selected ? theme.colorPrimary : undefined,
+                            position: "relative",
+                            background: theme.colorFillAlter,
+                            aspectRatio: "16 / 9",
+                            borderBottom: `${theme.lineWidth}px ${theme.lineType} ${theme.colorBorderSecondary}`,
                         }}
-                        cover={
-                            <div style={{ overflow: "hidden", position: "relative" }}>
-                                <Tag
-                                    style={{
-                                        position: "absolute",
-                                        top: theme.paddingXS,
-                                        left: theme.paddingXS,
-                                        zIndex: 1,
-                                        marginInlineEnd: 0,
-                                    }}
-                                >
-                                    v{template.version}
-                                </Tag>
-                                <img
-                                    style={{
-                                        width: "100%",
-                                        aspectRatio: "16 / 10",
-                                        objectFit: "cover",
-                                        display: "block",
-                                    }}
-                                    alt={template.name}
-                                    title={template.name}
-                                    src={getBackendServerUrl() + template.adminPreviewImage.substring(1)}
-                                />
-                            </div>
-                        }
-                        actions={getActions(template)}
                     >
-                        <Meta title={template.name} description={template.digest} />
-                        {template.tags?.length > 0 && (
-                            <Space size={[4, 4]} wrap style={{ marginTop: theme.marginSM }}>
-                                {template.tags.slice(0, 3).map((tag) => (
-                                    <Tag key={tag} icon={<TagsOutlined />}>
-                                        <Typography.Text style={{ fontSize: theme.fontSizeSM }}>{tag}</Typography.Text>
-                                    </Tag>
-                                ))}
-                            </Space>
+                        {imageFailed || !template.adminPreviewImage ? (
+                            <div
+                                role="img"
+                                aria-label={template.name}
+                                style={{
+                                    height: "100%",
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    gap: 12,
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    color: theme.colorTextSecondary,
+                                }}
+                            >
+                                <SkinOutlined style={{ fontSize: 40 }} />
+                                <Typography.Text type="secondary">{template.name}</Typography.Text>
+                            </div>
+                        ) : (
+                            <img
+                                src={getBackendServerUrl() + template.adminPreviewImage.substring(1)}
+                                alt={template.name}
+                                onError={() => setImageFailed(true)}
+                                style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }}
+                            />
                         )}
-                    </Card>
-                </Badge.Ribbon>
-            </Col>
-        </>
+                        {(template.use || template.preview) && (
+                            <Tag
+                                color={template.use ? "success" : "processing"}
+                                icon={template.use ? <CheckCircleOutlined /> : <EyeOutlined />}
+                                style={{ position: "absolute", top: theme.paddingSM, left: theme.paddingSM }}
+                            >
+                                {template.use ? getRes().templateConfig.inUse : getRes().templateConfig.inPreview}
+                            </Tag>
+                        )}
+                    </div>
+                }
+            >
+                <Space direction="vertical" size={16} style={{ width: "100%" }}>
+                    <div>
+                        <div
+                            style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}
+                        >
+                            <Typography.Title level={5} ellipsis={{ tooltip: template.name }} style={{ margin: 0 }}>
+                                {template.name}
+                            </Typography.Title>
+                            <Typography.Text
+                                type="secondary"
+                                style={{ whiteSpace: "nowrap", fontSize: theme.fontSizeSM }}
+                            >
+                                v{template.version}
+                            </Typography.Text>
+                        </div>
+                        <Typography.Paragraph
+                            type="secondary"
+                            ellipsis={{ rows: 2, tooltip: template.digest }}
+                            style={{
+                                marginTop: theme.marginXS,
+                                marginBottom: 0,
+                                minHeight: theme.fontSize * theme.lineHeight * 2,
+                            }}
+                        >
+                            {template.digest}
+                        </Typography.Paragraph>
+                    </div>
+                    <div style={{ minHeight: 22, display: "flex", justifyContent: "space-between", gap: 8 }}>
+                        <Typography.Text type="secondary" ellipsis style={{ fontSize: theme.fontSizeSM }}>
+                            {template.author}
+                        </Typography.Text>
+                        <Space size={0}>
+                            {template.tags?.slice(0, 2).map((tag) => (
+                                <Tag key={tag}>{tag}</Tag>
+                            ))}
+                        </Space>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+                        <Space size={8}>
+                            {template.use ? (
+                                <Button
+                                    type="primary"
+                                    icon={<SettingOutlined />}
+                                    href={getRealRouteUrl("/template-config?shortTemplate=" + template.shortTemplate)}
+                                >
+                                    {res.actions.config}
+                                </Button>
+                            ) : (
+                                <>
+                                    <Button icon={<EyeOutlined />} onClick={() => preview(template.shortTemplate)}>
+                                        {res.actions.preview}
+                                    </Button>
+                                    <Button
+                                        type="primary"
+                                        loading={applying}
+                                        onClick={() => apply(template.shortTemplate)}
+                                    >
+                                        {res.actions.apply}
+                                    </Button>
+                                </>
+                            )}
+                        </Space>
+                        <Space size={0}>
+                            {!template.use && (
+                                <Tooltip title={res.actions.config}>
+                                    <Button
+                                        type="text"
+                                        aria-label={res.actions.config}
+                                        icon={<SettingOutlined />}
+                                        href={getRealRouteUrl(
+                                            "/template-config?shortTemplate=" + template.shortTemplate
+                                        )}
+                                    />
+                                </Tooltip>
+                            )}
+                            {template.deleteAble && !template.use && (
+                                <Popconfirm
+                                    title={getRes().deleteTips}
+                                    onConfirm={() => deleteTemplate(template.shortTemplate)}
+                                >
+                                    <Button
+                                        type="text"
+                                        danger
+                                        aria-label={res.actions.delete}
+                                        icon={<DeleteOutlined />}
+                                    />
+                                </Popconfirm>
+                            )}
+                        </Space>
+                    </div>
+                </Space>
+            </Card>
+        </Col>
     );
 };
 

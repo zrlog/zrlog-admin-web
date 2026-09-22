@@ -37,7 +37,7 @@ public class TemplateServiceTest {
     public void shouldDiscoverLocalTemplateAndLoadConfigOverridesFromRealDatabase() throws Exception {
         withRootPath(() -> {
             try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-                db.cacheService().getPublicWebSiteInfo().setTemplate(Constants.DEFAULT_TEMPLATE_PATH);
+                db.cacheService().getPublicWebSiteInfo().setTemplate(Constants.getDefaultTemplatePath());
                 String templatePath = createLocalTemplate("local-theme");
                 db.putWebsite(templatePath + "_setting", "{\"accent\":\"db-blue\"}");
                 TemplateService service = new TemplateService();
@@ -67,7 +67,7 @@ public class TemplateServiceTest {
     public void shouldSanitizeAndPersistTemplateConfigThroughRealWebsiteTable() throws Exception {
         withRootPath(() -> {
             try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-                db.cacheService().getPublicWebSiteInfo().setTemplate(Constants.DEFAULT_TEMPLATE_PATH);
+                db.cacheService().getPublicWebSiteInfo().setTemplate(Constants.getDefaultTemplatePath());
                 String templatePath = createLocalTemplate("sanitize-theme");
                 TemplateService service = new TemplateService();
                 Map<String, Object> settings = new LinkedHashMap<>();

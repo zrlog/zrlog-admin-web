@@ -67,6 +67,7 @@ public class AIModelCatalogTest {
         assertInvalid(source.replace("\"QWEN\"", "\"DEEP_SEEK\""));
         assertInvalid(source.replace("\"TEXT\"", "\"VIDEO\""));
         assertInvalid(source.replace("deepseek-flash", "bad model"));
+        assertInvalid(source.replace("https://api-docs.deepseek.com/news/news260424", " "));
         JsonObject document = JsonParser.parseString(source).getAsJsonObject();
         document.getAsJsonArray("providers").remove(0);
         assertInvalid(document.toString());
@@ -100,6 +101,32 @@ public class AIModelCatalogTest {
                 System.setProperty("zrlog.ai.modelCatalog", property);
             }
         }
+    }
+
+    @Test
+    public void shouldPreserveRetirementMetadataWithoutRemovingModelsOrChangingSavedSettings() throws Exception {
+        AIModelCatalog catalog = new AIModelCatalog();
+        Path path = temporaryFolder.getRoot().toPath().resolve("models.json");
+        AIModelEntry retired = catalog.getModels(AIProviderType.DEEP_SEEK, path).stream()
+                .filter(model -> model.getName().equals("deepseek-chat")).findFirst().orElseThrow();
+        assertTrue(retired.isRetired());
+        assertEquals("https://api-docs.deepseek.com/news/news260424", retired.getRetirementSource());
+        assertTrue(retired.supports(AIModelCapability.TEXT));
+        retired.setRetired(false);
+        retired.setRetirementSource("mutated");
+        AIModelEntry reloaded = catalog.getModels(AIProviderType.DEEP_SEEK, path).stream()
+                .filter(model -> model.getName().equals("deepseek-chat")).findFirst().orElseThrow();
+        assertTrue(reloaded.isRetired());
+        assertEquals("https://api-docs.deepseek.com/news/news260424", reloaded.getRetirementSource());
+        Files.writeString(path, bundled().replace("\"retired\": true", "\"retired\": false"));
+        assertFalse(catalog.getModels(AIProviderType.DEEP_SEEK, path).stream()
+                .filter(model -> model.getName().equals("deepseek-chat")).findFirst().orElseThrow().isRetired());
+
+        AIWebSiteInfo settings = new AIWebSiteInfo();
+        settings.setAi_provider(AIProviderType.DEEP_SEEK);
+        settings.setAi_model("deepseek-chat");
+        settings.doValid();
+        assertEquals("deepseek-chat", settings.getAi_model());
     }
 
     private void assertInvalid(String content) {

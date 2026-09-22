@@ -79,7 +79,7 @@ public class AdminUtilityContractsTest {
     public void shouldReturnClasspathTemplatePathWithoutDownload() throws Exception {
         BaseController controller = new BaseController(request(Map.of("shortTemplate", "default")), null);
 
-        assertEquals(Constants.DEFAULT_TEMPLATE_PATH, AdminTemplateUtils.loadTemplatePathByRequestInfo(controller));
+        assertEquals(Constants.getDefaultTemplatePath(), AdminTemplateUtils.loadTemplatePathByRequestInfo(controller));
     }
 
     private static HttpRequest request(ServerConfig serverConfig) {

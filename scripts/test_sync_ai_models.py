@@ -82,6 +82,17 @@ class SyncAiModelsTest(unittest.TestCase):
         self.assertEqual(self.seed, updated)
         self.assertEqual(4, len(errors))
 
+    def test_sync_preserves_retired_status_when_model_is_listed_again(self):
+        provider = next(p for p in self.seed["providers"] if p["name"] == "OPEN_AI")
+        model = next(m for m in provider["models"] if m["name"] == "gpt-6-astra")
+        model.update(retired=True, retirementSource="https://developers.openai.com/api/docs/deprecations")
+        updated, errors = sync.refresh(self.seed, fetch_fixture)
+        self.assertEqual([], errors)
+        models = next(p for p in updated["providers"] if p["name"] == "OPEN_AI")["models"]
+        self.assertEqual(model, next(m for m in models if m["name"] == "gpt-6-astra"))
+        deepseek = next(p for p in updated["providers"] if p["name"] == "DEEP_SEEK")["models"]
+        self.assertTrue(next(m for m in deepseek if m["name"] == "deepseek-chat")["retired"])
+
     def test_capability_conflict_preserves_provider(self):
         provider = next(p for p in self.seed["providers"] if p["name"] == "OPEN_AI")
         provider["models"].insert(0, {"name": "gpt-99-astra", "capabilities": ["IMAGE_GENERATION"]})
@@ -99,6 +110,9 @@ class SyncAiModelsTest(unittest.TestCase):
                        lambda c: c["providers"][0]["models"].append(c["providers"][0]["models"][0]),
                        lambda c: c["providers"][0]["models"][0].update(name="bad model"),
                        lambda c: c["providers"][0]["models"][0].update(capabilities=["VIDEO"]),
+                       lambda c: c["providers"][0]["models"][0].update(retired="false"),
+                       lambda c: c["providers"][0]["models"][0].update(retired=True),
+                       lambda c: c["providers"][0]["models"][0].update(retired=True, retirementSource=" "),
                        lambda c: c["providers"][0]["models"][0].update(capabilities=["IMAGE_GENERATION"])]:
             catalog = copy.deepcopy(self.seed)
             change(catalog)

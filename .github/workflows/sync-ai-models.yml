@@ -64,7 +64,7 @@ jobs:
           body: |
             Updates the bundled AI model catalog from the official DeepSeek, OpenAI, Qwen, and Gemini documentation so newly listed models appear in admin settings.
 
-            Existing models are retained. Execution timestamps are recorded in Actions logs; the catalog contains only model data.
+            Existing models and reviewed retirement markers are retained. Execution timestamps are recorded in Actions logs; the catalog contains only model data.
 
             Validation: Python synchronization tests, successful synchronization of all four providers, and generated catalog validation.
 

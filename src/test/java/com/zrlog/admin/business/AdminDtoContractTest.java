@@ -97,6 +97,9 @@ public class AdminDtoContractTest {
                 "text-model", AIModelCapability.TEXT).supports(AIModelCapability.IMAGE_GENERATION));
 
         assertEquals("deepseek-flash", AIProviderType.DEEP_SEEK.getModels().get(0));
+        assertTrue(AIProviderType.DEEP_SEEK.getModels().contains("deepseek-chat"));
+        assertTrue(AIProviderType.DEEP_SEEK.getModelEntries().stream()
+                .filter(model -> model.getName().equals("deepseek-chat")).findFirst().orElseThrow().isRetired());
         assertEquals("gpt-6-astra", AIProviderType.OPEN_AI.getModels().get(0));
         assertTrue(AIProviderType.OPEN_AI.getModels().contains("gpt-5.6-sol"));
         assertTrue(AIProviderType.OPEN_AI.getModels().contains("gpt-5.6-terra"));

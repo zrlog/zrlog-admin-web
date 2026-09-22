@@ -132,6 +132,12 @@ def validate_catalog(catalog):
                 raise ValueError("Duplicate model or invalid capabilities")
             if "IMAGE_GENERATION" in capabilities and provider["name"] not in ("OPEN_AI", "GOOGLE_GEMINI"):
                 raise ValueError("Provider has no supported image protocol")
+            if "retired" in model and type(model["retired"]) is not bool:
+                raise ValueError("Retired status must be a boolean")
+            if model.get("retired") and (not isinstance(model.get("retirementSource"), str)
+                                         or not model["retirementSource"].strip()
+                                         or len(model["retirementSource"]) > 2048):
+                raise ValueError("Retired models require an official announcement source")
             names.add(model["name"])
             has_text |= "TEXT" in capabilities
         if not has_text:
@@ -161,7 +167,8 @@ def refresh(catalog, fetcher=fetch_page):
             if any(model["name"] in previous and model["capabilities"] != previous[model["name"]]["capabilities"]
                    for model in discovered):
                 raise ValueError("Model capability changed; manual review required")
-            merged = {model["name"]: model for model in discovered}
+            # Public model lists can still mention retired IDs. Keep reviewed lifecycle metadata.
+            merged = {model["name"]: {**previous.get(model["name"], {}), **model} for model in discovered}
             for model in provider["models"]:
                 merged.setdefault(model["name"], model)
             if len(merged) > 512:

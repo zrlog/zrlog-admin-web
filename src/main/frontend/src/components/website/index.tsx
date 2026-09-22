@@ -94,6 +94,8 @@ export interface AIProvider {
 export interface AIModelEntry {
     name: string;
     capabilities: Array<"TEXT" | "IMAGE_GENERATION">;
+    retired?: boolean;
+    retirementSource?: string;
 }
 
 export interface Upgrade {

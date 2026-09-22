@@ -4,10 +4,10 @@ import Switch from "antd/es/switch";
 import { getRes, tryAppendBackendServerUrl } from "../../utils/constants";
 import { useEffect, useState } from "react";
 
-import { AI } from "./index";
+import { AI, AIProvider } from "./index";
 import Select, { DefaultOptionType } from "antd/es/select";
 import AutoComplete from "antd/es/auto-complete";
-import { Alert, Input, InputNumber, message } from "antd";
+import { Alert, Input, InputNumber, message, Tag } from "antd";
 import AIIcon from "@editor/dist/ai/AIIcon";
 import Editor from "@editor/dist/editor";
 import { getAppState } from "../../base/ConfigProviderApp";
@@ -86,35 +86,29 @@ const AIForm = ({
     const textModelSelectStyle = { width: 200, maxWidth: "100%" };
     const serviceUrlInputStyle = { width: 420, maxWidth: "100%" };
     const imageModelSelectStyle = { width: 260, maxWidth: "100%" };
-    const getModelOptions = (): DefaultOptionType[] => {
-        return (data.allProviders || [])
-            .filter((e) => {
-                return state.ai_provider === e.name;
-            })
-            .map((e) => {
-                return e.models.map((e) => {
-                    return {
-                        label: e,
-                        value: e,
-                    } as DefaultOptionType;
-                });
-            })[0];
-    };
+    const getProviderModelOptions = (provider?: AIProvider): DefaultOptionType[] =>
+        (provider?.models || []).map((name) => {
+            const retired = provider?.modelEntries?.find((model) => model.name === name)?.retired;
+            return {
+                label: retired ? (
+                    <span style={{ display: "flex", alignItems: "center", gap: theme.marginXS }}>
+                        <span style={{ minWidth: 0, whiteSpace: "normal", overflowWrap: "anywhere" }}>{name}</span>
+                        <Tag style={{ marginInlineEnd: 0, flexShrink: 0 }}>{getRes().websiteAi.aiModelRetired}</Tag>
+                    </span>
+                ) : (
+                    name
+                ),
+                value: name,
+            };
+        });
 
-    const getImageModelOptions = (): DefaultOptionType[] => {
-        return (data.allImageProviders || [])
-            .filter((e) => {
-                return state.ai_image_provider === e.name;
-            })
-            .map((e) => {
-                return e.models.map((e) => {
-                    return {
-                        label: e,
-                        value: e,
-                    } as DefaultOptionType;
-                });
-            })[0];
-    };
+    const getModelOptions = () =>
+        getProviderModelOptions((data.allProviders || []).find((provider) => provider.name === state.ai_provider));
+
+    const getImageModelOptions = () =>
+        getProviderModelOptions(
+            (data.allImageProviders || []).find((provider) => provider.name === state.ai_image_provider)
+        );
 
     const getAiProviderOptions = (): DefaultOptionType[] => {
         return (data.allProviders || []).map((e) => {

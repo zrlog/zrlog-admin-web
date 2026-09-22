@@ -27,13 +27,17 @@
           "name": "deepseek-chat",
           "capabilities": [
             "TEXT"
-          ]
+          ],
+          "retired": true,
+          "retirementSource": "https://api-docs.deepseek.com/news/news260424"
         },
         {
           "name": "deepseek-reasoner",
           "capabilities": [
             "TEXT"
-          ]
+          ],
+          "retired": true,
+          "retirementSource": "https://api-docs.deepseek.com/news/news260424"
         }
       ]
     },

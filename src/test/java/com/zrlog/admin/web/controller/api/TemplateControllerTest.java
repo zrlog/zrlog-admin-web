@@ -57,7 +57,7 @@ public class TemplateControllerTest {
             ApiStandardResponse<Void> applied = controller(Map.of("shortTemplate", "default"), response).apply();
 
             assertEquals(0, applied.getError());
-            assertEquals(Constants.DEFAULT_TEMPLATE_PATH, db.queryOne("select value from website where name=?", "template")
+            assertEquals(Constants.getDefaultTemplatePath(), db.queryOne("select value from website where name=?", "template")
                     .get("value"));
             assertEquals("template", response.cookie.getName());
             assertEquals("", response.cookie.getValue());
@@ -74,7 +74,7 @@ public class TemplateControllerTest {
 
         assertEquals(0, preview.getError());
         assertEquals("template", response.cookie.getName());
-        assertEquals(Constants.DEFAULT_TEMPLATE_PATH, response.cookie.getValue());
+        assertEquals(Constants.getDefaultTemplatePath(), response.cookie.getValue());
     }
 
     @Test
@@ -149,7 +149,7 @@ public class TemplateControllerTest {
     @Test
     public void shouldPersistTemplateConfigAndAuditThroughRealDao() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-            assertNotNull(controller(Map.of(), "{\"template\":\"" + Constants.DEFAULT_TEMPLATE_PATH + "\"}",
+            assertNotNull(controller(Map.of(), "{\"template\":\"" + Constants.getDefaultTemplatePath() + "\"}",
                     new ResponseRecorder()).config());
 
             assertTrue(String.valueOf(db.queryOne("select value from website where name=?", "admin_audit_log")
