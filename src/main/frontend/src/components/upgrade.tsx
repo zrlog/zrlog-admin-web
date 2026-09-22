@@ -566,13 +566,15 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
             <Row key={data.version.buildId || data.version.version} justify="start" style={{ width: "100%" }}>
                 <Col style={{ maxWidth: contentMaxWidth, width: "100%" }} xs={24} md={22} xl={18} xxl={14}>
                     <Card styles={{ body: { padding: narrow ? token.padding : token.paddingLG } }}>
-                        <Steps
-                            current={state.current}
-                            direction={narrow ? "vertical" : "horizontal"}
-                            size={narrow ? "small" : "default"}
-                            style={{ paddingTop: narrow ? 0 : token.paddingSM }}
-                            items={steps}
-                        />
+                        {data.upgrade && (
+                            <Steps
+                                current={state.current}
+                                direction={narrow ? "vertical" : "horizontal"}
+                                size={narrow ? "small" : "default"}
+                                style={{ paddingTop: narrow ? 0 : token.paddingSM }}
+                                items={steps}
+                            />
+                        )}
                         <div
                             className="steps-content"
                             style={{
@@ -583,41 +585,61 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
                         >
                             {currentStepAlias === "changeLog" && (
                                 <>
-                                    <Title level={4} style={{ marginTop: 0 }}>
-                                        {getRes().upgrade.changeLog}
-                                    </Title>
+                                    {data.upgrade && (
+                                        <Title level={4} style={{ marginTop: 0 }}>
+                                            {getRes().upgrade.changeLog}
+                                        </Title>
+                                    )}
                                     <UpgradeContent data={data} />
-                                    <UpgradeReadiness
-                                        data={data}
-                                        offline={offline}
-                                        onRefresh={() => void refreshReadiness()}
-                                        refreshing={refreshing}
-                                        refreshDisabled={offline || upgradeStarting.current}
-                                        refreshError={refreshError}
-                                        checkedAt={checkedAt}
-                                    />
-                                    <Alert
-                                        type="warning"
-                                        showIcon
-                                        style={{ marginTop: token.marginLG }}
-                                        message={getRes().upgrade.risk.title}
-                                        description={
-                                            <>
-                                                <div>{getRes().upgrade.risk.description}</div>
-                                                <div style={{ marginTop: token.marginXS }}>
-                                                    {getRes().upgrade.risk.rollback}
-                                                </div>
-                                                <Checkbox
-                                                    checked={upgradeRiskAccepted}
-                                                    disabled={offline || refreshing || !!refreshError}
-                                                    style={{ marginTop: token.marginSM }}
-                                                    onChange={(event) => setUpgradeRiskAccepted(event.target.checked)}
-                                                >
-                                                    {getRes().upgrade.risk.acceptance}
-                                                </Checkbox>
-                                            </>
-                                        }
-                                    />
+                                    {data.upgrade ? (
+                                        <>
+                                            <UpgradeReadiness
+                                                data={data}
+                                                offline={offline}
+                                                onRefresh={() => void refreshReadiness()}
+                                                refreshing={refreshing}
+                                                refreshDisabled={offline || upgradeStarting.current}
+                                                refreshError={refreshError}
+                                                checkedAt={checkedAt}
+                                            />
+                                            <Alert
+                                                type="warning"
+                                                showIcon
+                                                style={{ marginTop: token.marginLG }}
+                                                message={getRes().upgrade.risk.title}
+                                                description={
+                                                    <>
+                                                        <div>{getRes().upgrade.risk.description}</div>
+                                                        <div style={{ marginTop: token.marginXS }}>
+                                                            {getRes().upgrade.risk.rollback}
+                                                        </div>
+                                                        <Checkbox
+                                                            checked={upgradeRiskAccepted}
+                                                            disabled={offline || refreshing || !!refreshError}
+                                                            style={{ marginTop: token.marginSM }}
+                                                            onChange={(event) =>
+                                                                setUpgradeRiskAccepted(event.target.checked)
+                                                            }
+                                                        >
+                                                            {getRes().upgrade.risk.acceptance}
+                                                        </Checkbox>
+                                                    </>
+                                                }
+                                            />
+                                        </>
+                                    ) : (
+                                        <>
+                                            {refreshError && <Alert type="error" showIcon message={refreshError} />}
+                                            <Button
+                                                style={{ marginTop: token.marginLG }}
+                                                loading={refreshing}
+                                                disabled={offline || refreshing}
+                                                onClick={() => void refreshReadiness()}
+                                            >
+                                                {getRes().upgrade.maintenance.refresh}
+                                            </Button>
+                                        </>
+                                    )}
                                 </>
                             )}
                             {currentStepAlias === "doUpgrade" && (
@@ -646,19 +668,23 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
                                 </>
                             )}
                         </div>
-                        <div className="steps-action" style={{ paddingTop: token.marginLG }}>
-                            {state.current < steps.length - 1 && (
-                                <Button
-                                    type="primary"
-                                    loading={offlineData && checkedAt === undefined}
-                                    disabled={nextDisabled()}
-                                    onClick={() => next()}
-                                    block={narrow}
-                                >
-                                    {data.onlineUpgradable ? getRes().upgrade.doUpgrade : getRes().upgrade.manualSteps}
-                                </Button>
-                            )}
-                        </div>
+                        {data.upgrade && (
+                            <div className="steps-action" style={{ paddingTop: token.marginLG }}>
+                                {state.current < steps.length - 1 && (
+                                    <Button
+                                        type="primary"
+                                        loading={offlineData && checkedAt === undefined}
+                                        disabled={nextDisabled()}
+                                        onClick={() => next()}
+                                        block={narrow}
+                                    >
+                                        {data.onlineUpgradable
+                                            ? getRes().upgrade.doUpgrade
+                                            : getRes().upgrade.manualSteps}
+                                    </Button>
+                                )}
+                            </div>
+                        )}
                     </Card>
                 </Col>
             </Row>

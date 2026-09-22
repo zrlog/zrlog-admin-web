@@ -47,7 +47,7 @@ jest.mock("./upgrade-readiness", () => ({
             React.createElement(
                 "button",
                 { onClick: onRefresh, disabled: refreshing || refreshDisabled },
-                "Check again"
+                "Refresh Check"
             ),
             refreshError && React.createElement("p", { role: "alert" }, refreshError)
         );
@@ -134,7 +134,7 @@ describe("upgrade readiness actions", () => {
     const click = async (element: HTMLElement) => {
         await act(async () => element.click());
     };
-    const check = () => button("Check again");
+    const check = () => button("Refresh Check");
     const execute = () => button("Update Now");
 
     beforeEach(() => {
@@ -185,6 +185,32 @@ describe("upgrade readiness actions", () => {
             expect.objectContaining({ body: { upgradeRiskAccepted: true } })
         );
         expect(container.querySelector("[data-backup]")).toBeNull();
+    });
+
+    it("shows only the result and recheck action when no update is available", async () => {
+        await render({ data: { ...initialData(), upgrade: false } });
+        expect(container.querySelector("[data-backup]")).toBeNull();
+        expect(checkbox()).toBeNull();
+        expect(container.textContent).not.toContain("Update Now");
+        expect(check().disabled).toBe(false);
+
+        mockGet.mockResolvedValueOnce({ data: { error: 0, data: refreshedData() } });
+        await click(check());
+        expect(container.querySelector("[data-backup]")).not.toBeNull();
+        expect(checkbox().checked).toBe(false);
+        expect(execute().disabled).toBe(true);
+        expect(mockUpgrade).not.toHaveBeenCalled();
+    });
+
+    it("hides upgrade warnings and actions when a recheck finds no update", async () => {
+        await render();
+        await click(checkbox());
+        mockGet.mockResolvedValueOnce({ data: { error: 0, data: { ...refreshedData(), upgrade: false } } });
+        await click(check());
+        expect(container.querySelector("[data-backup]")).toBeNull();
+        expect(checkbox()).toBeNull();
+        expect(container.textContent).not.toContain("Update Now");
+        expect(mockUpgrade).not.toHaveBeenCalled();
     });
 
     it.each(["business", "transport", "invalid"])(
