@@ -7,6 +7,7 @@ import { CheckCircleOutlined, DeleteOutlined, EyeOutlined, SettingOutlined, Skin
 import { postRefreshCacheSse } from "../../utils/sse-utils";
 import { useAxiosBaseInstance } from "../../base/AppBase";
 import { useTheme } from "antd-style";
+import { Link } from "react-router-dom";
 
 const TemplateCard = ({
     template,
@@ -23,6 +24,7 @@ const TemplateCard = ({
     const [applying, setApplying] = useState(false);
     const [imageFailed, setImageFailed] = useState(false);
     const [messageApi, contextHolder] = message.useMessage({ maxCount: 3 });
+    const templateConfigPath = getRealRouteUrl("/template-config?shortTemplate=" + template.shortTemplate);
     const preview = (shortTemplate: string) => {
         axiosInstance.post("/api/admin/template/preview?shortTemplate=" + shortTemplate).then(() => {
             window.open(document.baseURI, "_blank");
@@ -155,13 +157,11 @@ const TemplateCard = ({
                     <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
                         <Space size={8}>
                             {template.use ? (
-                                <Button
-                                    type="primary"
-                                    icon={<SettingOutlined />}
-                                    href={getRealRouteUrl("/template-config?shortTemplate=" + template.shortTemplate)}
-                                >
-                                    {res.actions.config}
-                                </Button>
+                                <Link to={templateConfigPath}>
+                                    <Button type="primary" icon={<SettingOutlined />}>
+                                        {res.actions.config}
+                                    </Button>
+                                </Link>
                             ) : (
                                 <>
                                     <Button icon={<EyeOutlined />} onClick={() => preview(template.shortTemplate)}>
@@ -180,14 +180,13 @@ const TemplateCard = ({
                         <Space size={0}>
                             {!template.use && (
                                 <Tooltip title={res.actions.config}>
-                                    <Button
-                                        type="text"
-                                        aria-label={res.actions.config}
-                                        icon={<SettingOutlined />}
-                                        href={getRealRouteUrl(
-                                            "/template-config?shortTemplate=" + template.shortTemplate
-                                        )}
-                                    />
+                                    <Link to={templateConfigPath}>
+                                        <Button
+                                            type="text"
+                                            aria-label={res.actions.config}
+                                            icon={<SettingOutlined />}
+                                        />
+                                    </Link>
                                 </Tooltip>
                             )}
                             {template.deleteAble && !template.use && (
