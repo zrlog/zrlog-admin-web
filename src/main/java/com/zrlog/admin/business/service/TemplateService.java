@@ -116,7 +116,9 @@ public class TemplateService {
     public UpdateRecordResponse save(String template, Map<String, Object> settingMap) throws SQLException, IOException {
         TemplateVO.TemplateConfigMap configMap = TemplateInfoHelper.loadTemplateVO(template).getConfig();
         for (Map.Entry<String, Object> entry : settingMap.entrySet()) {
-            if (Objects.isNull(entry.getValue())) {
+            // Boolean switches and numeric settings keep their JSON types; only text needs HTML cleaning.
+            if (Objects.isNull(entry.getValue()) || entry.getValue() instanceof Boolean
+                    || entry.getValue() instanceof Number) {
                 continue;
             }
             String key = entry.getKey();

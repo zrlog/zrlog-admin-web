@@ -10,10 +10,12 @@ import type { TemplateEntry } from "./template-model";
 const TemplateList = ({
     templates,
     onUpdate,
+    onConfigure,
     selected,
 }: {
     templates: TemplateEntry[];
     onUpdate: () => void;
+    onConfigure: (template: TemplateEntry) => void;
     selected?: string;
 }) => {
     const theme = useTheme();
@@ -51,7 +53,13 @@ const TemplateList = ({
                                     <TemplateAuthor template={template} />
                                     <Typography.Text type="secondary">v{template.version}</Typography.Text>
                                 </Space>
-                                {!screens.lg && <TemplateActions template={template} onUpdate={onUpdate} />}
+                                {!screens.lg && (
+                                    <TemplateActions
+                                        template={template}
+                                        onUpdate={onUpdate}
+                                        onConfigure={onConfigure}
+                                    />
+                                )}
                             </Space>
                         </div>
                     ),
@@ -61,7 +69,9 @@ const TemplateList = ({
                     key: "actions",
                     responsive: ["lg"],
                     width: 300,
-                    render: (_, template) => <TemplateActions template={template} onUpdate={onUpdate} />,
+                    render: (_, template) => (
+                        <TemplateActions template={template} onUpdate={onUpdate} onConfigure={onConfigure} />
+                    ),
                 },
             ]}
         />

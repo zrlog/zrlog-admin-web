@@ -11,10 +11,12 @@ import type { TemplateEntry } from "./template-model";
 const TemplateCard = ({
     template,
     onUpdate,
+    onConfigure,
     selected = false,
 }: {
     template: TemplateEntry;
     onUpdate: () => void;
+    onConfigure: (template: TemplateEntry) => void;
     selected?: boolean;
 }) => {
     const theme = useTheme();
@@ -116,7 +118,7 @@ const TemplateCard = ({
                         borderTop: `${theme.lineWidth}px ${theme.lineType} ${theme.colorBorderSecondary}`,
                     }}
                 >
-                    <TemplateActions template={template} onUpdate={onUpdate} />
+                    <TemplateActions template={template} onUpdate={onUpdate} onConfigure={onConfigure} />
                 </div>
             </Card>
         </Col>

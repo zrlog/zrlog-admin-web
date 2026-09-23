@@ -16,17 +16,19 @@ import { addToCache } from "../../utils/cache";
 import TemplateCard from "./template-card";
 import TemplateList from "./template-list";
 import ThemeUpload from "./theme-upload";
+import TemplateConfigDialog from "./template-config-dialog";
 import { filterTemplates, TemplateEntry, TemplateFilter } from "./template-model";
 
 export type { TemplateEntry } from "./template-model";
 
-const Template = ({ data }: { data: TemplateEntry[] }) => {
+const Template = ({ data, offline = false }: { data: TemplateEntry[]; offline?: boolean }) => {
     const [templateState, setTemplateState] = useState<TemplateEntry[]>(data);
     const [filter, setFilter] = useState<TemplateFilter>("all");
     const [search, setSearch] = useState("");
     const [view, setView] = useState("grid");
     const [uploadOpen, setUploadOpen] = useState(false);
     const [selectedTemplateName, setSelectedTemplateName] = useState<string>();
+    const [configTemplate, setConfigTemplate] = useState<TemplateEntry>();
     const screens = Grid.useBreakpoint();
     const theme = useTheme();
     const axiosInstance = useAxiosBaseInstance();
@@ -146,12 +148,18 @@ const Template = ({ data }: { data: TemplateEntry[] }) => {
                                 key={template.template}
                                 template={template}
                                 onUpdate={load}
+                                onConfigure={setConfigTemplate}
                                 selected={selectedTemplateName === template.shortTemplate}
                             />
                         ))}
                     </Row>
                 ) : (
-                    <TemplateList templates={filteredTemplates} onUpdate={load} selected={selectedTemplateName} />
+                    <TemplateList
+                        templates={filteredTemplates}
+                        onUpdate={load}
+                        onConfigure={setConfigTemplate}
+                        selected={selectedTemplateName}
+                    />
                 )
             ) : (
                 <Empty description={templateState.length ? res.filterEmpty : res.empty}>
@@ -175,6 +183,14 @@ const Template = ({ data }: { data: TemplateEntry[] }) => {
                 </Typography.Text>
                 <Typography.Text type="secondary">{res.manageDescription}</Typography.Text>
             </div>
+            {configTemplate && (
+                <TemplateConfigDialog
+                    key={configTemplate.shortTemplate}
+                    template={configTemplate}
+                    offline={offline}
+                    onClose={() => setConfigTemplate(undefined)}
+                />
+            )}
         </Space>
     );
 };

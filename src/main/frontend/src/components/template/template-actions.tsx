@@ -1,14 +1,21 @@
 import { DeleteOutlined, EyeOutlined, LockOutlined, SettingOutlined } from "@ant-design/icons";
 import { Button, message, Popconfirm, Space, Tooltip } from "antd";
 import { useState } from "react";
-import { Link } from "react-router-dom";
 import { useAxiosBaseInstance } from "../../base/AppBase";
-import { getRealRouteUrl, getRes } from "../../utils/constants";
+import { getRes } from "../../utils/constants";
 import { postRefreshCacheSse } from "../../utils/sse-utils";
 import type { TemplateEntry } from "./template-model";
 import type { ApiResponse } from "../../type";
 
-const TemplateActions = ({ template, onUpdate }: { template: TemplateEntry; onUpdate: () => void }) => {
+const TemplateActions = ({
+    template,
+    onUpdate,
+    onConfigure,
+}: {
+    template: TemplateEntry;
+    onUpdate: () => void;
+    onConfigure: (template: TemplateEntry) => void;
+}) => {
     const axiosInstance = useAxiosBaseInstance();
     const [applying, setApplying] = useState(false);
     const [messageApi, contextHolder] = message.useMessage({ maxCount: 3 });
@@ -63,15 +70,14 @@ const TemplateActions = ({ template, onUpdate }: { template: TemplateEntry; onUp
                 </>
             )}
             <Tooltip title={!template.use ? res.actions.config : undefined}>
-                <Link to={getRealRouteUrl(`/template-config?${query}`)}>
-                    <Button
-                        type={template.use ? "primary" : "text"}
-                        icon={<SettingOutlined />}
-                        aria-label={res.actions.config}
-                    >
-                        {template.use ? res.actions.config : undefined}
-                    </Button>
-                </Link>
+                <Button
+                    type={template.use ? "primary" : "text"}
+                    icon={<SettingOutlined />}
+                    aria-label={res.actions.config}
+                    onClick={() => onConfigure(template)}
+                >
+                    {template.use ? res.actions.config : undefined}
+                </Button>
             </Tooltip>
             {template.builtIn ? (
                 <Tooltip title={res.builtInCannotDelete}>

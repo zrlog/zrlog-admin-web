@@ -101,6 +101,8 @@ public class TemplateServiceTest {
                 settings.put("customCss", "<style>.card{color:red}</style><script>bad()</script>");
                 settings.put("layoutYml", "title: <b>keep</b>");
                 settings.put("customHtml", "<strong>keep html</strong>");
+                settings.put("stickyNav", false);
+                settings.put("pageSize", 12);
                 settings.put("unknown", "<script>ignored()</script>");
 
                 UpdateRecordResponse response = service.save(templatePath, settings);
@@ -112,6 +114,10 @@ public class TemplateServiceTest {
                 assertFalse(String.valueOf(stored.get("customCss")).contains("<script>"));
                 assertEquals("title: <b>keep</b>", stored.get("layoutYml"));
                 assertEquals("<strong>keep html</strong>", stored.get("customHtml"));
+                assertEquals(false, stored.get("stickyNav"));
+                assertEquals(12, ((Number) stored.get("pageSize")).intValue());
+                TemplateVO reloaded = service.loadTemplateConfig(templatePath);
+                assertEquals(false, reloaded.getConfig().get("stickyNav").getValue());
                 assertEquals("<script>ignored()</script>", stored.get("unknown"));
                 assertNotNull(db.queryOne("select value from website where name=?", templatePath + "_setting"));
             }
@@ -211,6 +217,8 @@ public class TemplateServiceTest {
                         + "\"accent\":{\"label\":\"Accent\",\"htmlElementType\":\"input\",\"contentType\":\"text\",\"value\":\"red\"},"
                         + "\"customCss\":{\"label\":\"CSS\",\"htmlElementType\":\"textarea\",\"contentType\":\"css\",\"value\":\"\"},"
                         + "\"layoutYml\":{\"label\":\"YAML\",\"htmlElementType\":\"textarea\",\"contentType\":\"yml\",\"value\":\"\"},"
+                        + "\"stickyNav\":{\"label\":\"Sticky navigation\",\"htmlElementType\":\"switch\",\"type\":\"boolean\",\"value\":true},"
+                        + "\"pageSize\":{\"label\":\"Page size\",\"htmlElementType\":\"input\",\"type\":\"number\",\"value\":10},"
                         + "\"customHtml\":{\"label\":\"HTML\",\"htmlElementType\":\"textarea\",\"contentType\":\"html\",\"value\":\"\"}"
                         + "}",
                 StandardCharsets.UTF_8);
