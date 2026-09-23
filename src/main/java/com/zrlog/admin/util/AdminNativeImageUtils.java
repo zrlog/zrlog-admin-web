@@ -63,7 +63,7 @@ public class AdminNativeImageUtils {
                 PreCheckVersionResponse.class, BackupProtectionStatus.class,
                 BlogWebSiteInfo.class, OtherWebSiteInfo.class, AdminWebSiteInfo.class,
                 UpgradeWebSiteInfo.class, ArticleEditWebSiteInfo.class, TemplateVO.class, TemplateVO.TemplateConfigVO.class,
-                BaseTemplateVO.class, BasicWebSiteInfo.class, ArticleGlobalResponse.class,
+                BaseTemplateVO.class, TemplateEntryResponse.class, BasicWebSiteInfo.class, ArticleGlobalResponse.class,
                 FeatureLabWebSiteInfo.class, ContentProtectorWebSiteInfo.class,
                 PageData.class, ArticlePageData.class, LinkDTO.class, LogNavDTO.class, TypeDTO.class, CommentDTO.class,
                 ApiStandardResponse.class, UploadFileResponse.class,

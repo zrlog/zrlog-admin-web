@@ -74,7 +74,7 @@ const ThemeUpload = ({ templates, onInstalled }: ThemeUploadProps) => {
             void upload(file, shortTemplate, false);
             return false;
         }
-        if (!existing.deleteAble) {
+        if (existing.builtIn) {
             void messageApi.error(res.builtInCannotOverwrite);
             return false;
         }

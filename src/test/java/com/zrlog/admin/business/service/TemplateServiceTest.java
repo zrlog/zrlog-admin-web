@@ -2,6 +2,7 @@ package com.zrlog.admin.business.service;
 
 import com.zrlog.admin.business.rest.response.UpdateRecordResponse;
 import com.zrlog.admin.business.rest.response.UploadTemplateResponse;
+import com.zrlog.admin.business.rest.response.TemplateEntryResponse;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.common.Constants;
 import com.zrlog.common.vo.BaseTemplateVO;
@@ -42,7 +43,7 @@ public class TemplateServiceTest {
                 db.putWebsite(templatePath + "_setting", "{\"accent\":\"db-blue\"}");
                 TemplateService service = new TemplateService();
 
-                List<BaseTemplateVO> templates = service.getAllTemplates(templatePath);
+                List<TemplateEntryResponse> templates = service.getAllTemplates(templatePath);
                 BaseTemplateVO local = templates.stream()
                         .filter(template -> templatePath.equals(template.getTemplate()))
                         .findFirst()
@@ -59,6 +60,31 @@ public class TemplateServiceTest {
                 assertEquals("db-blue", config.getConfig().get("accent").getValue());
                 assertEquals(templatePath, config.getConfig().get("template").getValue());
                 assertEquals("hidden", config.getConfig().get("template").getType());
+            }
+        });
+    }
+
+    @Test
+    public void shouldDistinguishSpiThemesFromActiveLocalThemes() throws Exception {
+        withRootPath(() -> {
+            try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+                String templatePath = createLocalTemplate("active-local-theme");
+                db.cacheService().getPublicWebSiteInfo().setTemplate(templatePath);
+                List<TemplateEntryResponse> entries = new TemplateService().getAllTemplates(templatePath);
+                TemplateEntryResponse local = entries.stream().filter(entry -> templatePath.equals(entry.getTemplate()))
+                        .findFirst().orElseThrow();
+                TemplateEntryResponse bundled = entries.stream()
+                        .filter(entry -> Constants.getDefaultTemplatePath().equals(entry.getTemplate()))
+                        .findFirst().orElseThrow();
+                assertTrue(local.isUse());
+                assertFalse(local.isDeleteAble());
+                assertFalse(local.isBuiltIn());
+                assertFalse(bundled.isUse());
+                assertTrue(bundled.isBuiltIn());
+                assertFalse(bundled.isDeleteAble());
+                com.google.gson.JsonObject json = new com.google.gson.Gson().toJsonTree(bundled).getAsJsonObject();
+                assertTrue(json.get("builtIn").getAsBoolean());
+                assertEquals(bundled.getName(), json.get("name").getAsString());
             }
         });
     }

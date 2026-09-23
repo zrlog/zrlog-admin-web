@@ -1,0 +1,355 @@
+<div id="zr-extensions-theme" lang="zh-CN" data-start="themes" aria-label="主题与插件统一设计">
+  <style>
+    #zr-extensions-theme {
+      --zr-primary: light-dark(#1677ff, #69aaff);
+      --zr-primary-fill: light-dark(#1677ff, #246edb);
+      --zr-on-primary: #fff;
+      --zr-selected: light-dark(#eaf3ff, #192d48);
+      --zr-bg: light-dark(#f5f6f8, #13161b);
+      --zr-surface: light-dark(#fff, #1c2027);
+      --zr-subtle: light-dark(#f8f9fb, #242a33);
+      --zr-text: light-dark(#242a33, #e8ecf3);
+      --zr-muted: light-dark(#697382, #a0aabb);
+      --zr-line: light-dark(#e5e8ed, #333a46);
+      --zr-green: light-dark(#27824d, #7ccea0);
+      --zr-green-bg: light-dark(#eff8f2, #20382c);
+      --zr-danger: light-dark(#c93c40, #ff9395);
+      --zr-radius: 8px;
+      --zr-radius-sm: calc(var(--zr-radius) * .6);
+      --zr-radius-lg: calc(var(--zr-radius) * 1.25);
+      --zr-space: 24px;
+      color: var(--zr-text);
+      font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      width: 100%;
+      container-type: inline-size;
+    }
+    #zr-extensions-theme * { box-sizing: border-box; }
+    #zr-extensions-theme [hidden] { display: none !important; }
+    #zr-extensions-theme button, #zr-extensions-theme input, #zr-extensions-theme select { font: inherit; }
+    #zr-extensions-theme button { cursor: pointer; }
+    #zr-extensions-theme button:disabled { cursor: not-allowed; opacity: .5; }
+    #zr-extensions-theme button:focus-visible, #zr-extensions-theme input:focus-visible, #zr-extensions-theme select:focus-visible { outline: 2px solid var(--zr-primary); outline-offset: 3px; }
+    #zr-extensions-theme h1, #zr-extensions-theme h2, #zr-extensions-theme h3, #zr-extensions-theme p { margin: 0; }
+    #zr-extensions-theme h1 { font-size: 25px; font-weight: 500; letter-spacing: -.5px; line-height: 1.35; }
+    #zr-extensions-theme h2 { font-size: 17px; font-weight: 500; }
+    #zr-extensions-theme h3 { font-size: 15px; font-weight: 500; }
+    #zr-extensions-theme svg { width: 17px; height: 17px; flex-shrink: 0; }
+    #zr-extensions-theme .zr-shell { display: grid; grid-template-columns: 166px minmax(0, 1fr); background: var(--zr-bg); min-height: 750px; }
+    #zr-extensions-theme .zr-side { display: flex; flex-direction: column; padding: 22px 14px 18px; background: var(--zr-surface); border-right: 1px solid var(--zr-line); }
+    #zr-extensions-theme .zr-brand { display: flex; gap: 9px; align-items: center; padding: 0 10px 28px; font-size: 20px; font-weight: 500; letter-spacing: -.6px; }
+    #zr-extensions-theme .zr-brand-mark { display: grid; place-items: center; background: var(--zr-primary-fill); color: var(--zr-on-primary); width: 30px; height: 30px; border-radius: var(--zr-radius); font-size: 20px; }
+    #zr-extensions-theme .zr-nav-muted, #zr-extensions-theme .zr-nav-item { display: flex; align-items: center; gap: 11px; width: 100%; padding: 10px 12px; border-radius: var(--zr-radius); }
+    #zr-extensions-theme .zr-nav-muted { color: var(--zr-muted); }
+    #zr-extensions-theme .zr-nav-label { margin: 24px 12px 8px; font-size: 11px; color: var(--zr-muted); letter-spacing: 1px; }
+    #zr-extensions-theme .zr-nav-item { border: 0; color: var(--zr-muted); background: transparent; text-align: left; margin-bottom: 4px; }
+    #zr-extensions-theme .zr-nav-item[aria-current="page"] { background: var(--zr-selected); color: var(--zr-primary); font-weight: 500; }
+    #zr-extensions-theme .zr-side-foot { margin-top: auto; padding: 32px 12px 0; color: var(--zr-muted); font-size: 11px; }
+    #zr-extensions-theme .zr-stage { min-width: 0; }
+    #zr-extensions-theme .zr-topbar { height: 62px; background: var(--zr-surface); border-bottom: 1px solid var(--zr-line); display: flex; justify-content: space-between; align-items: center; padding: 0 var(--zr-space); gap: 12px; }
+    #zr-extensions-theme .zr-breadcrumb, #zr-extensions-theme .zr-top-actions { display: flex; gap: 12px; align-items: center; }
+    #zr-extensions-theme .zr-breadcrumb { color: var(--zr-muted); font-size: 12px; }
+    #zr-extensions-theme .zr-breadcrumb span:last-child { color: var(--zr-text); }
+    #zr-extensions-theme .zr-avatar { width: 28px; height: 28px; display: grid; place-items: center; border-radius: var(--zr-radius); background: var(--zr-selected); color: var(--zr-primary); font-size: 12px; }
+    #zr-extensions-theme .zr-content { padding: 30px var(--zr-space) 24px; }
+    #zr-extensions-theme .zr-heading { display: flex; gap: 20px; justify-content: space-between; align-items: center; flex-wrap: wrap; margin-bottom: 26px; }
+    #zr-extensions-theme .zr-titleline { display: flex; align-items: center; gap: 12px; margin-bottom: 9px; }
+    #zr-extensions-theme .zr-count { color: var(--zr-muted); background: var(--zr-surface); border: 1px solid var(--zr-line); border-radius: var(--zr-radius-sm); padding: 1px 7px; font-size: 11px; }
+    #zr-extensions-theme .zr-description { color: var(--zr-muted); font-size: 12px; }
+    #zr-extensions-theme .zr-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    #zr-extensions-theme .zr-button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 34px; padding: 6px 12px; background: var(--zr-surface); color: var(--zr-text); border: 1px solid var(--zr-line); border-radius: var(--zr-radius); white-space: nowrap; font-size: 12px; }
+    #zr-extensions-theme .zr-button:hover { color: var(--zr-primary); border-color: var(--zr-primary); }
+    #zr-extensions-theme .zr-button.zr-primary { background: var(--zr-primary-fill); border-color: var(--zr-primary-fill); color: var(--zr-on-primary); }
+    #zr-extensions-theme .zr-button.zr-soft { color: var(--zr-primary); background: var(--zr-selected); border-color: transparent; }
+    #zr-extensions-theme .zr-button.zr-quiet { border-color: transparent; background: transparent; color: var(--zr-primary); }
+    #zr-extensions-theme .zr-button.zr-icon { padding: 7px; }
+    #zr-extensions-theme .zr-button.zr-danger { color: var(--zr-danger); }
+    #zr-extensions-theme .zr-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 18px; }
+    #zr-extensions-theme .zr-search { display: flex; gap: 8px; align-items: center; min-width: 190px; max-width: 290px; flex: 1; height: 36px; padding: 0 11px; background: var(--zr-surface); border: 1px solid var(--zr-line); border-radius: var(--zr-radius); color: var(--zr-muted); }
+    #zr-extensions-theme .zr-search input { padding: 0; width: 100%; min-width: 0; border: 0; background: transparent; color: var(--zr-text); font-size: 12px; }
+    #zr-extensions-theme .zr-search input::placeholder { color: var(--zr-muted); }
+    #zr-extensions-theme .zr-filter { height: 36px; border: 1px solid var(--zr-line); background: var(--zr-surface); color: var(--zr-text); border-radius: var(--zr-radius); padding: 0 10px; min-width: 112px; font-size: 12px; }
+    #zr-extensions-theme .zr-view { display: flex; align-items: center; margin-left: auto; padding: 3px; border: 1px solid var(--zr-line); border-radius: var(--zr-radius); background: var(--zr-subtle); }
+    #zr-extensions-theme .zr-view button { border: 0; border-radius: var(--zr-radius-sm); color: var(--zr-muted); background: transparent; padding: 5px 9px; display: flex; align-items: center; gap: 6px; font-size: 12px; }
+    #zr-extensions-theme .zr-view button[aria-pressed="true"] { background: var(--zr-surface); color: var(--zr-primary); box-shadow: 0 1px 3px color-mix(in srgb, var(--zr-text) 10%, transparent); }
+    #zr-extensions-theme .zr-notice { margin-bottom: 16px; border: 1px solid color-mix(in srgb, var(--zr-primary) 22%, transparent); border-radius: var(--zr-radius); background: var(--zr-selected); padding: 9px 12px; color: var(--zr-primary); font-size: 12px; display: flex; gap: 9px; align-items: center; }
+    #zr-extensions-theme .zr-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+    #zr-extensions-theme .zr-card { min-width: 0; border: 1px solid var(--zr-line); border-radius: var(--zr-radius-lg); background: var(--zr-surface); overflow: hidden; display: flex; flex-direction: column; }
+    #zr-extensions-theme .zr-card.zr-active { border-color: var(--zr-primary); }
+    #zr-extensions-theme .zr-cover { aspect-ratio: 1.92; position: relative; padding: 16px; background: var(--zr-subtle); border-bottom: 1px solid var(--zr-line); overflow: hidden; }
+    #zr-extensions-theme .zr-cover > .zr-badge { position: absolute; left: 11px; top: 11px; z-index: 1; }
+    #zr-extensions-theme .zr-badge { display: inline-flex; align-items: center; gap: 5px; color: var(--zr-muted); background: var(--zr-subtle); padding: 2px 7px; border-radius: var(--zr-radius-sm); font-size: 11px; white-space: nowrap; }
+    #zr-extensions-theme .zr-badge.zr-success { color: var(--zr-green); background: var(--zr-green-bg); }
+    #zr-extensions-theme .zr-badge.zr-blue { color: var(--zr-primary); background: var(--zr-selected); }
+    #zr-extensions-theme .zr-badge svg { width: 12px; height: 12px; }
+    #zr-extensions-theme .zr-card-content { padding: 16px 17px 14px; flex: 1; }
+    #zr-extensions-theme .zr-card-title { display: flex; align-items: center; gap: 9px; justify-content: space-between; margin-bottom: 5px; }
+    #zr-extensions-theme .zr-card-name { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; min-width: 0; }
+    #zr-extensions-theme .zr-version { font-size: 11px; color: var(--zr-muted); }
+    #zr-extensions-theme .zr-card-desc { color: var(--zr-muted); font-size: 12px; min-height: 38px; }
+    #zr-extensions-theme .zr-metadata { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; font-size: 11px; color: var(--zr-muted); margin-top: 13px; }
+    #zr-extensions-theme .zr-author-link { display: inline-flex; align-items: center; gap: 4px; color: var(--zr-primary); text-decoration: none; text-underline-offset: 3px; }
+    #zr-extensions-theme .zr-author-link:hover { text-decoration: underline; }
+    #zr-extensions-theme .zr-author-link svg { width: 12px; height: 12px; }
+    #zr-extensions-theme .zr-list-copy .zr-metadata { margin-top: 6px; }
+    #zr-extensions-theme .zr-card-footer { border-top: 1px solid var(--zr-line); display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 14px; }
+    #zr-extensions-theme .zr-status-note { color: var(--zr-muted); font-size: 11px; display: flex; gap: 4px; align-items: center; }
+    #zr-extensions-theme .zr-cover-page { width: 100%; height: 100%; background: var(--zr-surface); border: 1px solid var(--zr-line); border-radius: var(--zr-radius-sm); padding: 13px; color: var(--zr-text); }
+    #zr-extensions-theme .zr-mini-nav { display: flex; justify-content: space-between; font-size: 11px; border-bottom: 1px solid var(--zr-line); padding-bottom: 8px; }
+    #zr-extensions-theme .zr-mini-layout { display: grid; grid-template-columns: 1fr 55px; gap: 16px; margin-top: 13px; }
+    #zr-extensions-theme .zr-mini-title { font-size: 14px; font-weight: 500; margin-bottom: 7px; letter-spacing: -.2px; }
+    #zr-extensions-theme .zr-mini-text { font-size: 11px; color: var(--zr-muted); }
+    #zr-extensions-theme .zr-mini-line { height: 4px; background: var(--zr-line); margin-top: 7px; width: 90%; border-radius: var(--zr-radius-sm); }
+    #zr-extensions-theme .zr-mini-line:nth-child(2n) { width: 65%; }
+    #zr-extensions-theme .zr-mini-avatar { width: 28px; height: 28px; margin: 0 auto 8px; border-radius: 50%; background: var(--zr-selected); color: var(--zr-primary); display: grid; place-items: center; font-size: 11px; }
+    #zr-extensions-theme .zr-cover-fluid { background: light-dark(#dce5ec, #273647); padding: 0; }
+    #zr-extensions-theme .zr-landscape { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; overflow: hidden; color: light-dark(#33485a, #d0dce9); background: linear-gradient(145deg, light-dark(#d7e3e9, #26394b), light-dark(#bdcdd8, #40576b)); }
+    #zr-extensions-theme .zr-landscape::before, #zr-extensions-theme .zr-landscape::after { content: ""; position: absolute; width: 100%; height: 70%; bottom: -30%; transform: rotate(-17deg); background: light-dark(#aebfc8, #385464); }
+    #zr-extensions-theme .zr-landscape::after { left: 40%; transform: rotate(22deg); background: light-dark(#93aab9, #2f4354); }
+    #zr-extensions-theme .zr-landscape h3 { z-index: 1; font-size: 21px; letter-spacing: 2px; font-weight: 500; }
+    #zr-extensions-theme .zr-landscape p { z-index: 1; font-size: 11px; margin-top: 7px; }
+    #zr-extensions-theme .zr-cover-next .zr-cover-page { display: grid; grid-template-columns: 68px 1fr; gap: 14px; padding: 0; overflow: hidden; }
+    #zr-extensions-theme .zr-next-side { background: var(--zr-text); color: var(--zr-surface); padding: 15px 9px; font-size: 11px; text-align: center; }
+    #zr-extensions-theme .zr-next-article { padding: 17px 13px 0 0; }
+    #zr-extensions-theme .zr-cover-simple .zr-cover-page { text-align: center; padding-top: 20px; }
+    #zr-extensions-theme .zr-cover-simple .zr-mini-title { font-family: Georgia, serif; font-size: 19px; }
+    #zr-extensions-theme .zr-cover-simple .zr-mini-line { margin: 8px auto; width: 68%; }
+    #zr-extensions-theme .zr-plugin-table { border: 1px solid var(--zr-line); border-radius: var(--zr-radius-lg); overflow: hidden; background: var(--zr-surface); }
+    #zr-extensions-theme .zr-list-head, #zr-extensions-theme .zr-list-row { display: grid; grid-template-columns: minmax(0, 1fr) 104px 130px; gap: 18px; align-items: center; }
+    #zr-extensions-theme .zr-list-head { background: var(--zr-subtle); padding: 11px 18px; font-size: 11px; color: var(--zr-muted); }
+    #zr-extensions-theme .zr-list-head span:last-child { text-align: right; }
+    #zr-extensions-theme .zr-list-row { padding: 20px 18px; border-top: 1px solid var(--zr-line); }
+    #zr-extensions-theme .zr-list-row:first-of-type { border-top: 0; }
+    #zr-extensions-theme .zr-list-info { display: flex; gap: 13px; min-width: 0; align-items: center; }
+    #zr-extensions-theme .zr-list-copy { min-width: 0; }
+    #zr-extensions-theme .zr-list-name { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    #zr-extensions-theme .zr-list-desc { margin-top: 5px; font-size: 12px; color: var(--zr-muted); }
+    #zr-extensions-theme .zr-plugin-icon { width: 42px; height: 42px; flex-shrink: 0; display: grid; place-items: center; background: var(--zr-selected); border: 1px solid color-mix(in srgb, var(--zr-primary) 12%, transparent); border-radius: var(--zr-radius-lg); color: var(--zr-primary); }
+    #zr-extensions-theme .zr-plugin-icon svg { width: 21px; height: 21px; }
+    #zr-extensions-theme .zr-services { display: flex; gap: 5px; flex-wrap: wrap; }
+    #zr-extensions-theme .zr-row-actions { display: flex; gap: 6px; align-items: center; justify-content: flex-end; }
+    #zr-extensions-theme .zr-row-actions .zr-button { padding: 6px 7px; }
+    #zr-extensions-theme .zr-plugin-card-top { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+    #zr-extensions-theme .zr-plugin-card-top .zr-badge { margin-left: auto; }
+    #zr-extensions-theme .zr-plugin-card .zr-card-desc { margin: 8px 0 14px; }
+    #zr-extensions-theme .zr-footer { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; padding: 18px 0 0; font-size: 11px; color: var(--zr-muted); }
+    #zr-extensions-theme .zr-empty { text-align: center; padding: 65px 24px; background: var(--zr-surface); border: 1px solid var(--zr-line); border-radius: var(--zr-radius-lg); color: var(--zr-muted); }
+    #zr-extensions-theme .zr-empty > svg { width: 30px; height: 30px; margin-bottom: 10px; }
+    #zr-extensions-theme .zr-empty .zr-button { margin-top: 16px; }
+    #zr-extensions-theme .zr-dialog { padding: 22px; width: min(420px, calc(100% - 32px)); background: var(--zr-surface); color: var(--zr-text); border: 1px solid var(--zr-line); border-radius: var(--zr-radius-lg); }
+    #zr-extensions-theme .zr-dialog::backdrop { background: rgb(0 0 0 / .35); }
+    #zr-extensions-theme .zr-dialog-head { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin-bottom: 16px; }
+    #zr-extensions-theme .zr-dialog .zr-description { margin-bottom: 18px; }
+    #zr-extensions-theme .zr-dialog .zr-actions { justify-content: flex-end; }
+    @container (min-width: 1200px) { #zr-extensions-theme .zr-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+    @container (max-width: 790px) {
+      #zr-extensions-theme .zr-shell { grid-template-columns: 64px minmax(0, 1fr); }
+      #zr-extensions-theme .zr-side { padding: 20px 9px; }
+      #zr-extensions-theme .zr-side .zr-word, #zr-extensions-theme .zr-nav-label, #zr-extensions-theme .zr-side-foot { display: none; }
+      #zr-extensions-theme .zr-brand { padding: 0 7px 25px; }
+      #zr-extensions-theme .zr-nav-item, #zr-extensions-theme .zr-nav-muted { justify-content: center; padding: 12px; }
+      #zr-extensions-theme .zr-nav-item:first-of-type { margin-top: 15px; }
+      #zr-extensions-theme .zr-list-head, #zr-extensions-theme .zr-list-row { grid-template-columns: minmax(0, 1fr) 120px; gap: 12px; }
+      #zr-extensions-theme .zr-list-head .zr-service-heading, #zr-extensions-theme .zr-list-row > .zr-services { display: none; }
+      #zr-extensions-theme .zr-list-info { gap: 10px; }
+    }
+    @container (max-width: 590px) {
+      #zr-extensions-theme .zr-shell { grid-template-columns: minmax(0, 1fr); }
+      #zr-extensions-theme .zr-side { display: none; }
+      #zr-extensions-theme .zr-topbar { padding: 0 16px; }
+      #zr-extensions-theme .zr-content { padding: 22px 16px; }
+      #zr-extensions-theme .zr-heading { gap: 16px; margin-bottom: 22px; }
+      #zr-extensions-theme .zr-grid { grid-template-columns: minmax(0, 1fr); }
+      #zr-extensions-theme .zr-search { flex-basis: 100%; max-width: none; height: 40px; }
+      #zr-extensions-theme .zr-search input { font-size: 16px; }
+      #zr-extensions-theme .zr-list-row { grid-template-columns: minmax(0, 1fr); padding: 16px; gap: 12px; }
+      #zr-extensions-theme .zr-list-head { display: none; }
+      #zr-extensions-theme .zr-list-row > .zr-services { display: flex; margin-left: 52px; }
+      #zr-extensions-theme .zr-list-row .zr-row-actions { justify-content: flex-start; margin-left: 45px; }
+      #zr-extensions-theme .zr-top-actions .zr-avatar { display: none; }
+    }
+    @media (pointer: coarse) {
+      #zr-extensions-theme .zr-button, #zr-extensions-theme .zr-view button, #zr-extensions-theme .zr-filter { min-height: 44px; }
+      #zr-extensions-theme .zr-button.zr-icon { min-width: 44px; }
+    }
+  </style>
+  <div class="zr-shell">
+    <aside class="zr-side" aria-label="后台导航">
+      <div class="zr-brand"><span class="zr-brand-mark">Z</span><span class="zr-word">ZrLog</span></div>
+      <div class="zr-nav-muted"><i data-lucide="layout-dashboard" aria-hidden="true"></i><span class="zr-word">概览</span></div>
+      <div class="zr-nav-label">管理</div>
+      <div class="zr-nav-muted"><i data-lucide="file-text" aria-hidden="true"></i><span class="zr-word">内容</span></div>
+      <div class="zr-nav-muted"><i data-lucide="globe" aria-hidden="true"></i><span class="zr-word">站点</span></div>
+      <div class="zr-nav-label">扩展</div>
+      <button class="zr-nav-item" type="button" data-page="themes" aria-label="主题管理"><i data-lucide="palette" aria-hidden="true"></i><span class="zr-word">主题</span></button>
+      <button class="zr-nav-item" type="button" data-page="plugins" aria-label="插件管理"><i data-lucide="puzzle" aria-hidden="true"></i><span class="zr-word">插件</span></button>
+      <div class="zr-nav-label">系统</div>
+      <div class="zr-nav-muted"><i data-lucide="settings-2" aria-hidden="true"></i><span class="zr-word">设置</span></div>
+      <div class="zr-side-foot">ZrLog · 让写作更简单</div>
+    </aside>
+    <div class="zr-stage">
+      <header class="zr-topbar">
+        <div class="zr-breadcrumb"><span>扩展</span><span>/</span><span data-breadcrumb>主题</span></div>
+        <div class="zr-top-actions"><button type="button" class="zr-button zr-icon" data-appearance aria-label="切换明暗外观"><i data-lucide="sun-moon" aria-hidden="true"></i></button><span class="zr-avatar" aria-label="管理员">XC</span></div>
+      </header>
+      <main class="zr-content">
+        <div class="zr-heading">
+          <div><div class="zr-titleline"><h1 data-title>主题</h1><span class="zr-count" data-count></span></div><p class="zr-description" data-description></p></div>
+          <div class="zr-actions" data-header-actions></div>
+        </div>
+        <div class="zr-toolbar">
+          <label class="zr-search"><i data-lucide="search" aria-hidden="true"></i><input type="search" data-search aria-label="搜索已安装扩展" placeholder="搜索主题名称、作者…"></label>
+          <select class="zr-filter" data-filter aria-label="筛选已安装扩展"></select>
+          <div class="zr-view" role="group" aria-label="展示方式"><button type="button" data-view="list" aria-pressed="false"><i data-lucide="list" aria-hidden="true"></i>列表</button><button type="button" data-view="grid" aria-pressed="true"><i data-lucide="layout-grid" aria-hidden="true"></i>网格</button></div>
+        </div>
+        <div class="zr-notice" data-notice role="status" hidden></div>
+        <div data-results></div>
+        <div class="zr-footer"><span data-summary aria-live="polite"></span><span data-footer-note></span></div>
+      </main>
+    </div>
+  </div>
+  <dialog class="zr-dialog" data-dialog aria-labelledby="zr-extensions-theme-dialog-title">
+    <div class="zr-dialog-head"><h2 id="zr-extensions-theme-dialog-title" data-dialog-title></h2><button class="zr-button zr-icon" type="button" data-close aria-label="关闭"><i data-lucide="x" aria-hidden="true"></i></button></div>
+    <div data-dialog-content></div>
+  </dialog>
+  <script>
+    (() => {
+      const root = document.getElementById('zr-extensions-theme');
+      const query = (selector) => root.querySelector(selector);
+      const icon = (name) => `<i data-lucide="${name}" aria-hidden="true"></i>`;
+      const themes = [
+        {id:'default', name:'ZrLog 默认主题', author:'ZrLog', url:'https://www.zrlog.com/', version:'1.0', desc:'简洁清晰的阅读体验，让内容成为主角。', tags:['简洁','响应式'], cover:'default', active:true, removable:false},
+        {id:'fluid', name:'Fluid', author:'Fluid', url:'https://hexo.fluid-dev.com/', version:'1.0', desc:'沉浸式首页与舒适排版，记录生活与灵感。', tags:['图文','响应式'], cover:'fluid', active:false, removable:true},
+        {id:'next', name:'NexT', author:'NexT', url:'https://theme-next.js.org/', version:'1.0', desc:'经典双栏布局，适合有条理地分享知识。', tags:['极简','双栏'], cover:'next', active:false, removable:true},
+        {id:'simple', name:'Simple', author:'ZrLog', url:'https://www.zrlog.com/', version:'1.0', desc:'留白与文字之间，保留写作最初的样子。', tags:['文字','轻量'], cover:'simple', active:false, removable:true}
+      ];
+      const plugins = [
+        {id:'common', name:'基础服务', shortName:'common', desc:'为站点提供通用能力与插件基础服务。', services:['基础服务'], icon:'blocks', required:true},
+        {id:'mail', name:'邮件服务', shortName:'mail', desc:'配置邮件发送，用于评论通知等站点消息。', services:['邮件发送'], icon:'mail', required:false},
+        {id:'backup', name:'数据备份', shortName:'backup-sql-file', desc:'备份站点数据，管理和下载历史备份。', services:['数据备份'], icon:'database-backup', required:false},
+        {id:'reminder', name:'消息提醒', shortName:'reminder', desc:'及时接收站点消息与待处理事项提醒。', services:['消息通知'], icon:'bell', required:false},
+        {id:'static', name:'静态化增强', shortName:'static-plus', desc:'管理静态资源生成，改善站点访问体验。', services:['静态生成'], icon:'zap', required:false},
+        {id:'travel', name:'开往', shortName:'travel', desc:'连接独立博客，发现更多有趣的站点。', services:['站点互联'], icon:'compass', required:false}
+      ];
+      const state = {page:root.dataset.start, view:root.dataset.start === 'themes' ? 'grid' : 'list', filter:'all', search:'', preview:null};
+      const design = {accent:'#1677ff', radius:8, spacing:'comfortable'};
+      function icons() { if (globalThis.lucide) lucide.createIcons({attrs:{width:16,height:16}}); }
+      function button(label, action, item = '', style = '', glyph = '') {
+        return `<button type="button" class="zr-button ${style}" data-action="${action}" data-item="${item}">${glyph ? icon(glyph) : ''}${label}</button>`;
+      }
+      function badge(label, style = '', glyph = '') { return `<span class="zr-badge ${style}">${glyph ? icon(glyph) : ''}${label}</span>`; }
+      function cover(theme) {
+        const contents = {
+          default:'<div class="zr-cover-page"><div class="zr-mini-nav"><span>ZrLog</span><span>记录 · 分享</span></div><div class="zr-mini-layout"><div><div class="zr-mini-title">把日常写成故事</div><div class="zr-mini-text">记录生活，也记录成长。</div><div class="zr-mini-line"></div><div class="zr-mini-line"></div></div><div><div class="zr-mini-avatar">Z</div><div class="zr-mini-line"></div><div class="zr-mini-line"></div></div></div></div>',
+          fluid:'<div class="zr-landscape"><h3>山海之间</h3><p>生活的每一步，都值得记录</p></div>',
+          next:'<div class="zr-cover-page"><div class="zr-next-side">NexT<div class="zr-mini-line"></div><div class="zr-mini-line"></div><div class="zr-mini-line"></div></div><div class="zr-next-article"><div class="zr-mini-title">保持好奇，持续书写</div><div class="zr-mini-text">关于代码、阅读与生活</div><div class="zr-mini-line"></div><div class="zr-mini-line"></div><div class="zr-mini-line"></div></div></div>',
+          simple:'<div class="zr-cover-page"><div class="zr-mini-title">Less, but better.</div><div class="zr-mini-text">一些文字，一些想法。</div><div class="zr-mini-line"></div><div class="zr-mini-line"></div><div class="zr-mini-line"></div></div>'
+        };
+        return `<div class="zr-cover zr-cover-${theme.cover}" role="img" aria-label="${theme.name}的示意预览">${theme.active ? badge('已应用','zr-success','check') : state.preview === theme.id ? badge('预览中','zr-blue','eye') : ''}${contents[theme.cover]}</div>`;
+      }
+      function themeActions(theme) {
+        if (theme.active) return button('配置','config',theme.id,'zr-soft','settings-2');
+        return button('预览','preview',theme.id,'','eye') + button('应用','apply',theme.id,'zr-soft');
+      }
+      function themeCard(theme) {
+        return `<article class="zr-card ${theme.active ? 'zr-active' : ''}">${cover(theme)}<div class="zr-card-content"><div class="zr-card-title"><div class="zr-card-name"><h3>${theme.name}</h3>${theme.removable ? '' : badge('内置','','shield-check')}</div><span class="zr-version">v${theme.version}</span></div><p class="zr-card-desc">${theme.desc}</p><div class="zr-metadata">${authorLink(theme)}<span>·</span>${theme.tags.map(tag => badge(tag)).join('')}</div></div><div class="zr-card-footer"><div class="zr-actions">${themeActions(theme)}</div><div class="zr-actions">${theme.active ? '<span class="zr-status-note">当前站点主题</span>' : `<button type="button" class="zr-button zr-quiet zr-icon" data-action="config" data-item="${theme.id}" aria-label="配置${theme.name}">${icon('settings-2')}</button>${theme.removable ? `<button type="button" class="zr-button zr-icon" data-action="remove" data-item="${theme.id}" aria-label="删除${theme.name}">${icon('trash-2')}</button>` : `<button type="button" class="zr-button zr-icon" disabled aria-label="内置主题不可删除">${icon('lock-keyhole')}</button>`}`}</div></div></article>`;
+      }
+      function authorLink(theme) {
+        return theme.url ? `<a class="zr-author-link" href="${theme.url}" target="_blank" rel="noopener noreferrer" aria-label="访问 ${theme.author} 的主页（新标签页）">${theme.author}${icon('external-link')}</a>` : `<span>${theme.author}</span>`;
+      }
+      function pluginActions(plugin) {
+        return button('管理','config',plugin.id,'zr-quiet','settings-2') + (plugin.required ? `<button type="button" class="zr-button zr-icon" disabled aria-label="系统插件不可卸载">${icon('lock-keyhole')}</button>` : `<button type="button" class="zr-button zr-icon" data-action="remove" data-item="${plugin.id}" aria-label="卸载${plugin.name}">${icon('trash-2')}</button>`);
+      }
+      function pluginCard(plugin) {
+        return `<article class="zr-card zr-plugin-card"><div class="zr-card-content"><div class="zr-plugin-card-top"><div class="zr-plugin-icon">${icon(plugin.icon)}</div><h3>${plugin.name}</h3>${plugin.required ? badge('系统') : ''}</div><p class="zr-card-desc">${plugin.desc}</p><div class="zr-services">${plugin.services.map(service => badge(service)).join('')}</div></div><div class="zr-card-footer"><span class="zr-status-note">${plugin.shortName}</span><div class="zr-row-actions">${pluginActions(plugin)}</div></div></article>`;
+      }
+      function listRow(item) {
+        const isTheme = state.page === 'themes';
+        return `<article class="zr-list-row"><div class="zr-list-info"><div class="zr-plugin-icon">${icon(isTheme ? 'palette' : item.icon)}</div><div class="zr-list-copy"><div class="zr-list-name"><h3>${item.name}</h3>${isTheme ? `${item.removable ? '' : badge('内置','','shield-check')}${item.active ? badge('已应用','zr-success') : state.preview === item.id ? badge('预览中','zr-blue') : ''}` : item.required ? badge('系统') : ''}</div><p class="zr-list-desc">${item.desc}</p>${isTheme ? `<div class="zr-metadata">${authorLink(item)}</div>` : ''}</div></div><div class="zr-services">${isTheme ? `<span class="zr-version">v${item.version}</span>` : item.services.map(service => badge(service)).join('')}</div><div class="zr-row-actions">${isTheme ? themeActions(item) : pluginActions(item)}</div></article>`;
+      }
+      function renderResults() {
+        const isTheme = state.page === 'themes';
+        const data = isTheme ? themes : plugins;
+        const selected = data.filter(item => {
+          const haystack = [item.name,item.author,item.shortName,item.desc,...(item.services || []),...(item.tags || [])].join(' ').toLowerCase();
+          return haystack.includes(state.search.trim().toLowerCase()) && (state.filter === 'all' || (state.filter === 'active' && item.active) || (state.filter === 'preview' && item.id === state.preview) || (state.filter === 'removable' && (isTheme ? item.removable : !item.required)) || (state.filter === 'system' && (isTheme ? !item.removable : item.required)));
+        });
+        if (!selected.length) query('[data-results]').innerHTML = `<div class="zr-empty">${icon('search')}<p>没有找到匹配的${isTheme ? '主题' : '插件'}</p>${button('清除筛选','clear')}</div>`;
+        else if (state.view === 'grid') query('[data-results]').innerHTML = `<div class="zr-grid">${selected.map(isTheme ? themeCard : pluginCard).join('')}</div>`;
+        else query('[data-results]').innerHTML = `<div class="zr-plugin-table"><div class="zr-list-head"><span>${isTheme ? '主题' : '插件'}信息</span><span class="zr-service-heading">${isTheme ? '版本' : '提供的服务'}</span><span>操作</span></div>${selected.map(listRow).join('')}</div>`;
+        query('[data-summary]').textContent = `显示 ${selected.length} / ${data.length} 个${isTheme ? '主题' : '插件'}`;
+        query('[data-footer-note]').textContent = isTheme ? '应用主题后，博客外观随之更新' : '系统插件为站点提供必要服务';
+        root.querySelectorAll('[data-view]').forEach(element => element.setAttribute('aria-pressed', String(element.dataset.view === state.view)));
+        query('[data-count]').textContent = `已安装 ${data.length}`;
+        const notice = query('[data-notice]');
+        notice.hidden = !isTheme || !state.preview;
+        if (!notice.hidden) notice.innerHTML = icon('eye') + `<span>正在预览 ${themes.find(theme => theme.id === state.preview).name}，访客仍看到当前已应用主题</span>`;
+        icons();
+      }
+      function renderPage() {
+        const isTheme = state.page === 'themes';
+        query('[data-title]').textContent = isTheme ? '主题' : '插件';
+        query('[data-breadcrumb]').textContent = isTheme ? '主题' : '插件';
+        query('[data-description]').textContent = isTheme ? '管理已安装主题，预览和调整博客外观。' : '管理已安装插件，配置站点的扩展功能。';
+        query('[data-header-actions]').innerHTML = isTheme ? button('上传主题','upload','','','upload') + button('获取更多主题','market','','zr-primary','plus') : button('运行时控制台','runtime','','','activity') + button('获取更多插件','market','','zr-primary','plus');
+        query('[data-search]').value = state.search;
+        query('[data-search]').placeholder = isTheme ? '搜索主题名称、作者…' : '搜索插件名称、服务…';
+        query('[data-search]').setAttribute('aria-label', isTheme ? '搜索主题名称、作者' : '搜索插件名称、服务');
+        const filters = isTheme ? [['all','全部主题'],['active','已应用'],['preview','预览中'],['system','内置主题'],['removable','可删除']] : [['all','全部插件'],['system','系统插件'],['removable','可卸载']];
+        query('[data-filter]').innerHTML = filters.map(([value,label]) => `<option value="${value}">${label}</option>`).join('');
+        query('[data-filter]').value = state.filter;
+        root.querySelectorAll('[data-page]').forEach(element => {
+          if (element.dataset.page === state.page) element.setAttribute('aria-current','page');
+          else element.removeAttribute('aria-current');
+        });
+        renderResults();
+      }
+      function showDialog(title, content, onConfirm) {
+        query('[data-dialog-title]').textContent = title;
+        query('[data-dialog-content]').innerHTML = content;
+        const confirm = query('[data-confirm]');
+        if (confirm) confirm.addEventListener('click', () => { query('[data-dialog]').close(); if (onConfirm) onConfirm(); });
+        query('[data-dialog]').showModal();
+        icons();
+      }
+      function showDestination(title, description) {
+        showDialog(title, `<p class="zr-description">${description}</p><div class="zr-actions"><button type="button" class="zr-button zr-primary" data-confirm>返回</button></div>`);
+      }
+      query('[data-search]').addEventListener('input', event => { state.search = event.target.value; renderResults(); });
+      query('[data-filter]').addEventListener('change', event => { state.filter = event.target.value; renderResults(); });
+      query('[data-close]').addEventListener('click', () => query('[data-dialog]').close());
+      root.addEventListener('click', event => {
+        const target = event.target.closest('button');
+        if (!target) return;
+        if (target.dataset.page) { state.page = target.dataset.page; state.view = state.page === 'themes' ? 'grid' : 'list'; state.filter = 'all'; state.search = ''; renderPage(); return; }
+        if (target.dataset.view) { state.view = target.dataset.view; renderResults(); return; }
+        if (target.hasAttribute('data-appearance')) { root.style.colorScheme = getComputedStyle(root).colorScheme === 'dark' ? 'light' : 'dark'; return; }
+        const action = target.dataset.action;
+        if (!action) return;
+        const isTheme = state.page === 'themes';
+        const item = (isTheme ? themes : plugins).find(entry => entry.id === target.dataset.item);
+        if (action === 'clear') { state.search = ''; state.filter = 'all'; renderPage(); }
+        else if (action === 'preview' && item) { state.preview = item.id; renderResults(); }
+        else if (action === 'apply' && item) {
+          showDialog(`应用 ${item.name}`, '<p class="zr-description">应用后，博客将使用该主题。你可以随时切换回其他已安装主题。</p><div class="zr-actions"><button type="button" class="zr-button zr-primary" data-confirm>应用主题</button></div>', () => { themes.forEach(theme => theme.active = theme.id === item.id); state.preview = null; renderResults(); });
+        } else if (action === 'config' && item) showDestination(`${item.name} · ${isTheme ? '主题配置' : '插件管理'}`, isTheme ? '此入口进入原有主题配置页面。' : '此入口进入该插件自己的管理页面。');
+        else if (action === 'remove' && item) showDestination(`${isTheme ? '删除主题' : '卸载插件'} · ${item.name}`, '正式操作前将显示确认提示。此设计预览不会修改站点数据。');
+        else if (action === 'upload') showDestination('上传主题', '此入口展开现有主题安装流程，支持主题包检查与安装。');
+        else if (action === 'runtime') showDestination('运行时控制台', '此入口进入现有控制台，查看调度、运行状态、通知与服务。');
+        else if (action === 'market') showDestination(isTheme ? '主题中心' : '插件市场', `此入口打开现有${isTheme ? '主题中心' : '插件市场'}，浏览和安装更多扩展。`);
+      });
+      renderPage();
+      if (globalThis.Tweak) {
+        const tweak = new Tweak({container:root,onChange:() => {
+          root.style.setProperty('--zr-primary', design.accent);
+          root.style.setProperty('--zr-primary-fill', design.accent);
+          root.style.setProperty('--zr-selected', `color-mix(in srgb, ${design.accent} 10%, var(--zr-surface))`);
+          root.style.setProperty('--zr-radius', `${design.radius}px`);
+          root.style.setProperty('--zr-space', design.spacing === 'compact' ? '18px' : '24px');
+        }});
+        tweak.addColorPicker(design,'accent',{label:'主题色',reference:'--zr-primary'});
+        tweak.addSlider(design,'radius',{label:'圆角',min:0,max:12,step:2,unit:'px',reference:'--zr-radius'});
+        tweak.addSelect(design,'spacing',{label:'页面留白',options:[{label:'舒适',value:'comfortable'},{label:'紧凑',value:'compact'}]});
+      }
+    })();
+  </script>
+</div>

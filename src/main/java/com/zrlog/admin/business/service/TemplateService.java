@@ -8,6 +8,8 @@ import com.zrlog.admin.business.rest.response.UpdateRecordResponse;
 import com.zrlog.admin.business.rest.response.UploadTemplateResponse;
 import com.zrlog.admin.business.rest.response.DeleteResponse;
 import com.zrlog.admin.business.rest.response.TemplateDownloadResponse;
+import com.zrlog.admin.business.rest.response.TemplateEntryResponse;
+import com.zrlog.theme.spi.BundledThemes;
 import com.zrlog.admin.business.type.AdminAuditAction;
 import com.zrlog.admin.web.controller.api.TemplateController;
 import com.zrlog.business.service.TemplateInfoHelper;
@@ -41,6 +43,7 @@ import java.sql.SQLException;
 import java.util.*;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
+import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipException;
 import java.util.zip.ZipInputStream;
@@ -381,7 +384,7 @@ public class TemplateService {
         return list;
     }
 
-    public List<BaseTemplateVO> getAllTemplates(String previewTemplate) throws IOException {
+    public List<TemplateEntryResponse> getAllTemplates(String previewTemplate) throws IOException {
         String currentTemplate = AdminConstants.getPublicWebSiteInfo().getTemplate();
         if (!TemplateInfoHelper.isDefaultTemplate(currentTemplate)) {
             try {
@@ -424,7 +427,12 @@ public class TemplateService {
                 templateVO.setPreview(true);
             }
         }
-        return templates;
+        return templates.stream().map(template -> {
+            TemplateEntryResponse entry = BeanUtil.convert(template, TemplateEntryResponse.class);
+            // The SPI registry defines built-in themes independently of their loading mechanism.
+            entry.setBuiltIn(BundledThemes.getInstance().contains(template.getTemplate()));
+            return entry;
+        }).collect(Collectors.toList());
     }
 
     public TemplateVO loadTemplateConfig(String templateName) {
