@@ -11,6 +11,7 @@ import { postRefreshCacheSse } from "../utils/sse-utils";
 
 type BaseTableProps = {
     deleteApi: string;
+    canDelete?: boolean;
     deleteSuccessCallback?: (id: number) => void;
     columns: TableColumnsType<any>;
     actionColumnWidth?: number;
@@ -62,6 +63,7 @@ export type MyPagination = {
 
 const BaseTable: FunctionComponent<BaseTableProps> = ({
     deleteApi,
+    canDelete = true,
     editBtnRender,
     addBtnRender,
     columns,
@@ -227,27 +229,29 @@ const BaseTable: FunctionComponent<BaseTableProps> = ({
                                   );
                               })
                             : null}
-                        <Popconfirm
-                            disabled={deleteDisabled}
-                            title={getRes().deleteTips}
-                            onConfirm={async () => {
-                                const success = await handleDelete(tableDataState.pagination, deleteApi, record.id);
-                                if (success) {
-                                    if (deleteSuccessCallback) {
-                                        deleteSuccessCallback(record.id);
-                                    }
-                                }
-                            }}
-                        >
-                            <Button
+                        {canDelete && (
+                            <Popconfirm
                                 disabled={deleteDisabled}
-                                danger
-                                type="text"
-                                size="small"
-                                title={disabledDeleteTip || getRes().deleteTips}
-                                icon={<DeleteOutlined />}
-                            />
-                        </Popconfirm>
+                                title={getRes().deleteTips}
+                                onConfirm={async () => {
+                                    const success = await handleDelete(tableDataState.pagination, deleteApi, record.id);
+                                    if (success) {
+                                        if (deleteSuccessCallback) {
+                                            deleteSuccessCallback(record.id);
+                                        }
+                                    }
+                                }}
+                            >
+                                <Button
+                                    disabled={deleteDisabled}
+                                    danger
+                                    type="text"
+                                    size="small"
+                                    title={disabledDeleteTip || getRes().deleteTips}
+                                    icon={<DeleteOutlined />}
+                                />
+                            </Popconfirm>
+                        )}
                     </Space>
                 ) : null;
             },

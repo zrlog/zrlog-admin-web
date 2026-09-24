@@ -6,6 +6,7 @@
 
 - [`openapi.yaml`](openapi.yaml)：机器可读的 OpenAPI 3.1 契约，是路径、方法、参数和响应结构的文档来源。
 - [`conventions.md`](conventions.md)：鉴权、context path、响应包装、错误和副作用等跨接口约定。
+- [`oauth.md`](oauth.md)：外部应用授权协议、scope 和部署范围。
 - Controller、DTO 和测试：接口实现来源。文档与实现不一致时，应在同一改动中修正，不保留两套语义。
 
 人类可浏览的聚合页面由 `zrlog-www` 提供：`https://www.zrlog.com/docs/api?source=admin-web`。该页面读取本仓库契约，不拥有或改写接口定义。

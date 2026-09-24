@@ -1,5 +1,8 @@
 package com.zrlog.admin.web.controller.api;
 
+import com.zrlog.admin.web.annotation.RequiresAction;
+import com.zrlog.data.security.AccountAction;
+
 import com.hibegin.http.annotation.ResponseBody;
 import com.zrlog.admin.business.rest.request.ExecuteUpgradeRequest;
 import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
@@ -26,6 +29,7 @@ public class UpgradeController extends BaseController {
 
 
     @ResponseBody
+    @RequiresAction(value = AccountAction.SYSTEM_MANAGE, descriptionKey = "system.upgradeCheck")
     public AdminPageDataResponse<PreCheckVersionResponse> index() {
         PreCheckVersionResponse preCheckVersionResponse = AdminStaticService.getInstance().getUpgradeService().preUpgradeVersion(true, Constants.zrLogConfig.getPlugin(UpdateVersionInfoPlugin.class));
         return new AdminPageDataResponse<>(preCheckVersionResponse,
@@ -33,6 +37,7 @@ public class UpgradeController extends BaseController {
     }
 
     @ResponseBody
+    @RequiresAction(value = AccountAction.SYSTEM_MANAGE, descriptionKey = "system.upgradeNotice")
     public ApiStandardResponse<CheckVersionResponse> notice() {
         boolean fetch = Objects.equals("true", request.getParaToStr("fetch", "false"));
         return new ApiStandardResponse<>(
@@ -43,6 +48,7 @@ public class UpgradeController extends BaseController {
 
 
     @ResponseBody
+    @RequiresAction(value = AccountAction.SYSTEM_MANAGE, descriptionKey = "system.upgrade")
     public void doUpgrade() throws IOException {
         ExecuteUpgradeRequest upgradeRequest = getRequestBodyWithNullCheck(ExecuteUpgradeRequest.class);
         UpdateVersionInfoPlugin plugin = Constants.zrLogConfig.getPlugin(UpdateVersionInfoPlugin.class);

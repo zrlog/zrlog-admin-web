@@ -1,3 +1,4 @@
+import { getSsDate } from "../base/SsData";
 import {
     ApiOutlined,
     EditOutlined,
@@ -8,14 +9,14 @@ import {
 } from "@ant-design/icons";
 import type { SpotlightItem, SpotlightRecentItem, SpotlightRenderImageIcon } from "./spotlight-search-types";
 
-const RECENT_STORAGE_KEY = "zrlog_spotlight_recent";
+const recentStorageKey = () => "zrlog_spotlight_recent_" + (getSsDate().key || "anonymous");
 
 export const spotlightItemStorageKey = (item: Pick<SpotlightItem, "id" | "type" | "sourceId">) =>
     `${item.sourceId || item.type}:${item.id}`;
 
 const readRecentItems = (): SpotlightRecentItem[] => {
     try {
-        const stored = JSON.parse(localStorage.getItem(RECENT_STORAGE_KEY) || "[]");
+        const stored = JSON.parse(localStorage.getItem(recentStorageKey()) || "[]");
         return Array.isArray(stored) ? stored : [];
     } catch (e) {
         return [];
@@ -43,7 +44,7 @@ export const saveSpotlightRecentItem = (item: SpotlightItem) => {
             0,
             5
         );
-        localStorage.setItem(RECENT_STORAGE_KEY, JSON.stringify(newStored));
+        localStorage.setItem(recentStorageKey(), JSON.stringify(newStored));
     } catch (e) {
         console.error(e);
     }

@@ -3,7 +3,7 @@ import { ArticleDraftSyncState } from "../components/articleEdit/draft-sync/arti
 import { AIProviderType } from "../type";
 import { articleDataToState, articleSaveToCache, getArticleDraftSyncState, getLocalArticleCaches } from "./article-cache";
 
-const cacheStorageKey = () => `${window.location.host}_cache_page_data`;
+const cacheStorageKey = () => `${window.location.host}_cache_page_data_session_anonymous`;
 
 describe("article cache", () => {
     beforeEach(() => {

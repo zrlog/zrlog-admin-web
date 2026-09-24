@@ -1,5 +1,8 @@
 package com.zrlog.admin.web.controller.api;
 
+import com.zrlog.admin.web.annotation.RequiresAction;
+import com.zrlog.data.security.AccountAction;
+
 import com.hibegin.http.annotation.ResponseBody;
 import com.zrlog.admin.business.rest.request.ReadMessageCenterNoticeRequest;
 import com.zrlog.admin.business.rest.request.UpgradeRestartNoticeRequest;
@@ -18,17 +21,20 @@ public class MessageCenterController extends BaseController {
     private final MessageCenterService messageCenterService = new MessageCenterService();
 
     @ResponseBody
+    @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "notice.list")
     public ApiStandardResponse<List<MessageCenterNoticeResponse>> index() throws SQLException {
         return new ApiStandardResponse<>(messageCenterService.listNotices());
     }
 
     @ResponseBody
+    @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "notice.read")
     public UpdateRecordResponse read() {
         ReadMessageCenterNoticeRequest readRequest = getRequestBodyWithNullCheck(ReadMessageCenterNoticeRequest.class);
         return new UpdateRecordResponse(messageCenterService.markRead(readRequest.getTaskKey()));
     }
 
     @ResponseBody
+    @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "notice.restart")
     public UpdateRecordResponse upgradeRestart() {
         UpgradeRestartNoticeRequest noticeRequest = getRequestBodyWithNullCheck(UpgradeRestartNoticeRequest.class);
         new MessageCenterOperationService().recordUpgradeRestart(noticeRequest.getStatus(), noticeRequest.getBuildId());

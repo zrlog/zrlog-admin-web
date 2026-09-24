@@ -40,6 +40,12 @@ public class UploadService {
     public UploadFileResponse saveUploadedFile(File file, String dir, String name, HttpRequest request,
                                                AdminTokenVO adminTokenVO) throws IOException, SQLException {
         String resolvedDir = UploadFileUtils.resolveUploadDir(dir);
+        com.zrlog.data.security.AccountAccess actor = AccountPermissionService.account(adminTokenVO);
+        if (!actor.isAdministrator()) {
+            resolvedDir = normalizeTemporaryDir(resolvedDir) == null
+                    ? "users/" + actor.getUserId()
+                    : AdminConstants.ADMIN_DB_ATTACHED_TMP + "/users/" + actor.getUserId();
+        }
         String uri = UploadFileUtils.generatorUri(resolvedDir, file, name);
         String temporaryUri = buildTemporaryUri(resolvedDir, file, name);
         if (temporaryUri != null) {

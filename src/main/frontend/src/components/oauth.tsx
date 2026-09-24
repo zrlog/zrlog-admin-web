@@ -1,0 +1,217 @@
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { QuestionCircleOutlined } from "@ant-design/icons";
+import {
+    Alert,
+    Button,
+    Card,
+    Drawer,
+    Empty,
+    Form,
+    Input,
+    List,
+    Popconfirm,
+    Space,
+    Tag,
+    Typography,
+    message,
+} from "antd";
+import { useAxiosBaseInstance } from "../base/AppBase";
+import { getRealRouteUrl, getRes } from "../utils/constants";
+type Client = { clientId: string; name: string; redirectUris: string[] };
+type Grant = { id: string; clientName: string; scope: string; createdAt: number; revoked: boolean };
+type Page = { clients: Client[]; grants: Grant[]; administrator: boolean; issuer: string; resource: string };
+export default function OAuth({ data }: { data: Page }) {
+    const navigate = useNavigate();
+    const [page, setPage] = useState(data);
+    const [open, setOpen] = useState(false);
+    const [busy, setBusy] = useState(false);
+    const [form] = Form.useForm();
+    const [notice, contextHolder] = message.useMessage();
+    const api = useAxiosBaseInstance();
+    const res = getRes().oauth;
+    const labels: Record<string, string> = res.scopeLabels;
+    const reload = async () => {
+        const response = await api.get("/api/admin/oauth");
+        if (!response.data.error) setPage(response.data.data);
+    };
+    const mutate = async (action: string, body: unknown) => {
+        setBusy(true);
+        try {
+            const response = await api.post(`/api/admin/oauth/${action}`, body);
+            if (response.data.error) {
+                notice.error(response.data.message);
+                return false;
+            }
+            await reload();
+            notice.success(res.saved);
+            return true;
+        } finally {
+            setBusy(false);
+        }
+    };
+    return (
+        <Space orientation="vertical" size="large" style={{ width: "100%" }}>
+            {contextHolder}
+            <Card
+                title={res.title}
+                extra={
+                    <Button icon={<QuestionCircleOutlined />} onClick={() => navigate(getRealRouteUrl("/access"))}>
+                        {getRes().access.title}
+                    </Button>
+                }
+            >
+                <Typography.Paragraph>{res.description}</Typography.Paragraph>
+                <Space orientation="vertical" style={{ maxWidth: "100%" }}>
+                    <Typography.Text>{res.issuer}</Typography.Text>
+                    <Typography.Text copyable style={{ overflowWrap: "anywhere" }}>
+                        {page.issuer}
+                    </Typography.Text>
+                    <Typography.Text>{res.resource}</Typography.Text>
+                    <Typography.Text copyable style={{ overflowWrap: "anywhere" }}>
+                        {page.resource}
+                    </Typography.Text>
+                </Space>
+            </Card>
+            <Card title={res.grants}>
+                <List
+                    locale={{ emptyText: <Empty description={res.empty} /> }}
+                    dataSource={page.grants}
+                    renderItem={(grant) => (
+                        <List.Item
+                            actions={
+                                grant.revoked
+                                    ? []
+                                    : [
+                                          <Popconfirm
+                                              key="revoke"
+                                              title={res.confirmRevoke}
+                                              onConfirm={() => mutate("revokeGrant", { id: grant.id })}
+                                          >
+                                              <Button loading={busy}>{res.revoke}</Button>
+                                          </Popconfirm>,
+                                      ]
+                            }
+                        >
+                            <List.Item.Meta
+                                title={
+                                    <Space wrap>
+                                        {grant.clientName}
+                                        <Tag>{grant.revoked ? res.revoked : res.active}</Tag>
+                                    </Space>
+                                }
+                                description={
+                                    <Space orientation="vertical">
+                                        <Typography.Text type="secondary">
+                                            {new Date(grant.createdAt).toLocaleString()}
+                                        </Typography.Text>
+                                        <Typography.Text>
+                                            {res.range}:{" "}
+                                            {grant.scope.split(" ").includes("articles:all") ? res.all : res.own}
+                                        </Typography.Text>
+                                        <Space wrap>
+                                            {grant.scope
+                                                .split(" ")
+                                                .filter((s) => s !== "articles:all")
+                                                .map((scope) => (
+                                                    <Tag key={scope}>{labels[scope] ?? scope}</Tag>
+                                                ))}
+                                        </Space>
+                                    </Space>
+                                }
+                            />
+                        </List.Item>
+                    )}
+                />
+            </Card>
+            {page.administrator && (
+                <Card
+                    title={res.applications}
+                    extra={
+                        <Button
+                            type="primary"
+                            onClick={() => {
+                                form.resetFields();
+                                setOpen(true);
+                            }}
+                        >
+                            {res.register}
+                        </Button>
+                    }
+                >
+                    <Typography.Paragraph>{res.registerHelp}</Typography.Paragraph>
+                    <List
+                        dataSource={page.clients}
+                        renderItem={(client) => (
+                            <List.Item
+                                actions={[
+                                    <Popconfirm
+                                        key="disable"
+                                        title={res.confirmDisable}
+                                        onConfirm={() => mutate("disableClient", { id: client.clientId })}
+                                    >
+                                        <Button loading={busy}>{res.disable}</Button>
+                                    </Popconfirm>,
+                                ]}
+                            >
+                                <List.Item.Meta
+                                    title={client.name}
+                                    description={
+                                        <Space orientation="vertical" style={{ maxWidth: "100%" }}>
+                                            <Typography.Text copyable style={{ overflowWrap: "anywhere" }}>
+                                                {client.clientId}
+                                            </Typography.Text>
+                                            {client.redirectUris.map((uri) => (
+                                                <Typography.Text
+                                                    key={uri}
+                                                    type="secondary"
+                                                    style={{ overflowWrap: "anywhere" }}
+                                                >
+                                                    {uri}
+                                                </Typography.Text>
+                                            ))}
+                                        </Space>
+                                    }
+                                />
+                            </List.Item>
+                        )}
+                    />
+                </Card>
+            )}
+            <Drawer title={res.register} open={open} onClose={() => setOpen(false)} destroyOnHidden>
+                <Form
+                    form={form}
+                    layout="vertical"
+                    onFinish={async (values) => {
+                        if (
+                            await mutate("register", {
+                                name: values.name,
+                                redirectUris: values.redirectUris
+                                    .split(/\r?\n/)
+                                    .map((v: string) => v.trim())
+                                    .filter(Boolean),
+                            })
+                        )
+                            setOpen(false);
+                    }}
+                >
+                    <Form.Item name="name" label={res.name} rules={[{ required: true, max: 128 }]}>
+                        <Input />
+                    </Form.Item>
+                    <Form.Item
+                        name="redirectUris"
+                        label={res.redirectUris}
+                        rules={[{ required: true }]}
+                        extra={res.redirectHelp}
+                    >
+                        <Input.TextArea autoSize={{ minRows: 3, maxRows: 8 }} />
+                    </Form.Item>
+                    <Alert type="info" title={res.registerHelp} style={{ marginBottom: 16 }} />
+                    <Button type="primary" htmlType="submit" loading={busy}>
+                        {res.register}
+                    </Button>
+                </Form>
+            </Drawer>
+        </Space>
+    );
+}

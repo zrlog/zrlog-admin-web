@@ -37,10 +37,16 @@ public class UploadControllerTest {
     public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
     private final com.zrlog.common.ZrLogConfig previousConfig = Constants.zrLogConfig;
+    private com.zrlog.admin.support.InMemoryZrLogDatabase permissionDb;
+
+    @org.junit.Before
+    public void openPermissionDatabase() throws Exception { permissionDb = com.zrlog.admin.support.InMemoryZrLogDatabase.open(); }
+
     private final String previousRootPath = System.getProperty("sws.root.path");
 
     @After
-    public void tearDown() {
+    public void tearDown() throws Exception {
+        permissionDb.close();
         Constants.zrLogConfig = previousConfig;
         if (previousRootPath == null) {
             System.clearProperty("sws.root.path");

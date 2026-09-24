@@ -1,5 +1,8 @@
 package com.zrlog.admin.web.controller.api;
 
+import com.zrlog.admin.web.annotation.RequiresAction;
+import com.zrlog.data.security.AccountAction;
+
 import com.google.gson.Gson;
 import com.hibegin.common.util.StringUtils;
 import com.hibegin.http.HttpMethod;
@@ -49,6 +52,8 @@ public class AdminArticleController extends BaseController {
 
     @RefreshCache(async = true, updateStaticSites = StaticSiteType.BLOG)
     @ResponseBody
+    @RequiresAction(value = AccountAction.ARTICLE_DELETE, articleIds = true, descriptionKey = "article.delete")
+    @RequestMethod(method = HttpMethod.POST)
     public DeleteResponse delete() throws SQLException {
         if (ZrLogUtil.isPreviewMode()) {
             throw new PermissionErrorException();
@@ -61,6 +66,7 @@ public class AdminArticleController extends BaseController {
     }
 
     @RequestMethod(method = HttpMethod.POST)
+    @RequiresAction(value = AccountAction.ARTICLE_CREATE, conditional = AccountAction.ARTICLE_PUBLISH, descriptionKey = "article.create")
     public void create() throws SQLException, IOException {
         CreateArticleRequest body = getRequestBodyWithNullCheck(CreateArticleRequest.class);
         publishingService.prepareRequest(body);
@@ -74,6 +80,7 @@ public class AdminArticleController extends BaseController {
     }
 
     @RequestMethod(method = HttpMethod.POST)
+    @RequiresAction(value = AccountAction.ARTICLE_UPDATE, conditional = AccountAction.ARTICLE_PUBLISH, descriptionKey = "article.update")
     public void update() throws SQLException, IOException {
         UpdateArticleRequest body = getRequestBodyWithNullCheck(UpdateArticleRequest.class);
         publishingService.prepareRequest(body);
@@ -229,6 +236,7 @@ public class AdminArticleController extends BaseController {
     }
 
     @ResponseBody
+    @RequiresAction(value = AccountAction.ARTICLE_READ, descriptionKey = "article.list")
     public AdminPageDataResponse<ArticlePageData> index()
             throws SQLException, ExecutionException, InterruptedException {
         String key = request.getParaToStr("key", "");
@@ -241,6 +249,7 @@ public class AdminArticleController extends BaseController {
     }
 
     @ResponseBody
+    @RequiresAction(value = AccountAction.ARTICLE_READ, articleQuery = true, descriptionKey = "article.editor")
     public AdminPageDataResponse<ArticleGlobalResponse> articleEdit() throws SQLException {
         String id = request.getParaToStr("id", "");
         return articleService.loadDetailById(id, request);
@@ -254,10 +263,12 @@ public class AdminArticleController extends BaseController {
      */
     @ResponseBody
     @Deprecated
+    @RequiresAction(value = AccountAction.ARTICLE_READ, articleQuery = true, descriptionKey = "article.detail")
     public AdminPageDataResponse<LoadEditArticleResponse> detail() throws SQLException {
         return new AdminPageDataResponse<>(articleService.loadDetail(getParamWithEmptyCheck("id"), request));
     }
 
+    @RequiresAction(value = AccountAction.ARTICLE_ASSIST, articleQuery = true, descriptionKey = "article.assist")
     public void ai() throws IOException, InterruptedException, SQLException {
         String tool = request.getParaToStr("tool", "");
         GenerateArticleFieldRequest articleContext = StringUtils.isNotEmpty(tool)
@@ -268,7 +279,7 @@ public class AdminArticleController extends BaseController {
         }
         boolean includeArticleContext = !Objects.equals(request.getParaToStr("includeArticleContext", "true"), "false");
         AIStreamResponse streamResponse = new AIChatService().startStreamResponse(getParamWithEmptyCheck("input"),
-                Long.parseLong(getParamWithEmptyCheck("id")), tool, articleContext, includeArticleContext);
+                aiContextId(), tool, articleContext, includeArticleContext);
         AdminSseEmitter.setHeaders(response);
         if (streamResponse.getInputStream() == null) {
             String errorPayload = new Gson().toJson(AdminSsePayloads.error(1,
@@ -280,42 +291,52 @@ public class AdminArticleController extends BaseController {
         response.write(streamResponse.getInputStream(), streamResponse.getStatusCode());
     }
 
+    private long aiContextId() {
+        long id = Long.parseLong(request.getParaToStr("id", "0"));
+        return id == 0 ? -(long) AccountPermissionService.current().getUserId() : id;
+    }
+
     @ResponseBody
+    @RequiresAction(value = AccountAction.ARTICLE_ASSIST, articleQuery = true, descriptionKey = "article.aiContext")
     public ApiStandardResponse<List<AIResponseEntry.AIContentEntry>> appendAiContext()
             throws SQLException {
         AddArticleAIContextRequest contextRequest = getRequestBodyWithNullCheck(AddArticleAIContextRequest.class);
         List<AIResponseEntry.AIContentEntry> messages = new WebSiteService().appendArticleContextMessage(
-                Long.parseLong(getParamWithEmptyCheck("id")), contextRequest);
+                aiContextId(), contextRequest);
         return new ApiStandardResponse<>(messages.stream()
                 .filter(e -> !Objects.equals(e.getRole(), "system"))
                 .collect(java.util.stream.Collectors.toList()));
     }
 
     @ResponseBody
+    @RequiresAction(value = AccountAction.ARTICLE_ASSIST, articleQuery = true, descriptionKey = "article.aiMessage")
     public ApiStandardResponse<Boolean> updateAiMessage() throws SQLException {
         UpdateAIMessageRequest updateRequest = getRequestBodyWithNullCheck(UpdateAIMessageRequest.class);
-        boolean updated = new WebSiteService().updateAIMessagePayload(Long.parseLong(getParamWithEmptyCheck("id")),
+        boolean updated = new WebSiteService().updateAIMessagePayload(aiContextId(),
                 updateRequest.getMessageId(), updateRequest.getTool(), updateRequest.getPayload());
         return new ApiStandardResponse<>(updated);
     }
 
     @ResponseBody
+    @RequiresAction(value = AccountAction.ARTICLE_ASSIST, articleQuery = true, descriptionKey = "article.clearAiMessages")
     public ApiStandardResponse<Boolean> clearAiMessages() {
-        boolean cleared = new WebSiteService().clearAIMessage(Long.parseLong(getParamWithEmptyCheck("id")));
+        boolean cleared = new WebSiteService().clearAIMessage(aiContextId());
         return new ApiStandardResponse<>(cleared);
     }
 
     @ResponseBody
+    @RequiresAction(value = AccountAction.ARTICLE_ASSIST, articleQuery = true, descriptionKey = "article.exportAiMessages")
     public ApiStandardResponse<ArticleAIMessageExportResponse> exportAiMessages() {
         return new ApiStandardResponse<>(
-                new WebSiteService().exportAIMessage(Long.parseLong(getParamWithEmptyCheck("id"))));
+                new WebSiteService().exportAIMessage(aiContextId()));
     }
 
     @ResponseBody
+    @RequiresAction(value = AccountAction.ARTICLE_ASSIST, articleQuery = true, descriptionKey = "article.applyCover")
     public ApiStandardResponse<UploadFileResponse> applyCover() throws SQLException {
         ApplyArticleCoverRequest coverRequest = getRequestBodyWithNullCheck(ApplyArticleCoverRequest.class);
         UploadFileResponse uploadFileResponse = new AIImageService().applyArticleCover(coverRequest, getRequest(),
-                Long.parseLong(request.getParaToStr("id", "0")));
+                aiContextId());
         return new ApiStandardResponse<>(uploadFileResponse);
     }
 

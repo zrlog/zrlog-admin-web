@@ -2,6 +2,11 @@ package com.zrlog.admin.business.type;
 
 public enum AdminAuditAction {
 
+    UPDATE_MEMBER("admin.audit.action.updateMember", "security"),
+    TRANSFER_OWNERSHIP("admin.audit.action.transferOwnership", "security"),
+    AUTHORIZE_APPLICATION("admin.audit.action.authorizeApplication", "security"),
+    REVOKE_APPLICATION("admin.audit.action.revokeApplication", "security"),
+    REGISTER_APPLICATION("admin.audit.action.registerApplication", "security"),
     LOGIN_SUCCESS("admin.audit.action.loginSuccess", "login"),
     LOGIN_WITH_PASSKEY("admin.audit.action.loginWithPasskey", "login"),
     CREATE_ARTICLE("admin.audit.action.createArticle", "article"),

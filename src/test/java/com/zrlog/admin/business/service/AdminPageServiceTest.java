@@ -114,6 +114,7 @@ public class AdminPageServiceTest {
     @Test
     public void shouldRewriteStaticResourcesWithConfiguredCdnHostFromRealWebsiteTable() throws Throwable {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            AdminTokenThreadLocal.remove();
             db.putWebsite("admin_static_resource_base_url", "https://cdn.example");
 
             String html = new AdminPageService().buildHtml(
@@ -263,21 +264,25 @@ public class AdminPageServiceTest {
 
     public static class FakePageController extends Controller {
 
+        @com.zrlog.admin.web.annotation.RequiresAction(value = com.zrlog.data.security.AccountAction.SESSION, descriptionKey = "admin.pageData")
         @ResponseBody
         public AdminPageDataResponse<String> page() {
             return new AdminPageDataResponse<>("page-data", "", request.getUri());
         }
 
+        @com.zrlog.admin.web.annotation.RequiresAction(value = com.zrlog.data.security.AccountAction.SESSION, descriptionKey = "admin.pageData")
         @ResponseBody
         public ApiStandardResponse<Void> plain() {
             return new ApiStandardResponse<>();
         }
 
+        @com.zrlog.admin.web.annotation.RequiresAction(value = com.zrlog.data.security.AccountAction.SESSION, descriptionKey = "admin.pageData")
         @ResponseBody
         public ApiStandardResponse<Void> empty() {
             return null;
         }
 
+        @com.zrlog.admin.web.annotation.RequiresAction(value = com.zrlog.data.security.AccountAction.SESSION, descriptionKey = "admin.pageData")
         @ResponseBody
         public ApiStandardResponse<Void> explode() {
             throw new IllegalStateException("boom");

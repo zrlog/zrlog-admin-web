@@ -1,5 +1,8 @@
 package com.zrlog.admin.web.controller.api;
 
+import com.zrlog.admin.web.annotation.RequiresAction;
+import com.zrlog.data.security.AccountAction;
+
 import com.hibegin.common.util.StringUtils;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.ResponseBody;
@@ -21,6 +24,7 @@ public class WebhookController extends BaseController {
     private final WebhookService webhookService = new WebhookService();
 
     @ResponseBody
+    @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "webhook.configure")
     public StandardResponse config() {
         if (request.getMethod() == HttpMethod.POST) {
             WebhookConfigRequest configRequest = getRequestBodyWithNullCheck(WebhookConfigRequest.class);
@@ -35,6 +39,7 @@ public class WebhookController extends BaseController {
     }
 
     @ResponseBody
+    @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "webhook.rotateToken")
     public ApiStandardResponse<WebhookTokenResponse> token() {
         requirePost();
         WebhookTokenResponse response = webhookService.rotateToken();
@@ -43,6 +48,7 @@ public class WebhookController extends BaseController {
     }
 
     @ResponseBody
+    @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "webhook.revokeToken")
     public ApiStandardResponse<WebhookConfigResponse> revokeToken() {
         requirePost();
         WebhookConfigResponse response = webhookService.revokeToken();
@@ -51,6 +57,7 @@ public class WebhookController extends BaseController {
     }
 
     @ResponseBody
+    @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "webhook.createNotice")
     public ApiStandardResponse<WebhookMessageNoticeCreateResponse> messageCenterNotice() {
         requirePost();
         if (!webhookService.verifyToken(readToken())) {

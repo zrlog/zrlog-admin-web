@@ -17,6 +17,8 @@ public class AdminRefreshCacheInterceptor extends AdminInterceptor {
     public boolean doInterceptor(HttpRequest request, HttpResponse response) throws Exception {
         if (Objects.isNull(AdminInterceptorSupport.getAdminToken(request))) {
             validPluginToken(request);
+        } else if (!com.zrlog.admin.business.service.AccountPermissionService.account(AdminInterceptorSupport.getAdminToken(request)).isAdministrator()) {
+            response.renderCode(403); return false;
         }
         Method method = getMethod(request);
         doMethodInterceptor(request, response, method);

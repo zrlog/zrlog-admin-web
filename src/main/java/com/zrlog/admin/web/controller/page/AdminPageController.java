@@ -1,5 +1,8 @@
 package com.zrlog.admin.web.controller.page;
 
+import com.zrlog.admin.web.annotation.RequiresAction;
+import com.zrlog.data.security.AccountAction;
+
 import com.hibegin.http.annotation.ResponseBody;
 import com.hibegin.http.server.web.Controller;
 import com.zrlog.admin.business.AdminConstants;
@@ -16,6 +19,7 @@ public class AdminPageController extends Controller {
 
     private final AdminPageService adminPageService = new AdminPageService();
 
+    @RequiresAction(value = AccountAction.SESSION, descriptionKey = "admin.page")
     public void index() throws Throwable {
         if (BaseStaticSitePlugin.isStaticPluginRequest(request)) {
             renderIndex();
@@ -40,10 +44,12 @@ public class AdminPageController extends Controller {
     }
 
     @ResponseBody
+    @RequiresAction(value = AccountAction.SESSION, descriptionKey = "admin.pageData")
     public AdminPageDataResponse<ServerSideDataResponse<Object>> ssJson() throws Throwable {
         return new AdminPageDataResponse<>(adminPageService.serverSide(request.getParaToStr("uri"), request, response));
     }
 
+    @RequiresAction(value = AccountAction.SESSION, descriptionKey = "account.logout")
     public void logout() {
         Constants.zrLogConfig.getTokenService().removeAdminToken(request, response);
     }

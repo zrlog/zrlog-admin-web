@@ -70,6 +70,7 @@ public class ArticleVersionService {
     }
 
     public List<ArticleVersionResponse> listVersions(Integer logId) throws SQLException {
+        AccountPermissionService.readArticle(logId);
         List<ArticleVersionResponse> responses = new ArrayList<>();
         responses.add(loadCurrentVersion(logId));
 

@@ -1,3 +1,4 @@
+import { hasAction } from "../../utils/account-access";
 import { RefObject, SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { InputRef, Space } from "antd";
 import { MessageInstance } from "antd/es/message/interface";
@@ -530,6 +531,10 @@ const useArticleSaveCoordinator = ({
         autoSave: boolean,
         acquiredCreateRelease?: DraftArticleOperationRelease
     ): Promise<boolean> => {
+        if (!hasAction("article.publish") && (release || (article.logId && !article.rubbish))) {
+            acquiredCreateRelease?.();
+            return false;
+        }
         if (autoSave) {
             autoSaveOutcomeRef.current = undefined;
             autoSaveAcknowledgedArticleRef.current = undefined;

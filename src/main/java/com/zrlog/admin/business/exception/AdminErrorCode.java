@@ -12,6 +12,8 @@ public enum AdminErrorCode {
     PASSKEY_REQUEST_INVALID(9017, "ADMIN_PASSKEY_REQUEST_INVALID", "admin.passkey.error.invalid"),
     PASSKEY_REQUEST_BUSY(9018, "ADMIN_PASSKEY_REQUEST_BUSY", "admin.passkey.error.busy"),
     PASSKEY_LIMIT_EXCEEDED(9019, "ADMIN_PASSKEY_LIMIT_EXCEEDED", "admin.passkey.error.limitExceeded"),
+    ACCOUNT_STORAGE_UNSUPPORTED(9021, "ADMIN_ACCOUNT_STORAGE_UNSUPPORTED", "admin.accounts.storage.unsupported"),
+    OAUTH_REQUEST_INVALID(9020, "ADMIN_OAUTH_REQUEST_INVALID", "admin.oauth.error.invalid"),
     ARTICLE_TYPE_DELETE_HAS_ARTICLE(9025, "ADMIN_ARTICLE_TYPE_DELETE_HAS_ARTICLE", "admin.articleType.error.deleteHasArticle"),
     ARTICLE_TITLE_REQUIRED(9026, "ADMIN_ARTICLE_TITLE_REQUIRED", "admin.article.validation.titleRequired"),
     ARTICLE_TYPE_REQUIRED(9027, "ADMIN_ARTICLE_TYPE_REQUIRED", "admin.article.validation.typeRequired"),

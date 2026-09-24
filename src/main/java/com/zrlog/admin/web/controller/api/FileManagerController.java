@@ -1,5 +1,8 @@
 package com.zrlog.admin.web.controller.api;
 
+import com.zrlog.admin.web.annotation.RequiresAction;
+import com.zrlog.data.security.AccountAction;
+
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.RequestMethod;
 import com.hibegin.http.annotation.ResponseBody;
@@ -31,6 +34,7 @@ public class FileManagerController extends BaseController {
     private final FileManagerService fileManagerService = new FileManagerService();
 
     @ResponseBody
+    @RequiresAction(value = AccountAction.FILE_MANAGE, descriptionKey = "file.list")
     public AdminPageDataResponse<FileManagerResponse> index() throws SQLException {
         String path = request.getParaToStr("path", "");
         String key = request.getParaToStr("key", "");
@@ -39,6 +43,7 @@ public class FileManagerController extends BaseController {
     }
 
     @ResponseBody
+    @RequiresAction(value = AccountAction.FILE_MANAGE, descriptionKey = "file.search")
     public ApiStandardResponse<List<FileEntryVO>> search() throws SQLException {
         String key = request.getParaToStr("key", "");
         return new ApiStandardResponse<>(fileManagerService.search(key));
@@ -46,6 +51,7 @@ public class FileManagerController extends BaseController {
 
     @RequestMethod(method = HttpMethod.POST)
     @ResponseBody
+    @RequiresAction(value = AccountAction.FILE_MANAGE, descriptionKey = "file.refreshReferences")
     public ApiStandardResponse<Boolean> refreshReferenceIndex() throws SQLException {
         if (ZrLogUtil.isPreviewMode()) {
             throw new PermissionErrorException();
@@ -56,6 +62,7 @@ public class FileManagerController extends BaseController {
     @RefreshCache(async = true, updateStaticSites = StaticSiteType.BLOG)
     @RequestMethod(method = HttpMethod.POST)
     @ResponseBody
+    @RequiresAction(value = AccountAction.FILE_MANAGE, descriptionKey = "file.replaceUrl")
     public ApiStandardResponse<ReplaceArticleResourceUrlResponse> replaceArticleResourceUrl()
             throws IOException, SQLException {
         if (ZrLogUtil.isPreviewMode()) {
@@ -69,6 +76,7 @@ public class FileManagerController extends BaseController {
 
     @RequestMethod(method = HttpMethod.POST)
     @ResponseBody
+    @RequiresAction(value = AccountAction.FILE_MANAGE, descriptionKey = "file.restore")
     public ApiStandardResponse<UploadFileResponse> reuploadMissingLocalResource() throws IOException {
         if (ZrLogUtil.isPreviewMode()) {
             throw new PermissionErrorException();
@@ -92,6 +100,7 @@ public class FileManagerController extends BaseController {
 
     @RequestMethod(method = HttpMethod.POST)
     @ResponseBody
+    @RequiresAction(value = AccountAction.FILE_MANAGE, descriptionKey = "file.delete")
     public ApiStandardResponse<Boolean> delete() throws SQLException {
         String path = request.getParaToStr("path", "");
         if (path.isEmpty()) {
@@ -102,6 +111,7 @@ public class FileManagerController extends BaseController {
 
     @RequestMethod(method = HttpMethod.POST)
     @ResponseBody
+    @RequiresAction(value = AccountAction.FILE_MANAGE, descriptionKey = "file.rename")
     public ApiStandardResponse<Boolean> rename() throws SQLException {
         String path = request.getParaToStr("path", "");
         String newName = request.getParaToStr("newName", "");
@@ -115,6 +125,7 @@ public class FileManagerController extends BaseController {
 
     @RequestMethod(method = HttpMethod.POST)
     @ResponseBody
+    @RequiresAction(value = AccountAction.FILE_MANAGE, descriptionKey = "file.createDirectory")
     public ApiStandardResponse<Boolean> mkdir() {
         String path = request.getParaToStr("path", "");
         if (path.isEmpty()) {
@@ -124,16 +135,19 @@ public class FileManagerController extends BaseController {
     }
 
     @ResponseBody
+    @RequiresAction(value = AccountAction.FILE_MANAGE, descriptionKey = "file.readContent")
     public ApiStandardResponse<String> readContent() throws IOException {
         String path = request.getParaToStr("path", "");
         return new ApiStandardResponse<>(fileManagerService.readContent(path));
     }
 
     @ResponseBody
+    @RequiresAction(value = AccountAction.FILE_MANAGE, descriptionKey = "file.read")
     public ApiStandardResponse<String> read() throws IOException {
         return readContent();
     }
 
+    @RequiresAction(value = AccountAction.FILE_MANAGE, descriptionKey = "file.download")
     public void download() throws IOException {
         String path = request.getParaToStr("path", "");
         if (FileEntryUtils.isExternalUrl(path)) {

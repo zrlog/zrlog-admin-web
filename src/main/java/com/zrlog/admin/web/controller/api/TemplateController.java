@@ -1,5 +1,8 @@
 package com.zrlog.admin.web.controller.api;
 
+import com.zrlog.admin.web.annotation.RequiresAction;
+import com.zrlog.data.security.AccountAction;
+
 import com.hibegin.common.util.EnvKit;
 import com.hibegin.common.util.StringUtils;
 import com.hibegin.http.HttpMethod;
@@ -38,6 +41,7 @@ public class TemplateController extends BaseController {
     @RefreshCache(updateStaticSites = StaticSiteType.BLOG)
     @ResponseBody
     @RequestLock
+    @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "template.apply")
     public ApiStandardResponse<Void> apply() throws SQLException {
         ApiStandardResponse<Void> apiStandardResponse = new ApiStandardResponse<>();
         String template = AdminTemplateUtils.loadTemplatePathByRequestInfo(this);
@@ -54,6 +58,7 @@ public class TemplateController extends BaseController {
     }
 
     @ResponseBody
+    @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "template.preview")
     public ApiStandardResponse<Void> preview() {
         if (EnvKit.isFaaSMode()) {
             ApiStandardResponse<Void> apiStandardResponse = new ApiStandardResponse<>();
@@ -73,6 +78,7 @@ public class TemplateController extends BaseController {
 
     @ResponseBody
     @RequestLock
+    @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "template.delete")
     public DeleteResponse delete() {
         String shortTemplate = getParamWithEmptyCheck("shortTemplate");
         return templateService.delete(shortTemplate, request);
@@ -82,6 +88,7 @@ public class TemplateController extends BaseController {
     @RequestMethod(method = HttpMethod.POST)
     @RequestLock
     @RefreshCache(async = true, updateStaticSites = StaticSiteType.BLOG)
+    @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "template.upload")
     public UploadTemplateResponse upload() throws IOException {
         String uploadFieldName = "file";
         File uploadFile = request.getFile(uploadFieldName);
@@ -97,6 +104,7 @@ public class TemplateController extends BaseController {
     @ResponseBody
     @RequestMethod(method = HttpMethod.POST)
     @RequestLock
+    @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "template.saveConfig")
     public UpdateRecordResponse config() throws SQLException, IOException {
         UpdateTemplateConfigRequest param = getRequestBodyWithNullCheck(UpdateTemplateConfigRequest.class);
         String template = param.getTemplate();
@@ -108,24 +116,28 @@ public class TemplateController extends BaseController {
     }
 
     @ResponseBody
+    @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "template.readConfig")
     public AdminPageDataResponse<TemplateVO> configParams() throws IOException {
         String template = AdminTemplateUtils.loadTemplatePathByRequestInfo(this);
         return new AdminPageDataResponse<>(templateService.loadTemplateConfig(template, request), "", request.getUri());
     }
 
     @ResponseBody
+    @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "template.previewValue")
     public ApiStandardResponse<TemplateValuePreviewResponse> previewConfigValue() {
         return new ApiStandardResponse<>(new TemplateValuePreviewResponse(
                 templateService.previewValue(request.getParaToStr("value"), request)));
     }
 
     @ResponseBody
+    @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "template.list")
     public AdminPageDataResponse<List<TemplateEntryResponse>> index() throws IOException {
         return new AdminPageDataResponse<>(templateService.getAllTemplates(TemplateHelper.getTemplatePath(getRequest())),
                 "", request.getUri());
     }
 
     @ResponseBody
+    @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "template.catalog")
     public AdminPageDataResponse<TemplateDownloadResponse> templateCenter() {
         String host = request.getParaToStr("host", "");
         if (StringUtils.isEmpty(host)) {

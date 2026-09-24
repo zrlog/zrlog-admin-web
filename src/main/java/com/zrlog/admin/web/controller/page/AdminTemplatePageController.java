@@ -1,5 +1,8 @@
 package com.zrlog.admin.web.controller.page;
 
+import com.zrlog.admin.web.annotation.RequiresAction;
+import com.zrlog.data.security.AccountAction;
+
 import com.hibegin.common.util.FileUtils;
 import com.hibegin.http.annotation.RequestMethod;
 import com.hibegin.http.server.util.MimeTypeUtil;
@@ -23,6 +26,7 @@ public class AdminTemplatePageController extends BaseController {
 
 
     @RequestMethod
+    @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "template.download")
     public void download() throws IOException, URISyntaxException, InterruptedException {
         String downloadUrl = request.getParaToStr("downloadUrl", "");
         TemplateDownloadUtils.installByUrl(downloadUrl);
@@ -30,6 +34,7 @@ public class AdminTemplatePageController extends BaseController {
     }
 
     @RequestMethod
+    @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "template.previewImage")
     public void previewImage() {
         cross(request, response);
         String templateName = AdminTemplateUtils.loadTemplatePathByRequestInfo(this);

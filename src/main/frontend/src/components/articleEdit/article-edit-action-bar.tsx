@@ -1,3 +1,4 @@
+import { hasAction } from "../../utils/account-access";
 import { Button } from "antd";
 import { SaveOutlined, SendOutlined } from "@ant-design/icons";
 import { getRes } from "../../utils/constants";
@@ -159,7 +160,12 @@ const ArticleEditActionBar: FunctionComponent<ArticleEditActionBarProps> = ({
                 })}
                 icon={<SaveOutlined />}
                 loading={data.saving.rubbishSaving && !data.saving.autoSaving}
-                disabled={offline || draftAiPending || (data.saving.rubbishSaving && !data.saving.autoSaving)}
+                disabled={
+                    offline ||
+                    (!hasAction("article.publish") && Boolean(data.article.logId) && !data.article.rubbish) ||
+                    draftAiPending ||
+                    (data.saving.rubbishSaving && !data.saving.autoSaving)
+                }
                 onClick={async () => await onSubmit(data.article, false, false, false)}
             />
             <ArticleAiAssistantButton
@@ -177,37 +183,39 @@ const ArticleEditActionBar: FunctionComponent<ArticleEditActionBarProps> = ({
                 onApplyValues={onApplyAiValues}
                 onApplyGeneratedCover={onApplyGeneratedCover}
             />
-            <Button
-                ref={enterBtnRef}
-                type="primary"
-                style={{ width: screens.sm ? 120 : undefined }}
-                title={getShortcutTitle(
-                    data.article.privacy === true
-                        ? getRes().articleEdit.actions.save
-                        : getRes().articleEdit.actions.release,
-                    {
-                        ctrlOrCmd: true,
-                        key: "Enter",
-                    }
-                )}
-                disabled={offline || draftAiPending || data.saving.releaseSaving}
-                icon={<SendOutlined />}
-                onClick={async () => {
-                    if (data.article.privacy === true) {
-                        await onSubmit(data.article, true, false, false);
-                        return;
-                    }
-                    onRequestPublish();
-                }}
-            >
-                {screens.sm && (
-                    <span>
-                        {data.article.privacy === true
+            {hasAction("article.publish") && (
+                <Button
+                    ref={enterBtnRef}
+                    type="primary"
+                    style={{ width: screens.sm ? 120 : undefined }}
+                    title={getShortcutTitle(
+                        data.article.privacy === true
                             ? getRes().articleEdit.actions.save
-                            : getRes().articleEdit.actions.release}
-                    </span>
-                )}
-            </Button>
+                            : getRes().articleEdit.actions.release,
+                        {
+                            ctrlOrCmd: true,
+                            key: "Enter",
+                        }
+                    )}
+                    disabled={offline || draftAiPending || data.saving.releaseSaving}
+                    icon={<SendOutlined />}
+                    onClick={async () => {
+                        if (data.article.privacy === true) {
+                            await onSubmit(data.article, true, false, false);
+                            return;
+                        }
+                        onRequestPublish();
+                    }}
+                >
+                    {screens.sm && (
+                        <span>
+                            {data.article.privacy === true
+                                ? getRes().articleEdit.actions.save
+                                : getRes().articleEdit.actions.release}
+                        </span>
+                    )}
+                </Button>
+            )}
         </div>
     );
 };

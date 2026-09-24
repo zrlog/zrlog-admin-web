@@ -1,5 +1,8 @@
 package com.zrlog.admin.web.controller.api;
 
+import com.zrlog.admin.web.annotation.RequiresAction;
+import com.zrlog.data.security.AccountAction;
+
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.RequestMethod;
 import com.hibegin.http.annotation.ResponseBody;
@@ -44,6 +47,7 @@ public class AdminUserController extends BaseController {
     }
 
     @ResponseBody
+    @RequiresAction(value = AccountAction.ACCOUNT_SELF, descriptionKey = "account.profile")
     public AdminPageDataResponse<UserBasicInfoResponse> index() throws SQLException {
         AdminTokenVO adminTokenVO = AdminTokenThreadLocal.getUser();
         if (Objects.isNull(adminTokenVO)) {
@@ -58,6 +62,7 @@ public class AdminUserController extends BaseController {
      * @return 基础的用户信息
      */
     @ResponseBody
+    @RequiresAction(value = AccountAction.ACCOUNT_SELF, descriptionKey = "account.identity")
     public AdminPageDataResponse<UserInfoResponse> info() throws SQLException {
         AdminTokenVO adminTokenVO = AdminTokenThreadLocal.getUser();
         if (Objects.isNull(adminTokenVO)) {
@@ -69,6 +74,7 @@ public class AdminUserController extends BaseController {
     @RefreshCache(updateStaticSites = StaticSiteType.BLOG)
     @ResponseBody
     @RequestMethod(method = HttpMethod.POST)
+    @RequiresAction(value = AccountAction.ACCOUNT_SELF, descriptionKey = "account.updateProfile")
     public UpdateRecordResponse update() throws SQLException {
         UpdateAdminRequest updateAdminRequest = getRequestBodyWithNullCheck(UpdateAdminRequest.class);
         userService.update(AdminTokenThreadLocal.getUserId(), updateAdminRequest, getRequest());
@@ -80,6 +86,7 @@ public class AdminUserController extends BaseController {
 
     @ResponseBody
     @RequestMethod(method = HttpMethod.POST)
+    @RequiresAction(value = AccountAction.ACCOUNT_SELF, descriptionKey = "account.updatePassword")
     public UpdateRecordResponse updatePassword() throws SQLException {
         UpdateRecordResponse response = userService.updatePassword(AdminTokenThreadLocal.getUserId(),
                 getRequestBodyWithNullCheck(UpdatePasswordRequest.class));
@@ -88,12 +95,14 @@ public class AdminUserController extends BaseController {
     }
 
     @ResponseBody
+    @RequiresAction(value = AccountAction.ACCOUNT_SELF, descriptionKey = "account.mfa")
     public AdminPageDataResponse<MfaStatusResponse> mfa() throws SQLException {
         return new AdminPageDataResponse<>(mfaService.getMfaStatus(AdminTokenThreadLocal.getUserId()), "", request.getUri());
     }
 
     @ResponseBody
     @RequestMethod(method = HttpMethod.POST)
+    @RequiresAction(value = AccountAction.ACCOUNT_SELF, descriptionKey = "account.enableMfa")
     public UpdateRecordResponse enableMfa() throws SQLException {
         UpdateRecordResponse response = mfaService.enableMfa(AdminTokenThreadLocal.getUserId(), getRequestBodyWithNullCheck(UpdateMfaRequest.class));
         new AdminAuditService().record(request, AdminAuditAction.ENABLE_MFA);
@@ -102,6 +111,7 @@ public class AdminUserController extends BaseController {
 
     @ResponseBody
     @RequestMethod(method = HttpMethod.POST)
+    @RequiresAction(value = AccountAction.ACCOUNT_SELF, descriptionKey = "account.disableMfa")
     public UpdateRecordResponse disableMfa() throws SQLException {
         UpdateRecordResponse response = mfaService.disableMfa(AdminTokenThreadLocal.getUserId(), getRequestBodyWithNullCheck(UpdateMfaRequest.class));
         new AdminAuditService().record(request, AdminAuditAction.DISABLE_MFA);
@@ -109,6 +119,7 @@ public class AdminUserController extends BaseController {
     }
 
     @ResponseBody
+    @RequiresAction(value = AccountAction.ACCOUNT_SELF, descriptionKey = "account.passkeys")
     public ApiStandardResponse<java.util.List<PasskeySummaryResponse>> passkeys()
             throws SQLException {
         return new ApiStandardResponse<>(
@@ -117,6 +128,7 @@ public class AdminUserController extends BaseController {
 
     @ResponseBody
     @RequestMethod(method = HttpMethod.POST)
+    @RequiresAction(value = AccountAction.ACCOUNT_SELF, descriptionKey = "account.passkeyRegistration")
     public ApiStandardResponse<PasskeyOptionsResponse<PasskeyRegistrationOptionsResponse>>
     passkeyRegistrationOptions() throws SQLException {
         PasskeyRegistrationOptionsRequest body = getRequestBodyWithNullCheck(PasskeyRegistrationOptionsRequest.class);
@@ -127,6 +139,7 @@ public class AdminUserController extends BaseController {
     @RefreshCache(updateStaticSites = StaticSiteType.ADMIN)
     @ResponseBody
     @RequestMethod(method = HttpMethod.POST)
+    @RequiresAction(value = AccountAction.ACCOUNT_SELF, descriptionKey = "account.addPasskey")
     public ApiStandardResponse<PasskeySummaryResponse> passkeyRegistrationVerify()
             throws SQLException {
         PasskeySummaryResponse summary = passkeyService.finishRegistration(AdminTokenThreadLocal.getUserId(),
@@ -139,6 +152,7 @@ public class AdminUserController extends BaseController {
     @RefreshCache(updateStaticSites = StaticSiteType.ADMIN)
     @ResponseBody
     @RequestMethod(method = HttpMethod.POST)
+    @RequiresAction(value = AccountAction.ACCOUNT_SELF, descriptionKey = "account.removePasskey")
     public ApiStandardResponse<Boolean> passkeyRemove() throws SQLException {
         PasskeyRemoveRequest body = getRequestBodyWithNullCheck(PasskeyRemoveRequest.class);
         passkeyService.remove(AdminTokenThreadLocal.getUserId(), body);

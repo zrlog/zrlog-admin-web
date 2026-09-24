@@ -1,3 +1,4 @@
+import { hasAction } from "../utils/account-access";
 import { ApiOutlined, EditOutlined, FileImageOutlined, FolderOpenOutlined, SkinOutlined } from "@ant-design/icons";
 import { getAdminDashboardRouteSearchItems } from "../components/admin-dashboard-routes";
 import {
@@ -306,11 +307,13 @@ const refreshPluginRows = ({ axiosInstance, onSourceRefresh }: SpotlightSearchCo
 };
 
 const getTemplateRows = (context: SpotlightSearchContext) => {
+    if (!hasAction("site.configure")) return [];
     refreshTemplateRows(context);
     return templateSearchCache.rows;
 };
 
 const getPluginRows = (context: SpotlightSearchContext) => {
+    if (!hasAction("plugin.manage")) return [];
     refreshPluginRows(context);
     return pluginSearchCache.rows;
 };

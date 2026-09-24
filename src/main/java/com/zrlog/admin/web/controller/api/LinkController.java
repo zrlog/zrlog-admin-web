@@ -1,5 +1,8 @@
 package com.zrlog.admin.web.controller.api;
 
+import com.zrlog.admin.web.annotation.RequiresAction;
+import com.zrlog.data.security.AccountAction;
+
 import com.hibegin.common.dao.dto.PageData;
 import com.hibegin.http.annotation.ResponseBody;
 import com.zrlog.admin.business.rest.request.CreateLinkRequest;
@@ -26,6 +29,7 @@ public class LinkController extends BaseController {
     @RefreshCache(async = true, updateStaticSites = StaticSiteType.BLOG)
     @ResponseBody
     @RequestLock
+    @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "link.delete")
     public DeleteResponse delete() throws SQLException {
         Integer id = request.getParaToInt("id");
         if (id == null || id <= 0) {
@@ -37,6 +41,7 @@ public class LinkController extends BaseController {
     @RefreshCache(async = true, updateStaticSites = StaticSiteType.BLOG)
     @ResponseBody
     @RequestLock
+    @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "link.update")
     public UpdateRecordResponse update() throws IOException, SQLException {
         UpdateLinkRequest linkRequest = getRequestBodyWithNullCheck(UpdateLinkRequest.class);
         linkService.update(linkRequest);
@@ -44,6 +49,7 @@ public class LinkController extends BaseController {
     }
 
     @ResponseBody
+    @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "link.list")
     public AdminPageDataResponse<PageData<LinkDTO>> index() throws SQLException {
         return new AdminPageDataResponse<>(linkService.find(ControllerUtil.unPageRequest()), "", request.getUri());
     }
@@ -51,6 +57,7 @@ public class LinkController extends BaseController {
     @RefreshCache(async = true, updateStaticSites = StaticSiteType.BLOG)
     @ResponseBody
     @RequestLock
+    @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "link.create")
     public UpdateRecordResponse add() throws IOException, SQLException {
         CreateLinkRequest linkRequest = getRequestBodyWithNullCheck(CreateLinkRequest.class);
         return new UpdateRecordResponse(linkService.add(linkRequest));

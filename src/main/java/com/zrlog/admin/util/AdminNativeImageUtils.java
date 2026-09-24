@@ -32,6 +32,9 @@ import java.util.List;
 public class AdminNativeImageUtils {
 
     private static void adminRequestJson() {
+        NativeImageUtils.gsonNativeAgentByClazz(Arrays.asList(com.zrlog.admin.business.security.AccessModels.class.getDeclaredClasses()));
+        NativeImageUtils.gsonNativeAgentByClazz(Arrays.asList(com.zrlog.admin.business.security.OAuthModels.class.getDeclaredClasses()));
+        NativeImageUtils.gsonNativeAgentByClazz(Arrays.asList(com.zrlog.admin.business.security.MemberModels.class.getDeclaredClasses()));
         //post
         NativeImageUtils.gsonNativeAgentByClazz(Arrays.asList(CreateArticleRequest.class, CreateTypeRequest.class, LoginRequest.class,
                 CreateOrUpdateArticleResponse.class, CreateLinkRequest.class, AbstractNavEntry.class, CreateNavRequest.class,

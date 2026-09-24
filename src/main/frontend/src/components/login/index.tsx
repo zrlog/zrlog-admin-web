@@ -292,7 +292,9 @@ const Index = ({ offline }: { offline: boolean }) => {
                 navigate(getRealRouteUrl(urlInfo.join("?")), { replace: true });
             }
         } else {
-            navigate(getRealRouteUrl("/index"), { replace: true });
+            navigate(getRealRouteUrl(data.data.actions?.includes("dashboard.read") ? "/index" : "/article"), {
+                replace: true,
+            });
         }
     };
 

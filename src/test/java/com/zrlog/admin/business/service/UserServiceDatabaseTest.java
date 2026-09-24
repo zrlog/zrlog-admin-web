@@ -117,7 +117,9 @@ public class UserServiceDatabaseTest {
             assertEquals("admin@example.com", before.getEmail());
             assertEquals("session-key", before.getKey());
             assertNotNull(before.getCacheableApiUris());
-            assertTrue(updated instanceof Map);
+            assertTrue(updated instanceof UserBasicInfoResponse);
+            assertFalse(new com.google.gson.Gson().toJson(updated).contains("password"));
+            assertFalse(new com.google.gson.Gson().toJson(updated).contains("secretKey"));
             assertEquals("root", row.get("userName"));
             assertEquals("root@example.com", row.get("email"));
             assertEquals("/attached/root.png", row.get("header"));

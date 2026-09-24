@@ -15,6 +15,7 @@ public class AdminDevFileInterceptor implements HandleAbleInterceptor {
             response.renderCode(403);
             return false;
         }
+        if (!com.zrlog.admin.business.service.AccountPermissionService.account(AdminInterceptorSupport.getAdminToken(request)).isAdministrator()) { response.renderCode(403); return false; }
         return true;
     }
 

@@ -1,3 +1,4 @@
+import { hasAction } from "../utils/account-access";
 import { HomeOutlined } from "@ant-design/icons";
 import { Alert, Col, FloatButton, Layout, Row, Tag, Typography } from "antd";
 
@@ -72,7 +73,7 @@ const AdminManageLayout: FunctionComponent<AdminManageLayoutProps> = ({
 
     const refreshMessageCenter = useCallback(
         (force = false) => {
-            if (offline) {
+            if (offline || !hasAction("dashboard.read")) {
                 setMessageCenterLoading(false);
                 return;
             }
@@ -159,6 +160,11 @@ const AdminManageLayout: FunctionComponent<AdminManageLayoutProps> = ({
         }
         const navigationGroup = getAdminNavigationGroup(pathname);
         const navigationSubtitle = navigationGroup ? getAdminNavigationGroupLabel(navigationGroup) : undefined;
+        if (pathname.startsWith("/members")) return { title: getRes().members.title, subtitle: navigationSubtitle };
+        if (pathname.startsWith("/access")) return { title: getRes().access.title, subtitle: navigationSubtitle };
+        if (pathname.startsWith("/oauth/authorize"))
+            return { title: getRes().oauth.authorizeTitle, subtitle: navigationSubtitle };
+        if (pathname.startsWith("/oauth")) return { title: getRes().oauth.title, subtitle: navigationSubtitle };
         if (pathname.startsWith("/article-edit")) {
             return { title: getRes().articleEdit.title, subtitle: navigationSubtitle };
         }
@@ -367,12 +373,14 @@ const AdminManageLayout: FunctionComponent<AdminManageLayoutProps> = ({
                     {getMainButton()}
                     <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
                         <SpotlightSearch compact />
-                        <MessageCenter
-                            compact
-                            loading={messageCenterLoading}
-                            hasUnread={messageCenterStatus.hasUnread}
-                            onRefresh={refreshMessageCenter}
-                        />
+                        {hasAction("dashboard.read") && (
+                            <MessageCenter
+                                compact
+                                loading={messageCenterLoading}
+                                hasUnread={messageCenterStatus.hasUnread}
+                                onRefresh={refreshMessageCenter}
+                            />
+                        )}
                         {offline && (
                             <Tag
                                 bordered={false}

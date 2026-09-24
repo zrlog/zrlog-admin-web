@@ -34,6 +34,7 @@ paths:
         - Article
       summary: 创建文章
       description: |-
+        需要 `article.create`，公开发布另需 `article.publish`。投稿者仅能创建草稿。
         创建草稿、私密文章或公开文章。`editorType=markdown`、`markdown` 非空且 `content` 为空或省略时，
         Java 17 及以上的服务端使用内置 marked 渲染 HTML；Java 11 跳过渲染并记录警告，仍继续保存。
         调用方显式提供的 `content` 保持不变；Java 11 调用方应自行提供 HTML，否则正文可能为空。
@@ -123,6 +124,9 @@ paths:
         - Article
       summary: 全量更新文章
       description: |-
+        需要 `article.update`，并检查文章归属与私密状态；修改或撤回线上文章另需 `article.publish`。
+        author 仅能修改自己的文章，contributor 仅能修改自己的草稿，editor 无权读取或修改他人的私密文章。
+        更新不会更改原作者 userId。
         使用完整可写快照更新文章，不是 PATCH。`logId` 和 `version` 必须来自最近一次文章读取或保存响应；
         成功后返回的 `data.article.version` 是下一次更新必须使用的新版本。服务器版本较新时返回业务错误 `9094`。
 
@@ -217,6 +221,8 @@ paths:
         - Upload
       summary: 上传通用附件
       description: |-
+        需要 `asset.upload`。普通成员的上传路径被限制在自己的 `attached/users/{userId}` 目录；
+        管理员继续使用指定目录。相同文件名仅可能覆盖该账号目录中的资源。
         上传单个附件。首选 multipart 字段 `imgFile`；`file` 仅作为现有调用方的兼容别名。
         文件保存到 `/attached` 下，返回 URL 包含部署 context path；启用上传插件时，返回值也可能是远端绝对 URL。
 

@@ -54,6 +54,7 @@ public class AdminPluginInterceptor implements HandleAbleInterceptor {
             AdminWebTools.blockUnLoginRequestHandler(request, response);
             return;
         }
+        if (!com.zrlog.admin.business.service.AccountPermissionService.account(entry).isAdministrator()) { response.renderCode(403); return; }
         if (Constants.zrLogConfig.getPlugin(PluginCorePlugin.class).accessPlugin(target.replaceFirst(adminPluginUriPath, "/"), request, response, entry)) {
             recordPluginSurfaceAction(request, target);
             return;

@@ -29,6 +29,9 @@ const mockArticlePost = jest.fn(async (uri?: string, article?: unknown, config?:
 let mockDraftSyncOptions: { onRequestSync: (task: ArticleDraftSyncTask) => void };
 let mockDraftSyncApi: Record<string, ReturnType<typeof jest.fn>> | undefined;
 
+import { hasAction } from "../../utils/account-access";
+jest.mock("../../utils/account-access", () => ({ hasAction: require("@jest/globals").jest.fn(() => true) }));
+
 jest.mock("antd", () => ({
     Space: ({ children }: { children?: unknown }) => children,
 }));
@@ -234,6 +237,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
     };
 
     beforeEach(() => {
+        jest.mocked(hasAction).mockReturnValue(true);
         mockOffline = false;
         mockPostPublish.mockReset();
         mockArticlePost.mockReset();

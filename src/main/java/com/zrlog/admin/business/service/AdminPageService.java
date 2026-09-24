@@ -117,6 +117,7 @@ public class AdminPageService {
         UserInfoResponse userInfo = new UserService().getUserInfoWithCache(AdminTokenThreadLocal.getUserId(), AdminTokenThreadLocal.getUser().getSessionId());
         Method method = request.getRequestConfig().getRouter().getMethod("/api" + uri, request.getMethod());
         try {
+            AccountPermissionService.checkRoute(method, request);
             Controller controller = Controller.buildController(method, request, response);
             StandardResponse result = (StandardResponse) method.invoke(controller);
             if (Objects.isNull(result)) {

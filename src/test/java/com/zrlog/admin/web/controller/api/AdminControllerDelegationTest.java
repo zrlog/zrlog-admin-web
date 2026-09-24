@@ -449,6 +449,7 @@ public class AdminControllerDelegationTest {
             assertEquals(0, updatePassword.getError());
             assertTrue(PasswordHashUtils.matches(SecurityUtils.md5("new-password"), storedPassword));
             assertWebsiteValueContains(db, "admin_audit_log", "UPDATE_PASSWORD");
+            AdminTokenThreadLocal.getUser().setAuthVersion(1); // A fresh login after changing the password.
 
             setControllerRequest(controller, request(HttpMethod.GET, "/api/admin/user/mfa", Map.of(), Map.of(), null));
             AdminPageDataResponse<MfaStatusResponse> mfaStatus = controller.mfa();

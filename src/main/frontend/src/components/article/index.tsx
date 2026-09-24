@@ -1,3 +1,4 @@
+import { hasAction } from "../../utils/account-access";
 import {
     AppstoreOutlined,
     EditOutlined,
@@ -522,17 +523,19 @@ const Index = ({ data, offline, updateCache }: AdminCommonProps<ArticlePageDataS
                         value={currentStatus}
                         onChange={handleStatusChange}
                     />
-                    <Tooltip title={pinningRes.manage}>
-                        <Button
-                            className="article-pinning-manager-button"
-                            icon={<PushpinOutlined />}
-                            aria-label={pinningRes.manage}
-                            disabled={offline || pinningLogId !== undefined}
-                            onClick={() => setPinningManagerOpen(true)}
-                        >
-                            <span className="article-pinning-manager-label">{pinningRes.manage}</span>
-                        </Button>
-                    </Tooltip>
+                    {hasAction("article.pin") && (
+                        <Tooltip title={pinningRes.manage}>
+                            <Button
+                                className="article-pinning-manager-button"
+                                icon={<PushpinOutlined />}
+                                aria-label={pinningRes.manage}
+                                disabled={offline || pinningLogId !== undefined}
+                                onClick={() => setPinningManagerOpen(true)}
+                            >
+                                <span className="article-pinning-manager-label">{pinningRes.manage}</span>
+                            </Button>
+                        </Tooltip>
+                    )}
                 </div>
                 <Search
                     allowClear
@@ -555,31 +558,33 @@ const Index = ({ data, offline, updateCache }: AdminCommonProps<ArticlePageDataS
                 editBtnRender={(id, record) => (
                     <>
                         <ArticlePreviewAction article={record} />
-                        <Tooltip
-                            title={
-                                canPinArticle(record)
-                                    ? getSticky(record) > 0
-                                        ? pinningRes.unpin
-                                        : pinningRes.pin
-                                    : pinningRes.publicOnly
-                            }
-                        >
-                            <Button
-                                type="text"
-                                size="small"
-                                disabled={offline || pinningLogId !== undefined || !canPinArticle(record)}
-                                loading={pinningLogId === id}
-                                aria-label={getSticky(record) > 0 ? pinningRes.unpin : pinningRes.pin}
-                                icon={
-                                    getSticky(record) > 0 ? (
-                                        <PushpinFilled style={surface.pinActionIcon} />
-                                    ) : (
-                                        <PushpinOutlined style={surface.pinActionIcon} />
-                                    )
+                        {hasAction("article.pin") && (
+                            <Tooltip
+                                title={
+                                    canPinArticle(record)
+                                        ? getSticky(record) > 0
+                                            ? pinningRes.unpin
+                                            : pinningRes.pin
+                                        : pinningRes.publicOnly
                                 }
-                                onClick={() => void updatePinning(record)}
-                            />
-                        </Tooltip>
+                            >
+                                <Button
+                                    type="text"
+                                    size="small"
+                                    disabled={offline || pinningLogId !== undefined || !canPinArticle(record)}
+                                    loading={pinningLogId === id}
+                                    aria-label={getSticky(record) > 0 ? pinningRes.unpin : pinningRes.pin}
+                                    icon={
+                                        getSticky(record) > 0 ? (
+                                            <PushpinFilled style={surface.pinActionIcon} />
+                                        ) : (
+                                            <PushpinOutlined style={surface.pinActionIcon} />
+                                        )
+                                    }
+                                    onClick={() => void updatePinning(record)}
+                                />
+                            </Tooltip>
+                        )}
                         <Tooltip title={getRes().edit}>
                             <Link to={getRealRouteUrl("/article-edit?id=" + id)}>
                                 <Button
@@ -595,6 +600,7 @@ const Index = ({ data, offline, updateCache }: AdminCommonProps<ArticlePageDataS
                 deleteSuccessCallback={(id) => {
                     removeCacheDataByKey(getRealRouteUrl("/article-edit?id=" + id));
                 }}
+                canDelete={hasAction("article.delete")}
                 deleteApi={getDeleteApiUri()}
                 searchKey={searchKey}
             />

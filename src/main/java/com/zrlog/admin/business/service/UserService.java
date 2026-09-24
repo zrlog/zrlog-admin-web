@@ -50,6 +50,7 @@ public class UserService {
             String oldPassword = normalizeSubmittedPassword(updatePasswordRequest.getOldPassword());
             if (verifyPassword(oldPassword, dbPassword)) {
                 user.updatePassword(currentUserId, encodePassword(normalizeSubmittedPassword(updatePasswordRequest.getNewPassword())));
+                user.execute("update user set authVersion=authVersion+1 where userId=?", currentUserId);
                 UpdateRecordResponse updateRecordResponse = new UpdateRecordResponse();
                 updateRecordResponse.setMessage(I18nUtil.getAdminBackendStringFromRes("admin.user.password.change.success"));
                 return updateRecordResponse;
@@ -72,10 +73,12 @@ public class UserService {
     public UserInfoResponse getUserInfoWithCache(int userId, String sessionId) throws SQLException {
         UserBasicDTO userInfoById = cacheService.getUserInfoById((long) userId);
         boolean mfaEnabled = mfaService.isMfaEnabled(userId);
-        if (StringUtils.isEmpty(userInfoById.getHeader())) {
-            return new UserInfoResponse(userInfoById.getUserName(), getDefaultHeaderImage(), sessionId, buildLastVersionPlaceholder(), mfaEnabled);
-        }
-        return new UserInfoResponse(userInfoById.getUserName(), userInfoById.getHeader(), sessionId, buildLastVersionPlaceholder(), mfaEnabled);
+        UserInfoResponse result = new UserInfoResponse(userInfoById.getUserName(),
+                StringUtils.isEmpty(userInfoById.getHeader()) ? getDefaultHeaderImage() : userInfoById.getHeader(),
+                sessionId, buildLastVersionPlaceholder(), mfaEnabled);
+        result.setUserId(userId);
+        result.setRole(com.zrlog.data.security.AccountAccess.load(userId).getRole());
+        return result;
     }
 
     private String getDefaultHeaderImage() {
@@ -90,6 +93,10 @@ public class UserService {
         }
         basicInfoResponse.setLastVersion(buildLastVersionPlaceholder());
         basicInfoResponse.setKey(sessionId);
+        try {
+            basicInfoResponse.setUserId(userBasicDTO.getUserId().intValue());
+            basicInfoResponse.setRole(com.zrlog.data.security.AccountAccess.load(userBasicDTO.getUserId().intValue()).getRole());
+        } catch (SQLException e) { throw new PermissionErrorException(); }
         if (EnvKit.isFaaSMode()) {
             basicInfoResponse.setCacheableApiUris(new HashSet<>());
         } else {
@@ -104,7 +111,7 @@ public class UserService {
         }
         User userDao = new User();
         Map<String, Object> user = userDao.getUserByUserName(loginRequest.getUserName().toLowerCase());
-        if (Objects.isNull(user)) {
+        if (Objects.isNull(user) || !com.zrlog.data.security.AccountAccess.from(user).isEnabled()) {
             throw new UserNameOrPasswordException();
         }
         String dbPassword = (String) user.get("password");
@@ -127,6 +134,7 @@ public class UserService {
     }
 
     public UserLoginDTO buildLoginDTO(Map<String, Object> user) {
+        if (!com.zrlog.data.security.AccountAccess.from(user).isEnabled()) throw new UserNameOrPasswordException();
         int userId = ((Number) user.get("userId")).intValue();
         UserBasicDTO basicDTO = BeanUtil.convert(user, UserBasicDTO.class);
         UserBasicInfoResponse userInfoByUser = getUserInfoByUser(basicDTO, UUID.randomUUID().toString());
@@ -140,13 +148,13 @@ public class UserService {
     }
 
 
-    public Object update(int userId, UpdateAdminRequest updateAdminRequest, HttpRequest request) throws SQLException {
+    public UserBasicInfoResponse update(int userId, UpdateAdminRequest updateAdminRequest, HttpRequest request) throws SQLException {
         if (ZrLogUtil.isPreviewMode()) {
             throw new PermissionErrorException();
         }
         new User().updateEmailUserNameHeaderByUserId(updateAdminRequest.getEmail(), updateAdminRequest.getUserName(),
                 normalizeHeader(updateAdminRequest.getHeader(), request), userId);
-        return new User().loadById(userId);
+        return getBasicUserInfo(userId, AdminTokenThreadLocal.getUser().getSessionId());
     }
 
     private String normalizeHeader(String header, HttpRequest request) {

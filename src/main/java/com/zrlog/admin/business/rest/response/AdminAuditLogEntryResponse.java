@@ -1,6 +1,9 @@
 package com.zrlog.admin.business.rest.response;
 
 public class AdminAuditLogEntryResponse {
+    private Integer actorUserId;
+    public Integer getActorUserId() { return actorUserId; }
+    public void setActorUserId(Integer value) { actorUserId = value; }
 
     private Long timestamp;
     private String ip;

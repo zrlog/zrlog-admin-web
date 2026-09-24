@@ -79,6 +79,16 @@ public class AdminInterceptor implements HandleAbleInterceptor {
                         adminTokenVO.getSessionId(), adminTokenVO.getProtocol(), request, response);
             }
 
+            if (!BaseStaticSitePlugin.isStaticPluginRequest(request)) {
+                response.addHeader("Cache-Control", "no-store");
+                response.addHeader("Referrer-Policy", "no-referrer");
+                response.addHeader("X-Frame-Options", "DENY");
+                if (java.util.Set.of("/admin", "/admin/", "/admin/index", "/admin/index.html").contains(request.getUri())
+                        && !com.zrlog.admin.business.service.AccountPermissionService.current().isAdministrator()) {
+                    response.redirect(request.getContextPath() + "/admin/article"); return false;
+                }
+                com.zrlog.admin.business.service.AccountPermissionService.checkRoute(method, request);
+            }
             doMethodInterceptor(request, response, method);
             return false;
         } finally {

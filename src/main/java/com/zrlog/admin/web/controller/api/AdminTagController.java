@@ -1,5 +1,8 @@
 package com.zrlog.admin.web.controller.api;
 
+import com.zrlog.admin.web.annotation.RequiresAction;
+import com.zrlog.data.security.AccountAction;
+
 import com.hibegin.common.dao.dto.PageData;
 import com.hibegin.common.util.StringUtils;
 import com.hibegin.http.annotation.ResponseBody;
@@ -28,6 +31,7 @@ public class AdminTagController extends BaseController {
     private final TagManagementService tagManagementService = new TagManagementService();
 
     @ResponseBody
+    @RequiresAction(value = AccountAction.TAXONOMY_READ, descriptionKey = "tag.list")
     public AdminPageDataResponse<PageData<TagManagementEntryResponse>> index() throws SQLException {
         String key = request.getParaToStr("key", "");
         PageData<TagManagementEntryResponse> data = tagManagementService.find(
@@ -38,6 +42,7 @@ public class AdminTagController extends BaseController {
     }
 
     @ResponseBody
+    @RequiresAction(value = AccountAction.TAXONOMY_MANAGE, descriptionKey = "tag.preview")
     public ApiStandardResponse<TagManagementPreviewResponse> preview() throws IOException, SQLException {
         TagManageRequest requestBody = getRequestBodyWithNullCheck(TagManageRequest.class);
         String operation = request.getParaToStr("operation", "rename");
@@ -49,6 +54,7 @@ public class AdminTagController extends BaseController {
     @RefreshCache(async = true, updateStaticSites = StaticSiteType.BLOG)
     @ResponseBody
     @RequestLock
+    @RequiresAction(value = AccountAction.TAXONOMY_MANAGE, descriptionKey = "tag.rename")
     public ApiStandardResponse<TagManagementPreviewResponse> rename() throws IOException, SQLException {
         TagManageRequest requestBody = getRequestBodyWithNullCheck(TagManageRequest.class);
         validateOperation("rename");
@@ -59,6 +65,7 @@ public class AdminTagController extends BaseController {
     @RefreshCache(async = true, updateStaticSites = StaticSiteType.BLOG)
     @ResponseBody
     @RequestLock
+    @RequiresAction(value = AccountAction.TAXONOMY_MANAGE, descriptionKey = "tag.merge")
     public ApiStandardResponse<TagManagementPreviewResponse> merge() throws IOException, SQLException {
         TagManageRequest requestBody = getRequestBodyWithNullCheck(TagManageRequest.class);
         validateOperation("merge");
@@ -69,6 +76,7 @@ public class AdminTagController extends BaseController {
     @RefreshCache(async = true, updateStaticSites = StaticSiteType.BLOG)
     @ResponseBody
     @RequestLock
+    @RequiresAction(value = AccountAction.TAXONOMY_MANAGE, descriptionKey = "tag.delete")
     public ApiStandardResponse<TagManagementPreviewResponse> delete() throws IOException, SQLException {
         TagManageRequest requestBody = getRequestBodyWithNullCheck(TagManageRequest.class);
         validateOperation("delete");

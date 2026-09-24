@@ -1,3 +1,4 @@
+import { actionForPath, hasAction } from "../utils/account-access";
 import { lazy } from "react";
 import type { ComponentType, ReactNode } from "react";
 import {
@@ -76,6 +77,10 @@ const AsyncTemplate = lazy(() => import("components/template"));
 const AsyncTemplateConfig = lazy(() => import("components/template/template-config"));
 const AsyncAccountSecurity = lazy(() => import("components/account-security"));
 const AsyncArticle = lazy(() => import("components/article"));
+const AsyncMembers = lazy(() => import("components/members"));
+const AsyncAccess = lazy(() => import("components/access"));
+const AsyncOAuth = lazy(() => import("components/oauth"));
+const AsyncOAuthConsent = lazy(() => import("components/oauth-consent"));
 const AsyncUser = lazy(() => import("components/user"));
 const AsyncError = lazy(() => import("components/unknown-error-page"));
 const AsyncSystem = lazy(() => import("components/system"));
@@ -206,6 +211,27 @@ export type AdminDashboardRouteDefinition<P = any> = {
 export const createAdminDashboardRoutes = (
     articleEditProps: Partial<ArticleEditProps> = {}
 ): AdminDashboardRouteDefinition[] => [
+    {
+        paths: buildUriPaths("members"),
+        lazy: AsyncMembers,
+        fallback: LightweightFallback,
+        search: [{ id: "members", title: () => getRes().members.title, iconKey: "user", keywords: ["members"] }],
+    },
+    {
+        paths: buildUriPaths("access"),
+        lazy: AsyncAccess,
+        fallback: LightweightFallback,
+        search: [{ id: "access", title: () => getRes().access.title, iconKey: "lock", keywords: ["permissions"] }],
+    },
+    {
+        paths: buildUriPaths("oauth"),
+        lazy: AsyncOAuth,
+        fallback: LightweightFallback,
+        search: [
+            { id: "oauth", title: () => getRes().oauth.title, iconKey: "api", keywords: ["oauth", "applications"] },
+        ],
+    },
+    { paths: buildUriPaths("oauth/authorize"), lazy: AsyncOAuthConsent, fallback: LightweightFallback },
     {
         paths: [...buildUriPaths("index"), ...buildUriPaths("")],
         lazy: AsyncIndex,
@@ -659,7 +685,10 @@ const toSearchPath = (route: AdminDashboardRouteDefinition, search: AdminDashboa
 export const getAdminDashboardRouteSearchItems = (): AdminDashboardRouteSearchItem[] =>
     createAdminDashboardRoutes().flatMap((route) =>
         (route.search || [])
-            .filter((search) => !search.visible || search.visible())
+            .filter(
+                (search) =>
+                    (!search.visible || search.visible()) && hasAction(actionForPath(toSearchPath(route, search)))
+            )
             .map((search) => ({
                 id: search.id,
                 title: search.title(),

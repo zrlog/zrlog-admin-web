@@ -1,5 +1,8 @@
 package com.zrlog.admin.web.controller.api;
 
+import com.zrlog.admin.web.annotation.RequiresAction;
+import com.zrlog.data.security.AccountAction;
+
 import com.hibegin.http.annotation.ResponseBody;
 import com.hibegin.http.server.execption.NotFindResourceException;
 import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
@@ -27,6 +30,7 @@ public class AdminStaticSiteController extends BaseController {
 
     @ResponseBody
     @RequestLock
+    @RequiresAction(value = AccountAction.SYSTEM_MANAGE, descriptionKey = "system.syncAdmin")
     public void startSync() throws IOException {
         if (StaticSitePlugin.isDisabled()) {
             // 静态化未启用时，只通知浏览器刷新缓存状态。
@@ -67,6 +71,7 @@ public class AdminStaticSiteController extends BaseController {
     }
 
     @ResponseBody
+    @RequiresAction(value = AccountAction.SYSTEM_MANAGE, descriptionKey = "system.adminSyncStatus")
     public AdminPageDataResponse<AdminStaticSiteSyncResponse> index() {
         if (StaticSitePlugin.isDisabled()) {
             return new AdminPageDataResponse<>(new AdminStaticSiteSyncResponse(true), "", request.getUri());

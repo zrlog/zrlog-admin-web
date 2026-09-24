@@ -185,6 +185,9 @@ export type MessageCenterNotice =
       });
 
 export type BasicUserInfo = {
+    userId?: number;
+    role?: import("./utils/account-access").AccountRole;
+    actions?: string[];
     userName: string;
     header: string;
     key: string;

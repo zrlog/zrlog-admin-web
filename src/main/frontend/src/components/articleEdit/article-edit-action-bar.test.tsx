@@ -6,6 +6,9 @@ import { ArticleEditState } from "./index.types";
 import { AIProviderType } from "../../type";
 import { createDraftAiSaveGate } from "./draft-ai-save-gate";
 
+import { hasAction } from "../../utils/account-access";
+jest.mock("../../utils/account-access", () => ({ hasAction: require("@jest/globals").jest.fn(() => true) }));
+
 jest.mock("antd", () => {
     const React = require("react") as typeof import("react");
     return {
@@ -81,6 +84,7 @@ describe("ArticleEditActionBar", () => {
     let root: Root;
 
     beforeEach(() => {
+        jest.mocked(hasAction).mockReturnValue(true);
         reactActEnvironment.IS_REACT_ACT_ENVIRONMENT = true;
         container = document.createElement("div");
         document.body.appendChild(container);
@@ -119,6 +123,17 @@ describe("ArticleEditActionBar", () => {
         });
         return { onPreview, onRequestPublish, onSubmit };
     };
+
+    it("hides publishing and ignores the publish shortcut without permission", () => {
+        jest.mocked(hasAction).mockReturnValue(false);
+        const { onRequestPublish, onSubmit } = renderActionBar(state);
+        expect(
+            Array.from(container.querySelectorAll("button")).some((button) => button.textContent === "Publish")
+        ).toBe(false);
+        act(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", ctrlKey: true })));
+        expect(onRequestPublish).not.toHaveBeenCalled();
+        expect(onSubmit).not.toHaveBeenCalled();
+    });
 
     it("opens the review without submitting when the public publish button is clicked", async () => {
         const { onRequestPublish, onSubmit } = renderActionBar(state);

@@ -25,6 +25,7 @@ public class AdminCommentService {
         if (commentIds.isEmpty()) {
             return new DeleteResponse(false);
         }
+        for (Integer id : commentIds) checkArticle(id);
         String placeholders = placeholders(commentIds.size());
         Comment comment = new Comment();
         Object matchedCount = comment.queryFirstObj(
@@ -38,6 +39,15 @@ public class AdminCommentService {
             messageCenterStateService.markChanged();
         }
         return new DeleteResponse(deleted);
+    }
+
+    private void checkArticle(long commentId) {
+        try {
+            if (AccountPermissionService.current().isAdministrator()) return;
+            Object id = new Comment().queryFirstObj("select logId from comment where commentId=?", commentId);
+            if (!(id instanceof Number)) throw new com.zrlog.admin.business.exception.PermissionErrorException();
+            AccountPermissionService.readArticle(((Number) id).longValue());
+        } catch (SQLException e) { throw new com.zrlog.admin.business.exception.PermissionErrorException(); }
     }
 
     List<Integer> parseCommentIds(String[] ids) {
@@ -67,13 +77,15 @@ public class AdminCommentService {
         if (Objects.isNull(commentRequest)) {
             return new UpdateRecordResponse(false);
         }
+        checkArticle(commentRequest.getId());
         new Comment().doRead(commentRequest.getId());
         messageCenterStateService.markChanged();
         return new UpdateRecordResponse();
     }
 
     public PageData<CommentDTO> page(PageRequest pageable) throws SQLException {
-        return new Comment().find(pageable);
+        com.zrlog.data.security.AccountAccess actor = AccountPermissionService.current();
+        return new Comment().find(pageable, actor.isAdministrator() ? null : actor.getUserId());
     }
 
     public int countUnread() throws SQLException {
@@ -87,7 +99,10 @@ public class AdminCommentService {
     }
 
     public void readAll() throws SQLException {
-        boolean updated = new Comment().execute("update " + Comment.TABLE_NAME + " set have_read = ? where have_read = ?", true, false);
+        com.zrlog.data.security.AccountAccess actor = AccountPermissionService.current();
+        boolean updated = actor.isAdministrator()
+                ? new Comment().execute("update comment set have_read=? where have_read=?", true, false)
+                : new Comment().execute("update comment set have_read=? where have_read=? and logId in (select logId from log where privacy=false or userId=?)", true, false, actor.getUserId());
         if (updated) {
             messageCenterStateService.markChanged();
         }

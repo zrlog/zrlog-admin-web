@@ -5,7 +5,7 @@ import * as H from "history";
 import { getSsDate, ssKeyStorageKey } from "../base/SsData";
 
 const getCacheKey = () => {
-    return window.location.host + "_cache_page_data";
+    return window.location.host + "_cache_page_data_session_" + (getSsDate().key || "anonymous");
 };
 
 export const removePageCacheByLocation = (location: H.Location) => {
@@ -28,6 +28,10 @@ export const getPageDataCacheKeyByPath = (pathname: string, search: string) => {
     }
     return realApiKey + removeQueryParam(search, cacheIgnoreReloadKeys);
 };
+
+const ephemeralPageData: Record<string, any> = {};
+const ephemeralKey = (key: string) => `${getCacheKey()}:${key}`;
+const isSensitivePage = (key: string) => /^\/(oauth|members|access)(?:[/?]|$)/.test(key);
 
 export const getCachedData = (): Record<string, any> => {
     const tempData = localStorage.getItem(getCacheKey());
@@ -59,17 +63,23 @@ export const putCache = (cache: Record<string, any>) => {
 };
 
 export const addToCache = (key: string, obj: any) => {
+    if (isSensitivePage(key)) {
+        ephemeralPageData[ephemeralKey(key)] = obj;
+        return;
+    }
     const record = getCachedData();
     record[key] = obj;
     putCache(record);
 };
 
 export const getCacheByKey = <T = any,>(key: string): T => {
+    if (isSensitivePage(key)) return ephemeralPageData[ephemeralKey(key)] as T;
     const record = getCachedData();
     return record[key] as T;
 };
 
 export const removeCacheDataByKey = (key: string) => {
+    delete ephemeralPageData[ephemeralKey(key)];
     const data: Record<string, any> = getCachedData();
     delete data[key];
     putCache(data);

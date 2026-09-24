@@ -1,5 +1,8 @@
 package com.zrlog.admin.web.controller.api;
 
+import com.zrlog.admin.web.annotation.RequiresAction;
+import com.zrlog.data.security.AccountAction;
+
 import com.hibegin.common.util.EnvKit;
 import com.hibegin.http.annotation.RequestMethod;
 import com.hibegin.http.annotation.ResponseBody;
@@ -21,6 +24,7 @@ public class AdminDevController extends Controller {
 
     @ResponseBody
     @RequestMethod
+    @RequiresAction(value = AccountAction.SYSTEM_MANAGE, descriptionKey = "system.releaseLocks")
     public UpdateRecordResponse releaseLocks() throws Exception {
         List<LockVO> lockDTOS = DistributedLockManager.getInstance().getLocks();
         for (LockVO lockDTO : lockDTOS) {
@@ -33,6 +37,7 @@ public class AdminDevController extends Controller {
 
     @ResponseBody
     @RequestMethod
+    @RequiresAction(value = AccountAction.SYSTEM_MANAGE, descriptionKey = "system.development")
     public AdminPageDataResponse<DevInfoResponse> index() throws Exception {
         DevInfoResponse devInfoResponse = new DevInfoResponse();
         devInfoResponse.setLocks(DistributedLockManager.getInstance().getLocks());
@@ -42,6 +47,7 @@ public class AdminDevController extends Controller {
     }
 
     @ResponseBody
+    @RequiresAction(value = AccountAction.SYSTEM_MANAGE, descriptionKey = "system.enableDevelopment")
     public ApiStandardResponse<Void> enable() {
         setDevMode(true);
         new AdminAuditService().record(request, AdminAuditAction.ENABLE_DEV_MODE);
@@ -49,6 +55,7 @@ public class AdminDevController extends Controller {
     }
 
     @ResponseBody
+    @RequiresAction(value = AccountAction.SYSTEM_MANAGE, descriptionKey = "system.setDevelopment")
     public ApiStandardResponse<Boolean> mode() {
         boolean enabled = request.getParaToBool("enabled", false);
         setDevMode(enabled);

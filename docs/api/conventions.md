@@ -17,12 +17,25 @@ OpenAPI `paths` 只记录应用内路径，例如 `/api/admin/template/upload`�
 
 ## 鉴权
 
-后台 API 支持以下任一管理员凭证，Header 的优先级高于 Cookie：
+后台 API 支持以下任一账号凭证，Header 的优先级高于 Cookie：
 
 - Header：`X-ZrLog-Admin-Token`
 - Cookie：`admin-token`
 
 凭证值属于敏感信息，文档、日志、测试输出和 AI 上下文都不得包含真实值。
+
+账号凭证只负责认证。每个受保护 Controller 方法必须绑定 `@RequiresAction`；
+固定角色与 Action 清单由 `AccountAction` 定义，未声明的受保护路由默认拒绝。
+请求体影响发布状态或管理员任免时，`conditional` 声明额外 Action，由 service 按实际数据检查。
+`descriptionKey` 必须指向前端 `access.endpointDescriptions` 的中英文接口用途文案；
+同一 Controller 方法的路由别名共用描述，不能根据 URL 临时猜测操作用途。
+权限说明接口保留 `routes` 字符串列表，并通过 `routeDetails` 返回 `path` 和 `descriptionKey`。
+`scripts/check-access-descriptions.mjs` 检查方法描述及两种语言的完整性。
+对象归属、私密状态和当前账号状态在 service 与查询中再次验证，不能仅凭路由放行。
+角色、启用状态和认证版本来自数据库，停用、改密和角色调整使旧会话失效。
+
+OAuth Bearer 令牌仅用于 OAuth 资源端点，不替代上述后台凭证。
+协议说明见 [OAuth](oauth.md)，角色和管理页面说明见 [账号与授权设计](../accounts-oauth-design.md)。
 
 ## JSON 响应
 

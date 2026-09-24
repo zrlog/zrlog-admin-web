@@ -68,7 +68,7 @@ public class AdminArticleService {
     public CreateOrUpdateArticleResponse create(AdminTokenVO adminTokenVO, CreateArticleRequest createArticleRequest) throws SQLException {
         CreateOrUpdateArticleResponse response = save(adminTokenVO, createArticleRequest);
         if (!createArticleRequest.isPreserveDraftAiMessages()) {
-            migrateDraftAIMessage(response.getLogId());
+            migrateDraftAIMessage(response.getLogId(), adminTokenVO.getUserId());
         }
         return response;
     }
@@ -84,6 +84,9 @@ public class AdminArticleService {
         if (Objects.isNull(createArticleRequest.getTypeId()) || createArticleRequest.getTypeId() < 1) {
             throw new ArticleMissingTypeException();
         }
+        com.zrlog.data.security.AccountAccess access = AccountPermissionService.account(adminTokenVO);
+        if ("contributor".equals(access.getRole()) && !createArticleRequest.isRubbish()) throw new com.zrlog.admin.business.exception.PermissionErrorException();
+        if (!createArticleRequest.isRubbish() && !createArticleRequest.isPrivacy() && !access.canPublish()) throw new com.zrlog.admin.business.exception.PermissionErrorException();
         Integer logId = (createArticleRequest instanceof UpdateArticleRequest ? ((UpdateArticleRequest) createArticleRequest).getLogId() : null);
         Lock lock = getWriteLock(adminTokenVO, logId);
         try {
@@ -96,7 +99,9 @@ public class AdminArticleService {
         try {
             Map<String, Object> oldLog = null;
             if (createArticleRequest instanceof UpdateArticleRequest) {
-                oldLog = new Log().loadById(((UpdateArticleRequest) createArticleRequest).getLogId());
+                oldLog = AccountPermissionService.article(access, ((UpdateArticleRequest) createArticleRequest).getLogId(), false);
+                if ("contributor".equals(access.getRole()) && !com.zrlog.data.security.AccountAccess.truth(oldLog.get("rubbish"))) throw new com.zrlog.admin.business.exception.PermissionErrorException();
+                if (AccountPermissionService.isPublic(oldLog) && !access.canPublish()) throw new com.zrlog.admin.business.exception.PermissionErrorException();
             }
             Map<String, Object> previousLog = oldLog;
             boolean clearsPublicState = isPublicArticle(previousLog)
@@ -113,6 +118,9 @@ public class AdminArticleService {
     }
 
     public boolean delete(Long logId) throws SQLException {
+        com.zrlog.data.security.AccountAccess access = AccountPermissionService.current();
+        if (!access.scopes().contains("articles:delete")) throw new com.zrlog.admin.business.exception.PermissionErrorException();
+        AccountPermissionService.article(access, logId, false);
         boolean deleted = ArticlePinningService.withOrderLock(() -> {
             boolean removed = new Log().deleteById(Math.toIntExact(logId));
             if (removed) {
@@ -172,9 +180,9 @@ public class AdminArticleService {
                 && !ResultValueConvertUtils.toBoolean(log.get("rubbish"));
     }
 
-    private void migrateDraftAIMessage(Long articleId) {
+    private void migrateDraftAIMessage(Long articleId, int userId) {
         try {
-            new WebSiteService().migrateDraftAIMessageToArticle(articleId);
+            new WebSiteService().migrateDraftAIMessageToArticle(articleId, -(long) userId);
         } catch (Exception e) {
             LOGGER.log(Level.FINE, "Migrate draft article AI messages failed, articleId=" + articleId, e);
         }
@@ -210,7 +218,9 @@ public class AdminArticleService {
             log.put("keywords", null);
         }
         log.put("markdown", createArticleRequest.getMarkdown());
-        log.put("userId", adminTokenVO.getUserId());
+        if (!(createArticleRequest instanceof UpdateArticleRequest)) {
+            log.put("userId", adminTokenVO.getUserId());
+        }
         log.put("typeId", createArticleRequest.getTypeId());
         log.put("last_update_date", new Date());
         log.put("canComment", createArticleRequest.isCanComment());
@@ -287,9 +297,17 @@ public class AdminArticleService {
     }
 
     public ArticleStatusCountResponse getStatusCounts() {
+        com.zrlog.data.security.AccountAccess access = AccountPermissionService.current();
+        return getStatusCounts(access.managesAllArticles() ? null : access.getUserId(), access.isAdministrator() ? null : access.getUserId());
+    }
+
+    private ArticleStatusCountResponse getStatusCounts(Integer authorId, Integer privateOwnerId) {
         ArticleStatusCountResponse counts = new ArticleStatusCountResponse();
         try {
             Log log = new Log();
+            List<Object> countParams = new ArrayList<>(Arrays.asList(false, false, true, true));
+            if (authorId != null) countParams.add(authorId);
+            if (privateOwnerId != null) { countParams.add(false); countParams.add(privateOwnerId); }
             Map<String, Object> row = log.queryFirstWithParams(
                     "SELECT "
                             + "count(1) AS totalCount,"
@@ -299,8 +317,8 @@ public class AdminArticleService {
                             + "FROM " + Log.TABLE_NAME + " l "
                             + "inner join user u on u.userId = l.userId "
                             + "inner join type t on t.typeId = l.typeId "
-                            + "where l.typeId is not null",
-                    false, false, true, true);
+                            + "where l.typeId is not null" + (authorId == null ? "" : " and l.userId=?") + (privateOwnerId == null ? "" : " and (l.privacy=? or l.userId=?)"),
+                    countParams.toArray());
             counts.setTotal(toLong(row, "totalCount"));
             counts.setPublished(toLong(row, "publishedCount"));
             counts.setPrivateCount(toLong(row, "privateCount"));
@@ -334,16 +352,19 @@ public class AdminArticleService {
     }
 
     public ArticlePageData adminPage(PageRequest pageRequest, String keywords, String typeAlias, String status, HttpRequest request) {
+        com.zrlog.data.security.AccountAccess access = AccountPermissionService.current();
+        Integer authorId = access.managesAllArticles() ? null : access.getUserId();
+        Integer privateOwnerId = access.isAdministrator() ? null : access.getUserId();
         ExecutorService executorService = ThreadUtils.newFixedThreadPool(3);
         try {
             CompletableFuture<PageData<ArticleBasicDTO>> dataCompletableFuture = CompletableFuture.supplyAsync(() -> {
-                return new Log().adminFind(pageRequest, keywords, typeAlias, status);
+                return new Log().adminFind(pageRequest, keywords, typeAlias, status, authorId, privateOwnerId);
             }, executorService);
             CompletableFuture<List<TypeDTO>> listCompletableFuture = CompletableFuture.supplyAsync(() -> {
                 return Constants.zrLogConfig.getCacheService().getArticleTypes();
             }, executorService);
             // 统计各状态数量
-            CompletableFuture<ArticleStatusCountResponse> countFuture = CompletableFuture.supplyAsync(this::getStatusCounts, executorService);
+            CompletableFuture<ArticleStatusCountResponse> countFuture = CompletableFuture.supplyAsync(() -> getStatusCounts(authorId, privateOwnerId), executorService);
             CompletableFuture.allOf(listCompletableFuture, dataCompletableFuture, countFuture).join();
             PageData<ArticleResponseEntry> articleResponseEntryPageData = convertPageable(dataCompletableFuture.join(), request);
             ArticlePageData convert = BeanUtil.convert(articleResponseEntryPageData, ArticlePageData.class);
@@ -394,6 +415,7 @@ public class AdminArticleService {
     }
 
     public AdminPageDataResponse<ArticleGlobalResponse> loadDetailById(String id, HttpRequest request) throws SQLException {
+        int draftContextId = -AccountPermissionService.current().getUserId();
         ArticleGlobalResponse response = new ArticleGlobalResponse();
         ExecutorService executorService = ThreadUtils.newFixedThreadPool(2);
         if (StringUtils.isNotEmpty(id)) {
@@ -405,7 +427,7 @@ public class AdminArticleService {
             CompletableFuture<WebSiteService.ArticleEditorContext> articleEditorContext = CompletableFuture.supplyAsync(() -> {
                 Integer articleId = response.getArticle().getId();
                 if (articleId == null) {
-                    articleId = 0;
+                    articleId = draftContextId;
                 }
                 return new WebSiteService().articleEditorContext(Long.valueOf(articleId));
             }, executorService);
@@ -504,6 +526,7 @@ public class AdminArticleService {
         if (log == null) {
             throw new NotFindDbEntryException();
         }
+        AccountPermissionService.readArticle(log.getLogId());
         return toResponse(log, request);
     }
 

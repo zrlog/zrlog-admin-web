@@ -1,5 +1,8 @@
 package com.zrlog.admin.web.controller.api;
 
+import com.zrlog.admin.web.annotation.RequiresAction;
+import com.zrlog.data.security.AccountAction;
+
 import com.hibegin.common.dao.dto.PageData;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.RequestMethod;
@@ -23,23 +26,29 @@ public class CommentController extends BaseController {
 
     @RefreshCache(updateStaticSites = StaticSiteType.BLOG)
     @ResponseBody
+    @RequiresAction(value = AccountAction.COMMENT_MANAGE, descriptionKey = "comment.delete")
+    @RequestMethod(method = HttpMethod.POST)
     public DeleteResponse delete() throws SQLException {
         return commentService.delete(getParamWithEmptyCheck("id").split(","));
     }
 
     @ResponseBody
+    @RequiresAction(value = AccountAction.COMMENT_MANAGE, descriptionKey = "comment.read")
+    @RequestMethod(method = HttpMethod.POST)
     public UpdateRecordResponse read() {
         return commentService.read(getRequestBodyWithNullCheck(ReadCommentRequest.class));
     }
 
     @ResponseBody
     @RequestMethod(method = HttpMethod.POST)
+    @RequiresAction(value = AccountAction.COMMENT_MANAGE, descriptionKey = "comment.readAll")
     public UpdateRecordResponse readAll() throws SQLException {
         commentService.readAll();
         return new UpdateRecordResponse(true);
     }
 
     @ResponseBody
+    @RequiresAction(value = AccountAction.COMMENT_MANAGE, descriptionKey = "comment.list")
     public AdminPageDataResponse<PageData<CommentDTO>> index() throws SQLException {
         return new AdminPageDataResponse<>(commentService.page(ControllerUtil.getPageRequest(this)), "", request.getUri());
     }

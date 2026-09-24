@@ -116,6 +116,7 @@ public class AdminInterceptorRoutingTest {
 
     @Test
     public void shouldInvokeMappedAdminRouteWithTokenAndClearThreadLocal() throws Exception {
+        try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
         ResponseRecorder response = new ResponseRecorder();
 
         withConfig(new TestZrLogConfig(tokenService(token())), () ->
@@ -124,6 +125,7 @@ public class AdminInterceptorRoutingTest {
 
         assertEquals("plain", ((ApiStandardResponse<?>) response.rendered).getData());
         assertNull(AdminTokenThreadLocal.getUser());
+        }
     }
 
     @Test
@@ -142,6 +144,7 @@ public class AdminInterceptorRoutingTest {
 
     @Test
     public void shouldSkipPostOnlyRequestLockForGetRequest() throws Exception {
+        try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
         ResponseRecorder response = new ResponseRecorder();
 
         withConfig(new TestZrLogConfig(tokenService(token())), () ->
@@ -150,6 +153,7 @@ public class AdminInterceptorRoutingTest {
 
         assertEquals("postOnly", ((ApiStandardResponse<?>) response.rendered).getData());
         assertNull(AdminTokenThreadLocal.getUser());
+        }
     }
 
     private static HttpRequest request(String uri) {
@@ -275,17 +279,20 @@ public class AdminInterceptorRoutingTest {
 
     public static class InterceptorController extends Controller {
 
+        @com.zrlog.admin.web.annotation.RequiresAction(value = com.zrlog.data.security.AccountAction.SESSION, descriptionKey = "admin.pageData")
         @ResponseBody
         public ApiStandardResponse<String> plain() {
             return new ApiStandardResponse<>("plain");
         }
 
+        @com.zrlog.admin.web.annotation.RequiresAction(value = com.zrlog.data.security.AccountAction.SESSION, descriptionKey = "admin.pageData")
         @ResponseBody
         @RequestLock
         public ApiStandardResponse<String> locked() {
             return new ApiStandardResponse<>("locked");
         }
 
+        @com.zrlog.admin.web.annotation.RequiresAction(value = com.zrlog.data.security.AccountAction.SESSION, descriptionKey = "admin.pageData")
         @ResponseBody
         @RequestLock(onlyOnPostMethod = true)
         public ApiStandardResponse<String> postOnlyLock() {

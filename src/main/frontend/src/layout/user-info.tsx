@@ -1,4 +1,4 @@
-import { DownOutlined, KeyOutlined, LogoutOutlined, UserOutlined } from "@ant-design/icons";
+import { ApiOutlined, DownOutlined, KeyOutlined, LogoutOutlined, TeamOutlined, UserOutlined } from "@ant-design/icons";
 import { Avatar, MenuProps, Modal, Typography } from "antd";
 import { Link } from "react-router-dom";
 
@@ -9,6 +9,7 @@ import { BasicUserInfo } from "../type";
 import { tryBlock } from "../utils/helpers";
 import { resolveBackendImageSrc } from "../common/BackendImage";
 import { useTheme } from "antd-style";
+import { hasAction } from "../utils/account-access";
 
 const { Text } = Typography;
 
@@ -40,6 +41,20 @@ const UserInfo = ({ data, offline }: { data: BasicUserInfo; offline: boolean }) 
                     </Link>
                 ),
             },
+            ...[
+                { key: "/members", action: "member.manage", title: res.members.title, icon: <TeamOutlined /> },
+                { key: "/oauth", action: "oauth.grant.manage", title: res.oauth.title, icon: <ApiOutlined /> },
+            ]
+                .filter((entry) => hasAction(entry.action))
+                .map((entry) => ({
+                    key: entry.key,
+                    label: (
+                        <Link to={getRealRouteUrl(entry.key)} onClick={(e) => tryBlock(e, modal)}>
+                            {entry.icon}
+                            <Text style={{ paddingLeft: "5px", paddingRight: 16 }}>{entry.title}</Text>
+                        </Link>
+                    ),
+                })),
             {
                 key: "-",
                 label: (

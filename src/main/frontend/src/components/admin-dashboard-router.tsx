@@ -38,7 +38,9 @@ const AsyncNotFoundPage = lazy(() => import("components/not-found-page"));
 const AdminManageLayout = lazy(() => import("layout"));
 
 const isLivePageDataPath = (pathname: string) => {
-    return pathname.replace(".html", "") === "/article-edit";
+    return ["/article-edit", "/members", "/access", "/oauth", "/oauth/authorize"].includes(
+        pathname.replace(".html", "")
+    );
 };
 
 type AdminDashboardRouterState = {

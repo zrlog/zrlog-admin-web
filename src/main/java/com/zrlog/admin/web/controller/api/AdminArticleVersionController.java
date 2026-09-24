@@ -1,5 +1,10 @@
 package com.zrlog.admin.web.controller.api;
 
+import com.zrlog.admin.web.annotation.RequiresAction;
+import com.zrlog.data.security.AccountAction;
+
+import com.hibegin.http.HttpMethod;
+import com.hibegin.http.annotation.RequestMethod;
 import com.hibegin.http.annotation.ResponseBody;
 import com.zrlog.admin.business.rest.request.ArticleVersionRollbackRequest;
 import com.zrlog.admin.business.rest.response.*;
@@ -40,12 +45,14 @@ public class AdminArticleVersionController extends BaseController {
     }
 
     @ResponseBody
+    @RequiresAction(value = AccountAction.ARTICLE_READ, articleQuery = true, descriptionKey = "article.versions")
     public ApiStandardResponse<List<ArticleVersionResponse>> index() throws SQLException {
         Integer id = Integer.valueOf(getParamWithEmptyCheck("id"));
         return new ApiStandardResponse<>(articleVersionService.listVersions(id));
     }
 
     @ResponseBody
+    @RequiresAction(value = AccountAction.ARTICLE_READ, articleQuery = true, descriptionKey = "article.compareVersions")
     public ApiStandardResponse<ArticleVersionCompareResponse> compare() throws SQLException {
         Integer id = Integer.valueOf(getParamWithEmptyCheck("id"));
         Integer fromVersion = Integer.valueOf(getParamWithEmptyCheck("fromVersion"));
@@ -54,6 +61,8 @@ public class AdminArticleVersionController extends BaseController {
     }
 
     @ResponseBody
+    @RequestMethod(method = HttpMethod.POST)
+    @RequiresAction(value = AccountAction.ARTICLE_UPDATE, conditional = AccountAction.ARTICLE_PUBLISH, descriptionKey = "article.restoreVersion")
     public AdminPageDataResponse<ArticleGlobalResponse> rollback() throws SQLException {
         ArticleVersionRollbackRequest body = getRequestBodyWithNullCheck(ArticleVersionRollbackRequest.class);
         CreateOrUpdateArticleResponse response = articleVersionService.rollback(AdminTokenThreadLocal.getUser(), body, request);

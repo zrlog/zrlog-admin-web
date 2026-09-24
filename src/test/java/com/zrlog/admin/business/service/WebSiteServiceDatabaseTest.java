@@ -175,7 +175,12 @@ public class WebSiteServiceDatabaseTest {
             assertEquals(0, service.getAiMessageInfoByArticleId(0L).getAiMessages().size());
             assertFalse(service.migrateDraftAIMessageToArticle(0L));
             assertFalse(service.removeAIMessage(0L));
-            assertFalse(service.clearAIMessage(-1L));
+            assertTrue(service.saveAIMessage(messages, -1L));
+            assertTrue(service.saveAIMessage(messages, -2L));
+            assertTrue(service.clearAIMessage(-1L));
+            assertEquals(0, service.getAiMessageInfoByArticleId(-1L).getAiMessages().size());
+            assertFalse(service.clearAIMessage(-2L));
+            assertEquals(1, service.getAiMessageInfoByArticleId(-2L).getAiMessages().size());
         }
     }
 }

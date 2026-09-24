@@ -1,5 +1,8 @@
 package com.zrlog.admin.web.controller.api;
 
+import com.zrlog.admin.web.annotation.RequiresAction;
+import com.zrlog.data.security.AccountAction;
+
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.ResponseBody;
 import com.zrlog.admin.business.ai.service.AIToolService;
@@ -39,6 +42,7 @@ public class WebSiteController extends BaseController {
     private final WebSiteSettingsService settingsService = new WebSiteSettingsService();
 
     @ResponseBody
+    @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "website.version")
     public AdminPageDataResponse<VersionResponse> version() {
         VersionResponse version = settingsService.version(getCurrentChangeLog(I18nUtil.getBackend()));
         return new AdminPageDataResponse<>(version, "", request.getUri());
@@ -49,6 +53,7 @@ public class WebSiteController extends BaseController {
     }
 
     @ResponseBody
+    @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "website.basic")
     public AdminPageDataResponse<BasicWebSiteInfo> index() throws SQLException {
         return basic();
     }
@@ -56,6 +61,7 @@ public class WebSiteController extends BaseController {
     @RefreshCache(onlyOnPostMethod = true, updateStaticSites = {StaticSiteType.BLOG, StaticSiteType.ADMIN})
     @RequestLock(onlyOnPostMethod = true)
     @ResponseBody
+    @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "website.basic")
     public AdminPageDataResponse<BasicWebSiteInfo> basic() throws SQLException {
         if (isPost()) {
             settingsService.update(getRequestBodyWithNullCheck(BasicWebSiteInfo.class), request);
@@ -65,6 +71,7 @@ public class WebSiteController extends BaseController {
 
     @RequestLock(onlyOnPostMethod = true)
     @ResponseBody
+    @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "website.optimizeDescription")
     public ApiStandardResponse<OptimizeWebsiteDescriptionResponse> optimizeDescription()
             throws IOException, InterruptedException {
         OptimizeWebsiteDescriptionRequest body = getRequestBodyWithNullCheck(OptimizeWebsiteDescriptionRequest.class);
@@ -73,6 +80,7 @@ public class WebSiteController extends BaseController {
 
     @RequestLock(onlyOnPostMethod = true)
     @ResponseBody
+    @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "website.optimizePrompt")
     public ApiStandardResponse<OptimizeAiPromptResponse> optimizeAiPrompt()
             throws IOException, InterruptedException {
         OptimizeAiPromptRequest body = getRequestBodyWithNullCheck(OptimizeAiPromptRequest.class);
@@ -82,6 +90,7 @@ public class WebSiteController extends BaseController {
     @RefreshCache(onlyOnPostMethod = true, updateStaticSites = StaticSiteType.BLOG)
     @RequestLock(onlyOnPostMethod = true)
     @ResponseBody
+    @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "website.blog")
     public AdminPageDataResponse<BlogWebSiteInfo> blog() throws SQLException {
         if (isPost()) {
             settingsService.update(getRequestBodyWithNullCheck(BlogWebSiteInfo.class), request);
@@ -92,6 +101,7 @@ public class WebSiteController extends BaseController {
     @RefreshCache(onlyOnPostMethod = true, updateStaticSites = StaticSiteType.BLOG)
     @RequestLock(onlyOnPostMethod = true)
     @ResponseBody
+    @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "website.other")
     public AdminPageDataResponse<OtherWebSiteInfo> other() throws SQLException {
         if (isPost()) {
             settingsService.update(getRequestBodyWithNullCheck(OtherWebSiteInfo.class), request);
@@ -102,6 +112,7 @@ public class WebSiteController extends BaseController {
     @RefreshCache(onlyOnPostMethod = true, updateStaticSites = StaticSiteType.ADMIN)
     @RequestLock(onlyOnPostMethod = true)
     @ResponseBody
+    @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "website.admin")
     public AdminPageDataResponse<AdminWebSiteInfo> admin() throws SQLException {
         if (isPost()) {
             settingsService.updateAdmin(getRequestBodyWithNullCheck(AdminWebSiteInfo.class), request);
@@ -111,6 +122,7 @@ public class WebSiteController extends BaseController {
 
     @RequestLock(onlyOnPostMethod = true)
     @ResponseBody
+    @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "website.editor")
     public AdminPageDataResponse<ArticleEditWebSiteInfo> articleEdit() throws SQLException {
         if (isPost()) {
             settingsService.update(getRequestBodyWithNullCheck(ArticleEditWebSiteInfo.class), request);
@@ -121,6 +133,7 @@ public class WebSiteController extends BaseController {
     @RefreshCache(onlyOnPostMethod = true, updateStaticSites = StaticSiteType.BLOG)
     @RequestLock(onlyOnPostMethod = true)
     @ResponseBody
+    @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "website.protection")
     public AdminPageDataResponse<ContentProtectorWebSiteInfo> contentProtector() throws SQLException {
         if (isPost()) {
             settingsService.update(getRequestBodyWithNullCheck(ContentProtectorWebSiteInfo.class), request);
@@ -130,6 +143,7 @@ public class WebSiteController extends BaseController {
 
     @RequestLock(onlyOnPostMethod = true)
     @ResponseBody
+    @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "website.lab")
     public AdminPageDataResponse<FeatureLabWebSiteInfo> lab() throws SQLException {
         if (isPost()) {
             settingsService.update(getRequestBodyWithNullCheck(FeatureLabWebSiteInfo.class), request);
@@ -139,6 +153,7 @@ public class WebSiteController extends BaseController {
 
     @RequestLock(onlyOnPostMethod = true)
     @ResponseBody
+    @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "website.upgrade")
     public AdminPageDataResponse<UpgradeWebSiteInfo> upgrade() throws SQLException {
         if (isPost()) {
             settingsService.updateUpgrade(getRequestBodyWithNullCheck(UpgradeWebSiteInfo.class), request);
@@ -147,6 +162,7 @@ public class WebSiteController extends BaseController {
     }
 
     @ResponseBody
+    @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "website.ai")
     public AdminPageDataResponse<AIWebSiteInfoResponse> ai() throws SQLException {
         if (isPost()) {
             settingsService.updateAi(getRequestBodyWithNullCheck(AIWebSiteInfo.class), request);

@@ -1,5 +1,8 @@
 package com.zrlog.admin.web.controller.api;
 
+import com.zrlog.admin.web.annotation.RequiresAction;
+import com.zrlog.data.security.AccountAction;
+
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.RequestMethod;
 import com.hibegin.http.annotation.ResponseBody;
@@ -32,6 +35,7 @@ public class AdminController extends BaseController {
 
     @ResponseBody
     @RequestMethod(method = HttpMethod.POST)
+    @RequiresAction(value = AccountAction.SESSION, descriptionKey = "account.login")
     public AdminPageDataResponse<UserBasicInfoResponse> login() throws Exception {
         if (!Constants.zrLogConfig.isInstalled()) {
             throw new MissingInstallException();
@@ -46,6 +50,7 @@ public class AdminController extends BaseController {
 
     @ResponseBody
     @RequestMethod(method = HttpMethod.POST)
+    @RequiresAction(value = AccountAction.SESSION, descriptionKey = "account.passkeyChallenge")
     public ApiStandardResponse<PasskeyOptionsResponse<PasskeyAuthenticationOptionsResponse>> passkeyAuthenticationOptions()
             throws SQLException {
         if (!Constants.zrLogConfig.isInstalled()) {
@@ -56,6 +61,7 @@ public class AdminController extends BaseController {
 
     @ResponseBody
     @RequestMethod(method = HttpMethod.POST)
+    @RequiresAction(value = AccountAction.SESSION, descriptionKey = "account.passkeyLogin")
     public AdminPageDataResponse<UserBasicInfoResponse> passkeyAuthenticationVerify() throws Exception {
         if (!Constants.zrLogConfig.isInstalled()) {
             throw new MissingInstallException();
@@ -72,6 +78,7 @@ public class AdminController extends BaseController {
 
 
     @ResponseBody
+    @RequiresAction(value = AccountAction.SESSION, descriptionKey = "admin.manifest")
     public AdminManifestResponse manifest() throws IOException {
         return ManifestUtils.manifest(request);
     }
@@ -81,6 +88,7 @@ public class AdminController extends BaseController {
      */
     @ResponseBody
     @RefreshCache(updateStaticSites = {StaticSiteType.ADMIN, StaticSiteType.BLOG})
+    @RequiresAction(value = AccountAction.SYSTEM_MANAGE, descriptionKey = "system.refreshCache")
     public UpdateRecordResponse refreshCache() {
         new AdminAuditService().record(request, AdminAuditAction.REFRESH_CACHE);
         return new UpdateRecordResponse();
@@ -88,23 +96,27 @@ public class AdminController extends BaseController {
 
 
     @ResponseBody
+    @RequiresAction(value = AccountAction.SESSION, descriptionKey = "admin.error")
     public AdminPageDataResponse<ErrorPageResponse> error() {
         return new AdminPageDataResponse<>(new ErrorPageResponse(request.getParaToStr("message", "")), "", request.getUri());
     }
 
     @ResponseBody
+    @RequiresAction(value = AccountAction.PLUGIN_MANAGE, descriptionKey = "plugin.list")
     public AdminPageDataResponse<PluginInfoResponse> plugin() {
         String page = getRequest().getParaToStr("page", "");
         return new AdminPageDataResponse<>(new PluginInfoResponse("admin/plugins/" + page), "", request.getUri());
     }
 
     @ResponseBody
+    @RequiresAction(value = AccountAction.DASHBOARD_READ, descriptionKey = "dashboard.read")
     public AdminPageDataResponse<IndexResponse> index() throws SQLException {
         return new AdminPageDataResponse<>(dashboardService.loadIndex(request, AdminTokenThreadLocal.getUser()),
                 "", request.getUri());
     }
 
     @ResponseBody
+    @RequiresAction(value = AccountAction.DASHBOARD_READ, descriptionKey = "dashboard.configure")
     public ApiStandardResponse<AdminDashboardConfigResponse> indexConfig() {
         AdminDashboardConfigResponse config;
         String message = "";
@@ -122,6 +134,7 @@ public class AdminController extends BaseController {
 
     @ResponseBody
     @RequestMethod(method = HttpMethod.POST)
+    @RequiresAction(value = AccountAction.DASHBOARD_READ, descriptionKey = "dashboard.dismissChecklist")
     public ApiStandardResponse<FirstUseChecklistResponse> dismissFirstUseChecklist() throws SQLException {
         FirstUseChecklistRequest body = getRequestBodyWithNullCheck(FirstUseChecklistRequest.class);
         return new ApiStandardResponse<>(dashboardService.dismissFirstUseChecklist(body.getVersion()));

@@ -35,10 +35,11 @@ public class AdminSseEmitter {
         setHeaders(response);
         PipedInputStream inputStream = new PipedInputStream();
         PipedOutputStream outputStream = new PipedOutputStream(inputStream);
+        com.zrlog.common.vo.AdminTokenVO actor = com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser();
         Thread streamThread = new Thread(() -> {
             AdminSseEmitter emitter = new AdminSseEmitter(outputStream);
             try {
-                writer.write(emitter);
+                com.zrlog.admin.web.token.AdminTokenThreadLocal.withUser(actor, () -> { writer.write(emitter); return null; });
             } catch (Exception e) {
                 emitter.sendError(errorEvent, e);
             } finally {

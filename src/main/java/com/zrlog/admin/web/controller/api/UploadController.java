@@ -1,5 +1,8 @@
 package com.zrlog.admin.web.controller.api;
 
+import com.zrlog.admin.web.annotation.RequiresAction;
+import com.zrlog.data.security.AccountAction;
+
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.RequestMethod;
 import com.hibegin.http.annotation.ResponseBody;
@@ -21,6 +24,7 @@ public class UploadController extends Controller {
 
     @ResponseBody
     @RequestMethod(method = HttpMethod.POST)
+    @RequiresAction(value = AccountAction.ASSET_UPLOAD, descriptionKey = "asset.upload")
     public ApiStandardResponse<UploadFileResponse> index() throws IOException, SQLException {
         return upload();
     }
@@ -31,6 +35,7 @@ public class UploadController extends Controller {
     @Deprecated
     @ResponseBody
     @RequestMethod(method = HttpMethod.POST)
+    @RequiresAction(value = AccountAction.ASSET_UPLOAD, descriptionKey = "asset.thumbnail")
     public ApiStandardResponse<UploadFileResponse> thumbnail() throws IOException, SQLException {
         return upload();
     }

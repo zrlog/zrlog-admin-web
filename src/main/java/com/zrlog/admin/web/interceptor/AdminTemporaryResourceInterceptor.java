@@ -21,7 +21,12 @@ public class AdminTemporaryResourceInterceptor implements HandleAbleInterceptor 
             response.renderCode(403);
             return false;
         }
+        com.zrlog.data.security.AccountAccess actor = com.zrlog.admin.business.service.AccountPermissionService.account(AdminInterceptorSupport.getAdminToken(request));
         String uri = request.getUri();
+        if (!actor.isAdministrator() && (!uri.startsWith(AdminConstants.ADMIN_DB_ATTACHED_TMP + "/users/" + actor.getUserId() + "/") || uri.contains("..") || uri.contains("%") || uri.contains("\\"))) {
+            response.renderCode(403); return false;
+        }
+        response.addHeader("Cache-Control", "no-store");
         byte[] bytes = new DbFileService().loadDbFile(uri);
         response.addHeader("Content-Type", getMimeType(uri));
         response.write(new ByteArrayInputStream(bytes));

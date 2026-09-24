@@ -1,6 +1,11 @@
 package com.zrlog.admin.web.controller.api;
 
+import com.zrlog.admin.web.annotation.RequiresAction;
+import com.zrlog.data.security.AccountAction;
+
 import com.hibegin.http.annotation.ResponseBody;
+import com.hibegin.http.annotation.RequestMethod;
+import com.hibegin.http.HttpMethod;
 import com.zrlog.admin.business.rest.request.ArticlePinningRequest;
 import com.zrlog.admin.business.rest.request.MoveArticlePinningRequest;
 import com.zrlog.admin.business.rest.response.ArticlePinningResponse;
@@ -20,12 +25,15 @@ public class AdminArticlePinningController extends BaseController {
     private final ArticlePinningService pinningService = new ArticlePinningService();
 
     @ResponseBody
+    @RequiresAction(value = AccountAction.ARTICLE_PIN, descriptionKey = "article.pins")
     public ApiStandardResponse<ArticlePinningResponse> index() throws SQLException {
         return new ApiStandardResponse<>(pinningService.list());
     }
 
     @RefreshCache(async = true, updateStaticSites = StaticSiteType.BLOG)
     @ResponseBody
+    @RequiresAction(value = AccountAction.ARTICLE_PIN, descriptionKey = "article.pin")
+    @RequestMethod(method = HttpMethod.POST)
     public ApiStandardResponse<ArticlePinningResponse> pin() throws SQLException {
         ArticlePinningRequest body = getRequestBodyWithNullCheck(ArticlePinningRequest.class);
         ArticlePinningResponse result = pinningService.pin(body.getLogId());
@@ -35,6 +43,8 @@ public class AdminArticlePinningController extends BaseController {
 
     @RefreshCache(async = true, updateStaticSites = StaticSiteType.BLOG)
     @ResponseBody
+    @RequiresAction(value = AccountAction.ARTICLE_PIN, descriptionKey = "article.unpin")
+    @RequestMethod(method = HttpMethod.POST)
     public ApiStandardResponse<ArticlePinningResponse> unpin() throws SQLException {
         ArticlePinningRequest body = getRequestBodyWithNullCheck(ArticlePinningRequest.class);
         ArticlePinningResponse result = pinningService.unpin(body.getLogId());
@@ -44,6 +54,8 @@ public class AdminArticlePinningController extends BaseController {
 
     @RefreshCache(async = true, updateStaticSites = StaticSiteType.BLOG)
     @ResponseBody
+    @RequiresAction(value = AccountAction.ARTICLE_PIN, descriptionKey = "article.movePin")
+    @RequestMethod(method = HttpMethod.POST)
     public ApiStandardResponse<ArticlePinningResponse> move() throws SQLException {
         MoveArticlePinningRequest body = getRequestBodyWithNullCheck(MoveArticlePinningRequest.class);
         ArticlePinningResponse result = pinningService.move(body.getLogId(), body.getDirection());

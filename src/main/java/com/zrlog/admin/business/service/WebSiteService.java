@@ -136,30 +136,34 @@ public class WebSiteService {
     }
 
     public boolean migrateDraftAIMessageToArticle(Long articleId) throws SQLException {
+        return migrateDraftAIMessageToArticle(articleId, DRAFT_ARTICLE_ID);
+    }
+
+    public boolean migrateDraftAIMessageToArticle(Long articleId, Long draftId) throws SQLException {
         if (articleId == null || articleId <= DRAFT_ARTICLE_ID) {
             return false;
         }
-        int draftLockIndex = aiMessageLockIndex(DRAFT_ARTICLE_ID);
+        int draftLockIndex = aiMessageLockIndex(draftId);
         int articleLockIndex = aiMessageLockIndex(articleId);
         Object draftLock = AI_MESSAGE_LOCKS[draftLockIndex];
         Object articleLock = AI_MESSAGE_LOCKS[articleLockIndex];
         if (draftLock == articleLock) {
             synchronized (draftLock) {
-                return migrateDraftAIMessageToArticleUnlocked(articleId);
+                return migrateDraftAIMessageToArticleUnlocked(articleId, draftId);
             }
         }
         Object firstLock = draftLockIndex < articleLockIndex ? draftLock : articleLock;
         Object secondLock = draftLockIndex < articleLockIndex ? articleLock : draftLock;
         synchronized (firstLock) {
             synchronized (secondLock) {
-                return migrateDraftAIMessageToArticleUnlocked(articleId);
+                return migrateDraftAIMessageToArticleUnlocked(articleId, draftId);
             }
         }
     }
 
-    private boolean migrateDraftAIMessageToArticleUnlocked(Long articleId) throws SQLException {
+    private boolean migrateDraftAIMessageToArticleUnlocked(Long articleId, Long draftId) throws SQLException {
         WebsiteKvService kvService = new WebsiteKvService();
-        String draftAIMessageKey = buildCacheKey(DRAFT_ARTICLE_ID);
+        String draftAIMessageKey = buildCacheKey(draftId);
         String draftAIMessage = kvService.getString(draftAIMessageKey);
         if (StringUtils.isEmpty(draftAIMessage)) {
             return false;
@@ -179,7 +183,7 @@ public class WebSiteService {
     }
 
     public boolean clearAIMessage(Long articleId) {
-        if (articleId == null || articleId < DRAFT_ARTICLE_ID) {
+        if (articleId == null || (articleId < DRAFT_ARTICLE_ID && articleId != -(long) com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId())) {
             return false;
         }
         synchronized (aiMessageLock(articleId)) {
@@ -191,7 +195,7 @@ public class WebSiteService {
         AIWebSiteInfoWithAIMessages info = getAiMessageInfoByArticleId(articleId);
         ArticleAIMessageExportResponse response = new ArticleAIMessageExportResponse();
         response.setArticleId(articleId);
-        response.setDraft(Objects.equals(articleId, DRAFT_ARTICLE_ID));
+        response.setDraft(articleId != null && articleId <= DRAFT_ARTICLE_ID);
         response.setExportedAt(System.currentTimeMillis());
         response.setMessages(info.getAiMessages());
         response.setMessageCount(info.getAiMessages().size());

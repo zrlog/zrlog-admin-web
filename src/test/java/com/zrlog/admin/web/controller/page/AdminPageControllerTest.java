@@ -32,6 +32,7 @@ public class AdminPageControllerTest {
     @Test
     public void shouldReturnServerSideDataForAnonymousPageRequest() throws Throwable {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
+            com.zrlog.admin.web.token.AdminTokenThreadLocal.remove();
             AdminPageController controller = controller(Constants.ADMIN_URI_BASE_PATH + "/system",
                     Map.of("uri", "/system"), response());
 

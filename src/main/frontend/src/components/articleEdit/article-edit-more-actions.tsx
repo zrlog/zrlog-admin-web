@@ -1,3 +1,4 @@
+import { hasAction } from "../../utils/account-access";
 import { App, Button, Dropdown, Modal } from "antd";
 import useArticleEditorScreens from "./use-article-editor-screens";
 import {
@@ -263,6 +264,7 @@ const ArticleEditMoreActions: FunctionComponent<ArticleEditMoreActionsProps> = (
         },
         {
             key: "asset",
+            disabled: !hasAction("file.manage"),
             icon: <FolderOpenOutlined />,
             label: getRes().articleEdit.actions.chooseFromAssets,
             onClick: () => setAssetPickerOpen(true),

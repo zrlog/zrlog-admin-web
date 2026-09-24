@@ -1,3 +1,4 @@
+import { actionForPath, hasAction } from "../utils/account-access";
 import { ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { getRealRouteUrl, getRes } from "../utils/constants";
@@ -290,6 +291,16 @@ const SliderMenu = ({ expanded = false }: SliderMenuProps) => {
         }),
     ];
 
+    const filterItems = (items: MenuItem[]): MenuItem[] =>
+        items.flatMap((item) => {
+            if (!item) return [];
+            if ("children" in item && item.children) {
+                const children = filterItems(item.children);
+                return children.length ? [{ ...item, children } as MenuItem] : [];
+            }
+            if (item.type === "divider") return [item];
+            return hasAction(actionForPath(String(item.key))) ? [item] : [];
+        });
     return (
         <>
             {contextHolder}
@@ -297,7 +308,7 @@ const SliderMenu = ({ expanded = false }: SliderMenuProps) => {
                 <div className="sidebar-panel-layout">
                     <Menu
                         selectedKeys={selectMenu}
-                        items={panelItems}
+                        items={filterItems(panelItems)}
                         theme={getAppState().dark ? "dark" : "light"}
                         className="sidebar-panel sidebar-panel-main"
                         style={{
@@ -307,7 +318,7 @@ const SliderMenu = ({ expanded = false }: SliderMenuProps) => {
                     />
                     <Menu
                         selectedKeys={selectMenu}
-                        items={panelFooterItems}
+                        items={filterItems(panelFooterItems)}
                         theme={getAppState().dark ? "dark" : "light"}
                         className="sidebar-panel sidebar-panel-footer"
                         style={{
@@ -319,7 +330,7 @@ const SliderMenu = ({ expanded = false }: SliderMenuProps) => {
             ) : (
                 <Menu
                     selectedKeys={[getRailSelectedKey()]}
-                    items={railEntries.map(getItem)}
+                    items={filterItems(railEntries.map(getItem))}
                     theme={getAppState().dark ? "dark" : "light"}
                     className="sidebar-rail"
                     style={{

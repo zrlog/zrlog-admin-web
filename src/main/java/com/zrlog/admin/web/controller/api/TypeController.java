@@ -1,5 +1,8 @@
 package com.zrlog.admin.web.controller.api;
 
+import com.zrlog.admin.web.annotation.RequiresAction;
+import com.zrlog.data.security.AccountAction;
+
 import com.hibegin.common.dao.dto.PageData;
 import com.hibegin.http.annotation.ResponseBody;
 import com.zrlog.admin.business.rest.request.CreateTypeRequest;
@@ -27,12 +30,14 @@ public class TypeController extends BaseController {
     @RefreshCache(async = true, updateStaticSites = StaticSiteType.BLOG)
     @ResponseBody
     @RequestLock
+    @RequiresAction(value = AccountAction.TAXONOMY_MANAGE, descriptionKey = "category.delete")
     public DeleteResponse delete() throws SQLException {
         int typeId = Integer.parseInt(getParamWithEmptyCheck("id"));
         return new DeleteResponse(articleTypeService.delete(typeId));
     }
 
     @ResponseBody
+    @RequiresAction(value = AccountAction.TAXONOMY_READ, descriptionKey = "category.list")
     public AdminPageDataResponse<PageData<TypeDTO>> index() throws SQLException {
         return new AdminPageDataResponse<>(articleTypeService.find(ZrLogUtil.getHomeUrlWithHost(request),
                 ControllerUtil.unPageRequest(), Constants.isStaticHtmlStatus()), "", request.getUri());
@@ -41,6 +46,7 @@ public class TypeController extends BaseController {
     @RefreshCache(async = true, updateStaticSites = StaticSiteType.BLOG)
     @ResponseBody
     @RequestLock
+    @RequiresAction(value = AccountAction.TAXONOMY_MANAGE, descriptionKey = "category.create")
     public UpdateRecordResponse add() throws IOException, SQLException {
         CreateTypeRequest requestBody = getRequestBodyWithNullCheck(CreateTypeRequest.class);
         return new UpdateRecordResponse(articleTypeService.add(requestBody));
@@ -50,6 +56,7 @@ public class TypeController extends BaseController {
     @RefreshCache(async = true, updateStaticSites = StaticSiteType.BLOG)
     @ResponseBody
     @RequestLock
+    @RequiresAction(value = AccountAction.TAXONOMY_MANAGE, descriptionKey = "category.update")
     public UpdateRecordResponse update() throws IOException, SQLException {
         UpdateTypeRequest requestBody = getRequestBodyWithNullCheck(UpdateTypeRequest.class);
         return new UpdateRecordResponse(articleTypeService.update(requestBody));

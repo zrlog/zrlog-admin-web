@@ -59,7 +59,9 @@ public class AdminPageDataResponse<T> extends StandardResponse {
         } else {
             this.systemNotification = Objects.requireNonNullElse(System.getenv("SYSTEM_NOTIFICATION"), "");
         }
-        this.messageCenter = new MessageCenterStateService().current();
+        this.messageCenter = com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser() != null
+                && !com.zrlog.admin.business.service.AccountPermissionService.current().isAdministrator()
+                ? new MessageCenterStatusResponse() : new MessageCenterStateService().current();
     }
 
     public String getPageBuildId() {

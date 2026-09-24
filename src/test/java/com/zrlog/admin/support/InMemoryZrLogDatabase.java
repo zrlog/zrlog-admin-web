@@ -33,26 +33,37 @@ import java.util.UUID;
 
 public class InMemoryZrLogDatabase implements AutoCloseable {
 
+    private final java.nio.file.Path sqliteFile;
     private final DataSourceWrapper dataSource;
     private final InMemoryDatabase database;
     private final ZrLogConfig previousConfig;
     private final AdminResource previousAdminResource;
     private final TestCacheService cacheService = new TestCacheService();
 
-    private InMemoryZrLogDatabase() throws Exception {
+    private InMemoryZrLogDatabase(boolean sqlite) throws Exception {
         this.previousConfig = Constants.zrLogConfig;
         this.previousAdminResource = AdminConstants.adminResource;
+        this.sqliteFile = sqlite ? java.nio.file.Files.createTempFile("zrlog-security-test-", ".db") : null;
         this.dataSource = newDataSource();
         this.database = InMemoryDatabase.open(dataSource, true);
         Constants.zrLogConfig = new TestZrLogConfig(dataSource, cacheService);
         AdminConstants.adminResource = new TestAdminResource();
         loadSchema();
         seedBaseData();
+        com.zrlog.common.vo.AdminTokenVO token = new com.zrlog.common.vo.AdminTokenVO();
+        token.setUserId(1);
+        token.setSessionId("session-1");
+        java.lang.reflect.Method setter = com.zrlog.admin.web.token.AdminTokenThreadLocal.class.getDeclaredMethod("setAdminToken", com.zrlog.common.vo.AdminTokenVO.class);
+        setter.setAccessible(true);
+        com.zrlog.admin.web.token.AdminTokenThreadLocal.remove();
+        setter.invoke(null, token);
     }
 
     public static InMemoryZrLogDatabase open() throws Exception {
-        return new InMemoryZrLogDatabase();
+        return new InMemoryZrLogDatabase(false);
     }
+
+    public static InMemoryZrLogDatabase openSqlite() throws Exception { return new InMemoryZrLogDatabase(true); }
 
     public DataSourceWrapper dataSource() {
         return dataSource;
@@ -79,11 +90,21 @@ public class InMemoryZrLogDatabase implements AutoCloseable {
     }
 
     public void putWebsite(String name, Object value) throws SQLException {
-        execute("merge into website(name, value) key(name) values(?, ?)", name, value == null ? null : value.toString());
+        if (sqliteFile == null) execute("merge into website(name, value) key(name) values(?, ?)", name, value == null ? null : value.toString());
+        else {
+            execute("delete from website where name=?", name);
+            execute("insert into website(name,value) values(?,?)", name, value == null ? null : value.toString());
+        }
     }
 
-    private static DataSourceWrapper newDataSource() {
+    private DataSourceWrapper newDataSource() {
         Properties properties = InMemoryDatabase.h2Properties("zrlog_admin_" + UUID.randomUUID());
+        if (sqliteFile != null) {
+            properties = new Properties();
+            properties.setProperty("driverClass", "org.sqlite.JDBC");
+            properties.setProperty("jdbcUrl", "jdbc:sqlite:" + sqliteFile + "?journal_mode=WAL&busy_timeout=10000");
+            properties.setProperty("user", ""); properties.setProperty("password", "");
+        }
         return DataSourceUtil.buildDataSource(properties);
     }
 
@@ -92,14 +113,24 @@ public class InMemoryZrLogDatabase implements AutoCloseable {
             if (input == null) {
                 throw new IllegalStateException("Missing init-table-structure.sql from zrlog-install-web test dependency");
             }
-            database.loadMySQLSchema(input);
+            if (sqliteFile == null) database.loadMySQLSchema(input);
+            else {
+                java.util.List<String> statements = com.hibegin.common.dao.SqlConvertUtils.doMySQLToSqliteBySqlText(new String(input.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8));
+                database.executeStatements(statements.stream().filter(sql -> !com.hibegin.common.dao.SqlConvertUtils.isBatchDropTableSql(sql)).collect(java.util.stream.Collectors.toList()));
+            }
         }
     }
 
     @Override
     public void close() throws Exception {
+        com.zrlog.admin.web.token.AdminTokenThreadLocal.remove();
         try {
             database.close();
+            if (sqliteFile != null) {
+                java.nio.file.Files.deleteIfExists(sqliteFile);
+                java.nio.file.Files.deleteIfExists(java.nio.file.Path.of(sqliteFile + "-wal"));
+                java.nio.file.Files.deleteIfExists(java.nio.file.Path.of(sqliteFile + "-shm"));
+            }
         } finally {
             Constants.zrLogConfig = previousConfig;
             AdminConstants.adminResource = previousAdminResource;
@@ -107,8 +138,8 @@ public class InMemoryZrLogDatabase implements AutoCloseable {
     }
 
     private void seedBaseData() throws SQLException {
-        execute("insert into user(userId, email, password, userName, header) values(?, ?, ?, ?, ?)",
-                1, "admin@example.com", "password", "admin", "/avatar.png");
+        execute("insert into user(userId, email, password, userName, header, role) values(?, ?, ?, ?, ?, ?)",
+                1, "admin@example.com", "password", "admin", "/avatar.png", "admin");
         execute("insert into type(typeId, alias, typeName, remark) values(?, ?, ?, ?)",
                 1, "default", "Default", "Default type");
         putWebsite("title", "ZrLog Test");

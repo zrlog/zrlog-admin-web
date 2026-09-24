@@ -1,5 +1,8 @@
 package com.zrlog.admin.web.controller.api;
 
+import com.zrlog.admin.web.annotation.RequiresAction;
+import com.zrlog.data.security.AccountAction;
+
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.ResponseBody;
 import com.zrlog.admin.business.rest.request.PersonalDataPreviewRequest;
@@ -21,11 +24,13 @@ public class PersonalDataController extends BaseController {
     private final PersonalDataService personalDataService = new PersonalDataService();
 
     @ResponseBody
+    @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "privacy.page")
     public AdminPageDataResponse<PersonalDataPreviewResponse> index() {
         return new AdminPageDataResponse<>(new PersonalDataPreviewResponse(), "", request.getUri());
     }
 
     @ResponseBody
+    @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "privacy.preview")
     public ApiStandardResponse<PersonalDataPreviewResponse> preview() throws SQLException {
         requirePost();
         PersonalDataPreviewRequest body = getRequestBodyWithNullCheck(PersonalDataPreviewRequest.class);
@@ -33,6 +38,7 @@ public class PersonalDataController extends BaseController {
     }
 
     @ResponseBody
+    @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "privacy.exportComments")
     public ApiStandardResponse<PersonalDataCommentExportResponse> exportComments() throws SQLException {
         requirePost();
         PersonalDataPreviewRequest body = getRequestBodyWithNullCheck(PersonalDataPreviewRequest.class);

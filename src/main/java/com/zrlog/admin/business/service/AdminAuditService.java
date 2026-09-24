@@ -36,6 +36,7 @@ public class AdminAuditService {
             List<AdminAuditLogEntryResponse> logs = readLogs(json);
 
             AdminAuditLogEntryResponse newLog = new AdminAuditLogEntryResponse();
+            newLog.setActorUserId(com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId());
             newLog.setTimestamp(System.currentTimeMillis());
             newLog.setIp(WebTools.getRealIp(request));
             newLog.setAction(action.name());
@@ -86,6 +87,7 @@ public class AdminAuditService {
         String action = log.getAction();
         AdminAuditAction auditAction = toAuditAction(action);
         AdminAuditLogEntryResponse displayLog = new AdminAuditLogEntryResponse();
+        displayLog.setActorUserId(log.getActorUserId());
         displayLog.setTimestamp(log.getTimestamp());
         displayLog.setIp(log.getIp());
         displayLog.setAction(action);
@@ -128,6 +130,7 @@ public class AdminAuditService {
 
     private AdminAuditLogEntryResponse toAuditLogEntry(JsonObject log) {
         AdminAuditLogEntryResponse entry = new AdminAuditLogEntryResponse();
+        if (log.has("actorUserId") && !log.get("actorUserId").isJsonNull()) entry.setActorUserId(toLong(log.get("actorUserId")).intValue());
         entry.setTimestamp(toLong(log.get("timestamp")));
         entry.setIp(toStringValue(log.get("ip")));
         entry.setAction(toStringValue(log.get("action")));

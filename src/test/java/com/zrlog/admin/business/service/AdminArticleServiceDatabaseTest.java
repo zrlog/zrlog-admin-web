@@ -39,7 +39,7 @@ public class AdminArticleServiceDatabaseTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             AdminArticleService service = new AdminArticleService();
             WebSiteService webSiteService = new WebSiteService();
-            assertTrue(webSiteService.saveAIMessage(List.of(new AIResponseEntry.AIContentEntry("user", "draft")), 0L));
+            assertTrue(webSiteService.saveAIMessage(List.of(new AIResponseEntry.AIContentEntry("user", "draft")), -1L));
 
             CreateOrUpdateArticleResponse response = service.create(token(), article("Hello Article", "hello.article"));
             Map<String, Object> row = db.queryOne("select * from log where logId=?", response.getLogId());
@@ -58,7 +58,7 @@ public class AdminArticleServiceDatabaseTest {
             assertTrue(loaded.getPreviewUrl().contains("/hello-article"));
             assertNotNull(loaded.getSocialPreview());
             assertEquals(1, webSiteService.getAiMessageInfoByArticleId(response.getLogId()).getAiMessages().size());
-            assertNull(db.queryOne("select value from website where name=?", "ai_chat_message_0").get("value"));
+            assertNull(db.queryOne("select value from website where name=?", "ai_chat_message_-1").get("value"));
         }
     }
 
