@@ -101,9 +101,11 @@ public class AdminPluginInterceptorTest {
     public void shouldRender404WhenAuthorizedPluginAccessFails() throws Exception {
         ResponseRecorder response = new ResponseRecorder();
 
-        withConfig(new TestZrLogConfig(tokenService(token()), new FakePluginCorePlugin(false)), () ->
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            withConfig(new TestZrLogConfig(tokenService(token()), new FakePluginCorePlugin(false)), () ->
                 new AdminPluginInterceptor().doInterceptor(
                         request(HttpMethod.GET, "/admin/plugins/reminder/index"), response.response()));
+        }
 
         assertEquals(Integer.valueOf(404), response.renderedCode);
     }

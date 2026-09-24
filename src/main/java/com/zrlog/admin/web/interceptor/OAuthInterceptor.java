@@ -35,6 +35,8 @@ public class OAuthInterceptor implements HandleAbleInterceptor {
                 json(response, service.metadata(), 200);
             } else if (path.equals(java.net.URI.create(service.resourceMetadataUrl()).getRawPath()) && request.getMethod() == HttpMethod.GET) {
                 json(response, service.resourceMetadata(), 200);
+            } else if (path.equals(java.net.URI.create(service.mcpResourceMetadataUrl()).getRawPath()) && request.getMethod() == HttpMethod.GET) {
+                json(response, service.mcpResourceMetadata(), 200);
             } else if (path.equals("/oauth/authorize") && request.getMethod() == HttpMethod.GET) {
                 Map<String,String> p = parameters(Objects.toString(request.getQueryStr(), ""));
                 OAuthModels.AuthorizationRequest a = new OAuthModels.AuthorizationRequest();

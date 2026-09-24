@@ -1,4 +1,5 @@
-import { Alert, App, Button, Collapse, Drawer, Grid, Space, Tag, Typography } from "antd";
+import { Alert, App, Button, Collapse, Drawer, Grid, Segmented, Space, Tag, Typography } from "antd";
+import { useKnowledgeAssistant } from "./use-knowledge-assistant";
 import { EyeOutlined, RobotOutlined } from "@ant-design/icons";
 import { FunctionComponent, useEffect, useMemo, useRef, useState } from "react";
 import { AIContent } from "@editor/dist/ai/AIContentItem";
@@ -1056,6 +1057,8 @@ const ArticleAiAssistantButton: FunctionComponent<ArticleAiAssistantButtonProps>
         [aiStateCacheKey]
     );
     const aiConfigured = data.aiConfigured === true;
+    const [knowledgeMode, setKnowledgeMode] = useState(false);
+    const knowledge = useKnowledgeAssistant(axiosInstance, offline || !aiConfigured);
 
     useEffect(() => {
         articleAiAssistantDrawerOpen = mergedOpen;
@@ -1085,7 +1088,7 @@ const ArticleAiAssistantButton: FunctionComponent<ArticleAiAssistantButtonProps>
         <AIButton
             aiProvider={aiConfigured ? data.aiProvider : undefined}
             dark={getAppState().dark}
-            messages={assistantConfig.messages}
+            messages={knowledgeMode ? knowledge.messages : assistantConfig.messages}
             user={getEditorUser()}
             subject={data.article.title}
             open={mergedOpen}
@@ -1098,8 +1101,21 @@ const ArticleAiAssistantButton: FunctionComponent<ArticleAiAssistantButtonProps>
             onSizeChange={(nextWidth: number) => {
                 onAiDrawerSizeChange?.(nextWidth);
             }}
-            renderMessage={assistantConfig.renderMessage}
-            footer={assistantConfig.renderFooter()}
+            renderMessage={knowledgeMode ? knowledge.renderMessage : assistantConfig.renderMessage}
+            footer={
+                <>
+                    <Segmented
+                        value={knowledgeMode ? "knowledge" : "writing"}
+                        disabled={knowledge.busy}
+                        options={[
+                            { value: "writing", label: getRes().articleEdit.knowledge.writing },
+                            { value: "knowledge", label: getRes().articleEdit.knowledge.title },
+                        ]}
+                        onChange={(value) => setKnowledgeMode(value === "knowledge")}
+                    />
+                    {knowledgeMode ? knowledge.renderFooter() : assistantConfig.renderFooter()}
+                </>
+            }
             overlays={assistantConfig.overlays}
         >
             <Button

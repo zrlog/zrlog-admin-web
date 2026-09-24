@@ -14,6 +14,8 @@ public final class AIProviderRequests {
         private List<Message> messages;
         private String model;
         private boolean stream;
+        public List<Tool> tools;
+        public String tool_choice;
         @SerializedName("max_completion_tokens")
         private Integer maxCompletionTokens;
         @SerializedName("max_tokens")
@@ -74,6 +76,12 @@ public final class AIProviderRequests {
 
         private String role;
         private String content;
+        @SerializedName("tool_calls")
+        public List<ToolCall> toolCalls;
+        @SerializedName("tool_call_id")
+        public String toolCallId;
+        @SerializedName("reasoning_content")
+        public String reasoningContent;
 
         public Message() {
         }
@@ -98,6 +106,28 @@ public final class AIProviderRequests {
         public void setContent(String content) {
             this.content = content;
         }
+    }
+
+    public static class Tool {
+        public String type = "function";
+        public Function function;
+    }
+    public static class Function {
+        public String name;
+        public String description;
+        public com.google.gson.JsonObject parameters;
+    }
+    public static class ToolCall {
+        public String id;
+        public String type;
+        public FunctionCall function;
+        public ExtraContent extra_content;
+    }
+    public static class ExtraContent { public GoogleContent google; }
+    public static class GoogleContent { public String thought_signature; }
+    public static class FunctionCall {
+        public String name;
+        public String arguments;
     }
 
     public static class ImageGenerationRequest {

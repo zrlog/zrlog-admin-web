@@ -45,6 +45,18 @@ public final class OAuthService {
         return value;
     }
     public String resource() { return issuer() + "/api/oauth"; }
+    public String mcpResource() { return issuer() + "/mcp"; }
+    public static final List<String> MCP_SCOPES = List.of("articles:read", "articles:read_drafts", "articles:read_private", "articles:all", "offline_access");
+    private void requireResource(String resource) {
+        if (!resource().equals(resource) && !mcpResource().equals(resource)) throw new OAuthException("invalid_target");
+    }
+    public ResourceMetadata mcpResourceMetadata() {
+        ResourceMetadata m = new ResourceMetadata(); m.resource = mcpResource(); m.authorization_servers = List.of(issuer()); m.scopes_supported = MCP_SCOPES; return m;
+    }
+    public String mcpResourceMetadataUrl() {
+        URI uri = URI.create(mcpResource());
+        return uri.getScheme() + "://" + uri.getRawAuthority() + "/.well-known/oauth-protected-resource" + uri.getRawPath();
+    }
     public Metadata metadata() {
         Metadata m = new Metadata(); m.issuer = issuer(); m.authorization_endpoint = m.issuer + "/oauth/authorize";
         m.token_endpoint = m.issuer + "/oauth/token"; m.revocation_endpoint = m.issuer + "/oauth/revoke"; m.scopes_supported = SCOPES;
@@ -105,8 +117,9 @@ public final class OAuthService {
     }
     public String authorize(AuthorizationRequest request) throws SQLException {
         if (request == null || !"code".equals(request.response_type)) throw new OAuthException("unsupported_response_type");
-        if (!resource().equals(request.resource)) throw new OAuthException("invalid_target");
-        scopes(request.scope);
+        requireResource(request.resource);
+        Set<String> requested = scopes(request.scope);
+        if (mcpResource().equals(request.resource) && !MCP_SCOPES.containsAll(requested)) throw new OAuthException("invalid_scope");
         if (!"S256".equals(request.code_challenge_method) || request.code_challenge == null || !request.code_challenge.matches("[A-Za-z0-9_-]{43}")) throw new OAuthException("invalid_request");
         if (request.state != null && request.state.length() > 2048) throw new OAuthException("invalid_request");
         return store.transaction(c -> {
@@ -197,7 +210,7 @@ public final class OAuthService {
     }
     public TokenResponse token(TokenRequest request) throws SQLException {
         if (request == null || !("authorization_code".equals(request.grant_type) || "refresh_token".equals(request.grant_type))) throw new OAuthException("unsupported_grant_type");
-        if (!resource().equals(request.resource)) throw new OAuthException("invalid_target");
+        requireResource(request.resource);
         boolean refresh = "refresh_token".equals(request.grant_type);
         String value = refresh ? request.refresh_token : request.code;
         if (value == null || !value.matches("[A-Za-z0-9_-]{43}")) throw new OAuthException("invalid_grant");
@@ -273,7 +286,7 @@ public final class OAuthService {
     public Page page() throws SQLException {
         AccountAccess account = AccountPermissionService.current();
         return store.transaction(c -> {
-            Page page = new Page(); page.administrator = account.isAdministrator(); page.issuer = issuer(); page.resource = resource();
+            Page page = new Page(); page.administrator = account.isAdministrator(); page.issuer = issuer(); page.resource = resource(); page.mcpResource = mcpResource();
             page.clients = new ArrayList<>();
             if (page.administrator) for (Map<String,Object> row : store.list(c, "select * from oauth_client where enabled=?", true)) page.clients.add(client(c, (String) row.get("clientId")));
             page.grants = new ArrayList<>();

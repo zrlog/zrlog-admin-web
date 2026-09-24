@@ -82,6 +82,7 @@ public final class OAuthModels {
         public boolean administrator;
         public String issuer;
         public String resource;
+        public String mcpResource;
     }
     public static class Revoke implements com.zrlog.common.Validator { public String id; public void doValid() { if (id == null || id.isEmpty()) throw new com.zrlog.common.exception.ArgsException(); } }
     public static class Identity {

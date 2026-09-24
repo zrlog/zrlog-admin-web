@@ -37,6 +37,7 @@ public class AdminWebSetup implements WebSetup {
     public void setup() {
         List<Class<? extends Interceptor>> interceptors = zrLogConfig.getServerConfig().getInterceptors();
         interceptors.add(OAuthInterceptor.class);
+        interceptors.add(McpInterceptor.class);
         interceptors.add(AdminCrossOriginInterceptor.class);
         interceptors.add(PwaInterceptor.class);
         interceptors.add(AdminPwaInterceptor.class);

@@ -107,6 +107,10 @@ public final class AIProviderResponses {
     public static class Message {
 
         private String content;
+        @SerializedName("tool_calls")
+        public List<AIProviderRequests.ToolCall> toolCalls;
+        @SerializedName("reasoning_content")
+        public String reasoningContent;
 
         public String getContent() {
             return content;

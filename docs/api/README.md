@@ -60,4 +60,4 @@ cd src/main/frontend
 yarn api-docs:check
 ```
 
-OpenAPI 稳定并达到足够覆盖率之前，不从契约自动生成客户端，也不提供运行时 Swagger UI 或 MCP 服务。
+OpenAPI 稳定并达到足够覆盖率之前，不从契约自动生成客户端、运行时 Swagger UI 或 MCP 工具。独立的只读知识库工具契约见 [MCP 知识库](../mcp-knowledge-base.md)，它不映射或开放后台管理接口。

@@ -20,7 +20,14 @@ import { useAxiosBaseInstance } from "../base/AppBase";
 import { getRealRouteUrl, getRes } from "../utils/constants";
 type Client = { clientId: string; name: string; redirectUris: string[] };
 type Grant = { id: string; clientName: string; scope: string; createdAt: number; revoked: boolean };
-type Page = { clients: Client[]; grants: Grant[]; administrator: boolean; issuer: string; resource: string };
+type Page = {
+    clients: Client[];
+    grants: Grant[];
+    administrator: boolean;
+    issuer: string;
+    resource: string;
+    mcpResource?: string;
+};
 export default function OAuth({ data }: { data: Page }) {
     const navigate = useNavigate();
     const [page, setPage] = useState(data);
@@ -71,6 +78,11 @@ export default function OAuth({ data }: { data: Page }) {
                     <Typography.Text copyable style={{ overflowWrap: "anywhere" }}>
                         {page.resource}
                     </Typography.Text>
+                    <Typography.Text>{res.mcpUrl}</Typography.Text>
+                    <Typography.Text copyable style={{ overflowWrap: "anywhere" }}>
+                        {page.mcpResource}
+                    </Typography.Text>
+                    <Typography.Paragraph type="secondary">{res.mcpHelp}</Typography.Paragraph>
                 </Space>
             </Card>
             <Card title={res.grants}>
