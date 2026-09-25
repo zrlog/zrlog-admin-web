@@ -19,7 +19,12 @@ admin/link
 admin/nav
 admin/comment
 admin/user
-admin/account-security
+admin/user/preferences
+admin/user/security
+admin/user/applications
+admin/user/applications/authorize
+admin/user/members
+admin/user/permissions
 admin/plugin
 admin/upgrade
 admin/system

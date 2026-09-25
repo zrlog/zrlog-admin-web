@@ -38,10 +38,10 @@ public class AdminConstants {
 
     static {
         TITLE_MAP.put(ADMIN_LOGIN_URI_PATH, "admin.login.title");
-        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/members", "admin.members.title");
-        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/access", "admin.access.title");
-        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/oauth", "admin.oauth.title");
-        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/oauth/authorize", "admin.oauth.authorize.title");
+        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/user/members", "admin.members.title");
+        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/user/permissions", "admin.access.title");
+        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/user/applications", "admin.oauth.title");
+        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/user/applications/authorize", "admin.oauth.authorize.title");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/article-edit", "admin.article.edit.manage");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/article", "admin.article.manage");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/index", "admin.dashboard.manage");
@@ -64,7 +64,8 @@ public class AdminConstants {
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/link", "admin.link.manage");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/plugin", "admin.plugin.manage");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/user", "admin.user.info.manage");
-        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/user-update-password", "admin.user.password.change.manage");
+        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/user/security", "admin.user.security.manage");
+        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/user/preferences", "admin.user.preferences.manage");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/upgrade", "admin.upgrade.wizard.manage");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/template-config", "admin.template.config.manage");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/template-center", "admin.template.center.manage");
@@ -77,7 +78,7 @@ public class AdminConstants {
 
 
     public static String getAdminDocumentTitleByUri(String uri) {
-        String realUri = uri.replaceFirst("/api", "");
+        String realUri = com.zrlog.admin.web.config.AdminUserPages.titleUri(uri);
         String key = TITLE_MAP.get(realUri);
         if (Objects.isNull(key)) {
             return getAdminTitle("");
@@ -86,7 +87,7 @@ public class AdminConstants {
     }
 
     public static String getAdminDocumentTitleByUri(String uri, PublicWebSiteInfo publicWebSiteInfo) {
-        String realUri = uri.replaceFirst("/api", "");
+        String realUri = com.zrlog.admin.web.config.AdminUserPages.titleUri(uri);
         String key = TITLE_MAP.get(realUri);
         if (Objects.isNull(key)) {
             return getAdminTitle("");

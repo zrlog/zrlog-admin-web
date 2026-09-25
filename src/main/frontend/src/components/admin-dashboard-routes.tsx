@@ -1,3 +1,4 @@
+import { USER_ROUTES } from "../utils/user-page-routes";
 import { actionForPath, hasAction } from "../utils/account-access";
 import { lazy } from "react";
 import type { ComponentType, ReactNode } from "react";
@@ -79,7 +80,6 @@ const AsyncAccountSecurity = lazy(() => import("components/account-security"));
 const AsyncArticle = lazy(() => import("components/article"));
 const AsyncMembers = lazy(() => import("components/members"));
 const AsyncAccess = lazy(() => import("components/access"));
-const AsyncOAuth = lazy(() => import("components/oauth"));
 const AsyncOAuthConsent = lazy(() => import("components/oauth-consent"));
 const AsyncUser = lazy(() => import("components/user"));
 const AsyncError = lazy(() => import("components/unknown-error-page"));
@@ -212,26 +212,18 @@ export const createAdminDashboardRoutes = (
     articleEditProps: Partial<ArticleEditProps> = {}
 ): AdminDashboardRouteDefinition[] => [
     {
-        paths: buildUriPaths("members"),
+        paths: buildUriPaths(USER_ROUTES.members.slice(1)),
         lazy: AsyncMembers,
         fallback: LightweightFallback,
         search: [{ id: "members", title: () => getRes().members.title, iconKey: "user", keywords: ["members"] }],
     },
     {
-        paths: buildUriPaths("access"),
+        paths: buildUriPaths(USER_ROUTES.permissions.slice(1)),
         lazy: AsyncAccess,
         fallback: LightweightFallback,
         search: [{ id: "access", title: () => getRes().access.title, iconKey: "lock", keywords: ["permissions"] }],
     },
-    {
-        paths: buildUriPaths("oauth"),
-        lazy: AsyncOAuth,
-        fallback: LightweightFallback,
-        search: [
-            { id: "oauth", title: () => getRes().oauth.title, iconKey: "api", keywords: ["oauth", "applications"] },
-        ],
-    },
-    { paths: buildUriPaths("oauth/authorize"), lazy: AsyncOAuthConsent, fallback: LightweightFallback },
+    { paths: buildUriPaths(USER_ROUTES.authorize.slice(1)), lazy: AsyncOAuthConsent, fallback: LightweightFallback },
     {
         paths: [...buildUriPaths("index"), ...buildUriPaths("")],
         lazy: AsyncIndex,
@@ -539,7 +531,7 @@ export const createAdminDashboardRoutes = (
         ],
     },
     {
-        paths: buildUriPaths("user"),
+        paths: buildUriPaths(USER_ROUTES.profile.slice(1)),
         lazy: AsyncUser,
         fallback: LightweightFallback,
         search: [
@@ -548,6 +540,34 @@ export const createAdminDashboardRoutes = (
                 title: () => getRes().user.title,
                 iconKey: "user",
                 keywords: ["user", "profile", "个人", "信息", "用户", "头像"],
+            },
+        ],
+    },
+    {
+        paths: buildUriPaths(USER_ROUTES.preferences.slice(1)),
+        lazy: AsyncUser,
+        fallback: LightweightFallback,
+        props: { activeTab: "preferences" },
+        search: [
+            {
+                id: "user-preferences",
+                title: () => getRes().user.preferences.title,
+                iconKey: "setting",
+                keywords: ["preferences", "个人设置"],
+            },
+        ],
+    },
+    {
+        paths: buildUriPaths(USER_ROUTES.applications.slice(1)),
+        lazy: AsyncUser,
+        fallback: LightweightFallback,
+        props: { activeTab: "applications" },
+        search: [
+            {
+                id: "oauth",
+                title: () => getRes().oauth.title,
+                iconKey: "api",
+                keywords: ["oauth", "applications", "mcp", "token"],
             },
         ],
     },
@@ -578,14 +598,14 @@ export const createAdminDashboardRoutes = (
         ],
     },
     {
-        paths: [...buildUriPaths("account-security"), ...buildUriPaths("user-update-password")],
+        paths: buildUriPaths(USER_ROUTES.security.slice(1)),
         lazy: AsyncAccountSecurity,
         fallback: LightweightFallback,
         search: [
             {
                 id: "account-security",
                 title: () => getRes().accountSecurity.title,
-                path: "/account-security",
+                path: USER_ROUTES.security,
                 iconKey: "lock",
                 keywords: [
                     "password",

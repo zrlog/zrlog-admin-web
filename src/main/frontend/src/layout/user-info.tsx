@@ -1,3 +1,4 @@
+import { USER_ROUTES } from "../utils/user-page-routes";
 import { DownOutlined, KeyOutlined, LogoutOutlined, TeamOutlined, UserOutlined } from "@ant-design/icons";
 import { Avatar, MenuProps, Modal, Typography } from "antd";
 import { Link } from "react-router-dom";
@@ -24,7 +25,7 @@ const UserInfo = ({ data, offline }: { data: BasicUserInfo; offline: boolean }) 
                 label: (
                     <Link
                         style={{ whiteSpace: "nowrap" }}
-                        to={getRealRouteUrl("/user")}
+                        to={getRealRouteUrl(USER_ROUTES.profile)}
                         onClick={(e) => tryBlock(e, modal)}
                     >
                         <UserOutlined />
@@ -35,13 +36,13 @@ const UserInfo = ({ data, offline }: { data: BasicUserInfo; offline: boolean }) 
             {
                 key: "2",
                 label: (
-                    <Link to={getRealRouteUrl("/account-security")} onClick={(e) => tryBlock(e, modal)}>
+                    <Link to={getRealRouteUrl(USER_ROUTES.security)} onClick={(e) => tryBlock(e, modal)}>
                         <KeyOutlined />
                         <Text style={{ paddingLeft: "5px", paddingRight: 16 }}>{res.accountSecurity.title}</Text>
                     </Link>
                 ),
             },
-            ...[{ key: "/members", action: "member.manage", title: res.members.title, icon: <TeamOutlined /> }]
+            ...[{ key: USER_ROUTES.members, action: "member.manage", title: res.members.title, icon: <TeamOutlined /> }]
                 .filter((entry) => hasAction(entry.action))
                 .map((entry) => ({
                     key: entry.key,

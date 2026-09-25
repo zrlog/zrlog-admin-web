@@ -2,7 +2,7 @@
 
 ## 契约与数据归属
 
-个人资料 `/admin/user?tab=applications` 增加「外部应用」页签，管理「个人访问令牌」和我的 OAuth 授权。移除账号菜单中的独立外部应用入口，旧 `/admin/oauth` 链接跳转到个人页签；`/admin/oauth/authorize` 授权回调页面保持不变。管理员额外可见的站点应用登记明确标注为站点范围，登记不授予个人数据访问。后台登录账号创建和撤销自己的令牌，不接受调用方指定所属账号。令牌只用于本站 `/mcp` 的只读知识库，不可用于 `/api/oauth/me`、后台会话或刷新令牌接口；原 OAuth 授权、PKCE 和刷新流程保持不变。
+个人资料的「外部应用」页签使用 `/admin/user/applications`，管理「个人访问令牌」和我的 OAuth 授权。移除账号菜单中的独立外部应用入口，授权确认页面使用 `/admin/user/applications/authorize`。管理员额外可见的站点应用登记明确标注为站点范围，登记不授予个人数据访问。后台登录账号创建和撤销自己的令牌，不接受调用方指定所属账号。令牌只用于本站 `/mcp` 的只读知识库，不可用于 `/api/oauth/me`、后台会话或刷新令牌接口；原 OAuth 授权、PKCE 和刷新流程保持不变。
 
 新增 schema 29 的 `user_access_token` 表，保存独立管理 ID、userId、名称、SHA-256 tokenHash、scope、MCP resource、账号 authVersion、创建/到期时间、撤销状态。避免把凭据放入全局配置、user.preferences 或伪装成 OAuth 客户端。明文格式 `zrmcp_` + 256 位随机值，只在创建响应返回一次；列表、SSR、审计均不包含明文或摘要。
 
@@ -27,5 +27,5 @@
 - base 449 项、install 175 项（4 项环境跳过）、后台 526 项、前端 41 组 / 270 项通过。安装后再跑迁移专项 28 项，H2/SQLite 均通过。后台排除会重置已有预览数据的 MemoryApplicationTest。
 - TypeScript、ESLint、生产构建、native JSON 注册和中英文接口描述护栏、diff 检查通过。
 - 真实 HTTP 覆盖个人令牌创建、只读与私密/草稿范围、列表/SSR 不返回令牌、跨资源拒绝、账户隔离、撤销、角色变更失效、GET/跨 Origin 请求拒绝；原 OAuth PKCE、MCP scope、受众和撤销回归通过。
-- 浏览器连接返回 nodeRepl.fetch request failed，未完成真实浏览器视觉验收；组件测试覆盖创建、一次显示、关闭清理、失败保留、撤销、个人页加载、离线和旧入口跳转。
+- 浏览器连接返回 nodeRepl.fetch request failed，未完成真实浏览器视觉验收；组件测试覆盖创建、一次显示、关闭清理、失败保留、撤销、个人页加载、离线。
 - 独立预览端口 18086，已有预览服务及数据保留。未提交代码，未操作用户真实数据库。部署时按既有升级流程执行 schema 29。

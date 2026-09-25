@@ -38,6 +38,14 @@ public class AdminResourceImplTest {
             assertFalse(resource.getAdminStaticResourceUris().isEmpty());
             assertTrue(pageUris.stream().allMatch(uri -> uri.startsWith("/blog/admin/")));
             assertTrue(pageUris.contains("/blog/admin/index"));
+            assertTrue(pageUris.contains("/blog/admin/user/security"));
+            assertTrue(pageUris.contains("/blog/admin/user/preferences"));
+            assertTrue(pageUris.contains("/blog/admin/user/applications/authorize"));
+            assertFalse(pageUris.contains("/blog/admin/account-security"));
+            assertFalse(normalServiceWorker.contains("/admin/user/applications"));
+            assertFalse(normalServiceWorker.contains("/admin/user/members"));
+            assertFalse(staticServiceWorker.contains("/admin/user/permissions"));
+            assertTrue(staticServiceWorker.contains("/blog/admin/user/security.html?"));
             assertTrue(cacheUris.contains("/blog" + AdminConstants.ADMIN_PWA_MANIFEST_JSON));
             assertTrue(cacheUris.contains("/blog" + AdminConstants.ADMIN_SERVICE_WORKER_JS));
             assertTrue(apiUris.contains("/api/admin/website"));

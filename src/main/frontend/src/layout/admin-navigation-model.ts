@@ -22,7 +22,7 @@ const navigationRouteRules: AdminNavigationRouteRule[] = [
     },
     {
         group: "settings",
-        paths: ["/website", "/system", "/upgrade", "/user", "/account-security", "/user-update-password", "/members", "/access", "/oauth"],
+        paths: ["/website", "/system", "/upgrade", "/user"],
     },
 ];
 

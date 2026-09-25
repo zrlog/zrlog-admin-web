@@ -3,6 +3,7 @@ import { removeQueryParam } from "./helpers";
 import { cacheIgnoreReloadKeys } from "./constants";
 import * as H from "history";
 import { getSsDate, ssKeyStorageKey } from "../base/SsData";
+import { getUserPage } from "./user-page-routes";
 
 const getCacheKey = () => {
     return window.location.host + "_cache_page_data_session_" + (getSsDate().key || "anonymous");
@@ -31,7 +32,7 @@ export const getPageDataCacheKeyByPath = (pathname: string, search: string) => {
 
 const ephemeralPageData: Record<string, any> = {};
 const ephemeralKey = (key: string) => `${getCacheKey()}:${key}`;
-const isSensitivePage = (key: string) => /^\/(oauth|members|access)(?:[/?]|$)/.test(key);
+const isSensitivePage = (key: string) => getUserPage(key)?.sensitive === true;
 
 export const getCachedData = (): Record<string, any> => {
     const tempData = localStorage.getItem(getCacheKey());

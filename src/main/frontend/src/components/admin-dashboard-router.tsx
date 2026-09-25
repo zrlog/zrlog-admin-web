@@ -32,15 +32,14 @@ import { AdminCommonProps, BasicUserInfo } from "../type";
 import { getSsDate, getWindowPageBuildId } from "../base/SsData";
 import { JSX } from "react/jsx-runtime";
 import { createAdminDashboardRoutes } from "./admin-dashboard-routes";
+import { getUserPage } from "../utils/user-page-routes";
 import IntrinsicAttributes = JSX.IntrinsicAttributes;
 
 const AsyncNotFoundPage = lazy(() => import("components/not-found-page"));
 const AdminManageLayout = lazy(() => import("layout"));
 
 const isLivePageDataPath = (pathname: string) => {
-    return ["/article-edit", "/members", "/access", "/oauth", "/oauth/authorize"].includes(
-        pathname.replace(".html", "")
-    );
+    return pathname.replace(/\.html$/, "") === "/article-edit" || getUserPage(pathname)?.sensitive === true;
 };
 
 type AdminDashboardRouterState = {

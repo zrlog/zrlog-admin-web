@@ -2,9 +2,9 @@ import { act } from "react";
 import { createRoot, Root } from "react-dom/client";
 import { Simulate } from "react-dom/test-utils";
 import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { MemoryRouter, useLocation } from "react-router-dom";
+import { MemoryRouter } from "react-router-dom";
 import PersonalAccessTokens, { PersonalAccessToken } from "./personal-access-tokens";
-import OAuth, { UserApplications } from "./oauth";
+import { UserApplications } from "./oauth";
 import { getRes } from "../utils/constants";
 import { BasicUserInfo } from "../type";
 
@@ -189,20 +189,5 @@ describe("personal MCP tokens", () => {
         expect(mockGet).toHaveBeenCalledWith("/api/admin/oauth");
         expect(container.textContent).toContain(info.name);
         expect(container.textContent).not.toContain(getRes().oauth.applications);
-    });
-    it("redirects old application bookmarks to the personal applications tab", async () => {
-        function Location() {
-            const location = useLocation();
-            return <span>{location.pathname + location.search}</span>;
-        }
-        await act(async () =>
-            root.render(
-                <MemoryRouter initialEntries={["/oauth"]}>
-                    <OAuth />
-                    <Location />
-                </MemoryRouter>
-            )
-        );
-        expect(container.textContent).toMatch(/\/user(?:\.html)?\?tab=applications/);
     });
 });

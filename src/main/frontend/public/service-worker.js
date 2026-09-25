@@ -1,4 +1,4 @@
-const CACHE_NAME = "my-cache-v7";
+const CACHE_NAME = "my-cache-v8";
 const urlsToCache = [];
 const networkOnlyPathMatchers = [
     (pathname) => pathname.includes("/api/"),
@@ -6,6 +6,7 @@ const networkOnlyPathMatchers = [
     (pathname) => pathname.includes("/admin/plugins/"),
     (pathname) => pathname.includes("/admin/attached"),
     (pathname) => pathname.includes("/admin/template/preview-image"),
+    (pathname) => /\/admin\/user\/(?:applications|members|permissions)(?:\/|\.html$|$)/.test(pathname),
 ];
 
 const shouldUseNetworkOnly = (pathname) => networkOnlyPathMatchers.some((matcher) => matcher(pathname));

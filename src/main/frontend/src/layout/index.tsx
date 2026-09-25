@@ -1,3 +1,4 @@
+import { getUserPage } from "../utils/user-page-routes";
 import { hasAction } from "../utils/account-access";
 import { HomeOutlined } from "@ant-design/icons";
 import { Alert, Col, FloatButton, Layout, Row, Tag, Typography } from "antd";
@@ -160,11 +161,8 @@ const AdminManageLayout: FunctionComponent<AdminManageLayoutProps> = ({
         }
         const navigationGroup = getAdminNavigationGroup(pathname);
         const navigationSubtitle = navigationGroup ? getAdminNavigationGroupLabel(navigationGroup) : undefined;
-        if (pathname.startsWith("/members")) return { title: getRes().members.title, subtitle: navigationSubtitle };
-        if (pathname.startsWith("/access")) return { title: getRes().access.title, subtitle: navigationSubtitle };
-        if (pathname.startsWith("/oauth/authorize"))
-            return { title: getRes().oauth.authorizeTitle, subtitle: navigationSubtitle };
-        if (pathname.startsWith("/oauth")) return { title: getRes().oauth.title, subtitle: navigationSubtitle };
+        const userPage = getUserPage(pathname);
+        if (userPage) return { title: userPage.title(getRes()), subtitle: navigationSubtitle };
         if (pathname.startsWith("/article-edit")) {
             return { title: getRes().articleEdit.title, subtitle: navigationSubtitle };
         }
@@ -200,12 +198,6 @@ const AdminManageLayout: FunctionComponent<AdminManageLayoutProps> = ({
         }
         if (pathname.startsWith("/system")) {
             return { title: getRes().system.info, subtitle: navigationSubtitle };
-        }
-        if (pathname.startsWith("/account-security") || pathname.startsWith("/user-update-password")) {
-            return { title: getRes().accountSecurity.title, subtitle: navigationSubtitle };
-        }
-        if (pathname.startsWith("/user")) {
-            return { title: getRes().user.title, subtitle: navigationSubtitle };
         }
         if (pathname.startsWith("/website/template")) {
             return { title: getRes().websiteTemplate.title, subtitle: navigationSubtitle };

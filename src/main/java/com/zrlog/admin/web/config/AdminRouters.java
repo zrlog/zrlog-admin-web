@@ -26,13 +26,10 @@ public class AdminRouters {
         router.addMapper(TemplateInfoHelper.ADMIN_PREVIEW_IMAGE_URI, AdminTemplatePageController.class, "previewImage");
         router.addMapper("/api/admin/access", AccessController.class);
         router.addMapper("/api/admin/knowledge", KnowledgeController.class);
-        router.addMapper("/admin/access", AdminPageController.class, "index");
         router.addMapper("/api/admin/members", MemberController.class);
         router.addMapper("/api/admin/oauth", OAuthAdminController.class);
         router.addMapper("/api/admin/oauth/authorize", OAuthAdminController.class, "consent");
-        router.addMapper("/admin/members", AdminPageController.class, "index");
-        router.addMapper("/admin/oauth", AdminPageController.class, "index");
-        router.addMapper("/admin/oauth/authorize", AdminPageController.class, "index");
+        AdminUserPages.PAGE_APIS.keySet().forEach(uri -> router.addMapper(uri, AdminPageController.class, "index"));
         // api
         router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH, AdminController.class);
         router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/passkey/authentication/options",

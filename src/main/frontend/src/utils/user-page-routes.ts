@@ -1,0 +1,65 @@
+import type { AdminI18nResource } from "../i18n/admin";
+
+export const USER_ROUTES = {
+    profile: "/user",
+    preferences: "/user/preferences",
+    security: "/user/security",
+    applications: "/user/applications",
+    authorize: "/user/applications/authorize",
+    members: "/user/members",
+    permissions: "/user/permissions",
+} as const;
+
+type UserPage = {
+    api: string;
+    action: string;
+    sensitive?: boolean;
+    title: (res: AdminI18nResource) => string;
+};
+
+const pages: Record<string, UserPage> = {
+    [USER_ROUTES.profile]: { api: "/api/admin/user", action: "account.self", title: (res) => res.user.title },
+    [USER_ROUTES.preferences]: {
+        api: "/api/admin/user",
+        action: "account.self",
+        title: (res) => res.user.preferences.title,
+    },
+    [USER_ROUTES.security]: {
+        api: "/api/admin/account-security",
+        action: "account.self",
+        title: (res) => res.accountSecurity.title,
+    },
+    [USER_ROUTES.applications]: {
+        api: "/api/admin/user",
+        action: "oauth.grant.manage",
+        sensitive: true,
+        title: (res) => res.oauth.title,
+    },
+    [USER_ROUTES.authorize]: {
+        api: "/api/admin/oauth/authorize",
+        action: "oauth.grant.manage",
+        sensitive: true,
+        title: (res) => res.oauth.authorizeTitle,
+    },
+    [USER_ROUTES.members]: {
+        api: "/api/admin/members",
+        action: "member.manage",
+        sensitive: true,
+        title: (res) => res.members.title,
+    },
+    [USER_ROUTES.permissions]: {
+        api: "/api/admin/access",
+        action: "permission.read",
+        sensitive: true,
+        title: (res) => res.access.title,
+    },
+};
+
+export const getUserPage = (uri: string): UserPage | undefined => pages[uri.split("?")[0].replace(/\.html$/, "")];
+
+export const getPageApiUri = (uri: string): string => {
+    const queryIndex = uri.indexOf("?");
+    const path = (queryIndex < 0 ? uri : uri.slice(0, queryIndex)).replace(/\.html$/, "");
+    const search = queryIndex < 0 ? "" : uri.slice(queryIndex);
+    return (getUserPage(path)?.api || "/api/admin" + path) + search;
+};

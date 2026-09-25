@@ -172,6 +172,36 @@ public class AdminPageServiceTest {
     }
 
     @Test
+    public void shouldLoadNestedAccountPagesThroughExistingApisWithoutWeakeningPermissions() throws Throwable {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            AccountAuthorizationTest.login(db, 1, "owner");
+            Router router = new Router();
+            com.zrlog.admin.web.config.AdminRouters.configAdminRoute(router, AdminConstants.adminResource, "/blog");
+            RequestConfig config = new RequestConfig();
+            config.setRouter(router);
+            AdminPageService service = new AdminPageService();
+            for (String page : java.util.List.of("/admin/user", "/admin/user/preferences", "/admin/user/security",
+                    "/admin/user/applications", "/admin/user/members", "/admin/user/permissions")) {
+                ServerSideDataResponse<Object> data = service.serverSide(page, request(page, "/blog", config), response());
+                assertNotNull(page, data.getData());
+                assertEquals(AdminConstants.getAdminDocumentTitleByUri(page), data.getDocumentTitle());
+            }
+            assertNotNull(router.getMethod("/api/admin/oauth/createPersonalToken", HttpMethod.POST));
+            assertFalse(router.getRouterMap().containsKey("/api/admin/user/applications"));
+            for (String oldPage : java.util.List.of("/admin/members", "/admin/access", "/admin/oauth", "/admin/oauth/authorize")) {
+                assertFalse(oldPage, router.getRouterMap().containsKey(oldPage));
+            }
+            AccountAuthorizationTest.login(db, 1, "author");
+            assertNotNull(service.serverSide("/admin/user/applications", request("/admin/user/applications", "/blog", config), response()).getData());
+            org.junit.Assert.assertThrows(com.zrlog.admin.business.exception.PermissionErrorException.class,
+                    () -> service.serverSide("/admin/user/members", request("/admin/user/members", "/blog", config), response()));
+            // ssJson uses the same page mapping and must enforce the same member action.
+            org.junit.Assert.assertThrows(com.zrlog.admin.business.exception.PermissionErrorException.class,
+                    () -> service.serverSide("/admin/user/members", request("/admin/ssJson", "/blog", config), response()));
+        }
+    }
+
+    @Test
     public void shouldReturnNullDataForNonPageServerSideResponse() throws Throwable {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
             setAdminToken();

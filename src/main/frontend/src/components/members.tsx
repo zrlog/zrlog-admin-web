@@ -1,3 +1,4 @@
+import { USER_ROUTES } from "../utils/user-page-routes";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { QuestionCircleOutlined } from "@ant-design/icons";
@@ -68,7 +69,10 @@ export default function Members({ data }: { data: Page }) {
                 title={res.title}
                 extra={
                     <Space wrap>
-                        <Button icon={<QuestionCircleOutlined />} onClick={() => navigate(getRealRouteUrl("/access"))}>
+                        <Button
+                            icon={<QuestionCircleOutlined />}
+                            onClick={() => navigate(getRealRouteUrl(USER_ROUTES.permissions))}
+                        >
                             {getRes().access.title}
                         </Button>
                         <Button type="primary" onClick={() => open(null)}>

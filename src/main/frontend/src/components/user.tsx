@@ -1,4 +1,5 @@
-import { useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import { USER_ROUTES } from "../utils/user-page-routes";
 import { UserApplications } from "./oauth";
 import UserPreferencesForm from "./user-preferences";
 import { useState } from "react";
@@ -7,7 +8,7 @@ import Form from "antd/es/form";
 import { Button, Card, Input, message, theme, Tabs } from "antd";
 import Row from "antd/es/grid/row";
 import Col from "antd/es/grid/col";
-import Constants, { getRes } from "../utils/constants";
+import Constants, { getRealRouteUrl, getRes } from "../utils/constants";
 import { useAxiosBaseInstance } from "../base/AppBase";
 import ResourceDragger, { DraggerUploadResponse } from "../common/ResourceDragger";
 import { postRefreshCacheSse } from "../utils/sse-utils";
@@ -168,21 +169,17 @@ const UserProfile = ({ data, offline }: { data: BasicUserInfo; offline: boolean 
     );
 };
 
-const User = (props: { data: BasicUserInfo; offline: boolean }) => {
-    const [params, setParams] = useSearchParams();
-    const activeTab = params.get("tab") || "profile";
+const User = (props: {
+    data: BasicUserInfo;
+    offline: boolean;
+    activeTab?: "profile" | "preferences" | "applications";
+}) => {
+    const navigate = useNavigate();
     return (
         <Tabs
-            activeKey={["profile", "preferences", "applications"].includes(activeTab) ? activeTab : "profile"}
+            activeKey={props.activeTab || "profile"}
             onChange={(tab) =>
-                setParams(
-                    (previous) => {
-                        const next = new URLSearchParams(previous);
-                        next.set("tab", tab);
-                        return next;
-                    },
-                    { replace: true }
-                )
+                navigate(getRealRouteUrl(USER_ROUTES[tab as "profile" | "preferences" | "applications"]))
             }
             items={[
                 { key: "profile", label: getRes().user.title, children: <UserProfile {...props} /> },

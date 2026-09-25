@@ -1,6 +1,7 @@
+import { USER_ROUTES } from "../utils/user-page-routes";
 import { useEffect, useState } from "react";
 import PersonalAccessTokens, { PersonalAccessToken } from "./personal-access-tokens";
-import { Navigate, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { QuestionCircleOutlined } from "@ant-design/icons";
 import {
     Alert,
@@ -67,7 +68,10 @@ function OAuthConnections({ data }: { data: Page }) {
             <Card
                 title={res.title}
                 extra={
-                    <Button icon={<QuestionCircleOutlined />} onClick={() => navigate(getRealRouteUrl("/access"))}>
+                    <Button
+                        icon={<QuestionCircleOutlined />}
+                        onClick={() => navigate(getRealRouteUrl(USER_ROUTES.permissions))}
+                    >
                         {getRes().access.title}
                     </Button>
                 }
@@ -266,9 +270,4 @@ export function UserApplications({ offline }: { offline: boolean }) {
             />
         );
     return data ? <OAuthConnections data={data} /> : <Spin />;
-}
-
-// Existing bookmarks and search results keep working; consent has its own route.
-export default function OAuth() {
-    return <Navigate to={getRealRouteUrl("/user?tab=applications")} replace />;
 }

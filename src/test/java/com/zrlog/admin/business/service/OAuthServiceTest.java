@@ -26,7 +26,9 @@ public class OAuthServiceTest {
         r.response_type="code";r.scope=scopes;r.resource=service.resource();r.state="state & 中文";r.code_challenge=OAuthService.hash(verifier);r.code_challenge_method="S256";return r;
     }
     private Consent consent(AuthorizationRequest r) throws Exception {
-        String id=OAuthInterceptor.parameters(URI.create(service.authorize(r)).getRawQuery()).get("request_id");return service.consent(id);
+        URI page=URI.create(service.authorize(r));
+        assertEquals("/sub/admin/user/applications/authorize",page.getPath());
+        String id=OAuthInterceptor.parameters(page.getRawQuery()).get("request_id");return service.consent(id);
     }
     private Decision decision(Consent c) { Decision d=new Decision();d.requestId=c.requestId;d.csrf=c.csrf;d.approve=true;d.scopes=c.availableScopes;return d; }
     private TokenRequest code(Client app,String scopes) throws Exception {

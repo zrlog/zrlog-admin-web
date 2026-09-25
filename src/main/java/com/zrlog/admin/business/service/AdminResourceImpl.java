@@ -108,7 +108,8 @@ public class AdminResourceImpl implements AdminResource {
         Set<String> realUris = new LinkedHashSet<>();
         String adminResourceUrl = AdminWebTools.getAdminStaticResourceBaseUrlByWebSite(request);
         String withoutContextPath = adminResourceUrl.substring(0, adminResourceUrl.length() - contextPath.length());
-        pageUris.forEach(uri -> realUris.addAll(buildRealPageUrls(uri, withoutContextPath, request)));
+        pageUris.stream().filter(uri -> !com.zrlog.admin.web.config.AdminUserPages.isSensitive(uri.substring(contextPath.length())))
+                .forEach(uri -> realUris.addAll(buildRealPageUrls(uri, withoutContextPath, request)));
         staticUris.forEach(uri -> realUris.add(withoutContextPath + uri));
         String newUrls = "const urlsToCache = " + new Gson().newBuilder().disableHtmlEscaping().setPrettyPrinting().create().toJson(realUris);
         return new ByteArrayInputStream(IOUtil.getStringInputStream(AdminResourceImpl.class.getResourceAsStream(AdminConstants.ADMIN_SERVICE_WORKER_JS)).replace("const urlsToCache = []", newUrls).getBytes());
