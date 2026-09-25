@@ -1,8 +1,5 @@
-import { USER_ROUTES } from "../utils/user-page-routes";
 import { useEffect, useState } from "react";
 import PersonalAccessTokens, { PersonalAccessToken } from "./personal-access-tokens";
-import { useNavigate } from "react-router-dom";
-import { QuestionCircleOutlined } from "@ant-design/icons";
 import {
     Alert,
     Button,
@@ -20,7 +17,7 @@ import {
     message,
 } from "antd";
 import { useAxiosBaseInstance } from "../base/AppBase";
-import { getRealRouteUrl, getRes } from "../utils/constants";
+import { getRes } from "../utils/constants";
 type Client = { clientId: string; name: string; redirectUris: string[] };
 type Grant = { id: string; clientName: string; scope: string; createdAt: number; revoked: boolean };
 type Page = {
@@ -34,7 +31,6 @@ type Page = {
     personalTokenScopes: string[];
 };
 function OAuthConnections({ data }: { data: Page }) {
-    const navigate = useNavigate();
     const [page, setPage] = useState(data);
     const [open, setOpen] = useState(false);
     const [busy, setBusy] = useState(false);
@@ -65,18 +61,7 @@ function OAuthConnections({ data }: { data: Page }) {
     return (
         <Space orientation="vertical" size="large" style={{ width: "100%" }}>
             {contextHolder}
-            <Card
-                title={res.title}
-                extra={
-                    <Button
-                        icon={<QuestionCircleOutlined />}
-                        onClick={() => navigate(getRealRouteUrl(USER_ROUTES.permissions))}
-                    >
-                        {getRes().access.title}
-                    </Button>
-                }
-            >
-                <Typography.Paragraph>{res.description}</Typography.Paragraph>
+            <div>
                 <Space orientation="vertical" style={{ maxWidth: "100%" }}>
                     <Typography.Text>{res.issuer}</Typography.Text>
                     <Typography.Text copyable style={{ overflowWrap: "anywhere" }}>
@@ -92,7 +77,7 @@ function OAuthConnections({ data }: { data: Page }) {
                     </Typography.Text>
                     <Typography.Paragraph type="secondary">{res.mcpHelp}</Typography.Paragraph>
                 </Space>
-            </Card>
+            </div>
             <PersonalAccessTokens tokens={page.personalTokens} scopes={page.personalTokenScopes} onChange={reload} />
             <Card title={res.grants}>
                 <List

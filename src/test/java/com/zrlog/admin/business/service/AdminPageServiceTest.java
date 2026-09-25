@@ -181,23 +181,23 @@ public class AdminPageServiceTest {
             config.setRouter(router);
             AdminPageService service = new AdminPageService();
             for (String page : java.util.List.of("/admin/user", "/admin/user/preferences", "/admin/user/security",
-                    "/admin/user/applications", "/admin/user/members", "/admin/user/permissions")) {
+                    "/admin/user/applications", "/admin/website/members", "/admin/user/permissions")) {
                 ServerSideDataResponse<Object> data = service.serverSide(page, request(page, "/blog", config), response());
                 assertNotNull(page, data.getData());
                 assertEquals(AdminConstants.getAdminDocumentTitleByUri(page), data.getDocumentTitle());
             }
             assertNotNull(router.getMethod("/api/admin/oauth/createPersonalToken", HttpMethod.POST));
             assertFalse(router.getRouterMap().containsKey("/api/admin/user/applications"));
-            for (String oldPage : java.util.List.of("/admin/members", "/admin/access", "/admin/oauth", "/admin/oauth/authorize")) {
+            for (String oldPage : java.util.List.of("/admin/user/members", "/admin/members", "/admin/access", "/admin/oauth", "/admin/oauth/authorize")) {
                 assertFalse(oldPage, router.getRouterMap().containsKey(oldPage));
             }
             AccountAuthorizationTest.login(db, 1, "author");
             assertNotNull(service.serverSide("/admin/user/applications", request("/admin/user/applications", "/blog", config), response()).getData());
             org.junit.Assert.assertThrows(com.zrlog.admin.business.exception.PermissionErrorException.class,
-                    () -> service.serverSide("/admin/user/members", request("/admin/user/members", "/blog", config), response()));
+                    () -> service.serverSide("/admin/website/members", request("/admin/website/members", "/blog", config), response()));
             // ssJson uses the same page mapping and must enforce the same member action.
             org.junit.Assert.assertThrows(com.zrlog.admin.business.exception.PermissionErrorException.class,
-                    () -> service.serverSide("/admin/user/members", request("/admin/ssJson", "/blog", config), response()));
+                    () -> service.serverSide("/admin/website/members", request("/admin/ssJson", "/blog", config), response()));
         }
     }
 

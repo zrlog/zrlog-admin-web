@@ -22,15 +22,15 @@ type StyledIndexLayoutProps = {
 const StyledIndexLayout = styled.div<StyledIndexLayoutProps>`
     position: relative;
 
-    .website-setting-select-popup,
-    .website-setting-select-popup-list {
+    .settings-select-popup,
+    .settings-select-popup-list {
         overscroll-behavior-x: none;
         overscroll-behavior-y: contain;
         -webkit-overflow-scrolling: touch;
         touch-action: pan-y;
     }
 
-    .website-setting-select-popup-list {
+    .settings-select-popup-list {
         max-height: min(320px, calc(100dvh - 168px));
         overflow-y: auto;
     }

@@ -6,18 +6,19 @@ export const USER_ROUTES = {
     security: "/user/security",
     applications: "/user/applications",
     authorize: "/user/applications/authorize",
-    members: "/user/members",
     permissions: "/user/permissions",
 } as const;
 
-type UserPage = {
+export const WEBSITE_ROUTES = { members: "/website/members" } as const;
+
+type AccountPage = {
     api: string;
     action: string;
     sensitive?: boolean;
     title: (res: AdminI18nResource) => string;
 };
 
-const pages: Record<string, UserPage> = {
+const pages: Record<string, AccountPage> = {
     [USER_ROUTES.profile]: { api: "/api/admin/user", action: "account.self", title: (res) => res.user.title },
     [USER_ROUTES.preferences]: {
         api: "/api/admin/user",
@@ -41,7 +42,7 @@ const pages: Record<string, UserPage> = {
         sensitive: true,
         title: (res) => res.oauth.authorizeTitle,
     },
-    [USER_ROUTES.members]: {
+    [WEBSITE_ROUTES.members]: {
         api: "/api/admin/members",
         action: "member.manage",
         sensitive: true,
@@ -55,11 +56,11 @@ const pages: Record<string, UserPage> = {
     },
 };
 
-export const getUserPage = (uri: string): UserPage | undefined => pages[uri.split("?")[0].replace(/\.html$/, "")];
+export const getAccountPage = (uri: string): AccountPage | undefined => pages[uri.split("?")[0].replace(/\.html$/, "")];
 
 export const getPageApiUri = (uri: string): string => {
     const queryIndex = uri.indexOf("?");
     const path = (queryIndex < 0 ? uri : uri.slice(0, queryIndex)).replace(/\.html$/, "");
     const search = queryIndex < 0 ? "" : uri.slice(queryIndex);
-    return (getUserPage(path)?.api || "/api/admin" + path) + search;
+    return (getAccountPage(path)?.api || "/api/admin" + path) + search;
 };

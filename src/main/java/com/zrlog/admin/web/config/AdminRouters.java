@@ -29,7 +29,7 @@ public class AdminRouters {
         router.addMapper("/api/admin/members", MemberController.class);
         router.addMapper("/api/admin/oauth", OAuthAdminController.class);
         router.addMapper("/api/admin/oauth/authorize", OAuthAdminController.class, "consent");
-        AdminUserPages.PAGE_APIS.keySet().forEach(uri -> router.addMapper(uri, AdminPageController.class, "index"));
+        AdminAccountPages.PAGE_APIS.keySet().forEach(uri -> router.addMapper(uri, AdminPageController.class, "index"));
         // api
         router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH, AdminController.class);
         router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/passkey/authentication/options",

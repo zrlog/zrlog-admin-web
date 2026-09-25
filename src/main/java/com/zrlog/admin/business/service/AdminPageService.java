@@ -12,7 +12,7 @@ import com.zrlog.admin.business.rest.response.ServerSideDataResponse;
 import com.zrlog.admin.business.rest.response.UserInfoResponse;
 import com.zrlog.admin.util.AdminWebTools;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
-import com.zrlog.admin.web.config.AdminUserPages;
+import com.zrlog.admin.web.config.AdminAccountPages;
 import com.zrlog.blog.web.util.WebTools;
 import com.zrlog.common.TokenService;
 import com.zrlog.common.rest.response.StandardResponse;
@@ -119,7 +119,7 @@ public class AdminPageService {
         }
         new UserPreferenceService().apply(resourceInfo, new UserPreferenceService().effective());
         UserInfoResponse userInfo = new UserService().getUserInfoWithCache(AdminTokenThreadLocal.getUserId(), AdminTokenThreadLocal.getUser().getSessionId());
-        Method method = request.getRequestConfig().getRouter().getMethod(AdminUserPages.apiUri(uri), request.getMethod());
+        Method method = request.getRequestConfig().getRouter().getMethod(AdminAccountPages.apiUri(uri), request.getMethod());
         try {
             AccountPermissionService.checkRoute(method, request);
             Controller controller = Controller.buildController(method, request, response);
@@ -130,7 +130,7 @@ public class AdminPageService {
             if (result instanceof AdminPageDataResponse<?>) {
                 AdminPageDataResponse<?> data = (AdminPageDataResponse<?>) result;
                 return new ServerSideDataResponse<>(userInfo, resourceInfo, data.getData(), AdminTokenThreadLocal.getUser().getSessionId(),
-                        AdminUserPages.PAGE_APIS.containsKey(uri) ? AdminConstants.getAdminDocumentTitleByUri(uri) : data.getDocumentTitle());
+                        AdminAccountPages.PAGE_APIS.containsKey(uri) ? AdminConstants.getAdminDocumentTitleByUri(uri) : data.getDocumentTitle());
             }
         } catch (InvocationTargetException e) {
             throw e.getTargetException();

@@ -1,5 +1,6 @@
+import SettingsSubmitBar from "./common/SettingsSubmitBar";
 import { useEffect, useRef, useState } from "react";
-import { Alert, Button, Card, Form, Select, Space, Spin, Typography, message, theme } from "antd";
+import { Alert, Button, Form, Select, Space, Spin, Typography, message, theme } from "antd";
 import { useAxiosBaseInstance } from "../base/AppBase";
 import { getSsDate } from "../base/SsData";
 import { getRes } from "../utils/constants";
@@ -147,10 +148,9 @@ const UserPreferencesForm = ({ offline }: { offline: boolean }) => {
     const pageSize = Form.useWatch("articlePageSize", form);
     const pageSizes = Array.from(new Set([10, 20, 50, 100, ...(pageSize ? [pageSize] : [])])).sort((a, b) => a - b);
     const headingStyle = { marginTop: token.margin, marginBottom: token.marginLG };
-    const divider = `${token.lineWidth}px ${token.lineType} ${token.colorBorderSecondary}`;
 
     return (
-        <Card title={res.title} style={{ maxWidth: 800, width: "100%" }}>
+        <div style={{ maxWidth: 800, width: "100%" }}>
             {contextHolder}
             {offline ? (
                 <Alert type="info" title={res.offline} />
@@ -169,7 +169,6 @@ const UserPreferencesForm = ({ offline }: { offline: boolean }) => {
                     onValuesChange={(changes) => preview(mergeUserPreferenceChanges(draftRef.current, changes))}
                     onFinish={() => void save()}
                 >
-                    <Typography.Paragraph type="secondary">{res.description}</Typography.Paragraph>
                     <Typography.Title level={5} style={headingStyle}>
                         {res.appearanceTitle}
                     </Typography.Title>
@@ -228,25 +227,28 @@ const UserPreferencesForm = ({ offline }: { offline: boolean }) => {
                             ]}
                         />
                     </Form.Item>
-                    <div style={{ borderTop: divider, paddingTop: token.padding, marginTop: token.marginLG }}>
-                        <Space wrap>
-                            <Button type="primary" htmlType="submit" loading={saving} disabled={!dirty}>
-                                {res.save}
-                            </Button>
-                            <Button disabled={!dirty} onClick={() => preview(data.overrides, true)}>
-                                {res.undo}
-                            </Button>
-                            <Button type="link" onClick={() => preview({}, true)}>
-                                {res.reset}
-                            </Button>
-                        </Space>
+                    <SettingsSubmitBar
+                        loading={saving}
+                        disabled={!dirty}
+                        label={res.save}
+                        actions={
+                            <>
+                                <Button disabled={!dirty} onClick={() => preview(data.overrides, true)}>
+                                    {res.undo}
+                                </Button>
+                                <Button type="link" onClick={() => preview({}, true)}>
+                                    {res.reset}
+                                </Button>
+                            </>
+                        }
+                    >
                         <Typography.Paragraph type="secondary" style={{ marginTop: token.marginSM, marginBottom: 0 }}>
                             {res.previewHint}
                         </Typography.Paragraph>
-                    </div>
+                    </SettingsSubmitBar>
                 </Form>
             )}
-        </Card>
+        </div>
     );
 };
 

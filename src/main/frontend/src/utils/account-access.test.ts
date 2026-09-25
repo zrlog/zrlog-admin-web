@@ -16,8 +16,8 @@ describe("account permission and cache boundary", () => {
     it("denies missing capabilities and uses the backend action catalogue", () => {
         expect(hasAction("article.read")).toBe(true);
         expect(hasAction("article.publish")).toBe(false);
-        expect(actionForPath("/user/members")).toBe("member.manage");
-        expect(actionForPath("/user/members.html?v=1")).toBe("member.manage");
+        expect(actionForPath("/website/members")).toBe("member.manage");
+        expect(actionForPath("/website/members.html?v=1")).toBe("member.manage");
         expect(actionForPath("/user/permissions")).toBe("permission.read");
         expect(actionForPath("/user/security")).toBe("account.self");
         expect(actionForPath("/user/preferences")).toBe("account.self");
@@ -34,5 +34,12 @@ describe("account permission and cache boundary", () => {
         addToCache("/user/applications/authorize?request_id=example", { csrf: "csrf-example" });
         expect(getCacheByKey("/user/applications/authorize?request_id=example").csrf).toBe("csrf-example");
         expect(JSON.stringify(localStorage)).not.toContain("csrf-example");
+    });
+    it("keeps site member data in the current session only", () => {
+        addToCache("/website/members", { members: ["member-cache-example"] });
+        expect(getCacheByKey("/website/members").members).toEqual(["member-cache-example"]);
+        expect(JSON.stringify(localStorage)).not.toContain("member-cache-example");
+        window.__SS_DATA__!.key = "two";
+        expect(getCacheByKey("/website/members")).toBeUndefined();
     });
 });

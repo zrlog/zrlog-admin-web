@@ -1,4 +1,4 @@
-import { getUserPage } from "../utils/user-page-routes";
+import { getAccountPage } from "../utils/account-page-routes";
 import { hasAction } from "../utils/account-access";
 import { HomeOutlined } from "@ant-design/icons";
 import { Alert, Col, FloatButton, Layout, Row, Tag, Typography } from "antd";
@@ -161,8 +161,8 @@ const AdminManageLayout: FunctionComponent<AdminManageLayoutProps> = ({
         }
         const navigationGroup = getAdminNavigationGroup(pathname);
         const navigationSubtitle = navigationGroup ? getAdminNavigationGroupLabel(navigationGroup) : undefined;
-        const userPage = getUserPage(pathname);
-        if (userPage) return { title: userPage.title(getRes()), subtitle: navigationSubtitle };
+        const accountPage = getAccountPage(pathname);
+        if (accountPage) return { title: accountPage.title(getRes()), subtitle: navigationSubtitle };
         if (pathname.startsWith("/article-edit")) {
             return { title: getRes().articleEdit.title, subtitle: navigationSubtitle };
         }

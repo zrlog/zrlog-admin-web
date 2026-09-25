@@ -1,4 +1,4 @@
-import { USER_ROUTES } from "../utils/user-page-routes";
+import { USER_ROUTES, WEBSITE_ROUTES } from "../utils/account-page-routes";
 import { actionForPath, hasAction } from "../utils/account-access";
 import { lazy } from "react";
 import type { ComponentType, ReactNode } from "react";
@@ -212,10 +212,17 @@ export const createAdminDashboardRoutes = (
     articleEditProps: Partial<ArticleEditProps> = {}
 ): AdminDashboardRouteDefinition[] => [
     {
-        paths: buildUriPaths(USER_ROUTES.members.slice(1)),
+        paths: buildUriPaths(WEBSITE_ROUTES.members.slice(1)),
         lazy: AsyncMembers,
         fallback: LightweightFallback,
-        search: [{ id: "members", title: () => getRes().members.title, iconKey: "user", keywords: ["members"] }],
+        search: [
+            {
+                id: "members",
+                title: () => getRes().members.title,
+                iconKey: "user",
+                keywords: ["members", "成员", "角色"],
+            },
+        ],
     },
     {
         paths: buildUriPaths(USER_ROUTES.permissions.slice(1)),
@@ -547,7 +554,7 @@ export const createAdminDashboardRoutes = (
         paths: buildUriPaths(USER_ROUTES.preferences.slice(1)),
         lazy: AsyncUser,
         fallback: LightweightFallback,
-        props: { activeTab: "preferences" },
+        props: { activeKey: "preferences" },
         search: [
             {
                 id: "user-preferences",
@@ -561,7 +568,7 @@ export const createAdminDashboardRoutes = (
         paths: buildUriPaths(USER_ROUTES.applications.slice(1)),
         lazy: AsyncUser,
         fallback: LightweightFallback,
-        props: { activeTab: "applications" },
+        props: { activeKey: "applications" },
         search: [
             {
                 id: "oauth",

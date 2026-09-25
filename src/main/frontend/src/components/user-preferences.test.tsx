@@ -97,7 +97,6 @@ describe("personal preferences", () => {
 
     it("shows effective values and previews edits without pinning untouched defaults", async () => {
         await render();
-        expect(container.textContent).toContain("个人设置");
         expect(container.textContent).toContain(getRes().user.preferences.scopeOwnPublic);
         expect(container.querySelector("#appearance_darkMode")?.getAttribute("aria-checked")).toBe("false");
         toggle("appearance_compactMode");
@@ -144,7 +143,7 @@ describe("personal preferences", () => {
         });
         expect(document.documentElement.lang).toBe("en");
         expect(mockChangeAppState).toHaveBeenLastCalledWith(expect.objectContaining({ lang: "en_US" }));
-        expect(container.textContent).toContain("Personal settings");
+        expect(container.textContent).toContain("Appearance");
         act(() => root.render(null));
         expect(document.documentElement.lang).toBe("zh");
     });
@@ -170,7 +169,7 @@ describe("personal preferences", () => {
     it("supports English and prevents offline writes", async () => {
         window.__SS_DATA__!.resourceInfo = { lang: "en_US" };
         await render(true);
-        expect(container.textContent).toContain("Personal settings");
+        expect(container.textContent).toContain("Connect to view and edit personal settings");
         expect(container.textContent).toContain(getRes().user.preferences.offline);
         expect(mockGet).not.toHaveBeenCalled();
         expect(container.querySelector("form")).toBeNull();

@@ -1,7 +1,7 @@
 import { AxiosInstance } from "axios";
 import { getSsDate, getWindowPageBuildId, setWindowPageBuildId } from "./base/SsData";
 import { cacheIgnoreReloadTime, getRes } from "./utils/constants";
-import { getPageApiUri, getUserPage } from "./utils/user-page-routes";
+import { getPageApiUri, getAccountPage } from "./utils/account-page-routes";
 import { syncMessageCenterStatus } from "./utils/message-center-status";
 import type { ApiResponse, PublicVersionResponse } from "./type";
 
@@ -15,10 +15,10 @@ export const getCsrData = async (uri: string, t: number, axiosInstance: AxiosIns
         requestUri = requestUri + `${uri.includes("?") ? "&" : "?"}${cacheIgnoreReloadTime}=` + t;
     }
     const { data } = await axiosInstance.get(requestUri);
-    const userPage = getUserPage(uri);
-    if (userPage && !data.error) {
+    const accountPage = getAccountPage(uri);
+    if (accountPage && !data.error) {
         const res = getRes();
-        data.documentTitle = [userPage.title(res), res.websiteTitle, res.common.management].filter(Boolean).join(" - ");
+        data.documentTitle = [accountPage.title(res), res.websiteTitle, res.common.management].filter(Boolean).join(" - ");
     }
     if (data.pageBuildId !== undefined) {
         getSsDate().pageBuildId = data.pageBuildId as string as never;

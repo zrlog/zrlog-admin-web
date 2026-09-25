@@ -38,7 +38,7 @@ public class AdminConstants {
 
     static {
         TITLE_MAP.put(ADMIN_LOGIN_URI_PATH, "admin.login.title");
-        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/user/members", "admin.members.title");
+        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/website/members", "admin.members.title");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/user/permissions", "admin.access.title");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/user/applications", "admin.oauth.title");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/user/applications/authorize", "admin.oauth.authorize.title");
@@ -78,7 +78,7 @@ public class AdminConstants {
 
 
     public static String getAdminDocumentTitleByUri(String uri) {
-        String realUri = com.zrlog.admin.web.config.AdminUserPages.titleUri(uri);
+        String realUri = com.zrlog.admin.web.config.AdminAccountPages.titleUri(uri);
         String key = TITLE_MAP.get(realUri);
         if (Objects.isNull(key)) {
             return getAdminTitle("");
@@ -87,7 +87,7 @@ public class AdminConstants {
     }
 
     public static String getAdminDocumentTitleByUri(String uri, PublicWebSiteInfo publicWebSiteInfo) {
-        String realUri = com.zrlog.admin.web.config.AdminUserPages.titleUri(uri);
+        String realUri = com.zrlog.admin.web.config.AdminAccountPages.titleUri(uri);
         String key = TITLE_MAP.get(realUri);
         if (Objects.isNull(key)) {
             return getAdminTitle("");

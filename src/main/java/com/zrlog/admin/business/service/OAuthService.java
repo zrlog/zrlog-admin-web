@@ -133,7 +133,7 @@ public final class OAuthService {
             if (pendingCount.longValue() >= 1000) throw new OAuthException("temporarily_unavailable", 503);
             store.update(c, "delete from oauth_credential where expiresAt<?", System.currentTimeMillis() - REFRESH_TTL);
             String id = issue(c, "pending", null, pending, 600_000L);
-            return issuer() + com.zrlog.admin.web.config.AdminUserPages.AUTHORIZE + "?request_id=" + encode(id);
+            return issuer() + com.zrlog.admin.web.config.AdminAccountPages.AUTHORIZE + "?request_id=" + encode(id);
         });
     }
     public Consent consent(String requestId) throws SQLException {

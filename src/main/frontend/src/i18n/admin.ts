@@ -1396,6 +1396,11 @@ const zhCN = {
         "inPreview": "预览中"
     },
     "user": {
+        "settings": {
+            "navigation": "个人账号",
+            "profileSummary": "设置你的名称、邮箱和头像。",
+            "securitySummary": "管理登录密码、多重验证和通行密钥。"
+        },
         "preferences": {
             "title": "个人设置",
             "description": "设置你的后台外观和编辑习惯，仅对当前账号生效。",
@@ -3189,6 +3194,11 @@ const enUS: AdminI18nResource = {
         "inPreview": "In Preview"
     },
     "user": {
+        "settings": {
+            "navigation": "Your account",
+            "profileSummary": "Manage your name, email address and avatar.",
+            "securitySummary": "Manage your password, multi-factor authentication and passkeys."
+        },
         "preferences": {
             "title": "Personal settings",
             "description": "Customize your admin appearance and writing settings. Changes apply only to your account.",

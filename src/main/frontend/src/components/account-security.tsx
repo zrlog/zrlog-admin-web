@@ -1,3 +1,5 @@
+import UserSettingsLayout from "./common/UserSettingsLayout";
+import SettingsSubmitBar from "./common/SettingsSubmitBar";
 import { useEffect, useRef, useState } from "react";
 import Card from "antd/es/card";
 
@@ -20,7 +22,7 @@ const layout = {
 };
 
 const accountSecurityApiBase = "/api/admin/account-security";
-const panelMaxWidth = 600;
+const panelMaxWidth = 800;
 const passwordInputStyle = {
     maxWidth: 320,
 };
@@ -149,7 +151,7 @@ const AccountSecurity = ({ offline, data, updateCache }: AdminCommonProps<Accoun
     };
 
     return (
-        <>
+        <UserSettingsLayout activeKey="security">
             {contextHolder}
             <Row gutter={[24, 24]}>
                 <Col xs={24}>
@@ -170,22 +172,7 @@ const AccountSecurity = ({ offline, data, updateCache }: AdminCommonProps<Accoun
                                 <Input.Password style={passwordStyle} />
                             </Form.Item>
 
-                            <div
-                                style={{
-                                    position: "sticky",
-                                    bottom: 0,
-                                    paddingTop: 16,
-                                    paddingBottom: "calc(16px + env(safe-area-inset-bottom))",
-                                    background: theme.colorBgContainer,
-                                    zIndex: 10,
-                                    marginTop: 24,
-                                    borderTop: `${theme.lineWidth}px ${theme.lineType} ${theme.colorBorderSecondary}`,
-                                }}
-                            >
-                                <Button disabled={offline} type="primary" htmlType="submit">
-                                    {getRes().submit}
-                                </Button>
-                            </div>
+                            <SettingsSubmitBar disabled={offline} />
                         </Form>
                     </Card>
                 </Col>
@@ -289,7 +276,7 @@ const AccountSecurity = ({ offline, data, updateCache }: AdminCommonProps<Accoun
                     </Space>
                 </Form>
             </Modal>
-        </>
+        </UserSettingsLayout>
     );
 };
 

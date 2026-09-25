@@ -2,15 +2,17 @@ import { act } from "react";
 import { createRoot, Root } from "react-dom/client";
 import { MemoryRouter, NavigateFunction, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { Grid } from "antd";
 import User from "./user";
 import { getRes } from "../utils/constants";
-import { USER_ROUTES } from "../utils/user-page-routes";
+import { USER_ROUTES } from "../utils/account-page-routes";
 
 jest.mock("antd/es/divider", () => require("antd").Divider);
 jest.mock("antd/es/form", () => require("antd").Form);
 jest.mock("antd/es/grid/row", () => require("antd").Row);
 jest.mock("antd/es/grid/col", () => require("antd").Col);
 jest.mock("../base/AppBase", () => ({ useAxiosBaseInstance: () => ({}) }));
+jest.mock("../base/ConfigProviderApp", () => ({ getAppState: () => ({ compactMode: false }) }));
 jest.mock("../common/ResourceDragger", () => () => null);
 jest.mock("../common/ImageCropper", () => () => null);
 jest.mock("../common/BackendImage", () => () => null);
@@ -24,6 +26,10 @@ describe("personal page URLs", () => {
     const previousEnv = process.env;
     beforeEach(() => {
         process.env = { ...previousEnv, NODE_ENV: "production" };
+        (globalThis as any).MessageChannel = class {
+            port1 = { onmessage: () => undefined };
+            port2 = { postMessage: () => Promise.resolve().then(() => this.port1.onmessage()) };
+        };
         (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
         global.ResizeObserver = class {
             observe() {
@@ -64,9 +70,16 @@ describe("personal page URLs", () => {
         container.remove();
         jest.restoreAllMocks();
         delete (globalThis as any).IS_REACT_ACT_ENVIRONMENT;
+        delete (globalThis as any).MessageChannel;
     });
 
-    it.each([false, true])("opens a deep link and follows back/forward navigation (static=%s)", async (staticPage) => {
+    it.each([
+        [false, false],
+        [false, true],
+        [true, false],
+        [true, true],
+    ])("opens a deep link and follows back/forward navigation (static=%s, mobile=%s)", async (staticPage, mobile) => {
+        jest.spyOn(Grid, "useBreakpoint").mockReturnValue({ md: !mobile });
         window.__SS_DATA__ = {
             user: null,
             key: "routes",
@@ -82,19 +95,20 @@ describe("personal page URLs", () => {
                 <>
                     <output>{location.pathname}</output>
                     <Routes>
-                        {(["profile", "preferences", "applications"] as const).map((tab) => (
+                        {(["profile", "preferences", "applications"] as const).map((page) => (
                             <Route
-                                key={tab}
-                                path={USER_ROUTES[tab] + suffix}
+                                key={page}
+                                path={USER_ROUTES[page] + suffix}
                                 element={
                                     <User
                                         data={{ userName: "writer", email: "", header: "" }}
                                         offline={false}
-                                        activeTab={tab}
+                                        activeKey={page}
                                     />
                                 }
                             />
                         ))}
+                        <Route path={USER_ROUTES.permissions + suffix} element={<div>Permissions content</div>} />
                     </Routes>
                 </>
             );
@@ -107,17 +121,39 @@ describe("personal page URLs", () => {
             )
         );
         expect(container.textContent).toContain("Applications content");
-        const selected = () => container.querySelector('[role="tab"][aria-selected="true"]')?.textContent;
+        const selected = () =>
+            container.querySelector(mobile ? ".ant-select-content" : 'nav a[aria-current="page"]')?.textContent;
         expect(selected()).toBe(getRes().oauth.title);
-        const settingsTab = Array.from(container.querySelectorAll<HTMLElement>('[role="tab"]')).find(
-            (tab) => tab.textContent === getRes().user.preferences.title
-        )!;
-        await act(async () => settingsTab.click());
+        if (mobile) {
+            await act(async () => {
+                container
+                    .querySelector('[role="combobox"]')!
+                    .dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+            });
+            const options = Array.from(container.querySelectorAll<HTMLElement>(".ant-select-item-option"));
+            expect(options.map((option) => option.textContent)).toContain(getRes().accountSecurity.title);
+            await act(async () =>
+                options.find((option) => option.textContent === getRes().user.preferences.title)!.click()
+            );
+        } else {
+            const links = Array.from(container.querySelectorAll<HTMLAnchorElement>("nav a"));
+            expect(
+                links.find((link) => link.textContent === getRes().accountSecurity.title)?.getAttribute("href")
+            ).toBe(USER_ROUTES.security + suffix + "?v=test");
+            await act(async () => links.find((link) => link.textContent === getRes().user.preferences.title)!.click());
+        }
         expect(container.querySelector("output")?.textContent).toBe(USER_ROUTES.preferences + suffix);
         expect(selected()).toBe(getRes().user.preferences.title);
         await act(async () => navigate(-1));
         expect(selected()).toBe(getRes().oauth.title);
         await act(async () => navigate(1));
         expect(selected()).toBe(getRes().user.preferences.title);
+        await act(async () => navigate(-1));
+        const help = Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find(
+            (button) => button.textContent === getRes().access.title
+        )!;
+        await act(async () => help.click());
+        expect(container.querySelector("output")?.textContent).toBe(USER_ROUTES.permissions + suffix);
+        expect(container.textContent).toContain("Permissions content");
     });
 });

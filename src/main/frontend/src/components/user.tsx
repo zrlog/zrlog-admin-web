@@ -1,14 +1,13 @@
-import { useNavigate } from "react-router-dom";
-import { USER_ROUTES } from "../utils/user-page-routes";
+import UserSettingsLayout from "./common/UserSettingsLayout";
+import SettingsSubmitBar from "./common/SettingsSubmitBar";
 import { UserApplications } from "./oauth";
 import UserPreferencesForm from "./user-preferences";
 import { useState } from "react";
-import Divider from "antd/es/divider";
 import Form from "antd/es/form";
-import { Button, Card, Input, message, theme, Tabs } from "antd";
+import { Input, message, theme } from "antd";
 import Row from "antd/es/grid/row";
 import Col from "antd/es/grid/col";
-import Constants, { getRealRouteUrl, getRes } from "../utils/constants";
+import Constants, { getRes } from "../utils/constants";
 import { useAxiosBaseInstance } from "../base/AppBase";
 import ResourceDragger, { DraggerUploadResponse } from "../common/ResourceDragger";
 import { postRefreshCacheSse } from "../utils/sse-utils";
@@ -40,11 +39,11 @@ const UserProfile = ({ data, offline }: { data: BasicUserInfo; offline: boolean 
     const avatarSide = 128;
     const surface = {
         card: {
-            maxWidth: 640,
+            maxWidth: 800,
             width: "100%",
         },
         formColumn: {
-            maxWidth: 600,
+            maxWidth: 800,
         },
         uploader: {
             overflow: "hidden",
@@ -54,12 +53,6 @@ const UserProfile = ({ data, offline }: { data: BasicUserInfo; offline: boolean 
             width: avatarSide,
             height: avatarSide,
             borderRadius: token.borderRadius,
-        },
-        divider: {
-            margin: `${token.marginLG}px 0 ${token.margin}px`,
-        },
-        submitItem: {
-            marginBottom: 0,
         },
     };
 
@@ -101,7 +94,7 @@ const UserProfile = ({ data, offline }: { data: BasicUserInfo; offline: boolean 
     return (
         <>
             {contextHolder}
-            <Card title={getRes().user.title} style={surface.card}>
+            <div style={surface.card}>
                 <Row>
                     <Col style={surface.formColumn} xs={24}>
                         <Form
@@ -143,16 +136,11 @@ const UserProfile = ({ data, offline }: { data: BasicUserInfo; offline: boolean 
                                     />
                                 </ResourceDragger>
                             </Form.Item>
-                            <Divider style={surface.divider} />
-                            <Form.Item style={surface.submitItem}>
-                                <Button disabled={offline} loading={submitting} type="primary" htmlType="submit">
-                                    {getRes().submit}
-                                </Button>
-                            </Form.Item>
+                            <SettingsSubmitBar disabled={offline} loading={submitting} />
                         </Form>
                     </Col>
                 </Row>
-            </Card>
+            </div>
             <ImageCropper
                 open={cropOpen}
                 imageUrl={cropImageUrl}
@@ -172,31 +160,19 @@ const UserProfile = ({ data, offline }: { data: BasicUserInfo; offline: boolean 
 const User = (props: {
     data: BasicUserInfo;
     offline: boolean;
-    activeTab?: "profile" | "preferences" | "applications";
+    activeKey?: "profile" | "preferences" | "applications";
 }) => {
-    const navigate = useNavigate();
+    const activeKey = props.activeKey || "profile";
     return (
-        <Tabs
-            activeKey={props.activeTab || "profile"}
-            onChange={(tab) =>
-                navigate(getRealRouteUrl(USER_ROUTES[tab as "profile" | "preferences" | "applications"]))
-            }
-            items={[
-                { key: "profile", label: getRes().user.title, children: <UserProfile {...props} /> },
-                {
-                    key: "preferences",
-                    destroyOnHidden: true,
-                    label: getRes().user.preferences.title,
-                    children: <UserPreferencesForm offline={props.offline} />,
-                },
-                {
-                    key: "applications",
-                    destroyOnHidden: true,
-                    label: getRes().oauth.title,
-                    children: <UserApplications offline={props.offline} />,
-                },
-            ]}
-        />
+        <UserSettingsLayout activeKey={activeKey}>
+            {activeKey === "profile" ? (
+                <UserProfile {...props} />
+            ) : activeKey === "preferences" ? (
+                <UserPreferencesForm offline={props.offline} />
+            ) : (
+                <UserApplications offline={props.offline} />
+            )}
+        </UserSettingsLayout>
     );
 };
 

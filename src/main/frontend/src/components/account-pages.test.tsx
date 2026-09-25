@@ -5,11 +5,14 @@ import { Grid } from "antd";
 import { MemoryRouter } from "react-router-dom";
 import Access from "./access";
 import Members from "./members";
+import WebsiteSettingsLayout from "./common/WebsiteSettingsLayout";
 import OAuthConsent from "./oauth-consent";
 import { getRes } from "../utils/constants";
 import { BasicUserInfo } from "../type";
 
 jest.mock("../base/AppBase", () => ({ useAxiosBaseInstance: () => ({}) }));
+jest.mock("../base/ConfigProviderApp", () => ({ getAppState: () => ({ compactMode: false }) }));
+jest.mock("./my-loading-component", () => () => null);
 
 describe("account management pages", () => {
     let root: Root;
@@ -75,6 +78,7 @@ describe("account management pages", () => {
         expect(container.textContent).toContain(getRes().access.ranges.author);
     });
     it("does not offer editing the owner or a peer admin to an admin", () => {
+        jest.spyOn(Grid, "useBreakpoint").mockReturnValue({ md: true });
         window.__SS_DATA__!.user = { userId: 2, role: "admin", actions: ["member.manage"] } as BasicUserInfo;
         act(() =>
             root.render(
@@ -98,6 +102,29 @@ describe("account management pages", () => {
             )
         ).toHaveLength(1);
         expect(container.textContent).not.toContain(getRes().members.transfer);
+        expect(container.querySelector('nav a[aria-current="page"]')?.getAttribute("href")).toContain(
+            "/website/members"
+        );
+    });
+    it("shows site member navigation only to accounts with member management permission", () => {
+        jest.spyOn(Grid, "useBreakpoint").mockReturnValue({ md: true });
+        window.__SS_DATA__!.user!.actions = ["site.configure"];
+        const render = () =>
+            act(() =>
+                root.render(
+                    <MemoryRouter>
+                        <WebsiteSettingsLayout activeKey="basic">
+                            <div />
+                        </WebsiteSettingsLayout>
+                    </MemoryRouter>
+                )
+            );
+        render();
+        expect(container.querySelector('nav a[href*="/website/members"]')).toBeNull();
+        expect(container.querySelector('nav a[aria-current="page"]')).not.toBeNull();
+        window.__SS_DATA__!.user!.actions = ["site.configure", "member.manage"];
+        render();
+        expect(container.querySelector('nav a[href*="/website/members"]')?.textContent).toBe(getRes().members.title);
     });
     it.each(["zh_CN", "en_US"])("describes endpoint purposes in %s while keeping the exact path", (lang) => {
         window.__SS_DATA__!.resourceInfo = { lang: lang as "zh_CN" | "en_US" };

@@ -41,9 +41,12 @@ public class AdminResourceImplTest {
             assertTrue(pageUris.contains("/blog/admin/user/security"));
             assertTrue(pageUris.contains("/blog/admin/user/preferences"));
             assertTrue(pageUris.contains("/blog/admin/user/applications/authorize"));
+            assertTrue(pageUris.contains("/blog/admin/website/members"));
+            assertFalse(pageUris.contains("/blog/admin/user/members"));
             assertFalse(pageUris.contains("/blog/admin/account-security"));
             assertFalse(normalServiceWorker.contains("/admin/user/applications"));
-            assertFalse(normalServiceWorker.contains("/admin/user/members"));
+            assertFalse(normalServiceWorker.contains("/admin/website/members"));
+            assertFalse(staticServiceWorker.contains("/admin/website/members"));
             assertFalse(staticServiceWorker.contains("/admin/user/permissions"));
             assertTrue(staticServiceWorker.contains("/blog/admin/user/security.html?"));
             assertTrue(cacheUris.contains("/blog" + AdminConstants.ADMIN_PWA_MANIFEST_JSON));
