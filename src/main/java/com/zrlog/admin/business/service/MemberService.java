@@ -35,15 +35,16 @@ public final class MemberService {
         return store.withSession(c -> {
             lockMembership(c);
             if (store.one(c, "select userId from user where lower(userName)=?", name) != null) throw new ArgsException("userName");
+            // Persist an unset avatar as "" for older NOT NULL schemas; UserService supplies the default image on read.
             if (c.isWebApi()) {
-                if (store.update(c, "insert into user (userName,email,password,secretKey,role,enabled,authVersion) select ?,?,?,?,?,?,? "
+                if (store.update(c, "insert into user (userName,email,header,password,secretKey,role,enabled,authVersion) select ?,?,?,?,?,?,?,? "
                                 + "where exists (select 1 from user where userId=? and role=? and enabled=? and authVersion=?) "
                                 + "and not exists (select 1 from user where lower(userName)=?)",
-                        name, Objects.toString(body.email, ""), hash, UUID.randomUUID().toString(), body.role, true, 0,
+                        name, Objects.toString(body.email, ""), "", hash, UUID.randomUUID().toString(), body.role, true, 0,
                         actor.getUserId(), actor.getRole(), true, actor.getAuthVersion(), name) != 1) throw new PermissionErrorException();
             } else {
-                store.update(c, "insert into user (userName,email,password,secretKey,role,enabled,authVersion) values (?,?,?,?,?,?,?)",
-                        name, Objects.toString(body.email, ""), hash, UUID.randomUUID().toString(), body.role, true, 0);
+                store.update(c, "insert into user (userName,email,header,password,secretKey,role,enabled,authVersion) values (?,?,?,?,?,?,?,?)",
+                        name, Objects.toString(body.email, ""), "", hash, UUID.randomUUID().toString(), body.role, true, 0);
             }
             return member(store.one(c, "select userId,userName,email,role,enabled from user where userName=?", name));
         });
