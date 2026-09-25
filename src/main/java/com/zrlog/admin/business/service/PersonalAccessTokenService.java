@@ -37,7 +37,7 @@ public final class PersonalAccessTokenService {
         info.id = OAuthService.random(); info.userId = account.getUserId(); info.name = request.name.trim();
         info.scopes = ordered; info.resource = resource;
         info.createdAt = System.currentTimeMillis(); info.expiresAt = info.createdAt + request.expiresInDays * 86_400_000L;
-        store.transaction(c -> store.update(c,
+        store.withSession(c -> store.update(c,
                 "insert into user_access_token(id,userId,name,tokenHash,scope,resource,authVersion,createdAt,expiresAt,revoked) values(?,?,?,?,?,?,?,?,?,?)",
                 info.id, info.userId, info.name, OAuthService.hash(result.token), String.join(" ", ordered), resource,
                 account.getAuthVersion(), info.createdAt, info.expiresAt, false));
@@ -46,7 +46,7 @@ public final class PersonalAccessTokenService {
     }
 
     public List<Info> list(AccountAccess account) throws SQLException {
-        return store.transaction(c -> {
+        return store.withSession(c -> {
             List<Info> result = new ArrayList<>();
             for (Map<String,Object> row : store.list(c,
                     "select id,userId,name,scope,resource,authVersion,createdAt,expiresAt,revoked from user_access_token where userId=? order by createdAt desc,id",
@@ -68,18 +68,18 @@ public final class PersonalAccessTokenService {
 
     public void revoke(String id) throws SQLException {
         AccountAccess account = AccountPermissionService.current();
-        store.transaction(c -> store.update(c, "update user_access_token set revoked=? where id=? and userId=?", true, id, account.getUserId()));
+        store.withSession(c -> store.update(c, "update user_access_token set revoked=? where id=? and userId=?", true, id, account.getUserId()));
     }
 
     public Identity authenticate(String token, String requestedResource, Set<String> required) throws SQLException {
         if (token == null || !token.matches("zrmcp_[A-Za-z0-9_-]{43}") || !resource.equals(requestedResource)) throw new OAuthException("invalid_token", 401);
-        return store.transaction(c -> {
-            Map<String,Object> row = store.one(c, "select * from user_access_token where tokenHash=?", OAuthService.hash(token));
-            if (row == null || AccountAccess.truth(row.get("revoked"))
-                    || ((Number) row.get("expiresAt")).longValue() <= System.currentTimeMillis()
-                    || !resource.equals(row.get("resource"))) throw new OAuthException("invalid_token", 401);
-            AccountAccess account = AccountAccess.from(store.one(c, "select * from user where userId=?", row.get("userId")));
-            if (!account.isEnabled() || account.getAuthVersion() != ((Number) row.get("authVersion")).intValue()) throw new OAuthException("invalid_token", 401);
+        return store.withSession(c -> {
+            Map<String,Object> row = store.one(c,
+                    "select u.userId,u.role,u.enabled,u.authVersion,t.scope from user_access_token t inner join user u on u.userId=t.userId "
+                            + "where t.tokenHash=? and t.revoked=? and t.expiresAt>? and t.resource=? and u.enabled=? and u.authVersion=t.authVersion",
+                    OAuthService.hash(token), false, System.currentTimeMillis(), resource, true);
+            if (row == null) throw new OAuthException("invalid_token", 401);
+            AccountAccess account = AccountAccess.from(row);
             Set<String> scopes = new LinkedHashSet<>(Arrays.asList(((String) row.get("scope")).split(" ")));
             scopes.retainAll(availableScopes(account));
             if (!scopes.containsAll(required)) throw new OAuthException("insufficient_scope", 403);

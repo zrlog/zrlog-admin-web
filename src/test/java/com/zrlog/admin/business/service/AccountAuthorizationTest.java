@@ -86,23 +86,25 @@ public class AccountAuthorizationTest {
         }
     }
     @Test public void membersCannotEscalateOrModifyOwnerAndTransferRevokesBothSessions() throws Exception {
-        try(InMemoryZrLogDatabase db=InMemoryZrLogDatabase.open()) {
-            login(db,1,"owner");MemberService service=new MemberService();
-            MemberModels.Create create=new MemberModels.Create();create.userName="second";create.password="a-long-new-password";create.role="admin";
-            int admin=service.create(create).userId;
-            assertFalse(String.valueOf(db.scalar("select password from user where userId=?",admin)).contains(create.password));
-            login(db,admin,"admin");
-            assertThrows(PermissionErrorException.class,()->service.create(create));
-            MemberModels.Update update=new MemberModels.Update();update.userId=1;update.role="author";update.enabled=false;
-            assertThrows(PermissionErrorException.class,()->service.update(update));
-            login(db,1,"owner");
-            db.execute("update user set password=? where userId=1",com.hibegin.common.util.PasswordHashUtils.hash(com.hibegin.common.util.SecurityUtils.md5("owner-password")));
-            MemberModels.Transfer transfer=new MemberModels.Transfer();transfer.userId=admin;transfer.password="owner-password";service.transfer(transfer);
-            assertEquals(1,((Number)db.scalar("select count(*) from user where role='owner'")).intValue());
-            assertEquals("owner",db.scalar("select role from user where userId=?",admin));
-            assertEquals("admin",db.scalar("select role from user where userId=1"));
-            assertThrows(PermissionErrorException.class,AccountPermissionService::current);
-            assertEquals(1,((Number)db.scalar("select authVersion from user where userId=?",admin)).intValue());
+        for (String backend : List.of("h2", "sqlite", "webapi")) {
+            try(InMemoryZrLogDatabase db="webapi".equals(backend) ? InMemoryZrLogDatabase.openWebApi() : "sqlite".equals(backend) ? InMemoryZrLogDatabase.openSqlite() : InMemoryZrLogDatabase.open()) {
+                login(db,1,"owner");MemberService service=new MemberService();
+                MemberModels.Create create=new MemberModels.Create();create.userName="second";create.password="a-long-new-password";create.role="admin";
+                int admin=service.create(create).userId;
+                assertFalse(String.valueOf(db.scalar("select password from user where userId=?",admin)).contains(create.password));
+                login(db,admin,"admin");
+                assertThrows(PermissionErrorException.class,()->service.create(create));
+                MemberModels.Update update=new MemberModels.Update();update.userId=1;update.role="author";update.enabled=false;
+                assertThrows(PermissionErrorException.class,()->service.update(update));
+                login(db,1,"owner");
+                db.execute("update user set password=? where userId=1",com.hibegin.common.util.PasswordHashUtils.hash(com.hibegin.common.util.SecurityUtils.md5("owner-password")));
+                MemberModels.Transfer transfer=new MemberModels.Transfer();transfer.userId=admin;transfer.password="owner-password";service.transfer(transfer);
+                assertEquals(1,((Number)db.scalar("select count(*) from user where role='owner'")).intValue());
+                assertEquals("owner",db.scalar("select role from user where userId=?",admin));
+                assertEquals("admin",db.scalar("select role from user where userId=1"));
+                assertThrows(PermissionErrorException.class,AccountPermissionService::current);
+                assertEquals(1,((Number)db.scalar("select authVersion from user where userId=?",admin)).intValue());
+            }
         }
     }
 }

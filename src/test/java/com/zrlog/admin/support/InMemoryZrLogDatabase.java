@@ -39,6 +39,9 @@ public class InMemoryZrLogDatabase implements AutoCloseable {
     private final ZrLogConfig previousConfig;
     private final AdminResource previousAdminResource;
     private final TestCacheService cacheService = new TestCacheService();
+    public interface SqlHook { void run(String sql, Object[] params) throws SQLException; }
+    private volatile SqlHook beforeWebApiUpdate = (sql, params) -> { };
+    private volatile SqlHook afterWebApiQuery = (sql, params) -> { };
 
     private InMemoryZrLogDatabase(boolean sqlite) throws Exception {
         this.previousConfig = Constants.zrLogConfig;
@@ -64,6 +67,36 @@ public class InMemoryZrLogDatabase implements AutoCloseable {
     }
 
     public static InMemoryZrLogDatabase openSqlite() throws Exception { return new InMemoryZrLogDatabase(true); }
+
+    /** D1-like single-statement autocommit; obtaining a JDBC connection through the adapter is forbidden. */
+    public static InMemoryZrLogDatabase openWebApi() throws Exception {
+        InMemoryZrLogDatabase db = openSqlite();
+        org.apache.commons.dbutils.QueryRunner runner = new org.apache.commons.dbutils.QueryRunner() {
+            @Override public int update(String sql, Object... params) throws SQLException {
+                db.beforeWebApiUpdate.run(sql, params);
+                return db.dataSource.getQueryRunner().update(sql, params);
+            }
+            @Override public <T> T query(String sql, org.apache.commons.dbutils.ResultSetHandler<T> handler, Object... params) throws SQLException {
+                T result = db.dataSource.getQueryRunner().query(sql, handler, params);
+                db.afterWebApiQuery.run(sql, params);
+                return result;
+            }
+        };
+        DataSourceWrapper adapter = (DataSourceWrapper) java.lang.reflect.Proxy.newProxyInstance(
+                DataSourceWrapper.class.getClassLoader(), new Class<?>[]{DataSourceWrapper.class}, (proxy, method, args) -> {
+                    if (method.getName().equals("isWebApi")) return true;
+                    if (method.getName().equals("getQueryRunner")) return runner;
+                    if (method.getName().equals("getConnection")) throw new AssertionError("Web API cannot open JDBC transactions");
+                    try { return method.invoke(db.dataSource, args); }
+                    catch (java.lang.reflect.InvocationTargetException e) { throw e.getCause(); }
+                });
+        com.hibegin.common.dao.DAO.setDs(adapter);
+        Constants.zrLogConfig = new TestZrLogConfig(adapter, db.cacheService);
+        return db;
+    }
+
+    public void beforeWebApiUpdate(SqlHook hook) { beforeWebApiUpdate = hook; }
+    public void afterWebApiQuery(SqlHook hook) { afterWebApiQuery = hook; }
 
     public DataSourceWrapper dataSource() {
         return dataSource;

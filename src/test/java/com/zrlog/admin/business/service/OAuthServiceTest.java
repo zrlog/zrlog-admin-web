@@ -11,11 +11,11 @@ import static org.junit.Assert.*;
 
 @org.junit.runner.RunWith(org.junit.runners.Parameterized.class)
 public class OAuthServiceTest {
-    @org.junit.runners.Parameterized.Parameters(name="sqlite={0}")
-    public static Boolean[] databases() { return new Boolean[]{false, true}; }
-    private final boolean sqlite;
-    public OAuthServiceTest(boolean sqlite) { this.sqlite = sqlite; }
-    private InMemoryZrLogDatabase database() throws Exception { return sqlite ? InMemoryZrLogDatabase.openSqlite() : InMemoryZrLogDatabase.open(); }
+    @org.junit.runners.Parameterized.Parameters(name="database={0}")
+    public static String[] databases() { return new String[]{"h2", "sqlite", "webapi"}; }
+    private final String backend;
+    public OAuthServiceTest(String backend) { this.backend = backend; }
+    private InMemoryZrLogDatabase database() throws Exception { return "webapi".equals(backend) ? InMemoryZrLogDatabase.openWebApi() : "sqlite".equals(backend) ? InMemoryZrLogDatabase.openSqlite() : InMemoryZrLogDatabase.open(); }
     private final OAuthService service=new OAuthService(()->"https://blog.example/sub");
     private final String verifier=OAuthService.random();
     private Client client() throws Exception {

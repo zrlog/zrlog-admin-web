@@ -16,11 +16,11 @@ import static org.junit.Assert.*;
 
 @RunWith(Parameterized.class)
 public class PersonalAccessTokenServiceTest {
-    @Parameterized.Parameters(name="sqlite={0}")
-    public static Boolean[] databases() { return new Boolean[]{false, true}; }
-    private final boolean sqlite;
-    public PersonalAccessTokenServiceTest(boolean sqlite) { this.sqlite = sqlite; }
-    private InMemoryZrLogDatabase database() throws Exception { return sqlite ? InMemoryZrLogDatabase.openSqlite() : InMemoryZrLogDatabase.open(); }
+    @Parameterized.Parameters(name="database={0}")
+    public static String[] databases() { return new String[]{"h2", "sqlite", "webapi"}; }
+    private final String backend;
+    public PersonalAccessTokenServiceTest(String backend) { this.backend = backend; }
+    private InMemoryZrLogDatabase database() throws Exception { return "webapi".equals(backend) ? InMemoryZrLogDatabase.openWebApi() : "sqlite".equals(backend) ? InMemoryZrLogDatabase.openSqlite() : InMemoryZrLogDatabase.open(); }
     private final OAuthService oauth = new OAuthService(() -> "https://blog.example/sub");
     private final PersonalAccessTokenService service = new PersonalAccessTokenService(oauth.mcpResource());
     private Create request(String... scopes) { Create request = new Create(); request.name = "My assistant"; request.scopes = List.of(scopes); return request; }
