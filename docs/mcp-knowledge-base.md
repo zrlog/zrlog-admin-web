@@ -27,6 +27,8 @@
 
 首期提供 MCP 2025-03-26、2025-06-18、2025-11-25 的 initialize / initialized / ping / tools/list / tools/call。使用无会话、JSON 响应的 Streamable HTTP；GET SSE 与 DELETE 返回 405，不宣告订阅或其他未实现能力。后续协议版本按协商降级，不声称支持不同生命周期。
 
+协商到 2025-06-18 及以上版本时，initialize 的 `serverInfo.title` 使用当前博客名称（空名称回退为 `ZrLog`），`serverInfo.name` 保持稳定的 `zrlog-knowledge`。博客名称直接沿用站点配置，无需为 MCP 重复设置或翻译；修改后在客户端重新连接时获取。客户端自行保存的连接名称可能优先于服务端标题，例如 Codex 的 `mcp_servers.<name>`；这类名称仍需在客户端修改。
+
 OAuth 使用已有预注册 public client + S256 PKCE；管理员登记客户端准确回调 URL，客户端配置 client ID。尚不提供动态注册或 Client ID Metadata Document，因此需要自动注册、不能填 client ID 的客户端暂不兼容。服务端校验 Origin；浏览器直接跨域调用不开放，桌面/服务端客户端无 Origin 正常使用。
 
 规范参考：[MCP HTTP](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports)、[OAuth](https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization)。本功能是独立工具契约，不从后台 OpenAPI 自动生成。

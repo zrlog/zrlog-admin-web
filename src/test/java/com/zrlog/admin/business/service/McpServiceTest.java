@@ -9,7 +9,7 @@ import java.util.*;
 import static org.junit.Assert.*;
 
 public class McpServiceTest {
-    private final McpService service = new McpService();
+    private final McpService service = new McpService(() -> "我的博客");
     private KnowledgeService knowledge() { return new KnowledgeService(()->{try{return AccountAccess.load(1);}catch(Exception e){throw new RuntimeException(e);}},Set.of("articles:read"),()->"https://blog.example"); }
     private McpService.Reply request(String method,String params) throws Exception { return service.handle("{\"jsonrpc\":\"2.0\",\"id\":\"client-1\",\"method\":\""+method+"\",\"params\":"+params+"}",knowledge()); }
     @Test public void negotiatesVersionsAdvertisesOnlyImplementedToolsAndAcceptsNotifications() throws Exception {
@@ -17,6 +17,10 @@ public class McpServiceTest {
             JsonObject result=request("initialize","{\"protocolVersion\":\""+version+"\",\"capabilities\":{},\"clientInfo\":{\"name\":\"test\",\"version\":\"1\"}}").body.getAsJsonObject("result");
             assertEquals(version.startsWith("2099")?McpService.LATEST:version,result.get("protocolVersion").getAsString());
             assertEquals(Set.of("tools"),result.getAsJsonObject("capabilities").keySet());
+            JsonObject serverInfo = result.getAsJsonObject("serverInfo");
+            assertEquals("zrlog-knowledge", serverInfo.get("name").getAsString());
+            if ("2025-03-26".equals(version)) assertFalse(serverInfo.has("title"));
+            else assertEquals("我的博客", serverInfo.get("title").getAsString());
         }
         assertEquals(2,request("tools/list","{}").body.getAsJsonObject("result").getAsJsonArray("tools").size());
         assertEquals(202,service.handle("{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}",knowledge()).status);

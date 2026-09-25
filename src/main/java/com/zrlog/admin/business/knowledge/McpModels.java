@@ -13,7 +13,11 @@ public final class McpModels {
     }
     public static class Capabilities { public ToolCapability tools = new ToolCapability(); }
     public static class ToolCapability { public boolean listChanged = false; }
-    public static class ServerInfo { public String name = "zrlog-knowledge"; public String version = "1.0.0"; }
+    public static class ServerInfo {
+        public String name = "zrlog-knowledge";
+        public String title;
+        public String version = "1.0.0";
+    }
     public static class ToolList { public List<KnowledgeModels.Tool> tools = KnowledgeService.tools(); }
     public static class TextContent {
         public String type = "text";

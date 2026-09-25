@@ -1,15 +1,22 @@
 package com.zrlog.admin.business.knowledge;
 
 import com.google.gson.*;
+import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.knowledge.McpModels.*;
 import java.sql.SQLException;
 import java.util.*;
+import java.util.function.Supplier;
 
 /** Stateless MCP 2025 tool subset. JSON-RPC envelope fields are validated before dispatch. */
 public final class McpService {
     public static final String LATEST = "2025-11-25";
     public static final Set<String> VERSIONS = Set.of("2025-03-26", "2025-06-18", LATEST);
     private static final Gson JSON = new GsonBuilder().setStrictness(Strictness.STRICT).create();
+    private final Supplier<String> websiteTitle;
+
+    public McpService() { this(() -> AdminConstants.getPublicWebSiteInfo().getTitle()); }
+    public McpService(Supplier<String> websiteTitle) { this.websiteTitle = websiteTitle; }
+
     public static final class Reply {
         public final int status;
         public final JsonObject body;
@@ -35,6 +42,11 @@ public final class McpService {
                         || !params.has("clientInfo") || !params.get("clientInfo").isJsonObject()) return error(id, -32602, "Invalid initialize parameters", 200);
                 InitializeResult initialize = new InitializeResult();
                 String version = params.get("protocolVersion").getAsString(); initialize.protocolVersion = VERSIONS.contains(version) ? version : LATEST;
+                // Display titles were introduced in 2025-06-18; keep the older handshake unchanged.
+                if (!"2025-03-26".equals(initialize.protocolVersion)) {
+                    String title = Objects.toString(websiteTitle.get(), "").strip();
+                    initialize.serverInfo.title = title.isEmpty() ? "ZrLog" : title;
+                }
                 return result(id, initialize);
             case "ping": return result(id, new JsonObject());
             case "tools/list":
