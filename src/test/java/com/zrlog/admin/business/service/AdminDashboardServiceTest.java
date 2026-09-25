@@ -318,7 +318,7 @@ public class AdminDashboardServiceTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    public void shouldSaveConfigLoadPluginPanelsAndPreloadSurfaceThroughRealWebsiteKv() throws Exception {
+    public void shouldSavePersonalConfigLoadPluginPanelsAndPreloadSurface() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             FakePluginCorePlugin plugin = new FakePluginCorePlugin();
             Constants.zrLogConfig.getAllPlugins().add(plugin);
@@ -336,8 +336,8 @@ public class AdminDashboardServiceTest {
 
             AdminDashboardConfigResponse config = service.saveConfig(request, null, token());
             AdminDashboardCardResponse pluginItem = findDashboardItem(config.getCards(), "reminder");
-            Map<String, Object> saved = db.queryOne("select value from website where name=?",
-                    AdminDashboardService.DASHBOARD_CONFIG_KEY);
+            Map<String, Object> saved = db.queryOne("select preferences as value from user where userId=1");
+            assertNull(db.scalar("select value from website where name=?", AdminDashboardService.DASHBOARD_CONFIG_KEY));
 
             assertNotNull(pluginItem);
             assertEquals("plugin", pluginItem.getKind());

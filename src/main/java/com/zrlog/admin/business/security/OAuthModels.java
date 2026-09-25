@@ -83,6 +83,8 @@ public final class OAuthModels {
         public String issuer;
         public String resource;
         public String mcpResource;
+        public List<PersonalTokenModels.Info> personalTokens;
+        public List<String> personalTokenScopes;
     }
     public static class Revoke implements com.zrlog.common.Validator { public String id; public void doValid() { if (id == null || id.isEmpty()) throw new com.zrlog.common.exception.ArgsException(); } }
     public static class Identity {

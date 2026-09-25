@@ -109,8 +109,15 @@ public final class AIProviderResponses {
         private String content;
         @SerializedName("tool_calls")
         public List<AIProviderRequests.ToolCall> toolCalls;
-        @SerializedName("reasoning_content")
+        @SerializedName(value = "reasoning_content", alternate = {"reasoningContent"})
         public String reasoningContent;
+        public JsonElement reasoning;
+
+        public String getReasoningText() {
+            if (reasoningContent != null) return reasoningContent;
+            return reasoning != null && reasoning.isJsonPrimitive() && reasoning.getAsJsonPrimitive().isString()
+                    ? reasoning.getAsString() : null;
+        }
 
         public String getContent() {
             return content;

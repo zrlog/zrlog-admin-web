@@ -1,3 +1,4 @@
+import { applyUserPreferences, getUserPreferenceRevision } from "../utils/user-preferences";
 import { FunctionComponent, lazy, useEffect, useState } from "react";
 import { jumpToLoginPage, useAxiosBaseInstance } from "../base/AppBase";
 import { BasicUserInfo } from "../type";
@@ -46,6 +47,28 @@ const AdminDashboardPage: FunctionComponent<AdminDashBroadPageProps> = ({ offlin
                 jumpToLoginPage(navigate);
             });
     }, []);
+
+    useEffect(() => {
+        if (offline || !userInfo) return;
+        let active = true;
+        const revision = getUserPreferenceRevision();
+        const session = getSsDate().key;
+        axiosBaseInstance
+            .get("/api/admin/user/preferences")
+            .then(({ data }) => {
+                if (
+                    active &&
+                    data.error === 0 &&
+                    revision === getUserPreferenceRevision() &&
+                    session === getSsDate().key
+                )
+                    applyUserPreferences(data.data.effective);
+            })
+            .catch(() => undefined);
+        return () => {
+            active = false;
+        };
+    }, [offline, userInfo?.userId, axiosBaseInstance]);
 
     if (userInfo === undefined || userInfo === null) {
         return <Spin fullscreen={true} delay={1000} />;

@@ -122,8 +122,9 @@ public class ArticlePublishingService {
         Long articleId = Long.valueOf(detail.getData().getArticle().getLogId());
         GenerateArticleFieldRequest context = publishCheckContext(body);
         PublishCheckPersistenceGuard guard = new PublishCheckPersistenceGuard();
+        WebSiteService conversationStore = new WebSiteService().captureAccount();
         CompletableFuture<PublishCheckResponse> future = CompletableFuture.supplyAsync(
-                () -> buildPublishCheckPayload(articleId, context, guard));
+                () -> buildPublishCheckPayload(articleId, context, guard, conversationStore));
         return new PublishCheckTask(future, guard, articleId, context.getTitle());
     }
 
@@ -165,12 +166,12 @@ public class ArticlePublishingService {
     }
 
     private PublishCheckResponse buildPublishCheckPayload(Long articleId, GenerateArticleFieldRequest context,
-                                                          PublishCheckPersistenceGuard guard) {
+                                                          PublishCheckPersistenceGuard guard, WebSiteService conversationStore) {
         try {
-            List<AIResponseEntry.AIContentEntry> messages = new AIChatService()
+            List<AIResponseEntry.AIContentEntry> messages = new AIChatService(conversationStore)
                     .runToolResponseWithoutPersistence("publish-check", articleId, "publishCheck", context);
             return guard.commit(() -> {
-                if (!new WebSiteService().appendAIMessageEntries(messages, articleId)) {
+                if (!conversationStore.appendAIMessageEntries(messages, articleId)) {
                     throw new AIMessageSaveException();
                 }
                 AIResponseEntry.AIContentEntry assistant = messages.get(messages.size() - 1);

@@ -40,11 +40,15 @@ public class AIChatService extends AIService {
     private static final Set<String> CONTINUABLE_FINISH_REASONS = Set.of("length", "max_tokens",
             "max_output_tokens", "max_completion_tokens");
 
-    public AIChatService() {
-    }
+    private final WebSiteService conversationStore;
+
+    public AIChatService() { this(new WebSiteService().captureAccount()); }
+
+    public AIChatService(WebSiteService conversationStore) { this.conversationStore = conversationStore; }
 
     AIChatService(HttpClient client) {
         super(client);
+        conversationStore = new WebSiteService().captureAccount();
     }
 
     public AIStreamResponse startStreamResponse(String input, Long articleId)
@@ -65,7 +69,7 @@ public class AIChatService extends AIService {
         if (StringUtils.isNotEmpty(tool)) {
             return startToolStreamResponse(input, articleId, tool, articleContext);
         }
-        AIWebSiteInfoWithAIMessages info = new WebSiteService().getAiMessageInfoByArticleId(articleId);
+        AIWebSiteInfoWithAIMessages info = conversationStore.getAiMessageInfoByArticleId(articleId);
         List<AIResponseEntry.AIContentEntry> messages = prepareMessages(input, info);
         String requestBody = buildRequestBody(toProviderChatMessages(messages, includeArticleContext), info, true);
 
@@ -125,7 +129,7 @@ public class AIChatService extends AIService {
             throws SQLException, IOException, InterruptedException {
         List<AIResponseEntry.AIContentEntry> generatedMessages =
                 runToolResponseWithoutPersistence(input, articleId, tool, articleContext);
-        if (!new WebSiteService().appendAIMessageEntries(generatedMessages, articleId)) {
+        if (!conversationStore.appendAIMessageEntries(generatedMessages, articleId)) {
             throw new AIMessageSaveException();
         }
         return generatedMessages;
@@ -137,7 +141,7 @@ public class AIChatService extends AIService {
         if (articleContext == null) {
             throw new ArgsException("articleContext");
         }
-        AIWebSiteInfoWithAIMessages info = new WebSiteService().getAiMessageInfoByArticleId(articleId);
+        AIWebSiteInfoWithAIMessages info = conversationStore.getAiMessageInfoByArticleId(articleId);
         List<AIResponseEntry.AIContentEntry> messages = prepareMessages(input, info, tool);
         AIResponseEntry.AIContentEntry userMessage = messages.get(messages.size() - 1);
         ToolResult toolResult = runTool(tool, articleContext, buildToolConversationContext(tool, messages));
@@ -150,7 +154,7 @@ public class AIChatService extends AIService {
         if (articleContext == null) {
             throw new ArgsException("articleContext");
         }
-        AIWebSiteInfoWithAIMessages info = new WebSiteService().getAiMessageInfoByArticleId(articleId);
+        AIWebSiteInfoWithAIMessages info = conversationStore.getAiMessageInfoByArticleId(articleId);
         List<AIResponseEntry.AIContentEntry> messages = prepareMessages(input, info, tool);
         try {
             ToolResult toolResult = runTool(tool, articleContext, buildToolConversationContext(tool, messages));
@@ -696,7 +700,7 @@ public class AIChatService extends AIService {
         }
         fillModelTrace(entry, info);
         AIResponseEntry.AIContentEntry userMessage = messages.get(messages.size() - 1);
-        if (!new WebSiteService().appendAIMessageEntries(List.of(userMessage, entry), articleId)) {
+        if (!conversationStore.appendAIMessageEntries(List.of(userMessage, entry), articleId)) {
             throw new AIMessageSaveException();
         }
     }
@@ -706,7 +710,7 @@ public class AIChatService extends AIService {
                                                            AIWebSiteInfoWithAIMessages info) throws SQLException {
         AIResponseEntry.AIContentEntry entry = buildToolMessage(tool, toolResult, info);
         AIResponseEntry.AIContentEntry userMessage = messages.get(messages.size() - 1);
-        if (!new WebSiteService().appendAIMessageEntries(List.of(userMessage, entry), articleId)) {
+        if (!conversationStore.appendAIMessageEntries(List.of(userMessage, entry), articleId)) {
             throw new AIMessageSaveException();
         }
         return entry;

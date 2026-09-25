@@ -95,6 +95,8 @@ public class AdminPageService {
         base.attr("href", WebTools.getHomeUrl(request));
         ServerSideDataResponse<Object> serverSideDataResponse = serverSide(request.getUri(), request, httpResponse);
         Objects.requireNonNull(document.getElementById("__SS_DATA__")).text(new Gson().toJson(serverSideDataResponse));
+        document.body().removeClass("dark").removeClass("light")
+                .addClass(Boolean.TRUE.equals(serverSideDataResponse.getResourceInfo().getAdmin_darkMode()) ? "dark" : "light");
         document.title(serverSideDataResponse.getDocumentTitle());
         return document.html();
     }
@@ -111,9 +113,10 @@ public class AdminPageService {
 
     public ServerSideDataResponse<Object> serverSide(String uri, HttpRequest request, HttpResponse response) throws Throwable {
         com.zrlog.admin.business.rest.response.AdminResourceInfoResponse resourceInfo = AdminConstants.adminResource.adminResourceInfo(request);
-        if (Objects.isNull(AdminTokenThreadLocal.getUser())) {
+        if (Objects.isNull(AdminTokenThreadLocal.getUser()) || BaseStaticSitePlugin.isStaticPluginRequest(request)) {
             return new ServerSideDataResponse<>(null, resourceInfo, null, null, AdminConstants.getAdminDocumentTitleByUri(request.getUri()));
         }
+        new UserPreferenceService().apply(resourceInfo, new UserPreferenceService().effective());
         UserInfoResponse userInfo = new UserService().getUserInfoWithCache(AdminTokenThreadLocal.getUserId(), AdminTokenThreadLocal.getUser().getSessionId());
         Method method = request.getRequestConfig().getRouter().getMethod("/api" + uri, request.getMethod());
         try {

@@ -17,6 +17,28 @@ import java.util.*;
 
 public class WebSiteService {
 
+    private final Integer conversationUserId;
+
+    public WebSiteService() { this.conversationUserId = null; }
+
+    private WebSiteService(Integer userId) { this.conversationUserId = userId; }
+
+    /** Capture on the request thread before dispatching asynchronous AI work. */
+    public WebSiteService captureAccount() { return new WebSiteService(conversationUserId()); }
+
+    private Integer conversationUserId() {
+        if (conversationUserId != null) return conversationUserId;
+        com.zrlog.common.vo.AdminTokenVO token = com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser();
+        return token == null ? null : token.getUserId();
+    }
+
+    private String conversationKey(Long articleId) {
+        Integer userId = conversationUserId();
+        if (userId == null) throw new com.zrlog.admin.business.exception.PermissionErrorException();
+        return "ai_chat_message_u" + userId + "_" + articleId;
+    }
+
+
     public static final String ARTICLE_EDITOR_LINK_PREVIEW_ENABLED_KEY = "article_editor_link_preview_enabled";
     public static final String ARTICLE_PUBLISH_CHECK_ENABLED_KEY = "article_publish_check_enabled";
     public static final String ARTICLE_COVER_ASPECT_RATIO_KEY = "article_cover_aspect_ratio";
@@ -76,14 +98,17 @@ public class WebSiteService {
         AdminWebSiteInfo admin = queryToMap(Arrays.asList(WebSite.admin_darkMode, WebSite.admin_compactMode,
                 WebSite.language, WebSite.admin_color_primary, WebSite.admin_theme,
                 WebSite.session_timeout, "favicon_png_pwa_512_base64",
-                "favicon_png_pwa_192_base64", "admin_article_page_size", "admin_static_resource_base_url"),
+                "favicon_png_pwa_192_base64", "admin_static_resource_base_url"),
                 AdminWebSiteInfo.class);
         if (StringUtils.isEmpty(admin.getAdmin_color_primary())) {
             admin.setAdmin_color_primary(WebSiteUtils.DEFAULT_COLOR_PRIMARY_COLOR);
         }
-        if (Objects.isNull(admin.getAdmin_article_page_size()) || admin.getAdmin_article_page_size() <= 0) {
-            admin.setAdmin_article_page_size(10L);
-        }
+        String pageSize = new WebSite().getStringValueByName("admin_article_page_size");
+        long parsedSize = 10;
+        try {
+            if (StringUtils.isNotEmpty(pageSize)) parsedSize = Long.parseLong(pageSize);
+        } catch (NumberFormatException ignored) { /* Invalid legacy values use the default. */ }
+        admin.setAdmin_article_page_size(parsedSize > 0 ? parsedSize : 10L);
         if (Objects.isNull(admin.getSession_timeout()) || admin.getSession_timeout() <= 0) {
             admin.setSession_timeout(WebSiteUtils.DEFAULT_SESSION_TIMEOUT / 60 / 1000);
         }
@@ -163,14 +188,17 @@ public class WebSiteService {
 
     private boolean migrateDraftAIMessageToArticleUnlocked(Long articleId, Long draftId) throws SQLException {
         WebsiteKvService kvService = new WebsiteKvService();
-        String draftAIMessageKey = buildCacheKey(draftId);
-        String draftAIMessage = kvService.getString(draftAIMessageKey);
+        String draftAIMessageKey = conversationKey(draftId);
+        Map<String, Object> draftValues = new WebSite().getWebSiteByNameIn(
+                Arrays.asList(draftAIMessageKey, buildCacheKey(draftId)));
+        String draftAIMessage = (String) draftValues.get(draftAIMessageKey);
+        if (draftAIMessage == null) draftAIMessage = (String) draftValues.get(buildCacheKey(draftId));
         if (StringUtils.isEmpty(draftAIMessage)) {
             return false;
         }
-        boolean saved = kvService.putString(buildCacheKey(articleId), draftAIMessage);
+        boolean saved = kvService.putString(conversationKey(articleId), draftAIMessage);
         if (saved) {
-            kvService.removeQuietly(draftAIMessageKey);
+            kvService.putString(draftAIMessageKey, "[]");
         }
         return saved;
     }
@@ -179,15 +207,19 @@ public class WebSiteService {
         if (articleId == null || articleId <= DRAFT_ARTICLE_ID) {
             return false;
         }
-        return clearAIMessage(articleId);
+        try {
+            // Article deletion is already authorized by AdminArticleService.
+            new WebSite().execute("update website set value=null where name like ? escape '!'", "ai!_chat!_message!_u%!_" + articleId);
+            return new WebsiteKvService().remove(buildCacheKey(articleId));
+        } catch (SQLException e) { throw new IllegalStateException("Unable to remove article AI messages", e); }
     }
 
     public boolean clearAIMessage(Long articleId) {
-        if (articleId == null || (articleId < DRAFT_ARTICLE_ID && articleId != -(long) com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId())) {
+        if (articleId == null || (articleId < DRAFT_ARTICLE_ID && articleId != -(long) Objects.requireNonNullElse(conversationUserId(), 0))) {
             return false;
         }
         synchronized (aiMessageLock(articleId)) {
-            return new WebsiteKvService().removeQuietly(buildCacheKey(articleId));
+            return new WebsiteKvService().putStringQuietly(conversationKey(articleId), "[]");
         }
     }
 
@@ -203,26 +235,28 @@ public class WebSiteService {
     }
 
     public AIWebSiteInfoWithAIMessages getAiMessageInfoByArticleId(Long articleId) {
-        String aiMessageKey = buildCacheKey(articleId);
+        String aiMessageKey = conversationKey(articleId);
         List<String> names = new ArrayList<>(AI_WEBSITE_INFO_KEYS);
         names.add(aiMessageKey);
+        if (!aiMessageKey.equals(buildCacheKey(articleId))) names.add(buildCacheKey(articleId));
         Map<String, Object> map = queryToMap(names, Map.class);
         AIWebSiteInfoWithAIMessages info = normalizeAIWebSiteInfo(
                 ResultBeanUtils.convert(map, AIWebSiteInfoWithAIMessages.class));
-        fillAiMessages(info, map, aiMessageKey);
+        fillAiMessages(info, map, map.get(aiMessageKey) == null ? buildCacheKey(articleId) : aiMessageKey);
         return info;
     }
 
     public ArticleEditorContext articleEditorContext(Long articleId) {
-        String aiMessageKey = buildCacheKey(articleId);
+        String aiMessageKey = conversationKey(articleId);
         List<String> names = new ArrayList<>(AI_WEBSITE_INFO_KEYS.size() + ARTICLE_EDIT_WEBSITE_INFO_KEYS.size() + 1);
         names.addAll(AI_WEBSITE_INFO_KEYS);
         names.addAll(ARTICLE_EDIT_WEBSITE_INFO_KEYS);
         names.add(aiMessageKey);
+        if (!aiMessageKey.equals(buildCacheKey(articleId))) names.add(buildCacheKey(articleId));
         Map<String, Object> map = queryToMap(names, Map.class);
         AIWebSiteInfoWithAIMessages ai = normalizeAIWebSiteInfo(
                 ResultBeanUtils.convert(map, AIWebSiteInfoWithAIMessages.class));
-        fillAiMessages(ai, map, aiMessageKey);
+        fillAiMessages(ai, map, map.get(aiMessageKey) == null ? buildCacheKey(articleId) : aiMessageKey);
         ArticleEditWebSiteInfo articleEdit = normalizeArticleEditWebSiteInfo(ResultBeanUtils.convert(map, ArticleEditWebSiteInfo.class));
         return new ArticleEditorContext(ai, articleEdit);
     }
@@ -268,7 +302,7 @@ public class WebSiteService {
             throws SQLException {
         fillMissingMessageIds(messages);
         String jsonStr = new Gson().toJson(messages);
-        return new WebsiteKvService().putString(buildCacheKey(articleId), jsonStr);
+        return new WebsiteKvService().putString(conversationKey(articleId), jsonStr);
     }
 
     public boolean saveAIMessage(List<AIResponseEntry.AIContentEntry> messages, Long articleId) throws SQLException {

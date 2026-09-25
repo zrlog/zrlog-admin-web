@@ -250,6 +250,8 @@ public final class OAuthService {
         return result;
     }
     public Identity authenticate(String bearer, String resource, Set<String> required) throws SQLException {
+        if (bearer != null && bearer.startsWith(PersonalAccessTokenService.PREFIX))
+            return new PersonalAccessTokenService(mcpResource()).authenticate(bearer, resource, required);
         try {
             return store.transaction(c -> {
                 Map<String,Object> record = credential(c, bearer, "access");
@@ -289,6 +291,8 @@ public final class OAuthService {
             Page page = new Page(); page.administrator = account.isAdministrator(); page.issuer = issuer(); page.resource = resource(); page.mcpResource = mcpResource();
             page.clients = new ArrayList<>();
             if (page.administrator) for (Map<String,Object> row : store.list(c, "select * from oauth_client where enabled=?", true)) page.clients.add(client(c, (String) row.get("clientId")));
+            page.personalTokenScopes = PersonalAccessTokenService.availableScopes(account);
+            page.personalTokens = new PersonalAccessTokenService(page.mcpResource).list(account);
             page.grants = new ArrayList<>();
             for (Map<String,Object> row : store.list(c, "select g.*,c.name,c.enabled as clientEnabled from oauth_grant g inner join oauth_client c on c.clientId=g.clientId where g.userId=? order by g.createdAt desc", account.getUserId())) {
                 Grant g = new Grant(); g.id=(String)row.get("id"); g.userId=account.getUserId(); g.clientId=(String)row.get("clientId");

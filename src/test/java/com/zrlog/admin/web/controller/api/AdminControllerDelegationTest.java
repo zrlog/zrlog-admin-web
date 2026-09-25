@@ -563,7 +563,7 @@ public class AdminControllerDelegationTest {
             ApiStandardResponse<AdminDashboardConfigResponse> savedConfig = controller.indexConfig();
             AdminDashboardCardResponse activity = findCard(savedConfig.getData(), "activity");
             String storedConfig = String.valueOf(db.queryOne(
-                    "select value from website where name=?", "admin_dashboard_config").get("value"));
+                    "select preferences as value from user where userId=1").get("value"));
 
             assertEquals(false, activity.getEnabled());
             assertEquals(60, savedConfig.getData().getAutoRefreshIntervalSeconds().intValue());

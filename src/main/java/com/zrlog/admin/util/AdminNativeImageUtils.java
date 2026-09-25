@@ -32,11 +32,17 @@ import java.util.List;
 public class AdminNativeImageUtils {
 
     private static void adminRequestJson() {
+        NativeImageUtils.gsonNativeAgentByClazz(Arrays.asList(
+                com.zrlog.admin.business.rest.base.UserPreferences.class,
+                com.zrlog.admin.business.rest.base.UserPreferences.Appearance.class,
+                com.zrlog.admin.business.rest.base.UserPreferences.Assistant.class,
+                com.zrlog.admin.business.rest.base.UserPreferences.Editor.class));
         NativeImageUtils.gsonNativeAgentByClazz(Arrays.asList(com.zrlog.admin.business.knowledge.KnowledgeModels.class.getDeclaredClasses()));
         NativeImageUtils.gsonNativeAgentByClazz(Arrays.asList(com.zrlog.admin.business.knowledge.McpModels.class.getDeclaredClasses()));
         NativeImageUtils.gsonNativeAgentByClazz(Arrays.asList(com.zrlog.admin.business.ai.model.AIProviderRequests.class.getDeclaredClasses()));
         NativeImageUtils.gsonNativeAgentByClazz(Arrays.asList(com.zrlog.admin.business.security.AccessModels.class.getDeclaredClasses()));
         NativeImageUtils.gsonNativeAgentByClazz(Arrays.asList(com.zrlog.admin.business.security.OAuthModels.class.getDeclaredClasses()));
+        NativeImageUtils.gsonNativeAgentByClazz(Arrays.asList(com.zrlog.admin.business.security.PersonalTokenModels.class.getDeclaredClasses()));
         NativeImageUtils.gsonNativeAgentByClazz(Arrays.asList(com.zrlog.admin.business.security.MemberModels.class.getDeclaredClasses()));
         //post
         NativeImageUtils.gsonNativeAgentByClazz(Arrays.asList(CreateArticleRequest.class, CreateTypeRequest.class, LoginRequest.class,
@@ -63,6 +69,7 @@ public class AdminNativeImageUtils {
     }
 
     private static void adminResponseJson() {
+        NativeImageUtils.gsonNativeAgentByClazz(java.util.Collections.singletonList(UserPreferencesResponse.class));
         //
         NativeImageUtils.gsonNativeAgentByClazz(Arrays.asList(TemplateDownloadResponse.class, ArticleResponseEntry.class,
                 UpgradeProcessResponse.class,

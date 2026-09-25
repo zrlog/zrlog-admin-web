@@ -176,7 +176,8 @@ public class AdminDashboardService {
     }
 
     public AdminDashboardConfigResponse getConfig(HttpRequest request, AdminTokenVO adminTokenVO, boolean preloadSurfaces) {
-        AdminDashboardConfigResponse savedConfig = readSavedConfig();
+        AdminDashboardConfigResponse savedConfig = new UserPreferenceService().dashboard(adminTokenVO);
+        if (savedConfig == null) savedConfig = readSavedConfig();
         List<AdminDashboardCardConfigResponse> cards = mergeCards(extractCardItems(savedConfig.getCards()));
         List<AdminDashboardCardResponse> pluginPanels = mergePluginPanels(
                 extractPluginItems(savedConfig.getCards()), loadStandardPluginPanels(request, adminTokenVO));
@@ -200,7 +201,7 @@ public class AdminDashboardService {
         AdminDashboardConfigResponse config = new AdminDashboardConfigResponse();
         config.setCards(dashboardCards);
         fillRefreshConfig(config, request);
-        kvService.putStringQuietly(DASHBOARD_CONFIG_KEY, GSON.toJson(config));
+        new UserPreferenceService().saveDashboard(adminTokenVO, config);
         return getConfig(httpRequest, adminTokenVO, true);
     }
 

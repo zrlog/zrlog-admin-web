@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import PersonalAccessTokens, { PersonalAccessToken } from "./personal-access-tokens";
+import { Navigate, useNavigate } from "react-router-dom";
 import { QuestionCircleOutlined } from "@ant-design/icons";
 import {
     Alert,
@@ -12,6 +13,7 @@ import {
     List,
     Popconfirm,
     Space,
+    Spin,
     Tag,
     Typography,
     message,
@@ -27,8 +29,10 @@ type Page = {
     issuer: string;
     resource: string;
     mcpResource?: string;
+    personalTokens: PersonalAccessToken[];
+    personalTokenScopes: string[];
 };
-export default function OAuth({ data }: { data: Page }) {
+function OAuthConnections({ data }: { data: Page }) {
     const navigate = useNavigate();
     const [page, setPage] = useState(data);
     const [open, setOpen] = useState(false);
@@ -85,6 +89,7 @@ export default function OAuth({ data }: { data: Page }) {
                     <Typography.Paragraph type="secondary">{res.mcpHelp}</Typography.Paragraph>
                 </Space>
             </Card>
+            <PersonalAccessTokens tokens={page.personalTokens} scopes={page.personalTokenScopes} onChange={reload} />
             <Card title={res.grants}>
                 <List
                     locale={{ emptyText: <Empty description={res.empty} /> }}
@@ -226,4 +231,44 @@ export default function OAuth({ data }: { data: Page }) {
             </Drawer>
         </Space>
     );
+}
+
+export function UserApplications({ offline }: { offline: boolean }) {
+    const api = useAxiosBaseInstance();
+    const [data, setData] = useState<Page>();
+    const [failed, setFailed] = useState(false);
+    const [attempt, setAttempt] = useState(0);
+    useEffect(() => {
+        let active = true;
+        setData(undefined);
+        setFailed(false);
+        if (!offline)
+            api.get("/api/admin/oauth")
+                .then((response) => {
+                    if (!active) return;
+                    if (response.data.error) setFailed(true);
+                    else setData(response.data.data);
+                })
+                .catch(() => {
+                    if (active) setFailed(true);
+                });
+        return () => {
+            active = false;
+        };
+    }, [api, offline, attempt]);
+    if (offline) return <Alert type="info" title={getRes().oauth.offline} />;
+    if (failed)
+        return (
+            <Alert
+                type="error"
+                title={getRes().error.requestError}
+                action={<Button onClick={() => setAttempt((value) => value + 1)}>{getRes().oauth.retry}</Button>}
+            />
+        );
+    return data ? <OAuthConnections data={data} /> : <Spin />;
+}
+
+// Existing bookmarks and search results keep working; consent has its own route.
+export default function OAuth() {
+    return <Navigate to={getRealRouteUrl("/user?tab=applications")} replace />;
 }

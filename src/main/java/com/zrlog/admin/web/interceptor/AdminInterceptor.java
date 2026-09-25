@@ -88,6 +88,10 @@ public class AdminInterceptor implements HandleAbleInterceptor {
                     response.redirect(request.getContextPath() + "/admin/article"); return false;
                 }
                 com.zrlog.admin.business.service.AccountPermissionService.checkRoute(method, request);
+                com.zrlog.common.vo.I18nVO locale = com.zrlog.util.I18nUtil.threadLocal.get();
+                if (locale != null) {
+                    locale.setLocale(new com.zrlog.admin.business.service.UserPreferenceService().effective().language);
+                }
             }
             doMethodInterceptor(request, response, method);
             return false;

@@ -1,4 +1,4 @@
-import { ApiOutlined, DownOutlined, KeyOutlined, LogoutOutlined, TeamOutlined, UserOutlined } from "@ant-design/icons";
+import { DownOutlined, KeyOutlined, LogoutOutlined, TeamOutlined, UserOutlined } from "@ant-design/icons";
 import { Avatar, MenuProps, Modal, Typography } from "antd";
 import { Link } from "react-router-dom";
 
@@ -41,10 +41,7 @@ const UserInfo = ({ data, offline }: { data: BasicUserInfo; offline: boolean }) 
                     </Link>
                 ),
             },
-            ...[
-                { key: "/members", action: "member.manage", title: res.members.title, icon: <TeamOutlined /> },
-                { key: "/oauth", action: "oauth.grant.manage", title: res.oauth.title, icon: <ApiOutlined /> },
-            ]
+            ...[{ key: "/members", action: "member.manage", title: res.members.title, icon: <TeamOutlined /> }]
                 .filter((entry) => hasAction(entry.action))
                 .map((entry) => ({
                     key: entry.key,

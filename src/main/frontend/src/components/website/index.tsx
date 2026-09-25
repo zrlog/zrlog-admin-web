@@ -37,6 +37,7 @@ export interface Admin {
     article_thumbnail_status: boolean;
     admin_static_resource_base_url: string;
     language: string;
+    admin_theme?: import("../../utils/constants").AdminTheme;
     admin_darkMode: boolean;
     admin_compactMode: boolean;
     admin_color_primary: string;

@@ -1,5 +1,6 @@
-import { Alert, App, Button, Collapse, Drawer, Grid, Segmented, Space, Tag, Typography } from "antd";
-import { useKnowledgeAssistant } from "./use-knowledge-assistant";
+import { Alert, App, Button, Drawer, Grid, Space, Tag, Typography } from "antd";
+import { isKnowledgeMessage, renderKnowledgeMessage, useKnowledgeAssistant } from "./use-knowledge-assistant";
+import ArticleAiReasoning from "./article-ai-reasoning";
 import { EyeOutlined, RobotOutlined } from "@ant-design/icons";
 import { FunctionComponent, useEffect, useMemo, useRef, useState } from "react";
 import { AIContent } from "@editor/dist/ai/AIContentItem";
@@ -15,6 +16,7 @@ import {
     getRes,
     tryAppendBackendServerUrl,
 } from "../../../utils/constants";
+import { getSsDate } from "../../../base/SsData";
 import { getAppState } from "../../../base/ConfigProviderApp";
 import { getEditorUser } from "../../../utils/helpers";
 import { ArticleChangeableValue, ArticleEditState } from "../index.types";
@@ -165,6 +167,13 @@ export const useArticleAiAssistantConfig = ({
     const latestDataRef = useRef(data);
 
     const aiMessages = data.aiMessages ? data.aiMessages : [];
+    const knowledge = useKnowledgeAssistant(
+        axiosInstance,
+        offline || data.aiConfigured !== true,
+        `${getSsDate().key}/${data.article.logId || "draft"}`,
+        onAiMessagesChange
+    );
+    const visibleMessages = aiMessages;
 
     useEffect(() => {
         latestDataRef.current = data;
@@ -277,7 +286,7 @@ export const useArticleAiAssistantConfig = ({
     };
 
     const exportAiMessages = async () => {
-        if (aiMessagesExporting || aiMessages.length === 0) {
+        if (aiMessagesExporting || visibleMessages.length === 0) {
             return;
         }
         setAiMessagesExporting(true);
@@ -299,7 +308,7 @@ export const useArticleAiAssistantConfig = ({
     };
 
     const clearAiMessages = async () => {
-        if (aiMessagesClearing || aiMessages.length === 0) {
+        if (aiMessagesClearing || visibleMessages.length === 0) {
             return;
         }
         const articleId = latestDataRef.current.article.logId || 0;
@@ -319,6 +328,7 @@ export const useArticleAiAssistantConfig = ({
             }
             setToolPayloads({});
             setSelectedTitles({});
+            knowledge.clear();
             onAiMessagesChange?.([], articleId);
             await message.success(getRes().articleEdit.assistant.clearAiMessagesSuccess);
         } catch (e) {
@@ -543,6 +553,16 @@ export const useArticleAiAssistantConfig = ({
         const releaseRequest = draftAiSaveGate.tryBeginAiRequest(articleId);
         if (!releaseRequest) {
             void message.warning(getRes().articleEdit.assistant.saveInProgress);
+            return;
+        }
+        if (!tool) {
+            setLoadingKey("chat");
+            try {
+                await knowledge.send(normalizedInput, aiMessages, articleId, includeArticleContextInChat);
+            } finally {
+                setLoadingKey(undefined);
+                releaseRequest();
+            }
             return;
         }
         const baseContents = [...aiMessages];
@@ -808,34 +828,6 @@ export const useArticleAiAssistantConfig = ({
         );
     };
 
-    const renderReasoningProcess = (content: ToolAwareAIContent) => {
-        if (content.role !== "assistant" || !content.reasoningContent) {
-            return null;
-        }
-        return (
-            <div style={{ maxWidth: CHAT_CONTENT_MAX_WIDTH, marginBottom: 8 }}>
-                <Collapse
-                    size="small"
-                    ghost
-                    items={[
-                        {
-                            key: "reasoning",
-                            label: getRes().articleEdit.assistant.reasoningProcess,
-                            children: (
-                                <Typography.Paragraph
-                                    type="secondary"
-                                    style={{ whiteSpace: "pre-wrap", marginBottom: 0 }}
-                                >
-                                    {content.reasoningContent}
-                                </Typography.Paragraph>
-                            ),
-                        },
-                    ]}
-                />
-            </div>
-        );
-    };
-
     const renderArticleContextPreviewDrawer = () => {
         const drawerWidth = screens.lg ? 800 : screens.md ? 640 : "100%";
         const versionText =
@@ -875,6 +867,7 @@ export const useArticleAiAssistantConfig = ({
     };
 
     const renderMessage = ({ content, index, defaultNode }: AIButtonRenderMessageOptions) => {
+        if (isKnowledgeMessage(content)) return renderKnowledgeMessage({ content, index, defaultNode });
         const toolAwareContent = content as ToolAwareAIContent;
         if (toolAwareContent.messageType === "articleContext") {
             return renderArticleContextMessage(toolAwareContent);
@@ -916,7 +909,9 @@ export const useArticleAiAssistantConfig = ({
         }
         return (
             <>
-                {renderReasoningProcess(toolAwareContent)}
+                {content.role === "assistant" && (
+                    <ArticleAiReasoning content={toolAwareContent.reasoningContent} thinking={content.thinking} />
+                )}
                 {messageTool && (
                     <Space style={{ display: "flex", justifyContent: "flex-end" }}>
                         <Tag color="processing">{getAssistantToolLabel(messageTool)}</Tag>
@@ -932,7 +927,9 @@ export const useArticleAiAssistantConfig = ({
             aiProvider={data.aiProvider}
             disabled={offline || Boolean(loadingKey)}
             loadingKey={loadingKey}
-            aiMessageCount={aiMessages.length}
+            aiMessageCount={visibleMessages.length}
+            chatStatus={knowledge.status}
+            onStopChat={knowledge.busy ? knowledge.stop : undefined}
             aiMessagesExporting={aiMessagesExporting}
             aiMessagesClearing={aiMessagesClearing}
             includeArticleContextInChat={includeArticleContextInChat}
@@ -1005,7 +1002,7 @@ export const useArticleAiAssistantConfig = ({
     );
 
     return {
-        messages: aiMessages,
+        messages: visibleMessages,
         contentMaxWidth: CHAT_CONTENT_MAX_WIDTH,
         renderMessage,
         renderFooter,
@@ -1057,8 +1054,6 @@ const ArticleAiAssistantButton: FunctionComponent<ArticleAiAssistantButtonProps>
         [aiStateCacheKey]
     );
     const aiConfigured = data.aiConfigured === true;
-    const [knowledgeMode, setKnowledgeMode] = useState(false);
-    const knowledge = useKnowledgeAssistant(axiosInstance, offline || !aiConfigured);
 
     useEffect(() => {
         articleAiAssistantDrawerOpen = mergedOpen;
@@ -1088,7 +1083,7 @@ const ArticleAiAssistantButton: FunctionComponent<ArticleAiAssistantButtonProps>
         <AIButton
             aiProvider={aiConfigured ? data.aiProvider : undefined}
             dark={getAppState().dark}
-            messages={knowledgeMode ? knowledge.messages : assistantConfig.messages}
+            messages={assistantConfig.messages}
             user={getEditorUser()}
             subject={data.article.title}
             open={mergedOpen}
@@ -1101,21 +1096,8 @@ const ArticleAiAssistantButton: FunctionComponent<ArticleAiAssistantButtonProps>
             onSizeChange={(nextWidth: number) => {
                 onAiDrawerSizeChange?.(nextWidth);
             }}
-            renderMessage={knowledgeMode ? knowledge.renderMessage : assistantConfig.renderMessage}
-            footer={
-                <>
-                    <Segmented
-                        value={knowledgeMode ? "knowledge" : "writing"}
-                        disabled={knowledge.busy}
-                        options={[
-                            { value: "writing", label: getRes().articleEdit.knowledge.writing },
-                            { value: "knowledge", label: getRes().articleEdit.knowledge.title },
-                        ]}
-                        onChange={(value) => setKnowledgeMode(value === "knowledge")}
-                    />
-                    {knowledgeMode ? knowledge.renderFooter() : assistantConfig.renderFooter()}
-                </>
-            }
+            renderMessage={assistantConfig.renderMessage}
+            footer={assistantConfig.renderFooter()}
             overlays={assistantConfig.overlays}
         >
             <Button

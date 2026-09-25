@@ -56,6 +56,27 @@ public class AdminUserController extends BaseController {
         return new AdminPageDataResponse<>(userService.getBasicUserInfo(adminTokenVO.getUserId(), adminTokenVO.getSessionId()), "", request.getUri());
     }
 
+    @ResponseBody
+    @RequestMethod(method = HttpMethod.GET)
+    @RequiresAction(value = AccountAction.ACCOUNT_SELF, descriptionKey = "account.preferences")
+    public ApiStandardResponse<UserPreferencesResponse> preferences() throws SQLException {
+        return new ApiStandardResponse<>(new com.zrlog.admin.business.service.UserPreferenceService().current());
+    }
+
+    @ResponseBody
+    @RequestMethod(method = HttpMethod.POST)
+    @RequiresAction(value = AccountAction.ACCOUNT_SELF, descriptionKey = "account.updatePreferences")
+    public ApiStandardResponse<UserPreferencesResponse> updatePreferences() throws SQLException {
+        java.nio.ByteBuffer body = request.getRequestBodyByteBuffer();
+        String contentType = request.getHeader("Content-Type");
+        if (body == null || body.remaining() > 8192 || contentType == null
+                || !contentType.split(";")[0].trim().equalsIgnoreCase("application/json")) {
+            throw new com.zrlog.common.exception.ArgsException("preferences");
+        }
+        return new ApiStandardResponse<>(new com.zrlog.admin.business.service.UserPreferenceService()
+                .updateBody(com.hibegin.common.util.IOUtil.getStringInputStream(request.getInputStream())));
+    }
+
     /**
      * 校验是否处于登录状态，不需要返回过多的用户信息，可以返回一些全局需要使用到的与用户相关的信息，比如 头像/昵称,新版本
      *

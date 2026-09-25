@@ -54,8 +54,7 @@ public class AdminArticleService {
         if (requestedSize > 0) {
             return requestedSize;
         }
-        String configuredSize = new WebSite().getStringValueByName("admin_article_page_size");
-        return StringUtils.isNotEmpty(configuredSize) ? (int) Double.parseDouble(configuredSize) : 10;
+        return new UserPreferenceService().effective().articlePageSize;
     }
 
     private static final Logger LOGGER = LoggerUtil.getLogger(AdminArticleService.class);
@@ -416,6 +415,7 @@ public class AdminArticleService {
 
     public AdminPageDataResponse<ArticleGlobalResponse> loadDetailById(String id, HttpRequest request) throws SQLException {
         int draftContextId = -AccountPermissionService.current().getUserId();
+        WebSiteService conversationStore = new WebSiteService().captureAccount();
         ArticleGlobalResponse response = new ArticleGlobalResponse();
         ExecutorService executorService = ThreadUtils.newFixedThreadPool(2);
         if (StringUtils.isNotEmpty(id)) {
@@ -429,7 +429,7 @@ public class AdminArticleService {
                 if (articleId == null) {
                     articleId = draftContextId;
                 }
-                return new WebSiteService().articleEditorContext(Long.valueOf(articleId));
+                return conversationStore.articleEditorContext(Long.valueOf(articleId));
             }, executorService);
             CompletableFuture.allOf(CompletableFuture.runAsync(() -> {
                 response.setTags(Constants.zrLogConfig.getCacheService().getTags());
@@ -447,7 +447,7 @@ public class AdminArticleService {
             response.setLinkPreviewEnabled(articleEdit.getArticle_editor_link_preview_enabled());
             response.setPublishCheckEnabled(articleEdit.getArticle_publish_check_enabled());
             response.setArticleCoverAspectRatio(articleEdit.getArticle_cover_aspect_ratio());
-            response.setArticleEditAutoSaveInterval(articleEdit.getArticle_edit_auto_save_interval());
+            response.setArticleEditAutoSaveInterval(new UserPreferenceService().effective().editor.autoSaveInterval);
         } finally {
             executorService.shutdown();
         }

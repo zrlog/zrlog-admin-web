@@ -36,6 +36,8 @@ type ArticleAiAssistantSkillContentProps = {
     disabled: boolean;
     loadingKey?: string;
     aiMessageCount: number;
+    chatStatus?: string;
+    onStopChat?: () => void;
     aiMessagesExporting: boolean;
     aiMessagesClearing: boolean;
     includeArticleContextInChat: boolean;
@@ -59,6 +61,8 @@ const ArticleAiAssistantSkillContent: FunctionComponent<ArticleAiAssistantSkillC
     disabled,
     loadingKey,
     aiMessageCount,
+    chatStatus,
+    onStopChat,
     aiMessagesExporting,
     aiMessagesClearing,
     includeArticleContextInChat,
@@ -607,6 +611,18 @@ const ArticleAiAssistantSkillContent: FunctionComponent<ArticleAiAssistantSkillC
                     />
                 </div>
             )}
+            {chatStatus && (
+                <Space style={{ marginBottom: theme.marginXS }}>
+                    <Typography.Text role="status" type="secondary">
+                        {chatStatus}
+                    </Typography.Text>
+                    {onStopChat && (
+                        <Button size="small" onClick={onStopChat}>
+                            {getRes().articleEdit.knowledge.stop}
+                        </Button>
+                    )}
+                </Space>
+            )}
             <div style={{ position: "relative" }}>
                 {selectedTool && (
                     <Space style={{ marginBottom: 6 }}>
@@ -656,6 +672,12 @@ const ArticleAiAssistantSkillContent: FunctionComponent<ArticleAiAssistantSkillC
                     title={getRes().articleEdit.assistant.send}
                 />
             </div>
+            <Typography.Paragraph
+                type="secondary"
+                style={{ fontSize: theme.fontSizeSM, marginTop: theme.marginXS, marginBottom: 0 }}
+            >
+                {getRes().articleEdit.knowledge.sessionHint}
+            </Typography.Paragraph>
             <Typography.Text
                 type="secondary"
                 style={{

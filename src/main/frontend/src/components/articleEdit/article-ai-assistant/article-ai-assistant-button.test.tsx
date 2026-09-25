@@ -74,6 +74,12 @@ jest.mock("../../../utils/constants", () => ({
     getRealRouteUrl: (url: string) => url,
     getRes: () => ({
         articleEdit: {
+            knowledge: {
+                thinking: "Thinking",
+                permission: "Permissions changed",
+                requestFailed: "Request failed",
+                saveFailed: "Save failed",
+            },
             assistant: {
                 articleContextPreviewTitle: "Article context",
                 saveInProgress: "Save in progress",
@@ -270,6 +276,49 @@ describe("useArticleAiAssistantConfig draft request gate", () => {
         reactActEnvironment.IS_REACT_ACT_ENVIRONMENT = false;
     });
 
+    it("restores saved ordinary chat through the same article state as writing skills", async () => {
+        const gate = createDraftAiSaveGate();
+        const saved = [
+            { role: "user" as const, content: "Find a related article", messageType: "knowledge", messageId: "q1" },
+            { role: "assistant" as const, content: "Source based answer", messageType: "knowledge", messageId: "a1" },
+        ];
+        const post = jest.fn(
+            async (): Promise<any> => ({
+                data: `data: ${JSON.stringify({
+                    type: "answer",
+                    content: "Source based answer",
+                    messages: saved,
+                })}\n\ndata: {"type":"done"}\n\n`,
+            })
+        );
+        const mounted = mountHook(gate, post);
+        await act(async () => {
+            mounted.getFooter().onSubmit("Find a related article");
+            await flushRequest();
+        });
+        expect(post).toHaveBeenCalledWith(
+            "/api/admin/knowledge/chat",
+            { input: "Find a related article", articleId: 0, includeArticleContext: true },
+            expect.anything()
+        );
+        expect(mounted.onAiMessagesChange).toHaveBeenLastCalledWith(
+            saved.map((entry) => ({ ...entry, thinking: false })),
+            0
+        );
+        act(() =>
+            mounted.rerender(
+                7,
+                saved.map((entry) => ({ ...entry, thinking: false }))
+            )
+        );
+        expect(mounted.getConfig().messages.map((m) => m.content)).toEqual([
+            "Find a related article",
+            "Source based answer",
+        ]);
+        expect(post).toHaveBeenCalledTimes(1);
+        expect(gate.getPendingAiCount()).toBe(0);
+    });
+
     it("holds one shared lease per overlapping send until success or failure settles", async () => {
         const gate = createDraftAiSaveGate();
         const firstRequest = deferred<any>();
@@ -280,8 +329,8 @@ describe("useArticleAiAssistantConfig draft request gate", () => {
         const second = mountHook(gate, secondPost);
 
         act(() => {
-            first.getFooter().onSubmit("First request");
-            second.getFooter().onSubmit("Second request");
+            first.getFooter().onSubmit("First request", "title");
+            second.getFooter().onSubmit("Second request", "title");
         });
 
         expect(gate.getPendingAiCount()).toBe(2);
@@ -590,7 +639,7 @@ describe("useArticleAiAssistantConfig draft request gate", () => {
         });
         const mounted = mountHook(gate, post);
 
-        act(() => mounted.getFooter().onSubmit("Route-bound request"));
+        act(() => mounted.getFooter().onSubmit("Route-bound request", "title"));
         expect(mounted.onAiMessagesChange).toHaveBeenCalledTimes(1);
         mounted.rerender(42);
 
@@ -623,7 +672,7 @@ describe("useArticleAiAssistantConfig draft request gate", () => {
         const post = jest.fn(async (): Promise<any> => request.promise);
         const mounted = mountHook(gate, post);
 
-        act(() => mounted.getFooter().onSubmit("Fail after navigation"));
+        act(() => mounted.getFooter().onSubmit("Fail after navigation", "title"));
         mounted.rerender(42);
         await act(async () => {
             request.resolve({

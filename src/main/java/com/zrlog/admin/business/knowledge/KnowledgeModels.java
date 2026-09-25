@@ -21,10 +21,11 @@ public final class KnowledgeModels {
     }
     public static class ChatRequest implements Validator {
         public String input;
-        public Options options = new Options();
+        public long articleId;
+        public boolean includeArticleContext = true;
         public List<ChatMessage> history = new ArrayList<>();
         public void doValid() {
-            if (input == null || input.trim().isEmpty() || input.length() > 8000 || options == null
+            if (articleId < 0 || input == null || input.trim().isEmpty() || input.length() > 8000
                     || history == null || history.size() > 12) throw new ArgsException();
             int size = 0;
             for (ChatMessage m : history) {
@@ -72,7 +73,9 @@ public final class KnowledgeModels {
         public String type;
         public String tool;
         public String content;
+        public String reasoningContent;
         public String error;
+        public List<com.zrlog.admin.business.rest.response.AIResponseEntry.AIContentEntry> messages;
         public List<Source> sources;
         public Event(String type) { this.type = type; }
     }

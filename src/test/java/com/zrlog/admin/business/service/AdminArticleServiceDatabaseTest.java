@@ -58,7 +58,7 @@ public class AdminArticleServiceDatabaseTest {
             assertTrue(loaded.getPreviewUrl().contains("/hello-article"));
             assertNotNull(loaded.getSocialPreview());
             assertEquals(1, webSiteService.getAiMessageInfoByArticleId(response.getLogId()).getAiMessages().size());
-            assertNull(db.queryOne("select value from website where name=?", "ai_chat_message_-1").get("value"));
+            assertEquals("[]", db.queryOne("select value from website where name=?", "ai_chat_message_u1_-1").get("value"));
         }
     }
 
@@ -179,7 +179,7 @@ public class AdminArticleServiceDatabaseTest {
             assertTrue(service.delete(created.getLogId()));
 
             assertNull(db.queryOne("select logId from log where logId=?", created.getLogId()));
-            assertNull(db.queryOne("select value from website where name=?", "ai_chat_message_" + created.getLogId()).get("value"));
+            assertNull(db.queryOne("select value from website where name=?", "ai_chat_message_u1_" + created.getLogId()).get("value"));
         }
     }
 

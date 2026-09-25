@@ -407,7 +407,7 @@ public class AdminArticleControllerDatabaseTest {
                     "{\"dataUrl\":\"/attached/cover.png\",\"extension\":\"png\",\"messageId\":\"" + messageId + "\"}",
                     new ResponseRecorder()).applyCover();
             String stored = String.valueOf(db.queryOne(
-                    "select value from website where name=?", "ai_chat_message_9").get("value"));
+                    "select value from website where name=?", "ai_chat_message_u1_9").get("value"));
 
             assertEquals("/attached/cover.png", applied.getData().getUrl());
             assertTrue(stored.contains("\"messageId\":\"" + messageId + "\""));
@@ -528,7 +528,7 @@ public class AdminArticleControllerDatabaseTest {
             assertTrue(future.isCancelled());
             assertTrue(commitAttempted.get());
             assertFalse(persistenceCalled.get());
-            assertNull(db.queryOne("select value from website where name=?", "ai_chat_message_42"));
+            assertNull(db.queryOne("select value from website where name=?", "ai_chat_message_u1_42"));
             String storedNotices = String.valueOf(db.queryOne(
                     "select value from website where name=?", "admin_cache:message_center_operation_notices")
                     .get("value"));

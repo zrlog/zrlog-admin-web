@@ -50,6 +50,27 @@ public class OAuthAdminController extends BaseController {
         return new ApiStandardResponse<>(true);
     }
     @ResponseBody @RequestMethod(method = HttpMethod.POST)
+    @RequiresAction(value = AccountAction.OAUTH_GRANT_MANAGE, descriptionKey = "oauth.createPersonalToken")
+    public ApiStandardResponse<com.zrlog.admin.business.security.PersonalTokenModels.Created> createPersonalToken() throws SQLException {
+        response.addHeader("Cache-Control", "no-store");
+        response.addHeader("Pragma", "no-cache");
+        service.requireSameOrigin(request.getHeader("Origin"));
+        com.zrlog.admin.business.security.PersonalTokenModels.Created result =
+                new com.zrlog.admin.business.service.PersonalAccessTokenService(service.mcpResource())
+                        .create(getRequestBodyWithNullCheck(com.zrlog.admin.business.security.PersonalTokenModels.Create.class));
+        audit(com.zrlog.admin.business.type.AdminAuditAction.CREATE_PERSONAL_TOKEN);
+        return new ApiStandardResponse<>(result);
+    }
+    @ResponseBody @RequestMethod(method = HttpMethod.POST)
+    @RequiresAction(value = AccountAction.OAUTH_GRANT_MANAGE, descriptionKey = "oauth.revokePersonalToken")
+    public ApiStandardResponse<Boolean> revokePersonalToken() throws SQLException {
+        service.requireSameOrigin(request.getHeader("Origin"));
+        new com.zrlog.admin.business.service.PersonalAccessTokenService(service.mcpResource())
+                .revoke(getRequestBodyWithNullCheck(Revoke.class).id);
+        audit(com.zrlog.admin.business.type.AdminAuditAction.REVOKE_PERSONAL_TOKEN);
+        return new ApiStandardResponse<>(true);
+    }
+    @ResponseBody @RequestMethod(method = HttpMethod.POST)
     @RequiresAction(value = AccountAction.OAUTH_CLIENT_MANAGE, descriptionKey = "oauth.disableClient")
     public ApiStandardResponse<Boolean> disableClient() throws SQLException {
         service.requireSameOrigin(request.getHeader("Origin"));

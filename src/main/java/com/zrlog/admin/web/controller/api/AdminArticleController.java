@@ -321,6 +321,7 @@ public class AdminArticleController extends BaseController {
     @RequiresAction(value = AccountAction.ARTICLE_ASSIST, articleQuery = true, descriptionKey = "article.clearAiMessages")
     public ApiStandardResponse<Boolean> clearAiMessages() {
         boolean cleared = new WebSiteService().clearAIMessage(aiContextId());
+        if (!cleared) throw new com.zrlog.admin.business.ai.exception.AIMessageSaveException();
         return new ApiStandardResponse<>(cleared);
     }
 

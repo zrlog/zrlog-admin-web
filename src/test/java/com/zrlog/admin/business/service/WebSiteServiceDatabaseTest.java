@@ -22,6 +22,57 @@ import static org.junit.Assert.assertTrue;
 public class WebSiteServiceDatabaseTest {
 
     @Test
+    public void shouldIsolateAccountsAndArticlesAndCaptureIdentityForAsyncWrites() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            WebSiteService current = new WebSiteService();
+            WebSiteService firstAccount = current.captureAccount();
+            assertTrue(current.saveAIMessage(List.of(new AIResponseEntry.AIContentEntry("user", "first account")), 7L));
+            com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser().setUserId(2);
+            assertTrue(current.getAiMessageInfoByArticleId(7L).getAiMessages().isEmpty());
+            assertTrue(current.saveAIMessage(List.of(new AIResponseEntry.AIContentEntry("user", "second account")), 7L));
+            java.util.concurrent.CompletableFuture.runAsync(() -> {
+                try {
+                    assertTrue(firstAccount.appendAIMessageEntries(List.of(new AIResponseEntry.AIContentEntry("assistant", "async reply")), 7L));
+                } catch (Exception e) { throw new RuntimeException(e); }
+            }).get();
+            assertEquals("second account", current.exportAIMessage(7L).getMessages().get(0).getContent());
+            assertTrue(current.getAiMessageInfoByArticleId(8L).getAiMessages().isEmpty());
+            com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser().setUserId(1);
+            assertEquals(List.of("first account", "async reply"), new WebSiteService().exportAIMessage(7L).getMessages().stream()
+                    .filter(entry -> !"system".equals(entry.getRole())).map(AIResponseEntry.AIContentEntry::getContent).collect(java.util.stream.Collectors.toList()));
+        }
+    }
+
+    @Test
+    public void shouldReadLegacyHistoryAndKeepClearedHistoryEmpty() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            String legacy = "[{\"role\":\"user\",\"content\":\"old conversation\"}]";
+            db.putWebsite("ai_chat_message_7", legacy);
+            WebSiteService service = new WebSiteService();
+            assertEquals("old conversation", service.exportAIMessage(7L).getMessages().get(0).getContent());
+            assertTrue(service.appendAIMessageEntries(List.of(new AIResponseEntry.AIContentEntry("assistant", "new reply")), 7L));
+            assertEquals(2, service.exportAIMessage(7L).getMessages().stream().filter(entry -> !"system".equals(entry.getRole())).count());
+            assertEquals(legacy, db.scalar("select value from website where name=?", "ai_chat_message_7"));
+            assertTrue(service.clearAIMessage(7L));
+            assertTrue(new WebSiteService().exportAIMessage(7L).getMessages().isEmpty());
+            db.putWebsite("ai_chat_message_-1", legacy);
+            assertTrue(service.migrateDraftAIMessageToArticle(8L, -1L));
+            assertEquals("old conversation", service.exportAIMessage(8L).getMessages().get(0).getContent());
+            assertTrue(service.exportAIMessage(-1L).getMessages().isEmpty());
+        }
+    }
+
+    @Test
+    public void shouldNotWriteSharedHistoryWithoutAnAccount() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            com.zrlog.admin.web.token.AdminTokenThreadLocal.remove();
+            org.junit.Assert.assertThrows(com.zrlog.admin.business.exception.PermissionErrorException.class,
+                    () -> new WebSiteService().saveAIMessage(List.of(new AIResponseEntry.AIContentEntry("user", "private")), 7L));
+            assertEquals(0L, ((Number) db.scalar("select count(*) from website where name like 'ai_chat_message_%'")).longValue());
+        }
+    }
+
+    @Test
     public void shouldReadWebsiteGroupsFromInstallSchemaBackedTable() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             db.putWebsite("title", "Demo Blog");
@@ -69,9 +120,9 @@ public class WebSiteServiceDatabaseTest {
             assertEquals(1, info.getAiMessages().size());
             assertEquals("user", info.getAiMessages().get(0).getRole());
             assertFalse(info.getAiMessages().get(0).getMessageId().isEmpty());
-            assertEquals(1L, ((Number) db.scalar("select count(1) from website where name=?", "ai_chat_message_7")).longValue());
+            assertEquals(1L, ((Number) db.scalar("select count(1) from website where name=?", "ai_chat_message_u1_7")).longValue());
             assertTrue(service.clearAIMessage(7L));
-            assertEquals(null, db.queryOne("select value from website where name=?", "ai_chat_message_7").get("value"));
+            assertEquals("[]", db.queryOne("select value from website where name=?", "ai_chat_message_u1_7").get("value"));
         }
     }
 
@@ -113,7 +164,7 @@ public class WebSiteServiceDatabaseTest {
             context.setArticleVersion(2);
 
             List<AIResponseEntry.AIContentEntry> messages = service.appendArticleContextMessage(9L, context);
-            Map<String, Object> row = db.queryOne("select value from website where name=?", "ai_chat_message_9");
+            Map<String, Object> row = db.queryOne("select value from website where name=?", "ai_chat_message_u1_9");
 
             assertEquals(2, messages.size());
             assertEquals("system", messages.get(0).getRole());

@@ -47,6 +47,10 @@ public class AIResponseEntry {
         private String content;
         private String reasoningContent;
         private String messageId;
+        private List<com.zrlog.admin.business.knowledge.KnowledgeModels.Source> sources;
+
+        public List<com.zrlog.admin.business.knowledge.KnowledgeModels.Source> getSources() { return sources; }
+        public void setSources(List<com.zrlog.admin.business.knowledge.KnowledgeModels.Source> sources) { this.sources = sources; }
         private String messageType;
         private ArticleContextMeta contextMeta;
         private String tool;

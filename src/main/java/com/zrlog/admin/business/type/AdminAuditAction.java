@@ -6,6 +6,8 @@ public enum AdminAuditAction {
     TRANSFER_OWNERSHIP("admin.audit.action.transferOwnership", "security"),
     AUTHORIZE_APPLICATION("admin.audit.action.authorizeApplication", "security"),
     REVOKE_APPLICATION("admin.audit.action.revokeApplication", "security"),
+    CREATE_PERSONAL_TOKEN("admin.audit.action.createPersonalToken", "security"),
+    REVOKE_PERSONAL_TOKEN("admin.audit.action.revokePersonalToken", "security"),
     REGISTER_APPLICATION("admin.audit.action.registerApplication", "security"),
     LOGIN_SUCCESS("admin.audit.action.loginSuccess", "login"),
     LOGIN_WITH_PASSKEY("admin.audit.action.loginWithPasskey", "login"),

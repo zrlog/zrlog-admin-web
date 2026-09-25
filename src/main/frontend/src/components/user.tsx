@@ -1,7 +1,10 @@
+import { useSearchParams } from "react-router-dom";
+import { UserApplications } from "./oauth";
+import UserPreferencesForm from "./user-preferences";
 import { useState } from "react";
 import Divider from "antd/es/divider";
 import Form from "antd/es/form";
-import { Button, Card, Input, message, theme } from "antd";
+import { Button, Card, Input, message, theme, Tabs } from "antd";
 import Row from "antd/es/grid/row";
 import Col from "antd/es/grid/col";
 import Constants, { getRes } from "../utils/constants";
@@ -24,7 +27,7 @@ type BasicUserInfo = {
     email: string;
 };
 
-const User = ({ data, offline }: { data: BasicUserInfo; offline: boolean }) => {
+const UserProfile = ({ data, offline }: { data: BasicUserInfo; offline: boolean }) => {
     const [userInfo, setUserInfo] = useState<BasicUserInfo>(data);
     const [cropOpen, setCropOpen] = useState(false);
     const [cropImageUrl, setCropImageUrl] = useState("");
@@ -162,6 +165,41 @@ const User = ({ data, offline }: { data: BasicUserInfo; offline: boolean }) => {
                 }}
             />
         </>
+    );
+};
+
+const User = (props: { data: BasicUserInfo; offline: boolean }) => {
+    const [params, setParams] = useSearchParams();
+    const activeTab = params.get("tab") || "profile";
+    return (
+        <Tabs
+            activeKey={["profile", "preferences", "applications"].includes(activeTab) ? activeTab : "profile"}
+            onChange={(tab) =>
+                setParams(
+                    (previous) => {
+                        const next = new URLSearchParams(previous);
+                        next.set("tab", tab);
+                        return next;
+                    },
+                    { replace: true }
+                )
+            }
+            items={[
+                { key: "profile", label: getRes().user.title, children: <UserProfile {...props} /> },
+                {
+                    key: "preferences",
+                    destroyOnHidden: true,
+                    label: getRes().user.preferences.title,
+                    children: <UserPreferencesForm offline={props.offline} />,
+                },
+                {
+                    key: "applications",
+                    destroyOnHidden: true,
+                    label: getRes().oauth.title,
+                    children: <UserApplications offline={props.offline} />,
+                },
+            ]}
+        />
     );
 };
 

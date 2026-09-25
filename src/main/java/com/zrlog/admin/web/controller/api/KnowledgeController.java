@@ -13,7 +13,7 @@ import java.io.IOException;
 public class KnowledgeController extends BaseController {
     @RequestMethod(method = HttpMethod.POST)
     @RequiresAction(value = AccountAction.ARTICLE_ASSIST, descriptionKey = "knowledge.chat")
-    public void chat() throws IOException {
+    public void chat() throws IOException, java.sql.SQLException {
         java.nio.ByteBuffer body = request.getRequestBodyByteBuffer();
         if (body == null || body.remaining() > 256 * 1024) throw new com.zrlog.common.exception.ArgsException();
         AIStreamResponse stream = new AIKnowledgeService().start(getRequestBodyWithNullCheck(KnowledgeModels.ChatRequest.class));

@@ -435,11 +435,11 @@ public class AIChatServiceTest {
             assertTrue(firstPayload.contains("\"reasoningContent\":\"plan \""));
             assertTrue(secondPayload.contains("second"));
             String firstStored = String.valueOf(db.queryOne(
-                    "select value from website where name=?", "ai_chat_message_36").get("value"));
+                    "select value from website where name=?", "ai_chat_message_u1_36").get("value"));
             assertTrue(firstStored.contains("first"));
             assertTrue(firstStored.contains("\"reasoningContent\":\"plan \""));
             assertTrue(String.valueOf(db.queryOne(
-                    "select value from website where name=?", "ai_chat_message_37").get("value")).contains("second"));
+                    "select value from website where name=?", "ai_chat_message_u1_37").get("value")).contains("second"));
         }
     }
 
@@ -458,7 +458,7 @@ public class AIChatServiceTest {
             AIStreamResponse response = service.startStreamResponse("Question", 39L);
             String payload = new String(response.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
             String stored = String.valueOf(db.queryOne(
-                    "select value from website where name=?", "ai_chat_message_39").get("value"));
+                    "select value from website where name=?", "ai_chat_message_u1_39").get("value"));
 
             assertEquals(200, response.getStatusCode());
             assertTrue(payload.contains("answer"));
@@ -483,7 +483,7 @@ public class AIChatServiceTest {
             AIStreamResponse response = service.startStreamResponse("Question", 33L, null, null, false);
             String payload = new String(response.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
             String stored = String.valueOf(db.queryOne(
-                    "select value from website where name=?", "ai_chat_message_33").get("value"));
+                    "select value from website where name=?", "ai_chat_message_u1_33").get("value"));
 
             assertEquals(200, response.getStatusCode());
             assertEquals(2, client.requests.size());
@@ -523,7 +523,7 @@ public class AIChatServiceTest {
             assertTrue(payload.contains("event: ai-error"));
             assertTrue(payload.contains("\"errorType\":\"incomplete_response\""));
             assertTrue(payload.contains("\"continuationRounds\":3"));
-            assertEquals(null, db.queryOne("select value from website where name=?", "ai_chat_message_38"));
+            assertEquals(null, db.queryOne("select value from website where name=?", "ai_chat_message_u1_38"));
         }
     }
 
