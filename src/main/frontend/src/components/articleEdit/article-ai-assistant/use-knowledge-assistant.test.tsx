@@ -143,6 +143,63 @@ describe("knowledge assistant", () => {
         expect(onMessagesChange).toHaveBeenLastCalledWith(saved, 7);
         expect(chat.busy).toBe(false);
     });
+    it("renders text and reasoning chunks before completion and replaces them with saved messages", async () => {
+        let resolve!: (value: { data: string }) => void;
+        post.mockReturnValue(
+            new Promise((done) => {
+                resolve = done;
+            })
+        );
+        let pending!: Promise<void>;
+        act(() => {
+            pending = chat.send("Hello", [], 7);
+        });
+        const reasoning =
+            'data: {"type":"reasoning_delta","reasoningContent":"Think "}\n\ndata: {"type":"reasoning_delta","reasoningContent":"first"}\n\n';
+        const first =
+            reasoning +
+            'data: {"type":"reasoning","reasoningContent":"Think first"}\n\ndata: {"type":"delta","content":"你"}\n\n';
+        act(() => post.mock.calls[0][2].onDownloadProgress({ event: { target: { responseText: first } } }));
+        expect(chat.busy).toBe(true);
+        expect(chat.messages[1].content).toBe("你");
+        expect(chat.messages[1].reasoningContent).toBe("Think first");
+        expect(chat.messages[1].messageId).toBeUndefined();
+        const second = first + 'data: {"type":"delta","content":"好🙂"}\n\n';
+        act(() => post.mock.calls[0][2].onDownloadProgress({ event: { target: { responseText: second } } }));
+        // XHR progress carries the accumulated response, so repeated callbacks must not duplicate text.
+        act(() => post.mock.calls[0][2].onDownloadProgress({ event: { target: { responseText: second } } }));
+        expect(container.textContent).toContain("你好🙂");
+        expect(chat.messages[1].content).toBe("你好🙂");
+        await act(async () => {
+            resolve({ data: second + completed("你好🙂", "Hello", "Think first") });
+            await pending;
+        });
+        expect(chat.messages[1].messageId).toBe("answer-id");
+        expect(chat.messages[1].reasoningContent).toBe("Think first");
+        expect(chat.busy).toBe(false);
+    });
+    it("discards partial streamed text when saving fails", async () => {
+        let resolve!: (value: { data: string }) => void;
+        post.mockReturnValue(
+            new Promise((done) => {
+                resolve = done;
+            })
+        );
+        let pending!: Promise<void>;
+        act(() => {
+            pending = chat.send("Hello", [], 7);
+        });
+        const partial = 'data: {"type":"delta","content":"Unfinished answer"}\n\n';
+        act(() => post.mock.calls[0][2].onDownloadProgress({ event: { target: { responseText: partial } } }));
+        expect(container.textContent).toContain("Unfinished answer");
+        await act(async () => {
+            resolve({ data: partial + 'data: {"type":"error","error":"saveFailed"}\n\n' });
+            await pending;
+        });
+        expect(container.textContent).not.toContain("Unfinished answer");
+        expect(chat.messages[1].failed).toBe(true);
+        expect(container.textContent).toContain(getRes().articleEdit.knowledge.saveFailed);
+    });
     it("does not claim success if the server has not confirmed persistence", async () => {
         post.mockResolvedValue({
             data: 'data: {"type":"answer","content":"Unsaved answer"}\n\ndata: {"type":"done"}\n\n',

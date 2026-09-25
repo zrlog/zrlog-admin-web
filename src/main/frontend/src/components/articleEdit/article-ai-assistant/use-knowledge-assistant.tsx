@@ -128,6 +128,7 @@ export const useKnowledgeAssistant = (
         const base: KnowledgeMessage[] = [...context, question];
         publish([...base, { role: "assistant", content: "", thinking: true, messageType: "knowledge" }]);
         let lastReasoning = "";
+        let lastContent = "";
         const consume = (text: string, final: boolean) => {
             if (run !== generation.current) return;
             const events = parseKnowledgeEvents(text);
@@ -149,15 +150,25 @@ export const useKnowledgeAssistant = (
                         ? res.reading
                         : res.thinking
                 );
-            const reasoningContent = events
-                .filter((event) => event.type === "reasoning" && event.reasoningContent)
-                .map((event) => event.reasoningContent)
-                .join("\n\n");
-            if (!final && reasoningContent && reasoningContent !== lastReasoning) {
+            const completedReasoning: string[] = [];
+            let partialReasoning = "";
+            let content = "";
+            for (const event of events) {
+                if (event.type === "thinking") content = "";
+                if (event.type === "delta") content += event.content || "";
+                if (event.type === "reasoning_delta") partialReasoning += event.reasoningContent || "";
+                if (event.type === "reasoning" && event.reasoningContent) {
+                    completedReasoning.push(event.reasoningContent);
+                    partialReasoning = "";
+                }
+            }
+            const reasoningContent = [...completedReasoning, partialReasoning].filter(Boolean).join("\n\n");
+            if (!final && (reasoningContent !== lastReasoning || content !== lastContent)) {
                 lastReasoning = reasoningContent;
+                lastContent = content;
                 publish([
                     ...base,
-                    { role: "assistant", content: "", thinking: true, messageType: "knowledge", reasoningContent },
+                    { role: "assistant", content, thinking: !content, messageType: "knowledge", reasoningContent },
                 ]);
             }
             const answer = events.find((e) => e.type === "answer");

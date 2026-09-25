@@ -28,6 +28,11 @@ import java.util.concurrent.*;
 
 /** The same persistent, account-scoped article conversation used by writing skills. */
 public class AIKnowledgeService extends AIService {
+    private static final ScheduledThreadPoolExecutor STREAM_TIMEOUT = new ScheduledThreadPoolExecutor(1, task -> {
+        Thread thread = new Thread(task, "knowledge-stream-timeout"); thread.setDaemon(true); return thread;
+    });
+    static { STREAM_TIMEOUT.setRemoveOnCancelPolicy(true); }
+
     public AIKnowledgeService() { }
     AIKnowledgeService(HttpClient client) { super(client); }
 
@@ -141,7 +146,14 @@ public class AIKnowledgeService extends AIService {
             reauthorize.run();
             emit(out, new Event("thinking"));
             boolean allowTools = knowledge != null && round < 4 && calls < 8;
-            AIProviderResponses.Choice choice = complete(info, request(info, messages, allowTools));
+            AIProviderResponses.Choice choice = complete(info, request(info, messages, allowTools), (type, text) -> {
+                if ("reasoning_delta".equals(type) && !info.isReasoningEnabled()) return;
+                reauthorize.run();
+                Event progress = new Event(type);
+                if ("reasoning_delta".equals(type)) progress.reasoningContent = text;
+                else progress.content = text;
+                emit(out, progress);
+            });
             AIProviderResponses.Message reply = choice.getMessage();
             if (reply == null) throw new AIResponseException("Missing message");
             String reasoning = reply.getReasoningText();
@@ -191,10 +203,8 @@ public class AIKnowledgeService extends AIService {
         source.draft = hit.draft; source.privateArticle = hit.privateArticle; source.updatedAt = hit.updatedAt; return source;
     }
     String request(AIWebSiteInfo info, List<AIProviderRequests.Message> messages, boolean allowTools) {
-        AIProviderRequests.CompletionRequest request = gson.fromJson(buildRequestBody(List.of(), info, false), AIProviderRequests.CompletionRequest.class);
+        AIProviderRequests.CompletionRequest request = gson.fromJson(buildRequestBody(List.of(), info, true), AIProviderRequests.CompletionRequest.class);
         request.setMessages(messages);
-        // Some Qwen models require streaming when thinking is enabled. This bounded tool loop uses non-streaming completions.
-        if (info.getAi_provider() == com.zrlog.admin.business.ai.model.AIProviderType.QWEN) request.setEnableThinking(false);
         if (allowTools) {
             request.tools = new ArrayList<>(); request.tool_choice = "auto";
             for (Tool tool : KnowledgeService.tools()) {
@@ -205,31 +215,20 @@ public class AIKnowledgeService extends AIService {
         }
         return gson.toJson(request);
     }
-    protected AIProviderResponses.Choice complete(AIWebSiteInfo info, String body) throws IOException, InterruptedException {
-        CompletableFuture<HttpResponse<byte[]>> pending = client().sendAsync(buildRequest(info, body, Duration.ofSeconds(60)), ignored -> new BoundedBody());
-        try {
-            HttpResponse<byte[]> response = pending.get(60, TimeUnit.SECONDS);
-            byte[] data = response.body();
+    protected AIProviderResponses.Choice complete(AIWebSiteInfo info, String body, AIKnowledgeStreamReader.Progress progress)
+            throws IOException, InterruptedException {
+        HttpResponse<InputStream> response = client().send(buildRequest(info, body, Duration.ofSeconds(60)), HttpResponse.BodyHandlers.ofInputStream());
+        try (InputStream input = response.body()) {
             if (response.statusCode() != 200) throw new AIRequestException("Knowledge request failed");
-            AIProviderResponses.CompletionResponse completion = gson.fromJson(new String(data, StandardCharsets.UTF_8), AIProviderResponses.CompletionResponse.class);
-            if (completion == null || completion.getError() != null || completion.getChoices() == null || completion.getChoices().size() != 1) throw new AIResponseException("Invalid completion");
-            return completion.getChoices().get(0);
-        } catch (ExecutionException | TimeoutException e) { pending.cancel(true); throw new AIRequestException("Knowledge request failed"); }
-        catch (InterruptedException e) { pending.cancel(true); Thread.currentThread().interrupt(); throw e; }
-    }
-    static final class BoundedBody implements HttpResponse.BodySubscriber<byte[]> {
-        private final HttpResponse.BodySubscriber<byte[]> delegate = HttpResponse.BodySubscribers.ofByteArray();
-        private Flow.Subscription subscription;
-        private long bytes;
-        public CompletionStage<byte[]> getBody() { return delegate.getBody(); }
-        public void onSubscribe(Flow.Subscription subscription) { this.subscription = subscription; delegate.onSubscribe(subscription); }
-        public void onNext(List<java.nio.ByteBuffer> chunks) {
-            for (java.nio.ByteBuffer chunk : chunks) bytes += chunk.remaining();
-            if (bytes > 1024 * 1024) { subscription.cancel(); delegate.onError(new IOException("Response too large")); }
-            else delegate.onNext(chunks);
+            // HttpRequest's timeout ends at the headers for an InputStream body; bound the body lifetime too.
+            ScheduledFuture<?> timeout = STREAM_TIMEOUT.schedule(() -> {
+                try { input.close(); } catch (IOException ignored) { }
+            }, 60, TimeUnit.SECONDS);
+            try {
+                boolean sse = response.headers().firstValue("Content-Type").orElse("").toLowerCase(Locale.ROOT).contains("text/event-stream");
+                return new AIKnowledgeStreamReader().read(input, sse, progress);
+            } finally { timeout.cancel(false); }
         }
-        public void onError(Throwable error) { delegate.onError(error); }
-        public void onComplete() { delegate.onComplete(); }
     }
     private void emit(OutputStream out, Event event) throws IOException {
         out.write(("data: " + gson.toJson(event) + "\n\n").getBytes(StandardCharsets.UTF_8)); out.flush();

@@ -131,6 +131,7 @@ public class AdminNativeImageUtils {
                 com.zrlog.admin.business.ai.model.AIProviderResponses.Choice.class,
                 com.zrlog.admin.business.ai.model.AIProviderResponses.Message.class,
                 com.zrlog.admin.business.ai.model.AIProviderResponses.Delta.class,
+                com.zrlog.admin.business.ai.model.AIProviderResponses.ToolCallDelta.class,
                 com.zrlog.admin.business.ai.model.AIProviderResponses.ImageGenerationResponse.class,
                 com.zrlog.admin.business.ai.model.AIProviderResponses.ImageData.class,
                 com.zrlog.admin.business.type.FileEntryAccess.class,

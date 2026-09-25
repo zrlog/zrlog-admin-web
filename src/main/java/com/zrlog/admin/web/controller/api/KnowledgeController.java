@@ -18,7 +18,7 @@ public class KnowledgeController extends BaseController {
         if (body == null || body.remaining() > 256 * 1024) throw new com.zrlog.common.exception.ArgsException();
         AIStreamResponse stream = new AIKnowledgeService().start(getRequestBodyWithNullCheck(KnowledgeModels.ChatRequest.class));
         com.zrlog.admin.util.AdminSseEmitter.setHeaders(response);
-        response.addHeader("Cache-Control", "no-store");
+        response.addHeader("Cache-Control", "no-store, no-transform");
         response.write(stream.getInputStream(), stream.getStatusCode());
     }
 }

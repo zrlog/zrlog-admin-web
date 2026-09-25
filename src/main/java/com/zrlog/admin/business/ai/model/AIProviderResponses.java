@@ -131,6 +131,8 @@ public final class AIProviderResponses {
     public static class Delta {
 
         private String content;
+        @SerializedName("tool_calls")
+        public List<ToolCallDelta> toolCalls;
         @SerializedName(value = "reasoning_content", alternate = {"reasoningContent"})
         private String reasoningContent;
         private Object reasoning;
@@ -158,6 +160,10 @@ public final class AIProviderResponses {
         public void setReasoning(Object reasoning) {
             this.reasoning = reasoning;
         }
+    }
+
+    public static class ToolCallDelta extends AIProviderRequests.ToolCall {
+        public Integer index;
     }
 
     public static class ImageGenerationResponse {
