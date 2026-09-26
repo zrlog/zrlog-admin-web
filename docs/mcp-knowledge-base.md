@@ -8,6 +8,8 @@
 
 不增加文章表或向量数据库。首期不提供写文章、发布、删除、附件读取、任意 SQL、外部 URL 抓取或插件动作。
 
+内置助手统一使用 `POST /api/admin/article/ai`，普通对话在 JSON body 中提交 `input`、`articleId`、`includeArticleContext`；写作技能沿用同一入口的 `tool` 参数与文章上下文。普通对话只有一套模型流式处理流程，知识库按个人范围作为可选工具挂载，不单独提供知识库聊天 API。旧 `/api/admin/knowledge/chat` 已移除。聊天请求、事件 DTO 与流读取器归属 AI 模块；`KnowledgeService` 只负责文章检索、读取及权限范围，供助手与外部 MCP 共用。已有 `messageType=knowledge` 记录继续兼容读取。
+
 ## 工具
 
 - `search_articles({query?, offset?, limit?})`：标题、摘要、标签、正文的字面关键词检索；空查询按更新时间浏览。limit 默认 5，上限 10；offset 上限 1000。返回有权访问的标题、摘要、URL、状态、分页信息，不返回未授权文章的数量或元数据。
@@ -53,7 +55,10 @@ SSE 解析器按 index 拼接分段 tool_calls，完整接收并校验参数后�
 
 最终完整回答经权限复核、聊天记录保存成功后，才发送带稳定 messageId 的 `answer` 和 `done`；
 前端用已保存记录替换临时片段。失败、停止和切换文章时清理当前未完成内容，不把部分响应当成已保存聊天。
-供应商响应仍有大小和时间限制，断流、错误和无完成标记的响应不会保存为成功结果；客户端断开时关闭上游流。
+供应商响应仍有大小限制，断流、错误和无完成标记的响应不会保存为成功结果；客户端断开时关闭上游流。
+助手沿用 SSE 接收过程，不添加响应总时长或空闲时间计时器；持续输出不会被固定 60 秒限制截断。
+网络超时、回答未完成、服务方请求失败、格式错误分别返回受控错误码，前端提供中英文说明。
+错误不回显上游响应正文、密钥或文章内容，旧前端仍可将未知错误码按通用失败处理。
 
 参考 [Qwen 流式思考](https://www.alibabacloud.com/help/en/model-studio/deep-thinking)、
 [Gemini 工具签名](https://ai.google.dev/gemini-api/docs/generate-content/thought-signatures)。

@@ -102,16 +102,11 @@ public class AIService {
     }
 
     protected HttpRequest buildRequest(AIWebSiteInfo info, String body) {
-        return buildRequest(info, body, null);
-    }
-
-    protected HttpRequest buildRequest(AIWebSiteInfo info, String body, Duration timeout) {
         HttpRequest.Builder builder = HttpRequest.newBuilder()
                 .uri(URI.create(resolveRequestUrl(info)))
                 .header("Content-Type", "application/json")
                 .header("Accept-Encoding", "identity")
                 .POST(HttpRequest.BodyPublishers.ofString(body));
-        if (timeout != null) builder.timeout(timeout);
         if (StringUtils.isNotEmpty(info.getAi_api_key())) {
             builder.header("Authorization", "Bearer " + info.getAi_api_key());
         }

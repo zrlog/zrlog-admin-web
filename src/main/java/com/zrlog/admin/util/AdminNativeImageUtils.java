@@ -38,6 +38,7 @@ public class AdminNativeImageUtils {
                 com.zrlog.admin.business.rest.base.UserPreferences.Assistant.class,
                 com.zrlog.admin.business.rest.base.UserPreferences.Editor.class));
         NativeImageUtils.gsonNativeAgentByClazz(Arrays.asList(com.zrlog.admin.business.knowledge.KnowledgeModels.class.getDeclaredClasses()));
+        NativeImageUtils.gsonNativeAgentByClazz(Arrays.asList(com.zrlog.admin.business.ai.model.AIChatModels.class.getDeclaredClasses()));
         NativeImageUtils.gsonNativeAgentByClazz(Arrays.asList(com.zrlog.admin.business.knowledge.McpModels.class.getDeclaredClasses()));
         NativeImageUtils.gsonNativeAgentByClazz(Arrays.asList(com.zrlog.admin.business.ai.model.AIProviderRequests.class.getDeclaredClasses()));
         NativeImageUtils.gsonNativeAgentByClazz(Arrays.asList(com.zrlog.admin.business.security.AccessModels.class.getDeclaredClasses()));

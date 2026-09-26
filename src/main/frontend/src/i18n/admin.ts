@@ -42,7 +42,6 @@ const zhCN = {
             "article.editor": "读取文章编辑页数据和写作设置",
             "article.detail": "读取指定文章的内容和属性",
             "article.assist": "使用 AI 辅助写作并返回生成内容",
-            "knowledge.chat": "使用只读工具检索文章并进行知识库问答",
             "article.aiContext": "为当前文章的 AI 对话追加上下文",
             "article.aiMessage": "更新当前文章的 AI 对话记录",
             "article.clearAiMessages": "清空当前文章的 AI 对话记录",
@@ -559,7 +558,11 @@ const zhCN = {
             "restricted": "需要登录权限",
             "permission": "账号权限或助手设置已变更，请重新发起对话。",
             "saveFailed": "对话保存失败，请重试。",
-            "requestFailed": "助手请求未完成，请检查 AI 配置后重试。"
+            "requestTimeout": "等待 AI 响应超时，请稍后重试，或缩短本次请求。",
+            "responseIncomplete": "AI 回答未完成，可能已达到输出上限或连接中断。请缩短请求后重试。",
+            "providerRequestFailed": "AI 服务请求失败，请检查服务状态、模型配置和可用额度。",
+            "providerResponseInvalid": "AI 服务返回的内容无法解析，请重试或更换模型。",
+            "requestFailed": "助手请求未完成，请重试。如果持续失败，请检查服务端日志。"
         },
         "assistant": {
             "apply": "应用",
@@ -1847,7 +1850,6 @@ const enUS: AdminI18nResource = {
             "article.editor": "Load article editor data and writing settings",
             "article.detail": "Read an article's content and properties",
             "article.assist": "Generate writing assistance with AI",
-            "knowledge.chat": "Search articles with read-only tools and answer knowledge questions",
             "article.aiContext": "Append context to the article's AI conversation",
             "article.aiMessage": "Update the article's AI conversation",
             "article.clearAiMessages": "Clear the article's AI conversation",
@@ -2364,7 +2366,11 @@ const enUS: AdminI18nResource = {
             "restricted": "Login permission required",
             "permission": "Your account permissions or assistant settings changed. Start a new request.",
             "saveFailed": "The conversation could not be saved. Please retry.",
-            "requestFailed": "The assistant request did not complete. Check the AI configuration and try again."
+            "requestTimeout": "Timed out waiting for the AI response. Retry later or shorten the request.",
+            "responseIncomplete": "The AI response was incomplete. It may have reached the output limit or lost the connection. Shorten the request and retry.",
+            "providerRequestFailed": "The AI service request failed. Check the service status, model configuration, and available quota.",
+            "providerResponseInvalid": "The AI response could not be parsed. Retry or switch models.",
+            "requestFailed": "The assistant request did not complete. Retry, and check the server logs if it keeps failing."
         },
         "assistant": {
             "apply": "Apply",

@@ -268,19 +268,29 @@ public class AdminArticleController extends BaseController {
         return new AdminPageDataResponse<>(articleService.loadDetail(getParamWithEmptyCheck("id"), request));
     }
 
-    @RequiresAction(value = AccountAction.ARTICLE_ASSIST, articleQuery = true, descriptionKey = "article.assist")
+    @RequiresAction(value = AccountAction.ARTICLE_ASSIST, descriptionKey = "article.assist")
+    @RequestMethod(method = HttpMethod.POST)
     public void ai() throws IOException, InterruptedException, SQLException {
         String tool = request.getParaToStr("tool", "");
-        GenerateArticleFieldRequest articleContext = StringUtils.isNotEmpty(tool)
-                ? getRequestBodyWithNullCheck(GenerateArticleFieldRequest.class)
-                : null;
-        if (Objects.equals(tool, "publishCheck")) {
-            publishingService.fillPublishCheckContext(articleContext);
+        AIStreamResponse streamResponse;
+        if (StringUtils.isEmpty(tool) && StringUtils.isEmpty(request.getParaToStr("input", ""))) {
+            java.nio.ByteBuffer body = request.getRequestBodyByteBuffer();
+            if (body == null || body.remaining() > 256 * 1024) throw new ArgsException();
+            streamResponse = new AIChatService().start(getRequestBodyWithNullCheck(
+                    com.zrlog.admin.business.ai.model.AIChatModels.ChatRequest.class));
+        } else {
+            GenerateArticleFieldRequest articleContext = StringUtils.isNotEmpty(tool)
+                    ? getRequestBodyWithNullCheck(GenerateArticleFieldRequest.class)
+                    : null;
+            if (Objects.equals(tool, "publishCheck")) {
+                publishingService.fillPublishCheckContext(articleContext);
+            }
+            boolean includeArticleContext = !Objects.equals(request.getParaToStr("includeArticleContext", "true"), "false");
+            streamResponse = new AIChatService().startStreamResponse(getParamWithEmptyCheck("input"),
+                    aiContextId(), tool, articleContext, includeArticleContext);
         }
-        boolean includeArticleContext = !Objects.equals(request.getParaToStr("includeArticleContext", "true"), "false");
-        AIStreamResponse streamResponse = new AIChatService().startStreamResponse(getParamWithEmptyCheck("input"),
-                aiContextId(), tool, articleContext, includeArticleContext);
         AdminSseEmitter.setHeaders(response);
+        response.addHeader("Cache-Control", "no-store, no-transform");
         if (streamResponse.getInputStream() == null) {
             String errorPayload = new Gson().toJson(AdminSsePayloads.error(1,
                     Objects.requireNonNullElse(streamResponse.getErrorBody(), "")));

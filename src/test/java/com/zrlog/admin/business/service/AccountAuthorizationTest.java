@@ -48,6 +48,8 @@ public class AccountAuthorizationTest {
         try(InMemoryZrLogDatabase db=InMemoryZrLogDatabase.open()) {
             ServerConfig config=new ServerConfig();
             AdminRouters.configAdminRoute(config.getRouter(),AdminConstants.adminResource,"");
+            assertFalse(config.getRouter().getRouterMap().containsKey("/api/admin/knowledge/chat"));
+            assertNotNull(config.getRouter().getMethod("/api/admin/article/ai", com.hibegin.http.HttpMethod.POST));
             Set<String> ids=new HashSet<>();
             for(AccountAction action:AccountAction.values()) assertTrue(ids.add(action.getId()));
             config.getRouter().getRouterMap().forEach((path,method)-> {

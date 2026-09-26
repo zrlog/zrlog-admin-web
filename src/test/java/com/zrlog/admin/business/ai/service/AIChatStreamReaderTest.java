@@ -2,6 +2,7 @@ package com.zrlog.admin.business.ai.service;
 
 import com.google.gson.Gson;
 import com.zrlog.admin.business.ai.exception.AIResponseException;
+import com.zrlog.admin.business.ai.exception.AIIncompleteResponseException;
 import com.zrlog.admin.business.ai.model.AIProviderResponses;
 import org.junit.Test;
 
@@ -12,12 +13,12 @@ import java.util.concurrent.*;
 
 import static org.junit.Assert.*;
 
-public class AIKnowledgeStreamReaderTest {
+public class AIChatStreamReaderTest {
     private String frame(String delta, String finish) {
         return "data: {\"choices\":[{\"delta\":" + delta + ",\"finish_reason\":" + new Gson().toJson(finish) + "}]}\r\n\r\n";
     }
-    private AIProviderResponses.Choice read(String wire, AIKnowledgeStreamReader.Progress progress) throws IOException {
-        return new AIKnowledgeStreamReader().read(new ByteArrayInputStream(wire.getBytes(StandardCharsets.UTF_8)), true, progress);
+    private AIProviderResponses.Choice read(String wire, AIChatStreamReader.Progress progress) throws IOException {
+        return new AIChatStreamReader().read(new ByteArrayInputStream(wire.getBytes(StandardCharsets.UTF_8)), true, progress);
     }
 
     @Test public void emitsUnicodeTextBeforeTheProviderCompletesTheResponse() throws Exception {
@@ -26,7 +27,7 @@ public class AIKnowledgeStreamReaderTest {
             List<String> events = new CopyOnWriteArrayList<>();
             ExecutorService pool = Executors.newSingleThreadExecutor();
             try {
-                Future<AIProviderResponses.Choice> result = pool.submit(() -> new AIKnowledgeStreamReader().read(input, true, (type, text) -> {
+                Future<AIProviderResponses.Choice> result = pool.submit(() -> new AIChatStreamReader().read(input, true, (type, text) -> {
                     events.add(type + ":" + text); first.countDown();
                 }));
                 byte[] bytes = frame("{\"content\":\"你🙂\"}", null).getBytes(StandardCharsets.UTF_8);
@@ -64,8 +65,10 @@ public class AIKnowledgeStreamReaderTest {
     }
 
     @Test public void rejectsTruncationErrorsOversizeBodiesAndInvalidToolIndexes() throws Exception {
-        for (String wire : List.of(frame("{\"content\":\"partial\"}", null),
-                "data: [DONE]\n\n", "data: {\"error\":{\"message\":\"private provider detail\"}}\n\n",
+        for (String wire : List.of(frame("{\"content\":\"partial\"}", null), "data: [DONE]\n\n")) {
+            assertThrows(AIIncompleteResponseException.class, () -> read(wire, (type, text) -> { }));
+        }
+        for (String wire : List.of("data: {\"error\":{\"message\":\"private provider detail\"}}\n\n",
                 frame("{\"tool_calls\":[{\"index\":8}]}", "tool_calls"))) {
             assertThrows(AIResponseException.class, () -> read(wire, (type, text) -> { }));
         }
@@ -77,14 +80,14 @@ public class AIKnowledgeStreamReaderTest {
         InputStream input = new ByteArrayInputStream(frame("{\"content\":\"answer\"}", "stop").getBytes(StandardCharsets.UTF_8)) {
             @Override public void close() { closed[0] = true; }
         };
-        assertThrows(IOException.class, () -> new AIKnowledgeStreamReader().read(input, true, (type, text) -> { throw new IOException("Client disconnected"); }));
+        assertThrows(IOException.class, () -> new AIChatStreamReader().read(input, true, (type, text) -> { throw new IOException("Client disconnected"); }));
         assertTrue(closed[0]);
     }
 
     @Test public void acceptsProvidersReturningJsonDespiteTheStreamRequest() throws Exception {
         List<String> events = new ArrayList<>();
         String json = "{\"choices\":[{\"message\":{\"content\":\"Answer\"},\"finish_reason\":\"stop\"}]}";
-        AIProviderResponses.Choice result = new AIKnowledgeStreamReader().read(new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8)), false, (type, text) -> events.add(text));
+        AIProviderResponses.Choice result = new AIChatStreamReader().read(new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8)), false, (type, text) -> events.add(text));
         assertEquals("stop", result.getFinishReason()); assertEquals(List.of("Answer"), events);
     }
 }

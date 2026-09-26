@@ -4,6 +4,7 @@ import com.google.gson.*;
 import com.zrlog.admin.business.ai.model.*;
 import com.zrlog.admin.business.knowledge.*;
 import com.zrlog.admin.business.knowledge.KnowledgeModels.*;
+import com.zrlog.admin.business.ai.model.AIChatModels.*;
 import com.zrlog.admin.business.rest.base.AIWebSiteInfo;
 import com.zrlog.admin.business.service.UserPreferenceService;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
@@ -13,13 +14,38 @@ import java.io.*;
 import java.util.*;
 import static org.junit.Assert.*;
 
-public class AIKnowledgeServiceTest {
+public class AIChatConversationTest {
+    @Test public void returnsDistinctSafeErrorsWithoutSavingFailedResponses() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open();
+             var logs = com.zrlog.admin.support.TestLogCapture.forClass(AIChatService.class)) {
+            configure(db);
+            for (var failure : Map.<Exception,String>of(
+                    new java.net.http.HttpTimeoutException("private provider detail"), "requestTimeout",
+                    new com.zrlog.admin.business.ai.exception.AIIncompleteResponseException("length"), "responseIncomplete",
+                    new com.zrlog.admin.business.ai.exception.AIRequestException("private provider detail"), "providerRequestFailed",
+                    new com.zrlog.admin.business.ai.exception.AIResponseException("private provider detail"), "providerResponseInvalid").entrySet()) {
+                AIChatService service = new AIChatService() {
+                    @Override protected AIProviderResponses.Choice complete(AIWebSiteInfo info, String body, AIChatStreamReader.Progress progress) throws IOException {
+                        if (failure.getKey() instanceof IOException) throw (IOException) failure.getKey();
+                        throw (RuntimeException) failure.getKey();
+                    }
+                };
+                String wire = new String(service.start(input()).getInputStream().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+                assertTrue(wire.contains("\"error\":\"" + failure.getValue() + "\""));
+                assertFalse(wire.contains("private provider detail"));
+                assertFalse(wire.contains("\"type\":\"done\""));
+                assertTrue(logs.contains(java.util.logging.Level.WARNING, "error=" + failure.getValue()));
+            }
+            assertTrue(new com.zrlog.admin.business.service.WebSiteService().exportAIMessage(-1L).getMessages().isEmpty());
+        }
+    }
+
     @Test public void keepsProviderSignaturesAndUsesCompatibleQwenToolRequests() throws Exception {
         AIWebSiteInfo info=new AIWebSiteInfo();info.setAi_provider(AIProviderType.QWEN);info.setAi_reasoning_enabled(true);
         AIProviderRequests.Message message=new AIProviderRequests.Message("assistant",null);
         AIProviderRequests.ToolCall call=new Gson().fromJson("{\"id\":\"a\",\"type\":\"function\",\"function\":{\"name\":\"search_articles\",\"arguments\":\"{}\"},\"extra_content\":{\"google\":{\"thought_signature\":\"opaque-signature\"}}}",AIProviderRequests.ToolCall.class);
         message.toolCalls=List.of(call);message.reasoningContent="provider reasoning";
-        JsonObject request=JsonParser.parseString(new AIKnowledgeService().request(info,List.of(message),true)).getAsJsonObject();
+        JsonObject request=JsonParser.parseString(new AIChatService().request(info,List.of(message),true)).getAsJsonObject();
         assertTrue(request.get("enable_thinking").getAsBoolean());
         assertTrue(request.get("stream").getAsBoolean());
         assertTrue(request.toString().contains("opaque-signature"));assertTrue(request.toString().contains("provider reasoning"));
@@ -27,11 +53,11 @@ public class AIKnowledgeServiceTest {
     private ChatRequest input() { ChatRequest r=new ChatRequest();r.input="What is in the blog?";return r; }
     private KnowledgeService knowledge() { return new KnowledgeService(()->{try{return AccountAccess.load(1);}catch(Exception e){throw new RuntimeException(e);}},Set.of("articles:read"),()->"https://blog.example"); }
     private static String tool(String name,String args) { return "{\"finish_reason\":\"tool_calls\",\"message\":{\"tool_calls\":[{\"id\":\"call-1\",\"type\":\"function\",\"function\":{\"name\":\""+name+"\",\"arguments\":"+new Gson().toJson(args)+"}}]}}"; }
-    private static class Model extends AIKnowledgeService {
+    private static class Model extends AIChatService {
         final List<String> responses; final List<JsonObject> requests=new ArrayList<>();
         Runnable afterRequest = () -> {};
         Model(String... responses){this.responses=List.of(responses);}
-        @Override protected AIProviderResponses.Choice complete(AIWebSiteInfo info,String body, AIKnowledgeStreamReader.Progress progress) throws IOException {
+        @Override protected AIProviderResponses.Choice complete(AIWebSiteInfo info,String body, AIChatStreamReader.Progress progress) throws IOException {
             requests.add(JsonParser.parseString(body).getAsJsonObject());
             afterRequest.run();
             AIProviderResponses.Choice choice = new Gson().fromJson(responses.get(Math.min(requests.size()-1,responses.size()-1)),AIProviderResponses.Choice.class);

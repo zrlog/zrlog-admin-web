@@ -297,7 +297,7 @@ describe("useArticleAiAssistantConfig draft request gate", () => {
             await flushRequest();
         });
         expect(post).toHaveBeenCalledWith(
-            "/api/admin/knowledge/chat",
+            "/api/admin/article/ai",
             { input: "Find a related article", articleId: 0, includeArticleContext: true },
             expect.anything()
         );

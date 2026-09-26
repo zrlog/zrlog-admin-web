@@ -7,7 +7,7 @@ import ArticleAiReasoning from "./article-ai-reasoning";
 import { getRes } from "../../../utils/constants";
 
 type Source = { id: number; title: string; url: string; draft: boolean; privateArticle: boolean };
-export type KnowledgeMessage = AIContent & {
+export type ChatMessage = AIContent & {
     messageType?: string;
     messageId?: string;
     sources?: Source[];
@@ -21,10 +21,10 @@ type Event = {
     tool?: string;
     sources?: Source[];
     error?: string;
-    messages?: KnowledgeMessage[];
+    messages?: ChatMessage[];
 };
 
-export const parseKnowledgeEvents = (text: string): Event[] =>
+export const parseChatEvents = (text: string): Event[] =>
     text
         .split("\n\n")
         .slice(0, -1)
@@ -41,11 +41,11 @@ export const parseKnowledgeEvents = (text: string): Event[] =>
             }
         });
 
-export const isKnowledgeMessage = (message: AIContent): message is KnowledgeMessage =>
-    (message as KnowledgeMessage).messageType === "knowledge";
+export const isChatMessage = (message: AIContent): message is ChatMessage =>
+    (message as ChatMessage).messageType === "knowledge";
 
-export const renderKnowledgeMessage = ({ content, defaultNode }: AIButtonRenderMessageOptions) => {
-    const message = content as KnowledgeMessage;
+export const renderChatMessage = ({ content, defaultNode }: AIButtonRenderMessageOptions) => {
+    const message = content as ChatMessage;
     const res = getRes().articleEdit.knowledge;
     return (
         <>
@@ -72,13 +72,13 @@ export const renderKnowledgeMessage = ({ content, defaultNode }: AIButtonRenderM
     );
 };
 
-export const useKnowledgeAssistant = (
+export const useArticleChat = (
     api: AxiosInstance,
     disabled: boolean,
     scope: string,
     onMessagesChange?: (messages: AIContent[], articleId?: number) => void
 ) => {
-    const [messages, setMessages] = useState<KnowledgeMessage[]>([]);
+    const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [busy, setBusy] = useState(false);
     const [status, setStatus] = useState("");
     const pending = useRef<AbortController>();
@@ -114,33 +114,35 @@ export const useKnowledgeAssistant = (
         const prompt = input.trim();
         if (!prompt || disabled || pending.current) return;
         const res = getRes().articleEdit.knowledge;
+        const errors: Readonly<Record<string, string>> = {
+            permission: res.permission,
+            saveFailed: res.saveFailed,
+            requestTimeout: res.requestTimeout,
+            responseIncomplete: res.responseIncomplete,
+            providerRequestFailed: res.providerRequestFailed,
+            providerResponseInvalid: res.providerResponseInvalid,
+            requestFailed: res.requestFailed,
+        };
         const controller = new AbortController();
         pending.current = controller;
         const run = ++generation.current;
         setBusy(true);
         setStatus(res.thinking);
-        const publish = (next: KnowledgeMessage[]) => {
+        const publish = (next: ChatMessage[]) => {
             setMessages(next);
             onMessagesChange?.(next, articleId);
         };
         restorePending.current = () => publish(context);
-        const question: KnowledgeMessage = { role: "user", content: prompt, thinking: false, messageType: "knowledge" };
-        const base: KnowledgeMessage[] = [...context, question];
+        const question: ChatMessage = { role: "user", content: prompt, thinking: false, messageType: "knowledge" };
+        const base: ChatMessage[] = [...context, question];
         publish([...base, { role: "assistant", content: "", thinking: true, messageType: "knowledge" }]);
         let lastReasoning = "";
         let lastContent = "";
         const consume = (text: string, final: boolean) => {
             if (run !== generation.current) return;
-            const events = parseKnowledgeEvents(text);
+            const events = parseChatEvents(text);
             const error = events.find((e) => e.type === "error");
-            if (error)
-                throw new Error(
-                    error.error === "permission"
-                        ? res.permission
-                        : error.error === "saveFailed"
-                        ? res.saveFailed
-                        : res.requestFailed
-                );
+            if (error) throw new Error(errors[error.error || ""] || res.requestFailed);
             const progress = [...events].reverse().find((e) => e.type === "tool" || e.type === "thinking");
             if (progress)
                 setStatus(
@@ -172,7 +174,7 @@ export const useKnowledgeAssistant = (
                 ]);
             }
             const answer = events.find((e) => e.type === "answer");
-            if (final && (!answer || !events.some((e) => e.type === "done"))) throw new Error(res.requestFailed);
+            if (final && (!answer || !events.some((e) => e.type === "done"))) throw new Error(res.responseIncomplete);
             if (answer && final) {
                 if (
                     !answer.messages ||
@@ -200,7 +202,7 @@ export const useKnowledgeAssistant = (
                 },
             };
             const response = await api.post(
-                "/api/admin/knowledge/chat",
+                "/api/admin/article/ai",
                 { input: prompt, articleId, includeArticleContext },
                 requestConfig
             );
@@ -212,8 +214,7 @@ export const useKnowledgeAssistant = (
                     {
                         role: "assistant",
                         content:
-                            error instanceof Error &&
-                            [res.permission, res.requestFailed, res.saveFailed].includes(error.message)
+                            error instanceof Error && Object.values(errors).includes(error.message)
                                 ? error.message
                                 : res.requestFailed,
                         thinking: false,

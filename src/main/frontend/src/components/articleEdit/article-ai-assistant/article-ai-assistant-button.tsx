@@ -1,5 +1,5 @@
 import { Alert, App, Button, Drawer, Grid, Space, Tag, Typography } from "antd";
-import { isKnowledgeMessage, renderKnowledgeMessage, useKnowledgeAssistant } from "./use-knowledge-assistant";
+import { isChatMessage, renderChatMessage, useArticleChat } from "./use-article-chat";
 import ArticleAiReasoning from "./article-ai-reasoning";
 import { EyeOutlined, RobotOutlined } from "@ant-design/icons";
 import { FunctionComponent, useEffect, useMemo, useRef, useState } from "react";
@@ -167,7 +167,7 @@ export const useArticleAiAssistantConfig = ({
     const latestDataRef = useRef(data);
 
     const aiMessages = data.aiMessages ? data.aiMessages : [];
-    const knowledge = useKnowledgeAssistant(
+    const chat = useArticleChat(
         axiosInstance,
         offline || data.aiConfigured !== true,
         `${getSsDate().key}/${data.article.logId || "draft"}`,
@@ -328,7 +328,7 @@ export const useArticleAiAssistantConfig = ({
             }
             setToolPayloads({});
             setSelectedTitles({});
-            knowledge.clear();
+            chat.clear();
             onAiMessagesChange?.([], articleId);
             await message.success(getRes().articleEdit.assistant.clearAiMessagesSuccess);
         } catch (e) {
@@ -558,7 +558,7 @@ export const useArticleAiAssistantConfig = ({
         if (!tool) {
             setLoadingKey("chat");
             try {
-                await knowledge.send(normalizedInput, aiMessages, articleId, includeArticleContextInChat);
+                await chat.send(normalizedInput, aiMessages, articleId, includeArticleContextInChat);
             } finally {
                 setLoadingKey(undefined);
                 releaseRequest();
@@ -867,7 +867,7 @@ export const useArticleAiAssistantConfig = ({
     };
 
     const renderMessage = ({ content, index, defaultNode }: AIButtonRenderMessageOptions) => {
-        if (isKnowledgeMessage(content)) return renderKnowledgeMessage({ content, index, defaultNode });
+        if (isChatMessage(content)) return renderChatMessage({ content, index, defaultNode });
         const toolAwareContent = content as ToolAwareAIContent;
         if (toolAwareContent.messageType === "articleContext") {
             return renderArticleContextMessage(toolAwareContent);
@@ -928,8 +928,8 @@ export const useArticleAiAssistantConfig = ({
             disabled={offline || Boolean(loadingKey)}
             loadingKey={loadingKey}
             aiMessageCount={visibleMessages.length}
-            chatStatus={knowledge.status}
-            onStopChat={knowledge.busy ? knowledge.stop : undefined}
+            chatStatus={chat.status}
+            onStopChat={chat.busy ? chat.stop : undefined}
             aiMessagesExporting={aiMessagesExporting}
             aiMessagesClearing={aiMessagesClearing}
             includeArticleContextInChat={includeArticleContextInChat}

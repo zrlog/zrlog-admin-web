@@ -3,6 +3,7 @@ package com.zrlog.admin.business.ai.service;
 import com.google.gson.Gson;
 import com.google.gson.JsonParseException;
 import com.zrlog.admin.business.ai.exception.AIResponseException;
+import com.zrlog.admin.business.ai.exception.AIIncompleteResponseException;
 import com.zrlog.admin.business.ai.model.AIProviderRequests;
 import com.zrlog.admin.business.ai.model.AIProviderResponses;
 
@@ -11,7 +12,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 /** Reads provider SSE incrementally, assembling fragmented tool arguments before executing tools. */
-final class AIKnowledgeStreamReader {
+final class AIChatStreamReader {
     interface Progress { void emit(String type, String text) throws IOException; }
     private final Gson gson = new Gson();
     private final StringBuilder content = new StringBuilder();
@@ -42,7 +43,7 @@ final class AIKnowledgeStreamReader {
                 }
             }
             if (data.length() > 0 && !"[DONE]".equals(data.toString())) frame(data.toString(), progress);
-            if (finish == null) throw invalid();
+            if (finish == null) throw new AIIncompleteResponseException("stream_ended");
             AIProviderResponses.Message message = new AIProviderResponses.Message();
             message.setContent(content.toString()); message.reasoningContent = reasoning.toString();
             if (!calls.isEmpty()) message.toolCalls = new ArrayList<>(calls.values());
@@ -107,7 +108,7 @@ final class AIKnowledgeStreamReader {
     private static void text(Progress progress, String type, String text) throws IOException {
         if (text != null && !text.isEmpty()) progress.emit(type, text);
     }
-    private static AIResponseException invalid() { return new AIResponseException("Invalid knowledge stream"); }
+    private static AIResponseException invalid() { return new AIResponseException("Invalid AI stream"); }
 
     private static final class LimitedInput extends FilterInputStream {
         private long remaining = 1024 * 1024;

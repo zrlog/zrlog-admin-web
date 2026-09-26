@@ -4,12 +4,7 @@ import { createRoot, Root } from "react-dom/client";
 import { AxiosInstance } from "axios";
 import { getRes } from "../../../utils/constants";
 import { BasicUserInfo } from "../../../type";
-import {
-    KnowledgeMessage,
-    parseKnowledgeEvents,
-    renderKnowledgeMessage,
-    useKnowledgeAssistant,
-} from "./use-knowledge-assistant";
+import { ChatMessage, parseChatEvents, renderChatMessage, useArticleChat } from "./use-article-chat";
 
 describe("knowledge assistant", () => {
     let root: Root;
@@ -21,7 +16,7 @@ describe("knowledge assistant", () => {
         content: string,
         question = "Find deployment articles",
         reasoningContent?: string,
-        sources: KnowledgeMessage["sources"] = []
+        sources: ChatMessage["sources"] = []
     ) =>
         `data: ${JSON.stringify({
             type: "answer",
@@ -39,15 +34,13 @@ describe("knowledge assistant", () => {
                 },
             ],
         })}\n\ndata: {"type":"done"}\n\n`;
-    let chat: ReturnType<typeof useKnowledgeAssistant>;
+    let chat: ReturnType<typeof useArticleChat>;
     function Harness({ scope = "1" }: { scope?: string }) {
-        chat = useKnowledgeAssistant(api, false, scope, onMessagesChange);
+        chat = useArticleChat(api, false, scope, onMessagesChange);
         return (
             <>
                 {chat.messages.map((m, index) => (
-                    <div key={index}>
-                        {renderKnowledgeMessage({ content: m, index, defaultNode: <p>{m.content}</p> })}
-                    </div>
+                    <div key={index}>{renderChatMessage({ content: m, index, defaultNode: <p>{m.content}</p> })}</div>
                 ))}
             </>
         );
@@ -313,9 +306,38 @@ describe("knowledge assistant", () => {
         post.mockResolvedValue({ data: 'data: {"type":"answer","content":"partial private response"}\n\n' });
         await send();
         expect(container.textContent).not.toContain("partial private response");
-        expect(container.textContent).toContain(getRes().articleEdit.knowledge.requestFailed);
+        expect(container.textContent).toContain(getRes().articleEdit.knowledge.responseIncomplete);
     });
+    it.each(["zh_CN", "en_US"])(
+        "distinguishes timeout and provider failures in %s without showing raw details",
+        async (lang) => {
+            window.__SS_DATA__!.resourceInfo = { lang: lang as "zh_CN" | "en_US" };
+            const res = getRes().articleEdit.knowledge;
+            for (const [code, message] of Object.entries({
+                requestTimeout: res.requestTimeout,
+                responseIncomplete: res.responseIncomplete,
+                providerRequestFailed: res.providerRequestFailed,
+                providerResponseInvalid: res.providerResponseInvalid,
+                requestFailed: res.requestFailed,
+                unknown: res.requestFailed,
+            })) {
+                act(() => chat.clear());
+                post.mockResolvedValueOnce({
+                    data: `data: ${JSON.stringify({
+                        type: "error",
+                        error: code,
+                        message: "private provider detail",
+                    })}\n\n`,
+                });
+                await send();
+                expect(chat.busy).toBe(false);
+                expect(chat.messages[1].failed).toBe(true);
+                expect(container.textContent).toContain(message);
+                expect(container.textContent).not.toContain("private provider detail");
+            }
+        }
+    );
     it("ignores unfinished SSE frames", () => {
-        expect(parseKnowledgeEvents('data: {"type":"thinking"}\n\ndata: {"type":"ans')).toEqual([{ type: "thinking" }]);
+        expect(parseChatEvents('data: {"type":"thinking"}\n\ndata: {"type":"ans')).toEqual([{ type: "thinking" }]);
     });
 });

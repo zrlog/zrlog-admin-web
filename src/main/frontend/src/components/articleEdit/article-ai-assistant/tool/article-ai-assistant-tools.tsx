@@ -18,7 +18,7 @@ import {
     AssistantToolGroup,
 } from "../article-ai-assistant.types";
 
-// Keep this aligned with AIChatService#getToolContextPolicy.
+// Keep this aligned with AIWritingSkillService#getToolContextPolicy.
 const CHAT_ONLY_TOOL_CONTEXT_TOOLS: AssistantTool[] = [
     "publishCheck",
     "score",

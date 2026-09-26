@@ -25,7 +25,6 @@ public class AdminRouters {
         router.addMapper(AdminConstants.ADMIN_URI_BASE_PATH + "/template/download", AdminTemplatePageController.class, "download");
         router.addMapper(TemplateInfoHelper.ADMIN_PREVIEW_IMAGE_URI, AdminTemplatePageController.class, "previewImage");
         router.addMapper("/api/admin/access", AccessController.class);
-        router.addMapper("/api/admin/knowledge", KnowledgeController.class);
         router.addMapper("/api/admin/members", MemberController.class);
         router.addMapper("/api/admin/oauth", OAuthAdminController.class);
         router.addMapper("/api/admin/oauth/authorize", OAuthAdminController.class, "consent");

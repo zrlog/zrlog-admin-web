@@ -55,17 +55,11 @@ public class AIServiceUtilityTest {
     }
 
     @Test
-    public void shouldExposeChatUtilityBehavior() throws Exception {
-        AIChatService service = new AIChatService();
+    public void shouldExposeWritingSkillContextPolicy() {
+        AIWritingSkillService service = new AIWritingSkillService();
 
-        assertEquals("length", service.normalizeFinishReason(" Length "));
-        assertEquals("provider error", service.toProviderStreamErrorDetail(
-                JsonParser.parseString("{\"message\":\"provider error\"}")));
-        assertEquals("fallback", service.toProviderStreamErrorDetail(JsonParser.parseString("\"fallback\"")));
-        assertEquals("line1line2", service.readErrorBody(
-                new ByteArrayInputStream("line1\nline2".getBytes(StandardCharsets.UTF_8))));
-        assertEquals(AIChatService.ToolContextPolicy.FULL_CONVERSATION, service.getToolContextPolicy("title"));
-        assertEquals(AIChatService.ToolContextPolicy.CHAT_ONLY, service.getToolContextPolicy("seo"));
+        assertEquals(AIWritingSkillService.ToolContextPolicy.FULL_CONVERSATION, service.getToolContextPolicy("title"));
+        assertEquals(AIWritingSkillService.ToolContextPolicy.CHAT_ONLY, service.getToolContextPolicy("seo"));
         assertEquals("short", service.truncateContext("short"));
         assertEquals(500, service.truncateContext(repeat("a", 550)).length());
     }

@@ -417,11 +417,28 @@ public class AdminArticleControllerDatabaseTest {
     }
 
     @Test
+    public void shouldAuthorizeChatArticleFromBodyWithoutRequiringQueryId() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            db.execute("update user set role='editor' where userId=1");
+            db.execute("insert into user(userId,userName,role) values(?,?,?)", 2, "writer", "author");
+            db.execute("insert into log(logId,userId,typeId,title,privacy,rubbish) values(?,?,?,?,?,?)",
+                    9, 2, 1, "Private article", true, false);
+            String body = "{\"input\":\"Read this article\",\"articleId\":9}";
+            com.zrlog.admin.business.service.AccountPermissionService.checkRoute(
+                    AdminArticleController.class.getMethod("ai"), request(Map.of(), body));
+            org.junit.Assert.assertThrows(com.zrlog.admin.business.exception.PermissionErrorException.class,
+                    () -> controller(Map.of(), body, new ResponseRecorder()).ai());
+            org.junit.Assert.assertThrows(com.zrlog.common.exception.ArgsException.class,
+                    () -> controller(Map.of(), "{\"input\":\"Hello\",\"articleId\":0}", new ResponseRecorder()).ai());
+        }
+    }
+
+    @Test
     public void shouldReturnAiToolConfigurationErrorAsSseResponse() throws Exception {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
             ResponseRecorder response = new ResponseRecorder();
 
-            controller(Map.of("id", "9", "input", "check before publish", "tool", "publishCheck"),
+            controller(Map.of("id", "0", "input", "check before publish", "tool", "publishCheck"),
                     "{\"title\":\"Article\",\"markdown\":\"Markdown\",\"digest\":\"Digest\",\"keywords\":\"java\"}",
                     response).ai();
 
@@ -834,6 +851,8 @@ public class AdminArticleControllerDatabaseTest {
                             return Map.of();
                         case "getInputStream":
                             return body == null ? null : new ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8));
+                        case "getRequestBodyByteBuffer":
+                            return body == null ? null : java.nio.ByteBuffer.wrap(body.getBytes(StandardCharsets.UTF_8));
                         case "getUri":
                             return "/api/admin/article";
                         case "getHeader":

@@ -4,7 +4,7 @@ import com.hibegin.common.util.LoggerUtil;
 import com.hibegin.common.util.StringUtils;
 import com.hibegin.http.server.api.HttpRequest;
 import com.zrlog.admin.business.ai.exception.AIMessageSaveException;
-import com.zrlog.admin.business.ai.service.AIChatService;
+import com.zrlog.admin.business.ai.service.AIWritingSkillService;
 import com.zrlog.admin.business.rest.base.BlogWebSiteInfo;
 import com.zrlog.admin.business.rest.request.CreateArticleRequest;
 import com.zrlog.admin.business.rest.request.GenerateArticleFieldRequest;
@@ -168,7 +168,7 @@ public class ArticlePublishingService {
     private PublishCheckResponse buildPublishCheckPayload(Long articleId, GenerateArticleFieldRequest context,
                                                           PublishCheckPersistenceGuard guard, WebSiteService conversationStore) {
         try {
-            List<AIResponseEntry.AIContentEntry> messages = new AIChatService(conversationStore)
+            List<AIResponseEntry.AIContentEntry> messages = new AIWritingSkillService(conversationStore)
                     .runToolResponseWithoutPersistence("publish-check", articleId, "publishCheck", context);
             return guard.commit(() -> {
                 if (!conversationStore.appendAIMessageEntries(messages, articleId)) {
