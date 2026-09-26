@@ -5,9 +5,10 @@ import {
     UnorderedListOutlined,
     UploadOutlined,
 } from "@ant-design/icons";
-import { Alert, Button, Empty, Grid, Input, Row, Segmented, Select, Space, Tag, Typography } from "antd";
+import { Alert, Button, Empty, Input, Row, Segmented, Select, Space, Tag, Typography } from "antd";
 import { useEffect, useMemo, useState } from "react";
 import { useTheme } from "antd-style";
+import styled from "styled-components";
 import { getBackendServerUrl, getRealRouteUrl, getRes, isStaticPage } from "../../utils/constants";
 import { Link, useLocation } from "react-router-dom";
 import { useAxiosBaseInstance } from "../../base/AppBase";
@@ -21,6 +22,15 @@ import { filterTemplates, TemplateEntry, TemplateFilter } from "./template-model
 
 export type { TemplateEntry } from "./template-model";
 
+// Resolve the width in CSS so the toolbar has its final layout on the first paint.
+const TemplateSearchInput = styled(Input)<{ $screenMD: number }>`
+    width: 100%;
+
+    @media (min-width: ${({ $screenMD }) => $screenMD}px) {
+        width: 280px;
+    }
+`;
+
 const Template = ({ data, offline = false }: { data: TemplateEntry[]; offline?: boolean }) => {
     const [templateState, setTemplateState] = useState<TemplateEntry[]>(data);
     const [filter, setFilter] = useState<TemplateFilter>("all");
@@ -29,7 +39,6 @@ const Template = ({ data, offline = false }: { data: TemplateEntry[]; offline?: 
     const [uploadOpen, setUploadOpen] = useState(false);
     const [selectedTemplateName, setSelectedTemplateName] = useState<string>();
     const [configTemplate, setConfigTemplate] = useState<TemplateEntry>();
-    const screens = Grid.useBreakpoint();
     const theme = useTheme();
     const axiosInstance = useAxiosBaseInstance();
     const location = useLocation();
@@ -107,14 +116,14 @@ const Template = ({ data, offline = false }: { data: TemplateEntry[]; offline?: 
                 <Alert type="info" showIcon message={`${res.previewTheme} · ${previewTemplate.name}`} />
             )}
             <div style={{ display: "flex", alignItems: "center", gap: theme.marginSM, flexWrap: "wrap" }}>
-                <Input
+                <TemplateSearchInput
+                    $screenMD={theme.screenMD}
                     allowClear
                     prefix={<SearchOutlined />}
                     value={search}
                     onChange={(event) => setSearch(event.target.value)}
                     placeholder={res.searchPlaceholder}
                     aria-label={res.searchPlaceholder}
-                    style={{ width: screens.md ? 280 : "100%" }}
                 />
                 <Select<TemplateFilter>
                     value={filter}
