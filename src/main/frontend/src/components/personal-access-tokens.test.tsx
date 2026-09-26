@@ -4,7 +4,7 @@ import { Simulate } from "react-dom/test-utils";
 import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { MemoryRouter, NavigateFunction, useLocation, useNavigate } from "react-router-dom";
 import PersonalAccessTokens, { PersonalAccessToken } from "./personal-access-tokens";
-import { UserApplications } from "./oauth";
+import { UserApplications, UserApplicationsData } from "./oauth";
 import { getRes, setBackendServerUrl } from "../utils/constants";
 import { BasicUserInfo } from "../type";
 
@@ -162,26 +162,21 @@ describe("personal MCP tokens", () => {
         await act(async () => document.querySelector<HTMLButtonElement>(".ant-popconfirm .ant-btn-primary")!.click());
         expect(mockPost).toHaveBeenLastCalledWith("/api/admin/oauth/revokePersonalToken", { id: info.id });
     });
-    it("loads account connections in the personal tab and hides mutations while offline", async () => {
-        mockGet.mockResolvedValue({
-            data: {
-                error: 0,
-                data: {
-                    personalTokens: [info],
-                    personalTokenScopes: scopes,
-                    clients: [],
-                    grants: [],
-                    administrator: false,
-                    issuer: "https://blog.example/sub",
-                    resource: "https://blog.example/sub/api/oauth",
-                    mcpResource: info.resource,
-                },
-            },
-        });
+    it("renders cached account connections, accepts refreshed data and hides mutations while offline", async () => {
+        const data: UserApplicationsData = {
+            personalTokens: [info],
+            personalTokenScopes: scopes,
+            clients: [],
+            grants: [],
+            administrator: false,
+            issuer: "https://blog.example/sub",
+            resource: "https://blog.example/sub/api/oauth",
+            mcpResource: info.resource,
+        };
         await act(async () =>
             root.render(
                 <MemoryRouter>
-                    <UserApplications offline />
+                    <UserApplications data={data} offline />
                 </MemoryRouter>
             )
         );
@@ -190,35 +185,42 @@ describe("personal MCP tokens", () => {
         await act(async () =>
             root.render(
                 <MemoryRouter>
-                    <UserApplications offline={false} />
+                    <UserApplications data={data} offline={false} />
                 </MemoryRouter>
             )
         );
-        expect(mockGet).toHaveBeenCalledWith("/api/admin/oauth");
+        expect(mockGet).not.toHaveBeenCalled();
         expect(container.textContent).toContain(info.name);
         expect(container.textContent).not.toContain(getRes().oauth.applications);
+        await act(async () =>
+            root.render(
+                <MemoryRouter>
+                    <UserApplications
+                        data={{ ...data, personalTokens: [{ ...info, name: "Updated token" }] }}
+                        offline={false}
+                    />
+                </MemoryRouter>
+            )
+        );
+        expect(container.textContent).toContain("Updated token");
+        expect(container.textContent).not.toContain(info.name);
     });
 
     it("resolves every service address against the connected backend and preserves client callbacks", async () => {
         setBackendServerUrl("https://backend.example/blog/");
-        mockGet.mockResolvedValue({
-            data: {
-                error: 0,
-                data: {
-                    personalTokens: [],
-                    personalTokenScopes: scopes,
-                    grants: [],
-                    administrator: true,
-                    clients: [{ clientId: "client", name: "App", redirectUris: ["https://client.example/callback"] }],
-                    issuer: "/blog",
-                    resource: "/blog/api/oauth",
-                },
-            },
-        });
+        const data: UserApplicationsData = {
+            personalTokens: [],
+            personalTokenScopes: scopes,
+            grants: [],
+            administrator: true,
+            clients: [{ clientId: "client", name: "App", redirectUris: ["https://client.example/callback"] }],
+            issuer: "/blog",
+            resource: "/blog/api/oauth",
+        };
         await act(async () =>
             root.render(
                 <MemoryRouter initialEntries={["/user/applications.html?v=test#clients"]}>
-                    <UserApplications offline={false} />
+                    <UserApplications data={data} offline={false} />
                 </MemoryRouter>
             )
         );
@@ -234,6 +236,36 @@ describe("personal MCP tokens", () => {
         expect(activePanel?.textContent).toContain("https://backend.example/blog/mcp");
     });
 
+    it("refreshes the application page cache after creating a token", async () => {
+        const data: UserApplicationsData = {
+            personalTokens: [],
+            personalTokenScopes: scopes,
+            clients: [],
+            grants: [],
+            administrator: false,
+            issuer: "https://blog.example/sub",
+            resource: "https://blog.example/sub/api/oauth",
+            mcpResource: info.resource,
+        };
+        const updateCache = jest.fn();
+        await act(async () =>
+            root.render(
+                <MemoryRouter initialEntries={["/user/applications.html?v=test#tokens"]}>
+                    <UserApplications data={data} offline={false} updateCache={updateCache} />
+                </MemoryRouter>
+            )
+        );
+        expect(mockGet).not.toHaveBeenCalled();
+        open();
+        name();
+        const refreshed = { ...data, personalTokens: [info] };
+        mockPost.mockResolvedValue({ data: { error: 0, data: { token: "zrmcp_one-time-secret", info } } });
+        mockGet.mockResolvedValue({ data: { error: 0, data: refreshed } });
+        await submit();
+        expect(updateCache).toHaveBeenCalledWith(refreshed, "/user/applications");
+        expect(JSON.stringify(updateCache.mock.calls)).not.toContain("zrmcp_one-time-secret");
+    });
+
     it.each([false, true])(
         "routes to available application tabs without refetching (administrator=%s)",
         async (administrator) => {
@@ -243,27 +275,22 @@ describe("personal MCP tokens", () => {
                 const location = useLocation();
                 return <output>{location.pathname + location.search + location.hash}</output>;
             };
-            mockGet.mockResolvedValue({
-                data: {
-                    error: 0,
-                    data: {
-                        personalTokens: [info],
-                        personalTokenScopes: scopes,
-                        clients: [],
-                        grants: [],
-                        administrator,
-                        issuer: "https://blog.example/sub",
-                        resource: "https://blog.example/sub/api/oauth",
-                        mcpResource: info.resource,
-                    },
-                },
-            });
+            const data: UserApplicationsData = {
+                personalTokens: [info],
+                personalTokenScopes: scopes,
+                clients: [],
+                grants: [],
+                administrator,
+                issuer: "https://blog.example/sub",
+                resource: "https://blog.example/sub/api/oauth",
+                mcpResource: info.resource,
+            };
             const page = "/user/applications.html?v=test";
             await act(async () =>
                 root.render(
                     <MemoryRouter initialEntries={[page + "#clients"]}>
                         <Location />
-                        <UserApplications offline={false} />
+                        <UserApplications data={data} offline={false} />
                     </MemoryRouter>
                 )
             );
@@ -280,7 +307,7 @@ describe("personal MCP tokens", () => {
             expect(selected()).toBe(getRes().oauth.grants);
             await act(async () => navigate(-1));
             expect(selected()).toBe(administrator ? getRes().oauth.applications : getRes().oauth.personalTokens.title);
-            expect(mockGet).toHaveBeenCalledTimes(1);
+            expect(mockGet).not.toHaveBeenCalled();
             expect(mockPost).not.toHaveBeenCalled();
         }
     );

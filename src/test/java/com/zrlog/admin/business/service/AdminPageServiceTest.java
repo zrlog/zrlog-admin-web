@@ -186,6 +186,12 @@ public class AdminPageServiceTest {
                 assertNotNull(page, data.getData());
                 assertEquals(AdminConstants.getAdminDocumentTitleByUri(page), data.getDocumentTitle());
             }
+            assertTrue(service.serverSide("/admin/user/preferences", request("/admin/user/preferences", "/blog", config), response()).getData()
+                    instanceof com.zrlog.admin.business.rest.response.UserPreferencesResponse);
+            assertTrue(service.serverSide("/admin/user/applications", request("/admin/user/applications", "/blog", config), response()).getData()
+                    instanceof com.zrlog.admin.business.security.OAuthModels.Page);
+            assertTrue(service.serverSide("/admin/website/members", request("/admin/website/members", "/blog", config), response()).getData()
+                    instanceof com.zrlog.admin.business.security.MemberModels.Page);
             assertNotNull(router.getMethod("/api/admin/oauth/createPersonalToken", HttpMethod.POST));
             assertEquals(com.zrlog.data.security.AccountAction.PERMISSION_READ,
                     router.getMethod("/api/admin/access", HttpMethod.GET)

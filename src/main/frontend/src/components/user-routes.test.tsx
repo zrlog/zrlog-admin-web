@@ -117,11 +117,29 @@ describe("personal page URLs", () => {
                                 key={page}
                                 path={USER_ROUTES[page] + suffix}
                                 element={
-                                    <User
-                                        data={{ userName: "writer", email: "", header: "" }}
-                                        offline={false}
-                                        activeKey={page}
-                                    />
+                                    page === "profile" ? (
+                                        <User data={{ userName: "writer", email: "", header: "" }} offline={false} />
+                                    ) : page === "preferences" ? (
+                                        <User
+                                            data={{ overrides: {}, defaults: {}, effective: {} }}
+                                            offline={false}
+                                            activeKey="preferences"
+                                        />
+                                    ) : (
+                                        <User
+                                            data={{
+                                                clients: [],
+                                                grants: [],
+                                                personalTokens: [],
+                                                personalTokenScopes: [],
+                                                administrator: false,
+                                                issuer: "https://example.com",
+                                                resource: "https://example.com/api/oauth",
+                                            }}
+                                            offline={false}
+                                            activeKey="applications"
+                                        />
+                                    )
                                 }
                             />
                         ))}

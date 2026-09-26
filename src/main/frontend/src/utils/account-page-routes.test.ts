@@ -32,8 +32,11 @@ describe("account page routing", () => {
         await getCsrData("/user/security.html", 0, api);
         expect(get).toHaveBeenLastCalledWith("/api/admin/account-security");
         const response = await getCsrData("/user/preferences", 0, api);
-        expect(get).toHaveBeenLastCalledWith("/api/admin/user");
+        expect(get).toHaveBeenLastCalledWith("/api/admin/user/preferences");
         expect(response.documentTitle).toContain(getRes().user.preferences.title);
+        const applications = await getCsrData("/user/applications.html?v=1", 0, api);
+        expect(get).toHaveBeenLastCalledWith("/api/admin/oauth?v=1");
+        expect(applications.documentTitle).toContain(getRes().oauth.title);
     });
 
     it("registers account pages and static variants without old webpage aliases", () => {

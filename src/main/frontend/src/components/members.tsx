@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { Alert, Button, Card, Drawer, Form, Input, List, Select, Space, Switch, Tag, Typography, message } from "antd";
 import { useAxiosBaseInstance } from "../base/AppBase";
 import { getRes } from "../utils/constants";
@@ -6,11 +7,15 @@ import { getSsDate } from "../base/SsData";
 import { AccountRole, hasAction } from "../utils/account-access";
 import WebsiteSettingsLayout from "./common/WebsiteSettingsLayout";
 import PermissionHelp from "./common/PermissionHelp";
+import { getPageDataCacheKey } from "../utils/cache";
+import type { AdminCommonProps } from "../type";
 
 type Member = { userId: number; userName: string; email: string; role: AccountRole; enabled: boolean };
 type Page = { members: Member[]; currentRole: AccountRole };
-export default function Members({ data }: { data: Page }) {
+export default function Members({ data, updateCache }: Pick<AdminCommonProps<Page>, "data" | "updateCache">) {
     const [members, setMembers] = useState(data.members);
+    const location = useLocation();
+    useEffect(() => setMembers(data.members), [data]);
     const [editing, setEditing] = useState<Member | null | undefined>();
     const [transferring, setTransferring] = useState(false);
     const [busy, setBusy] = useState(false);
@@ -29,8 +34,13 @@ export default function Members({ data }: { data: Page }) {
         setEditing(member);
     };
     const reload = async () => {
+        const session = getSsDate().key;
         const response = await api.get("/api/admin/members");
-        if (!response.data.error) setMembers(response.data.data.members);
+        if (session !== getSsDate().key) return;
+        if (!response.data.error) {
+            setMembers(response.data.data.members);
+            updateCache?.(response.data.data, getPageDataCacheKey(location));
+        }
     };
     const save = async (values: any) => {
         setBusy(true);

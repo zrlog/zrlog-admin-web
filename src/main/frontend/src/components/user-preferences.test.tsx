@@ -5,7 +5,7 @@ import { MemoryRouter, NavigateFunction, useLocation, useNavigate } from "react-
 import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
 import UserPreferencesForm from "./user-preferences";
 import { getRes } from "../utils/constants";
-import { resolveUserPreferences, UserPreferences } from "../utils/user-preferences";
+import { resolveUserPreferences, UserPreferences, UserPreferencesResponse } from "../utils/user-preferences";
 
 const mockGet = jest.fn<Promise<any>, any[]>();
 const mockPost = jest.fn<Promise<any>, any[]>();
@@ -23,6 +23,7 @@ describe("personal preferences", () => {
     let root: Root;
     let container: HTMLDivElement;
     let navigate: NavigateFunction;
+    const updateCache = jest.fn();
     const Location = () => {
         navigate = useNavigate();
         const location = useLocation();
@@ -78,6 +79,7 @@ describe("personal preferences", () => {
         mockGet.mockReset().mockResolvedValue({ data: { error: 0, data: response } });
         mockPost.mockReset();
         mockChangeAppState.mockClear();
+        updateCache.mockClear();
         container = document.createElement("div");
         document.body.appendChild(container);
         root = createRoot(container);
@@ -89,12 +91,12 @@ describe("personal preferences", () => {
         delete (globalThis as any).IS_REACT_ACT_ENVIRONMENT;
         delete (globalThis as any).MessageChannel;
     });
-    const render = async (offline = false, entry = "/user/preferences") => {
+    const render = async (offline = false, entry = "/user/preferences", data: UserPreferencesResponse = response) => {
         await act(async () => {
             root.render(
                 <MemoryRouter initialEntries={[entry]}>
                     <Location />
-                    <UserPreferencesForm offline={offline} />
+                    <UserPreferencesForm data={data} offline={offline} updateCache={updateCache} />
                 </MemoryRouter>
             );
         });
@@ -126,7 +128,7 @@ describe("personal preferences", () => {
         expect(getRes().admin_compactMode).toBe(true);
         await act(async () => navigate(1));
         expect(selected()).toBe(getRes().user.preferences.assistantTitle);
-        expect(mockGet).toHaveBeenCalledTimes(1);
+        expect(mockGet).not.toHaveBeenCalled();
         expect(mockPost).not.toHaveBeenCalled();
         await act(async () => navigate(page + "#unknown"));
         expect(selected()).toBe(getRes().user.preferences.appearanceTitle);
@@ -152,6 +154,25 @@ describe("personal preferences", () => {
         expect(getRes().admin_compactMode).toBe(false);
     });
 
+    it("accepts refreshed page data but preserves unsaved edits until undo", async () => {
+        await render();
+        const refreshed = {
+            overrides: {},
+            defaults: { ...defaults, appearance: { ...defaults.appearance, colorPrimary: "#654321" } },
+            effective: {},
+        } as UserPreferencesResponse;
+        refreshed.effective = resolveUserPreferences(refreshed.defaults, refreshed.overrides);
+        await render(false, "/user/preferences", refreshed);
+        expect(container.querySelector("#appearance_darkMode")?.getAttribute("aria-checked")).toBe("true");
+        toggle("appearance_compactMode");
+        await render(false, "/user/preferences", response);
+        expect(container.querySelector("#appearance_compactMode")?.getAttribute("aria-checked")).toBe("true");
+        expect(mockGet).not.toHaveBeenCalled();
+        act(() => button(getRes().user.preferences.undo).click());
+        expect(container.querySelector("#appearance_compactMode")?.getAttribute("aria-checked")).toBe("false");
+        expect(container.querySelector("#appearance_darkMode")?.getAttribute("aria-checked")).toBe("false");
+    });
+
     it("previews reset, persists only on save, and uses the saved result for later undo", async () => {
         await render();
         act(() => button(getRes().user.preferences.reset).click());
@@ -161,6 +182,7 @@ describe("personal preferences", () => {
         mockPost.mockResolvedValue({ data: { error: 0, data: { overrides: {}, defaults, effective: defaults } } });
         await submit();
         expect(mockPost).toHaveBeenCalledWith("/api/admin/user/updatePreferences", {});
+        expect(updateCache).toHaveBeenCalledWith({ overrides: {}, defaults, effective: defaults }, "/user/preferences");
         toggle("appearance_darkMode");
         expect(getRes().admin_darkMode).toBe(false);
         act(() => button(getRes().user.preferences.undo).click());

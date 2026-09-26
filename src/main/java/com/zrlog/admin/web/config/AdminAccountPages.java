@@ -10,9 +10,9 @@ public final class AdminAccountPages {
     public static final String AUTHORIZE = "/admin/user/applications/authorize";
     public static final Map<String, String> PAGE_APIS = Map.of(
             "/admin/user", "/api/admin/user",
-            "/admin/user/preferences", "/api/admin/user",
+            "/admin/user/preferences", "/api/admin/user/preferences",
             "/admin/user/security", "/api/admin/account-security",
-            "/admin/user/applications", "/api/admin/user",
+            "/admin/user/applications", "/api/admin/oauth",
             AUTHORIZE, "/api/admin/oauth/authorize",
             "/admin/website/members", "/api/admin/members");
     private static final Set<String> SENSITIVE_PAGES = Set.of(

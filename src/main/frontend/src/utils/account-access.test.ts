@@ -41,4 +41,12 @@ describe("account permission and cache boundary", () => {
         window.__SS_DATA__!.key = "two";
         expect(getCacheByKey("/website/members")).toBeUndefined();
     });
+    it("ignores the old profile-shaped preferences cache until preferences arrive", () => {
+        const key = "/user/preferences";
+        addToCache(key, { userId: 1, userName: "old profile" });
+        expect(getCacheByKey(key)).toBeUndefined();
+        const preferences = { overrides: {}, defaults: { language: "zh_CN" }, effective: { language: "zh_CN" } };
+        addToCache(key, preferences);
+        expect(getCacheByKey(key)).toEqual(preferences);
+    });
 });

@@ -1,6 +1,8 @@
 import UserSettingsLayout from "./common/UserSettingsLayout";
 import SettingsSubmitBar from "./common/SettingsSubmitBar";
-import { UserApplications } from "./oauth";
+import { UserApplications, UserApplicationsData } from "./oauth";
+import type { UserPreferencesResponse } from "../utils/user-preferences";
+import type { AdminCommonProps } from "../type";
 import UserPreferencesForm from "./user-preferences";
 import { useState } from "react";
 import Form from "antd/es/form";
@@ -157,20 +159,25 @@ const UserProfile = ({ data, offline }: { data: BasicUserInfo; offline: boolean 
     );
 };
 
-const User = (props: {
-    data: BasicUserInfo;
-    offline: boolean;
-    activeKey?: "profile" | "preferences" | "applications";
-}) => {
+type UserProps =
+    | (Pick<AdminCommonProps<BasicUserInfo>, "data" | "offline" | "updateCache"> & { activeKey?: "profile" })
+    | (Pick<AdminCommonProps<UserPreferencesResponse>, "data" | "offline" | "updateCache"> & {
+          activeKey: "preferences";
+      })
+    | (Pick<AdminCommonProps<UserApplicationsData>, "data" | "offline" | "updateCache"> & {
+          activeKey: "applications";
+      });
+
+const User = (props: UserProps) => {
     const activeKey = props.activeKey || "profile";
     return (
         <UserSettingsLayout activeKey={activeKey}>
-            {activeKey === "profile" ? (
-                <UserProfile {...props} />
-            ) : activeKey === "preferences" ? (
-                <UserPreferencesForm offline={props.offline} />
+            {props.activeKey === "preferences" ? (
+                <UserPreferencesForm {...props} />
+            ) : props.activeKey === "applications" ? (
+                <UserApplications {...props} />
             ) : (
-                <UserApplications offline={props.offline} />
+                <UserProfile {...props} />
             )}
         </UserSettingsLayout>
     );

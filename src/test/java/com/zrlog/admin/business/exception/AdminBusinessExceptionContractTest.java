@@ -21,7 +21,7 @@ public class AdminBusinessExceptionContractTest {
         java.util.Map<String, Object> messages = com.zrlog.util.I18nUtil.getI18nVOCache().getAdminBackend().get("zh_CN");
         assertEquals("外部应用", messages.get("admin.oauth.title"));
         assertEquals("账号安全", messages.get("admin.user.security.manage"));
-        assertEquals("个人设置", messages.get("admin.user.preferences.manage"));
+        assertEquals("偏好设置", messages.get("admin.user.preferences.manage"));
         assertEquals("创建个人访问令牌", messages.get("admin.audit.action.createPersonalToken"));
         assertTrue(messages.get("admin.accounts.storage.unsupported").toString().startsWith("当前数据库适配器"));
         // Properties.load(InputStream) interprets unescaped bytes as ISO-8859-1.

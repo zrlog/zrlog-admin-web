@@ -76,6 +76,8 @@ export const addToCache = (key: string, obj: any) => {
 export const getCacheByKey = <T = any,>(key: string): T => {
     if (isSensitivePage(key)) return ephemeralPageData[ephemeralKey(key)] as T;
     const record = getCachedData();
+    const acceptsCachedData = getAccountPage(key)?.acceptsCachedData;
+    if (acceptsCachedData && !acceptsCachedData(record[key])) return undefined as T;
     return record[key] as T;
 };
 

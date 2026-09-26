@@ -1,11 +1,12 @@
 import SettingsSubmitBar from "./common/SettingsSubmitBar";
 import SettingsTabs from "./common/SettingsTabs";
 import { useEffect, useRef, useState } from "react";
-import { Alert, Button, Form, Select, Space, Spin, Typography, message, theme } from "antd";
+import { Alert, Button, Form, Select, Typography, message, theme } from "antd";
+import { useLocation } from "react-router-dom";
 import { useAxiosBaseInstance } from "../base/AppBase";
 import { getSsDate } from "../base/SsData";
 import { getRes } from "../utils/constants";
-import { putCache } from "../utils/cache";
+import { getPageDataCacheKey, putCache } from "../utils/cache";
 import { useResponsiveFormLayout } from "../utils/responsive-form";
 import {
     applyUserPreferences,
@@ -14,22 +15,26 @@ import {
     UserPreferences,
     UserPreferencesResponse,
 } from "../utils/user-preferences";
-import type { ApiResponse } from "../type";
+import type { AdminCommonProps, ApiResponse } from "../type";
 import AdminAppearanceFields from "./common/AdminAppearanceFields";
 
-const UserPreferencesForm = ({ offline }: { offline: boolean }) => {
+const UserPreferencesForm = ({
+    data: initialData,
+    offline,
+    updateCache,
+}: Pick<AdminCommonProps<UserPreferencesResponse>, "data" | "offline" | "updateCache">) => {
     const axios = useAxiosBaseInstance();
+    const location = useLocation();
     const [form] = Form.useForm<UserPreferences>();
-    const [data, setData] = useState<UserPreferencesResponse>();
-    const [draft, setDraft] = useState<UserPreferences>({});
-    const draftRef = useRef<UserPreferences>({});
-    const savedRef = useRef<UserPreferences>();
+    const [data, setData] = useState(initialData);
+    const dataRef = useRef(initialData);
+    const [draft, setDraft] = useState(initialData.overrides);
+    const draftRef = useRef(initialData.overrides);
+    const savedRef = useRef(initialData.effective);
     const previewing = useRef(false);
     const mounted = useRef(false);
-    const loadSequence = useRef(0);
     const session = useRef(getSsDate().key);
     const savingRef = useRef(false);
-    const [failed, setFailed] = useState(false);
     const [saving, setSaving] = useState(false);
     const [messageApi, contextHolder] = message.useMessage();
     const { formLayout } = useResponsiveFormLayout();
@@ -45,52 +50,44 @@ const UserPreferencesForm = ({ offline }: { offline: boolean }) => {
     };
 
     const acceptSaved = (result: UserPreferencesResponse) => {
+        dataRef.current = result;
         savedRef.current = result.effective;
         draftRef.current = result.overrides;
         setDraft(result.overrides);
         setData(result);
-    };
-
-    const load = () => {
-        const sequence = ++loadSequence.current;
-        setFailed(false);
-        axios
-            .get<ApiResponse<UserPreferencesResponse>>("/api/admin/user/preferences")
-            .then(({ data: response }) => {
-                if (!mounted.current || sequence !== loadSequence.current || session.current !== getSsDate().key)
-                    return;
-                if (response.error !== 0) {
-                    setFailed(true);
-                    messageApi.error(response.message);
-                    return;
-                }
-                acceptSaved(response.data);
-            })
-            .catch(() => {
-                if (mounted.current && sequence === loadSequence.current) setFailed(true);
-            });
+        form.setFieldsValue(result.effective);
     };
 
     useEffect(() => {
         mounted.current = true;
         return () => {
             mounted.current = false;
-            loadSequence.current++;
             restorePreview();
         };
     }, []);
 
     useEffect(() => {
-        if (!offline) load();
-        else {
-            loadSequence.current++;
-            restorePreview();
-        }
+        if (offline) restorePreview();
     }, [offline]);
 
     useEffect(() => {
-        if (data && !offline) form.setFieldsValue(data.effective);
-    }, [data, offline, form]);
+        if (savingRef.current) return;
+        const hasDraft = JSON.stringify(draftRef.current) !== JSON.stringify(dataRef.current.overrides);
+        dataRef.current = initialData;
+        savedRef.current = initialData.effective;
+        setData(initialData);
+        if (!hasDraft) {
+            draftRef.current = initialData.overrides;
+            setDraft(initialData.overrides);
+        }
+        const effective = hasDraft
+            ? resolveUserPreferences(initialData.defaults, draftRef.current)
+            : initialData.effective;
+        if (!offline) {
+            form.setFieldsValue(effective);
+            if (previewing.current) applyUserPreferences(effective);
+        }
+    }, [initialData, offline, form]);
 
     useEffect(() => {
         if (!dirty && !saving) return;
@@ -130,6 +127,7 @@ const UserPreferencesForm = ({ offline }: { offline: boolean }) => {
             previewing.current = false;
             if (session.current === getSsDate().key) {
                 putCache({});
+                updateCache?.(response.data, getPageDataCacheKey(location));
                 applyUserPreferences(response.data.effective);
             }
             if (mounted.current) {
@@ -154,17 +152,11 @@ const UserPreferencesForm = ({ offline }: { offline: boolean }) => {
             {contextHolder}
             {offline ? (
                 <Alert type="info" title={res.offline} />
-            ) : failed ? (
-                <Space orientation="vertical">
-                    <Alert type="error" title={res.loadFailed} />
-                    <Button onClick={load}>{res.retry}</Button>
-                </Space>
-            ) : !data ? (
-                <Spin />
             ) : (
                 <Form
                     {...formLayout}
                     form={form}
+                    initialValues={data.effective}
                     disabled={saving}
                     onValuesChange={(changes) => preview(mergeUserPreferenceChanges(draftRef.current, changes))}
                     onFinish={() => void save()}

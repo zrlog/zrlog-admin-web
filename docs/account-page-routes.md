@@ -5,15 +5,19 @@
 | 网页 | 用途 | 页面初始数据 API |
 | --- | --- | --- |
 | `/admin/user` | 个人资料 | `/api/admin/user` |
-| `/admin/user/preferences` | 偏好设置 | `/api/admin/user` |
+| `/admin/user/preferences` | 偏好设置 | `/api/admin/user/preferences` |
 | `/admin/user/security` | 账号安全 | `/api/admin/account-security` |
-| `/admin/user/applications` | 个人令牌和外部应用授权 | `/api/admin/user`，页内继续请求 `/api/admin/oauth` |
+| `/admin/user/applications` | 个人令牌和外部应用授权 | `/api/admin/oauth` |
 | `/admin/user/applications/authorize` | OAuth 授权确认 | `/api/admin/oauth/authorize` |
 | `/admin/website/members` | 成员管理 | `/api/admin/members` |
 
 前端导航和页面数据加载共用 `account-page-routes.ts`；后端 SSR 通过 `AdminAccountPages` 映射到原 API Controller，并继续检查该 Controller 的 action。成员管理独立要求 `member.manage`，不能按普通站点设置页面放行，也不能被 `/user` 的个人权限规则覆盖。
 
 页面标题沿用中英文资源；个人页面通过独立路径切换，支持刷新、前进和后退。静态页面生成使用新路径，成员、应用和授权确认页面不加入 Service Worker 预缓存，浏览器页面数据只保存在当前会话内存中。
+
+成员、外部应用和偏好设置沿用公共页面加载流程：对应 API 直接返回页面数据，SSR 使用同一映射填充首屏；再次进入时先显示当前会话的缓存，再请求接口并用新数据更新页面。成员和外部应用操作后的重新查询也回写同一页面缓存。外部应用缓存只保存列表与连接信息，创建时一次性返回的令牌或客户端密钥不进入页面缓存。
+
+偏好设置刷新时同步已保存基准，保留正在编辑的草稿；保存成功清理其他页面缓存，并写回最新偏好快照。旧版本误存的个人资料数据不会作为偏好设置缓存使用。二级 Tab 的 fragment 和构建版本参数不改变页面缓存键，切换 Tab 不产生额外请求。
 
 权限说明共用页内抽屉：成员管理默认打开角色权限，外部应用默认打开应用授权范围；关闭后保留当前页面和表单状态。打开时请求 `/api/admin/access`，继续由 `permission.read` 校验。移除 `/admin/user/permissions` 网页路由、静态页面和全局搜索入口，不做兼容跳转。
 

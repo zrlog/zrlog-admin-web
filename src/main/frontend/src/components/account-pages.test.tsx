@@ -1,5 +1,6 @@
 import { act } from "react";
 import { createRoot, Root } from "react-dom/client";
+import { Simulate } from "react-dom/test-utils";
 import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { Grid } from "antd";
 import { MemoryRouter } from "react-router-dom";
@@ -12,7 +13,8 @@ import { getRes } from "../utils/constants";
 import { BasicUserInfo } from "../type";
 
 const mockGet = jest.fn<Promise<any>, any[]>();
-const mockApi = { get: mockGet };
+const mockPost = jest.fn<Promise<any>, any[]>();
+const mockApi = { get: mockGet, post: mockPost };
 jest.mock("../base/AppBase", () => ({ useAxiosBaseInstance: () => mockApi }));
 jest.mock("../base/ConfigProviderApp", () => ({ getAppState: () => ({ compactMode: false }) }));
 jest.mock("./my-loading-component", () => () => null);
@@ -22,7 +24,12 @@ describe("account management pages", () => {
     let container: HTMLDivElement;
     beforeEach(() => {
         mockGet.mockReset().mockResolvedValue({ data: { error: 0, data: page } });
+        mockPost.mockReset();
         (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+        (globalThis as any).MessageChannel = class {
+            port1 = { onmessage: () => undefined };
+            port2 = { postMessage: () => Promise.resolve().then(() => this.port1.onmessage()) };
+        };
         global.ResizeObserver = class {
             observe() {
                 return undefined;
@@ -63,6 +70,7 @@ describe("account management pages", () => {
         container.remove();
         jest.restoreAllMocks();
         delete (globalThis as any).IS_REACT_ACT_ENVIRONMENT;
+        delete (globalThis as any).MessageChannel;
     });
     const page = {
         currentRole: "author" as const,
@@ -120,6 +128,45 @@ describe("account management pages", () => {
         expect(container.querySelector('nav a[aria-current="page"]')?.getAttribute("href")).toContain(
             "/website/members"
         );
+    });
+
+    it("updates a cached member list when page data refreshes and writes mutation results back to the cache", async () => {
+        jest.spyOn(Grid, "useBreakpoint").mockReturnValue({ md: true });
+        const updateCache = jest.fn();
+        const member = {
+            userId: 2,
+            userName: "Cached member",
+            email: "member@example.com",
+            role: "author" as const,
+            enabled: true,
+        };
+        const data = { currentRole: "owner" as const, members: [member] };
+        const renderMembers = (pageData = data) =>
+            act(async () =>
+                root.render(
+                    <MemoryRouter initialEntries={["/website/members.html?v=test"]}>
+                        <Members data={pageData} updateCache={updateCache} />
+                    </MemoryRouter>
+                )
+            );
+        await renderMembers();
+        expect(container.textContent).toContain("Cached member");
+        const refreshed = { ...data, members: [{ ...member, userName: "Refreshed member" }] };
+        await renderMembers(refreshed);
+        expect(container.textContent).toContain("Refreshed member");
+        expect(container.textContent).not.toContain("Cached member");
+        const saved = { ...data, members: [{ ...member, userName: "Saved member" }] };
+        mockPost.mockResolvedValue({ data: { error: 0 } });
+        mockGet.mockResolvedValue({ data: { error: 0, data: saved } });
+        await act(async () =>
+            Array.from(container.querySelectorAll("button"))
+                .find((button) => button.textContent === getRes().members.edit)!
+                .click()
+        );
+        await act(async () => Simulate.submit(document.querySelector('[role="dialog"] form')!));
+        expect(mockGet).toHaveBeenCalledWith("/api/admin/members");
+        expect(updateCache).toHaveBeenCalledWith(saved, "/website/members");
+        expect(container.textContent).toContain("Saved member");
     });
     it("opens role permissions from members without leaving the settings page", async () => {
         await act(async () =>

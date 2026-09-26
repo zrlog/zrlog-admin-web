@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import PersonalAccessTokens, { PersonalAccessToken } from "./personal-access-tokens";
 import SettingsTabs from "./common/SettingsTabs";
 import {
@@ -12,7 +13,6 @@ import {
     List,
     Popconfirm,
     Space,
-    Spin,
     Tag,
     Typography,
     message,
@@ -20,9 +20,12 @@ import {
 import { useAxiosBaseInstance } from "../base/AppBase";
 import { getRes } from "../utils/constants";
 import { resolveApplicationServerUrl } from "../utils/application-server-url";
+import { getPageDataCacheKey } from "../utils/cache";
+import type { AdminCommonProps } from "../type";
+import { getSsDate } from "../base/SsData";
 type Client = { clientId: string; name: string; redirectUris: string[] };
 type Grant = { id: string; clientName: string; scope: string; createdAt: number; revoked: boolean };
-type Page = {
+export type UserApplicationsData = {
     clients: Client[];
     grants: Grant[];
     administrator: boolean;
@@ -32,8 +35,12 @@ type Page = {
     personalTokens: PersonalAccessToken[];
     personalTokenScopes: string[];
 };
-function OAuthConnections({ data }: { data: Page }) {
+type UserApplicationsProps = Pick<AdminCommonProps<UserApplicationsData>, "data" | "offline" | "updateCache">;
+
+function OAuthConnections({ data, updateCache }: Pick<UserApplicationsProps, "data" | "updateCache">) {
     const [page, setPage] = useState(data);
+    const location = useLocation();
+    useEffect(() => setPage(data), [data]);
     const [open, setOpen] = useState(false);
     const [busy, setBusy] = useState(false);
     const [form] = Form.useForm();
@@ -54,8 +61,13 @@ function OAuthConnections({ data }: { data: Page }) {
         </Space>
     );
     const reload = async () => {
+        const session = getSsDate().key;
         const response = await api.get("/api/admin/oauth");
-        if (!response.data.error) setPage(response.data.data);
+        if (session !== getSsDate().key) return;
+        if (!response.data.error) {
+            setPage(response.data.data);
+            updateCache?.(response.data.data, getPageDataCacheKey(location));
+        }
     };
     const mutate = async (action: string, body: unknown) => {
         setBusy(true);
@@ -276,37 +288,7 @@ function OAuthConnections({ data }: { data: Page }) {
     );
 }
 
-export function UserApplications({ offline }: { offline: boolean }) {
-    const api = useAxiosBaseInstance();
-    const [data, setData] = useState<Page>();
-    const [failed, setFailed] = useState(false);
-    const [attempt, setAttempt] = useState(0);
-    useEffect(() => {
-        let active = true;
-        setData(undefined);
-        setFailed(false);
-        if (!offline)
-            api.get("/api/admin/oauth")
-                .then((response) => {
-                    if (!active) return;
-                    if (response.data.error) setFailed(true);
-                    else setData(response.data.data);
-                })
-                .catch(() => {
-                    if (active) setFailed(true);
-                });
-        return () => {
-            active = false;
-        };
-    }, [api, offline, attempt]);
+export function UserApplications({ offline, data, updateCache }: UserApplicationsProps) {
     if (offline) return <Alert type="info" title={getRes().oauth.offline} />;
-    if (failed)
-        return (
-            <Alert
-                type="error"
-                title={getRes().error.requestError}
-                action={<Button onClick={() => setAttempt((value) => value + 1)}>{getRes().oauth.retry}</Button>}
-            />
-        );
-    return data ? <OAuthConnections data={data} /> : <Spin />;
+    return <OAuthConnections data={data} updateCache={updateCache} />;
 }

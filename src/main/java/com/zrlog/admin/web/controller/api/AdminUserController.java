@@ -59,8 +59,8 @@ public class AdminUserController extends BaseController {
     @ResponseBody
     @RequestMethod(method = HttpMethod.GET)
     @RequiresAction(value = AccountAction.ACCOUNT_SELF, descriptionKey = "account.preferences")
-    public ApiStandardResponse<UserPreferencesResponse> preferences() throws SQLException {
-        return new ApiStandardResponse<>(new com.zrlog.admin.business.service.UserPreferenceService().current());
+    public AdminPageDataResponse<UserPreferencesResponse> preferences() throws SQLException {
+        return new AdminPageDataResponse<>(new com.zrlog.admin.business.service.UserPreferenceService().current(), "", request.getUri());
     }
 
     @ResponseBody

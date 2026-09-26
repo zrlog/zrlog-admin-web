@@ -258,7 +258,6 @@ const zhCN = {
         "applications": "站点应用登记",
         "grants": "我的授权",
         "offline": "连接网络后可管理外部应用和个人访问令牌。",
-        "retry": "重试",
         "register": "登记应用",
         "name": "应用名称",
         "redirectUris": "回调地址",
@@ -1434,9 +1433,7 @@ const zhCN = {
             "previewHint": "外观修改后立即预览，保存后生效。未保存就离开此页，会恢复原来的设置。",
             "saved": "偏好设置已保存",
             "saveFailed": "保存失败，请重试",
-            "offline": "联网后可查看和修改偏好设置",
-            "loadFailed": "偏好设置加载失败",
-            "retry": "重新加载"
+            "offline": "联网后可查看和修改偏好设置"
         },
         "title": "个人信息",
         "logout": "退出",
@@ -2066,7 +2063,6 @@ const enUS: AdminI18nResource = {
         "applications": "Site application registry",
         "grants": "My authorizations",
         "offline": "Connect to the network to manage applications and personal access tokens.",
-        "retry": "Retry",
         "register": "Register application",
         "name": "Application name",
         "redirectUris": "Redirect URIs",
@@ -3242,9 +3238,7 @@ const enUS: AdminI18nResource = {
             "previewHint": "Appearance changes are previewed immediately. Save to keep them; leaving without saving restores your previous settings.",
             "saved": "Preferences saved",
             "saveFailed": "Could not save settings. Please try again.",
-            "offline": "Connect to view and edit preferences",
-            "loadFailed": "Could not load preferences",
-            "retry": "Reload"
+            "offline": "Connect to view and edit preferences"
         },
         "title": "Personal Information",
         "logout": "Sign out",

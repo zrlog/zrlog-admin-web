@@ -14,14 +14,23 @@ type AccountPage = {
     api: string;
     action: string;
     sensitive?: boolean;
+    acceptsCachedData?: (data: unknown) => boolean;
     title: (res: AdminI18nResource) => string;
 };
 
 const pages: Record<string, AccountPage> = {
     [USER_ROUTES.profile]: { api: "/api/admin/user", action: "account.self", title: (res) => res.user.title },
     [USER_ROUTES.preferences]: {
-        api: "/api/admin/user",
+        api: "/api/admin/user/preferences",
         action: "account.self",
+        // Older versions cached the profile response for this route.
+        acceptsCachedData: (data) =>
+            !!data &&
+            typeof data === "object" &&
+            ["overrides", "defaults", "effective"].every((key) => {
+                const value = (data as Record<string, unknown>)[key];
+                return !!value && typeof value === "object" && !Array.isArray(value);
+            }),
         title: (res) => res.user.preferences.title,
     },
     [USER_ROUTES.security]: {
@@ -30,7 +39,7 @@ const pages: Record<string, AccountPage> = {
         title: (res) => res.accountSecurity.title,
     },
     [USER_ROUTES.applications]: {
-        api: "/api/admin/user",
+        api: "/api/admin/oauth",
         action: "oauth.grant.manage",
         sensitive: true,
         title: (res) => res.oauth.title,
