@@ -31,7 +31,7 @@ public class OAuthAdminController extends BaseController {
     @ResponseBody @RequestMethod(method = HttpMethod.POST)
     @RequiresAction(value = AccountAction.OAUTH_GRANT_MANAGE, descriptionKey = "oauth.decide")
     public ApiStandardResponse<Redirect> decide() throws SQLException {
-        service.requireSameOrigin(request.getHeader("Origin"));
+        service.requireAdminOrigin(request.getHeader("Origin"));
         Redirect result = service.decide(getRequestBodyWithNullCheck(Decision.class));
         audit(com.zrlog.admin.business.type.AdminAuditAction.AUTHORIZE_APPLICATION);
         return new ApiStandardResponse<>(result);
@@ -39,7 +39,7 @@ public class OAuthAdminController extends BaseController {
     @ResponseBody @RequestMethod(method = HttpMethod.POST)
     @RequiresAction(value = AccountAction.OAUTH_CLIENT_MANAGE, descriptionKey = "oauth.register")
     public ApiStandardResponse<Client> register() throws SQLException {
-        service.requireSameOrigin(request.getHeader("Origin"));
+        service.requireAdminOrigin(request.getHeader("Origin"));
         Client result = service.register(getRequestBodyWithNullCheck(Client.class));
         audit(com.zrlog.admin.business.type.AdminAuditAction.REGISTER_APPLICATION);
         return new ApiStandardResponse<>(result);
@@ -47,7 +47,7 @@ public class OAuthAdminController extends BaseController {
     @ResponseBody @RequestMethod(method = HttpMethod.POST)
     @RequiresAction(value = AccountAction.OAUTH_GRANT_MANAGE, descriptionKey = "oauth.revokeGrant")
     public ApiStandardResponse<Boolean> revokeGrant() throws SQLException {
-        service.requireSameOrigin(request.getHeader("Origin"));
+        service.requireAdminOrigin(request.getHeader("Origin"));
         service.revokeGrant(getRequestBodyWithNullCheck(Revoke.class).id);
         audit(com.zrlog.admin.business.type.AdminAuditAction.REVOKE_APPLICATION);
         return new ApiStandardResponse<>(true);
@@ -57,7 +57,7 @@ public class OAuthAdminController extends BaseController {
     public ApiStandardResponse<com.zrlog.admin.business.security.PersonalTokenModels.Created> createPersonalToken() throws SQLException {
         response.addHeader("Cache-Control", "no-store");
         response.addHeader("Pragma", "no-cache");
-        service.requireSameOrigin(request.getHeader("Origin"));
+        service.requireAdminOrigin(request.getHeader("Origin"));
         com.zrlog.admin.business.security.PersonalTokenModels.Created result =
                 new com.zrlog.admin.business.service.PersonalAccessTokenService(service.mcpResource())
                         .create(getRequestBodyWithNullCheck(com.zrlog.admin.business.security.PersonalTokenModels.Create.class));
@@ -67,7 +67,7 @@ public class OAuthAdminController extends BaseController {
     @ResponseBody @RequestMethod(method = HttpMethod.POST)
     @RequiresAction(value = AccountAction.OAUTH_GRANT_MANAGE, descriptionKey = "oauth.revokePersonalToken")
     public ApiStandardResponse<Boolean> revokePersonalToken() throws SQLException {
-        service.requireSameOrigin(request.getHeader("Origin"));
+        service.requireAdminOrigin(request.getHeader("Origin"));
         new com.zrlog.admin.business.service.PersonalAccessTokenService(service.mcpResource())
                 .revoke(getRequestBodyWithNullCheck(Revoke.class).id);
         audit(com.zrlog.admin.business.type.AdminAuditAction.REVOKE_PERSONAL_TOKEN);
@@ -76,7 +76,7 @@ public class OAuthAdminController extends BaseController {
     @ResponseBody @RequestMethod(method = HttpMethod.POST)
     @RequiresAction(value = AccountAction.OAUTH_CLIENT_MANAGE, descriptionKey = "oauth.disableClient")
     public ApiStandardResponse<Boolean> disableClient() throws SQLException {
-        service.requireSameOrigin(request.getHeader("Origin"));
+        service.requireAdminOrigin(request.getHeader("Origin"));
         service.disableClient(getRequestBodyWithNullCheck(Revoke.class).id);
         audit(com.zrlog.admin.business.type.AdminAuditAction.REVOKE_APPLICATION);
         return new ApiStandardResponse<>(true);

@@ -113,6 +113,33 @@ public final class OAuthService {
         if (!Objects.equals(expected.getScheme(), supplied.getScheme()) || !Objects.equals(expected.getRawAuthority(), supplied.getRawAuthority())
                 || !(supplied.getRawPath().isEmpty() || supplied.getRawPath().equals("/")) || supplied.getRawQuery() != null) throw new OAuthException("access_denied", 403);
     }
+    /** Cookie-authenticated admin actions also trust the explicitly configured admin frontend. */
+    public void requireAdminOrigin(String origin) {
+        URI supplied = safeUri(Objects.toString(origin, ""));
+        if (!(supplied.getRawPath().isEmpty() || supplied.getRawPath().equals("/"))
+                || supplied.getRawQuery() != null || supplied.getPort() == 0 || supplied.getPort() > 65535)
+            throw new OAuthException("access_denied", 403);
+        if (sameOrigin(URI.create(issuer()), supplied)) return;
+
+        String configured = new com.zrlog.model.WebSite().getStringValueByName("admin_static_resource_base_url");
+        if (configured != null && !configured.isBlank()) {
+            try {
+                String address = com.zrlog.admin.util.BackendServerUrl.normalize(configured);
+                if (sameOrigin(URI.create(address), supplied)) return;
+            } catch (IllegalArgumentException invalidConfiguration) {
+                // A malformed frontend URL must not add a trusted origin.
+            }
+        }
+        throw new OAuthException("access_denied", 403);
+    }
+    private static boolean sameOrigin(URI expected, URI supplied) {
+        return expected.getScheme().equalsIgnoreCase(supplied.getScheme())
+                && expected.getHost().equalsIgnoreCase(supplied.getHost())
+                && originPort(expected) == originPort(supplied);
+    }
+    private static int originPort(URI uri) {
+        return uri.getPort() != -1 ? uri.getPort() : ("https".equalsIgnoreCase(uri.getScheme()) ? 443 : 80);
+    }
     public Client register(Client client) throws SQLException {
         AccountPermissionService.administrator();
         if (ZrLogUtil.isPreviewMode()) throw new OAuthException("access_denied", 403);

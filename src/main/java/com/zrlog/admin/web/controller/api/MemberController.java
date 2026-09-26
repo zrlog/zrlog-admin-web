@@ -23,7 +23,7 @@ public class MemberController extends BaseController {
     @ResponseBody @RequestMethod(method = HttpMethod.POST)
     @RequiresAction(value = AccountAction.MEMBER_MANAGE, conditional = AccountAction.ADMIN_APPOINT, descriptionKey = "member.create")
     public ApiStandardResponse<Member> create() throws SQLException {
-        new OAuthService().requireSameOrigin(request.getHeader("Origin"));
+        new OAuthService().requireAdminOrigin(request.getHeader("Origin"));
         Member result = service.create(getRequestBodyWithNullCheck(Create.class));
         audit(com.zrlog.admin.business.type.AdminAuditAction.UPDATE_MEMBER);
         return new ApiStandardResponse<>(result);
@@ -31,7 +31,7 @@ public class MemberController extends BaseController {
     @ResponseBody @RequestMethod(method = HttpMethod.POST)
     @RequiresAction(value = AccountAction.OWNERSHIP_TRANSFER, descriptionKey = "member.transferOwnership")
     public ApiStandardResponse<Boolean> transfer() throws SQLException {
-        new OAuthService().requireSameOrigin(request.getHeader("Origin"));
+        new OAuthService().requireAdminOrigin(request.getHeader("Origin"));
         service.transfer(getRequestBodyWithNullCheck(Transfer.class));
         audit(com.zrlog.admin.business.type.AdminAuditAction.TRANSFER_OWNERSHIP);
         return new ApiStandardResponse<>(true);
@@ -39,7 +39,7 @@ public class MemberController extends BaseController {
     @ResponseBody @RequestMethod(method = HttpMethod.POST)
     @RequiresAction(value = AccountAction.MEMBER_MANAGE, conditional = AccountAction.ADMIN_APPOINT, descriptionKey = "member.update")
     public ApiStandardResponse<Member> update() throws SQLException {
-        new OAuthService().requireSameOrigin(request.getHeader("Origin"));
+        new OAuthService().requireAdminOrigin(request.getHeader("Origin"));
         Member result = service.update(getRequestBodyWithNullCheck(Update.class));
         audit(com.zrlog.admin.business.type.AdminAuditAction.UPDATE_MEMBER);
         return new ApiStandardResponse<>(result);
