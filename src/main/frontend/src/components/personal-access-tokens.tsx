@@ -115,7 +115,6 @@ export default function PersonalAccessTokens({
             }
         >
             {contextHolder}
-            <Typography.Paragraph>{res.personalTokens.description}</Typography.Paragraph>
             <Typography.Paragraph type="secondary">
                 {res.personalTokens.account}: {getSsDate().user?.userName}
             </Typography.Paragraph>
@@ -201,7 +200,15 @@ export default function PersonalAccessTokens({
                                 {created.token}
                             </Typography.Paragraph>
                         </div>
-                        <Typography.Paragraph>{res.personalTokens.connectionHelp}</Typography.Paragraph>
+                        <div>
+                            <ol>
+                                <li>{res.personalTokens.connectionTransport}</li>
+                                <li>{res.personalTokens.connectionToken}</li>
+                            </ol>
+                            <Typography.Paragraph type="secondary">
+                                {res.personalTokens.connectionHeader}
+                            </Typography.Paragraph>
+                        </div>
                         <Typography.Text type="secondary">
                             {res.personalTokens.expiresAt}: {new Date(created.info.expiresAt).toLocaleString()}
                         </Typography.Text>

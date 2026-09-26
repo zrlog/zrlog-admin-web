@@ -257,9 +257,14 @@ const UserPreferencesForm = ({
                             </>
                         }
                     >
-                        <Typography.Paragraph type="secondary" style={{ marginTop: token.marginSM, marginBottom: 0 }}>
-                            {res.previewHint}
-                        </Typography.Paragraph>
+                        {activePage === "appearance" && (
+                            <Typography.Paragraph
+                                type="secondary"
+                                style={{ marginTop: token.marginSM, marginBottom: 0 }}
+                            >
+                                {res.previewHint}
+                            </Typography.Paragraph>
+                        )}
                     </SettingsSubmitBar>
                 </Form>
             )}

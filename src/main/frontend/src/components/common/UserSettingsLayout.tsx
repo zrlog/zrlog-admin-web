@@ -70,12 +70,12 @@ const UserSettingsLayout = ({
     const summaries = {
         profile: res.user.settings.profileSummary,
         security: res.user.settings.securitySummary,
-        appearance: res.user.preferences.description,
-        writing: res.user.preferences.description,
-        assistant: res.user.preferences.description,
-        tokens: res.oauth.description,
-        grants: res.oauth.description,
-        clients: res.oauth.description,
+        appearance: res.user.preferences.appearanceDescription,
+        writing: res.user.preferences.writingDescription,
+        assistant: res.user.preferences.assistantDescription,
+        tokens: res.oauth.personalTokens.description,
+        grants: res.oauth.grantsDescription,
+        clients: res.oauth.clientsDescription,
     };
     return (
         <SettingsLayout

@@ -157,7 +157,12 @@ export default function Members({ data, updateCache }: Pick<AdminCommonProps<Pag
                             )}
                         </Form.Item>
                         {editing && (
-                            <Form.Item name="enabled" valuePropName="checked" label={res.enabled}>
+                            <Form.Item
+                                name="enabled"
+                                valuePropName="checked"
+                                label={res.enabled}
+                                extra={res.disableHelp}
+                            >
                                 <Switch />
                             </Form.Item>
                         )}

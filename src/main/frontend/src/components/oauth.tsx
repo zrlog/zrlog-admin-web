@@ -203,7 +203,6 @@ function OAuthConnections({
                                                   </Button>
                                               }
                                           >
-                                              <Typography.Paragraph>{res.registerHelp}</Typography.Paragraph>
                                               <List
                                                   dataSource={page.clients}
                                                   renderItem={(client) => (

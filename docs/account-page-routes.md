@@ -5,13 +5,13 @@
 | 网页 | 用途 | 页面初始数据 API |
 | --- | --- | --- |
 | `/admin/user` | 个人信息 | `/api/admin/user` |
-| `/admin/user/security` | 账户安全 | `/api/admin/account-security` |
+| `/admin/user/security` | 账号安全 | `/api/admin/account-security` |
 | `/admin/user/preferences/appearance` | 界面显示 | `/api/admin/user/preferences` |
 | `/admin/user/preferences/writing` | 文章编辑 | `/api/admin/user/preferences` |
 | `/admin/user/preferences/assistant` | AI 助手 | `/api/admin/user/preferences` |
 | `/admin/user/applications/tokens` | 个人访问令牌 | `/api/admin/oauth` |
 | `/admin/user/applications/grants` | 我的授权 | `/api/admin/oauth` |
-| `/admin/user/applications/clients` | 站点应用登记 | `/api/admin/oauth/clients` |
+| `/admin/user/applications/clients` | 站点应用 | `/api/admin/oauth/clients` |
 | `/admin/user/applications/authorize` | OAuth 授权确认 | `/api/admin/oauth/authorize` |
 | `/admin/website/members` | 成员管理 | `/api/admin/members` |
 
@@ -32,11 +32,11 @@
 
 | 左侧导航组 | 独立页面 |
 | --- | --- |
-| 个人账号 | 个人信息、账户安全 |
+| 个人账号 | 个人信息、账号安全 |
 | 偏好设置 | 界面显示、文章编辑、AI 助手 |
-| 外部应用 | 个人访问令牌、我的授权、站点应用登记 |
+| 外部应用 | 个人访问令牌、我的授权、站点应用 |
 
-所有左侧入口使用表中独立 URL，不使用 fragment 切换内容；动态和 `.html` 静态入口都支持直接打开、刷新、前进和后退。旧 `/admin/user/preferences`、`/admin/user/applications` 聚合页移除。站点应用登记入口按 `oauth.client.manage` 权限显示，该页面 API 和 SSR 也单独校验此权限。所有新路径同步维护中英文标题、静态页面清单和 Service Worker 缓存排除规则。
+所有左侧入口使用表中独立 URL，不使用 fragment 切换内容；动态和 `.html` 静态入口都支持直接打开、刷新、前进和后退。旧 `/admin/user/preferences`、`/admin/user/applications` 聚合页移除。站点应用入口按 `oauth.client.manage` 权限显示，该页面 API 和 SSR 也单独校验此权限。所有新路径同步维护中英文标题、静态页面清单和 Service Worker 缓存排除规则。
 
 外部应用中的授权服务器、资源、MCP 地址及令牌创建结果共用地址解析规则：服务端返回的完整 HTTP(S) 地址原样保留，避免改变 OAuth issuer/resource；相对或缺失地址使用当前 `backendServerUrl` 补全，保留后端 context path 并避免重复拼接。静态后台配置独立后端时使用后端地址，而非静态页面域名。显示与复制使用同一结果，应用登记的回调地址保持原值。
 
