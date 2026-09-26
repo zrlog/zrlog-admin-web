@@ -31,7 +31,8 @@ public final class OAuthService {
     private final Supplier<String> configuredIssuer;
     public OAuthService() { this(OAuthService::configuredSiteIssuer); }
     private static String configuredSiteIssuer() {
-        String backend = System.getenv("ZRLOG_BACKEND_URL");
+        String backend = new com.zrlog.model.WebSite().getStringValueByName(com.zrlog.admin.util.BackendServerUrl.SETTING_KEY);
+        if (backend == null || backend.isBlank()) backend = System.getenv("ZRLOG_BACKEND_URL");
         if (backend == null || backend.isBlank()) backend = System.getenv("DEFAULT_BACKEND_SERVER_URL");
         return configuredIssuer(backend, ZrLogUtil.getBlogHostByWebSite(),
                 com.zrlog.common.Constants.zrLogConfig.getServerConfig().getContextPath());

@@ -120,4 +120,30 @@ describe("site admin defaults", () => {
         await render(site);
         expect(container.querySelector("#admin_darkMode")).not.toBeNull();
     });
+    it("loads, validates and clears the private backend service address", async () => {
+        await render({ ...site, backend_server_url: "https://gateway.example/sub" });
+        const input = container.querySelector("#backend_server_url") as HTMLInputElement;
+        expect(input.value).toBe("https://gateway.example/sub");
+        await act(async () => {
+            Simulate.change(input, { target: { value: "javascript:alert(1)" } } as any);
+            Simulate.submit(container.querySelector("form")!);
+        });
+        await act(async () => {
+            await new Promise((resolve) => setTimeout(resolve, 100));
+        });
+        expect(submit).not.toHaveBeenCalled();
+        expect(container.querySelector(".ant-form-item-explain-error")).not.toBeNull();
+        await act(async () => {
+            Simulate.change(input, { target: { value: " https://other.example/sub/ " } } as any);
+            Simulate.submit(container.querySelector("form")!);
+        });
+        expect(submit).toHaveBeenLastCalledWith(
+            expect.objectContaining({ backend_server_url: "https://other.example/sub/" })
+        );
+        await act(async () => {
+            Simulate.change(input, { target: { value: "" } } as any);
+            Simulate.submit(container.querySelector("form")!);
+        });
+        expect(submit).toHaveBeenLastCalledWith(expect.objectContaining({ backend_server_url: "" }));
+    });
 });

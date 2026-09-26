@@ -27,7 +27,7 @@
 - 保留 --token-file、--token、ZRLOG_ACCESS_TOKEN 和原 ZRLOG_ADMIN_TOKEN；显式凭证优先于浏览器登录保存的凭证
 - 原文章、分类、素材、主题命令复用 Bearer；增加 notification send
 - 不改变客户端发布形态或自动更新机制
-- 分域部署通过 `ZRLOG_BACKEND_URL` 固定后端公开地址，OAuth issuer、MCP resource、通知地址及页面显示共用该地址；兼容 `DEFAULT_BACKEND_SERVER_URL`，未配置时保留原单域部署行为
+- 分域部署在管理设置中保存私有的 `backend_server_url`，OAuth issuer、MCP resource、通知地址及页面显示共用该地址；未填写时兼容 `ZRLOG_BACKEND_URL`、`DEFAULT_BACKEND_SERVER_URL` 与原单域部署行为。字段不加入博客公开数据或静态后台；协议发现使用对外入口，不能用内部源站替代
 
 ## 外部通知
 
@@ -49,3 +49,5 @@
 真实浏览器验证覆盖登录、明确选择继承权限、回调、刷新、草稿创建、发布回读、通知总开关与退出撤销；检查中文桌面/移动端以及英文深色页面。
 独立后端域名回归覆盖发现、授权跳转、页面地址、context path 去重、错误 resource 和不支持的 MCP scope。
 当前环境没有 native-image，未构建原生可执行文件；新增 DTO 已补充客户端 native 反射注册，后台沿用已有 DTO 注册。
+
+同日补充后端服务地址配置：后台 579 项、前端 344 项测试通过，类型检查、生产构建、护栏与 OpenAPI 检查通过。真实浏览器验证保存与重载、无需重启更新 OAuth 发现、非法路径拦截，以及中文桌面/移动端和英文深色显示；匿名资源与静态导出不包含 `backend_server_url`。字段沿用已注册的 `AdminWebSiteInfo`，本次未新增 native DTO。

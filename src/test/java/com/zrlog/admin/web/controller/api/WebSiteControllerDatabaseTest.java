@@ -35,6 +35,72 @@ import static org.junit.Assert.assertTrue;
 public class WebSiteControllerDatabaseTest {
 
     @Test
+    public void backendServiceAddressIsSavedPrivatelyAndUsedByOAuthImmediately() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            String address = "https://gateway.example/sub";
+            Object blogHost = value(db, "host");
+            var saved = controller(HttpMethod.POST, "/api/admin/website/admin",
+                    "{\"session_timeout\":60,\"backend_server_url\":\" HTTPS://Gateway.Example/sub/ \"}").admin();
+            assertEquals(address, saved.getData().getBackend_server_url());
+            assertEquals(address, value(db, "backend_server_url"));
+            assertEquals(blogHost, value(db, "host"));
+            assertEquals(address, controller(HttpMethod.GET, "/api/admin/website/admin", null).admin().getData().getBackend_server_url());
+            var oauth = new com.zrlog.admin.business.service.OAuthService();
+            assertEquals(address, oauth.metadata().issuer);
+            assertEquals(address + "/mcp", oauth.mcpResourceMetadata().resource);
+            assertEquals(address + "/api/webhook/message-center/notice", oauth.page().notificationEndpoint);
+            String publicInfo = new com.google.gson.Gson().toJson(new com.zrlog.model.WebSite().getPublicWebSite());
+            assertFalse(publicInfo.contains("backend_server_url"));
+            assertFalse(publicInfo.contains("gateway.example"));
+            // Old settings clients must not clear a value they do not know about.
+            controller(HttpMethod.POST, "/api/admin/website/admin", "{\"session_timeout\":90}").admin();
+            assertEquals(address, value(db, "backend_server_url"));
+            controller(HttpMethod.POST, "/api/admin/website/admin", "{\"session_timeout\":90,\"backend_server_url\":\"\"}").admin();
+            assertEquals("", value(db, "backend_server_url"));
+            assertFalse(new com.zrlog.admin.business.service.OAuthService().issuer().contains("gateway.example"));
+        }
+    }
+
+    @Test
+    public void invalidBackendAddressesCannotOverwriteSavedAddress() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            db.putWebsite("backend_server_url", "https://gateway.example");
+            for (String invalid : java.util.List.of("/sub", "//gateway.example", "gateway.example", "http://gateway.example",
+                    "ftp://gateway.example", "https://user:password@gateway.example", "https://gateway.example?x=1",
+                    "https://gateway.example#x", "https://gateway.example:0", "https://gateway.example:65536",
+                    "https://gateway.example/../sub", "https://gateway.example/%2e%2e/sub", "https://gateway.example/sub%2fother",
+                    "https://gateway.example/%252e%252e", "https://gateway.example/sub%0aother")) {
+                String body = new com.google.gson.Gson().toJson(Map.of("backend_server_url", invalid, "session_timeout", 60));
+                assertThrows(invalid, ArgsException.class, () -> controller(HttpMethod.POST, "/api/admin/website/admin", body).admin());
+                assertEquals("https://gateway.example", value(db, "backend_server_url"));
+            }
+            var local = controller(HttpMethod.POST, "/api/admin/website/admin",
+                    "{\"session_timeout\":60,\"backend_server_url\":\"http://127.0.0.1:18080/sub/\"}").admin();
+            assertEquals("http://127.0.0.1:18080/sub", local.getData().getBackend_server_url());
+        }
+    }
+
+    @Test
+    public void staticSettingsExportAndNonAdministratorsCannotReadBackendAddress() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            db.putWebsite("backend_server_url", "https://gateway.example/sub");
+            WebSiteController staticController = controller(HttpMethod.GET, "/api/admin/website/admin", null);
+            setControllerField(staticController, "request", request(HttpMethod.GET, "/api/admin/website/admin", null,
+                    com.zrlog.plugin.BaseStaticSitePlugin.STATIC_USER_AGENT));
+            String json = new com.google.gson.Gson().toJson(staticController.admin());
+            assertFalse(json.contains("backend_server_url"));
+            assertFalse(json.contains("gateway.example"));
+            var method = WebSiteController.class.getMethod("admin");
+            db.execute("update user set role=? where userId=?", "author", 1);
+            assertThrows(com.zrlog.admin.business.exception.PermissionErrorException.class,
+                    () -> com.zrlog.admin.business.service.AccountPermissionService.checkRoute(method, request(HttpMethod.GET, "/api/admin/website/admin", null)));
+            com.zrlog.admin.web.token.AdminTokenThreadLocal.remove();
+            assertThrows(com.zrlog.admin.business.exception.PermissionErrorException.class,
+                    () -> com.zrlog.admin.business.service.AccountPermissionService.checkRoute(method, request(HttpMethod.GET, "/api/admin/website/admin", null)));
+        }
+    }
+
+    @Test
     public void shouldUpdateBasicWebsiteSettingsThroughRealWebsiteTable() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             WebSiteController controller = controller(HttpMethod.POST, "/api/admin/website",
@@ -297,6 +363,10 @@ public class WebSiteControllerDatabaseTest {
     }
 
     private static HttpRequest request(HttpMethod method, String uri, String body) {
+        return request(method, uri, body, "JUnit");
+    }
+
+    private static HttpRequest request(HttpMethod method, String uri, String body, String userAgent) {
         return (HttpRequest) Proxy.newProxyInstance(
                 WebSiteControllerDatabaseTest.class.getClassLoader(),
                 new Class[]{HttpRequest.class},
@@ -309,7 +379,7 @@ public class WebSiteControllerDatabaseTest {
                         case "getInputStream":
                             return body == null ? null : new ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8));
                         case "getHeader":
-                            return "User-Agent".equals(args[0]) ? "JUnit" : null;
+                            return "User-Agent".equals(args[0]) ? userAgent : null;
                         case "getHeaderMap":
                             return Map.of("X-Real-IP", "127.0.0.1");
                         case "getRemoteHost":

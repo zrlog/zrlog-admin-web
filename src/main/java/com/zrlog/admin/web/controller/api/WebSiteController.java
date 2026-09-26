@@ -117,7 +117,11 @@ public class WebSiteController extends BaseController {
         if (isPost()) {
             settingsService.updateAdmin(getRequestBodyWithNullCheck(AdminWebSiteInfo.class), request);
         }
-        return page(webSiteService.adminWebSiteInfo());
+        AdminWebSiteInfo settings = webSiteService.adminWebSiteInfo();
+        if (com.zrlog.plugin.BaseStaticSitePlugin.isStaticPluginRequest(request)) {
+            settings.setBackend_server_url(null);
+        }
+        return page(settings);
     }
 
     @RequestLock(onlyOnPostMethod = true)

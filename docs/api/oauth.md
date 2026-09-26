@@ -19,9 +19,11 @@ MCP 仍使用自己的 resource 和读取 scope，不因后台授权增加工具
 
 ## 部署与客户端
 
-OAuth 与 MCP 使用服务端配置的公开后端地址：优先读取 `ZRLOG_BACKEND_URL`，兼容已有的 `DEFAULT_BACKEND_SERVER_URL`；均未配置或仅为 `/` 时，才回退到博客 Host 与服务 context path。不使用请求的 Host 或客户端传来的 resource 推导 issuer。
-前后端分域部署必须把它设为实际提供 API 的后端，例如 `ZRLOG_BACKEND_URL=https://xiaochun-admin.zrlog.com`，博客域名保持 `xiaochun.zrlog.com`。完整后端地址可包含 context path，不会重复追加；仅配置 origin 时追加服务 context path。
-浏览器本地 `backendServerUrl` 无法供服务端的 OAuth 发现与令牌校验读取，因此分域部署需要这份固定的服务端配置。更改 issuer 后，原地址上的 OAuth 授权和个人令牌需重新建立。
+OAuth 与 MCP 优先使用“设置 → 管理设置 → 后端服务地址”，保存到 `website.backend_server_url`，修改后立即生效，无需设置环境变量或重启。该配置属于整个站点的服务地址，管理设置仅提供编辑入口。
+填写实际提供 API 的对外入口，例如 `https://xiaochun-admin.zrlog.com`，博客域名保持 `xiaochun.zrlog.com`。完整后端地址可包含 context path，不会重复追加；仅配置 origin 时追加服务 context path。
+该字段通过已有 `SITE_CONFIGURE` 权限接口读取和修改，不加入 `PublicWebSiteInfo`、博客模板数据、未登录资源或静态后台页面；静态生成调用设置 API 时也不返回此字段。OAuth/MCP 发现协议仍需提供客户端可访问的 issuer/resource，因此应填写代理入口，而非内部源站地址。
+未填写时，依次兼容 `ZRLOG_BACKEND_URL`、`DEFAULT_BACKEND_SERVER_URL`，最后回退到博客 Host 与服务 context path；清空字段恢复此行为，旧客户端省略字段不会清除已保存配置。不使用请求 Host、浏览器本地 `backendServerUrl` 或客户端传来的 resource 推导 issuer。
+更改 issuer 后，原地址上的 OAuth 授权和个人令牌需重新建立。校验只接受 HTTPS（本机调试允许 HTTP），拒绝凭据、查询、fragment、无效端口、路径穿越和编码路径分隔符。
 生产地址使用 HTTPS；localhost、127.0.0.1 和 IPv6 回环允许 HTTP。
 例如部署在 `https://blog.example/sub`：
 

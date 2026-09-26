@@ -99,8 +99,9 @@ public class WebSiteService {
         AdminWebSiteInfo admin = queryToMap(Arrays.asList(WebSite.admin_darkMode, WebSite.admin_compactMode,
                 WebSite.language, WebSite.admin_color_primary, WebSite.admin_theme,
                 WebSite.session_timeout, "favicon_png_pwa_512_base64",
-                "favicon_png_pwa_192_base64", "admin_static_resource_base_url"),
+                "favicon_png_pwa_192_base64", "admin_static_resource_base_url", com.zrlog.admin.util.BackendServerUrl.SETTING_KEY),
                 AdminWebSiteInfo.class);
+        admin.setBackend_server_url(Objects.toString(admin.getBackend_server_url(), ""));
         if (StringUtils.isEmpty(admin.getAdmin_color_primary())) {
             admin.setAdmin_color_primary(WebSiteUtils.DEFAULT_COLOR_PRIMARY_COLOR);
         }

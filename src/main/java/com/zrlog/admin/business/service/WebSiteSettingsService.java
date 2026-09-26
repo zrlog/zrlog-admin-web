@@ -81,6 +81,10 @@ public class WebSiteSettingsService {
     }
 
     public void updateAdmin(AdminWebSiteInfo settings, HttpRequest request) throws SQLException {
+        // Older clients omit the new field; only an explicit empty string clears it.
+        if (settings.getBackend_server_url() == null) {
+            settings.setBackend_server_url(new WebSite().getStringValueByName(com.zrlog.admin.util.BackendServerUrl.SETTING_KEY));
+        }
         update(settings, request);
         Constants.zrLogConfig.getTokenService().updateSessionTimeout(settings.getSession_timeout());
     }

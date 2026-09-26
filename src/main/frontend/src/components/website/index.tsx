@@ -34,6 +34,7 @@ export interface Admin {
     disable_comment_status: boolean;
     article_thumbnail_status: boolean;
     admin_static_resource_base_url: string;
+    backend_server_url?: string;
     language: string;
     admin_theme?: import("../../utils/constants").AdminTheme;
     admin_darkMode: boolean;

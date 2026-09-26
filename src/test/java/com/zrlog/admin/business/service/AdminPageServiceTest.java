@@ -66,6 +66,25 @@ public class AdminPageServiceTest {
     }
 
     @Test
+    public void backendAddressIsAbsentFromAnonymousAndStaticPageData() throws Throwable {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            db.putWebsite("backend_server_url", "https://private-setting.example/sub");
+            AdminConstants.adminResource = new AdminResourceImpl("");
+            AdminTokenThreadLocal.remove();
+            for (String userAgent : java.util.List.of("Browser", com.zrlog.plugin.BaseStaticSitePlugin.STATIC_USER_AGENT)) {
+                HttpRequest request = (HttpRequest) Proxy.newProxyInstance(getClass().getClassLoader(), new Class[]{HttpRequest.class},
+                        (proxy, method, args) -> {
+                            if (method.getName().equals("getHeader") && "User-Agent".equals(args[0])) return userAgent;
+                            return method.invoke(request("/admin/website/admin", ""), args);
+                        });
+                String data = new com.google.gson.Gson().toJson(new AdminPageService().serverSide("/admin/website/admin", request, response()));
+                assertFalse(data.contains("backend_server_url"));
+                assertFalse(data.contains("private-setting.example"));
+            }
+        }
+    }
+
+    @Test
     public void shouldRewriteAdminHtmlForNormalPage() throws Throwable {
         String html = new AdminPageService().buildHtml(
                 request("/admin/index", "/blog"),

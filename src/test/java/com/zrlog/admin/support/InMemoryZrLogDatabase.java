@@ -283,7 +283,7 @@ public class InMemoryZrLogDatabase implements AutoCloseable {
 
         @Override
         protected TokenService initTokenService() {
-            return null;
+            return new com.zrlog.admin.web.token.AdminTokenService(60);
         }
 
         @Override

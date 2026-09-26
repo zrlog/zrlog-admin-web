@@ -13,6 +13,7 @@ public class AdminWebSiteInfo implements Validator {
 
     private Long session_timeout;
     private String admin_static_resource_base_url;
+    private String backend_server_url;
     private String language;
     private String admin_color_primary;
     private String admin_theme;
@@ -57,6 +58,11 @@ public class AdminWebSiteInfo implements Validator {
 
     @Override
     public void doValid() {
+        try {
+            backend_server_url = com.zrlog.admin.util.BackendServerUrl.normalize(backend_server_url);
+        } catch (IllegalArgumentException invalid) {
+            throw new ArgsException(com.zrlog.admin.util.BackendServerUrl.SETTING_KEY);
+        }
         if (Objects.isNull(session_timeout)) {
             session_timeout = WebSiteUtils.DEFAULT_SESSION_TIMEOUT;
         }
@@ -117,6 +123,14 @@ public class AdminWebSiteInfo implements Validator {
 
     public String getAdmin_static_resource_base_url() {
         return admin_static_resource_base_url;
+    }
+
+    public String getBackend_server_url() {
+        return backend_server_url;
+    }
+
+    public void setBackend_server_url(String backend_server_url) {
+        this.backend_server_url = backend_server_url;
     }
 
     public void setAdmin_static_resource_base_url(String admin_static_resource_base_url) {

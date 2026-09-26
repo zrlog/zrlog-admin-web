@@ -51,7 +51,11 @@ const BlogForm = ({
 
     useEffect(() => {
         setState(data);
-        form.setFieldsValue({ ...data, admin_theme: data.admin_theme ?? "default" });
+        form.setFieldsValue({
+            ...data,
+            admin_theme: data.admin_theme ?? "default",
+            backend_server_url: data.backend_server_url ?? "",
+        });
     }, [data, form]);
 
     return (
@@ -70,6 +74,53 @@ const BlogForm = ({
             >
                 {getRes().websiteAdmin.basicSettings}
             </div>
+            <Form.Item
+                name="backend_server_url"
+                label={getRes().websiteAdmin.backendServer.label}
+                tooltip={getRes().websiteAdmin.backendServer.help}
+                extra={getRes().websiteAdmin.backendServer.changeHelp}
+                normalize={(value: string) => value.trim()}
+                rules={[
+                    {
+                        validator: (_, value?: string) => {
+                            if (!value) return Promise.resolve();
+                            try {
+                                const url = new URL(value);
+                                const local = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
+                                const path = decodeURIComponent(value.replace(/^[a-z]+:\/\/[^/]+/i, ""));
+                                if (
+                                    value.length <= 2048 &&
+                                    /^https?:\/\//i.test(value) &&
+                                    !url.username &&
+                                    !url.password &&
+                                    !value.includes("?") &&
+                                    !value.includes("#") &&
+                                    !value.includes("\\") &&
+                                    !Array.from(value + path).some(
+                                        (char) => char.charCodeAt(0) <= 32 || char.charCodeAt(0) === 127
+                                    ) &&
+                                    !/%(?:2f|5c|25)/i.test(value) &&
+                                    !path.includes("//") &&
+                                    !path.split("/").some((part) => part === "." || part === "..") &&
+                                    url.port !== "0" &&
+                                    (url.protocol === "https:" || (local && url.protocol === "http:"))
+                                ) {
+                                    return Promise.resolve();
+                                }
+                            } catch {
+                                /* Show the field's validation message. */
+                            }
+                            return Promise.reject(new Error(getRes().websiteAdmin.backendServer.invalid));
+                        },
+                    },
+                ]}
+            >
+                <Input
+                    allowClear
+                    style={{ maxWidth: 440 }}
+                    placeholder={getRes().websiteAdmin.backendServer.placeholder}
+                />
+            </Form.Item>
             <Form.Item
                 name="admin_static_resource_base_url"
                 label={getRes().websiteAdmin.staticResource.url}
