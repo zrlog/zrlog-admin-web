@@ -13,7 +13,14 @@
 - GET `/api/admin/user/preferences`：使用 `AdminPageDataResponse` 页面响应，`data` 为 `{overrides, defaults, effective}`，供公共页面加载及 SSR 使用；仅含本期可编辑偏好，不返回原始 user 行和 dashboard 插件运行数据。
 - POST `/api/admin/user/updatePreferences`：JSON 对象，整体替换本期可编辑的个人覆盖值。缺失/null 表示跟随站点；空对象恢复这些字段的全部默认值。未知字段、类型错误、越界值拒绝。dashboard 只能通过现有配置接口更新。
 - 两个接口都绑定 `account.self`，身份只来自已验证会话，不接受 userId。底层按 userId 参数化写入，并以旧 JSON 值做条件更新重试，避免不同分区并发写入互相覆盖；同一分区最后写入生效。
+- 条件更新冲突时采用带随机抖动的指数退避，每次重读最新 JSON 后合并，重试时间预算为 5 秒，兼容 JDBC 与 D1/Web API 多实例写入。持续冲突仍报错；数据库错误直接上抛，线程中断停止重试并保留中断状态。预算限制冲突重试，单次数据库调用仍由数据库超时控制。
 - 读取损坏的个人 JSON 时回退默认值；写入恢复有效 JSON。未知的持久化分区保留，便于后续扩展。
+
+### 并发更新修复验证（2026-09-26）
+
+原实现连续重试 8 次，可能在另一请求的一批更新完成前耗尽次数。新增 Web API 回归在读取和写入之间提交 12 次竞争更新，已在修复前稳定复现异常；修复后覆盖个人设置和控制台布局双向合并、未知分区保留、持续冲突超时、线程中断及数据库错误直接上抛。
+
+`./mvnw -q -o -Dmaven.repo.local=/tmp/zrlog-accounts-m2 test`：584 项全部通过。原 H2/SQLite 并发用例另行重复 50 轮，共 100 项全部通过；`scripts/check-admin-guardrails.sh` 和 `git diff --check` 通过。本次不改变接口字段、页面或数据库结构，无新增 native/Gson DTO。
 
 ## 生效链路
 

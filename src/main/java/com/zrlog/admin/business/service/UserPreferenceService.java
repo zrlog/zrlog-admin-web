@@ -11,6 +11,8 @@ import com.zrlog.model.User;
 import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 /** Personal configuration only. Never use this JSON for authorization or public resources. */
@@ -18,6 +20,7 @@ public class UserPreferenceService {
     private static final Gson GSON = new Gson();
     private static final Set<String> KEYS = Set.of("language", "appearance", "articlePageSize", "editor", "assistant");
     private static final Set<String> THEMES = Set.of("default", "antd", "geek", "shadcn", "cartoon", "illustration", "bootstrap", "desk", "glass");
+    private static final long UPDATE_RETRY_TIMEOUT_NANOS = TimeUnit.SECONDS.toNanos(5);
 
     public UserPreferencesResponse current() throws SQLException {
         UserPreferencesResponse response = new UserPreferencesResponse();
@@ -80,7 +83,9 @@ public class UserPreferenceService {
     }
 
     private void mutate(int userId, Consumer<JsonObject> change) throws SQLException {
-        for (int attempt = 0; attempt < 8; attempt++) {
+        long deadline = System.nanoTime() + UPDATE_RETRY_TIMEOUT_NANOS;
+        long backoffMillis = 1;
+        do {
             String previous = raw(userId);
             JsonObject root = parseStored(previous);
             change.accept(root);
@@ -91,7 +96,18 @@ public class UserPreferenceService {
                     ? new User().execute("update user set preferences=? where userId=? and preferences is null", updated, userId)
                     : new User().execute("update user set preferences=? where userId=? and preferences=?", updated, userId, previous);
             if (saved) return;
-        }
+            // A burst of writes can exhaust a small attempt count before the other writer finishes.
+            // Back off, then read and merge again; the conditional write also protects other instances.
+            long remaining = deadline - System.nanoTime();
+            if (remaining <= 0) break;
+            long delay = TimeUnit.MILLISECONDS.toNanos(ThreadLocalRandom.current().nextLong(backoffMillis, backoffMillis * 2 + 1));
+            try { TimeUnit.NANOSECONDS.sleep(Math.min(delay, remaining)); }
+            catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new SQLException("Interrupted while updating account preferences", e);
+            }
+            backoffMillis = Math.min(backoffMillis * 2, 32);
+        } while (System.nanoTime() - deadline < 0);
         throw new SQLException("Concurrent account preference update; please retry");
     }
 
