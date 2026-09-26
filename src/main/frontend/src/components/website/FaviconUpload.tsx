@@ -91,6 +91,7 @@ const FaviconUpload: FunctionComponent<ThumbnailUploadProps> = ({ onChange, url 
                                 position: "absolute",
                                 right: 0,
                                 top: 0,
+                                borderBottomLeftRadius: theme.borderRadiusLG,
                                 padding: 4,
                                 background: colorToRgba(theme.colorText, 0.72),
                                 color: theme.colorWhite,
