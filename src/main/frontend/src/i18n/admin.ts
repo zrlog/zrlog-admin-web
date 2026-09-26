@@ -4,6 +4,13 @@ const zhCN = {
 
     "access": {
         "title": "权限说明",
+        "rolePermissions": "角色权限",
+        "applicationScopes": "应用授权范围",
+        "scopesDescription": "应用的实际权限同时受账号角色、文章范围和本次授权限制；授权不会提升账号权限。",
+        "scopeRangeHelp": "默认仅访问本人公开文章。全站范围需要账号本身有相应权限并单独授权；草稿和私密文章也需单独授权。",
+        "mcpReadOnly": "下方列出 OAuth 授权范围。当前 MCP 知识库和个人访问令牌仅支持读取文章。",
+        "loadFailed": "权限说明加载失败",
+        "retry": "重新加载",
         "description": "角色权限由系统固定定义。文章归属和可见性会进一步限制实际操作范围。",
         "action": "操作",
         "allowed": "允许",
@@ -1802,6 +1809,13 @@ const enUS: AdminI18nResource = {
 
     "access": {
         "title": "Permissions",
+        "rolePermissions": "Role permissions",
+        "applicationScopes": "Application scopes",
+        "scopesDescription": "An application's access is limited by the account's role, article range and granted scopes. Authorization cannot increase account permissions.",
+        "scopeRangeHelp": "Access defaults to your own public articles. Site-wide access requires both account permissions and a separate grant. Drafts and private articles also require separate grants.",
+        "mcpReadOnly": "The OAuth scopes are listed below. The MCP knowledge base and personal access tokens currently support reading articles only.",
+        "loadFailed": "Could not load permission details",
+        "retry": "Reload",
         "description": "Roles have fixed permissions. Content ownership and visibility further restrict each operation.",
         "action": "Action",
         "allowed": "Allowed",

@@ -181,14 +181,17 @@ public class AdminPageServiceTest {
             config.setRouter(router);
             AdminPageService service = new AdminPageService();
             for (String page : java.util.List.of("/admin/user", "/admin/user/preferences", "/admin/user/security",
-                    "/admin/user/applications", "/admin/website/members", "/admin/user/permissions")) {
+                    "/admin/user/applications", "/admin/website/members")) {
                 ServerSideDataResponse<Object> data = service.serverSide(page, request(page, "/blog", config), response());
                 assertNotNull(page, data.getData());
                 assertEquals(AdminConstants.getAdminDocumentTitleByUri(page), data.getDocumentTitle());
             }
             assertNotNull(router.getMethod("/api/admin/oauth/createPersonalToken", HttpMethod.POST));
+            assertEquals(com.zrlog.data.security.AccountAction.PERMISSION_READ,
+                    router.getMethod("/api/admin/access", HttpMethod.GET)
+                            .getAnnotation(com.zrlog.admin.web.annotation.RequiresAction.class).value());
             assertFalse(router.getRouterMap().containsKey("/api/admin/user/applications"));
-            for (String oldPage : java.util.List.of("/admin/user/members", "/admin/members", "/admin/access", "/admin/oauth", "/admin/oauth/authorize")) {
+            for (String oldPage : java.util.List.of("/admin/user/permissions", "/admin/user/members", "/admin/members", "/admin/access", "/admin/oauth", "/admin/oauth/authorize")) {
                 assertFalse(oldPage, router.getRouterMap().containsKey(oldPage));
             }
             AccountAuthorizationTest.login(db, 1, "author");

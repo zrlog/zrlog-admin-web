@@ -11,13 +11,22 @@ jest.mock("antd/es/divider", () => require("antd").Divider);
 jest.mock("antd/es/form", () => require("antd").Form);
 jest.mock("antd/es/grid/row", () => require("antd").Row);
 jest.mock("antd/es/grid/col", () => require("antd").Col);
-jest.mock("../base/AppBase", () => ({ useAxiosBaseInstance: () => ({}) }));
+const mockGet = jest.fn<Promise<any>, any[]>();
+const mockApi = { get: mockGet };
+jest.mock("../base/AppBase", () => ({ useAxiosBaseInstance: () => mockApi }));
 jest.mock("../base/ConfigProviderApp", () => ({ getAppState: () => ({ compactMode: false }) }));
 jest.mock("../common/ResourceDragger", () => () => null);
 jest.mock("../common/ImageCropper", () => () => null);
 jest.mock("../common/BackendImage", () => () => null);
 jest.mock("./user-preferences", () => () => <div>Settings content</div>);
-jest.mock("./oauth", () => ({ UserApplications: () => <div>Applications content</div> }));
+jest.mock("./oauth", () => ({
+    UserApplications: () => (
+        <div>
+            Applications content
+            <input aria-label="Application name" />
+        </div>
+    ),
+}));
 
 describe("personal page URLs", () => {
     let root: Root;
@@ -25,6 +34,9 @@ describe("personal page URLs", () => {
     let navigate: NavigateFunction;
     const previousEnv = process.env;
     beforeEach(() => {
+        mockGet
+            .mockReset()
+            .mockResolvedValue({ data: { error: 0, data: { currentRole: "author", roles: ["author"], actions: [] } } });
         process.env = { ...previousEnv, NODE_ENV: "production" };
         (globalThis as any).MessageChannel = class {
             port1 = { onmessage: () => undefined };
@@ -108,7 +120,6 @@ describe("personal page URLs", () => {
                                 }
                             />
                         ))}
-                        <Route path={USER_ROUTES.permissions + suffix} element={<div>Permissions content</div>} />
                     </Routes>
                 </>
             );
@@ -149,11 +160,22 @@ describe("personal page URLs", () => {
         await act(async () => navigate(1));
         expect(selected()).toBe(getRes().user.preferences.title);
         await act(async () => navigate(-1));
+        const applicationName = container.querySelector<HTMLInputElement>('input[aria-label="Application name"]')!;
+        applicationName.value = "Unsaved application";
         const help = Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find(
             (button) => button.textContent === getRes().access.title
         )!;
         await act(async () => help.click());
-        expect(container.querySelector("output")?.textContent).toBe(USER_ROUTES.permissions + suffix);
-        expect(container.textContent).toContain("Permissions content");
+        expect(container.querySelector("output")?.textContent).toBe(USER_ROUTES.applications + suffix);
+        const drawer = document.querySelector('[role="dialog"]')!;
+        expect(drawer.querySelector('[role="tab"][aria-selected="true"]')?.textContent).toBe(
+            getRes().access.applicationScopes
+        );
+        expect(drawer.textContent).toContain(getRes().oauth.scopeLabels["articles:read_private"]);
+        await act(async () => drawer.querySelector<HTMLButtonElement>(".ant-drawer-close")!.click());
+        expect(container.querySelector("output")?.textContent).toBe(USER_ROUTES.applications + suffix);
+        expect(container.querySelector<HTMLInputElement>('input[aria-label="Application name"]')?.value).toBe(
+            "Unsaved application"
+        );
     });
 });

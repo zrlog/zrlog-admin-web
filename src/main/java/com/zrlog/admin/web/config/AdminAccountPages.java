@@ -14,10 +14,9 @@ public final class AdminAccountPages {
             "/admin/user/security", "/api/admin/account-security",
             "/admin/user/applications", "/api/admin/user",
             AUTHORIZE, "/api/admin/oauth/authorize",
-            "/admin/website/members", "/api/admin/members",
-            "/admin/user/permissions", "/api/admin/access");
+            "/admin/website/members", "/api/admin/members");
     private static final Set<String> SENSITIVE_PAGES = Set.of(
-            "/admin/user/applications", AUTHORIZE, "/admin/website/members", "/admin/user/permissions");
+            "/admin/user/applications", AUTHORIZE, "/admin/website/members");
 
     public static boolean isSensitive(String uri) { return SENSITIVE_PAGES.contains(uri); }
     public static String apiUri(String uri) { return PAGE_APIS.getOrDefault(uri, "/api" + uri); }
@@ -28,7 +27,6 @@ public final class AdminAccountPages {
             case "/api/admin/oauth": return "/admin/user/applications";
             case "/api/admin/oauth/authorize": return AUTHORIZE;
             case "/api/admin/members": return "/admin/website/members";
-            case "/api/admin/access": return "/admin/user/permissions";
             default: return uri.replaceFirst("^/api", "");
         }
     }

@@ -18,7 +18,6 @@ describe("account permission and cache boundary", () => {
         expect(hasAction("article.publish")).toBe(false);
         expect(actionForPath("/website/members")).toBe("member.manage");
         expect(actionForPath("/website/members.html?v=1")).toBe("member.manage");
-        expect(actionForPath("/user/permissions")).toBe("permission.read");
         expect(actionForPath("/user/security")).toBe("account.self");
         expect(actionForPath("/user/preferences")).toBe("account.self");
         expect(actionForPath("/user/applications/authorize?request_id=example")).toBe("oauth.grant.manage");

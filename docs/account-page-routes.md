@@ -10,11 +10,12 @@
 | `/admin/user/applications` | 个人令牌和外部应用授权 | `/api/admin/user`，页内继续请求 `/api/admin/oauth` |
 | `/admin/user/applications/authorize` | OAuth 授权确认 | `/api/admin/oauth/authorize` |
 | `/admin/website/members` | 成员管理 | `/api/admin/members` |
-| `/admin/user/permissions` | 权限说明 | `/api/admin/access` |
 
 前端导航和页面数据加载共用 `account-page-routes.ts`；后端 SSR 通过 `AdminAccountPages` 映射到原 API Controller，并继续检查该 Controller 的 action。成员管理独立要求 `member.manage`，不能按普通站点设置页面放行，也不能被 `/user` 的个人权限规则覆盖。
 
-页面标题沿用中英文资源；个人页面通过独立路径切换，支持刷新、前进和后退。静态页面生成使用新路径，成员、权限、应用和授权确认页面不加入 Service Worker 预缓存，浏览器页面数据只保存在当前会话内存中。
+页面标题沿用中英文资源；个人页面通过独立路径切换，支持刷新、前进和后退。静态页面生成使用新路径，成员、应用和授权确认页面不加入 Service Worker 预缓存，浏览器页面数据只保存在当前会话内存中。
+
+权限说明共用页内抽屉：成员管理默认打开角色权限，外部应用默认打开应用授权范围；关闭后保留当前页面和表单状态。打开时请求 `/api/admin/access`，继续由 `permission.read` 校验。移除 `/admin/user/permissions` 网页路由、静态页面和全局搜索入口，不做兼容跳转。
 
 ## 设置页界面
 

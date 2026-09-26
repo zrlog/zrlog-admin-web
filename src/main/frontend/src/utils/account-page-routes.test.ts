@@ -45,6 +45,7 @@ describe("account page routing", () => {
         for (const old of [
             "members",
             "user/members",
+            "user/permissions",
             "access",
             "oauth",
             "oauth/authorize",

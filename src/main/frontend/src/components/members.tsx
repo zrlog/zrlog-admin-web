@@ -1,18 +1,15 @@
-import { USER_ROUTES } from "../utils/account-page-routes";
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { QuestionCircleOutlined } from "@ant-design/icons";
 import { Alert, Button, Card, Drawer, Form, Input, List, Select, Space, Switch, Tag, Typography, message } from "antd";
 import { useAxiosBaseInstance } from "../base/AppBase";
-import { getRealRouteUrl, getRes } from "../utils/constants";
+import { getRes } from "../utils/constants";
 import { getSsDate } from "../base/SsData";
 import { AccountRole, hasAction } from "../utils/account-access";
 import WebsiteSettingsLayout from "./common/WebsiteSettingsLayout";
+import PermissionHelp from "./common/PermissionHelp";
 
 type Member = { userId: number; userName: string; email: string; role: AccountRole; enabled: boolean };
 type Page = { members: Member[]; currentRole: AccountRole };
 export default function Members({ data }: { data: Page }) {
-    const navigate = useNavigate();
     const [members, setMembers] = useState(data.members);
     const [editing, setEditing] = useState<Member | null | undefined>();
     const [transferring, setTransferring] = useState(false);
@@ -68,12 +65,7 @@ export default function Members({ data }: { data: Page }) {
             activeKey="members"
             extra={
                 <Space wrap>
-                    <Button
-                        icon={<QuestionCircleOutlined />}
-                        onClick={() => navigate(getRealRouteUrl(USER_ROUTES.permissions))}
-                    >
-                        {getRes().access.title}
-                    </Button>
+                    <PermissionHelp />
                     <Button type="primary" onClick={() => open(null)}>
                         {res.create}
                     </Button>

@@ -39,7 +39,7 @@ public class AdminConstants {
     static {
         TITLE_MAP.put(ADMIN_LOGIN_URI_PATH, "admin.login.title");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/website/members", "admin.members.title");
-        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/user/permissions", "admin.access.title");
+        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/access", "admin.access.title");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/user/applications", "admin.oauth.title");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/user/applications/authorize", "admin.oauth.authorize.title");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/article-edit", "admin.article.edit.manage");

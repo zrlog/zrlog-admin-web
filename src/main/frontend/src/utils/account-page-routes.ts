@@ -6,7 +6,6 @@ export const USER_ROUTES = {
     security: "/user/security",
     applications: "/user/applications",
     authorize: "/user/applications/authorize",
-    permissions: "/user/permissions",
 } as const;
 
 export const WEBSITE_ROUTES = { members: "/website/members" } as const;
@@ -47,12 +46,6 @@ const pages: Record<string, AccountPage> = {
         action: "member.manage",
         sensitive: true,
         title: (res) => res.members.title,
-    },
-    [USER_ROUTES.permissions]: {
-        api: "/api/admin/access",
-        action: "permission.read",
-        sensitive: true,
-        title: (res) => res.access.title,
     },
 };
 

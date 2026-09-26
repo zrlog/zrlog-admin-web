@@ -1,11 +1,60 @@
-import { Card, Grid, Select, Space, Table, Typography } from "antd";
+import { Grid, List, Select, Space, Table, Tabs, Typography } from "antd";
 import { useState } from "react";
-import { getRes } from "../utils/constants";
-import type { AccountRole } from "../utils/account-access";
+import { getRes } from "../../utils/constants";
+import type { AccountRole } from "../../utils/account-access";
 type Route = { path: string; descriptionKey: string };
 type Action = { id: string; roles: AccountRole[]; routes: string[]; routeDetails?: Route[]; scope?: string };
-type Page = { currentRole: AccountRole; roles: AccountRole[]; actions: Action[] };
-export default function Access({ data }: { data: Page }) {
+export type AccessPage = { currentRole: AccountRole; roles: AccountRole[]; actions: Action[] };
+export type PermissionHelpView = "roles" | "scopes";
+
+export default function PermissionHelpContent({
+    data,
+    initialView = "roles",
+}: {
+    data: AccessPage;
+    initialView?: PermissionHelpView;
+}) {
+    const res = getRes();
+    return (
+        <Tabs
+            defaultActiveKey={initialView}
+            items={[
+                { key: "roles", label: res.access.rolePermissions, children: <RolePermissions data={data} /> },
+                {
+                    key: "scopes",
+                    label: res.access.applicationScopes,
+                    children: (
+                        <>
+                            <Typography.Paragraph>{res.access.scopesDescription}</Typography.Paragraph>
+                            <Typography.Paragraph>{res.access.scopeRangeHelp}</Typography.Paragraph>
+                            <Typography.Paragraph>
+                                <Typography.Text strong>
+                                    {res.members.current} · {res.access.roles[data.currentRole]}
+                                </Typography.Text>
+                                <br />
+                                {res.access.ranges[data.currentRole]}
+                            </Typography.Paragraph>
+                            <Typography.Paragraph type="secondary">{res.access.mcpReadOnly}</Typography.Paragraph>
+                            <List
+                                dataSource={Object.entries(res.oauth.scopeLabels)}
+                                renderItem={([scope, label]) => (
+                                    <List.Item>
+                                        <List.Item.Meta
+                                            title={label}
+                                            description={<Typography.Text code>{scope}</Typography.Text>}
+                                        />
+                                    </List.Item>
+                                )}
+                            />
+                        </>
+                    ),
+                },
+            ]}
+        />
+    );
+}
+
+function RolePermissions({ data }: { data: AccessPage }) {
     const res = getRes().access;
     const [role, setRole] = useState<AccountRole>(data.currentRole);
     const screens = Grid.useBreakpoint();
@@ -13,7 +62,7 @@ export default function Access({ data }: { data: Page }) {
     const descriptions: Readonly<Record<string, string>> = res.endpointDescriptions;
     const shownRoles = screens.lg ? data.roles : [role];
     return (
-        <Card title={res.title}>
+        <>
             <Typography.Paragraph>{res.description}</Typography.Paragraph>
             <Space orientation="vertical" style={{ width: "100%" }} size="large">
                 <Select
@@ -67,6 +116,6 @@ export default function Access({ data }: { data: Page }) {
                     }}
                 />
             </Space>
-        </Card>
+        </>
     );
 }

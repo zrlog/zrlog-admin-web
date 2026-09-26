@@ -79,7 +79,6 @@ const AsyncTemplateConfig = lazy(() => import("components/template/template-conf
 const AsyncAccountSecurity = lazy(() => import("components/account-security"));
 const AsyncArticle = lazy(() => import("components/article"));
 const AsyncMembers = lazy(() => import("components/members"));
-const AsyncAccess = lazy(() => import("components/access"));
 const AsyncOAuthConsent = lazy(() => import("components/oauth-consent"));
 const AsyncUser = lazy(() => import("components/user"));
 const AsyncError = lazy(() => import("components/unknown-error-page"));
@@ -223,12 +222,6 @@ export const createAdminDashboardRoutes = (
                 keywords: ["members", "成员", "角色"],
             },
         ],
-    },
-    {
-        paths: buildUriPaths(USER_ROUTES.permissions.slice(1)),
-        lazy: AsyncAccess,
-        fallback: LightweightFallback,
-        search: [{ id: "access", title: () => getRes().access.title, iconKey: "lock", keywords: ["permissions"] }],
     },
     { paths: buildUriPaths(USER_ROUTES.authorize.slice(1)), lazy: AsyncOAuthConsent, fallback: LightweightFallback },
     {

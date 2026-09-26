@@ -3,14 +3,17 @@ import { createRoot, Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { Grid } from "antd";
 import { MemoryRouter } from "react-router-dom";
-import Access from "./access";
+import Access from "./common/PermissionHelpContent";
+import PermissionHelp from "./common/PermissionHelp";
 import Members from "./members";
 import WebsiteSettingsLayout from "./common/WebsiteSettingsLayout";
 import OAuthConsent from "./oauth-consent";
 import { getRes } from "../utils/constants";
 import { BasicUserInfo } from "../type";
 
-jest.mock("../base/AppBase", () => ({ useAxiosBaseInstance: () => ({}) }));
+const mockGet = jest.fn<Promise<any>, any[]>();
+const mockApi = { get: mockGet };
+jest.mock("../base/AppBase", () => ({ useAxiosBaseInstance: () => mockApi }));
 jest.mock("../base/ConfigProviderApp", () => ({ getAppState: () => ({ compactMode: false }) }));
 jest.mock("./my-loading-component", () => () => null);
 
@@ -18,7 +21,19 @@ describe("account management pages", () => {
     let root: Root;
     let container: HTMLDivElement;
     beforeEach(() => {
+        mockGet.mockReset().mockResolvedValue({ data: { error: 0, data: page } });
         (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+        global.ResizeObserver = class {
+            observe() {
+                return undefined;
+            }
+            unobserve() {
+                return undefined;
+            }
+            disconnect() {
+                return undefined;
+            }
+        };
         const computedStyle = window.getComputedStyle;
         jest.spyOn(window, "getComputedStyle").mockImplementation((element) => computedStyle(element));
         window.matchMedia = (() => ({
@@ -106,6 +121,27 @@ describe("account management pages", () => {
             "/website/members"
         );
     });
+    it("opens role permissions from members without leaving the settings page", async () => {
+        await act(async () =>
+            root.render(
+                <MemoryRouter>
+                    <Members data={{ currentRole: "owner", members: [] }} />
+                </MemoryRouter>
+            )
+        );
+        expect(mockGet).not.toHaveBeenCalled();
+        await act(async () =>
+            Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
+                .find((button) => button.textContent === getRes().access.title)!
+                .click()
+        );
+        const drawer = document.querySelector('[role="dialog"]')!;
+        expect(drawer.querySelector('[role="tab"][aria-selected="true"]')?.textContent).toBe(
+            getRes().access.rolePermissions
+        );
+        expect(container.textContent).toContain(getRes().members.create);
+        expect(mockGet).toHaveBeenCalledWith("/api/admin/access", expect.objectContaining({ showError: false }));
+    });
     it("shows site member navigation only to accounts with member management permission", () => {
         jest.spyOn(Grid, "useBreakpoint").mockReturnValue({ md: true });
         window.__SS_DATA__!.user!.actions = ["site.configure"];
@@ -125,6 +161,47 @@ describe("account management pages", () => {
         window.__SS_DATA__!.user!.actions = ["site.configure", "member.manage"];
         render();
         expect(container.querySelector('nav a[href*="/website/members"]')?.textContent).toBe(getRes().members.title);
+    });
+    it.each(["network", "api"])("lets users retry permission help after a %s error", async (failure) => {
+        if (failure === "network") mockGet.mockRejectedValueOnce(new Error("offline"));
+        else mockGet.mockResolvedValueOnce({ data: { error: 1 } });
+        await act(async () => root.render(<PermissionHelp />));
+        await act(async () => container.querySelector<HTMLButtonElement>("button")!.click());
+        expect(document.querySelector('[role="dialog"]')?.textContent).toContain(getRes().access.loadFailed);
+        await act(async () =>
+            Array.from(document.querySelectorAll<HTMLButtonElement>('[role="dialog"] button'))
+                .find((button) => button.textContent === getRes().access.retry)!
+                .click()
+        );
+        expect(document.querySelector('[role="dialog"]')?.textContent).toContain(getRes().access.ranges.author);
+        expect(document.querySelector('[role="dialog"]')?.textContent).not.toContain(getRes().access.loadFailed);
+    });
+    it("ignores a closed drawer's pending response when permissions are loaded again", async () => {
+        let resolveFirst: (value: any) => void = () => undefined;
+        mockGet.mockImplementationOnce(
+            () =>
+                new Promise((resolve) => {
+                    resolveFirst = resolve;
+                })
+        );
+        await act(async () => root.render(<PermissionHelp initialView="scopes" />));
+        await act(async () => container.querySelector<HTMLButtonElement>("button")!.click());
+        expect(document.querySelector('[role="dialog"] .ant-spin')).not.toBeNull();
+        await act(async () => document.querySelector<HTMLButtonElement>(".ant-drawer-close")!.click());
+        expect(mockGet.mock.calls[0][1].signal.aborted).toBe(true);
+        await act(async () => container.querySelector<HTMLButtonElement>("button")!.click());
+        await act(async () => resolveFirst({ data: { error: 0, data: { ...page, currentRole: "owner" } } }));
+        expect(mockGet).toHaveBeenCalledTimes(2);
+        expect(document.querySelector('[role="dialog"]')?.textContent).toContain(getRes().access.ranges.author);
+        expect(document.querySelector('[role="dialog"]')?.textContent).not.toContain(getRes().access.ranges.owner);
+    });
+    it.each(["zh_CN", "en_US"])("explains application scope limits in %s", (lang) => {
+        window.__SS_DATA__!.resourceInfo = { lang: lang as "zh_CN" | "en_US" };
+        act(() => root.render(<Access data={page} initialView="scopes" />));
+        expect(container.textContent).toContain(getRes().access.scopesDescription);
+        expect(container.textContent).toContain(getRes().access.scopeRangeHelp);
+        expect(container.textContent).toContain(getRes().access.mcpReadOnly);
+        expect(container.textContent).toContain(getRes().oauth.scopeLabels["articles:read_private"]);
     });
     it.each(["zh_CN", "en_US"])("describes endpoint purposes in %s while keeping the exact path", (lang) => {
         window.__SS_DATA__!.resourceInfo = { lang: lang as "zh_CN" | "en_US" };

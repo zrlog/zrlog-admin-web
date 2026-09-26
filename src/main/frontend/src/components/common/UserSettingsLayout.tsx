@@ -1,16 +1,15 @@
 import { ReactNode } from "react";
-import { Button, theme } from "antd";
-import { UserOutlined, SettingOutlined, LockOutlined, ApiOutlined, QuestionCircleOutlined } from "@ant-design/icons";
-import { useNavigate } from "react-router-dom";
-import { getRealRouteUrl, getRes } from "../../utils/constants";
+import { theme } from "antd";
+import { UserOutlined, SettingOutlined, LockOutlined, ApiOutlined } from "@ant-design/icons";
+import { getRes } from "../../utils/constants";
 import { USER_ROUTES } from "../../utils/account-page-routes";
 import SettingsLayout from "./SettingsLayout";
+import PermissionHelp from "./PermissionHelp";
 
 export type UserSettingsPage = "profile" | "preferences" | "security" | "applications";
 
 const UserSettingsLayout = ({ activeKey, children }: { activeKey: UserSettingsPage; children: ReactNode }) => {
     const res = getRes();
-    const navigate = useNavigate();
     const { token } = theme.useToken();
     const items = [
         {
@@ -49,16 +48,7 @@ const UserSettingsLayout = ({ activeKey, children }: { activeKey: UserSettingsPa
             title={active.label}
             summary={active.summary}
             groups={[{ label: res.user.settings.navigation, items }]}
-            extra={
-                activeKey === "applications" && (
-                    <Button
-                        icon={<QuestionCircleOutlined />}
-                        onClick={() => navigate(getRealRouteUrl(USER_ROUTES.permissions))}
-                    >
-                        {res.access.title}
-                    </Button>
-                )
-            }
+            extra={activeKey === "applications" && <PermissionHelp initialView="scopes" />}
         >
             <div
                 style={{

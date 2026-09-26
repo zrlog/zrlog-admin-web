@@ -24,7 +24,6 @@ admin/user/security
 admin/user/applications
 admin/user/applications/authorize
 admin/website/members
-admin/user/permissions
 admin/plugin
 admin/upgrade
 admin/system
