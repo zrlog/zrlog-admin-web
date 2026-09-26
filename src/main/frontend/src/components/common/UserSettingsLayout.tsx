@@ -1,7 +1,8 @@
 import { ReactNode } from "react";
-import { theme } from "antd";
-import { UserOutlined, SettingOutlined, LockOutlined, ApiOutlined } from "@ant-design/icons";
-import { getRes } from "../../utils/constants";
+import { Tabs, theme } from "antd";
+import { UserOutlined, SettingOutlined, ApiOutlined } from "@ant-design/icons";
+import { useNavigate } from "react-router-dom";
+import { getRealRouteUrl, getRes } from "../../utils/constants";
 import { USER_ROUTES } from "../../utils/account-page-routes";
 import SettingsLayout from "./SettingsLayout";
 import PermissionHelp from "./PermissionHelp";
@@ -10,14 +11,17 @@ export type UserSettingsPage = "profile" | "preferences" | "security" | "applica
 
 const UserSettingsLayout = ({ activeKey, children }: { activeKey: UserSettingsPage; children: ReactNode }) => {
     const res = getRes();
+    const navigate = useNavigate();
     const { token } = theme.useToken();
+    const accountPage = activeKey === "profile" || activeKey === "security";
+    const groupKey = accountPage ? "account" : activeKey;
     const items = [
         {
-            key: "profile",
-            label: res.user.title,
+            key: "account",
+            label: res.user.settings.navigation,
             path: USER_ROUTES.profile,
             icon: <UserOutlined />,
-            summary: res.user.settings.profileSummary,
+            summary: activeKey === "security" ? res.user.settings.securitySummary : res.user.settings.profileSummary,
         },
         {
             key: "preferences",
@@ -27,13 +31,6 @@ const UserSettingsLayout = ({ activeKey, children }: { activeKey: UserSettingsPa
             summary: res.user.preferences.description,
         },
         {
-            key: "security",
-            label: res.accountSecurity.title,
-            path: USER_ROUTES.security,
-            icon: <LockOutlined />,
-            summary: res.user.settings.securitySummary,
-        },
-        {
             key: "applications",
             label: res.oauth.title,
             path: USER_ROUTES.applications,
@@ -41,13 +38,13 @@ const UserSettingsLayout = ({ activeKey, children }: { activeKey: UserSettingsPa
             summary: res.oauth.description,
         },
     ];
-    const active = items.find((item) => item.key === activeKey)!;
+    const active = items.find((item) => item.key === groupKey)!;
     return (
         <SettingsLayout
-            activeKey={activeKey}
+            activeKey={groupKey}
             title={active.label}
             summary={active.summary}
-            groups={[{ label: res.user.settings.navigation, items }]}
+            groups={[{ label: res.common.settings, items }]}
             extra={activeKey === "applications" && <PermissionHelp initialView="scopes" />}
         >
             <div
@@ -56,7 +53,27 @@ const UserSettingsLayout = ({ activeKey, children }: { activeKey: UserSettingsPa
                     paddingBottom: activeKey === "applications" || activeKey === "security" ? token.padding : 0,
                 }}
             >
-                {children}
+                {accountPage && (
+                    <Tabs
+                        activeKey={activeKey}
+                        onChange={(key) =>
+                            navigate(getRealRouteUrl(key === "security" ? USER_ROUTES.security : USER_ROUTES.profile))
+                        }
+                        items={[
+                            {
+                                key: "profile",
+                                label: res.user.title,
+                                children: activeKey === "profile" ? children : null,
+                            },
+                            {
+                                key: "security",
+                                label: res.accountSecurity.title,
+                                children: activeKey === "security" ? children : null,
+                            },
+                        ]}
+                    />
+                )}
+                {!accountPage && children}
             </div>
         </SettingsLayout>
     );

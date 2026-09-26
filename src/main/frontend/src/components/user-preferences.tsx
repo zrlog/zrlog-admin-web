@@ -1,4 +1,5 @@
 import SettingsSubmitBar from "./common/SettingsSubmitBar";
+import SettingsTabs from "./common/SettingsTabs";
 import { useEffect, useRef, useState } from "react";
 import { Alert, Button, Form, Select, Space, Spin, Typography, message, theme } from "antd";
 import { useAxiosBaseInstance } from "../base/AppBase";
@@ -147,7 +148,6 @@ const UserPreferencesForm = ({ offline }: { offline: boolean }) => {
     const canReadOthers = ["owner", "admin", "editor"].includes(getSsDate().user?.role || "");
     const pageSize = Form.useWatch("articlePageSize", form);
     const pageSizes = Array.from(new Set([10, 20, 50, 100, ...(pageSize ? [pageSize] : [])])).sort((a, b) => a - b);
-    const headingStyle = { marginTop: token.margin, marginBottom: token.marginLG };
 
     return (
         <div style={{ maxWidth: 800, width: "100%" }}>
@@ -169,64 +169,86 @@ const UserPreferencesForm = ({ offline }: { offline: boolean }) => {
                     onValuesChange={(changes) => preview(mergeUserPreferenceChanges(draftRef.current, changes))}
                     onFinish={() => void save()}
                 >
-                    <Typography.Title level={5} style={headingStyle}>
-                        {res.appearanceTitle}
-                    </Typography.Title>
-                    <AdminAppearanceFields
-                        names={{
-                            language: "language",
-                            theme: ["appearance", "theme"],
-                            darkMode: ["appearance", "darkMode"],
-                            compactMode: ["appearance", "compactMode"],
-                            colorPrimary: ["appearance", "colorPrimary"],
-                        }}
+                    <SettingsTabs
+                        items={[
+                            {
+                                key: "appearance",
+                                label: res.appearanceTitle,
+                                forceRender: true,
+                                children: (
+                                    <AdminAppearanceFields
+                                        names={{
+                                            language: "language",
+                                            theme: ["appearance", "theme"],
+                                            darkMode: ["appearance", "darkMode"],
+                                            compactMode: ["appearance", "compactMode"],
+                                            colorPrimary: ["appearance", "colorPrimary"],
+                                        }}
+                                    />
+                                ),
+                            },
+                            {
+                                key: "writing",
+                                label: res.writingTitle,
+                                forceRender: true,
+                                children: (
+                                    <>
+                                        <Form.Item name="articlePageSize" label={res.articlePageSize}>
+                                            <Select
+                                                style={{ width: 200, maxWidth: "100%" }}
+                                                options={pageSizes.map((value) => ({
+                                                    value,
+                                                    label: res.articlesPerPage.replace("{count}", String(value)),
+                                                }))}
+                                            />
+                                        </Form.Item>
+                                        <Form.Item name={["editor", "autoSaveInterval"]} label={res.autoSaveInterval}>
+                                            <Select
+                                                style={{ width: 200, maxWidth: "100%" }}
+                                                options={[2, 5, 10].map((value) => ({
+                                                    value,
+                                                    label: res.seconds.replace("{seconds}", String(value)),
+                                                }))}
+                                            />
+                                        </Form.Item>
+                                    </>
+                                ),
+                            },
+                            {
+                                key: "assistant",
+                                label: res.assistantTitle,
+                                forceRender: true,
+                                children: (
+                                    <Form.Item
+                                        name={["assistant", "knowledgeScope"]}
+                                        label={res.knowledge}
+                                        extra={res.knowledgeHelp}
+                                    >
+                                        <Select
+                                            style={{ width: 360, maxWidth: "100%" }}
+                                            options={[
+                                                { value: "off", label: res.scopeOff },
+                                                { value: "own_public", label: res.scopeOwnPublic },
+                                                { value: "own_all", label: res.scopeOwnAll },
+                                                ...[
+                                                    {
+                                                        value: "accessible_public",
+                                                        label: res.scopeAccessiblePublic,
+                                                        disabled: !canReadOthers,
+                                                    },
+                                                    {
+                                                        value: "accessible_all",
+                                                        label: res.scopeAccessibleAll,
+                                                        disabled: !canReadOthers,
+                                                    },
+                                                ].filter((option) => canReadOthers || option.value === knowledgeScope),
+                                            ]}
+                                        />
+                                    </Form.Item>
+                                ),
+                            },
+                        ]}
                     />
-                    <Typography.Title level={5} style={headingStyle}>
-                        {res.writingTitle}
-                    </Typography.Title>
-                    <Form.Item name="articlePageSize" label={res.articlePageSize}>
-                        <Select
-                            style={{ width: 200, maxWidth: "100%" }}
-                            options={pageSizes.map((value) => ({
-                                value,
-                                label: res.articlesPerPage.replace("{count}", String(value)),
-                            }))}
-                        />
-                    </Form.Item>
-                    <Form.Item name={["editor", "autoSaveInterval"]} label={res.autoSaveInterval}>
-                        <Select
-                            style={{ width: 200, maxWidth: "100%" }}
-                            options={[2, 5, 10].map((value) => ({
-                                value,
-                                label: res.seconds.replace("{seconds}", String(value)),
-                            }))}
-                        />
-                    </Form.Item>
-                    <Typography.Title level={5} style={headingStyle}>
-                        {res.assistantTitle}
-                    </Typography.Title>
-                    <Form.Item name={["assistant", "knowledgeScope"]} label={res.knowledge} extra={res.knowledgeHelp}>
-                        <Select
-                            style={{ width: 360, maxWidth: "100%" }}
-                            options={[
-                                { value: "off", label: res.scopeOff },
-                                { value: "own_public", label: res.scopeOwnPublic },
-                                { value: "own_all", label: res.scopeOwnAll },
-                                ...[
-                                    {
-                                        value: "accessible_public",
-                                        label: res.scopeAccessiblePublic,
-                                        disabled: !canReadOthers,
-                                    },
-                                    {
-                                        value: "accessible_all",
-                                        label: res.scopeAccessibleAll,
-                                        disabled: !canReadOthers,
-                                    },
-                                ].filter((option) => canReadOthers || option.value === knowledgeScope),
-                            ]}
-                        />
-                    </Form.Item>
                     <SettingsSubmitBar
                         loading={saving}
                         disabled={!dirty}

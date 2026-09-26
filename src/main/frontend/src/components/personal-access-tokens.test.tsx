@@ -2,10 +2,10 @@ import { act } from "react";
 import { createRoot, Root } from "react-dom/client";
 import { Simulate } from "react-dom/test-utils";
 import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, NavigateFunction, useLocation, useNavigate } from "react-router-dom";
 import PersonalAccessTokens, { PersonalAccessToken } from "./personal-access-tokens";
 import { UserApplications } from "./oauth";
-import { getRes } from "../utils/constants";
+import { getRes, setBackendServerUrl } from "../utils/constants";
 import { BasicUserInfo } from "../type";
 
 const mockPost = jest.fn<Promise<any>, any[]>();
@@ -32,6 +32,7 @@ describe("personal MCP tokens", () => {
     let container: HTMLDivElement;
     const changed = jest.fn<Promise<void>, []>();
     beforeEach(() => {
+        setBackendServerUrl("");
         (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
         (globalThis as any).MessageChannel = class {
             port1 = { onmessage: () => undefined };
@@ -78,6 +79,7 @@ describe("personal MCP tokens", () => {
         jest.restoreAllMocks();
         delete (globalThis as any).IS_REACT_ACT_ENVIRONMENT;
         delete (globalThis as any).MessageChannel;
+        setBackendServerUrl("");
     });
     const button = (text: string) =>
         Array.from(document.querySelectorAll<HTMLButtonElement>("button")).find(
@@ -106,13 +108,19 @@ describe("personal MCP tokens", () => {
         expect(document.body.textContent).toContain("writer");
         expect(document.body.textContent).toContain(getRes().oauth.personalTokens.readHelp);
     });
-    it("creates with explicit private access, displays the secret once and clears it on close", async () => {
+    it.each([
+        [info.resource, info.resource],
+        ["/blog/mcp", "https://backend.example/blog/mcp"],
+    ])("displays the created token once with its server address %s", async (resource, expectedUrl) => {
+        setBackendServerUrl("https://backend.example/blog/");
         render(scopes.filter((s) => s !== "articles:all"));
         open();
         name();
         expect(document.querySelector('input[value="all"]')).toBeNull();
         act(() => document.querySelector<HTMLInputElement>('input[value="articles:read_private"]')!.click());
-        mockPost.mockResolvedValue({ data: { error: 0, data: { token: "zrmcp_one-time-secret", info } } });
+        mockPost.mockResolvedValue({
+            data: { error: 0, data: { token: "zrmcp_one-time-secret", info: { ...info, resource } } },
+        });
         await submit();
         expect(mockPost).toHaveBeenCalledWith("/api/admin/oauth/createPersonalToken", {
             name: "Desktop assistant",
@@ -121,7 +129,7 @@ describe("personal MCP tokens", () => {
         });
         expect(changed).toHaveBeenCalledTimes(1);
         expect(document.body.textContent).toContain("zrmcp_one-time-secret");
-        expect(document.body.textContent).toContain(info.resource);
+        expect(document.body.textContent).toContain(expectedUrl);
         expect(document.body.textContent).toContain(getRes().oauth.personalTokens.once);
         act(() => button(getRes().oauth.personalTokens.close).click());
         expect(document.body.textContent).not.toContain("zrmcp_one-time-secret");
@@ -190,4 +198,90 @@ describe("personal MCP tokens", () => {
         expect(container.textContent).toContain(info.name);
         expect(container.textContent).not.toContain(getRes().oauth.applications);
     });
+
+    it("resolves every service address against the connected backend and preserves client callbacks", async () => {
+        setBackendServerUrl("https://backend.example/blog/");
+        mockGet.mockResolvedValue({
+            data: {
+                error: 0,
+                data: {
+                    personalTokens: [],
+                    personalTokenScopes: scopes,
+                    grants: [],
+                    administrator: true,
+                    clients: [{ clientId: "client", name: "App", redirectUris: ["https://client.example/callback"] }],
+                    issuer: "/blog",
+                    resource: "/blog/api/oauth",
+                },
+            },
+        });
+        await act(async () =>
+            root.render(
+                <MemoryRouter initialEntries={["/user/applications.html?v=test#clients"]}>
+                    <UserApplications offline={false} />
+                </MemoryRouter>
+            )
+        );
+        expect(container.textContent).toContain("https://backend.example/blog");
+        expect(container.textContent).toContain("https://backend.example/blog/api/oauth");
+        expect(container.textContent).toContain("https://client.example/callback");
+        await act(async () =>
+            Array.from(container.querySelectorAll<HTMLElement>('[role="tab"]'))
+                .find((tab) => tab.textContent === getRes().oauth.personalTokens.title)!
+                .click()
+        );
+        const activePanel = container.querySelector('[role="tabpanel"]:not([aria-hidden="true"])');
+        expect(activePanel?.textContent).toContain("https://backend.example/blog/mcp");
+    });
+
+    it.each([false, true])(
+        "routes to available application tabs without refetching (administrator=%s)",
+        async (administrator) => {
+            let navigate!: NavigateFunction;
+            const Location = () => {
+                navigate = useNavigate();
+                const location = useLocation();
+                return <output>{location.pathname + location.search + location.hash}</output>;
+            };
+            mockGet.mockResolvedValue({
+                data: {
+                    error: 0,
+                    data: {
+                        personalTokens: [info],
+                        personalTokenScopes: scopes,
+                        clients: [],
+                        grants: [],
+                        administrator,
+                        issuer: "https://blog.example/sub",
+                        resource: "https://blog.example/sub/api/oauth",
+                        mcpResource: info.resource,
+                    },
+                },
+            });
+            const page = "/user/applications.html?v=test";
+            await act(async () =>
+                root.render(
+                    <MemoryRouter initialEntries={[page + "#clients"]}>
+                        <Location />
+                        <UserApplications offline={false} />
+                    </MemoryRouter>
+                )
+            );
+            const selected = () => container.querySelector('[role="tab"][aria-selected="true"]')?.textContent;
+            expect(selected()).toBe(administrator ? getRes().oauth.applications : getRes().oauth.personalTokens.title);
+            expect(container.querySelectorAll('[role="tab"]')).toHaveLength(administrator ? 3 : 2);
+            expect(container.textContent?.includes(getRes().oauth.register)).toBe(administrator);
+            await act(async () =>
+                Array.from(container.querySelectorAll<HTMLElement>('[role="tab"]'))
+                    .find((tab) => tab.textContent === getRes().oauth.grants)!
+                    .click()
+            );
+            expect(container.querySelector("output")?.textContent).toBe(page + "#grants");
+            expect(selected()).toBe(getRes().oauth.grants);
+            await act(async () => navigate(-1));
+            expect(selected()).toBe(administrator ? getRes().oauth.applications : getRes().oauth.personalTokens.title);
+            expect(mockGet).toHaveBeenCalledTimes(1);
+            expect(mockPost).not.toHaveBeenCalled();
+        }
+    );
 });

@@ -549,7 +549,7 @@ const zhCN = {
         "coverGenerateSuccess": "已生成封面候选，应用后才会保存到文章封面",
         "coverApplySuccess": "已应用封面，请保存文章",
         "knowledge": {
-            "sessionHint": "对话会自动保存，重新打开文章后可继续。知识库范围可在个人设置中调整。",
+            "sessionHint": "对话会自动保存，重新打开文章后可继续。知识库范围可在偏好设置的 AI 助手页签中调整。",
             "thinking": "正在思考…",
             "searching": "正在搜索文章…",
             "reading": "正在读取正文…",
@@ -1043,7 +1043,7 @@ const zhCN = {
     },
     "websiteAdmin": {
         "title": "管理设置",
-        "summary": "设置全站后台的默认语言、外观和分页，以及会话时长。个人设置可在个人信息中设置，优先于这里的默认值。",
+        "summary": "设置全站后台的默认语言、外观和分页，以及会话时长。个人信息中的偏好设置优先于这里的默认值。",
         "theme": {
             "label": "主题",
             "option": {
@@ -1412,7 +1412,7 @@ const zhCN = {
             "securitySummary": "管理登录密码、多重验证和通行密钥。"
         },
         "preferences": {
-            "title": "个人设置",
+            "title": "偏好设置",
             "description": "设置你的后台外观和编辑习惯，仅对当前账号生效。",
             "appearanceTitle": "界面显示",
             "writingTitle": "文章编辑",
@@ -1432,10 +1432,10 @@ const zhCN = {
             "undo": "撤销修改",
             "reset": "恢复默认设置",
             "previewHint": "外观修改后立即预览，保存后生效。未保存就离开此页，会恢复原来的设置。",
-            "saved": "个人设置已保存",
+            "saved": "偏好设置已保存",
             "saveFailed": "保存失败，请重试",
-            "offline": "联网后可查看和修改个人设置",
-            "loadFailed": "个人设置加载失败",
+            "offline": "联网后可查看和修改偏好设置",
+            "loadFailed": "偏好设置加载失败",
             "retry": "重新加载"
         },
         "title": "个人信息",
@@ -2357,7 +2357,7 @@ const enUS: AdminI18nResource = {
         "coverGenerateSuccess": "A cover candidate was generated. It will be saved only after you apply it",
         "coverApplySuccess": "The cover was applied. Save the article to keep it",
         "knowledge": {
-            "sessionHint": "Conversations are saved automatically so you can continue when reopening the article. Manage knowledge access in Personal settings.",
+            "sessionHint": "Conversations are saved automatically so you can continue when reopening the article. Manage knowledge access in Preferences under the AI assistant tab.",
             "thinking": "Thinking…",
             "searching": "Searching articles…",
             "reading": "Reading article…",
@@ -2851,7 +2851,7 @@ const enUS: AdminI18nResource = {
     },
     "websiteAdmin": {
         "title": "Admin Settings",
-        "summary": "Set site-wide admin defaults and session duration. Personal settings in your profile take priority over the language, appearance, and pagination defaults here.",
+        "summary": "Set site-wide admin defaults and session duration. Preferences in your profile take priority over the language, appearance, and pagination defaults here.",
         "theme": {
             "label": "Theme",
             "option": {
@@ -3220,7 +3220,7 @@ const enUS: AdminI18nResource = {
             "securitySummary": "Manage your password, multi-factor authentication and passkeys."
         },
         "preferences": {
-            "title": "Personal settings",
+            "title": "Preferences",
             "description": "Customize your admin appearance and writing settings. Changes apply only to your account.",
             "appearanceTitle": "Appearance",
             "writingTitle": "Writing",
@@ -3240,10 +3240,10 @@ const enUS: AdminI18nResource = {
             "undo": "Undo changes",
             "reset": "Restore site defaults",
             "previewHint": "Appearance changes are previewed immediately. Save to keep them; leaving without saving restores your previous settings.",
-            "saved": "Personal settings saved",
+            "saved": "Preferences saved",
             "saveFailed": "Could not save settings. Please try again.",
-            "offline": "Connect to view and edit personal settings",
-            "loadFailed": "Could not load personal settings",
+            "offline": "Connect to view and edit preferences",
+            "loadFailed": "Could not load preferences",
             "retry": "Reload"
         },
         "title": "Personal Information",

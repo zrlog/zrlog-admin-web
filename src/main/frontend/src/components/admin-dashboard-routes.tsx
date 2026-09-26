@@ -553,7 +553,7 @@ export const createAdminDashboardRoutes = (
                 id: "user-preferences",
                 title: () => getRes().user.preferences.title,
                 iconKey: "setting",
-                keywords: ["preferences", "个人设置"],
+                keywords: ["preferences", "个人设置", "偏好设置", "外观", "写作习惯"],
             },
         ],
     },

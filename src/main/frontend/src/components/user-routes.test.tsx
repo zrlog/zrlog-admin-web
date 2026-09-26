@@ -4,6 +4,7 @@ import { MemoryRouter, NavigateFunction, Route, Routes, useLocation, useNavigate
 import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { Grid } from "antd";
 import User from "./user";
+import UserSettingsLayout from "./common/UserSettingsLayout";
 import { getRes } from "../utils/constants";
 import { USER_ROUTES } from "../utils/account-page-routes";
 
@@ -107,6 +108,10 @@ describe("personal page URLs", () => {
                 <>
                     <output>{location.pathname}</output>
                     <Routes>
+                        <Route
+                            path={USER_ROUTES.security + suffix}
+                            element={<UserSettingsLayout activeKey="security">Security content</UserSettingsLayout>}
+                        />
                         {(["profile", "preferences", "applications"] as const).map((page) => (
                             <Route
                                 key={page}
@@ -142,15 +147,20 @@ describe("personal page URLs", () => {
                     .dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
             });
             const options = Array.from(container.querySelectorAll<HTMLElement>(".ant-select-item-option"));
-            expect(options.map((option) => option.textContent)).toContain(getRes().accountSecurity.title);
+            expect(options.map((option) => option.textContent)).toEqual([
+                getRes().user.settings.navigation,
+                getRes().user.preferences.title,
+                getRes().oauth.title,
+            ]);
             await act(async () =>
                 options.find((option) => option.textContent === getRes().user.preferences.title)!.click()
             );
         } else {
             const links = Array.from(container.querySelectorAll<HTMLAnchorElement>("nav a"));
             expect(
-                links.find((link) => link.textContent === getRes().accountSecurity.title)?.getAttribute("href")
-            ).toBe(USER_ROUTES.security + suffix + "?v=test");
+                links.find((link) => link.textContent === getRes().user.settings.navigation)?.getAttribute("href")
+            ).toBe(USER_ROUTES.profile + suffix + "?v=test");
+            expect(links).toHaveLength(3);
             await act(async () => links.find((link) => link.textContent === getRes().user.preferences.title)!.click());
         }
         expect(container.querySelector("output")?.textContent).toBe(USER_ROUTES.preferences + suffix);
@@ -176,6 +186,23 @@ describe("personal page URLs", () => {
         expect(container.querySelector("output")?.textContent).toBe(USER_ROUTES.applications + suffix);
         expect(container.querySelector<HTMLInputElement>('input[aria-label="Application name"]')?.value).toBe(
             "Unsaved application"
+        );
+        await act(async () => navigate(USER_ROUTES.security + suffix));
+        expect(selected()).toBe(getRes().user.settings.navigation);
+        expect(container.querySelector('[role="tab"][aria-selected="true"]')?.textContent).toBe(
+            getRes().accountSecurity.title
+        );
+        expect(container.textContent).toContain("Security content");
+        await act(async () =>
+            Array.from(container.querySelectorAll<HTMLElement>('[role="tab"]'))
+                .find((tab) => tab.textContent === getRes().user.title)!
+                .click()
+        );
+        expect(container.querySelector("output")?.textContent).toBe(USER_ROUTES.profile + suffix);
+        expect(container.querySelector('[role="tab"][aria-selected="true"]')?.textContent).toBe(getRes().user.title);
+        await act(async () => navigate(-1));
+        expect(container.querySelector('[role="tab"][aria-selected="true"]')?.textContent).toBe(
+            getRes().accountSecurity.title
         );
     });
 });

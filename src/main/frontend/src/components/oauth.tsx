@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import PersonalAccessTokens, { PersonalAccessToken } from "./personal-access-tokens";
+import SettingsTabs from "./common/SettingsTabs";
 import {
     Alert,
     Button,
@@ -18,6 +19,7 @@ import {
 } from "antd";
 import { useAxiosBaseInstance } from "../base/AppBase";
 import { getRes } from "../utils/constants";
+import { resolveApplicationServerUrl } from "../utils/application-server-url";
 type Client = { clientId: string; name: string; redirectUris: string[] };
 type Grant = { id: string; clientName: string; scope: string; createdAt: number; revoked: boolean };
 type Page = {
@@ -39,6 +41,18 @@ function OAuthConnections({ data }: { data: Page }) {
     const api = useAxiosBaseInstance();
     const res = getRes().oauth;
     const labels: Record<string, string> = res.scopeLabels;
+    const oauthEndpoints = (
+        <Space orientation="vertical" style={{ maxWidth: "100%" }}>
+            <Typography.Text>{res.issuer}</Typography.Text>
+            <Typography.Text copyable style={{ overflowWrap: "anywhere" }}>
+                {resolveApplicationServerUrl(page.issuer, "")}
+            </Typography.Text>
+            <Typography.Text>{res.resource}</Typography.Text>
+            <Typography.Text copyable style={{ overflowWrap: "anywhere" }}>
+                {resolveApplicationServerUrl(page.resource, "api/oauth")}
+            </Typography.Text>
+        </Space>
+    );
     const reload = async () => {
         const response = await api.get("/api/admin/oauth");
         if (!response.data.error) setPage(response.data.data);
@@ -61,129 +75,169 @@ function OAuthConnections({ data }: { data: Page }) {
     return (
         <Space orientation="vertical" size="large" style={{ width: "100%" }}>
             {contextHolder}
-            <div>
-                <Space orientation="vertical" style={{ maxWidth: "100%" }}>
-                    <Typography.Text>{res.issuer}</Typography.Text>
-                    <Typography.Text copyable style={{ overflowWrap: "anywhere" }}>
-                        {page.issuer}
-                    </Typography.Text>
-                    <Typography.Text>{res.resource}</Typography.Text>
-                    <Typography.Text copyable style={{ overflowWrap: "anywhere" }}>
-                        {page.resource}
-                    </Typography.Text>
-                    <Typography.Text>{res.mcpUrl}</Typography.Text>
-                    <Typography.Text copyable style={{ overflowWrap: "anywhere" }}>
-                        {page.mcpResource}
-                    </Typography.Text>
-                    <Typography.Paragraph type="secondary">{res.mcpHelp}</Typography.Paragraph>
-                </Space>
-            </div>
-            <PersonalAccessTokens tokens={page.personalTokens} scopes={page.personalTokenScopes} onChange={reload} />
-            <Card title={res.grants}>
-                <List
-                    locale={{ emptyText: <Empty description={res.empty} /> }}
-                    dataSource={page.grants}
-                    renderItem={(grant) => (
-                        <List.Item
-                            actions={
-                                grant.revoked
-                                    ? []
-                                    : [
-                                          <Popconfirm
-                                              key="revoke"
-                                              title={res.confirmRevoke}
-                                              onConfirm={() => mutate("revokeGrant", { id: grant.id })}
-                                          >
-                                              <Button loading={busy}>{res.revoke}</Button>
-                                          </Popconfirm>,
-                                      ]
-                            }
-                        >
-                            <List.Item.Meta
-                                title={
-                                    <Space wrap>
-                                        {grant.clientName}
-                                        <Tag>{grant.revoked ? res.revoked : res.active}</Tag>
-                                    </Space>
-                                }
-                                description={
-                                    <Space orientation="vertical">
-                                        <Typography.Text type="secondary">
-                                            {new Date(grant.createdAt).toLocaleString()}
+            <SettingsTabs
+                items={[
+                    {
+                        key: "tokens",
+                        label: res.personalTokens.title,
+                        children: (
+                            <Space orientation="vertical" size="large" style={{ width: "100%" }}>
+                                <div>
+                                    <Space orientation="vertical" style={{ maxWidth: "100%" }}>
+                                        <Typography.Text>{res.mcpUrl}</Typography.Text>
+                                        <Typography.Text copyable style={{ overflowWrap: "anywhere" }}>
+                                            {resolveApplicationServerUrl(page.mcpResource, "mcp")}
                                         </Typography.Text>
-                                        <Typography.Text>
-                                            {res.range}:{" "}
-                                            {grant.scope.split(" ").includes("articles:all") ? res.all : res.own}
-                                        </Typography.Text>
-                                        <Space wrap>
-                                            {grant.scope
-                                                .split(" ")
-                                                .filter((s) => s !== "articles:all")
-                                                .map((scope) => (
-                                                    <Tag key={scope}>{labels[scope] ?? scope}</Tag>
-                                                ))}
-                                        </Space>
+                                        <Typography.Paragraph type="secondary">{res.mcpHelp}</Typography.Paragraph>
                                     </Space>
-                                }
-                            />
-                        </List.Item>
-                    )}
-                />
-            </Card>
-            {page.administrator && (
-                <Card
-                    title={res.applications}
-                    extra={
-                        <Button
-                            type="primary"
-                            onClick={() => {
-                                form.resetFields();
-                                setOpen(true);
-                            }}
-                        >
-                            {res.register}
-                        </Button>
-                    }
-                >
-                    <Typography.Paragraph>{res.registerHelp}</Typography.Paragraph>
-                    <List
-                        dataSource={page.clients}
-                        renderItem={(client) => (
-                            <List.Item
-                                actions={[
-                                    <Popconfirm
-                                        key="disable"
-                                        title={res.confirmDisable}
-                                        onConfirm={() => mutate("disableClient", { id: client.clientId })}
-                                    >
-                                        <Button loading={busy}>{res.disable}</Button>
-                                    </Popconfirm>,
-                                ]}
-                            >
-                                <List.Item.Meta
-                                    title={client.name}
-                                    description={
-                                        <Space orientation="vertical" style={{ maxWidth: "100%" }}>
-                                            <Typography.Text copyable style={{ overflowWrap: "anywhere" }}>
-                                                {client.clientId}
-                                            </Typography.Text>
-                                            {client.redirectUris.map((uri) => (
-                                                <Typography.Text
-                                                    key={uri}
-                                                    type="secondary"
-                                                    style={{ overflowWrap: "anywhere" }}
-                                                >
-                                                    {uri}
-                                                </Typography.Text>
-                                            ))}
-                                        </Space>
-                                    }
+                                </div>
+                                <PersonalAccessTokens
+                                    tokens={page.personalTokens}
+                                    scopes={page.personalTokenScopes}
+                                    onChange={reload}
                                 />
-                            </List.Item>
-                        )}
-                    />
-                </Card>
-            )}
+                            </Space>
+                        ),
+                    },
+                    {
+                        key: "grants",
+                        label: res.grants,
+                        children: (
+                            <Space orientation="vertical" size="large" style={{ width: "100%" }}>
+                                {oauthEndpoints}
+                                <Card title={res.grants}>
+                                    <List
+                                        locale={{ emptyText: <Empty description={res.empty} /> }}
+                                        dataSource={page.grants}
+                                        renderItem={(grant) => (
+                                            <List.Item
+                                                actions={
+                                                    grant.revoked
+                                                        ? []
+                                                        : [
+                                                              <Popconfirm
+                                                                  key="revoke"
+                                                                  title={res.confirmRevoke}
+                                                                  onConfirm={() =>
+                                                                      mutate("revokeGrant", { id: grant.id })
+                                                                  }
+                                                              >
+                                                                  <Button loading={busy}>{res.revoke}</Button>
+                                                              </Popconfirm>,
+                                                          ]
+                                                }
+                                            >
+                                                <List.Item.Meta
+                                                    title={
+                                                        <Space wrap>
+                                                            {grant.clientName}
+                                                            <Tag>{grant.revoked ? res.revoked : res.active}</Tag>
+                                                        </Space>
+                                                    }
+                                                    description={
+                                                        <Space orientation="vertical">
+                                                            <Typography.Text type="secondary">
+                                                                {new Date(grant.createdAt).toLocaleString()}
+                                                            </Typography.Text>
+                                                            <Typography.Text>
+                                                                {res.range}:{" "}
+                                                                {grant.scope.split(" ").includes("articles:all")
+                                                                    ? res.all
+                                                                    : res.own}
+                                                            </Typography.Text>
+                                                            <Space wrap>
+                                                                {grant.scope
+                                                                    .split(" ")
+                                                                    .filter((s) => s !== "articles:all")
+                                                                    .map((scope) => (
+                                                                        <Tag key={scope}>{labels[scope] ?? scope}</Tag>
+                                                                    ))}
+                                                            </Space>
+                                                        </Space>
+                                                    }
+                                                />
+                                            </List.Item>
+                                        )}
+                                    />
+                                </Card>
+                            </Space>
+                        ),
+                    },
+                    ...(page.administrator
+                        ? [
+                              {
+                                  key: "clients",
+                                  label: res.applications,
+                                  children: (
+                                      <Space orientation="vertical" size="large" style={{ width: "100%" }}>
+                                          {oauthEndpoints}
+                                          <Card
+                                              title={res.applications}
+                                              extra={
+                                                  <Button
+                                                      type="primary"
+                                                      onClick={() => {
+                                                          form.resetFields();
+                                                          setOpen(true);
+                                                      }}
+                                                  >
+                                                      {res.register}
+                                                  </Button>
+                                              }
+                                          >
+                                              <Typography.Paragraph>{res.registerHelp}</Typography.Paragraph>
+                                              <List
+                                                  dataSource={page.clients}
+                                                  renderItem={(client) => (
+                                                      <List.Item
+                                                          actions={[
+                                                              <Popconfirm
+                                                                  key="disable"
+                                                                  title={res.confirmDisable}
+                                                                  onConfirm={() =>
+                                                                      mutate("disableClient", { id: client.clientId })
+                                                                  }
+                                                              >
+                                                                  <Button loading={busy}>{res.disable}</Button>
+                                                              </Popconfirm>,
+                                                          ]}
+                                                      >
+                                                          <List.Item.Meta
+                                                              title={client.name}
+                                                              description={
+                                                                  <Space
+                                                                      orientation="vertical"
+                                                                      style={{ maxWidth: "100%" }}
+                                                                  >
+                                                                      <Typography.Text
+                                                                          copyable
+                                                                          style={{ overflowWrap: "anywhere" }}
+                                                                      >
+                                                                          {client.clientId}
+                                                                      </Typography.Text>
+                                                                      {client.redirectUris.map((uri) => (
+                                                                          <Typography.Text
+                                                                              key={uri}
+                                                                              type="secondary"
+                                                                              style={{ overflowWrap: "anywhere" }}
+                                                                          >
+                                                                              {uri}
+                                                                          </Typography.Text>
+                                                                      ))}
+                                                                  </Space>
+                                                              }
+                                                          />
+                                                      </List.Item>
+                                                  )}
+                                              />
+                                          </Card>
+                                      </Space>
+                                  ),
+                              },
+                          ]
+                        : []),
+                ]}
+            />
             <Drawer title={res.register} open={open} onClose={() => setOpen(false)} destroyOnHidden>
                 <Form
                     form={form}

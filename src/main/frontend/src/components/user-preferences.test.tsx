@@ -1,6 +1,7 @@
 import { act } from "react";
 import { createRoot, Root } from "react-dom/client";
 import { Simulate } from "react-dom/test-utils";
+import { MemoryRouter, NavigateFunction, useLocation, useNavigate } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
 import UserPreferencesForm from "./user-preferences";
 import { getRes } from "../utils/constants";
@@ -21,6 +22,12 @@ jest.mock("../base/AppInit", () => ({
 describe("personal preferences", () => {
     let root: Root;
     let container: HTMLDivElement;
+    let navigate: NavigateFunction;
+    const Location = () => {
+        navigate = useNavigate();
+        const location = useLocation();
+        return <output>{location.pathname + location.search + location.hash}</output>;
+    };
     const defaults: UserPreferences = {
         language: "zh_CN",
         appearance: { theme: "default", darkMode: true, compactMode: false, colorPrimary: "#1677ff" },
@@ -82,9 +89,14 @@ describe("personal preferences", () => {
         delete (globalThis as any).IS_REACT_ACT_ENVIRONMENT;
         delete (globalThis as any).MessageChannel;
     });
-    const render = async (offline = false) => {
+    const render = async (offline = false, entry = "/user/preferences") => {
         await act(async () => {
-            root.render(<UserPreferencesForm offline={offline} />);
+            root.render(
+                <MemoryRouter initialEntries={[entry]}>
+                    <Location />
+                    <UserPreferencesForm offline={offline} />
+                </MemoryRouter>
+            );
         });
     };
     const button = (text: string) =>
@@ -94,6 +106,31 @@ describe("personal preferences", () => {
     const submit = async () => {
         await act(async () => Simulate.submit(container.querySelector("form")!));
     };
+
+    it.each(["", ".html"])("preserves a shared draft and URL when switching tabs (%s)", async (suffix) => {
+        const page = `/user/preferences${suffix}?v=test`;
+        await render(false, page + "#writing");
+        const selected = () => container.querySelector('[role="tab"][aria-selected="true"]')?.textContent;
+        const tab = (title: string) =>
+            Array.from(container.querySelectorAll<HTMLElement>('[role="tab"]')).find(
+                (item) => item.textContent === title
+            )!;
+        expect(selected()).toBe(getRes().user.preferences.writingTitle);
+        await act(async () => tab(getRes().user.preferences.appearanceTitle).click());
+        toggle("appearance_compactMode");
+        await act(async () => tab(getRes().user.preferences.assistantTitle).click());
+        expect(container.querySelector("output")?.textContent).toBe(page + "#assistant");
+        await act(async () => navigate(-1));
+        expect(selected()).toBe(getRes().user.preferences.appearanceTitle);
+        expect(container.querySelector("#appearance_compactMode")?.getAttribute("aria-checked")).toBe("true");
+        expect(getRes().admin_compactMode).toBe(true);
+        await act(async () => navigate(1));
+        expect(selected()).toBe(getRes().user.preferences.assistantTitle);
+        expect(mockGet).toHaveBeenCalledTimes(1);
+        expect(mockPost).not.toHaveBeenCalled();
+        await act(async () => navigate(page + "#unknown"));
+        expect(selected()).toBe(getRes().user.preferences.appearanceTitle);
+    });
 
     it("shows effective values and previews edits without pinning untouched defaults", async () => {
         await render();
@@ -169,7 +206,7 @@ describe("personal preferences", () => {
     it("supports English and prevents offline writes", async () => {
         window.__SS_DATA__!.resourceInfo = { lang: "en_US" };
         await render(true);
-        expect(container.textContent).toContain("Connect to view and edit personal settings");
+        expect(container.textContent).toContain("Connect to view and edit preferences");
         expect(container.textContent).toContain(getRes().user.preferences.offline);
         expect(mockGet).not.toHaveBeenCalled();
         expect(container.querySelector("form")).toBeNull();

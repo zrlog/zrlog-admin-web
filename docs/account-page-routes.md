@@ -5,7 +5,7 @@
 | 网页 | 用途 | 页面初始数据 API |
 | --- | --- | --- |
 | `/admin/user` | 个人资料 | `/api/admin/user` |
-| `/admin/user/preferences` | 个人设置 | `/api/admin/user` |
+| `/admin/user/preferences` | 偏好设置 | `/api/admin/user` |
 | `/admin/user/security` | 账号安全 | `/api/admin/account-security` |
 | `/admin/user/applications` | 个人令牌和外部应用授权 | `/api/admin/user`，页内继续请求 `/api/admin/oauth` |
 | `/admin/user/applications/authorize` | OAuth 授权确认 | `/api/admin/oauth/authorize` |
@@ -20,6 +20,18 @@
 ## 设置页界面
 
 站点设置与个人设置共用 `SettingsLayout`：桌面左侧分类导航、右侧内容区域，窄屏使用分类选择器。
-个人导航包含个人资料、个人设置、账号安全和外部应用；内容使用相同标题、间距和表单宽度。
+个人导航分为「个人账号」「偏好设置」「外部应用」，组内使用二级 Tab；内容使用相同标题、间距和表单宽度。
+
+| 导航组 | 二级 Tab | URL |
+| --- | --- | --- |
+| 个人账号 | 个人信息 / 账户安全 | `/admin/user` / `/admin/user/security` |
+| 偏好设置 | 界面显示 / 文章编辑 / AI 助手 | `/admin/user/preferences#appearance` / `#writing` / `#assistant` |
+| 外部应用 | 个人访问令牌 / 我的授权 / 站点应用登记 | `/admin/user/applications#tokens` / `#grants` / `#clients` |
+
+站点应用登记 Tab 仅对应用管理接口返回的管理员可见。页内 Tab 使用 URL fragment，支持直接打开、刷新和浏览器前进/后退；静态模式的 fragment 位于 `.html` 和版本查询参数之后。空或无效 fragment 回落到首个可见 Tab。
+fragment 不参与页面数据请求、缓存键或权限判断，切换 Tab 不重新加载页面数据。偏好设置的三个 Tab 共用一份表单草稿和保存栏，切换时保留即时预览及未保存内容，离开偏好设置页面仍恢复已保存设置。API、SSR 页面映射、OAuth 授权确认路径和敏感页缓存规则沿用现有约定。
+
+外部应用中的授权服务器、资源、MCP 地址及令牌创建结果共用地址解析规则：服务端返回的完整 HTTP(S) 地址原样保留，避免改变 OAuth issuer/resource；相对或缺失地址使用当前 `backendServerUrl` 补全，保留后端 context path 并避免重复拼接。静态后台配置独立后端时使用后端地址，而非静态页面域名。显示与复制使用同一结果，应用登记的回调地址保持原值。
+
 可保存表单共用 `SettingsSubmitBar`，沿用各自的保存接口、权限与即时预览/撤销行为。
 成员管理位于站点设置的「站点」分类，使用同一布局；仅有 `member.manage` 权限的账号可见。头像菜单只保留个人入口。旧 `/admin/user/members` 路由移除，不做兼容跳转；成员 API 仍为 `/api/admin/members`。

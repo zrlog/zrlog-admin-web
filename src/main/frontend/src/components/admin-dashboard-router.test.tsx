@@ -128,6 +128,17 @@ describe("dashboard route request lifecycle", () => {
         expect(loading()).toBe("false");
     });
 
+    it("retains loaded page data when only the settings tab fragment changes", async () => {
+        mockSsData.data = { label: "Loaded page" };
+        await render();
+        await act(async () => navigate("/index#writing"));
+        expect(container.textContent).toBe("Loaded page");
+        expect(loading()).toBe("false");
+        await act(async () => navigate(-1));
+        expect(container.textContent).toBe("Loaded page");
+        expect(mockGetCsrData).not.toHaveBeenCalled();
+    });
+
     it.each(["offline", "offline-navigation", "unmount"])("ignores a late success after %s", async (transition) => {
         const previous = deferred();
         mockGetCsrData.mockReturnValue(previous.promise);

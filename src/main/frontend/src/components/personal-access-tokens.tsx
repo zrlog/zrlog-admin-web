@@ -20,6 +20,7 @@ import {
 import { useAxiosBaseInstance } from "../base/AppBase";
 import { getRes } from "../utils/constants";
 import { getSsDate } from "../base/SsData";
+import { resolveApplicationServerUrl } from "../utils/application-server-url";
 
 export type PersonalAccessToken = {
     id: string;
@@ -191,7 +192,7 @@ export default function PersonalAccessTokens({
                         <div>
                             <Typography.Paragraph strong>{res.mcpUrl}</Typography.Paragraph>
                             <Typography.Paragraph copyable style={{ overflowWrap: "anywhere" }}>
-                                {created.info.resource}
+                                {resolveApplicationServerUrl(created.info.resource, "mcp")}
                             </Typography.Paragraph>
                         </div>
                         <div>
