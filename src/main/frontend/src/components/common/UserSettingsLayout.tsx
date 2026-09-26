@@ -2,12 +2,18 @@ import { ReactNode } from "react";
 import { theme } from "antd";
 import {
     UserOutlined,
+    LockFilled,
     LockOutlined,
+    SkinFilled,
     SkinOutlined,
+    EditFilled,
     EditOutlined,
+    RobotFilled,
     RobotOutlined,
     KeyOutlined,
+    SafetyCertificateFilled,
     SafetyCertificateOutlined,
+    ApiFilled,
     ApiOutlined,
 } from "@ant-design/icons";
 import { getRes } from "../../utils/constants";
@@ -38,30 +44,58 @@ const UserSettingsLayout = ({
                     key: "profile",
                     label: res.user.title,
                     path: USER_ROUTES.profile,
-                    icon: <UserOutlined />,
+                    icon: <UserOutlined style={activeKey === "profile" ? { color: token.colorPrimary } : undefined} />,
                 },
                 {
                     key: "security",
                     label: res.accountSecurity.title,
                     path: USER_ROUTES.security,
-                    icon: <LockOutlined />,
+                    icon: activeKey === "security" ? <LockFilled /> : <LockOutlined />,
                 },
             ],
         },
         {
             label: res.user.preferences.title,
             items: [
-                { key: "appearance", label: res.user.preferences.appearanceTitle, icon: <SkinOutlined /> },
-                { key: "writing", label: res.user.preferences.writingTitle, icon: <EditOutlined /> },
-                { key: "assistant", label: res.user.preferences.assistantTitle, icon: <RobotOutlined /> },
+                {
+                    key: "appearance",
+                    label: res.user.preferences.appearanceTitle,
+                    icon: activeKey === "appearance" ? <SkinFilled /> : <SkinOutlined />,
+                },
+                {
+                    key: "writing",
+                    label: res.user.preferences.writingTitle,
+                    icon: activeKey === "writing" ? <EditFilled /> : <EditOutlined />,
+                },
+                {
+                    key: "assistant",
+                    label: res.user.preferences.assistantTitle,
+                    icon: activeKey === "assistant" ? <RobotFilled /> : <RobotOutlined />,
+                },
             ].map((item) => ({ ...item, path: USER_ROUTES[item.key as UserPreferencePage] })),
         },
         {
             label: res.oauth.title,
             items: [
-                { key: "tokens", label: res.oauth.personalTokens.title, icon: <KeyOutlined /> },
-                { key: "grants", label: res.oauth.grants, icon: <SafetyCertificateOutlined /> },
-                ...(canManageClients ? [{ key: "clients", label: res.oauth.applications, icon: <ApiOutlined /> }] : []),
+                {
+                    key: "tokens",
+                    label: res.oauth.personalTokens.title,
+                    icon: <KeyOutlined style={activeKey === "tokens" ? { color: token.colorPrimary } : undefined} />,
+                },
+                {
+                    key: "grants",
+                    label: res.oauth.grants,
+                    icon: activeKey === "grants" ? <SafetyCertificateFilled /> : <SafetyCertificateOutlined />,
+                },
+                ...(canManageClients
+                    ? [
+                          {
+                              key: "clients",
+                              label: res.oauth.applications,
+                              icon: activeKey === "clients" ? <ApiFilled /> : <ApiOutlined />,
+                          },
+                      ]
+                    : []),
             ].map((item) => ({ ...item, path: USER_ROUTES[item.key as UserApplicationPage] })),
         },
     ];
