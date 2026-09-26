@@ -124,7 +124,11 @@ describe("account management pages", () => {
                 (button) => button.textContent === getRes().members.edit
             )
         ).toHaveLength(1);
-        expect(container.textContent).not.toContain(getRes().members.transfer);
+        expect(
+            Array.from(container.querySelectorAll("button")).some(
+                (button) => button.textContent === getRes().members.transfer
+            )
+        ).toBe(false);
         expect(container.querySelector('nav a[aria-current="page"]')?.getAttribute("href")).toContain(
             "/website/members"
         );
@@ -258,6 +262,37 @@ describe("account management pages", () => {
         expect(container.textContent).toContain("/api/admin/article/create");
         expect(container.textContent).not.toContain(getRes().access.unknownEndpoint);
     });
+    it("lets browser clients explicitly inherit or select the shared account permissions", () => {
+        act(() =>
+            root.render(
+                <OAuthConsent
+                    data={{
+                        requestId: "cli",
+                        csrf: "csrf",
+                        clientName: "ZrLog CLI",
+                        redirectUri: "http://127.0.0.1:49152/oauth/callback",
+                        resource: "https://blog.example/sub/api/admin",
+                        scopes: ["account:inherit", "offline_access"],
+                        availableScopes: [
+                            "article.read",
+                            "article.publish",
+                            "notification.create",
+                            "account:inherit",
+                            "offline_access",
+                        ],
+                        accountPermissions: true,
+                    }}
+                />
+            )
+        );
+        expect(container.textContent).toContain(getRes().access.actions["notification.create"]);
+        expect(container.querySelector<HTMLInputElement>('input[value="custom"]')?.checked).toBe(true);
+        act(() => container.querySelector<HTMLInputElement>('input[value="inherit"]')!.click());
+        expect(container.textContent).toContain(getRes().oauth.personalTokens.inheritHelp);
+        expect(container.querySelector('input[value="article.publish"]')).toBeNull();
+        expect(container.querySelector<HTMLInputElement>('input[value="offline_access"]')?.checked).toBe(true);
+    });
+
     it("defaults consent to own public read and disables unavailable full-site access", () => {
         act(() =>
             root.render(

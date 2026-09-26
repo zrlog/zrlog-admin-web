@@ -316,7 +316,7 @@ export const createAdminDashboardRoutes = (
                 title: () => getRes().websiteWebhook.title,
                 iconKey: "webhook",
                 keywords: ["webhook", "token", "message", "notice", "站内信", "通知", "令牌", "外部"],
-                visible: () => getRes().feature_webhook_enabled === true,
+                visible: () => false,
             },
         ],
     },

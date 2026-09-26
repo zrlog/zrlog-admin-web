@@ -41,7 +41,9 @@ const info: PersonalAccessToken = {
     userId: 1,
     name: "Desktop assistant",
     scopes: ["articles:read"],
-    resource: "https://blog.example/sub/mcp",
+    permissionMode: "custom",
+    permissions: ["article.read"],
+    resource: "https://blog.example/sub",
     createdAt: 1,
     expiresAt: 9999999999999,
     revoked: false,
@@ -49,8 +51,9 @@ const info: PersonalAccessToken = {
     invalidated: false,
 };
 const scopes = ["articles:read", "articles:read_drafts", "articles:read_private", "articles:all"];
+const permissions = ["article.read", "taxonomy.read", "notification.create"];
 
-describe("personal MCP tokens", () => {
+describe("personal access tokens", () => {
     let root: Root;
     let container: HTMLDivElement;
     const changed = jest.fn<Promise<void>, []>();
@@ -109,8 +112,8 @@ describe("personal MCP tokens", () => {
         Array.from(document.querySelectorAll<HTMLButtonElement>("button")).find(
             (b) => b.textContent?.replace(/\s/g, "") === text.replace(/\s/g, "")
         )!;
-    const render = (allowed = scopes, tokens: PersonalAccessToken[] = []) =>
-        act(() => root.render(<PersonalAccessTokens tokens={tokens} scopes={allowed} onChange={changed} />));
+    const render = (allowed = permissions, tokens: PersonalAccessToken[] = []) =>
+        act(() => root.render(<PersonalAccessTokens tokens={tokens} permissions={allowed} onChange={changed} />));
     const open = () => act(() => button(getRes().oauth.personalTokens.create).click());
     const name = () =>
         act(() =>
@@ -122,52 +125,78 @@ describe("personal MCP tokens", () => {
         await act(async () => Simulate.submit(document.querySelector("form")!));
     };
 
-    it.each(["zh_CN", "en_US"])("defaults to own public read and a 30-day lifetime in %s", (lang) => {
+    it.each(["zh_CN", "en_US"])("defaults to selected article reading and a 30-day lifetime in %s", (lang) => {
         window.__SS_DATA__!.resourceInfo = { lang: lang as "zh_CN" | "en_US" };
         render();
         open();
-        expect(document.querySelector<HTMLInputElement>('input[value="own"]')!.checked).toBe(true);
-        expect(document.querySelectorAll('input[type="checkbox"]:checked')).toHaveLength(0);
+        expect(document.querySelector<HTMLInputElement>('input[value="custom"]')!.checked).toBe(true);
+        expect(document.querySelectorAll('input[type="checkbox"]:checked')).toHaveLength(1);
         expect(document.body.textContent).toContain(getRes().oauth.personalTokens.days30);
         expect(document.body.textContent).toContain("writer");
-        expect(document.body.textContent).toContain(getRes().oauth.personalTokens.readHelp);
+        expect(document.body.textContent).toContain(getRes().oauth.personalTokens.customHelp);
     });
     it.each([
         [info.resource, info.resource],
-        ["/blog/mcp", "https://backend.example/blog/mcp"],
+        ["/blog", "https://backend.example/blog"],
     ])("displays the created token once with its server address %s", async (resource, expectedUrl) => {
         setBackendServerUrl("https://backend.example/blog/");
-        render(scopes.filter((s) => s !== "articles:all"));
+        render(permissions);
         open();
         name();
         expect(document.querySelector('input[value="all"]')).toBeNull();
-        act(() => document.querySelector<HTMLInputElement>('input[value="articles:read_private"]')!.click());
+        act(() => document.querySelector<HTMLInputElement>('input[value="taxonomy.read"]')!.click());
         mockPost.mockResolvedValue({
-            data: { error: 0, data: { token: "zrmcp_one-time-secret", info: { ...info, resource } } },
+            data: { error: 0, data: { token: "zrpat_one-time-secret", info: { ...info, resource } } },
         });
         await submit();
         expect(mockPost).toHaveBeenCalledWith("/api/admin/oauth/createPersonalToken", {
             name: "Desktop assistant",
             expiresInDays: 30,
-            scopes: ["articles:read", "articles:read_private"],
+            permissionMode: "custom",
+            permissions: ["article.read", "taxonomy.read"],
         });
         expect(changed).toHaveBeenCalledTimes(1);
-        expect(document.body.textContent).toContain("zrmcp_one-time-secret");
+        expect(document.body.textContent).toContain("zrpat_one-time-secret");
         expect(document.body.textContent).toContain(expectedUrl);
         expect(document.body.textContent).toContain(getRes().oauth.personalTokens.once);
         act(() => button(getRes().oauth.personalTokens.close).click());
-        expect(document.body.textContent).not.toContain("zrmcp_one-time-secret");
+        expect(document.body.textContent).not.toContain("zrpat_one-time-secret");
         open();
-        expect(document.body.textContent).not.toContain("zrmcp_one-time-secret");
+        expect(document.body.textContent).not.toContain("zrpat_one-time-secret");
+    });
+    it("requires an explicit choice to inherit and sends no hidden selected permissions", async () => {
+        render();
+        open();
+        name();
+        act(() => document.querySelector<HTMLInputElement>('input[value="inherit"]')!.click());
+        expect(document.body.textContent).toContain(getRes().oauth.personalTokens.inheritHelp);
+        expect(document.querySelector('input[value="taxonomy.read"]')).toBeNull();
+        mockPost.mockResolvedValue({
+            data: { error: 0, data: { token: "zrpat_inherited", info: { ...info, permissionMode: "inherit" } } },
+        });
+        await submit();
+        expect(mockPost).toHaveBeenCalledWith("/api/admin/oauth/createPersonalToken", {
+            name: "Desktop assistant",
+            expiresInDays: 30,
+            permissionMode: "inherit",
+            permissions: [],
+        });
+    });
+    it("keeps old MCP scope restrictions visible", () => {
+        render(permissions, [
+            { ...info, permissionMode: "legacy", scopes: ["articles:read", "articles:read_private"] },
+        ]);
+        expect(container.textContent).toContain(getRes().oauth.personalTokens.legacy);
+        expect(container.textContent).toContain(getRes().oauth.scopeLabels["articles:read_private"]);
     });
     it("keeps the one-time token available when reloading the list fails", async () => {
         render();
         open();
         name();
         changed.mockRejectedValue(new Error("offline"));
-        mockPost.mockResolvedValue({ data: { error: 0, data: { token: "zrmcp_keep-this-secret", info } } });
+        mockPost.mockResolvedValue({ data: { error: 0, data: { token: "zrpat_keep-this-secret", info } } });
         await submit();
-        expect(document.body.textContent).toContain("zrmcp_keep-this-secret");
+        expect(document.body.textContent).toContain("zrpat_keep-this-secret");
         expect(document.querySelector("form")).toBeNull();
         expect(mockPost).toHaveBeenCalledTimes(1);
     });
@@ -180,7 +209,7 @@ describe("personal MCP tokens", () => {
         expect(document.querySelector<HTMLInputElement>("input[placeholder]")!.value).toBe("Desktop assistant");
         expect(document.body.textContent).not.toContain(getRes().oauth.personalTokens.once);
         act(() => document.querySelector<HTMLButtonElement>(".ant-drawer-close")!.click());
-        render(scopes, [info]);
+        render(permissions, [info]);
         act(() => button(getRes().oauth.personalTokens.revoke).click());
         mockPost.mockResolvedValueOnce({ data: { error: 0, data: true } });
         await act(async () => document.querySelector<HTMLButtonElement>(".ant-popconfirm .ant-btn-primary")!.click());
@@ -190,12 +219,13 @@ describe("personal MCP tokens", () => {
         const data: UserApplicationsData = {
             personalTokens: [info],
             personalTokenScopes: scopes,
+            personalTokenPermissions: permissions,
             clients: [],
             grants: [],
             administrator: false,
             issuer: "https://blog.example/sub",
             resource: "https://blog.example/sub/api/oauth",
-            mcpResource: info.resource,
+            mcpResource: info.resource + "/mcp",
         };
         await act(async () =>
             root.render(
@@ -235,6 +265,7 @@ describe("personal MCP tokens", () => {
         const data: UserApplicationsData = {
             personalTokens: [],
             personalTokenScopes: scopes,
+            personalTokenPermissions: permissions,
             grants: [],
             administrator: true,
             clients: [{ clientId: "client", name: "App", redirectUris: ["https://client.example/callback"] }],
@@ -263,12 +294,13 @@ describe("personal MCP tokens", () => {
         const data: UserApplicationsData = {
             personalTokens: [],
             personalTokenScopes: scopes,
+            personalTokenPermissions: permissions,
             clients: [],
             grants: [],
             administrator: false,
             issuer: "https://blog.example/sub",
             resource: "https://blog.example/sub/api/oauth",
-            mcpResource: info.resource,
+            mcpResource: info.resource + "/mcp",
         };
         const updateCache = jest.fn();
         await act(async () =>
@@ -282,11 +314,11 @@ describe("personal MCP tokens", () => {
         open();
         name();
         const refreshed = { ...data, personalTokens: [info] };
-        mockPost.mockResolvedValue({ data: { error: 0, data: { token: "zrmcp_one-time-secret", info } } });
+        mockPost.mockResolvedValue({ data: { error: 0, data: { token: "zrpat_one-time-secret", info } } });
         mockGet.mockResolvedValue({ data: { error: 0, data: refreshed } });
         await submit();
         expect(updateCache).toHaveBeenCalledWith(refreshed, USER_ROUTES.tokens);
-        expect(JSON.stringify(updateCache.mock.calls)).not.toContain("zrmcp_one-time-secret");
+        expect(JSON.stringify(updateCache.mock.calls)).not.toContain("zrpat_one-time-secret");
     });
 
     it.each([false, true])(
@@ -301,12 +333,13 @@ describe("personal MCP tokens", () => {
             const data: UserApplicationsData = {
                 personalTokens: [info],
                 personalTokenScopes: scopes,
+                personalTokenPermissions: permissions,
                 clients: [],
                 grants: [],
                 administrator,
                 issuer: "https://blog.example/sub",
                 resource: "https://blog.example/sub/api/oauth",
-                mcpResource: info.resource,
+                mcpResource: info.resource + "/mcp",
             };
             window.__SS_DATA__!.resourceInfo = { lang: "zh_CN", staticPage: true };
             const page = (administrator ? USER_ROUTES.clients : USER_ROUTES.tokens) + ".html?v=test";

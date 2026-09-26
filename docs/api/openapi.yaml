@@ -27,6 +27,8 @@ tags:
     description: 通用附件上传
   - name: Template
     description: 主题安装与管理
+  - name: Notification
+    description: 外部消息中心通知
 paths:
   /api/admin/article/create:
     post:
@@ -52,6 +54,7 @@ paths:
         - 公开文章创建成功后刷新博客缓存，并可能触发静态站同步
         - preserveDraftAiMessages 为 false 时可能把后台编辑器的未归属临时上下文迁移到新文章
       security:
+        - AccessTokenBearer: []
         - AdminTokenHeader: []
         - AdminTokenCookie: []
       requestBody:
@@ -148,6 +151,7 @@ paths:
         - 涉及当前或原公开文章时刷新博客缓存，并可能触发静态站同步
         - 公开文章转为草稿或私密文章时会清除置顶状态并重排置顶文章
       security:
+        - AccessTokenBearer: []
         - AdminTokenHeader: []
         - AdminTokenCookie: []
       requestBody:
@@ -236,6 +240,7 @@ paths:
         - 启用上传插件时尝试同步文件并以插件 URL 替换本地 URL
         - 上传插件失败时记录日志并回退到本地 URL，不回滚本地文件
       security:
+        - AccessTokenBearer: []
         - AdminTokenHeader: []
         - AdminTokenCookie: []
       parameters:
@@ -317,6 +322,7 @@ paths:
         - 成功后记录 UPLOAD_TEMPLATE 管理审计
         - 异步刷新博客缓存并更新静态站状态
       security:
+        - AccessTokenBearer: []
         - AdminTokenHeader: []
         - AdminTokenCookie: []
       parameters:
@@ -396,8 +402,60 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiErrorResponse"
+  /api/webhook/message-center/notice:
+    post:
+      tags: [Notification]
+      summary: 发送消息中心通知
+      description: 需要 notification.create 权限，且站点已开启接收外部通知；相同 taskKey 会替换已有通知
+      operationId: createExternalNotification
+      x-zrlog-controller: com.zrlog.admin.web.controller.api.WebhookController#messageCenterNotice
+      x-zrlog-response-kind: action
+      x-zrlog-side-effects:
+        - 写入站点消息中心通知，保留最近 50 条
+      security:
+        - AccessTokenBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title]
+              properties:
+                title: {type: string, maxLength: 120}
+                description: {type: string, maxLength: 2000}
+                taskKey: {type: string, maxLength: 120}
+                source: {type: string, maxLength: 80}
+                actionLabel: {type: string, maxLength: 80}
+                actionPath: {type: string, maxLength: 255}
+                closable: {type: boolean, default: true}
+                updatedAt: {type: integer, format: int64}
+                payload: {type: object, additionalProperties: true}
+      responses:
+        "200":
+          description: 处理结果；必须检查 error 是否为 0
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error: {type: integer}
+                  message: {type: string}
+                  data:
+                    type: object
+                    properties:
+                      taskKey: {type: string}
+                      updatedAt: {type: integer, format: int64}
+        "401":
+          description: Bearer 无效或已失效
+        "403":
+          description: 缺少发送通知权限
 components:
   securitySchemes:
+    AccessTokenBearer:
+      type: http
+      scheme: bearer
+      description: 新个人访问令牌，或 resource 为站点 /api/admin 的 OAuth access token；按账号 Action 与令牌授权检查
     AdminTokenHeader:
       type: apiKey
       in: header

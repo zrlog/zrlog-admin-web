@@ -13,7 +13,7 @@ const httpUrl = (value: string, base?: string): URL | undefined => {
 /** Keep canonical OAuth identifiers intact; resolve incomplete service URLs against the connected backend. */
 export const resolveApplicationServerUrl = (
     serverUrl: string | undefined,
-    fallbackPath: "" | "api/oauth" | "mcp",
+    fallbackPath: "" | "api/oauth" | "mcp" | "api/webhook/message-center/notice",
     backendServerUrl = getBackendServerUrl(),
     origin = window.location.origin
 ): string => {

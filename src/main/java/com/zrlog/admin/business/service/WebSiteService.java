@@ -70,6 +70,7 @@ public class WebSiteService {
         FeatureLabWebSiteInfo featureLab = queryToMap(Arrays.asList(FEATURE_RESOURCE_REFERENCE_ENABLED_KEY,
                 FEATURE_ARTICLE_EXTENSION_FILTER_ENABLED_KEY,
                 FEATURE_WEBHOOK_ENABLED_KEY, FEATURE_PERSONAL_DATA_ENABLED_KEY), FeatureLabWebSiteInfo.class);
+        featureLab.setFeature_webhook_enabled(new WebhookService().getConfigResponse().getEnabled());
         featureLab.doValid();
         return featureLab;
     }

@@ -39,6 +39,7 @@ public class AdminWebSetup implements WebSetup {
         interceptors.add(OAuthInterceptor.class);
         interceptors.add(McpInterceptor.class);
         interceptors.add(AdminCrossOriginInterceptor.class);
+        interceptors.add(BearerTokenInterceptor.class);
         interceptors.add(PwaInterceptor.class);
         interceptors.add(AdminPwaInterceptor.class);
         interceptors.add(AdminStaticResourceInterceptor.class);

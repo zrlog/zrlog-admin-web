@@ -6,6 +6,7 @@ import com.zrlog.data.security.AccountAction;
 import com.hibegin.common.util.StringUtils;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.ResponseBody;
+import com.hibegin.http.annotation.RequestMethod;
 import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.rest.request.WebhookConfigRequest;
 import com.zrlog.admin.business.rest.request.WebhookMessageNoticeRequest;
@@ -57,10 +58,13 @@ public class WebhookController extends BaseController {
     }
 
     @ResponseBody
-    @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "webhook.createNotice")
+    @RequestMethod(method = HttpMethod.POST)
+    @RequiresAction(value = AccountAction.NOTIFICATION_CREATE, descriptionKey = "webhook.createNotice")
     public ApiStandardResponse<WebhookMessageNoticeCreateResponse> messageCenterNotice() {
         requirePost();
-        if (!webhookService.verifyToken(readToken())) {
+        boolean personal = com.zrlog.admin.business.security.DelegatedAccess.active();
+        if (personal) com.zrlog.admin.business.service.AccountPermissionService.require(AccountAction.NOTIFICATION_CREATE);
+        if (!webhookService.getConfigResponse().getEnabled() || (!personal && !webhookService.verifyToken(readToken()))) {
             throw new PermissionErrorException();
         }
         WebhookMessageNoticeRequest noticeRequest = getRequestBodyWithNullCheck(WebhookMessageNoticeRequest.class);

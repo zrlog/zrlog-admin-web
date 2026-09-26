@@ -45,6 +45,27 @@ public class AdminSseEmitterTest {
         assertTrue(body.contains("\"message\":\"boom\""));
     }
 
+    @Test public void sseWorkerCannotLoseDelegatedPublicationRestrictions() throws Exception {
+        try (var db = com.zrlog.admin.support.InMemoryZrLogDatabase.open()) {
+            CapturedResponse response = new CapturedResponse();
+            var identity = new com.zrlog.admin.business.security.OAuthModels.Identity();
+            identity.permissions = java.util.List.of("article.create"); identity.permissionMode = "custom";
+            com.zrlog.admin.business.security.DelegatedAccess.withIdentity(identity, () -> {
+                AdminSseEmitter.write(response.response(), "restricted-publish", emitter -> {
+                    var request = new com.zrlog.admin.business.rest.request.CreateArticleRequest();
+                    request.setTitle("Must not publish"); request.setTypeId(1L); request.setRubbish(false); request.setContent("content");
+                    org.junit.Assert.assertThrows(com.zrlog.admin.business.exception.PermissionErrorException.class,
+                            () -> new com.zrlog.admin.business.service.AdminArticleService().create(com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser(), request));
+                    emitter.send("checked", true);
+                });
+                return null;
+            });
+            assertTrue(response.body().contains("event: checked"));
+            org.junit.Assert.assertFalse(com.zrlog.admin.business.security.DelegatedAccess.active());
+            assertTrue(com.zrlog.admin.business.service.AccountPermissionService.current().canPublish());
+        }
+    }
+
     private static class CapturedResponse {
         private final Map<String, String> headers = new HashMap<>();
         private final Map<String, String> addedHeaders = new HashMap<>();

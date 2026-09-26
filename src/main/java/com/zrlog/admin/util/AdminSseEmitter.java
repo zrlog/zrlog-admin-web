@@ -36,10 +36,13 @@ public class AdminSseEmitter {
         PipedInputStream inputStream = new PipedInputStream();
         PipedOutputStream outputStream = new PipedOutputStream(inputStream);
         com.zrlog.common.vo.AdminTokenVO actor = com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser();
+        AdminSseEmitter emitter = new AdminSseEmitter(outputStream);
+        java.util.concurrent.Callable<Void> streamWriter = com.zrlog.admin.business.security.DelegatedAccess.capture(() -> {
+            writer.write(emitter); return null;
+        });
         Thread streamThread = new Thread(() -> {
-            AdminSseEmitter emitter = new AdminSseEmitter(outputStream);
             try {
-                com.zrlog.admin.web.token.AdminTokenThreadLocal.withUser(actor, () -> { writer.write(emitter); return null; });
+                com.zrlog.admin.web.token.AdminTokenThreadLocal.withUser(actor, streamWriter);
             } catch (Exception e) {
                 emitter.sendError(errorEvent, e);
             } finally {

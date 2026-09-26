@@ -1,12 +1,27 @@
 # 外部应用授权协议
 
-此版本提供 OAuth 授权与只读 MCP 知识库，不提供外部文章写入工具。
-`/api/oauth/me` 和只读知识库 `/mcp` 接受 OAuth Bearer；现有 `/api/admin/*` 仍使用后台会话。
-写入相关 scope 是后续资源适配器的权限契约，不能凭已获取令牌绕过后台会话访问文章接口。
+OAuth 支持只读 MCP 和按账号权限访问后台 API。Java 客户端优先通过浏览器完成授权，个人令牌适用于手动配置或脚本接入。
+
+## Java 客户端浏览器登录
+
+```sh
+zrlogctl login --site https://blog.example/sub
+zrlogctl --site https://blog.example/sub article list
+zrlogctl logout --site https://blog.example/sub
+```
+
+服务按需登记固定 public client `zrlogctl`，无需手动添加站点应用。客户端打开系统浏览器，通过 S256 PKCE、state 和 issuer 校验完成授权码交换；只允许 `http://127.0.0.1:{port}/oauth/callback`，该内置客户端的端口可变，其他客户端仍精确匹配回调。禁用内置客户端后不会自动重新启用。
+
+新 resource 为 `{issuer}/api/admin`，scope 使用现有 AccountAction ID（例如 `article.read taxonomy.read article.create article.publish`），或单独使用 `account:inherit` 显式继承账号当前权限；两者都可附加 `offline_access`。
+请求继承权限时，用户可以在浏览器改为指定权限；受限请求不能选择继承或额外权限。所有后台接口继续以自身的 `@RequiresAction`、条件权限和数据归属检查为准，不新增一套 API 权限清单。该 resource 也可向通知接口发送具有 `notification.create` 权限的请求。
+
+MCP 仍使用自己的 resource 和读取 scope，不因后台授权增加工具或扩大旧令牌的权限。新个人令牌的 MCP 读取范围遵守账号权限；已有 MCP 个人令牌保留原 scope 限制。
 
 ## 部署与客户端
 
-授权服务使用配置的博客 Host 与服务 context path，不使用请求的 Host 推导 issuer。
+OAuth 与 MCP 使用服务端配置的公开后端地址：优先读取 `ZRLOG_BACKEND_URL`，兼容已有的 `DEFAULT_BACKEND_SERVER_URL`；均未配置或仅为 `/` 时，才回退到博客 Host 与服务 context path。不使用请求的 Host 或客户端传来的 resource 推导 issuer。
+前后端分域部署必须把它设为实际提供 API 的后端，例如 `ZRLOG_BACKEND_URL=https://xiaochun-admin.zrlog.com`，博客域名保持 `xiaochun.zrlog.com`。完整后端地址可包含 context path，不会重复追加；仅配置 origin 时追加服务 context path。
+浏览器本地 `backendServerUrl` 无法供服务端的 OAuth 发现与令牌校验读取，因此分域部署需要这份固定的服务端配置。更改 issuer 后，原地址上的 OAuth 授权和个人令牌需重新建立。
 生产地址使用 HTTPS；localhost、127.0.0.1 和 IPv6 回环允许 HTTP。
 例如部署在 `https://blog.example/sub`：
 
@@ -21,17 +36,16 @@
 | 撤销令牌 | `POST https://blog.example/sub/oauth/revoke` |
 | 验证身份与当前 scope | `GET https://blog.example/sub/api/oauth/me` |
 
-首版使用管理员预登记的 public client，认证方式为 `none`，无 client secret。
+除内置 zrlogctl 外，使用管理员预登记的 public client，认证方式为 `none`，无 client secret。
 每个应用最多登记 10 个精确回调地址，不支持通配符、fragment、动态注册和客户端元数据文档。
-授权数据写入需要 JDBC 事务；目前支持 MySQL、H2、SQLite。D1/Web API 适配器不具备事务接口，
-相关管理操作明确拒绝；OAuth 标准端点返回 503 `temporarily_unavailable`，不会降级为非原子令牌消费。
+支持 MySQL、H2、SQLite 和 D1/Web API；凭证消费使用事务或带条件的原子更新。
 
 ## 授权与令牌
 
 1. 应用生成随机 `state` 与 43–128 字符的 PKCE `code_verifier`，计算 S256 challenge。
 2. 授权地址传入 `response_type=code`、`client_id`、精确的 `redirect_uri`、空格分隔 `scope`、
    `code_challenge_method=S256`、`code_challenge`、`resource` 和 `state`。
-   `resource` 必须为本服务的 `{issuer}/api/oauth` 或只读知识库 `{issuer}/mcp`，令牌不能跨资源使用。
+   `resource` 必须为本服务的 `{issuer}/api/admin`、`{issuer}/api/oauth` 或只读知识库 `{issuer}/mcp`，令牌不能跨资源使用。
 3. 用户登录并选择授权范围。连接默认仅本人、默认只勾选读取公开文章；草稿、私密、全站、写入、发布、删除和长期连接需明确选择。
    授权页请求绑定当前账号、会话和一次性 CSRF 值，10 分钟后失效。
 4. 服务仅向已登记回调返回 `code`（有效期 2 分钟）、原始 `state` 与 `iss`。
@@ -69,7 +83,7 @@ access token 不允许出现在 query 或 cookie；`/api/oauth/me` 要求 `Autho
 管理员角色变更、停用账号、改密、重置密码和所有权转移会使旧会话/授权失效。
 普通用户只能查看和撤销自己的授权。管理员可以停用应用并撤销该应用的全部授权。
 
-个人资料的「外部应用」页签还支持创建仅供 MCP 使用的个人访问令牌，适用于手动填写 Bearer Token 的客户端。创建时选择名称、7/30/90 天有效期和只读范围（默认本人公开文章）；完整令牌只返回一次，数据库只保存摘要。令牌绑定创建账号和认证版本，账号停用或认证版本变更后立即失效，允许单独撤销。它不使用 OAuth 授权码或刷新流程，不能用于 `/api/oauth/me` 或后台 API。标准 OAuth 客户端继续使用上面的授权流程。内部接口与验证见 [个人令牌契约](../mcp-personal-tokens.md)。
+个人设置左侧“外部应用”包含独立的个人令牌、我的授权、站点应用页面。个人令牌使用 7/30/90 天有效期，明文只显示一次，不支持刷新。创建请求显式传入 `permissionMode=custom` 与 AccountAction ID 列表，或 `permissionMode=inherit`；旧请求未传模式时仍创建 MCP-only 令牌。详见 [统一授权契约](../general-personal-tokens.md)。
 撤销 endpoint 接受 form 字段 `token`、`client_id`；未知 token 返回 200 `{}`，不泄露凭证是否存在。
 
 错误使用标准 HTTP 状态与 `{ "error": "invalid_grant" }` 一类 JSON，和后台业务 envelope 区分。
@@ -82,3 +96,7 @@ Bearer 验证失败返回 401；scope 不足返回 403；响应包含资源元�
 [资源元数据](https://www.rfc-editor.org/rfc/rfc9728)。这是明确限定的协议实现，不宣称认证或完整覆盖所有 OAuth 扩展。
 
 MCP 资源只接受读取相关 scope 与 offline_access，写 scope 会返回 invalid_scope。工具与客户端配置见 [知识库契约](../mcp-knowledge-base.md)。
+
+连接 ChatGPT 等 MCP 客户端时填写完整的 `{后端地址}/mcp`，授权与 token 请求的 resource 也使用这个地址。客户端应从 MCP 资源发现文档读取可选 scope；授权服务器的通用 scopes_supported 同时包含其他资源支持的写操作，不能全部用于 MCP。错误 `invalid_target` 表示 resource 与服务配置不匹配，`invalid_scope` 表示请求了该资源不支持的权限。
+
+反向代理需要保留未认证响应的 `401`、JSON body 和 `WWW-Authenticate`。如果 AWS 网关把后者改名为 `x-amzn-remapped-www-authenticate`，应在对外代理恢复为标准 `WWW-Authenticate`，否则客户端可能无法发现 MCP 资源元数据；仅暴露 `Access-Control-Expose-Headers` 不能恢复被改名的响应头。

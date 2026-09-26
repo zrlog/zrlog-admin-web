@@ -144,4 +144,75 @@ public class OAuthServiceTest {
             } finally {pool.shutdownNow();}
         }
     }
+    private AuthorizationRequest cli(String scopes) {
+        Client client = new Client(); client.clientId = OAuthService.CLI_CLIENT_ID;
+        client.redirectUris = List.of("http://127.0.0.1:41329/oauth/callback");
+        AuthorizationRequest request = request(client, scopes); request.resource = service.adminResource(); return request;
+    }
+    private TokenResponse approveCli(AuthorizationRequest request, List<String> scopes) throws Exception {
+        Consent consent = consent(request); Decision decision = decision(consent); decision.scopes = scopes;
+        Redirect redirect = service.decide(decision);
+        TokenRequest token = new TokenRequest(); token.grant_type = "authorization_code";
+        token.client_id = request.client_id; token.redirect_uri = request.redirect_uri; token.resource = request.resource;
+        token.code = OAuthInterceptor.parameters(URI.create(redirect.redirectUri).getRawQuery()).get("code"); token.code_verifier = verifier;
+        return service.token(token);
+    }
+    @Test public void cliRegistersOnDemandAndConsentCanSelectActionsOrExplicitlyInherit() throws Exception {
+        try (InMemoryZrLogDatabase db = database()) {
+            AuthorizationRequest request = cli("account:inherit offline_access");
+            Consent consent = consent(request);
+            assertTrue(consent.accountPermissions);
+            assertTrue(consent.availableScopes.containsAll(List.of("article.read", "site.configure", "account:inherit")));
+            TokenResponse limited = approveCli(request, List.of("article.read", "taxonomy.read", "offline_access"));
+            Identity identity = service.authenticate(limited.access_token, service.adminResource(), Set.of());
+            assertEquals("custom", identity.permissionMode);
+            assertEquals(Set.of("article.read", "taxonomy.read"), new HashSet<>(identity.permissions));
+            assertThrows(OAuthException.class, () -> service.authenticate(limited.access_token, service.mcpResource(), Set.of()));
+            TokenResponse inherited = approveCli(request, List.of("account:inherit", "offline_access"));
+            assertEquals(PersonalAccessTokenService.availablePermissions(AccountPermissionService.current()),
+                    service.authenticate(inherited.access_token, service.adminResource(), Set.of()).permissions);
+            assertEquals(1, ((Number)db.scalar("select count(*) from oauth_client where clientId=?", OAuthService.CLI_CLIENT_ID)).intValue());
+            TokenRequest refresh = new TokenRequest(); refresh.grant_type="refresh_token"; refresh.client_id=OAuthService.CLI_CLIENT_ID;
+            refresh.resource=service.adminResource(); refresh.refresh_token=limited.refresh_token; refresh.scope="account:inherit";
+            assertThrows(OAuthException.class, () -> service.token(refresh));
+            refresh.scope=null; TokenResponse next=service.token(refresh);
+            assertNotEquals(limited.refresh_token, next.refresh_token);
+            assertThrows(OAuthException.class, () -> service.token(refresh));
+            assertThrows(OAuthException.class, () -> service.authenticate(next.access_token,service.adminResource(),Set.of()));
+            service.disableClient(OAuthService.CLI_CLIENT_ID);
+            assertThrows(OAuthException.class, () -> service.authorize(request));
+            assertThrows(OAuthException.class, () -> service.authenticate(inherited.access_token,service.adminResource(),Set.of()));
+        }
+    }
+    @Test public void onlyTheCliCallbackAllowsVariableLoopbackPortsAndActionsCannotCrossResources() throws Exception {
+        try (InMemoryZrLogDatabase db = database()) {
+            AuthorizationRequest request=cli("article.read offline_access");
+            for (String uri : List.of("https://evil.example/oauth/callback", "http://localhost:41329/oauth/callback",
+                    "http://127.0.0.1:41329/other", "http://127.0.0.1:41329/oauth/callback?next=evil", "http://127.0.0.1/oauth/callback")) {
+                request.redirect_uri=uri; assertThrows(OAuthException.class, () -> service.authorize(request));
+            }
+            request.redirect_uri="http://127.0.0.1:53219/oauth/callback";
+            Consent consent=consent(request); Decision decision=decision(consent); decision.scopes=List.of("account:inherit");
+            assertThrows(OAuthException.class, () -> service.decide(decision));
+            request.scope="articles:read"; assertThrows(OAuthException.class, () -> service.authorize(request));
+            request.scope="account:inherit"; request.resource=service.mcpResource(); assertThrows(OAuthException.class, () -> service.authorize(request));
+            AccountAuthorizationTest.login(db,1,"contributor");
+            request.resource=service.adminResource(); Consent limited=consent(request);
+            assertFalse(limited.availableScopes.contains("article.publish"));
+        }
+    }
+
+    @Test public void simultaneousFirstCliLoginsShareOneRegistration() throws Exception {
+        try (InMemoryZrLogDatabase db=database()) {
+            var executor=java.util.concurrent.Executors.newFixedThreadPool(2);
+            try {
+                var start=new java.util.concurrent.CountDownLatch(1);
+                java.util.concurrent.Callable<String> authorize=()->{start.await();return service.authorize(cli("account:inherit offline_access"));};
+                var a=executor.submit(authorize);var b=executor.submit(authorize);start.countDown();
+                assertNotNull(a.get()); assertNotNull(b.get());
+                assertEquals(1,((Number)db.scalar("select count(*) from oauth_client where clientId=?",OAuthService.CLI_CLIENT_ID)).intValue());
+            } finally {executor.shutdownNow();}
+        }
+    }
+
 }

@@ -95,6 +95,28 @@ public class WebhookControllerDatabaseTest {
         }
     }
 
+    @Test public void personalNotificationsRequireTheSharedPermissionAndTheActualReceivingSwitch() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            var config = new com.zrlog.admin.business.rest.request.WebhookConfigRequest(); config.setEnabled(true);
+            new WebhookService().updateConfig(config);
+            var identity = new com.zrlog.admin.business.security.OAuthModels.Identity();
+            identity.permissionMode = "custom"; identity.permissions = java.util.List.of("notification.create");
+            com.zrlog.admin.business.security.DelegatedAccess.withIdentity(identity, () -> {
+                assertEquals("server.webhook.message.deployed", controller(HttpMethod.POST, Map.of(), Map.of(),
+                        "{\"title\":\"Deployed\",\"taskKey\":\"deployed\"}").messageCenterNotice().getData().getTaskKey());
+                config.setEnabled(false); new WebhookService().updateConfig(config);
+                assertThrows(PermissionErrorException.class, () -> controller(HttpMethod.POST, Map.of(), Map.of(), "{\"title\":\"Blocked\"}").messageCenterNotice());
+                return null;
+            });
+            assertFalse(new com.zrlog.admin.business.service.WebSiteService().featureLab().getFeature_webhook_enabled());
+            config.setEnabled(true); new WebhookService().updateConfig(config);
+            identity.permissions = java.util.List.of("article.read");
+            com.zrlog.admin.business.security.DelegatedAccess.withIdentity(identity, () -> {
+                assertThrows(PermissionErrorException.class, () -> controller(HttpMethod.POST, Map.of(), Map.of(), "{\"title\":\"Blocked\"}").messageCenterNotice()); return null;
+            });
+        }
+    }
+
     private static WebhookController controller(HttpMethod method, Map<String, String> headers,
                                                 Map<String, String> params, String body) throws Exception {
         WebhookController controller = new WebhookController();

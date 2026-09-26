@@ -69,6 +69,11 @@ public class WebSiteSettingsService {
                 webSite.updateByKV(entry.getKey(), toWebsiteValue(entry.getValue()));
             }
         }
+        if (settings instanceof com.zrlog.admin.business.rest.base.FeatureLabWebSiteInfo) {
+            com.zrlog.admin.business.rest.request.WebhookConfigRequest webhook = new com.zrlog.admin.business.rest.request.WebhookConfigRequest();
+            webhook.setEnabled(((com.zrlog.admin.business.rest.base.FeatureLabWebSiteInfo) settings).getFeature_webhook_enabled());
+            new WebhookService().updateConfig(webhook);
+        }
         BaseDataInitVO initData = Constants.zrLogConfig.getCacheService().getInitData();
         if (initData != null) {
             initData.setWebSite(new WebSite().getPublicWebSite());

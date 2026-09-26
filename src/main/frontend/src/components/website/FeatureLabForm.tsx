@@ -1,8 +1,10 @@
+import { Link } from "react-router-dom";
+import { USER_ROUTES } from "../../utils/account-page-routes";
 import Form from "antd/es/form";
 import Switch from "antd/es/switch";
-import { Alert, theme } from "antd";
+import { Alert, Space, theme } from "antd";
 import { useEffect } from "react";
-import { getRes } from "../../utils/constants";
+import { getRealRouteUrl, getRes } from "../../utils/constants";
 import { FeatureLab } from "./index";
 import { useResponsiveFormLayout } from "../../utils/responsive-form";
 import WebsiteSubmitBar from "./WebsiteSubmitBar";
@@ -68,6 +70,12 @@ const FeatureLabForm = ({
                 name="feature_webhook_enabled"
                 label={getRes().websiteLab.webhook}
                 tooltip={getRes().websiteLab.webhookTip}
+                extra={
+                    <Space wrap>
+                        <Link to={getRealRouteUrl(USER_ROUTES.tokens)}>{getRes().oauth.personalTokens.title}</Link>
+                        <Link to={getRealRouteUrl("/website/webhook")}>{getRes().websiteWebhook.legacyTokens}</Link>
+                    </Space>
+                }
             >
                 <Switch />
             </Form.Item>

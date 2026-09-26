@@ -70,7 +70,10 @@ public class AdminResourceImplTest {
     @Test
     public void shouldBuildAdminResourceInfoFromRealWebsiteAndFeatureTables() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-            db.putWebsite("feature_webhook_enabled", true);
+            db.putWebsite("feature_webhook_enabled", true); // Obsolete menu-only flag must not enable receiving.
+            assertFalse(new WebSiteService().featureLab().getFeature_webhook_enabled());
+            var webhook = new com.zrlog.admin.business.rest.request.WebhookConfigRequest();
+            webhook.setEnabled(true); new WebhookService().updateConfig(webhook);
             db.putWebsite("feature_personal_data_enabled", true);
             db.putWebsite("admin_static_resource_base_url", "https://cdn.example.com");
             AdminResourceImpl resource = new AdminResourceImpl("/blog");

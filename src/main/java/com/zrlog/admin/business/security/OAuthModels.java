@@ -36,6 +36,7 @@ public final class OAuthModels {
         public String resource;
         public List<String> scopes;
         public List<String> availableScopes;
+        public boolean accountPermissions;
     }
     public static class Decision implements com.zrlog.common.Validator {
         public void doValid() { if (requestId == null || csrf == null) throw new com.zrlog.common.exception.ArgsException(); }
@@ -85,12 +86,17 @@ public final class OAuthModels {
         public String mcpResource;
         public List<PersonalTokenModels.Info> personalTokens;
         public List<String> personalTokenScopes;
+        public List<String> personalTokenPermissions;
+        public String notificationEndpoint;
     }
     public static class Revoke implements com.zrlog.common.Validator { public String id; public void doValid() { if (id == null || id.isEmpty()) throw new com.zrlog.common.exception.ArgsException(); } }
     public static class Identity {
         public int userId;
+        public int authVersion;
         public String role;
         public String clientId;
+        public String permissionMode;
+        public List<String> permissions;
         public List<String> scopes;
     }
     public static class Metadata {

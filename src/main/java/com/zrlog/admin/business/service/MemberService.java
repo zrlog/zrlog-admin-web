@@ -61,7 +61,7 @@ public final class MemberService {
             Map<String,Object> row = store.one(c, "select * from user where userId=?", body.userId);
             if (row == null || "owner".equals(row.get("role")) || body.userId == actor.getUserId()) throw new PermissionErrorException();
             // Administrators cannot edit other administrators or grant their own rank.
-            if (!actor.isOwner() && ("admin".equals(row.get("role")) || "admin".equals(body.role))) throw new PermissionErrorException();
+            if (!com.zrlog.data.security.AccountAction.ADMIN_APPOINT.allowed(actor) && ("admin".equals(row.get("role")) || "admin".equals(body.role))) throw new PermissionErrorException();
             if (c.isWebApi()) {
                 String password = body.password == null || body.password.isEmpty() ? (String) row.get("password")
                         : PasswordHashUtils.hash(SecurityUtils.md5(body.password));
@@ -118,7 +118,7 @@ public final class MemberService {
     private static void checkMutation() { if (ZrLogUtil.isPreviewMode()) throw new PermissionErrorException(); }
     private static void validateRole(String role) {
         if (role == null || !AccountAccess.ROLES.contains(role) || "owner".equals(role)) throw new ArgsException("role");
-        if ("admin".equals(role) && !AccountPermissionService.current().isOwner()) throw new PermissionErrorException();
+        if ("admin".equals(role) && !com.zrlog.data.security.AccountAction.ADMIN_APPOINT.allowed(AccountPermissionService.current())) throw new PermissionErrorException();
     }
     private static void validatePassword(String password) { if (password == null || password.length() < 12 || password.length() > 256) throw new ArgsException("password"); }
     private static Member member(Map<String,Object> row) {

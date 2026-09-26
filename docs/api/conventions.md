@@ -17,7 +17,9 @@ OpenAPI `paths` 只记录应用内路径，例如 `/api/admin/template/upload`�
 
 ## 鉴权
 
-后台 API 支持以下任一账号凭证，Header 的优先级高于 Cookie：
+后台 API 支持以下账号凭证，Bearer 优先；Bearer 无效时不回退到其他凭证：
+
+- Header：`Authorization: Bearer <token>`，支持新个人访问令牌与 resource 为 `{issuer}/api/admin` 的 OAuth 令牌
 
 - Header：`X-ZrLog-Admin-Token`
 - Cookie：`admin-token`
@@ -34,7 +36,8 @@ OpenAPI `paths` 只记录应用内路径，例如 `/api/admin/template/upload`�
 对象归属、私密状态和当前账号状态在 service 与查询中再次验证，不能仅凭路由放行。
 角色、启用状态和认证版本来自数据库，停用、改密和角色调整使旧会话失效。
 
-OAuth Bearer 令牌仅用于 OAuth 资源端点，不替代上述后台凭证。
+Bearer 通过同一个 Action 定义和接口声明授权；指定权限取与账号权限的交集，继承模式使用账号当前权限。
+旧 MCP 令牌和其他 resource 的 OAuth 令牌不能调用后台 API。
 协议说明见 [OAuth](oauth.md)，角色和管理页面说明见 [账号与授权设计](../accounts-oauth-design.md)。
 
 ## JSON 响应

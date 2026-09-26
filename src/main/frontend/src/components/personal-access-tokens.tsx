@@ -27,6 +27,8 @@ export type PersonalAccessToken = {
     userId: number;
     name: string;
     scopes: string[];
+    permissionMode?: "legacy" | "custom" | "inherit";
+    permissions?: string[];
     resource: string;
     createdAt: number;
     expiresAt: number;
@@ -35,20 +37,23 @@ export type PersonalAccessToken = {
     invalidated: boolean;
 };
 type Created = { token: string; info: PersonalAccessToken };
-type FormValues = { name: string; expiresInDays: number; range: "own" | "all"; permissions: string[] };
+type FormValues = { name: string; expiresInDays: number; permissionMode: "custom" | "inherit"; permissions: string[] };
 
 export default function PersonalAccessTokens({
     tokens,
-    scopes,
+    permissions,
+    siteUrl,
     onChange,
 }: {
     tokens: PersonalAccessToken[];
-    scopes: string[];
+    permissions: string[];
+    siteUrl?: string;
     onChange: () => Promise<void>;
 }) {
     const api = useAxiosBaseInstance();
     const res = getRes().oauth;
-    const labels: Record<string, string> = res.scopeLabels;
+    const labels: Record<string, string> = getRes().access.actions;
+    const scopeLabels: Record<string, string> = res.scopeLabels;
     const [form] = Form.useForm<FormValues>();
     const [open, setOpen] = useState(false);
     const [created, setCreated] = useState<Created>();
@@ -66,7 +71,8 @@ export default function PersonalAccessTokens({
             const response = await api.post("/api/admin/oauth/createPersonalToken", {
                 name: values.name.trim(),
                 expiresInDays: values.expiresInDays,
-                scopes: ["articles:read", ...values.permissions, ...(values.range === "all" ? ["articles:all"] : [])],
+                permissionMode: values.permissionMode,
+                permissions: values.permissionMode === "custom" ? values.permissions : [],
             });
             if (response.data.error) {
                 notice.error(response.data.message);
@@ -103,7 +109,7 @@ export default function PersonalAccessTokens({
             extra={
                 <Button
                     type="primary"
-                    disabled={busy || !scopes.includes("articles:read")}
+                    disabled={busy || permissions.length === 0}
                     onClick={() => {
                         setCreated(undefined);
                         form.resetFields();
@@ -155,15 +161,26 @@ export default function PersonalAccessTokens({
                             description={
                                 <Space orientation="vertical">
                                     <Typography.Text>
-                                        {res.range}: {token.scopes.includes("articles:all") ? res.all : res.own}
+                                        {token.permissionMode === "inherit"
+                                            ? res.personalTokens.inherit
+                                            : token.permissionMode === "custom"
+                                            ? res.personalTokens.custom
+                                            : res.personalTokens.legacy}
                                     </Typography.Text>
-                                    <Space wrap>
-                                        {token.scopes
-                                            .filter((scope) => scope !== "articles:all")
-                                            .map((scope) => (
-                                                <Tag key={scope}>{labels[scope] ?? scope}</Tag>
+                                    {token.permissionMode !== "inherit" && (
+                                        <Space wrap>
+                                            {(token.permissionMode === "custom"
+                                                ? token.permissions ?? []
+                                                : token.scopes
+                                            ).map((permission) => (
+                                                <Tag key={permission}>
+                                                    {(token.permissionMode === "custom" ? labels : scopeLabels)[
+                                                        permission
+                                                    ] ?? permission}
+                                                </Tag>
                                             ))}
-                                    </Space>
+                                        </Space>
+                                    )}
                                     <Typography.Text type="secondary">
                                         {res.personalTokens.createdAt}: {new Date(token.createdAt).toLocaleString()}
                                     </Typography.Text>
@@ -189,9 +206,14 @@ export default function PersonalAccessTokens({
                     <Space orientation="vertical" size="large" style={{ width: "100%" }}>
                         <Alert type="info" showIcon title={res.personalTokens.once} />
                         <div>
-                            <Typography.Paragraph strong>{res.mcpUrl}</Typography.Paragraph>
+                            <Typography.Paragraph strong>{res.personalTokens.siteUrl}</Typography.Paragraph>
                             <Typography.Paragraph copyable style={{ overflowWrap: "anywhere" }}>
-                                {resolveApplicationServerUrl(created.info.resource, "mcp")}
+                                {resolveApplicationServerUrl(
+                                    created.info.permissionMode && created.info.permissionMode !== "legacy"
+                                        ? created.info.resource
+                                        : siteUrl,
+                                    ""
+                                )}
                             </Typography.Paragraph>
                         </div>
                         <div>
@@ -202,7 +224,7 @@ export default function PersonalAccessTokens({
                         </div>
                         <div>
                             <ol>
-                                <li>{res.personalTokens.connectionTransport}</li>
+                                <li>{res.personalTokens.connectionClient}</li>
                                 <li>{res.personalTokens.connectionToken}</li>
                             </ol>
                             <Typography.Paragraph type="secondary">
@@ -220,7 +242,11 @@ export default function PersonalAccessTokens({
                     <Form
                         form={form}
                         layout="vertical"
-                        initialValues={{ expiresInDays: 30, range: "own", permissions: [] }}
+                        initialValues={{
+                            expiresInDays: 30,
+                            permissionMode: "custom",
+                            permissions: permissions.includes("article.read") ? ["article.read"] : [],
+                        }}
                         onFinish={create}
                     >
                         <Form.Item
@@ -244,27 +270,52 @@ export default function PersonalAccessTokens({
                                 ]}
                             />
                         </Form.Item>
-                        {scopes.includes("articles:all") && (
-                            <Form.Item name="range" label={res.range}>
-                                <Radio.Group disabled={busy}>
-                                    <Space orientation="vertical">
-                                        <Radio value="own">{res.own}</Radio>
-                                        <Radio value="all">{res.all}</Radio>
-                                    </Space>
-                                </Radio.Group>
-                            </Form.Item>
-                        )}
+                        <Form.Item name="permissionMode" label={res.personalTokens.permissionMode}>
+                            <Radio.Group disabled={busy}>
+                                <Space orientation="vertical">
+                                    <Radio value="custom">{res.personalTokens.custom}</Radio>
+                                    <Radio value="inherit">{res.personalTokens.inherit}</Radio>
+                                </Space>
+                            </Radio.Group>
+                        </Form.Item>
                         <Form.Item
-                            name="permissions"
-                            label={res.personalTokens.contents}
-                            extra={res.personalTokens.readHelp}
+                            noStyle
+                            shouldUpdate={(previous, next) => previous.permissionMode !== next.permissionMode}
                         >
-                            <Checkbox.Group
-                                disabled={busy}
-                                options={["articles:read_drafts", "articles:read_private"]
-                                    .filter((scope) => scopes.includes(scope))
-                                    .map((scope) => ({ value: scope, label: labels[scope] }))}
-                            />
+                            {({ getFieldValue }) =>
+                                getFieldValue("permissionMode") === "custom" ? (
+                                    <Form.Item
+                                        name="permissions"
+                                        label={res.personalTokens.permissions}
+                                        rules={[
+                                            {
+                                                required: true,
+                                                type: "array",
+                                                min: 1,
+                                                message: res.personalTokens.choosePermission,
+                                            },
+                                        ]}
+                                        extra={res.personalTokens.customHelp}
+                                    >
+                                        <Checkbox.Group disabled={busy}>
+                                            <Space orientation="vertical">
+                                                {permissions.map((permission) => (
+                                                    <Checkbox key={permission} value={permission}>
+                                                        {labels[permission] ?? permission}
+                                                    </Checkbox>
+                                                ))}
+                                            </Space>
+                                        </Checkbox.Group>
+                                    </Form.Item>
+                                ) : (
+                                    <Alert
+                                        type="info"
+                                        showIcon
+                                        title={res.personalTokens.inheritHelp}
+                                        style={{ marginBottom: 16 }}
+                                    />
+                                )
+                            }
                         </Form.Item>
                         <Button type="primary" htmlType="submit" loading={busy}>
                             {res.personalTokens.create}

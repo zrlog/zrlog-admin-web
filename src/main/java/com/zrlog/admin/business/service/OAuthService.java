@@ -20,6 +20,9 @@ import java.util.stream.Collectors;
 /** Authorization-code provider with pre-registered public clients and mandatory S256 PKCE. */
 public final class OAuthService {
     public static final List<String> SCOPES = List.of("articles:read", "articles:read_drafts", "articles:read_private", "articles:all", "articles:write", "articles:publish", "articles:delete", "assets:write", "offline_access");
+    public static final String CLI_CLIENT_ID = "zrlogctl";
+    public static final String INHERIT_SCOPE = "account:inherit";
+    private static final String CLI_REDIRECT = "http://127.0.0.1/oauth/callback";
     private static final long ACCESS_TTL = 600_000L;
     private static final long REFRESH_TTL = 30L * 24 * 3600 * 1000;
     private static final Gson JSON = new Gson();
@@ -28,13 +31,27 @@ public final class OAuthService {
     private final Supplier<String> configuredIssuer;
     public OAuthService() { this(OAuthService::configuredSiteIssuer); }
     private static String configuredSiteIssuer() {
-        String host = Objects.toString(ZrLogUtil.getBlogHostByWebSite(), "").trim().replaceAll("/+$", "");
+        String backend = System.getenv("ZRLOG_BACKEND_URL");
+        if (backend == null || backend.isBlank()) backend = System.getenv("DEFAULT_BACKEND_SERVER_URL");
+        return configuredIssuer(backend, ZrLogUtil.getBlogHostByWebSite(),
+                com.zrlog.common.Constants.zrLogConfig.getServerConfig().getContextPath());
+    }
+    static String configuredIssuer(String backendUrl, String blogHost, String contextPath) {
+        String backend = Objects.toString(backendUrl, "").trim().replaceAll("/+$", "");
+        String context = Objects.toString(contextPath, "").replaceAll("/+$", "");
+        if (!backend.isEmpty()) {
+            URI uri = safeUri(backend);
+            if (uri.getRawQuery() != null) throw new OAuthException("invalid_request");
+            // A full backend base URL already includes its externally visible context path.
+            return backend + (uri.getRawPath().isEmpty() ? context : "");
+        }
+        String host = Objects.toString(blogHost, "").trim().replaceAll("/+$", "");
         if (!host.contains("://")) {
             URI parsed = URI.create("https://" + host);
             boolean local = Set.of("localhost", "127.0.0.1", "[::1]").contains(Objects.toString(parsed.getHost(), ""));
             host = (local ? "http://" : "https://") + host;
         }
-        return host + Objects.toString(com.zrlog.common.Constants.zrLogConfig.getServerConfig().getContextPath(), "");
+        return host + context;
     }
     public OAuthService(Supplier<String> issuer) { configuredIssuer = issuer; }
 
@@ -45,10 +62,11 @@ public final class OAuthService {
         return value;
     }
     public String resource() { return issuer() + "/api/oauth"; }
+    public String adminResource() { return issuer() + "/api/admin"; }
     public String mcpResource() { return issuer() + "/mcp"; }
     public static final List<String> MCP_SCOPES = List.of("articles:read", "articles:read_drafts", "articles:read_private", "articles:all", "offline_access");
     private void requireResource(String resource) {
-        if (!resource().equals(resource) && !mcpResource().equals(resource)) throw new OAuthException("invalid_target");
+        if (!resource().equals(resource) && !mcpResource().equals(resource) && !adminResource().equals(resource)) throw new OAuthException("invalid_target");
     }
     public ResourceMetadata mcpResourceMetadata() {
         ResourceMetadata m = new ResourceMetadata(); m.resource = mcpResource(); m.authorization_servers = List.of(issuer()); m.scopes_supported = MCP_SCOPES; return m;
@@ -59,7 +77,9 @@ public final class OAuthService {
     }
     public Metadata metadata() {
         Metadata m = new Metadata(); m.issuer = issuer(); m.authorization_endpoint = m.issuer + "/oauth/authorize";
-        m.token_endpoint = m.issuer + "/oauth/token"; m.revocation_endpoint = m.issuer + "/oauth/revoke"; m.scopes_supported = SCOPES;
+        m.token_endpoint = m.issuer + "/oauth/token"; m.revocation_endpoint = m.issuer + "/oauth/revoke"; m.scopes_supported = new ArrayList<>(SCOPES);
+        m.scopes_supported.add(INHERIT_SCOPE);
+        Arrays.stream(com.zrlog.data.security.AccountAction.values()).map(com.zrlog.data.security.AccountAction::getId).forEach(m.scopes_supported::add);
         return m;
     }
     public ResourceMetadata resourceMetadata() {
@@ -103,6 +123,49 @@ public final class OAuthService {
                 client.clientId, client.name.trim(), JSON.toJson(client.redirectUris), true));
         return client;
     }
+    private void ensureCliClient(SecurityStore.Session c) throws SQLException {
+        try {
+            store.update(c, "insert into oauth_client(clientId,name,redirectUris,enabled) select ?,?,?,? "
+                            + "where not exists(select 1 from oauth_client where clientId=?)",
+                    CLI_CLIENT_ID, "ZrLog CLI", JSON.toJson(List.of(CLI_REDIRECT)), true, CLI_CLIENT_ID);
+        } catch (SQLException concurrentInsert) {
+            // Another first-time login may have inserted the fixed public client.
+            if (store.one(c, "select clientId from oauth_client where clientId=?", CLI_CLIENT_ID) == null) throw concurrentInsert;
+        }
+    }
+    private boolean redirectAllowed(Client client, String redirect) {
+        if (!CLI_CLIENT_ID.equals(client.clientId)) return client.redirectUris.contains(redirect);
+        URI uri = safeUri(Objects.toString(redirect, ""));
+        return "http".equals(uri.getScheme()) && "127.0.0.1".equals(uri.getHost())
+                && uri.getPort() > 0 && uri.getPort() <= 65535 && "/oauth/callback".equals(uri.getRawPath())
+                && uri.getRawQuery() == null;
+    }
+    private Set<String> resourceScopes(String scope, String resource) {
+        if (!adminResource().equals(resource)) return scopes(scope);
+        if (scope == null || scope.isBlank() || scope.length() > 512) throw new OAuthException("invalid_scope");
+        Set<String> selected = new LinkedHashSet<>(Arrays.asList(scope.split(" +")));
+        Set<String> actions = Arrays.stream(com.zrlog.data.security.AccountAction.values())
+                .map(com.zrlog.data.security.AccountAction::getId).collect(Collectors.toSet());
+        if (selected.contains(INHERIT_SCOPE)) {
+            if (!Set.of(INHERIT_SCOPE, "offline_access").containsAll(selected)) throw new OAuthException("invalid_scope");
+        } else if (Collections.disjoint(selected, actions)) throw new OAuthException("invalid_scope");
+        actions.add(INHERIT_SCOPE); actions.add("offline_access");
+        if (!actions.containsAll(selected)) throw new OAuthException("invalid_scope");
+        return selected;
+    }
+    private Set<String> availableScopes(AccountAccess account, String resource) {
+        Set<String> available = new LinkedHashSet<>(adminResource().equals(resource)
+                ? PersonalAccessTokenService.availablePermissions(account) : account.scopes());
+        available.add("offline_access");
+        if (adminResource().equals(resource) && !com.zrlog.admin.business.security.DelegatedAccess.restricted()) available.add(INHERIT_SCOPE);
+        return available;
+    }
+    private boolean containsScopes(Set<String> allowed, Set<String> selected) {
+        Set<String> ceiling = new HashSet<>(allowed);
+        if (allowed.contains(INHERIT_SCOPE)) Arrays.stream(com.zrlog.data.security.AccountAction.values())
+                .map(com.zrlog.data.security.AccountAction::getId).forEach(ceiling::add);
+        return ceiling.containsAll(selected);
+    }
     private Client client(SecurityStore.Session c, String id) throws SQLException {
         Map<String,Object> row = store.one(c, "select * from oauth_client where clientId=?", id);
         if (row == null || !AccountAccess.truth(row.get("enabled"))) throw new OAuthException("invalid_client");
@@ -118,14 +181,18 @@ public final class OAuthService {
     public String authorize(AuthorizationRequest request) throws SQLException {
         if (request == null || !"code".equals(request.response_type)) throw new OAuthException("unsupported_response_type");
         requireResource(request.resource);
-        Set<String> requested = scopes(request.scope);
+        Set<String> requested = resourceScopes(request.scope, request.resource);
         if (mcpResource().equals(request.resource) && !MCP_SCOPES.containsAll(requested)) throw new OAuthException("invalid_scope");
         if (!"S256".equals(request.code_challenge_method) || request.code_challenge == null || !request.code_challenge.matches("[A-Za-z0-9_-]{43}")) throw new OAuthException("invalid_request");
         if (request.state != null && request.state.length() > 2048) throw new OAuthException("invalid_request");
         return store.withSession(c -> {
+            if (CLI_CLIENT_ID.equals(request.client_id)) {
+                if (!adminResource().equals(request.resource)) throw new OAuthException("invalid_target");
+                ensureCliClient(c);
+            }
             store.lock(c, "update oauth_client set enabled=enabled where clientId=?", request.client_id);
             Client app = client(c, request.client_id);
-            if (!app.redirectUris.contains(request.redirect_uri)) throw new OAuthException("invalid_request");
+            if (!redirectAllowed(app, request.redirect_uri)) throw new OAuthException("invalid_request");
             Pending pending = new Pending(); pending.request = request;
             // Bound unauthenticated, abandoned requests.
             store.update(c, "delete from oauth_credential where kind=? and expiresAt<?", "pending", System.currentTimeMillis());
@@ -150,8 +217,13 @@ public final class OAuthService {
                 throw new OAuthException("invalid_grant");
             Consent result = new Consent(); result.requestId = requestId; result.csrf = csrf;
             result.clientName = client(c, pending.request.client_id).name; result.redirectUri = pending.request.redirect_uri;
-            result.resource = pending.request.resource; result.scopes = new ArrayList<>(scopes(pending.request.scope));
-            result.availableScopes = result.scopes.stream().filter(s -> s.equals("offline_access") || account.scopes().contains(s)).collect(Collectors.toList());
+            result.resource = pending.request.resource; result.scopes = new ArrayList<>(resourceScopes(pending.request.scope, pending.request.resource));
+            result.accountPermissions = adminResource().equals(pending.request.resource);
+            Set<String> available = availableScopes(account, pending.request.resource);
+            if (result.scopes.contains(INHERIT_SCOPE)) {
+                result.availableScopes = new ArrayList<>(available);
+                if (!result.scopes.contains("offline_access")) result.availableScopes.remove("offline_access");
+            } else result.availableScopes = result.scopes.stream().filter(available::contains).collect(Collectors.toList());
             return result;
         });
     }
@@ -165,9 +237,9 @@ public final class OAuthService {
             if (pending.userId != account.getUserId() || !equal(pending.sessionHash, hash(AdminTokenThreadLocal.getUser().getSessionId()))
                     || !equal(pending.csrfHash, hash(decision.csrf))) throw new OAuthException("access_denied", 403);
             client(c, pending.request.client_id);
-            Set<String> selected = decision.approve ? scopes(decision.scopes == null ? "" : String.join(" ", decision.scopes)) : Set.of();
-            if (decision.approve && (!scopes(pending.request.scope).containsAll(selected)
-                    || selected.stream().anyMatch(s -> !s.equals("offline_access") && !account.scopes().contains(s)))) throw new OAuthException("invalid_scope");
+            Set<String> selected = decision.approve ? resourceScopes(decision.scopes == null ? "" : String.join(" ", decision.scopes), pending.request.resource) : Set.of();
+            if (decision.approve && (!containsScopes(resourceScopes(pending.request.scope, pending.request.resource), selected)
+                    || !availableScopes(account, pending.request.resource).containsAll(selected))) throw new OAuthException("invalid_scope");
             // Validate everything before consuming. The payload comparison also protects a concurrent CSRF/session change.
             if (store.update(c, "update oauth_credential set used=? where hash=? and used=? and expiresAt>? and payload=?",
                     true, hash(decision.requestId), false, System.currentTimeMillis(), row.get("payload")) != 1)
@@ -245,9 +317,9 @@ public final class OAuthService {
                 return null; // commit the revocation before reporting the error
             }
             if (((Number) record.get("expiresAt")).longValue() <= System.currentTimeMillis()) throw new OAuthException("invalid_grant");
-            Set<String> authorized = scopes((String) grant.get("scope"));
-            Set<String> selected = request.scope == null ? authorized : scopes(request.scope);
-            if (!authorized.containsAll(selected)) throw new OAuthException("invalid_scope");
+            Set<String> authorized = resourceScopes((String) grant.get("scope"), request.resource);
+            Set<String> selected = request.scope == null ? authorized : resourceScopes(request.scope, request.resource);
+            if (!containsScopes(authorized, selected)) throw new OAuthException("invalid_scope");
             if (store.update(c, "update oauth_credential set used=? where hash=? and used=? and expiresAt>?",
                     true, hash(value), false, System.currentTimeMillis()) != 1) {
                 // Another D1 request can win after our read. Reuse must revoke the winner's tokens too.
@@ -264,7 +336,7 @@ public final class OAuthService {
         return result;
     }
     public Identity authenticate(String bearer, String resource, Set<String> required) throws SQLException {
-        if (bearer != null && bearer.startsWith(PersonalAccessTokenService.PREFIX))
+        if (PersonalAccessTokenService.isPersonalToken(bearer))
             return new PersonalAccessTokenService(mcpResource()).authenticate(bearer, resource, required);
         try {
             return store.withSession(c -> {
@@ -278,10 +350,16 @@ public final class OAuthService {
                         hash(bearer), "access", false, System.currentTimeMillis(), false, resource, true, true);
                 if (record == null) throw new OAuthException("invalid_token", 401);
                 AccountAccess account = AccountAccess.from(record);
-                Set<String> scopes = scopes(JSON.fromJson((String) record.get("payload"), String.class));
-                scopes.retainAll(account.scopes());
+                Set<String> scopes = resourceScopes(JSON.fromJson((String) record.get("payload"), String.class), resource);
+                Identity identity = new Identity();
+                if (adminResource().equals(resource)) {
+                    identity.permissionMode = scopes.contains(INHERIT_SCOPE) ? "inherit" : "custom";
+                    identity.permissions = PersonalAccessTokenService.availablePermissions(
+                            scopes.contains(INHERIT_SCOPE) ? account : account.restrictActions(scopes));
+                    scopes = account.restrictActions(identity.permissions).scopes();
+                } else scopes.retainAll(account.scopes());
                 if (!scopes.containsAll(required)) throw new OAuthException("insufficient_scope", 403);
-                Identity identity = new Identity(); identity.userId = account.getUserId(); identity.role = account.getRole();
+                identity.userId = account.getUserId(); identity.authVersion = account.getAuthVersion(); identity.role = account.getRole();
                 identity.clientId = (String) record.get("clientId"); identity.scopes = new ArrayList<>(scopes); return identity;
             });
         } catch (OAuthException e) { if (e.getStatus() == 403) throw e; throw new OAuthException("invalid_token", 401); }
@@ -308,9 +386,11 @@ public final class OAuthService {
     public Page page() throws SQLException {
         AccountAccess account = AccountPermissionService.current();
         return store.withSession(c -> {
-            Page page = new Page(); page.administrator = account.isAdministrator(); page.issuer = issuer(); page.resource = resource(); page.mcpResource = mcpResource();
+            Page page = new Page(); page.administrator = com.zrlog.data.security.AccountAction.OAUTH_CLIENT_MANAGE.allowed(account); page.issuer = issuer(); page.resource = resource(); page.mcpResource = mcpResource();
             page.clients = new ArrayList<>();
             if (page.administrator) for (Map<String,Object> row : store.list(c, "select * from oauth_client where enabled=?", true)) page.clients.add(client(c, (String) row.get("clientId")));
+            page.personalTokenPermissions = PersonalAccessTokenService.availablePermissions(account);
+            page.notificationEndpoint = issuer() + WebhookService.MESSAGE_CENTER_NOTICE_ENDPOINT;
             page.personalTokenScopes = PersonalAccessTokenService.availableScopes(account);
             page.personalTokens = new PersonalAccessTokenService(page.mcpResource).list(account);
             page.grants = new ArrayList<>();

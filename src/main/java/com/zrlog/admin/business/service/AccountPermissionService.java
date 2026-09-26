@@ -19,7 +19,7 @@ public final class AccountPermissionService {
             if (token == null) throw new PermissionErrorException();
             AccountAccess account = AccountAccess.load(token.getUserId());
             if (!account.isEnabled() || token.getAuthVersion() != account.getAuthVersion()) throw new PermissionErrorException();
-            return account;
+            return com.zrlog.admin.business.security.DelegatedAccess.restrict(account);
         } catch (SQLException e) { throw new PermissionErrorException(); }
     }
 

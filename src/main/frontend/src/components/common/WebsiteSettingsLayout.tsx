@@ -131,7 +131,7 @@ const WebsiteSettingsLayout = ({
     const visibleNavItems = navItems.filter((item) => {
         if (!hasAction(item.key === "members" ? "member.manage" : "site.configure")) return false;
         if (item.key === "webhook") {
-            return getRes().feature_webhook_enabled === true;
+            return activeKey === "webhook";
         }
         if (item.key === "privacy") {
             return getRes().feature_personal_data_enabled === true;

@@ -34,6 +34,8 @@ export type UserApplicationsData = {
     mcpResource?: string;
     personalTokens: PersonalAccessToken[];
     personalTokenScopes: string[];
+    personalTokenPermissions?: string[];
+    notificationEndpoint?: string;
 };
 type UserApplicationsProps = Pick<AdminCommonProps<UserApplicationsData>, "data" | "offline" | "updateCache"> & {
     activePage?: UserApplicationPage;
@@ -53,7 +55,11 @@ function OAuthConnections({
     const [notice, contextHolder] = message.useMessage();
     const api = useAxiosBaseInstance();
     const res = getRes().oauth;
-    const labels: Record<string, string> = res.scopeLabels;
+    const labels: Record<string, string> = {
+        ...res.scopeLabels,
+        ...getRes().access.actions,
+        "account:inherit": res.personalTokens.inherit,
+    };
     const oauthEndpoints = (
         <Space orientation="vertical" style={{ maxWidth: "100%" }}>
             <Typography.Text>{res.issuer}</Typography.Text>
@@ -102,16 +108,31 @@ function OAuthConnections({
                             <Space orientation="vertical" size="large" style={{ width: "100%" }}>
                                 <div>
                                     <Space orientation="vertical" style={{ maxWidth: "100%" }}>
+                                        <Typography.Text>{res.personalTokens.siteUrl}</Typography.Text>
+                                        <Typography.Text copyable style={{ overflowWrap: "anywhere" }}>
+                                            {resolveApplicationServerUrl(page.issuer, "")}
+                                        </Typography.Text>
                                         <Typography.Text>{res.mcpUrl}</Typography.Text>
                                         <Typography.Text copyable style={{ overflowWrap: "anywhere" }}>
                                             {resolveApplicationServerUrl(page.mcpResource, "mcp")}
                                         </Typography.Text>
                                         <Typography.Paragraph type="secondary">{res.mcpHelp}</Typography.Paragraph>
+                                        <Typography.Text>{res.personalTokens.notificationUrl}</Typography.Text>
+                                        <Typography.Text copyable style={{ overflowWrap: "anywhere" }}>
+                                            {resolveApplicationServerUrl(
+                                                page.notificationEndpoint,
+                                                "api/webhook/message-center/notice"
+                                            )}
+                                        </Typography.Text>
+                                        <Typography.Paragraph type="secondary">
+                                            {res.personalTokens.notificationHelp}
+                                        </Typography.Paragraph>
                                     </Space>
                                 </div>
                                 <PersonalAccessTokens
                                     tokens={page.personalTokens}
-                                    scopes={page.personalTokenScopes}
+                                    permissions={page.personalTokenPermissions ?? []}
+                                    siteUrl={page.issuer}
                                     onChange={reload}
                                 />
                             </Space>
@@ -157,12 +178,14 @@ function OAuthConnections({
                                                             <Typography.Text type="secondary">
                                                                 {new Date(grant.createdAt).toLocaleString()}
                                                             </Typography.Text>
-                                                            <Typography.Text>
-                                                                {res.range}:{" "}
-                                                                {grant.scope.split(" ").includes("articles:all")
-                                                                    ? res.all
-                                                                    : res.own}
-                                                            </Typography.Text>
+                                                            {grant.scope.includes("articles:") && (
+                                                                <Typography.Text>
+                                                                    {res.range}:{" "}
+                                                                    {grant.scope.split(" ").includes("articles:all")
+                                                                        ? res.all
+                                                                        : res.own}
+                                                                </Typography.Text>
+                                                            )}
                                                             <Space wrap>
                                                                 {grant.scope
                                                                     .split(" ")

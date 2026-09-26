@@ -45,10 +45,10 @@ public class AdminCrossOriginInterceptor extends AdminInterceptor {
         }
         response.addHeader("Access-Control-Allow-Origin", origin);
         response.addHeader("Access-Control-Allow-Credentials", "true");
-        response.addHeader("Access-Control-Allow-Headers", "Content-Type, X-Requested-With, " + AdminTokenService.ADMIN_TOKEN_KEY_IN_REQUEST_HEADER);
+        response.addHeader("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Requested-With, " + AdminTokenService.ADMIN_TOKEN_KEY_IN_REQUEST_HEADER);
         if (request.getMethod() == HttpMethod.OPTIONS) {
             response.addHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS, DELETE, PUT");
-            response.addHeader("Access-Control-Allow-Headers", "Content-Type, X-Requested-With, " + AdminTokenService.ADMIN_TOKEN_KEY_IN_REQUEST_HEADER);
+            response.addHeader("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Requested-With, " + AdminTokenService.ADMIN_TOKEN_KEY_IN_REQUEST_HEADER);
             response.write(new LengthByteArrayInputStream(new byte[0]), 200);
             return false;
         }
