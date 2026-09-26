@@ -1,9 +1,12 @@
 import { act } from "react";
 import { createRoot, Root } from "react-dom/client";
 import { Simulate } from "react-dom/test-utils";
-import { MemoryRouter, NavigateFunction, useLocation, useNavigate } from "react-router-dom";
+import { MemoryRouter, NavigateFunction, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
 import UserPreferencesForm from "./user-preferences";
+import UserSettingsLayout from "./common/UserSettingsLayout";
+import { Grid } from "antd";
+import { USER_ROUTES, USER_PREFERENCE_PAGES } from "../utils/account-page-routes";
 import { getRes } from "../utils/constants";
 import { resolveUserPreferences, UserPreferences, UserPreferencesResponse } from "../utils/user-preferences";
 
@@ -12,7 +15,10 @@ const mockPost = jest.fn<Promise<any>, any[]>();
 const mockAxios = { get: mockGet, post: mockPost };
 jest.mock("../base/AppBase", () => ({ useAxiosBaseInstance: () => mockAxios }));
 const mockChangeAppState = jest.fn();
-jest.mock("../base/ConfigProviderApp", () => ({ changeAppState: (...args: any[]) => mockChangeAppState(...args) }));
+jest.mock("../base/ConfigProviderApp", () => ({
+    changeAppState: (...args: any[]) => mockChangeAppState(...args),
+    getAppState: () => ({ compactMode: false }),
+}));
 jest.mock("../base/AppInit", () => ({
     isSupportDarkMode: (theme: string) => ["default", "antd"].includes(theme),
     isDarkModeByRes: () => require("../utils/constants").getRes().admin_darkMode,
@@ -20,6 +26,7 @@ jest.mock("../base/AppInit", () => ({
 }));
 
 describe("personal preferences", () => {
+    const previousEnv = process.env;
     let root: Root;
     let container: HTMLDivElement;
     let navigate: NavigateFunction;
@@ -43,6 +50,8 @@ describe("personal preferences", () => {
     };
 
     beforeEach(() => {
+        process.env = { ...previousEnv, NODE_ENV: "production" };
+        jest.spyOn(Grid, "useBreakpoint").mockReturnValue({ md: true });
         (globalThis as any).MessageChannel = class {
             port1 = { onmessage: () => undefined };
             port2 = { postMessage: () => Promise.resolve().then(() => this.port1.onmessage()) };
@@ -85,21 +94,49 @@ describe("personal preferences", () => {
         root = createRoot(container);
     });
     afterEach(() => {
+        process.env = previousEnv;
         act(() => root.unmount());
         container.remove();
         jest.restoreAllMocks();
         delete (globalThis as any).IS_REACT_ACT_ENVIRONMENT;
         delete (globalThis as any).MessageChannel;
     });
-    const render = async (offline = false, entry = "/user/preferences", data: UserPreferencesResponse = response) => {
-        await act(async () => {
+    const PreferencePages = ({ data, offline }: { data: UserPreferencesResponse; offline: boolean }) => (
+        <Routes>
+            {USER_PREFERENCE_PAGES.flatMap((page) =>
+                ["", ".html"].map((suffix) => (
+                    <Route
+                        key={page + suffix}
+                        path={USER_ROUTES[page] + suffix}
+                        element={
+                            <UserSettingsLayout activeKey={page}>
+                                <UserPreferencesForm
+                                    key={page}
+                                    activePage={page}
+                                    data={data}
+                                    offline={offline}
+                                    updateCache={updateCache}
+                                />
+                            </UserSettingsLayout>
+                        }
+                    />
+                ))
+            )}
+        </Routes>
+    );
+    const render = async (
+        offline = false,
+        entry = USER_ROUTES.appearance as string,
+        data: UserPreferencesResponse = response
+    ) => {
+        await act(async () =>
             root.render(
                 <MemoryRouter initialEntries={[entry]}>
                     <Location />
-                    <UserPreferencesForm data={data} offline={offline} updateCache={updateCache} />
+                    <PreferencePages data={data} offline={offline} />
                 </MemoryRouter>
-            );
-        });
+            )
+        );
     };
     const button = (text: string) =>
         Array.from(container.querySelectorAll("button")).find((item) => item.textContent === text)!;
@@ -109,34 +146,40 @@ describe("personal preferences", () => {
         await act(async () => Simulate.submit(container.querySelector("form")!));
     };
 
-    it.each(["", ".html"])("preserves a shared draft and URL when switching tabs (%s)", async (suffix) => {
-        const page = `/user/preferences${suffix}?v=test`;
-        await render(false, page + "#writing");
-        const selected = () => container.querySelector('[role="tab"][aria-selected="true"]')?.textContent;
-        const tab = (title: string) =>
-            Array.from(container.querySelectorAll<HTMLElement>('[role="tab"]')).find(
-                (item) => item.textContent === title
-            )!;
-        expect(selected()).toBe(getRes().user.preferences.writingTitle);
-        await act(async () => tab(getRes().user.preferences.appearanceTitle).click());
-        toggle("appearance_compactMode");
-        await act(async () => tab(getRes().user.preferences.assistantTitle).click());
-        expect(container.querySelector("output")?.textContent).toBe(page + "#assistant");
-        await act(async () => navigate(-1));
-        expect(selected()).toBe(getRes().user.preferences.appearanceTitle);
-        expect(container.querySelector("#appearance_compactMode")?.getAttribute("aria-checked")).toBe("true");
-        expect(getRes().admin_compactMode).toBe(true);
-        await act(async () => navigate(1));
-        expect(selected()).toBe(getRes().user.preferences.assistantTitle);
-        expect(mockGet).not.toHaveBeenCalled();
-        expect(mockPost).not.toHaveBeenCalled();
-        await act(async () => navigate(page + "#unknown"));
-        expect(selected()).toBe(getRes().user.preferences.appearanceTitle);
-    });
+    it.each(["", ".html"])(
+        "opens independent preference pages and restores saved values after leaving (%s)",
+        async (suffix) => {
+            window.__SS_DATA__!.resourceInfo = { lang: "zh_CN", staticPage: suffix === ".html" };
+            const url = (page: keyof typeof USER_ROUTES) => USER_ROUTES[page] + suffix + "?v=test";
+            await render(false, url("writing"));
+            const selected = () => container.querySelector('nav a[aria-current="page"]')?.textContent;
+            const item = (title: string) =>
+                Array.from(container.querySelectorAll<HTMLElement>("nav a")).find(
+                    (link) => link.textContent === title
+                )!;
+            expect(selected()).toBe(getRes().user.preferences.writingTitle);
+            expect(container.querySelector("#articlePageSize")).not.toBeNull();
+            expect(container.querySelector("#appearance_compactMode")).toBeNull();
+            expect(container.querySelector('[role="tablist"]')).toBeNull();
+            await act(async () => item(getRes().user.preferences.appearanceTitle).click());
+            toggle("appearance_compactMode");
+            await act(async () => item(getRes().user.preferences.assistantTitle).click());
+            expect(container.querySelector("output")?.textContent).toBe(url("assistant"));
+            expect(container.querySelector("#assistant_knowledgeScope")).not.toBeNull();
+            expect(container.querySelector("#appearance_compactMode")).toBeNull();
+            expect(getRes().admin_compactMode).toBe(false);
+            await act(async () => navigate(-1));
+            expect(selected()).toBe(getRes().user.preferences.appearanceTitle);
+            expect(container.querySelector("#appearance_compactMode")?.getAttribute("aria-checked")).toBe("false");
+            await act(async () => navigate(1));
+            expect(selected()).toBe(getRes().user.preferences.assistantTitle);
+            expect(mockPost).not.toHaveBeenCalled();
+        }
+    );
 
     it("shows effective values and previews edits without pinning untouched defaults", async () => {
         await render();
-        expect(container.textContent).toContain(getRes().user.preferences.scopeOwnPublic);
+        expect(container.querySelector("#assistant_knowledgeScope")).toBeNull();
         expect(container.querySelector("#appearance_darkMode")?.getAttribute("aria-checked")).toBe("false");
         toggle("appearance_compactMode");
         expect(mockChangeAppState).toHaveBeenLastCalledWith(
@@ -162,10 +205,10 @@ describe("personal preferences", () => {
             effective: {},
         } as UserPreferencesResponse;
         refreshed.effective = resolveUserPreferences(refreshed.defaults, refreshed.overrides);
-        await render(false, "/user/preferences", refreshed);
+        await render(false, USER_ROUTES.appearance, refreshed);
         expect(container.querySelector("#appearance_darkMode")?.getAttribute("aria-checked")).toBe("true");
         toggle("appearance_compactMode");
-        await render(false, "/user/preferences", response);
+        await render(false, USER_ROUTES.appearance, response);
         expect(container.querySelector("#appearance_compactMode")?.getAttribute("aria-checked")).toBe("true");
         expect(mockGet).not.toHaveBeenCalled();
         act(() => button(getRes().user.preferences.undo).click());
@@ -182,12 +225,45 @@ describe("personal preferences", () => {
         mockPost.mockResolvedValue({ data: { error: 0, data: { overrides: {}, defaults, effective: defaults } } });
         await submit();
         expect(mockPost).toHaveBeenCalledWith("/api/admin/user/updatePreferences", {});
-        expect(updateCache).toHaveBeenCalledWith({ overrides: {}, defaults, effective: defaults }, "/user/preferences");
+        expect(updateCache).toHaveBeenCalledWith(
+            { overrides: {}, defaults, effective: defaults },
+            USER_ROUTES.appearance
+        );
         toggle("appearance_darkMode");
         expect(getRes().admin_darkMode).toBe(false);
         act(() => button(getRes().user.preferences.undo).click());
         expect(getRes().admin_darkMode).toBe(true);
         expect(button(getRes().user.preferences.save).disabled).toBe(true);
+    });
+
+    it("resets only writing preferences and preserves refreshed values from other pages", async () => {
+        const overrides: UserPreferences = {
+            ...response.overrides,
+            articlePageSize: 50,
+            editor: { autoSaveInterval: 10 },
+            assistant: { knowledgeScope: "off" },
+        };
+        const data = { overrides, defaults, effective: resolveUserPreferences(defaults, overrides) };
+        await render(false, USER_ROUTES.writing, data);
+        act(() => button(getRes().user.preferences.reset).click());
+        const latestOverrides: UserPreferences = {
+            ...overrides,
+            appearance: { darkMode: true },
+            assistant: { knowledgeScope: "own_all" },
+        };
+        await render(false, USER_ROUTES.writing, {
+            overrides: latestOverrides,
+            defaults,
+            effective: resolveUserPreferences(defaults, latestOverrides),
+        });
+        mockPost.mockResolvedValue({ data: { error: 9012, message: "Invalid" } });
+        await submit();
+        expect(mockPost).toHaveBeenCalledWith("/api/admin/user/updatePreferences", {
+            appearance: { darkMode: true },
+            assistant: { knowledgeScope: "own_all" },
+        });
+        expect(container.querySelector("#appearance_darkMode")).toBeNull();
+        expect(container.querySelector("#assistant_knowledgeScope")).toBeNull();
     });
 
     it("previews language immediately and rolls back on leaving", async () => {
@@ -208,7 +284,7 @@ describe("personal preferences", () => {
     });
 
     it("uses one knowledge scope selector and saves it without exposing permission toggles", async () => {
-        await render();
+        await render(false, USER_ROUTES.assistant);
         expect(container.querySelector("#assistant_allArticles")).toBeNull();
         await act(async () => Simulate.mouseDown(container.querySelector("#assistant_knowledgeScope")!));
         expect(document.body.textContent).not.toContain(getRes().user.preferences.scopeAccessibleAll);

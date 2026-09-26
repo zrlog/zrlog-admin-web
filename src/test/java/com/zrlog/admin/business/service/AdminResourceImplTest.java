@@ -39,7 +39,14 @@ public class AdminResourceImplTest {
             assertTrue(pageUris.stream().allMatch(uri -> uri.startsWith("/blog/admin/")));
             assertTrue(pageUris.contains("/blog/admin/index"));
             assertTrue(pageUris.contains("/blog/admin/user/security"));
-            assertTrue(pageUris.contains("/blog/admin/user/preferences"));
+            assertTrue(pageUris.contains("/blog/admin/user/preferences/appearance"));
+            assertTrue(pageUris.contains("/blog/admin/user/preferences/writing"));
+            assertTrue(pageUris.contains("/blog/admin/user/preferences/assistant"));
+            for (String page : java.util.List.of("tokens", "grants", "clients")) {
+                assertTrue(pageUris.contains("/blog/admin/user/applications/" + page));
+            }
+            assertFalse(pageUris.contains("/blog/admin/user/preferences"));
+            assertFalse(pageUris.contains("/blog/admin/user/applications"));
             assertTrue(pageUris.contains("/blog/admin/user/applications/authorize"));
             assertTrue(pageUris.contains("/blog/admin/website/members"));
             assertFalse(pageUris.contains("/blog/admin/user/members"));

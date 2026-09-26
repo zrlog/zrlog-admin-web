@@ -1,3 +1,4 @@
+import type { UserPreferencePage } from "./account-page-routes";
 import { AdminTheme, getRes, setRes } from "./constants";
 import { changeAppState } from "../base/ConfigProviderApp";
 import { getColorPrimaryByRes, isDarkModeByRes } from "../base/AppInit";
@@ -68,3 +69,22 @@ export const mergeUserPreferenceChanges = (current: UserPreferences, changes: Us
     ...(changes.assistant ? { assistant: { ...current.assistant, ...changes.assistant } } : {}),
     ...(changes.editor ? { editor: { ...current.editor, ...changes.editor } } : {}),
 });
+
+// A separate preferences page edits only its own fields, including when resetting defaults.
+export const replaceUserPreferencePage = (
+    current: UserPreferences,
+    edited: UserPreferences,
+    page: UserPreferencePage
+): UserPreferences => {
+    const fields: Record<UserPreferencePage, Array<keyof UserPreferences>> = {
+        appearance: ["language", "appearance"],
+        writing: ["articlePageSize", "editor"],
+        assistant: ["assistant"],
+    };
+    const result = { ...current };
+    fields[page].forEach((key) => {
+        if (edited[key] === undefined) delete result[key];
+        else Object.assign(result, { [key]: edited[key] });
+    });
+    return result;
+};

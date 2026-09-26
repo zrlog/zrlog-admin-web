@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import PersonalAccessTokens, { PersonalAccessToken } from "./personal-access-tokens";
-import SettingsTabs from "./common/SettingsTabs";
 import {
     Alert,
     Button,
@@ -23,6 +22,7 @@ import { resolveApplicationServerUrl } from "../utils/application-server-url";
 import { getPageDataCacheKey } from "../utils/cache";
 import type { AdminCommonProps } from "../type";
 import { getSsDate } from "../base/SsData";
+import { getPageApiUri, UserApplicationPage } from "../utils/account-page-routes";
 type Client = { clientId: string; name: string; redirectUris: string[] };
 type Grant = { id: string; clientName: string; scope: string; createdAt: number; revoked: boolean };
 export type UserApplicationsData = {
@@ -35,9 +35,15 @@ export type UserApplicationsData = {
     personalTokens: PersonalAccessToken[];
     personalTokenScopes: string[];
 };
-type UserApplicationsProps = Pick<AdminCommonProps<UserApplicationsData>, "data" | "offline" | "updateCache">;
+type UserApplicationsProps = Pick<AdminCommonProps<UserApplicationsData>, "data" | "offline" | "updateCache"> & {
+    activePage?: UserApplicationPage;
+};
 
-function OAuthConnections({ data, updateCache }: Pick<UserApplicationsProps, "data" | "updateCache">) {
+function OAuthConnections({
+    data,
+    updateCache,
+    activePage = "tokens",
+}: Pick<UserApplicationsProps, "data" | "updateCache" | "activePage">) {
     const [page, setPage] = useState(data);
     const location = useLocation();
     useEffect(() => setPage(data), [data]);
@@ -62,7 +68,7 @@ function OAuthConnections({ data, updateCache }: Pick<UserApplicationsProps, "da
     );
     const reload = async () => {
         const session = getSsDate().key;
-        const response = await api.get("/api/admin/oauth");
+        const response = await api.get(getPageApiUri(getPageDataCacheKey(location)));
         if (session !== getSsDate().key) return;
         if (!response.data.error) {
             setPage(response.data.data);
@@ -87,8 +93,8 @@ function OAuthConnections({ data, updateCache }: Pick<UserApplicationsProps, "da
     return (
         <Space orientation="vertical" size="large" style={{ width: "100%" }}>
             {contextHolder}
-            <SettingsTabs
-                items={[
+            {
+                [
                     {
                         key: "tokens",
                         label: res.personalTokens.title,
@@ -248,8 +254,8 @@ function OAuthConnections({ data, updateCache }: Pick<UserApplicationsProps, "da
                               },
                           ]
                         : []),
-                ]}
-            />
+                ].find((item) => item.key === activePage)?.children
+            }
             <Drawer title={res.register} open={open} onClose={() => setOpen(false)} destroyOnHidden>
                 <Form
                     form={form}
@@ -288,7 +294,7 @@ function OAuthConnections({ data, updateCache }: Pick<UserApplicationsProps, "da
     );
 }
 
-export function UserApplications({ offline, data, updateCache }: UserApplicationsProps) {
+export function UserApplications({ offline, data, updateCache, activePage }: UserApplicationsProps) {
     if (offline) return <Alert type="info" title={getRes().oauth.offline} />;
-    return <OAuthConnections data={data} updateCache={updateCache} />;
+    return <OAuthConnections data={data} updateCache={updateCache} activePage={activePage} />;
 }

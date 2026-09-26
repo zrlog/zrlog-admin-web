@@ -50,7 +50,17 @@ jest.mock("./admin-dashboard-routes", () => {
     return {
         createAdminDashboardRoutes: () => [
             {
-                paths: ["/index", "/article", "/website/members", "/user/applications", "/user/preferences"],
+                paths: [
+                    "/index",
+                    "/article",
+                    "/website/members",
+                    "/user/applications/tokens",
+                    "/user/applications/grants",
+                    "/user/applications/clients",
+                    "/user/preferences/appearance",
+                    "/user/preferences/writing",
+                    "/user/preferences/assistant",
+                ],
                 lazy: Page,
                 fallback: Page,
             },
@@ -145,29 +155,34 @@ describe("dashboard route request lifecycle", () => {
         expect(mockGetCsrData).not.toHaveBeenCalled();
     });
 
-    it.each(["/website/members", "/user/applications", "/user/preferences"])(
-        "shows the cached %s page immediately on a second visit and replaces it with the response",
-        async (path) => {
-            mockSsData.data = { label: "Home" };
-            const first = deferred();
-            const second = deferred();
-            mockGetCsrData
-                .mockReturnValueOnce(first.promise)
-                .mockResolvedValueOnce({ error: 0, data: { label: "Home" }, pageBuildId: "400" })
-                .mockReturnValueOnce(second.promise);
-            await render();
-            await act(async () => navigate(path));
-            await act(async () => first.resolve({ error: 0, data: { label: "First snapshot" }, pageBuildId: "400" }));
-            await act(async () => navigate("/index"));
-            await act(async () => navigate(path));
-            expect(container.textContent).toBe("First snapshot");
-            expect(loading()).toBe("true");
-            await act(async () => second.resolve({ error: 0, data: { label: "Latest snapshot" }, pageBuildId: "400" }));
-            expect(container.textContent).toBe("Latest snapshot");
-            expect(loading()).toBe("false");
-            expect(mockCache[path]).toEqual({ label: "Latest snapshot" });
-        }
-    );
+    it.each([
+        "/website/members",
+        "/user/applications/tokens",
+        "/user/applications/grants",
+        "/user/applications/clients",
+        "/user/preferences/appearance",
+        "/user/preferences/writing",
+        "/user/preferences/assistant",
+    ])("shows the cached %s page immediately on a second visit and replaces it with the response", async (path) => {
+        mockSsData.data = { label: "Home" };
+        const first = deferred();
+        const second = deferred();
+        mockGetCsrData
+            .mockReturnValueOnce(first.promise)
+            .mockResolvedValueOnce({ error: 0, data: { label: "Home" }, pageBuildId: "400" })
+            .mockReturnValueOnce(second.promise);
+        await render();
+        await act(async () => navigate(path));
+        await act(async () => first.resolve({ error: 0, data: { label: "First snapshot" }, pageBuildId: "400" }));
+        await act(async () => navigate("/index"));
+        await act(async () => navigate(path));
+        expect(container.textContent).toBe("First snapshot");
+        expect(loading()).toBe("true");
+        await act(async () => second.resolve({ error: 0, data: { label: "Latest snapshot" }, pageBuildId: "400" }));
+        expect(container.textContent).toBe("Latest snapshot");
+        expect(loading()).toBe("false");
+        expect(mockCache[path]).toEqual({ label: "Latest snapshot" });
+    });
 
     it.each(["offline", "offline-navigation", "unmount"])("ignores a late success after %s", async (transition) => {
         const previous = deferred();

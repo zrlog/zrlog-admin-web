@@ -40,7 +40,9 @@ public class AdminConstants {
         TITLE_MAP.put(ADMIN_LOGIN_URI_PATH, "admin.login.title");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/website/members", "admin.members.title");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/access", "admin.access.title");
-        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/user/applications", "admin.oauth.title");
+        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/user/applications/tokens", "admin.user.applications.tokens.manage");
+        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/user/applications/grants", "admin.user.applications.grants.manage");
+        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/user/applications/clients", "admin.user.applications.clients.manage");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/user/applications/authorize", "admin.oauth.authorize.title");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/article-edit", "admin.article.edit.manage");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/article", "admin.article.manage");
@@ -65,7 +67,9 @@ public class AdminConstants {
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/plugin", "admin.plugin.manage");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/user", "admin.user.info.manage");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/user/security", "admin.user.security.manage");
-        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/user/preferences", "admin.user.preferences.manage");
+        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/user/preferences/appearance", "admin.user.preferences.appearance.manage");
+        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/user/preferences/writing", "admin.user.preferences.writing.manage");
+        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/user/preferences/assistant", "admin.user.preferences.assistant.manage");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/upgrade", "admin.upgrade.wizard.manage");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/template-config", "admin.template.config.manage");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/template-center", "admin.template.center.manage");

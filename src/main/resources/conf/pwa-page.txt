@@ -19,9 +19,13 @@ admin/link
 admin/nav
 admin/comment
 admin/user
-admin/user/preferences
+admin/user/preferences/appearance
+admin/user/preferences/writing
+admin/user/preferences/assistant
 admin/user/security
-admin/user/applications
+admin/user/applications/tokens
+admin/user/applications/grants
+admin/user/applications/clients
 admin/user/applications/authorize
 admin/website/members
 admin/plugin

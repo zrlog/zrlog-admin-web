@@ -1,79 +1,97 @@
 import { ReactNode } from "react";
-import { Tabs, theme } from "antd";
-import { UserOutlined, SettingOutlined, ApiOutlined } from "@ant-design/icons";
-import { useNavigate } from "react-router-dom";
-import { getRealRouteUrl, getRes } from "../../utils/constants";
-import { USER_ROUTES } from "../../utils/account-page-routes";
-import SettingsLayout from "./SettingsLayout";
+import { theme } from "antd";
+import {
+    UserOutlined,
+    LockOutlined,
+    SkinOutlined,
+    EditOutlined,
+    RobotOutlined,
+    KeyOutlined,
+    SafetyCertificateOutlined,
+    ApiOutlined,
+} from "@ant-design/icons";
+import { getRes } from "../../utils/constants";
+import { USER_ROUTES, UserPreferencePage, UserApplicationPage } from "../../utils/account-page-routes";
+import { hasAction } from "../../utils/account-access";
+import SettingsLayout, { SettingsNavigationGroup } from "./SettingsLayout";
 import PermissionHelp from "./PermissionHelp";
 
-export type UserSettingsPage = "profile" | "preferences" | "security" | "applications";
+export type UserSettingsPage = "profile" | "security" | UserPreferencePage | UserApplicationPage;
 
-const UserSettingsLayout = ({ activeKey, children }: { activeKey: UserSettingsPage; children: ReactNode }) => {
+const UserSettingsLayout = ({
+    activeKey,
+    administrator,
+    children,
+}: {
+    activeKey: UserSettingsPage;
+    administrator?: boolean;
+    children: ReactNode;
+}) => {
     const res = getRes();
-    const navigate = useNavigate();
     const { token } = theme.useToken();
-    const accountPage = activeKey === "profile" || activeKey === "security";
-    const groupKey = accountPage ? "account" : activeKey;
-    const items = [
+    const canManageClients = administrator ?? hasAction("oauth.client.manage");
+    const groups: SettingsNavigationGroup[] = [
         {
-            key: "account",
             label: res.user.settings.navigation,
-            path: USER_ROUTES.profile,
-            icon: <UserOutlined />,
-            summary: activeKey === "security" ? res.user.settings.securitySummary : res.user.settings.profileSummary,
+            items: [
+                {
+                    key: "profile",
+                    label: res.user.title,
+                    path: USER_ROUTES.profile,
+                    icon: <UserOutlined />,
+                },
+                {
+                    key: "security",
+                    label: res.accountSecurity.title,
+                    path: USER_ROUTES.security,
+                    icon: <LockOutlined />,
+                },
+            ],
         },
         {
-            key: "preferences",
             label: res.user.preferences.title,
-            path: USER_ROUTES.preferences,
-            icon: <SettingOutlined />,
-            summary: res.user.preferences.description,
+            items: [
+                { key: "appearance", label: res.user.preferences.appearanceTitle, icon: <SkinOutlined /> },
+                { key: "writing", label: res.user.preferences.writingTitle, icon: <EditOutlined /> },
+                { key: "assistant", label: res.user.preferences.assistantTitle, icon: <RobotOutlined /> },
+            ].map((item) => ({ ...item, path: USER_ROUTES[item.key as UserPreferencePage] })),
         },
         {
-            key: "applications",
             label: res.oauth.title,
-            path: USER_ROUTES.applications,
-            icon: <ApiOutlined />,
-            summary: res.oauth.description,
+            items: [
+                { key: "tokens", label: res.oauth.personalTokens.title, icon: <KeyOutlined /> },
+                { key: "grants", label: res.oauth.grants, icon: <SafetyCertificateOutlined /> },
+                ...(canManageClients ? [{ key: "clients", label: res.oauth.applications, icon: <ApiOutlined /> }] : []),
+            ].map((item) => ({ ...item, path: USER_ROUTES[item.key as UserApplicationPage] })),
         },
     ];
-    const active = items.find((item) => item.key === groupKey)!;
+    const active = groups.flatMap((group) => group.items).find((item) => item.key === activeKey);
+    const applicationPage = ["tokens", "grants", "clients"].includes(activeKey);
+    const summaries = {
+        profile: res.user.settings.profileSummary,
+        security: res.user.settings.securitySummary,
+        appearance: res.user.preferences.description,
+        writing: res.user.preferences.description,
+        assistant: res.user.preferences.description,
+        tokens: res.oauth.description,
+        grants: res.oauth.description,
+        clients: res.oauth.description,
+    };
     return (
         <SettingsLayout
-            activeKey={groupKey}
-            title={active.label}
-            summary={active.summary}
-            groups={[{ label: res.common.settings, items }]}
-            extra={activeKey === "applications" && <PermissionHelp initialView="scopes" />}
+            activeKey={activeKey}
+            title={active?.label ?? res.oauth.applications}
+            summary={summaries[activeKey]}
+            groups={groups}
+            extra={applicationPage && <PermissionHelp initialView="scopes" />}
         >
             <div
                 style={{
                     maxWidth: 800,
-                    paddingBottom: activeKey === "applications" || activeKey === "security" ? token.padding : 0,
+                    paddingBottom: applicationPage || activeKey === "security" ? token.padding : 0,
                 }}
             >
-                {accountPage && (
-                    <Tabs
-                        activeKey={activeKey}
-                        onChange={(key) =>
-                            navigate(getRealRouteUrl(key === "security" ? USER_ROUTES.security : USER_ROUTES.profile))
-                        }
-                        items={[
-                            {
-                                key: "profile",
-                                label: res.user.title,
-                                children: activeKey === "profile" ? children : null,
-                            },
-                            {
-                                key: "security",
-                                label: res.accountSecurity.title,
-                                children: activeKey === "security" ? children : null,
-                            },
-                        ]}
-                    />
-                )}
-                {!accountPage && children}
+                {children}
             </div>
         </SettingsLayout>
     );

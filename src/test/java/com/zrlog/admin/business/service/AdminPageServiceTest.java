@@ -180,15 +180,15 @@ public class AdminPageServiceTest {
             RequestConfig config = new RequestConfig();
             config.setRouter(router);
             AdminPageService service = new AdminPageService();
-            for (String page : java.util.List.of("/admin/user", "/admin/user/preferences", "/admin/user/security",
-                    "/admin/user/applications", "/admin/website/members")) {
+            for (String page : com.zrlog.admin.web.config.AdminAccountPages.PAGE_APIS.keySet()) {
+                if (page.equals(com.zrlog.admin.web.config.AdminAccountPages.AUTHORIZE)) continue;
                 ServerSideDataResponse<Object> data = service.serverSide(page, request(page, "/blog", config), response());
                 assertNotNull(page, data.getData());
                 assertEquals(AdminConstants.getAdminDocumentTitleByUri(page), data.getDocumentTitle());
             }
-            assertTrue(service.serverSide("/admin/user/preferences", request("/admin/user/preferences", "/blog", config), response()).getData()
+            assertTrue(service.serverSide("/admin/user/preferences/appearance", request("/admin/user/preferences/appearance", "/blog", config), response()).getData()
                     instanceof com.zrlog.admin.business.rest.response.UserPreferencesResponse);
-            assertTrue(service.serverSide("/admin/user/applications", request("/admin/user/applications", "/blog", config), response()).getData()
+            assertTrue(service.serverSide("/admin/user/applications/tokens", request("/admin/user/applications/tokens", "/blog", config), response()).getData()
                     instanceof com.zrlog.admin.business.security.OAuthModels.Page);
             assertTrue(service.serverSide("/admin/website/members", request("/admin/website/members", "/blog", config), response()).getData()
                     instanceof com.zrlog.admin.business.security.MemberModels.Page);
@@ -197,13 +197,23 @@ public class AdminPageServiceTest {
                     router.getMethod("/api/admin/access", HttpMethod.GET)
                             .getAnnotation(com.zrlog.admin.web.annotation.RequiresAction.class).value());
             assertFalse(router.getRouterMap().containsKey("/api/admin/user/applications"));
-            for (String oldPage : java.util.List.of("/admin/user/permissions", "/admin/user/members", "/admin/members", "/admin/access", "/admin/oauth", "/admin/oauth/authorize")) {
+            for (String oldPage : java.util.List.of("/admin/user/preferences", "/admin/user/applications", "/admin/user/permissions", "/admin/user/members", "/admin/members", "/admin/access", "/admin/oauth", "/admin/oauth/authorize")) {
                 assertFalse(oldPage, router.getRouterMap().containsKey(oldPage));
             }
             AccountAuthorizationTest.login(db, 1, "author");
-            assertNotNull(service.serverSide("/admin/user/applications", request("/admin/user/applications", "/blog", config), response()).getData());
+            assertNotNull(service.serverSide("/admin/user/applications/tokens", request("/admin/user/applications/tokens", "/blog", config), response()).getData());
             org.junit.Assert.assertThrows(com.zrlog.admin.business.exception.PermissionErrorException.class,
                     () -> service.serverSide("/admin/website/members", request("/admin/website/members", "/blog", config), response()));
+            assertNotNull(service.serverSide("/admin/user/preferences/writing", request("/admin/user/preferences/writing", "/blog", config), response()).getData());
+            assertNotNull(service.serverSide("/admin/user/preferences/assistant", request("/admin/user/preferences/assistant", "/blog", config), response()).getData());
+            assertNotNull(service.serverSide("/admin/user/applications/grants", request("/admin/user/applications/grants", "/blog", config), response()).getData());
+            org.junit.Assert.assertThrows(com.zrlog.admin.business.exception.PermissionErrorException.class,
+                    () -> service.serverSide("/admin/user/applications/clients", request("/admin/user/applications/clients", "/blog", config), response()));
+            org.junit.Assert.assertThrows(com.zrlog.admin.business.exception.PermissionErrorException.class,
+                    () -> service.serverSide("/admin/user/applications/clients", request("/admin/ssJson", "/blog", config), response()));
+            assertEquals(com.zrlog.data.security.AccountAction.OAUTH_CLIENT_MANAGE,
+                    router.getMethod("/api/admin/oauth/clients", HttpMethod.GET)
+                            .getAnnotation(com.zrlog.admin.web.annotation.RequiresAction.class).value());
             // ssJson uses the same page mapping and must enforce the same member action.
             org.junit.Assert.assertThrows(com.zrlog.admin.business.exception.PermissionErrorException.class,
                     () -> service.serverSide("/admin/website/members", request("/admin/ssJson", "/blog", config), response()));

@@ -1,4 +1,10 @@
-import { USER_ROUTES, WEBSITE_ROUTES } from "../utils/account-page-routes";
+import {
+    USER_ROUTES,
+    WEBSITE_ROUTES,
+    USER_PREFERENCE_PAGES,
+    USER_APPLICATION_PAGES,
+    getAccountPage,
+} from "../utils/account-page-routes";
 import { actionForPath, hasAction } from "../utils/account-access";
 import { lazy } from "react";
 import type { ComponentType, ReactNode } from "react";
@@ -543,34 +549,40 @@ export const createAdminDashboardRoutes = (
             },
         ],
     },
-    {
-        paths: buildUriPaths(USER_ROUTES.preferences.slice(1)),
-        lazy: AsyncUser,
-        fallback: LightweightFallback,
-        props: { activeKey: "preferences" },
-        search: [
-            {
-                id: "user-preferences",
-                title: () => getRes().user.preferences.title,
-                iconKey: "setting",
-                keywords: ["preferences", "个人设置", "偏好设置", "外观", "写作习惯"],
-            },
-        ],
-    },
-    {
-        paths: buildUriPaths(USER_ROUTES.applications.slice(1)),
-        lazy: AsyncUser,
-        fallback: LightweightFallback,
-        props: { activeKey: "applications" },
-        search: [
-            {
-                id: "oauth",
-                title: () => getRes().oauth.title,
-                iconKey: "api",
-                keywords: ["oauth", "applications", "mcp", "token"],
-            },
-        ],
-    },
+    ...USER_PREFERENCE_PAGES.map(
+        (page): AdminDashboardRouteDefinition => ({
+            paths: buildUriPaths(USER_ROUTES[page].slice(1)),
+            lazy: AsyncUser,
+            fallback: LightweightFallback,
+            props: { activeKey: "preferences", activePage: page },
+            getComponentKey: (_data, cacheKey) => cacheKey,
+            search: [
+                {
+                    id: `user-preferences-${page}`,
+                    title: () => getAccountPage(USER_ROUTES[page])!.title(getRes()),
+                    iconKey: page === "assistant" ? "robot" : page === "writing" ? "edit" : "setting",
+                    keywords: ["preferences", "个人设置", "偏好设置", page],
+                },
+            ],
+        })
+    ),
+    ...USER_APPLICATION_PAGES.map(
+        (page): AdminDashboardRouteDefinition => ({
+            paths: buildUriPaths(USER_ROUTES[page].slice(1)),
+            lazy: AsyncUser,
+            fallback: LightweightFallback,
+            props: { activeKey: "applications", activePage: page },
+            getComponentKey: (_data, cacheKey) => cacheKey,
+            search: [
+                {
+                    id: `oauth-${page}`,
+                    title: () => getAccountPage(USER_ROUTES[page])!.title(getRes()),
+                    iconKey: "api",
+                    keywords: ["oauth", "applications", "mcp", page],
+                },
+            ],
+        })
+    ),
     {
         paths: buildUriPaths("template-center"),
         lazy: AsyncTemplateCenter,

@@ -3,7 +3,13 @@ import type { AxiosInstance } from "axios";
 import { getCsrData } from "../api";
 import { createAdminDashboardRoutes } from "../components/admin-dashboard-routes";
 import { getRes } from "./constants";
-import { USER_ROUTES, WEBSITE_ROUTES } from "./account-page-routes";
+import {
+    USER_ROUTES,
+    WEBSITE_ROUTES,
+    USER_PREFERENCE_PAGES,
+    USER_APPLICATION_PAGES,
+    getAccountPage,
+} from "./account-page-routes";
 
 jest.mock("../base/AppBase", () => ({ buildUriPaths: (uri: string) => [uri, uri + ".html"] }));
 jest.mock("../components/my-loading-component", () => () => null);
@@ -31,12 +37,12 @@ describe("account page routing", () => {
         expect(members.documentTitle).toContain(getRes().members.title);
         await getCsrData("/user/security.html", 0, api);
         expect(get).toHaveBeenLastCalledWith("/api/admin/account-security");
-        const response = await getCsrData("/user/preferences", 0, api);
-        expect(get).toHaveBeenLastCalledWith("/api/admin/user/preferences");
-        expect(response.documentTitle).toContain(getRes().user.preferences.title);
-        const applications = await getCsrData("/user/applications.html?v=1", 0, api);
-        expect(get).toHaveBeenLastCalledWith("/api/admin/oauth?v=1");
-        expect(applications.documentTitle).toContain(getRes().oauth.title);
+        for (const page of [...USER_PREFERENCE_PAGES, ...USER_APPLICATION_PAGES]) {
+            const route = USER_ROUTES[page];
+            const result = await getCsrData(route + ".html?v=1", 0, api);
+            expect(get).toHaveBeenLastCalledWith(getAccountPage(route)!.api + "?v=1");
+            expect(result.documentTitle).toContain(getAccountPage(route)!.title(getRes()));
+        }
     });
 
     it("registers account pages and static variants without old webpage aliases", () => {
@@ -49,6 +55,8 @@ describe("account page routing", () => {
             "members",
             "user/members",
             "user/permissions",
+            "user/preferences",
+            "user/applications",
             "access",
             "oauth",
             "oauth/authorize",

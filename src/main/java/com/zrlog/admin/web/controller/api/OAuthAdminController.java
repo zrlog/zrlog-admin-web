@@ -20,6 +20,9 @@ public class OAuthAdminController extends BaseController {
     @RequiresAction(value = AccountAction.OAUTH_GRANT_MANAGE, descriptionKey = "oauth.list")
     public AdminPageDataResponse<Page> index() throws SQLException { return new AdminPageDataResponse<>(service.page(), "", request.getUri()); }
     @ResponseBody @RequestMethod(method = HttpMethod.GET)
+    @RequiresAction(value = AccountAction.OAUTH_CLIENT_MANAGE, descriptionKey = "oauth.list")
+    public AdminPageDataResponse<Page> clients() throws SQLException { return new AdminPageDataResponse<>(service.page(), "", request.getUri()); }
+    @ResponseBody @RequestMethod(method = HttpMethod.GET)
     @RequiresAction(value = AccountAction.OAUTH_GRANT_MANAGE, descriptionKey = "oauth.consent")
     public AdminPageDataResponse<Consent> consent() throws SQLException {
         response.addHeader("Cache-Control", "no-store");

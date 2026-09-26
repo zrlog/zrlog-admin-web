@@ -2,16 +2,39 @@ import { act } from "react";
 import { createRoot, Root } from "react-dom/client";
 import { Simulate } from "react-dom/test-utils";
 import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { MemoryRouter, NavigateFunction, useLocation, useNavigate } from "react-router-dom";
+import { MemoryRouter, NavigateFunction, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import PersonalAccessTokens, { PersonalAccessToken } from "./personal-access-tokens";
 import { UserApplications, UserApplicationsData } from "./oauth";
 import { getRes, setBackendServerUrl } from "../utils/constants";
 import { BasicUserInfo } from "../type";
+import { ComponentProps } from "react";
+import { Grid } from "antd";
+import UserSettingsLayout from "./common/UserSettingsLayout";
+import { USER_ROUTES, USER_APPLICATION_PAGES } from "../utils/account-page-routes";
 
 const mockPost = jest.fn<Promise<any>, any[]>();
 const mockGet = jest.fn<Promise<any>, any[]>();
 const mockApi = { post: mockPost, get: mockGet };
 jest.mock("../base/AppBase", () => ({ useAxiosBaseInstance: () => mockApi }));
+jest.mock("../base/ConfigProviderApp", () => ({ getAppState: () => ({ compactMode: false }) }));
+
+const ApplicationsPage = (props: ComponentProps<typeof UserApplications>) => (
+    <Routes>
+        {USER_APPLICATION_PAGES.flatMap((page) =>
+            ["", ".html"].map((suffix) => (
+                <Route
+                    key={page + suffix}
+                    path={USER_ROUTES[page] + suffix}
+                    element={
+                        <UserSettingsLayout activeKey={page} administrator={props.data.administrator}>
+                            <UserApplications key={page} {...props} activePage={page} />
+                        </UserSettingsLayout>
+                    }
+                />
+            ))
+        )}
+    </Routes>
+);
 
 const info: PersonalAccessToken = {
     id: "personal-id",
@@ -32,6 +55,7 @@ describe("personal MCP tokens", () => {
     let container: HTMLDivElement;
     const changed = jest.fn<Promise<void>, []>();
     beforeEach(() => {
+        jest.spyOn(Grid, "useBreakpoint").mockReturnValue({ md: true });
         setBackendServerUrl("");
         (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
         (globalThis as any).MessageChannel = class {
@@ -175,8 +199,8 @@ describe("personal MCP tokens", () => {
         };
         await act(async () =>
             root.render(
-                <MemoryRouter>
-                    <UserApplications data={data} offline />
+                <MemoryRouter initialEntries={[USER_ROUTES.tokens]}>
+                    <ApplicationsPage data={data} offline />
                 </MemoryRouter>
             )
         );
@@ -184,8 +208,8 @@ describe("personal MCP tokens", () => {
         expect(container.textContent).toContain(getRes().oauth.offline);
         await act(async () =>
             root.render(
-                <MemoryRouter>
-                    <UserApplications data={data} offline={false} />
+                <MemoryRouter initialEntries={[USER_ROUTES.tokens]}>
+                    <ApplicationsPage data={data} offline={false} />
                 </MemoryRouter>
             )
         );
@@ -194,8 +218,8 @@ describe("personal MCP tokens", () => {
         expect(container.textContent).not.toContain(getRes().oauth.applications);
         await act(async () =>
             root.render(
-                <MemoryRouter>
-                    <UserApplications
+                <MemoryRouter initialEntries={[USER_ROUTES.tokens]}>
+                    <ApplicationsPage
                         data={{ ...data, personalTokens: [{ ...info, name: "Updated token" }] }}
                         offline={false}
                     />
@@ -219,8 +243,8 @@ describe("personal MCP tokens", () => {
         };
         await act(async () =>
             root.render(
-                <MemoryRouter initialEntries={["/user/applications.html?v=test#clients"]}>
-                    <UserApplications data={data} offline={false} />
+                <MemoryRouter initialEntries={["/user/applications/clients.html?v=test"]}>
+                    <ApplicationsPage data={data} offline={false} />
                 </MemoryRouter>
             )
         );
@@ -228,12 +252,11 @@ describe("personal MCP tokens", () => {
         expect(container.textContent).toContain("https://backend.example/blog/api/oauth");
         expect(container.textContent).toContain("https://client.example/callback");
         await act(async () =>
-            Array.from(container.querySelectorAll<HTMLElement>('[role="tab"]'))
+            Array.from(container.querySelectorAll<HTMLElement>("nav a"))
                 .find((tab) => tab.textContent === getRes().oauth.personalTokens.title)!
                 .click()
         );
-        const activePanel = container.querySelector('[role="tabpanel"]:not([aria-hidden="true"])');
-        expect(activePanel?.textContent).toContain("https://backend.example/blog/mcp");
+        expect(container.textContent).toContain("https://backend.example/blog/mcp");
     });
 
     it("refreshes the application page cache after creating a token", async () => {
@@ -250,8 +273,8 @@ describe("personal MCP tokens", () => {
         const updateCache = jest.fn();
         await act(async () =>
             root.render(
-                <MemoryRouter initialEntries={["/user/applications.html?v=test#tokens"]}>
-                    <UserApplications data={data} offline={false} updateCache={updateCache} />
+                <MemoryRouter initialEntries={["/user/applications/tokens.html?v=test"]}>
+                    <ApplicationsPage data={data} offline={false} updateCache={updateCache} />
                 </MemoryRouter>
             )
         );
@@ -262,12 +285,12 @@ describe("personal MCP tokens", () => {
         mockPost.mockResolvedValue({ data: { error: 0, data: { token: "zrmcp_one-time-secret", info } } });
         mockGet.mockResolvedValue({ data: { error: 0, data: refreshed } });
         await submit();
-        expect(updateCache).toHaveBeenCalledWith(refreshed, "/user/applications");
+        expect(updateCache).toHaveBeenCalledWith(refreshed, USER_ROUTES.tokens);
         expect(JSON.stringify(updateCache.mock.calls)).not.toContain("zrmcp_one-time-secret");
     });
 
     it.each([false, true])(
-        "routes to available application tabs without refetching (administrator=%s)",
+        "navigates between independent application pages (administrator=%s)",
         async (administrator) => {
             let navigate!: NavigateFunction;
             const Location = () => {
@@ -285,26 +308,32 @@ describe("personal MCP tokens", () => {
                 resource: "https://blog.example/sub/api/oauth",
                 mcpResource: info.resource,
             };
-            const page = "/user/applications.html?v=test";
+            window.__SS_DATA__!.resourceInfo = { lang: "zh_CN", staticPage: true };
+            const page = (administrator ? USER_ROUTES.clients : USER_ROUTES.tokens) + ".html?v=test";
             await act(async () =>
                 root.render(
-                    <MemoryRouter initialEntries={[page + "#clients"]}>
+                    <MemoryRouter initialEntries={[page]}>
                         <Location />
-                        <UserApplications data={data} offline={false} />
+                        <ApplicationsPage data={data} offline={false} />
                     </MemoryRouter>
                 )
             );
-            const selected = () => container.querySelector('[role="tab"][aria-selected="true"]')?.textContent;
+            const selected = () => container.querySelector('nav a[aria-current="page"]')?.textContent;
             expect(selected()).toBe(administrator ? getRes().oauth.applications : getRes().oauth.personalTokens.title);
-            expect(container.querySelectorAll('[role="tab"]')).toHaveLength(administrator ? 3 : 2);
+            expect(container.querySelectorAll('nav a[href*="/user/applications/"]')).toHaveLength(
+                administrator ? 3 : 2
+            );
+            expect(container.querySelector('[role="tablist"]')).toBeNull();
             expect(container.textContent?.includes(getRes().oauth.register)).toBe(administrator);
             await act(async () =>
-                Array.from(container.querySelectorAll<HTMLElement>('[role="tab"]'))
+                Array.from(container.querySelectorAll<HTMLElement>("nav a"))
                     .find((tab) => tab.textContent === getRes().oauth.grants)!
                     .click()
             );
-            expect(container.querySelector("output")?.textContent).toBe(page + "#grants");
+            expect(container.querySelector("output")?.textContent).toBe(USER_ROUTES.grants + ".html?v=test");
             expect(selected()).toBe(getRes().oauth.grants);
+            expect(container.textContent).not.toContain(info.name);
+            expect(container.querySelector('a[href*="#"]')).toBeNull();
             await act(async () => navigate(-1));
             expect(selected()).toBe(administrator ? getRes().oauth.applications : getRes().oauth.personalTokens.title);
             expect(mockGet).not.toHaveBeenCalled();

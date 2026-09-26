@@ -1,5 +1,4 @@
 import SettingsSubmitBar from "./common/SettingsSubmitBar";
-import SettingsTabs from "./common/SettingsTabs";
 import { useEffect, useRef, useState } from "react";
 import { Alert, Button, Form, Select, Typography, message, theme } from "antd";
 import { useLocation } from "react-router-dom";
@@ -11,18 +10,23 @@ import { useResponsiveFormLayout } from "../utils/responsive-form";
 import {
     applyUserPreferences,
     mergeUserPreferenceChanges,
+    replaceUserPreferencePage,
     resolveUserPreferences,
     UserPreferences,
     UserPreferencesResponse,
 } from "../utils/user-preferences";
 import type { AdminCommonProps, ApiResponse } from "../type";
 import AdminAppearanceFields from "./common/AdminAppearanceFields";
+import type { UserPreferencePage } from "../utils/account-page-routes";
 
 const UserPreferencesForm = ({
     data: initialData,
     offline,
     updateCache,
-}: Pick<AdminCommonProps<UserPreferencesResponse>, "data" | "offline" | "updateCache">) => {
+    activePage = "appearance",
+}: Pick<AdminCommonProps<UserPreferencesResponse>, "data" | "offline" | "updateCache"> & {
+    activePage?: UserPreferencePage;
+}) => {
     const axios = useAxiosBaseInstance();
     const location = useLocation();
     const [form] = Form.useForm<UserPreferences>();
@@ -76,18 +80,17 @@ const UserPreferencesForm = ({
         dataRef.current = initialData;
         savedRef.current = initialData.effective;
         setData(initialData);
-        if (!hasDraft) {
-            draftRef.current = initialData.overrides;
-            setDraft(initialData.overrides);
-        }
-        const effective = hasDraft
-            ? resolveUserPreferences(initialData.defaults, draftRef.current)
-            : initialData.effective;
+        const nextDraft = hasDraft
+            ? replaceUserPreferencePage(initialData.overrides, draftRef.current, activePage)
+            : initialData.overrides;
+        draftRef.current = nextDraft;
+        setDraft(nextDraft);
+        const effective = resolveUserPreferences(initialData.defaults, nextDraft);
         if (!offline) {
             form.setFieldsValue(effective);
             if (previewing.current) applyUserPreferences(effective);
         }
-    }, [initialData, offline, form]);
+    }, [initialData, offline, form, activePage]);
 
     useEffect(() => {
         if (!dirty && !saving) return;
@@ -101,9 +104,10 @@ const UserPreferencesForm = ({
 
     const preview = (overrides: UserPreferences, updateForm = false) => {
         if (!data || savingRef.current || offline) return;
-        draftRef.current = overrides;
-        setDraft(overrides);
-        const effective = resolveUserPreferences(data.defaults, overrides);
+        const nextDraft = replaceUserPreferencePage(data.overrides, overrides, activePage);
+        draftRef.current = nextDraft;
+        setDraft(nextDraft);
+        const effective = resolveUserPreferences(data.defaults, nextDraft);
         if (updateForm) form.setFieldsValue(effective);
         previewing.current = true;
         applyUserPreferences(effective);
@@ -161,12 +165,11 @@ const UserPreferencesForm = ({
                     onValuesChange={(changes) => preview(mergeUserPreferenceChanges(draftRef.current, changes))}
                     onFinish={() => void save()}
                 >
-                    <SettingsTabs
-                        items={[
+                    {
+                        [
                             {
                                 key: "appearance",
                                 label: res.appearanceTitle,
-                                forceRender: true,
                                 children: (
                                     <AdminAppearanceFields
                                         names={{
@@ -182,7 +185,6 @@ const UserPreferencesForm = ({
                             {
                                 key: "writing",
                                 label: res.writingTitle,
-                                forceRender: true,
                                 children: (
                                     <>
                                         <Form.Item name="articlePageSize" label={res.articlePageSize}>
@@ -209,7 +211,6 @@ const UserPreferencesForm = ({
                             {
                                 key: "assistant",
                                 label: res.assistantTitle,
-                                forceRender: true,
                                 children: (
                                     <Form.Item
                                         name={["assistant", "knowledgeScope"]}
@@ -239,8 +240,8 @@ const UserPreferencesForm = ({
                                     </Form.Item>
                                 ),
                             },
-                        ]}
-                    />
+                        ].find((item) => item.key === activePage)?.children
+                    }
                     <SettingsSubmitBar
                         loading={saving}
                         disabled={!dirty}

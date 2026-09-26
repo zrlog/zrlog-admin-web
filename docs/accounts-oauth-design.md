@@ -67,7 +67,7 @@ Owner 独占任免管理员和转移所有权；管理员不能修改所有者�
   不再提供独立网页路由和全局搜索入口；关闭后保留原页面及未提交内容。展示固定角色矩阵、数据范围、Action ID、关联路由及 scope。
   路由以本地化用途描述为主，下一行显示实际路径。描述标识绑定 Controller 方法，文案统一维护在前端 i18n。
   宽屏显示五角色对照，窄屏显示当前所选角色。这里不提供权限开关。
-- **外部应用 `/admin/user/applications`**：用户管理自己的授权；管理员额外管理预登记应用。
+- **外部应用**：`/admin/user/applications/tokens` 管理个人令牌，`/admin/user/applications/grants` 管理个人授权，管理员通过 `/admin/user/applications/clients` 管理预登记应用；左侧各入口为独立页面。
   `/admin/user/applications/authorize` 单独展示应用、回调、本人/全站范围和 scope，默认只选择公开读取。
 - 菜单、搜索入口和操作按钮使用后端返回的 actions；手工请求仍受服务端检查。
   成员管理位于站点设置且仅管理员可见；外部应用位于个人设置导航。成员和外部应用页面标题栏右侧保留「权限说明」按钮，原地打开共用抽屉。

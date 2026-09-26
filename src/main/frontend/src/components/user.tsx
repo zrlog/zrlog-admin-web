@@ -1,6 +1,7 @@
 import UserSettingsLayout from "./common/UserSettingsLayout";
 import SettingsSubmitBar from "./common/SettingsSubmitBar";
 import { UserApplications, UserApplicationsData } from "./oauth";
+import type { UserPreferencePage, UserApplicationPage } from "../utils/account-page-routes";
 import type { UserPreferencesResponse } from "../utils/user-preferences";
 import type { AdminCommonProps } from "../type";
 import UserPreferencesForm from "./user-preferences";
@@ -163,15 +164,21 @@ type UserProps =
     | (Pick<AdminCommonProps<BasicUserInfo>, "data" | "offline" | "updateCache"> & { activeKey?: "profile" })
     | (Pick<AdminCommonProps<UserPreferencesResponse>, "data" | "offline" | "updateCache"> & {
           activeKey: "preferences";
+          activePage: UserPreferencePage;
       })
     | (Pick<AdminCommonProps<UserApplicationsData>, "data" | "offline" | "updateCache"> & {
           activeKey: "applications";
+          activePage: UserApplicationPage;
       });
 
 const User = (props: UserProps) => {
-    const activeKey = props.activeKey || "profile";
+    const activeKey =
+        props.activeKey === "preferences" || props.activeKey === "applications" ? props.activePage : "profile";
     return (
-        <UserSettingsLayout activeKey={activeKey}>
+        <UserSettingsLayout
+            activeKey={activeKey}
+            administrator={props.activeKey === "applications" ? props.data.administrator : undefined}
+        >
             {props.activeKey === "preferences" ? (
                 <UserPreferencesForm {...props} />
             ) : props.activeKey === "applications" ? (

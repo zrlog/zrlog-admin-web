@@ -6,7 +6,7 @@ import { Grid } from "antd";
 import User from "./user";
 import UserSettingsLayout from "./common/UserSettingsLayout";
 import { getRes } from "../utils/constants";
-import { USER_ROUTES } from "../utils/account-page-routes";
+import { USER_ROUTES, USER_PREFERENCE_PAGES, USER_APPLICATION_PAGES } from "../utils/account-page-routes";
 
 jest.mock("antd/es/divider", () => require("antd").Divider);
 jest.mock("antd/es/form", () => require("antd").Form);
@@ -112,34 +112,43 @@ describe("personal page URLs", () => {
                             path={USER_ROUTES.security + suffix}
                             element={<UserSettingsLayout activeKey="security">Security content</UserSettingsLayout>}
                         />
-                        {(["profile", "preferences", "applications"] as const).map((page) => (
+                        <Route
+                            path={USER_ROUTES.profile + suffix}
+                            element={<User data={{ userName: "writer", email: "", header: "" }} offline={false} />}
+                        />
+                        {USER_PREFERENCE_PAGES.map((page) => (
                             <Route
                                 key={page}
                                 path={USER_ROUTES[page] + suffix}
                                 element={
-                                    page === "profile" ? (
-                                        <User data={{ userName: "writer", email: "", header: "" }} offline={false} />
-                                    ) : page === "preferences" ? (
-                                        <User
-                                            data={{ overrides: {}, defaults: {}, effective: {} }}
-                                            offline={false}
-                                            activeKey="preferences"
-                                        />
-                                    ) : (
-                                        <User
-                                            data={{
-                                                clients: [],
-                                                grants: [],
-                                                personalTokens: [],
-                                                personalTokenScopes: [],
-                                                administrator: false,
-                                                issuer: "https://example.com",
-                                                resource: "https://example.com/api/oauth",
-                                            }}
-                                            offline={false}
-                                            activeKey="applications"
-                                        />
-                                    )
+                                    <User
+                                        data={{ overrides: {}, defaults: {}, effective: {} }}
+                                        offline={false}
+                                        activeKey="preferences"
+                                        activePage={page}
+                                    />
+                                }
+                            />
+                        ))}
+                        {USER_APPLICATION_PAGES.map((page) => (
+                            <Route
+                                key={page}
+                                path={USER_ROUTES[page] + suffix}
+                                element={
+                                    <User
+                                        data={{
+                                            clients: [],
+                                            grants: [],
+                                            personalTokens: [],
+                                            personalTokenScopes: [],
+                                            administrator: false,
+                                            issuer: "https://example.com",
+                                            resource: "https://example.com/api/oauth",
+                                        }}
+                                        offline={false}
+                                        activeKey="applications"
+                                        activePage={page}
+                                    />
                                 }
                             />
                         ))}
@@ -149,7 +158,7 @@ describe("personal page URLs", () => {
         }
         await act(async () =>
             root.render(
-                <MemoryRouter initialEntries={[USER_ROUTES.applications + suffix]}>
+                <MemoryRouter initialEntries={[USER_ROUTES.tokens + suffix]}>
                     <Pages />
                 </MemoryRouter>
             )
@@ -157,36 +166,68 @@ describe("personal page URLs", () => {
         expect(container.textContent).toContain("Applications content");
         const selected = () =>
             container.querySelector(mobile ? ".ant-select-content" : 'nav a[aria-current="page"]')?.textContent;
-        expect(selected()).toBe(getRes().oauth.title);
+        const choose = async (label: string) => {
+            if (mobile) {
+                await act(async () => {
+                    container
+                        .querySelector('[role="combobox"]')!
+                        .dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+                });
+                await act(async () =>
+                    Array.from(container.querySelectorAll<HTMLElement>(".ant-select-item-option"))
+                        .find((item) => item.textContent === label)!
+                        .click()
+                );
+            } else {
+                await act(async () =>
+                    Array.from(container.querySelectorAll<HTMLAnchorElement>("nav a"))
+                        .find((item) => item.textContent === label)!
+                        .click()
+                );
+            }
+        };
+        expect(selected()).toBe(getRes().oauth.personalTokens.title);
+        expect(container.querySelector('[role="tablist"]')).toBeNull();
         if (mobile) {
             await act(async () => {
                 container
                     .querySelector('[role="combobox"]')!
                     .dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
             });
+            expect(
+                Array.from(container.querySelectorAll(".ant-select-item-group")).map((item) => item.textContent)
+            ).toEqual([getRes().user.settings.navigation, getRes().user.preferences.title, getRes().oauth.title]);
             const options = Array.from(container.querySelectorAll<HTMLElement>(".ant-select-item-option"));
             expect(options.map((option) => option.textContent)).toEqual([
-                getRes().user.settings.navigation,
-                getRes().user.preferences.title,
-                getRes().oauth.title,
+                getRes().user.title,
+                getRes().accountSecurity.title,
+                getRes().user.preferences.appearanceTitle,
+                getRes().user.preferences.writingTitle,
+                getRes().user.preferences.assistantTitle,
+                getRes().oauth.personalTokens.title,
+                getRes().oauth.grants,
             ]);
             await act(async () =>
-                options.find((option) => option.textContent === getRes().user.preferences.title)!.click()
+                options.find((option) => option.textContent === getRes().user.preferences.appearanceTitle)!.click()
             );
         } else {
             const links = Array.from(container.querySelectorAll<HTMLAnchorElement>("nav a"));
+            expect(links.find((link) => link.textContent === getRes().user.title)?.getAttribute("href")).toBe(
+                USER_ROUTES.profile + suffix + "?v=test"
+            );
             expect(
-                links.find((link) => link.textContent === getRes().user.settings.navigation)?.getAttribute("href")
-            ).toBe(USER_ROUTES.profile + suffix + "?v=test");
-            expect(links).toHaveLength(3);
-            await act(async () => links.find((link) => link.textContent === getRes().user.preferences.title)!.click());
+                links.find((link) => link.textContent === getRes().user.preferences.writingTitle)?.getAttribute("href")
+            ).toBe(USER_ROUTES.writing + suffix + "?v=test");
+            expect(links).toHaveLength(7);
+            expect(links.every((link) => !link.getAttribute("href")!.includes("#"))).toBe(true);
+            await choose(getRes().user.preferences.appearanceTitle);
         }
-        expect(container.querySelector("output")?.textContent).toBe(USER_ROUTES.preferences + suffix);
-        expect(selected()).toBe(getRes().user.preferences.title);
+        expect(container.querySelector("output")?.textContent).toBe(USER_ROUTES.appearance + suffix);
+        expect(selected()).toBe(getRes().user.preferences.appearanceTitle);
         await act(async () => navigate(-1));
-        expect(selected()).toBe(getRes().oauth.title);
+        expect(selected()).toBe(getRes().oauth.personalTokens.title);
         await act(async () => navigate(1));
-        expect(selected()).toBe(getRes().user.preferences.title);
+        expect(selected()).toBe(getRes().user.preferences.appearanceTitle);
         await act(async () => navigate(-1));
         const applicationName = container.querySelector<HTMLInputElement>('input[aria-label="Application name"]')!;
         applicationName.value = "Unsaved application";
@@ -194,33 +235,25 @@ describe("personal page URLs", () => {
             (button) => button.textContent === getRes().access.title
         )!;
         await act(async () => help.click());
-        expect(container.querySelector("output")?.textContent).toBe(USER_ROUTES.applications + suffix);
+        expect(container.querySelector("output")?.textContent).toBe(USER_ROUTES.tokens + suffix);
         const drawer = document.querySelector('[role="dialog"]')!;
         expect(drawer.querySelector('[role="tab"][aria-selected="true"]')?.textContent).toBe(
             getRes().access.applicationScopes
         );
         expect(drawer.textContent).toContain(getRes().oauth.scopeLabels["articles:read_private"]);
         await act(async () => drawer.querySelector<HTMLButtonElement>(".ant-drawer-close")!.click());
-        expect(container.querySelector("output")?.textContent).toBe(USER_ROUTES.applications + suffix);
+        expect(container.querySelector("output")?.textContent).toBe(USER_ROUTES.tokens + suffix);
         expect(container.querySelector<HTMLInputElement>('input[aria-label="Application name"]')?.value).toBe(
             "Unsaved application"
         );
-        await act(async () => navigate(USER_ROUTES.security + suffix));
-        expect(selected()).toBe(getRes().user.settings.navigation);
-        expect(container.querySelector('[role="tab"][aria-selected="true"]')?.textContent).toBe(
-            getRes().accountSecurity.title
-        );
+        await choose(getRes().accountSecurity.title);
+        expect(selected()).toBe(getRes().accountSecurity.title);
+        expect(container.querySelector('[role="tablist"]')).toBeNull();
         expect(container.textContent).toContain("Security content");
-        await act(async () =>
-            Array.from(container.querySelectorAll<HTMLElement>('[role="tab"]'))
-                .find((tab) => tab.textContent === getRes().user.title)!
-                .click()
-        );
+        await choose(getRes().user.title);
         expect(container.querySelector("output")?.textContent).toBe(USER_ROUTES.profile + suffix);
-        expect(container.querySelector('[role="tab"][aria-selected="true"]')?.textContent).toBe(getRes().user.title);
+        expect(selected()).toBe(getRes().user.title);
         await act(async () => navigate(-1));
-        expect(container.querySelector('[role="tab"][aria-selected="true"]')?.textContent).toBe(
-            getRes().accountSecurity.title
-        );
+        expect(selected()).toBe(getRes().accountSecurity.title);
     });
 });

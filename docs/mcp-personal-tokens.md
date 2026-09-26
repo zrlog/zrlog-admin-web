@@ -2,7 +2,7 @@
 
 ## 契约与数据归属
 
-个人资料的「外部应用」页签使用 `/admin/user/applications`，管理「个人访问令牌」和我的 OAuth 授权。移除账号菜单中的独立外部应用入口，授权确认页面使用 `/admin/user/applications/authorize`。管理员额外可见的站点应用登记明确标注为站点范围，登记不授予个人数据访问。后台登录账号创建和撤销自己的令牌，不接受调用方指定所属账号。令牌只用于本站 `/mcp` 的只读知识库，不可用于 `/api/oauth/me`、后台会话或刷新令牌接口；原 OAuth 授权、PKCE 和刷新流程保持不变。
+个人设置左侧「外部应用」分组使用独立页面：`/admin/user/applications/tokens` 管理个人访问令牌，`/admin/user/applications/grants` 管理我的 OAuth 授权，`/admin/user/applications/clients` 管理站点应用登记。移除账号菜单中的独立外部应用入口，授权确认页面使用 `/admin/user/applications/authorize`。管理员额外可见的站点应用登记明确标注为站点范围，登记不授予个人数据访问。后台登录账号创建和撤销自己的令牌，不接受调用方指定所属账号。令牌只用于本站 `/mcp` 的只读知识库，不可用于 `/api/oauth/me`、后台会话或刷新令牌接口；原 OAuth 授权、PKCE 和刷新流程保持不变。
 
 新增 schema 29 的 `user_access_token` 表，保存独立管理 ID、userId、名称、SHA-256 tokenHash、scope、MCP resource、账号 authVersion、创建/到期时间、撤销状态。避免把凭据放入全局配置、user.preferences 或伪装成 OAuth 客户端。明文格式 `zrmcp_` + 256 位随机值，只在创建响应返回一次；列表、SSR、审计均不包含明文或摘要。
 

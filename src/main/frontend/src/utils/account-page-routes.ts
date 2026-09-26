@@ -2,11 +2,20 @@ import type { AdminI18nResource } from "../i18n/admin";
 
 export const USER_ROUTES = {
     profile: "/user",
-    preferences: "/user/preferences",
+    appearance: "/user/preferences/appearance",
+    writing: "/user/preferences/writing",
+    assistant: "/user/preferences/assistant",
     security: "/user/security",
-    applications: "/user/applications",
+    tokens: "/user/applications/tokens",
+    grants: "/user/applications/grants",
+    clients: "/user/applications/clients",
     authorize: "/user/applications/authorize",
 } as const;
+
+export type UserPreferencePage = "appearance" | "writing" | "assistant";
+export type UserApplicationPage = "tokens" | "grants" | "clients";
+export const USER_PREFERENCE_PAGES: UserPreferencePage[] = ["appearance", "writing", "assistant"];
+export const USER_APPLICATION_PAGES: UserApplicationPage[] = ["tokens", "grants", "clients"];
 
 export const WEBSITE_ROUTES = { members: "/website/members" } as const;
 
@@ -14,36 +23,47 @@ type AccountPage = {
     api: string;
     action: string;
     sensitive?: boolean;
-    acceptsCachedData?: (data: unknown) => boolean;
     title: (res: AdminI18nResource) => string;
 };
 
 const pages: Record<string, AccountPage> = {
     [USER_ROUTES.profile]: { api: "/api/admin/user", action: "account.self", title: (res) => res.user.title },
-    [USER_ROUTES.preferences]: {
-        api: "/api/admin/user/preferences",
-        action: "account.self",
-        // Older versions cached the profile response for this route.
-        acceptsCachedData: (data) =>
-            !!data &&
-            typeof data === "object" &&
-            ["overrides", "defaults", "effective"].every((key) => {
-                const value = (data as Record<string, unknown>)[key];
-                return !!value && typeof value === "object" && !Array.isArray(value);
-            }),
-        title: (res) => res.user.preferences.title,
-    },
+    ...Object.fromEntries(
+        USER_PREFERENCE_PAGES.map((page) => [
+            USER_ROUTES[page],
+            {
+                api: "/api/admin/user/preferences",
+                action: "account.self",
+                title: (res: AdminI18nResource) =>
+                    ({
+                        appearance: res.user.preferences.appearanceTitle,
+                        writing: res.user.preferences.writingTitle,
+                        assistant: res.user.preferences.assistantTitle,
+                    }[page]),
+            },
+        ])
+    ),
     [USER_ROUTES.security]: {
         api: "/api/admin/account-security",
         action: "account.self",
         title: (res) => res.accountSecurity.title,
     },
-    [USER_ROUTES.applications]: {
-        api: "/api/admin/oauth",
-        action: "oauth.grant.manage",
-        sensitive: true,
-        title: (res) => res.oauth.title,
-    },
+    ...Object.fromEntries(
+        USER_APPLICATION_PAGES.map((page) => [
+            USER_ROUTES[page],
+            {
+                api: page === "clients" ? "/api/admin/oauth/clients" : "/api/admin/oauth",
+                action: page === "clients" ? "oauth.client.manage" : "oauth.grant.manage",
+                sensitive: true,
+                title: (res: AdminI18nResource) =>
+                    ({
+                        tokens: res.oauth.personalTokens.title,
+                        grants: res.oauth.grants,
+                        clients: res.oauth.applications,
+                    }[page]),
+            },
+        ])
+    ),
     [USER_ROUTES.authorize]: {
         api: "/api/admin/oauth/authorize",
         action: "oauth.grant.manage",
