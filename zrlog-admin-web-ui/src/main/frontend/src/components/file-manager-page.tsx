@@ -5,7 +5,8 @@ import { getAppState } from "../base/ConfigProviderApp";
 
 const FileManagerPage: FunctionComponent<AdminCommonProps<FileManagerData>> = ({ data }) => {
     const headerHeight = getAppState().compactMode ? 54 : 64;
-    return <FileManager data={data} style={{ height: `calc(100vh - ${headerHeight + 60}px)` }} />;
+    // Match the editor: admin header plus 12px content padding on each side vertically.
+    return <FileManager data={data} style={{ height: `calc(100vh - ${headerHeight + 24}px)` }} />;
 };
 
 export default FileManagerPage;

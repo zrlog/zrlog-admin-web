@@ -34,7 +34,8 @@ const SettingsLayout = ({
     const compact = screens.md !== true;
     const border = `${token.lineWidth}px ${token.lineType} ${token.colorBorderSecondary}`;
     const headerHeight = getAppState().compactMode ? 54 : 64;
-    const height = compact ? undefined : `calc(100vh - ${headerHeight + 60}px)`;
+    // Match the editor: admin header plus 12px content padding on each side vertically.
+    const height = compact ? undefined : `calc(100vh - ${headerHeight + 24}px)`;
     const options = groups.map((group) => ({
         label: group.label,
         options: group.items.map((item) => ({
