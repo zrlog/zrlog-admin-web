@@ -308,6 +308,7 @@ paths:
         - Template
       summary: 上传或覆盖主题
       description: |-
+        需要 `site.configure`（站长或管理员）。该权限同时覆盖其他站点配置操作，不仅限于主题上传。
         上传 ZIP 主题包。`shortTemplate` 来自主题包文件名去掉 `.zip` 后的值。
         新主题应传 `overwrite=false`；覆盖已有可删除主题前，调用方应先向用户确认并传 `overwrite=true`。
         内置主题不能覆盖。主题包可以直接包含主题文件，也可以包含一个外层目录。

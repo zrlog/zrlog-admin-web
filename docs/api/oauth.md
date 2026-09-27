@@ -15,6 +15,10 @@ zrlogctl logout --site https://blog.example/sub
 新 resource 为 `{issuer}/api/admin`，scope 使用现有 AccountAction ID（例如 `article.read taxonomy.read article.create article.publish`），或单独使用 `account:inherit` 显式继承账号当前权限；两者都可附加 `offline_access`。
 请求继承权限时，用户可以在浏览器改为指定权限；受限请求不能选择继承或额外权限。所有后台接口继续以自身的 `@RequiresAction`、条件权限和数据归属检查为准，不新增一套 API 权限清单。该 resource 也可向通知接口发送具有 `notification.create` 权限的请求。
 
+`zrlogctl login` 默认明确申请 `article.read article.create article.update article.publish taxonomy.read taxonomy.manage asset.upload site.configure notification.create offline_access`，覆盖文章发布、分类同步、附件上传、模板上传和通知。授权页默认勾选请求与账号可用权限的交集，用户可进一步取消；普通作者没有模板管理权限，投稿者没有发布权限。模板上传/覆盖使用 `site.configure`，该权限同时覆盖其他站点配置操作，仅站长和管理员可授予。
+
+客户端可用 `--permissions` 替换默认权限集合，例如发布文章使用 `--permissions article.read,article.create,article.update,article.publish,taxonomy.read,asset.upload`，仅更新模板使用 `--permissions site.configure`；客户端会自动附加 `offline_access`。`--inherit-permissions` 保留原来的继承申请入口，需要在浏览器显式选择继承，不能与 `--permissions` 同时传入。旧只读授权不会自动扩权，需要重新登录确认。
+
 MCP 仍使用自己的 resource 和读取 scope，不因后台授权增加工具或扩大旧令牌的权限。新个人令牌的 MCP 读取范围遵守账号权限；已有 MCP 个人令牌保留原 scope 限制。
 
 ## 部署与客户端

@@ -293,6 +293,65 @@ describe("account management pages", () => {
         expect(container.querySelector<HTMLInputElement>('input[value="offline_access"]')?.checked).toBe(true);
     });
 
+    it.each(["admin", "author", "contributor"])(
+        "selects and submits the CLI workflow permissions available to %s",
+        (role) => {
+            const requested = [
+                "article.read",
+                "article.create",
+                "article.update",
+                "article.publish",
+                "taxonomy.read",
+                "taxonomy.manage",
+                "asset.upload",
+                "site.configure",
+                "notification.create",
+                "offline_access",
+            ];
+            const available = requested.filter(
+                (scope) =>
+                    (role === "admin" ||
+                        !["taxonomy.manage", "site.configure", "notification.create"].includes(scope)) &&
+                    (role !== "contributor" || scope !== "article.publish")
+            );
+            mockPost.mockImplementation(() => new Promise(() => undefined));
+            act(() =>
+                root.render(
+                    <OAuthConsent
+                        data={{
+                            requestId: "cli",
+                            csrf: "csrf",
+                            clientName: "ZrLog CLI",
+                            redirectUri: "http://127.0.0.1:49152/oauth/callback",
+                            resource: "https://blog.example/sub/api/admin",
+                            scopes: requested,
+                            availableScopes: available,
+                            accountPermissions: true,
+                        }}
+                    />
+                )
+            );
+            expect(
+                Array.from(container.querySelectorAll<HTMLInputElement>('input[type="checkbox"]'))
+                    .filter((input) => input.checked)
+                    .map((input) => input.value)
+            ).toEqual(available);
+            expect(container.querySelector('input[value="inherit"]')).toBeNull();
+            if (role !== "admin") expect(container.textContent).toContain(getRes().oauth.grantUnavailable);
+            act(() =>
+                Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
+                    .find((button) => button.textContent === getRes().oauth.allow)!
+                    .click()
+            );
+            expect(mockPost).toHaveBeenCalledWith("/api/admin/oauth/decide", {
+                requestId: "cli",
+                csrf: "csrf",
+                approve: true,
+                scopes: available,
+            });
+        }
+    );
+
     it("defaults consent to own public read and disables unavailable full-site access", () => {
         act(() =>
             root.render(
