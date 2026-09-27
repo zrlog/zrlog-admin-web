@@ -43,7 +43,8 @@ paths:
 
         `rubbish=true` 表示草稿并保持非公开；`rubbish=false, privacy=true` 表示私密文章；
         `rubbish=false, privacy=false` 表示公开发布。调用方必须显式传递这两个状态，避免意外发布。
-        当前文档只支持 `transparentPublish=false` 的普通 JSON 响应；透明发布 SSE 是 admin UI 内部工作流。
+        `transparentPublish=false` 返回普通 JSON；公开发布时设为 true 可接收 SSE。
+        SSE 的 `article` 表示已保存，必须等待 `publish-complete` 才能确认发布完成，详见 docs/api/article-publish-sse.md。
 
         本操作不幂等。请求成功但响应丢失时，不应直接重试，否则可能创建重复文章。
       operationId: createArticle
@@ -85,6 +86,9 @@ paths:
           description: |-
             请求已处理。成功时核心结果位于 `data.article`；失败仍可能使用 HTTP 200，调用方必须检查 `error`。
           content:
+            text/event-stream:
+              schema:
+                $ref: "#/components/schemas/ArticlePublishStream"
             application/json:
               schema:
                 $ref: "#/components/schemas/ArticleSaveResponse"
@@ -139,7 +143,9 @@ paths:
         省略布尔字段会按 false 处理。`editorType=markdown`、`markdown` 非空且 `content` 为空或省略时，
         Java 17 及以上的服务端使用内置 marked 重新生成 HTML；Java 11 跳过渲染并记录警告，仍继续保存。
         调用方显式提供的 `content` 保持不变；Java 11 调用方应自行提供 HTML，否则正文可能被清空。状态组合与创建接口相同。
-        当前文档只支持 `transparentPublish=false` 的普通 JSON 响应。
+        `transparentPublish=false` 返回普通 JSON；公开发布或修订时设为 true 可接收 SSE。
+        必须等待 `publish-complete` 才能确认发布完成；中途失败时文章可能已保存，不能自动重放请求。
+        事件说明见 docs/api/article-publish-sse.md。
 
         本操作不能在响应丢失后使用旧 `version` 无条件重试；应重新读取最新快照并判断实际保存结果。
       operationId: updateArticle
@@ -183,6 +189,9 @@ paths:
           description: |-
             请求已处理。成功时核心结果位于 `data.article`；失败仍可能使用 HTTP 200，调用方必须检查 `error`。
           content:
+            text/event-stream:
+              schema:
+                $ref: "#/components/schemas/ArticlePublishStream"
             application/json:
               schema:
                 $ref: "#/components/schemas/ArticleSaveResponse"
@@ -551,9 +560,16 @@ components:
           description: true 表示草稿且不公开；false 时由 privacy 决定公开或私密
         transparentPublish:
           type: boolean
-          const: false
           default: false
-          description: 文档约定固定为 false；true 会切换到 admin UI 内部 SSE 协议
+          description: true 且 rubbish=false、privacy=false 时返回发布 SSE；其他情况返回普通 JSON
+    ArticlePublishStream:
+      type: string
+      description: |-
+        UTF-8 SSE。article 事件的数据为 ArticleSaveResponse，表示文章已保存；
+        publish-complete 是成功终止事件，static-error/publish-error/sse-error 表示失败。
+        static-progress 等事件报告进度，publish-check-error 为非致命检查提示。
+        缺少完成事件的断流或超时不能视为成功，不得自动重试写入。
+        完整协议见 docs/api/article-publish-sse.md。
     ArticleCreateRequest:
       allOf:
         - $ref: "#/components/schemas/ArticleWriteFields"
