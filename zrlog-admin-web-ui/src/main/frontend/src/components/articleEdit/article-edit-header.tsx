@@ -151,9 +151,12 @@ const ArticleEditHeader: FunctionComponent<ArticleEditHeaderProps> = ({
             style={{
                 display: "flex",
                 alignItems: "center",
-                gap: editorActionGroupGap,
+                columnGap: editorActionGroupGap,
+                rowGap: screens.sm ? editorActionGroupGap : 0,
                 minHeight: screens.sm ? undefined : 78,
                 flexWrap: "wrap",
+                boxSizing: "border-box",
+                paddingBottom: screens.sm ? 0 : editorActionGroupGap,
             }}
         >
             <div
