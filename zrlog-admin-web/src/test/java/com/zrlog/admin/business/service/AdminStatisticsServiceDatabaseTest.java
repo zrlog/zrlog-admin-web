@@ -2,7 +2,7 @@ package com.zrlog.admin.business.service;
 
 import com.zrlog.admin.business.rest.response.StatisticsInfoResponse;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
-import com.zrlog.admin.support.TestLogCapture;
+import com.zrlog.test.support.TestLogCapture;
 import com.zrlog.common.cache.dto.TagDTO;
 import org.junit.Test;
 

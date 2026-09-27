@@ -17,7 +17,7 @@ import static org.junit.Assert.*;
 public class AIChatConversationTest {
     @Test public void returnsDistinctSafeErrorsWithoutSavingFailedResponses() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open();
-             var logs = com.zrlog.admin.support.TestLogCapture.forClass(AIChatService.class)) {
+             var logs = com.zrlog.test.support.TestLogCapture.forClass(AIChatService.class)) {
             configure(db);
             for (var failure : Map.<Exception,String>of(
                     new java.net.http.HttpTimeoutException("private provider detail"), "requestTimeout",

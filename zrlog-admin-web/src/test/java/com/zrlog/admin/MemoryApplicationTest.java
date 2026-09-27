@@ -24,15 +24,25 @@ import static org.junit.Assert.*;
 
 public class MemoryApplicationTest {
 
+    @org.junit.Rule public org.junit.rules.TemporaryFolder temporary = new org.junit.rules.TemporaryFolder();
     private String originalUserDir;
+    private com.zrlog.common.ZrLogConfig previousConfig;
 
-    @org.junit.Before public void useRepositoryConfig() {
+    @org.junit.Before public void useIsolatedProject() throws Exception {
         originalUserDir = System.getProperty("user.dir");
-        System.setProperty("user.dir", Path.of(originalUserDir).getParent().toString());
+        previousConfig = com.zrlog.common.Constants.zrLogConfig;
+        Path source = com.zrlog.test.support.MemoryRuntime.projectRoot();
+        Path project = temporary.newFolder("project").toPath();
+        Files.createDirectory(project.resolve("conf"));
+        InstallConfigVO config = readInstallConfig(source);
+        config.getDbConfig().setDbName(config.getDbConfig().getDbName() + "_" + java.util.UUID.randomUUID());
+        Files.writeString(project.resolve(MEMORY_INSTALL_CONFIG), GSON.toJson(config));
+        System.setProperty("user.dir", project.toString());
     }
 
     @org.junit.After public void restoreUserDir() {
         System.setProperty("user.dir", originalUserDir);
+        com.zrlog.common.Constants.zrLogConfig = previousConfig;
     }
 
     private static final Gson GSON = new Gson();
@@ -47,7 +57,7 @@ public class MemoryApplicationTest {
         Path runtimeRoot = memoryRoot(projectRoot);
         DevZrLogConfig config = null;
         try {
-            MemoryApplication.prepareRuntime(18080);
+            config = MemoryApplication.prepareRuntime(18080);
 
             assertEquals(runtimeRoot.toString(), PathUtil.getRootPath());
             assertTrue(Files.exists(runtimeRoot.resolve("conf/install.lock")));
@@ -77,7 +87,6 @@ public class MemoryApplicationTest {
                                 installConfig.getConfigMsg().getUsername()));
             }
 
-            config = MemoryApplication.prepareConfig(18080, installConfig.getContextPath());
             assertEquals(installConfig.getContextPath(), config.getServerConfig().getContextPath());
             assertNotNull(config.getDataSource());
             assertEquals("localhost:18080", scalar(config, "select value from website where name=?", "host"));
@@ -95,7 +104,8 @@ public class MemoryApplicationTest {
         String previousUserDir = System.getProperty("user.dir");
         String previousRootPath = PathUtil.getRootPath();
         InstallConfig previousInstallConfig = InstallConstants.installConfig;
-        Path testProjectRoot = Files.createTempDirectory("zrlog-admin-memory-test-");
+        Path testProjectRoot = temporary.newFolder("custom-database").toPath();
+        DevZrLogConfig config = null;
         Path runtimeRoot = memoryRoot(testProjectRoot);
         try {
             Files.createDirectories(testProjectRoot.resolve("conf"));
@@ -104,7 +114,7 @@ public class MemoryApplicationTest {
             Files.writeString(testProjectRoot.resolve(MEMORY_INSTALL_CONFIG), GSON.toJson(installConfig));
 
             System.setProperty("user.dir", testProjectRoot.toString());
-            MemoryApplication.prepareRuntime(18180);
+            config = MemoryApplication.prepareRuntime(18180);
 
             Properties dbProperties = loadDbProperties(runtimeRoot);
             String jdbcUrl = dbProperties.getProperty("jdbcUrl");
@@ -114,6 +124,7 @@ public class MemoryApplicationTest {
                 assertEquals("localhost:18180", database.scalar("select value from website where name=?", "host"));
             }
         } finally {
+            if (config != null) config.stop();
             System.setProperty("user.dir", previousUserDir);
             deleteTree(testProjectRoot);
             restoreRuntime(previousRootPath, previousInstallConfig);
@@ -132,11 +143,7 @@ public class MemoryApplicationTest {
     }
 
     private static Properties loadDbProperties(Path runtimeRoot) throws Exception {
-        Properties properties = new Properties();
-        try (var inputStream = Files.newInputStream(runtimeRoot.resolve("conf/db.properties"))) {
-            properties.load(inputStream);
-        }
-        return properties;
+        return com.zrlog.test.support.MemoryRuntime.readDatabaseProperties(runtimeRoot);
     }
 
     private static Path memoryRoot(Path projectRoot) {

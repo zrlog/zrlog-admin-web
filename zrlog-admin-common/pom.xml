@@ -22,4 +22,22 @@
             <artifactId>zrlog-admin-token</artifactId>
         </dependency>
     </dependencies>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>shared-admin-test-fixtures</id>
+                        <phase>test-compile</phase>
+                        <goals><goal>test-jar</goal></goals>
+                        <configuration>
+                            <includes><include>com/zrlog/admin/support/**</include></includes>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 </project>

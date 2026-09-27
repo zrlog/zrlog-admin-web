@@ -49,9 +49,15 @@ cd zrlog-admin-web-ui/src/main/frontend && yarn build
 
 修改后端 Java 行为时至少运行相关测试或 `mvn -q -DskipTests compile`。修改前端 TypeScript、页面或主题时至少运行 `cd zrlog-admin-web-ui/src/main/frontend && yarn type-check`，必要时运行 `yarn build`。修改跨前后端协议、native/Gson DTO、插件交互面板或 AI SSE 时，需要补充对应专项验证。
 
+## 共享测试夹具
+
+- 通用数据库、日志和内存目录工具使用 base 的 `zrlog-test-support`，仅以 test scope 引入，遵守 `zrlog-base/docs/test-support.md`。
+- admin 专用资源、身份、MFA 和上传 fake 放在 admin-common 的测试源码，通过仅包含 support 包的 tests classifier 共享；不引入第二个测试模块。
+- 安装/启动测试调用真实 InstallService；MemoryApplicationTest 在临时项目目录中运行并恢复全局配置，不能重置开发者的 `.zrlog-memory`。
+
 ## MemoryApplication
 
-`com.zrlog.admin.MemoryApplication` 是本地开发辅助入口，用于启动干净的内存数据库后台环境，不是发布产物入口。
+`com.zrlog.admin.MemoryApplication` 位于 `zrlog-admin-web/src/test/java`，是本地开发辅助入口，用于启动干净的内存数据库后台环境，不是发布产物入口。
 
 关键约束：
 

@@ -5,7 +5,7 @@ import com.zrlog.admin.business.rest.response.FileReferenceIndexCacheVO;
 import com.zrlog.admin.business.rest.response.FileReferenceVO;
 import com.zrlog.admin.business.rest.response.ReplaceArticleResourceUrlResponse;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
-import com.zrlog.admin.support.TestLogCapture;
+import com.zrlog.test.support.TestLogCapture;
 import com.zrlog.common.vo.AdminTokenVO;
 import org.junit.Test;
 

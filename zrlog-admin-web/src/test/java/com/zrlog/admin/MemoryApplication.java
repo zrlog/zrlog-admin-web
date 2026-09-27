@@ -21,6 +21,7 @@ import com.zrlog.install.web.InstallConstants;
 import com.zrlog.install.web.config.DefaultInstallConfig;
 import com.zrlog.plugin.IPlugin;
 import com.zrlog.plugin.Plugins;
+import com.zrlog.test.support.MemoryRuntime;
 
 import java.io.File;
 import java.net.URISyntaxException;
@@ -34,7 +35,6 @@ public class MemoryApplication {
     private static final Logger LOGGER = LoggerUtil.getLogger(MemoryApplication.class);
     private static final int DEFAULT_PORT = 17080;
     private static final Gson GSON = new Gson();
-    private static final String MEMORY_RUNTIME_DIR = ".zrlog-memory";
     private static final String MEMORY_INSTALL_CONFIG_TEMPLATE_FILE = "conf/memory-install.json";
 
     static {
@@ -60,16 +60,17 @@ public class MemoryApplication {
         build.start();
     }
 
-    static void prepareRuntime(int port) throws Exception {
-        Path rootPath = memoryRootPath();
-        resetMemoryRoot(rootPath);
+    static DevZrLogConfig prepareRuntime(int port) throws Exception {
+        Path rootPath = MemoryRuntime.reset(MemoryRuntime.projectRoot());
         PathUtil.setRootPath(rootPath.toString());
 
         InstallConfigVO installConfig = readInstallConfigTemplate();
         applyRuntimeConfig(installConfig, port);
         InstallConstants.installConfig = new MemoryInstallConfig();
         installFromConfig(installConfig);
-        Constants.zrLogConfig = prepareConfig(port, installConfig.getContextPath());
+        DevZrLogConfig config = prepareConfig(port, installConfig.getContextPath());
+        Constants.zrLogConfig = config;
+        return config;
     }
 
     static DevZrLogConfig prepareConfig(int port, String contextPath) {
@@ -77,37 +78,7 @@ public class MemoryApplication {
     }
 
     static int resolvePort(String[] args) {
-        if (args == null) {
-            return DEFAULT_PORT;
-        }
-        for (String arg : args) {
-            if (arg != null && arg.startsWith("--port=")) {
-                return Integer.parseInt(arg.substring("--port=".length()));
-            }
-        }
-        return DEFAULT_PORT;
-    }
-
-    private static Path memoryRootPath() {
-        return Path.of(System.getProperty("user.dir"), MEMORY_RUNTIME_DIR).toAbsolutePath().normalize();
-    }
-
-    private static void resetMemoryRoot(Path rootPath) throws Exception {
-        if (!MEMORY_RUNTIME_DIR.equals(rootPath.getFileName().toString())) {
-            throw new IllegalStateException("Refuse to reset unexpected memory root: " + rootPath);
-        }
-        if (!Files.exists(rootPath)) {
-            return;
-        }
-        try (var stream = Files.walk(rootPath)) {
-            stream.sorted(Comparator.reverseOrder()).forEach(path -> {
-                try {
-                    Files.deleteIfExists(path);
-                } catch (Exception e) {
-                    throw new IllegalStateException(e);
-                }
-            });
-        }
+        return MemoryRuntime.resolvePort(args, DEFAULT_PORT);
     }
 
     private static void applyRuntimeConfig(InstallConfigVO installConfig, int port) {
@@ -120,7 +91,7 @@ public class MemoryApplication {
     }
 
     private static InstallConfigVO readInstallConfigTemplate() throws Exception {
-        Path configPath = Path.of(System.getProperty("user.dir"), MEMORY_INSTALL_CONFIG_TEMPLATE_FILE);
+        Path configPath = MemoryRuntime.projectRoot().resolve(MEMORY_INSTALL_CONFIG_TEMPLATE_FILE);
         if (!Files.exists(configPath)) {
             throw new IllegalStateException("Missing " + configPath);
         }

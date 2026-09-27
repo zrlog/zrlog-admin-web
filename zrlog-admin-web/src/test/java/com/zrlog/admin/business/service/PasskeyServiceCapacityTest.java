@@ -8,7 +8,7 @@ import com.zrlog.admin.business.exception.PasskeyVerificationException;
 import com.zrlog.admin.business.rest.response.PasskeyOptionsResponse;
 import com.zrlog.admin.business.rest.response.PasskeySummaryResponse;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
-import com.zrlog.admin.support.TestLogCapture;
+import com.zrlog.test.support.TestLogCapture;
 import com.zrlog.model.UserPasskey;
 import com.zrlog.model.UserPasskeyChallenge;
 import org.junit.Test;

@@ -19,19 +19,23 @@
         </dependency>
         <dependency>
             <groupId>com.hibegin</groupId>
-            <artifactId>zrlog-admin-test-support</artifactId>
+            <artifactId>zrlog-admin-common</artifactId>
+            <version>${project.version}</version>
+            <type>test-jar</type>
+            <classifier>tests</classifier>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>com.hibegin</groupId>
             <artifactId>zrlog-install-web</artifactId>
             <version>${zrlog-install-web.version}</version>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
             <version>2.2.224</version>
-            <scope>runtime</scope>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>com.mysql</groupId>
@@ -96,6 +100,7 @@
                                 </goals>
                                 <configuration>
                                     <outputDirectory>../${libOutputPath}</outputDirectory>
+                                    <includeScope>runtime</includeScope>
                                     <overWriteReleases>false</overWriteReleases>
                                     <overWriteSnapshots>false</overWriteSnapshots>
                                     <overWriteIfNewer>true</overWriteIfNewer>

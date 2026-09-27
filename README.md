@@ -9,7 +9,7 @@
 - `zrlog-admin-web-api`：Java 后端组装与公共 API；不依赖 UI，不打包页面资源。
 - `zrlog-admin-web-ui`：React、页面渲染、PWA 和后台页面静态化；依赖 API。
 - `zrlog-admin-web`：兼容原构件坐标的组装模块、开发启动入口和跨模块集成测试。
-- `zrlog-admin-test-support`：仅测试使用的数据库与日志夹具，不进入运行时依赖。
+- 通用测试夹具由 base 的 `zrlog-test-support` 提供；后台专用夹具在 `zrlog-admin-common/src/test/java/com/zrlog/admin/support`，通过 tests classifier 共享。
 - `zrlog-admin-web-ui/src/main/frontend/build`：忽略的前端构建输出，仅由 UI 构件打包。
 - `zrlog-admin-web-ui/src/main/frontend`：React 后台页面工程。
 - `docs`：后台开发规则和协议文档。
@@ -42,6 +42,8 @@ scripts/dev-start.sh
 ```shell
 sh shell/mvn-run.sh
 ```
+
+内存预览使用 `bash shell/memory-run.sh`。`MemoryApplication` 位于测试源码，脚本以 test classpath 启动，仍通过真实安装流程初始化。共享测试规则见 base 的 `docs/test-support.md`。
 
 ### 前端
 

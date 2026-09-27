@@ -50,4 +50,5 @@ fi
 
 exec ./mvnw -pl zrlog-admin-web exec:java \
     -Dexec.mainClass="com.zrlog.admin.MemoryApplication" \
+    -Dexec.classpathScope=test \
     -Dexec.args="--port=${PORT}"

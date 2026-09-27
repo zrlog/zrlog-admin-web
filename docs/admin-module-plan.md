@@ -72,7 +72,7 @@ flowchart TD
     account --> common[admin-common：公共契约与基础服务]
 ```
 
-`common` 限于 HTTP/URL/错误契约、审计、通知存储和通用设置。功能自己的 DTO/Controller/资源/Native 类型清单保留在功能模块；跨模块组合 API、模板管理、运维与 dashboard 数据留在 web-api；HTML 页面适配归 UI。`test-support` 仅容纳迁移前已有的共享测试夹具，通过 test scope 使用，不进入产品运行时。
+`common` 限于 HTTP/URL/错误契约、审计、通知存储和通用设置。功能自己的 DTO/Controller/资源/Native 类型清单保留在功能模块；跨模块组合 API、模板管理、运维与 dashboard 数据留在 web-api；HTML 页面适配归 UI。通用测试夹具现由 base 的 `zrlog-test-support` 提供；后台专用夹具在 common 的测试源码中，通过 tests classifier 共享。两者均仅以 test scope 使用，不进入产品运行时。
 
 两个实际需要的反向调用通过现有 `ZrLogConfig.getWebSetup(Class)` 查询启用能力：content 的 `ArticleAssistant` 由 AI 实现，account 的 `AvatarStorage` 由 assets 实现。不新增注册中心或事件总线。文章创建/删除后的会话维护、编辑器数据补充、发布检查留在 AI；正常发布、版本、审计及缓存刷新留在 content。消息中心接收摘要值，不再引用 AI/文件管理响应 DTO。
 
@@ -133,3 +133,7 @@ flowchart TD
 - 浏览器：使用用户授权的 Playwright 和本机 Chrome，在最终 Native 二进制上完成 1440×1000 桌面、390×900 移动端验收。覆盖登录、控制台、文章列表、编辑器、站点设置、AI 设置、个人 token 和外观页面，以及移动导航开合、深色主题预览/撤销、长表单滚动。AI/access/MCP 单独禁用的入口与页面行为符合能力状态；禁用功能直达页面显示 404，且对应 API 请求为 0。无未捕获页面异常，布局稳定后无页面横向溢出。38 张最终截图与检查日志保存在本地 `/tmp/zrlog-module-ui-review/`，索引为 `review.md`，不进入仓库。
 
 本轮模块化实施、真实 Java/Native 运行和浏览器验收已完成；跨仓库配套改动涉及 admin、base、主工程和 ops。
+
+## 共享测试支持后续调整
+
+`zrlog-admin-test-support` 已移除。数据库隔离、SQL schema 加载、SQLite 清理、D1 风格 adapter、日志捕获及 MemoryRuntime 下沉到 base 的 `zrlog-test-support`；AdminResource、身份和后台种子数据留在 admin-common 的测试源码。MemoryApplication 移到 web 的测试源码，使用 test classpath，不再要求运行时依赖 H2 或 install-web。此前代码量表是模块化验收时的快照。

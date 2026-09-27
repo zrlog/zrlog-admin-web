@@ -133,7 +133,6 @@
     <packaging>pom</packaging>
     <modules>
         <module>zrlog-admin-common</module>
-        <module>zrlog-admin-test-support</module>
         <module>zrlog-admin-account</module>
         <module>zrlog-admin-content</module>
         <module>zrlog-admin-assets</module>
@@ -143,16 +142,18 @@
         <module>zrlog-admin-web-ui</module>
         <module>zrlog-admin-web</module>
     </modules>
+    <dependencies>
+        <dependency>
+            <groupId>com.hibegin</groupId>
+            <artifactId>zrlog-test-support</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
     <dependencyManagement>
         <dependencies>
             <dependency>
                 <groupId>com.hibegin</groupId>
                 <artifactId>zrlog-admin-common</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.hibegin</groupId>
-                <artifactId>zrlog-admin-test-support</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
