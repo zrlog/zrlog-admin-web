@@ -4,9 +4,9 @@ import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const require = createRequire(path.join(root, "src/main/frontend/package.json"));
+const require = createRequire(path.join(root, "zrlog-admin-web-ui/src/main/frontend/package.json"));
 const ts = require("typescript");
-const resourcePath = path.join(root, "src/main/frontend/src/i18n/admin.ts");
+const resourcePath = path.join(root, "zrlog-admin-web-ui/src/main/frontend/src/i18n/admin.ts");
 const source = ts.createSourceFile(resourcePath, fs.readFileSync(resourcePath, "utf8"), ts.ScriptTarget.Latest, true);
 const property = (object, name) => object?.properties?.find(item => item.name?.text === name)?.initializer;
 const locales = new Map();
@@ -30,7 +30,10 @@ function* javaFiles(directory) {
 }
 const keys = new Set();
 let methods = 0;
-for (const file of javaFiles(path.join(root, "src/main/java/com/zrlog/admin/web/controller"))) {
+const controllers = fs.readdirSync(root).filter(name => name.startsWith("zrlog-admin-"))
+    .map(name => path.join(root, name, "src/main/java/com/zrlog/admin/web/controller"))
+    .filter(directory => fs.existsSync(directory));
+for (const file of controllers.flatMap(directory => [...javaFiles(directory)])) {
     for (const binding of fs.readFileSync(file, "utf8").matchAll(/@RequiresAction\(([^)]*)\)/g)) {
         const key = binding[1].match(/descriptionKey\s*=\s*"([^"]+)"/)?.[1];
         if (!key) throw new Error(`Missing endpoint description key: ${file}`);

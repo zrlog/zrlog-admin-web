@@ -1,0 +1,27 @@
+[
+  {
+    "name": "com.zrlog.admin.web.controller.api.OAuthAdminController",
+    "methods": [
+      {"name": "<init>", "parameterTypes": []},
+      {"name": "clients", "parameterTypes": []},
+      {"name": "consent", "parameterTypes": []},
+      {"name": "createPersonalToken", "parameterTypes": []},
+      {"name": "decide", "parameterTypes": []},
+      {"name": "disableClient", "parameterTypes": []},
+      {"name": "index", "parameterTypes": []},
+      {"name": "register", "parameterTypes": []},
+      {"name": "revokeGrant", "parameterTypes": []},
+      {"name": "revokePersonalToken", "parameterTypes": []}
+    ]
+  },
+  {
+    "name": "com.zrlog.admin.web.controller.api.WebhookController",
+    "methods": [
+      {"name": "<init>", "parameterTypes": []},
+      {"name": "config", "parameterTypes": []},
+      {"name": "messageCenterNotice", "parameterTypes": []},
+      {"name": "revokeToken", "parameterTypes": []},
+      {"name": "token", "parameterTypes": []}
+    ]
+  }
+]

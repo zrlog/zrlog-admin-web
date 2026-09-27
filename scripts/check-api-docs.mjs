@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(scriptDir, "..");
-const frontendPackage = path.join(rootDir, "src/main/frontend/package.json");
+const frontendPackage = path.join(rootDir, "zrlog-admin-web-ui/src/main/frontend/package.json");
 const require = createRequire(frontendPackage);
 const { parseDocument } = require("yaml");
 
@@ -92,8 +92,10 @@ for (const [apiPath, pathItem] of Object.entries(spec.paths)) {
             throw new Error(`${operationId} has invalid x-zrlog-controller`);
         }
         const [, className, methodName] = match;
-        const controllerPath = path.join(rootDir, "src/main/java", `${className.replaceAll(".", "/")}.java`);
-        if (!fs.existsSync(controllerPath)) {
+        const controllerPath = fs.readdirSync(rootDir).filter(name => name.startsWith("zrlog-admin-"))
+            .map(name => path.join(rootDir, name, "src/main/java", `${className.replaceAll(".", "/")}.java`))
+            .find(file => fs.existsSync(file));
+        if (!controllerPath) {
             throw new Error(`${operationId} controller does not exist: ${controllerPath}`);
         }
         const controllerSource = fs.readFileSync(controllerPath, "utf8");

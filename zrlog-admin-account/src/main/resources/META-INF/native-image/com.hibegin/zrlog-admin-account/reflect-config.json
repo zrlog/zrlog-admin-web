@@ -1,0 +1,48 @@
+[
+  {
+    "name": "com.zrlog.admin.web.controller.api.AccessController",
+    "methods": [
+      {"name": "<init>", "parameterTypes": []},
+      {"name": "index", "parameterTypes": []}
+    ]
+  },
+  {
+    "name": "com.zrlog.admin.web.controller.api.AccountSessionController",
+    "methods": [
+      {"name": "<init>", "parameterTypes": []},
+      {"name": "login", "parameterTypes": []},
+      {"name": "passkeyAuthenticationOptions", "parameterTypes": []},
+      {"name": "passkeyAuthenticationVerify", "parameterTypes": []}
+    ]
+  },
+  {
+    "name": "com.zrlog.admin.web.controller.api.AdminUserController",
+    "methods": [
+      {"name": "<init>", "parameterTypes": []},
+      {"name": "<init>", "parameterTypes": ["com.hibegin.http.server.api.HttpRequest", "com.hibegin.http.server.api.HttpResponse"]},
+      {"name": "disableMfa", "parameterTypes": []},
+      {"name": "enableMfa", "parameterTypes": []},
+      {"name": "index", "parameterTypes": []},
+      {"name": "info", "parameterTypes": []},
+      {"name": "mfa", "parameterTypes": []},
+      {"name": "passkeyRegistrationOptions", "parameterTypes": []},
+      {"name": "passkeyRegistrationVerify", "parameterTypes": []},
+      {"name": "passkeyRemove", "parameterTypes": []},
+      {"name": "passkeys", "parameterTypes": []},
+      {"name": "preferences", "parameterTypes": []},
+      {"name": "update", "parameterTypes": []},
+      {"name": "updatePassword", "parameterTypes": []},
+      {"name": "updatePreferences", "parameterTypes": []}
+    ]
+  },
+  {
+    "name": "com.zrlog.admin.web.controller.api.MemberController",
+    "methods": [
+      {"name": "<init>", "parameterTypes": []},
+      {"name": "create", "parameterTypes": []},
+      {"name": "index", "parameterTypes": []},
+      {"name": "transfer", "parameterTypes": []},
+      {"name": "update", "parameterTypes": []}
+    ]
+  }
+]

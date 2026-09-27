@@ -108,7 +108,7 @@ border-radius: 50px;
 涉及主题或样式改动时，提交前至少检查：
 
 ```bash
-rg -n "borderRadius:\\s*[0-9]+|border-radius:\\s*[0-9]+px|1px solid|border:\\s*[\"']|borderBottom:\\s*[\"']|borderTop:\\s*[\"']|borderLeft:\\s*[\"']|borderRight:\\s*[\"']" src/main/frontend/src/components src/main/frontend/src/layout
+rg -n "borderRadius:\\s*[0-9]+|border-radius:\\s*[0-9]+px|1px solid|border:\\s*[\"']|borderBottom:\\s*[\"']|borderTop:\\s*[\"']|borderLeft:\\s*[\"']|borderRight:\\s*[\"']" zrlog-admin-web-ui/src/main/frontend/src/components zrlog-admin-web-ui/src/main/frontend/src/layout
 ```
 
 排查结果时：

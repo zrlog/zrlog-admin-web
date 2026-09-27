@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-FRONTEND_DIR="$ROOT_DIR/src/main/frontend"
+FRONTEND_DIR="$ROOT_DIR/zrlog-admin-web-ui/src/main/frontend"
 LOG_DIR="${ZRLOG_ADMIN_DEV_LOG_DIR:-/tmp/zrlog-admin-web-dev}"
 
 BACKEND_URL="${BACKEND_URL:-http://localhost:17080/sub}"
@@ -60,7 +60,8 @@ else
     echo "Starting backend: $BACKEND_URL"
     (
         cd "$ROOT_DIR"
-        ./mvnw $MVNW_ARGS exec:java -Dexec.mainClass="com.zrlog.admin.Application"
+        ./mvnw $MVNW_ARGS -q -DskipTests install
+        ./mvnw $MVNW_ARGS -pl zrlog-admin-web exec:java -Dexec.mainClass="com.zrlog.admin.Application"
     ) >"$BACKEND_LOG" 2>&1 &
     BACKEND_PID="$!"
     wait_until_ready "Backend" "$BACKEND_URL/admin/login" "$BACKEND_LOG" 90

@@ -1,0 +1,34 @@
+[
+  {
+    "name": "com.zrlog.admin.web.controller.api.AdminStaticSiteController",
+    "methods": [
+      {"name": "<init>", "parameterTypes": []},
+      {"name": "index", "parameterTypes": []},
+      {"name": "startSync", "parameterTypes": []}
+    ]
+  },
+  {
+    "name": "com.zrlog.admin.web.controller.page.AdminManifestController",
+    "methods": [
+      {"name": "<init>", "parameterTypes": []},
+      {"name": "manifest", "parameterTypes": []}
+    ]
+  },
+  {
+    "name": "com.zrlog.admin.web.controller.page.AdminPageController",
+    "methods": [
+      {"name": "<init>", "parameterTypes": []},
+      {"name": "index", "parameterTypes": []},
+      {"name": "logout", "parameterTypes": []},
+      {"name": "ssJson", "parameterTypes": []}
+    ]
+  },
+  {
+    "name": "com.zrlog.admin.web.controller.page.AdminTemplatePageController",
+    "methods": [
+      {"name": "<init>", "parameterTypes": []},
+      {"name": "download", "parameterTypes": []},
+      {"name": "previewImage", "parameterTypes": []}
+    ]
+  }
+]

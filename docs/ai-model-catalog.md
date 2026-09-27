@@ -1,6 +1,6 @@
 # AI 模型目录与定时同步
 
-模型推荐数据由 admin-web 的 `src/main/resources/ai/models.json` 管理。提供商身份、默认 API 地址和请求协议仍由 Java 管理；新增模型不再修改枚举。后台 API 的 `allProviders`、`allImageProviders`、`models` 和 `modelEntries` 字段保持原有结构。
+模型推荐数据由 admin-web 的 `zrlog-admin-ai/src/main/resources/ai/models.json` 管理。提供商身份、默认 API 地址和请求协议仍由 Java 管理；新增模型不再修改枚举。后台 API 的 `allProviders`、`allImageProviders`、`models` 和 `modelEntries` 字段保持原有结构。
 
 运行时优先读取 ZrLog runtime root 下的 `conf/ai-models.json`，也可以用 JVM 参数 `-Dzrlog.ai.modelCatalog=/absolute/path/ai-models.json` 指定文件。下一次后台 AI 配置查询或图像模型校验会加载更新，无需重启、编译或重新构建前端。缺少外部文件时使用内置目录，非法更新保留本进程上次有效目录。删除外部文件可恢复内置目录。
 
@@ -10,7 +10,7 @@
 
 `.github/workflows/sync-ai-models.yml` 每天北京时间 04:23（UTC 20:23）在 GitHub 执行，也支持在 Actions 页面选择 **Sync AI model catalog → Run workflow** 手动运行。工作流进入默认分支后，GitHub 才会启用定时触发；计划时间可能因 GitHub 队列而延迟。
 
-工作流先运行 Python 同步测试，再直接执行 `scripts/sync-ai-models.py --output src/main/resources/ai/models.json`。校验结果后，通过 `peter-evans/create-pull-request` 创建或更新 `automation/ai-model-catalog` 分支上的 PR，只包含模型 JSON。有新模型、顺序、能力或来源变化才提交；目录不保存检查时间，无需特殊的日期过滤逻辑。同一分支复用已有 PR，合并后后续有变化再创建新 PR。
+工作流先运行 Python 同步测试，再直接执行 `scripts/sync-ai-models.py --output zrlog-admin-ai/src/main/resources/ai/models.json`。校验结果后，通过 `peter-evans/create-pull-request` 创建或更新 `automation/ai-model-catalog` 分支上的 PR，只包含模型 JSON。有新模型、顺序、能力或来源变化才提交；目录不保存检查时间，无需特殊的日期过滤逻辑。同一分支复用已有 PR，合并后后续有变化再创建新 PR。
 
 使用内置 `GITHUB_TOKEN`，无需配置模型提供商密钥或额外 PAT。仓库需要在 **Settings → Actions → General → Workflow permissions** 允许 **Allow GitHub Actions to create and approve pull requests**，并允许工作流声明的 `contents: write`、`pull-requests: write` 权限。此工作流只创建 PR，合并由维护者处理。GitHub 默认不会为 `GITHUB_TOKEN` 创建的 PR 触发其他 `push` / `pull_request` 工作流；此任务自身会执行 Python 测试和目录校验，若需要已有的完整 Test Coverage 检查，可手动在更新分支上运行该工作流。
 
@@ -22,11 +22,11 @@
 
 ```shell
 # 在仓库中更新内置快照（后续版本的离线兜底）
-python3 scripts/sync-ai-models.py --output src/main/resources/ai/models.json
+python3 scripts/sync-ai-models.py --output zrlog-admin-ai/src/main/resources/ai/models.json
 
 # 在运行服务器上更新热加载目录，--seed 指向随脚本部署的内置快照
 python3 /opt/zrlog-admin-web/scripts/sync-ai-models.py \
-  --seed /opt/zrlog-admin-web/src/main/resources/ai/models.json \
+  --seed /opt/zrlog-admin-web/zrlog-admin-ai/src/main/resources/ai/models.json \
   --output /opt/zrlog/conf/ai-models.json
 ```
 
@@ -48,7 +48,7 @@ JSON 使用 `schemaVersion: 1`，`providers` 必须包含四个已支持提供�
 python3 -m unittest discover -s scripts -p test_sync_ai_models.py -v
 ./mvnw -q test
 scripts/check-admin-guardrails.sh
-cd src/main/frontend && yarn type-check && yarn build
+cd zrlog-admin-web-ui/src/main/frontend && yarn type-check && yarn build
 ```
 
 官方来源：

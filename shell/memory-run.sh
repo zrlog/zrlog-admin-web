@@ -37,17 +37,17 @@ fi
 
 needs_frontend_build=0
 if [ "${ZRLOG_MEMORY_SKIP_FRONTEND_BUILD:-0}" != "1" ]; then
-    if [ "${ZRLOG_MEMORY_FORCE_FRONTEND_BUILD:-0}" = "1" ] || [ ! -f "src/main/resources/admin/index.html" ]; then
+    if [ "${ZRLOG_MEMORY_FORCE_FRONTEND_BUILD:-0}" = "1" ] || [ ! -f "zrlog-admin-web-ui/src/main/frontend/build/index.html" ]; then
         needs_frontend_build=1
     fi
 fi
 
 if [ "$needs_frontend_build" -eq 1 ]; then
-    ./mvnw -PnodeBuild -DskipTests package
+    ./mvnw -PnodeBuild -DskipTests install
 else
-    ./mvnw -q -DskipTests compile
+    ./mvnw -q -DskipTests install
 fi
 
-exec ./mvnw exec:java \
+exec ./mvnw -pl zrlog-admin-web exec:java \
     -Dexec.mainClass="com.zrlog.admin.MemoryApplication" \
     -Dexec.args="--port=${PORT}"

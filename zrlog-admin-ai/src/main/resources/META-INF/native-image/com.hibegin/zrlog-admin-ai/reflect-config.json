@@ -1,0 +1,23 @@
+[
+  {
+    "name": "com.zrlog.admin.web.controller.ai.AIArticleController",
+    "methods": [
+      {"name": "<init>", "parameterTypes": []},
+      {"name": "ai", "parameterTypes": []},
+      {"name": "appendAiContext", "parameterTypes": []},
+      {"name": "applyCover", "parameterTypes": []},
+      {"name": "clearAiMessages", "parameterTypes": []},
+      {"name": "exportAiMessages", "parameterTypes": []},
+      {"name": "updateAiMessage", "parameterTypes": []}
+    ]
+  },
+  {
+    "name": "com.zrlog.admin.web.controller.ai.AIWebSiteController",
+    "methods": [
+      {"name": "<init>", "parameterTypes": []},
+      {"name": "ai", "parameterTypes": []},
+      {"name": "optimizeAiPrompt", "parameterTypes": []},
+      {"name": "optimizeDescription", "parameterTypes": []}
+    ]
+  }
+]

@@ -49,12 +49,12 @@ README.en-us.md
 conf/temp.properties
 .codex
 src/main/resources/admin
-src/main/frontend/build
+zrlog-admin-web-ui/src/main/frontend/build
 lib
 output
 .zrlog-memory/
 /conf/ai-models.json
 /conf/ai-models.json.lock
-/src/main/resources/ai/*.lock
+/zrlog-admin-ai/src/main/resources/ai/*.lock
 /scripts/__pycache__/
 .playwright-cli/

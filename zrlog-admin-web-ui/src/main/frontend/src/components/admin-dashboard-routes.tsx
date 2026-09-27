@@ -1,0 +1,734 @@
+import { isFeaturePathEnabled } from "../utils/module-capabilities";
+import {
+    USER_ROUTES,
+    WEBSITE_ROUTES,
+    USER_PREFERENCE_PAGES,
+    USER_APPLICATION_PAGES,
+    getAccountPage,
+} from "../utils/account-page-routes";
+import { actionForPath, hasAction } from "../utils/account-access";
+import { lazy } from "react";
+import type { ComponentType, ReactNode } from "react";
+import {
+    ApiFilled,
+    ApiOutlined,
+    AppstoreFilled,
+    AppstoreOutlined,
+    BarsOutlined,
+    ContainerFilled,
+    ContainerOutlined,
+    CopyrightCircleFilled,
+    CopyrightCircleOutlined,
+    DashboardFilled,
+    DashboardOutlined,
+    DatabaseFilled,
+    DatabaseOutlined,
+    EditFilled,
+    EditOutlined,
+    ExperimentFilled,
+    ExperimentOutlined,
+    FileTextFilled,
+    FileTextOutlined,
+    FolderOpenFilled,
+    FolderOpenOutlined,
+    HomeFilled,
+    HomeOutlined,
+    InfoCircleFilled,
+    InfoCircleOutlined,
+    LinkOutlined,
+    LockFilled,
+    LockOutlined,
+    MessageFilled,
+    MessageOutlined,
+    ReadFilled,
+    ReadOutlined,
+    RobotFilled,
+    RobotOutlined,
+    SafetyCertificateFilled,
+    SafetyCertificateOutlined,
+    SearchOutlined,
+    SettingFilled,
+    SettingOutlined,
+    SkinFilled,
+    SkinOutlined,
+    SlidersFilled,
+    SlidersOutlined,
+    SyncOutlined,
+    TagsFilled,
+    TagsOutlined,
+    UserOutlined,
+} from "@ant-design/icons";
+import { buildUriPaths } from "../base/AppBase";
+import { getRes } from "../utils/constants";
+import MyLoadingComponent from "./my-loading-component";
+import type { WebSiteProps } from "./website";
+import type { ArticleEditProps } from "./articleEdit/index.types";
+import type { ErrorPageProps } from "./unknown-error-page";
+import { RiWebhookFill } from "../icons/ri/RiWebhookFill";
+import { RiWebhookLine } from "../icons/ri/RiWebhookLine";
+
+const LightweightFallback = MyLoadingComponent as ComponentType<any>;
+
+const AsyncArticleEdit = lazy(() => import("components/articleEdit"));
+const AsyncOffline = lazy(() => import("common/Offline"));
+const AsyncComment = lazy(() => import("components/comment"));
+const AsyncPlugin = lazy(() => import("components/plugin"));
+const AsyncIndex = lazy(() => import("components/index"));
+const AsyncWebSite = lazy(() => import("components/website"));
+const AsyncType = lazy(() => import("components/type"));
+const AsyncTagManagement = lazy(() => import("components/tag"));
+const AsyncLink = lazy(() => import("components/link"));
+const AsyncNav = lazy(() => import("components/nav"));
+const AsyncUpgrade = lazy(() => import("components/upgrade"));
+const AsyncTemplateCenter = lazy(() => import("components/template/template-center"));
+const AsyncTemplate = lazy(() => import("components/template"));
+const AsyncTemplateConfig = lazy(() => import("components/template/template-config"));
+const AsyncAccountSecurity = lazy(() => import("components/account-security"));
+const AsyncArticle = lazy(() => import("components/article"));
+const AsyncMembers = lazy(() => import("components/members"));
+const AsyncOAuthConsent = lazy(() => import("components/oauth-consent"));
+const AsyncUser = lazy(() => import("components/user"));
+const AsyncError = lazy(() => import("components/unknown-error-page"));
+const AsyncSystem = lazy(() => import("components/system"));
+const AsyncVersion = lazy(() => import("components/website/version"));
+const AsyncStaticSite = lazy(() => import("components/StaticSite"));
+const DevAsync = lazy(() => import("components/dev"));
+const AsyncFileManagerPage = lazy(() => import("components/file-manager-page"));
+
+export type AdminDashboardRouteSearchItem = {
+    id: string;
+    title: string;
+    path: string;
+    icon: ReactNode;
+    keywords: string[];
+};
+
+type AdminDashboardRouteSearchConfig = {
+    id: string;
+    title: () => string;
+    path?: string;
+    iconKey: AdminDashboardRouteIconKey;
+    keywords: string[];
+    visible?: () => boolean;
+};
+
+export type AdminDashboardRouteIconKey =
+    | "api"
+    | "appstore"
+    | "bars"
+    | "comment"
+    | "container"
+    | "copyright"
+    | "dashboard"
+    | "database"
+    | "edit"
+    | "experiment"
+    | "file-text"
+    | "folder"
+    | "home"
+    | "info"
+    | "link"
+    | "lock"
+    | "read"
+    | "robot"
+    | "safety-certificate"
+    | "search"
+    | "setting"
+    | "skin"
+    | "sliders"
+    | "sync"
+    | "tags"
+    | "user"
+    | "webhook";
+
+export const renderAdminDashboardRouteIcon = (
+    iconKey: AdminDashboardRouteIconKey,
+    selected = false,
+    fontSize?: number
+): ReactNode => {
+    const style = fontSize ? { fontSize } : undefined;
+    switch (iconKey) {
+        case "api":
+            return selected ? <ApiFilled style={style} /> : <ApiOutlined style={style} />;
+        case "appstore":
+            return selected ? <AppstoreFilled style={style} /> : <AppstoreOutlined style={style} />;
+        case "bars":
+            return <BarsOutlined style={style} />;
+        case "comment":
+            return selected ? <MessageFilled style={style} /> : <MessageOutlined style={style} />;
+        case "container":
+            return selected ? <ContainerFilled style={style} /> : <ContainerOutlined style={style} />;
+        case "copyright":
+            return selected ? <CopyrightCircleFilled style={style} /> : <CopyrightCircleOutlined style={style} />;
+        case "dashboard":
+            return selected ? <DashboardFilled style={style} /> : <DashboardOutlined style={style} />;
+        case "database":
+            return selected ? <DatabaseFilled style={style} /> : <DatabaseOutlined style={style} />;
+        case "edit":
+            return selected ? <EditFilled style={style} /> : <EditOutlined style={style} />;
+        case "experiment":
+            return selected ? <ExperimentFilled style={style} /> : <ExperimentOutlined style={style} />;
+        case "file-text":
+            return selected ? <FileTextFilled style={style} /> : <FileTextOutlined style={style} />;
+        case "folder":
+            return selected ? <FolderOpenFilled style={style} /> : <FolderOpenOutlined style={style} />;
+        case "home":
+            return selected ? <HomeFilled style={style} /> : <HomeOutlined style={style} />;
+        case "info":
+            return selected ? <InfoCircleFilled style={style} /> : <InfoCircleOutlined style={style} />;
+        case "link":
+            return <LinkOutlined style={style} />;
+        case "lock":
+            return selected ? <LockFilled style={style} /> : <LockOutlined style={style} />;
+        case "read":
+            return selected ? <ReadFilled style={style} /> : <ReadOutlined style={style} />;
+        case "robot":
+            return selected ? <RobotFilled style={style} /> : <RobotOutlined style={style} />;
+        case "safety-certificate":
+            return selected ? <SafetyCertificateFilled style={style} /> : <SafetyCertificateOutlined style={style} />;
+        case "search":
+            return <SearchOutlined style={style} />;
+        case "setting":
+            return selected ? <SettingFilled style={style} /> : <SettingOutlined style={style} />;
+        case "skin":
+            return selected ? <SkinFilled style={style} /> : <SkinOutlined style={style} />;
+        case "sliders":
+            return selected ? <SlidersFilled style={style} /> : <SlidersOutlined style={style} />;
+        case "sync":
+            return <SyncOutlined style={style} />;
+        case "tags":
+            return selected ? <TagsFilled style={style} /> : <TagsOutlined style={style} />;
+        case "user":
+            return <UserOutlined style={style} />;
+        case "webhook":
+            return selected ? <RiWebhookFill style={style} /> : <RiWebhookLine style={style} />;
+    }
+};
+
+export type AdminDashboardRouteDefinition<P = any> = {
+    paths: string[];
+    lazy: ComponentType<P>;
+    fallback: ComponentType<P>;
+    props?: Partial<P>;
+    getComponentKey?: (data: any, cacheKey: string) => string | undefined;
+    search?: AdminDashboardRouteSearchConfig[];
+};
+
+export const createAdminDashboardRoutes = (
+    articleEditProps: Partial<ArticleEditProps> = {}
+): AdminDashboardRouteDefinition[] => [
+    {
+        paths: buildUriPaths(WEBSITE_ROUTES.members.slice(1)),
+        lazy: AsyncMembers,
+        fallback: LightweightFallback,
+        search: [
+            {
+                id: "members",
+                title: () => getRes().members.title,
+                iconKey: "user",
+                keywords: ["members", "成员", "角色"],
+            },
+        ],
+    },
+    { paths: buildUriPaths(USER_ROUTES.authorize.slice(1)), lazy: AsyncOAuthConsent, fallback: LightweightFallback },
+    {
+        paths: [...buildUriPaths("index"), ...buildUriPaths("")],
+        lazy: AsyncIndex,
+        fallback: LightweightFallback,
+        search: [
+            {
+                id: "dashboard",
+                title: () => getRes().index.title,
+                path: "/",
+                iconKey: "dashboard",
+                keywords: ["dashboard", "home", "index", "主页", "首页", "仪表盘"],
+            },
+        ],
+    },
+    {
+        paths: buildUriPaths("comment"),
+        lazy: AsyncComment,
+        fallback: LightweightFallback,
+        search: [
+            {
+                id: "comment",
+                title: () => getRes().comment.title,
+                iconKey: "comment",
+                keywords: ["comment", "reply", "评论", "回复", "留言"],
+            },
+        ],
+    },
+    {
+        paths: buildUriPaths("plugin"),
+        lazy: AsyncPlugin,
+        fallback: LightweightFallback,
+        search: [
+            {
+                id: "plugin",
+                title: () => getRes().plugin.title,
+                iconKey: "api",
+                keywords: ["plugin", "插件", "chajian"],
+            },
+            {
+                id: "backup",
+                title: () => getRes().index.quickAction.backupFiles,
+                path: "/plugin?page=backup-sql-file/files",
+                iconKey: "database",
+                keywords: ["backup", "restore", "sql", "备份", "恢复", "数据库"],
+            },
+        ],
+    },
+    {
+        paths: buildUriPaths("website"),
+        lazy: AsyncWebSite,
+        fallback: LightweightFallback,
+        props: { activeKey: "basic" } as WebSiteProps,
+        search: [
+            {
+                id: "website",
+                title: () => getRes().website.title,
+                iconKey: "home",
+                keywords: ["setting", "base", "basic", "网站", "基本", "设置", "配置"],
+            },
+        ],
+    },
+    {
+        paths: buildUriPaths("website/admin"),
+        lazy: AsyncWebSite,
+        fallback: LightweightFallback,
+        props: { activeKey: "admin" } as WebSiteProps,
+        search: [
+            {
+                id: "website_admin",
+                title: () => getRes().websiteAdmin.title,
+                iconKey: "sliders",
+                keywords: ["admin", "setting", "管理", "后台", "设置"],
+            },
+        ],
+    },
+    {
+        paths: buildUriPaths("website/webhook"),
+        lazy: AsyncWebSite,
+        fallback: LightweightFallback,
+        props: { activeKey: "webhook" } as WebSiteProps,
+        search: [
+            {
+                id: "website_webhook",
+                title: () => getRes().websiteWebhook.title,
+                iconKey: "webhook",
+                keywords: ["webhook", "token", "message", "notice", "站内信", "通知", "令牌", "外部"],
+                visible: () => false,
+            },
+        ],
+    },
+    {
+        paths: buildUriPaths("website/template"),
+        lazy: AsyncTemplate,
+        fallback: LightweightFallback,
+    },
+    {
+        paths: buildUriPaths("website/other"),
+        lazy: AsyncWebSite,
+        fallback: LightweightFallback,
+        props: { activeKey: "other" } as WebSiteProps,
+        search: [
+            {
+                id: "website_seo",
+                title: () => getRes().websiteOther.title,
+                iconKey: "file-text",
+                keywords: ["seo", "other", "setting", "优化"],
+            },
+        ],
+    },
+    {
+        paths: buildUriPaths("website/blog"),
+        lazy: AsyncWebSite,
+        fallback: LightweightFallback,
+        props: { activeKey: "blog" } as WebSiteProps,
+        search: [
+            {
+                id: "website_blog",
+                title: () => getRes().websiteBlog.title,
+                iconKey: "read",
+                keywords: ["blog", "setting", "博客", "设置"],
+            },
+        ],
+    },
+    {
+        paths: buildUriPaths("website/ai"),
+        lazy: AsyncWebSite,
+        fallback: LightweightFallback,
+        props: { activeKey: "ai" } as WebSiteProps,
+        search: [
+            {
+                id: "website_ai",
+                title: () => getRes().websiteAi.title,
+                iconKey: "robot",
+                keywords: ["ai", "gemini", "chatgpt", "人工智能"],
+            },
+        ],
+    },
+    {
+        paths: buildUriPaths("website/privacy"),
+        lazy: AsyncWebSite,
+        fallback: LightweightFallback,
+        props: { activeKey: "privacy" } as WebSiteProps,
+        search: [
+            {
+                id: "website_privacy",
+                title: () => getRes().websitePrivacy.title,
+                iconKey: "safety-certificate",
+                keywords: ["privacy", "personal", "data", "gdpr", "隐私", "个人", "数据"],
+                visible: () => getRes().feature_personal_data_enabled === true,
+            },
+        ],
+    },
+    {
+        paths: buildUriPaths("website/article-edit"),
+        lazy: AsyncWebSite,
+        fallback: LightweightFallback,
+        props: { activeKey: "article-edit" } as WebSiteProps,
+        search: [
+            {
+                id: "website_article_content",
+                title: () => getRes().websiteArticleEdit.title,
+                iconKey: "edit",
+                keywords: ["editor", "markdown", "article", "content", "cover", "编辑器", "文章", "封面"],
+            },
+        ],
+    },
+    {
+        paths: buildUriPaths("website/content-protector"),
+        lazy: AsyncWebSite,
+        fallback: LightweightFallback,
+        props: { activeKey: "content-protector" } as WebSiteProps,
+        search: [
+            {
+                id: "website_content_protector",
+                title: () => getRes().websiteContentProtector.title,
+                iconKey: "copyright",
+                keywords: ["copyright", "license", "content", "版权", "协议", "保护"],
+            },
+        ],
+    },
+    {
+        paths: buildUriPaths("website/upgrade"),
+        lazy: AsyncWebSite,
+        fallback: LightweightFallback,
+        props: { activeKey: "upgrade" } as WebSiteProps,
+    },
+    {
+        paths: buildUriPaths("website/lab"),
+        lazy: AsyncWebSite,
+        fallback: LightweightFallback,
+        props: { activeKey: "lab" } as WebSiteProps,
+        search: [
+            {
+                id: "website_lab",
+                title: () => getRes().websiteLab.title,
+                iconKey: "experiment",
+                keywords: ["lab", "feature", "experiment", "实验室", "新特性", "开关"],
+            },
+        ],
+    },
+    {
+        paths: buildUriPaths("website/version"),
+        lazy: AsyncVersion,
+        fallback: LightweightFallback,
+        search: [
+            {
+                id: "version",
+                title: () => getRes().websiteVersion.title,
+                iconKey: "info",
+                keywords: ["version", "update", "版本", "更新", "banben", "gengxin"],
+            },
+        ],
+    },
+    {
+        paths: buildUriPaths("article-type"),
+        lazy: AsyncType,
+        fallback: LightweightFallback,
+        search: [
+            {
+                id: "category",
+                title: () => getRes().articleType.title,
+                iconKey: "appstore",
+                keywords: ["category", "type", "分类", "类别"],
+            },
+        ],
+    },
+    {
+        paths: buildUriPaths("tag"),
+        lazy: AsyncTagManagement,
+        fallback: LightweightFallback,
+        search: [
+            {
+                id: "tag",
+                title: () => getRes().tagManage.title,
+                iconKey: "tags",
+                keywords: ["tag", "tags", "标签", "biaoqian"],
+            },
+        ],
+    },
+    {
+        paths: buildUriPaths("link"),
+        lazy: AsyncLink,
+        fallback: LightweightFallback,
+        search: [
+            {
+                id: "link",
+                title: () => getRes().link.title,
+                iconKey: "link",
+                keywords: ["link", "friend", "友链", "链接"],
+            },
+        ],
+    },
+    {
+        paths: buildUriPaths("nav"),
+        lazy: AsyncNav,
+        fallback: LightweightFallback,
+        search: [
+            {
+                id: "nav",
+                title: () => getRes().nav.title,
+                iconKey: "bars",
+                keywords: ["nav", "menu", "导航", "菜单"],
+            },
+        ],
+    },
+    {
+        paths: buildUriPaths("article"),
+        lazy: AsyncArticle,
+        fallback: LightweightFallback,
+        search: [
+            {
+                id: "article",
+                title: () => getRes().article.title,
+                iconKey: "container",
+                keywords: ["article", "list", "文章", "列表", "管理"],
+            },
+            {
+                id: "article_draft",
+                title: () => getRes().article.status.draft,
+                path: "/article?status=draft",
+                iconKey: "container",
+                keywords: ["draft", "article", "草稿", "文章", "caogao"],
+            },
+        ],
+    },
+    {
+        paths: buildUriPaths("article-edit"),
+        lazy: AsyncArticleEdit,
+        fallback: LightweightFallback,
+        props: articleEditProps as ArticleEditProps,
+        getComponentKey: (data, cacheKey) => {
+            const article = (data as ArticleEditProps["data"] | undefined)?.article;
+            if (!article) {
+                return cacheKey;
+            }
+            return `${cacheKey}:${article.logId || "draft"}:${article.version}:${article.lastUpdateDate || 0}`;
+        },
+        search: [
+            {
+                id: "write",
+                title: () => getRes().index.quickAction.writeArticle,
+                iconKey: "edit",
+                keywords: ["write", "post", "new", "写文章", "新建", "发布"],
+            },
+        ],
+    },
+    {
+        paths: buildUriPaths(USER_ROUTES.profile.slice(1)),
+        lazy: AsyncUser,
+        fallback: LightweightFallback,
+        search: [
+            {
+                id: "user",
+                title: () => getRes().user.title,
+                iconKey: "user",
+                keywords: ["user", "profile", "个人", "信息", "用户", "头像"],
+            },
+        ],
+    },
+    ...USER_PREFERENCE_PAGES.map(
+        (page): AdminDashboardRouteDefinition => ({
+            paths: buildUriPaths(USER_ROUTES[page].slice(1)),
+            lazy: AsyncUser,
+            fallback: LightweightFallback,
+            props: { activeKey: "preferences", activePage: page },
+            getComponentKey: (_data, cacheKey) => cacheKey,
+            search: [
+                {
+                    id: `user-preferences-${page}`,
+                    title: () => getAccountPage(USER_ROUTES[page])!.title(getRes()),
+                    iconKey: page === "assistant" ? "robot" : page === "writing" ? "edit" : "setting",
+                    keywords: ["preferences", "个人设置", "偏好设置", page],
+                },
+            ],
+        })
+    ),
+    ...USER_APPLICATION_PAGES.map(
+        (page): AdminDashboardRouteDefinition => ({
+            paths: buildUriPaths(USER_ROUTES[page].slice(1)),
+            lazy: AsyncUser,
+            fallback: LightweightFallback,
+            props: { activeKey: "applications", activePage: page },
+            getComponentKey: (_data, cacheKey) => cacheKey,
+            search: [
+                {
+                    id: `oauth-${page}`,
+                    title: () => getAccountPage(USER_ROUTES[page])!.title(getRes()),
+                    iconKey: "api",
+                    keywords: ["oauth", "applications", "mcp", page],
+                },
+            ],
+        })
+    ),
+    {
+        paths: buildUriPaths("template-center"),
+        lazy: AsyncTemplateCenter,
+        fallback: LightweightFallback,
+        search: [
+            {
+                id: "theme_center",
+                title: () => getRes().templateCenter.title,
+                iconKey: "skin",
+                keywords: ["theme", "template", "主题", "模板", "外观"],
+            },
+        ],
+    },
+    {
+        paths: buildUriPaths("template"),
+        lazy: AsyncTemplate,
+        fallback: LightweightFallback,
+        search: [
+            {
+                id: "theme_setting",
+                title: () => getRes().websiteTemplate.title,
+                iconKey: "skin",
+                keywords: ["theme", "setting", "主题", "设置"],
+            },
+        ],
+    },
+    {
+        paths: buildUriPaths(USER_ROUTES.security.slice(1)),
+        lazy: AsyncAccountSecurity,
+        fallback: LightweightFallback,
+        search: [
+            {
+                id: "account-security",
+                title: () => getRes().accountSecurity.title,
+                path: USER_ROUTES.security,
+                iconKey: "lock",
+                keywords: [
+                    "password",
+                    "security",
+                    "mfa",
+                    "passkey",
+                    "account",
+                    "密码",
+                    "修改",
+                    "安全",
+                    "验证",
+                    "通行密钥",
+                ],
+            },
+        ],
+    },
+    {
+        paths: buildUriPaths("upgrade"),
+        lazy: AsyncUpgrade,
+        fallback: LightweightFallback,
+    },
+    {
+        paths: buildUriPaths("template-config"),
+        lazy: AsyncTemplateConfig,
+        fallback: LightweightFallback,
+    },
+    {
+        paths: buildUriPaths("403"),
+        lazy: AsyncError,
+        fallback: LightweightFallback,
+        props: {
+            code: 403,
+        } as ErrorPageProps,
+    },
+    {
+        paths: buildUriPaths("500"),
+        lazy: AsyncError,
+        fallback: LightweightFallback,
+        props: {
+            code: 500,
+        } as ErrorPageProps,
+    },
+    {
+        paths: buildUriPaths("offline"),
+        lazy: AsyncOffline,
+        fallback: LightweightFallback,
+    },
+    {
+        paths: buildUriPaths("system"),
+        lazy: AsyncSystem,
+        fallback: LightweightFallback,
+        search: [
+            {
+                id: "system",
+                title: () => getRes().system.info,
+                iconKey: "info",
+                keywords: ["system", "info", "系统", "信息", "环境"],
+            },
+        ],
+    },
+    {
+        paths: buildUriPaths("static-site"),
+        lazy: AsyncStaticSite,
+        fallback: LightweightFallback,
+    },
+    {
+        paths: buildUriPaths("dev"),
+        lazy: DevAsync,
+        fallback: LightweightFallback,
+    },
+    {
+        paths: buildUriPaths("file-manager"),
+        lazy: AsyncFileManagerPage,
+        fallback: LightweightFallback,
+        search: [
+            {
+                id: "file-manager",
+                title: () => getRes().fileManager.title,
+                iconKey: "folder",
+                keywords: ["file", "manager", "asset", "resource", "image", "upload", "文件", "资源", "图片", "素材"],
+            },
+        ],
+    },
+];
+
+const toSearchPath = (route: AdminDashboardRouteDefinition, search: AdminDashboardRouteSearchConfig) => {
+    if (search.path) {
+        return search.path;
+    }
+    const firstPath = route.paths[0];
+    if (firstPath === "" || firstPath === "/") {
+        return "/";
+    }
+    return firstPath.startsWith("/") ? firstPath : `/${firstPath}`;
+};
+
+export const getAdminDashboardRouteSearchItems = (): AdminDashboardRouteSearchItem[] =>
+    createAdminDashboardRoutes().flatMap((route) =>
+        (route.search || [])
+            .filter(
+                (search) =>
+                    (!search.visible || search.visible()) &&
+                    isFeaturePathEnabled(toSearchPath(route, search)) &&
+                    hasAction(actionForPath(toSearchPath(route, search)))
+            )
+            .map((search) => ({
+                id: search.id,
+                title: search.title(),
+                path: toSearchPath(route, search),
+                icon: renderAdminDashboardRouteIcon(search.iconKey),
+                keywords: search.keywords,
+            }))
+    );

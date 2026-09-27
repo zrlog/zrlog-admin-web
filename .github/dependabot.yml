@@ -7,7 +7,7 @@ updates:
       day: monday
     open-pull-requests-limit: 10
   - package-ecosystem: npm
-    directory: /src/main/frontend
+    directory: /zrlog-admin-web-ui/src/main/frontend
     schedule:
       interval: weekly
       day: monday

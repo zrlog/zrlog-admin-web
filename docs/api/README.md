@@ -45,7 +45,7 @@ rg -n '/api/admin/template/upload|operationId: uploadTemplate' docs/api/openapi.
 
 维护文档中的 API，或明确支持新 API 时，同时完成以下事项：
 
-1. 在 `AdminRouters` 和 Controller 中确认真实路径与方法；变更接口必须显式声明 HTTP 方法。
+1. 在所属功能的 `*WebSetup` 路由和 Controller 中确认真实路径与方法；变更接口必须显式声明 HTTP 方法。
 2. 使用 typed request/response DTO，不用临时 `Map` 代替稳定协议。
 3. 在 `openapi.yaml` 中维护参数、请求体、响应 Schema、鉴权、失败语义和示例。
 4. 记录写库、覆盖文件、缓存刷新、静态站更新和审计等副作用。
@@ -56,7 +56,7 @@ rg -n '/api/admin/template/upload|operationId: uploadTemplate' docs/api/openapi.
 新建或修改一个尚未记录的内部路由，不需要仅为追求数量而补入 OpenAPI。反过来，文档中接口的实现、DTO 或错误语义发生变化时，必须在同一改动中更新；移除已记录接口前必须先给出兼容和迁移方案。
 
 ```shell
-cd src/main/frontend
+cd zrlog-admin-web-ui/src/main/frontend
 yarn api-docs:check
 ```
 

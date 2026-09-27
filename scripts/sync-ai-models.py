@@ -23,7 +23,7 @@ SOURCES = {
 MAX_CATALOG_BYTES = 1024 * 1024
 MAX_PAGE_BYTES = 8 * 1024 * 1024
 MODEL_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}")
-SEED = Path(__file__).resolve().parents[1] / "src/main/resources/ai/models.json"
+SEED = Path(__file__).resolve().parents[1] / "zrlog-admin-ai/src/main/resources/ai/models.json"
 
 
 class CatalogPage(HTMLParser):

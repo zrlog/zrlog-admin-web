@@ -1,0 +1,27 @@
+[
+  {
+    "name": "com.zrlog.admin.web.controller.api.FileManagerController",
+    "methods": [
+      {"name": "<init>", "parameterTypes": []},
+      {"name": "delete", "parameterTypes": []},
+      {"name": "download", "parameterTypes": []},
+      {"name": "index", "parameterTypes": []},
+      {"name": "mkdir", "parameterTypes": []},
+      {"name": "read", "parameterTypes": []},
+      {"name": "readContent", "parameterTypes": []},
+      {"name": "refreshReferenceIndex", "parameterTypes": []},
+      {"name": "rename", "parameterTypes": []},
+      {"name": "replaceArticleResourceUrl", "parameterTypes": []},
+      {"name": "reuploadMissingLocalResource", "parameterTypes": []},
+      {"name": "search", "parameterTypes": []}
+    ]
+  },
+  {
+    "name": "com.zrlog.admin.web.controller.api.UploadController",
+    "methods": [
+      {"name": "<init>", "parameterTypes": []},
+      {"name": "index", "parameterTypes": []},
+      {"name": "thumbnail", "parameterTypes": []}
+    ]
+  }
+]

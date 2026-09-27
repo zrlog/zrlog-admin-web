@@ -1,0 +1,355 @@
+package com.zrlog.admin.support;
+
+import com.hibegin.common.dao.DataSourceWrapper;
+import com.hibegin.common.dao.InMemoryDatabase;
+import com.hibegin.http.server.api.HttpRequest;
+import com.hibegin.http.server.config.ServerConfig;
+import com.zrlog.admin.business.AdminConstants;
+import com.zrlog.admin.business.rest.response.AdminResourceInfoResponse;
+import com.zrlog.admin.business.service.AdminResource;
+import com.zrlog.common.CacheService;
+import com.zrlog.common.Constants;
+import com.zrlog.common.TokenService;
+import com.zrlog.common.ZrLogConfig;
+import com.zrlog.common.cache.dto.TagDTO;
+import com.zrlog.common.cache.dto.TypeDTO;
+import com.zrlog.common.cache.dto.UserBasicDTO;
+import com.zrlog.common.cache.vo.BaseDataInitVO;
+import com.zrlog.common.vo.PublicWebSiteInfo;
+import com.zrlog.plugin.IPlugin;
+import com.zrlog.plugin.Plugins;
+import com.zrlog.util.DataSourceUtil;
+import org.apache.commons.dbutils.handlers.MapHandler;
+import org.apache.commons.dbutils.handlers.MapListHandler;
+import org.apache.commons.dbutils.handlers.ScalarHandler;
+
+import java.io.InputStream;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+import java.util.UUID;
+
+public class InMemoryZrLogDatabase implements AutoCloseable {
+
+    private final java.nio.file.Path sqliteFile;
+    private final DataSourceWrapper dataSource;
+    private final InMemoryDatabase database;
+    private final ZrLogConfig previousConfig;
+    private final AdminResource previousAdminResource;
+    private final TestCacheService cacheService = new TestCacheService();
+    public interface SqlHook { void run(String sql, Object[] params) throws SQLException; }
+    private volatile SqlHook beforeWebApiUpdate = (sql, params) -> { };
+    private volatile SqlHook afterWebApiQuery = (sql, params) -> { };
+
+    private InMemoryZrLogDatabase(boolean sqlite) throws Exception {
+        this.previousConfig = Constants.zrLogConfig;
+        this.previousAdminResource = AdminConstants.adminResource;
+        this.sqliteFile = sqlite ? java.nio.file.Files.createTempFile("zrlog-security-test-", ".db") : null;
+        this.dataSource = newDataSource();
+        this.database = InMemoryDatabase.open(dataSource, true);
+        Constants.zrLogConfig = new TestZrLogConfig(dataSource, cacheService);
+        AdminConstants.adminResource = new TestAdminResource();
+        loadSchema();
+        seedBaseData();
+        com.zrlog.common.vo.AdminTokenVO token = new com.zrlog.common.vo.AdminTokenVO();
+        token.setUserId(1);
+        token.setSessionId("session-1");
+        java.lang.reflect.Method setter = com.zrlog.admin.web.token.AdminTokenThreadLocal.class.getDeclaredMethod("setAdminToken", com.zrlog.common.vo.AdminTokenVO.class);
+        setter.setAccessible(true);
+        com.zrlog.admin.web.token.AdminTokenThreadLocal.remove();
+        setter.invoke(null, token);
+    }
+
+    public static InMemoryZrLogDatabase open() throws Exception {
+        return new InMemoryZrLogDatabase(false);
+    }
+
+    public static InMemoryZrLogDatabase openSqlite() throws Exception { return new InMemoryZrLogDatabase(true); }
+
+    /** Exercise the real startup discovery against the test database, without starting a server. */
+    public void loadAdminWebModules() {
+        TestZrLogConfig config = (TestZrLogConfig) Constants.zrLogConfig;
+        config.webModules();
+    }
+
+    /** D1-like single-statement autocommit; obtaining a JDBC connection through the adapter is forbidden. */
+    public static InMemoryZrLogDatabase openWebApi() throws Exception {
+        InMemoryZrLogDatabase db = openSqlite();
+        org.apache.commons.dbutils.QueryRunner runner = new org.apache.commons.dbutils.QueryRunner() {
+            @Override public int update(String sql, Object... params) throws SQLException {
+                db.beforeWebApiUpdate.run(sql, params);
+                return db.dataSource.getQueryRunner().update(sql, params);
+            }
+            @Override public <T> T query(String sql, org.apache.commons.dbutils.ResultSetHandler<T> handler, Object... params) throws SQLException {
+                T result = db.dataSource.getQueryRunner().query(sql, handler, params);
+                db.afterWebApiQuery.run(sql, params);
+                return result;
+            }
+        };
+        DataSourceWrapper adapter = (DataSourceWrapper) java.lang.reflect.Proxy.newProxyInstance(
+                DataSourceWrapper.class.getClassLoader(), new Class<?>[]{DataSourceWrapper.class}, (proxy, method, args) -> {
+                    if (method.getName().equals("isWebApi")) return true;
+                    if (method.getName().equals("getQueryRunner")) return runner;
+                    if (method.getName().equals("getConnection")) throw new AssertionError("Web API cannot open JDBC transactions");
+                    try { return method.invoke(db.dataSource, args); }
+                    catch (java.lang.reflect.InvocationTargetException e) { throw e.getCause(); }
+                });
+        com.hibegin.common.dao.DAO.setDs(adapter);
+        Constants.zrLogConfig = new TestZrLogConfig(adapter, db.cacheService);
+        return db;
+    }
+
+    public void beforeWebApiUpdate(SqlHook hook) { beforeWebApiUpdate = hook; }
+    public void afterWebApiQuery(SqlHook hook) { afterWebApiQuery = hook; }
+
+    public DataSourceWrapper dataSource() {
+        return dataSource;
+    }
+
+    public TestCacheService cacheService() {
+        return cacheService;
+    }
+
+    public boolean execute(String sql, Object... params) throws SQLException {
+        return dataSource.getQueryRunner().update(sql, params) > 0;
+    }
+
+    public Object scalar(String sql, Object... params) throws SQLException {
+        return dataSource.getQueryRunner().query(sql, new ScalarHandler<>(1), params);
+    }
+
+    public Map<String, Object> queryOne(String sql, Object... params) throws SQLException {
+        return dataSource.getQueryRunner().query(sql, new MapHandler(), params);
+    }
+
+    public List<Map<String, Object>> queryList(String sql, Object... params) throws SQLException {
+        return dataSource.getQueryRunner().query(sql, new MapListHandler(), params);
+    }
+
+    public void putWebsite(String name, Object value) throws SQLException {
+        if (sqliteFile == null) execute("merge into website(name, value) key(name) values(?, ?)", name, value == null ? null : value.toString());
+        else {
+            execute("delete from website where name=?", name);
+            execute("insert into website(name,value) values(?,?)", name, value == null ? null : value.toString());
+        }
+    }
+
+    private DataSourceWrapper newDataSource() {
+        Properties properties = InMemoryDatabase.h2Properties("zrlog_admin_" + UUID.randomUUID());
+        if (sqliteFile != null) {
+            properties = new Properties();
+            properties.setProperty("driverClass", "org.sqlite.JDBC");
+            properties.setProperty("jdbcUrl", "jdbc:sqlite:" + sqliteFile + "?journal_mode=WAL&busy_timeout=10000");
+            properties.setProperty("user", ""); properties.setProperty("password", "");
+        }
+        return DataSourceUtil.buildDataSource(properties);
+    }
+
+    private void loadSchema() throws Exception {
+        try (InputStream input = InMemoryZrLogDatabase.class.getResourceAsStream("/init-table-structure.sql")) {
+            if (input == null) {
+                throw new IllegalStateException("Missing init-table-structure.sql from zrlog-install-web test dependency");
+            }
+            if (sqliteFile == null) database.loadMySQLSchema(input);
+            else {
+                java.util.List<String> statements = com.hibegin.common.dao.SqlConvertUtils.doMySQLToSqliteBySqlText(new String(input.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8));
+                database.executeStatements(statements.stream().filter(sql -> !com.hibegin.common.dao.SqlConvertUtils.isBatchDropTableSql(sql)).collect(java.util.stream.Collectors.toList()));
+            }
+        }
+    }
+
+    @Override
+    public void close() throws Exception {
+        com.zrlog.admin.web.token.AdminTokenThreadLocal.remove();
+        try {
+            database.close();
+            if (sqliteFile != null) {
+                java.nio.file.Files.deleteIfExists(sqliteFile);
+                java.nio.file.Files.deleteIfExists(java.nio.file.Path.of(sqliteFile + "-wal"));
+                java.nio.file.Files.deleteIfExists(java.nio.file.Path.of(sqliteFile + "-shm"));
+            }
+        } finally {
+            Constants.zrLogConfig = previousConfig;
+            AdminConstants.adminResource = previousAdminResource;
+        }
+    }
+
+    private void seedBaseData() throws SQLException {
+        execute("insert into user(userId, email, password, userName, header, role) values(?, ?, ?, ?, ?, ?)",
+                1, "admin@example.com", "password", "admin", "/avatar.png", "admin");
+        execute("insert into type(typeId, alias, typeName, remark) values(?, ?, ?, ?)",
+                1, "default", "Default", "Default type");
+        putWebsite("title", "ZrLog Test");
+        putWebsite("host", "localhost:18080");
+        putWebsite("language", Constants.DEFAULT_LANGUAGE);
+        putWebsite("article_auto_digest_length", 80);
+
+        TypeDTO type = new TypeDTO();
+        type.setId(1L);
+        type.setAlias("default");
+        type.setTypeName("Default");
+        type.setRemark("Default type");
+        cacheService.articleTypes.add(type);
+    }
+
+    public static class TestCacheService implements CacheService {
+
+        private final PublicWebSiteInfo publicInfo = new PublicWebSiteInfo();
+        private final List<TypeDTO> articleTypes = new ArrayList<>();
+        private final List<TagDTO> tags = new ArrayList<>();
+        private int refreshCount;
+
+        private TestCacheService() {
+            publicInfo.setTitle("ZrLog Test");
+            publicInfo.setHost("localhost:18080");
+            publicInfo.setLanguage(Constants.DEFAULT_LANGUAGE);
+            publicInfo.setGenerator_html_status(false);
+            publicInfo.setDisable_comment_status(false);
+            publicInfo.setArticle_thumbnail_status(true);
+            publicInfo.setArticle_auto_digest_length(80L);
+        }
+
+        @Override
+        public long getCurrentSqlVersion() {
+            return 0;
+        }
+
+        @Override
+        public long getWebSiteVersion() {
+            return 0;
+        }
+
+        @Override
+        public BaseDataInitVO getInitData() {
+            return new BaseDataInitVO();
+        }
+
+        @Override
+        public BaseDataInitVO refreshInitData() {
+            refreshCount++;
+            return getInitData();
+        }
+
+        public int getRefreshCount() {
+            return refreshCount;
+        }
+
+        @Override
+        public PublicWebSiteInfo getPublicWebSiteInfo() {
+            return publicInfo;
+        }
+
+        @Override
+        public List<TypeDTO> getArticleTypes() {
+            return articleTypes;
+        }
+
+        @Override
+        public List<TagDTO> getTags() {
+            return tags;
+        }
+
+        @Override
+        public UserBasicDTO getUserInfoById(Long userId) {
+            UserBasicDTO user = new UserBasicDTO();
+            user.setUserId(userId);
+            user.setUserName("admin");
+            user.setHeader("/avatar.png");
+            return user;
+        }
+
+        @Override
+        public Map<String, Object> getTemplateConfigMapWithCache(String template) {
+            return Map.of();
+        }
+    }
+
+    private static class TestZrLogConfig extends ZrLogConfig {
+
+        private final DataSourceWrapper testDataSource;
+
+        private TestZrLogConfig(DataSourceWrapper dataSource, CacheService cacheService) {
+            super(18080, null, "");
+            this.testDataSource = dataSource;
+            this.dataSource = dataSource;
+            this.cacheService = cacheService;
+            var context = new com.zrlog.web.WebSetupContext(this, dbPropertiesFile, installLockFile, "", null);
+            java.util.ServiceLoader.load(com.zrlog.web.WebSetupProvider.class).forEach(provider -> {
+                if (provider.name().startsWith("admin-")) this.webSetups.add(provider.create(context));
+            });
+        }
+
+        private void webModules() {
+            this.webSetups.clear();
+            this.webSetups.addAll(com.zrlog.web.WebSetupLoader.load(new com.zrlog.web.WebSetupContext(
+                    this, dbPropertiesFile, installLockFile, "", null),
+                    provider -> provider.name().equals("admin") || provider.name().startsWith("admin-")));
+            this.webSetups.forEach(com.zrlog.web.WebSetup::setup);
+        }
+
+        @Override
+        public boolean isInstalled() {
+            return false;
+        }
+
+        @Override
+        public DataSourceWrapper configDatabase() {
+            return testDataSource;
+        }
+
+        @Override
+        protected TokenService initTokenService() {
+            return new com.zrlog.admin.web.token.AdminTokenService(60);
+        }
+
+        @Override
+        public ServerConfig getServerConfig() {
+            return serverConfig;
+        }
+
+        @Override
+        public List<IPlugin> getBasePluginList() {
+            return new Plugins();
+        }
+    }
+
+    private static class TestAdminResource implements AdminResource {
+
+        @Override
+        public java.util.Set<String> getAdminStaticResourceUris() {
+            return java.util.Set.of();
+        }
+
+        @Override
+        public java.util.Set<String> getAdminPageUris() {
+            return java.util.Set.of();
+        }
+
+        @Override
+        public java.util.Set<String> getAdminStaticCacheUris() {
+            return java.util.Set.of();
+        }
+
+        @Override
+        public java.util.Set<String> getAdminCacheableApiUris() {
+            return java.util.Set.of("/api/admin/website", "/api/admin/user");
+        }
+
+        @Override
+        public InputStream renderServiceWorker(HttpRequest request) {
+            return InputStream.nullInputStream();
+        }
+
+        @Override
+        public String getStaticResourceBuildId() {
+            return "test";
+        }
+
+        @Override
+        public AdminResourceInfoResponse adminResourceInfo(HttpRequest request) {
+            return new AdminResourceInfoResponse();
+        }
+    }
+}

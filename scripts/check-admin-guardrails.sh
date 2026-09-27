@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+shopt -s nullglob
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
@@ -41,47 +42,47 @@ echo "Review matches before changing code. Some matches can be comments, test da
 
 scan "Frontend i18n access and fallback candidates" \
     'getRes\(\)\[|\bres\[|adminI18nAliases|getRes\(\)(\.[A-Za-z0-9_]+)+\s*\|\|\s*["'\'']' \
-    src/main/frontend/src \
+    zrlog-admin-web-ui/src \
     --glob '*.ts' \
     --glob '*.tsx'
 
 scan "Frontend suppression and debug candidates" \
     'eslint-disable|@ts-ignore|@ts-expect-error|console\.log|debugger' \
-    src/main/frontend/src \
+    zrlog-admin-web-ui/src \
     --glob '*.ts' \
     --glob '*.tsx'
 
 scan "Frontend visible Chinese outside i18n candidates" \
     '[\u4e00-\u9fff]' \
-    src/main/frontend/src \
+    zrlog-admin-web-ui/src \
     --glob '*.ts' \
     --glob '*.tsx' \
-    --glob '!src/main/frontend/src/i18n/**'
+    --glob '!zrlog-admin-web-ui/src/main/frontend/src/i18n/**'
 
 THEME_PATTERN='borderRadius:\s*[0-9]+|border-radius:\s*[0-9]+px|1px solid|border:\s*["'\'']|borderBottom:\s*["'\'']|borderTop:\s*["'\'']|borderLeft:\s*["'\'']|borderRight:\s*["'\'']|color:\s*["'\''](#1677ff|#1890ff|blue)["'\'']'
 scan "Frontend theme hard-coded style candidates" \
     "$THEME_PATTERN" \
-    src/main/frontend/src/common \
-    src/main/frontend/src/components \
-    src/main/frontend/src/layout \
+    zrlog-admin-web-ui/src/main/frontend/src/common \
+    zrlog-admin-web-ui/src/main/frontend/src/components \
+    zrlog-admin-web-ui/src/main/frontend/src/layout \
     --glob '*.ts' \
     --glob '*.tsx'
 
 scan "Admin DTO candidates for native image registration review" \
     'class .*Response|class .*Request|class .*VO' \
-    src/main/java/com/zrlog/admin/business
+    zrlog-admin-*/src/main/java/com/zrlog/admin/business
 
 scan "Native image registration anchors" \
     'gsonNativeAgentByClazz|getResources\(' \
-    src/main/java/com/zrlog/admin/util/AdminNativeImageUtils.java
+    zrlog-admin-*/src/main/java/com/zrlog/admin/util/*NativeImageUtils.java
 
 section "Admin native JSON registration completeness"
-NATIVE_JSON_FILE="src/main/java/com/zrlog/admin/util/AdminNativeImageUtils.java"
+NATIVE_JSON_FILES=(zrlog-admin-*/src/main/java/com/zrlog/admin/util/*NativeImageUtils.java)
 NATIVE_JSON_STATUS=0
 check_native_json_class() {
     local class_name="$1"
-    if ! rg -q -F "${class_name}.class" "$NATIVE_JSON_FILE"; then
-        printf '%s missing %s.class\n' "$NATIVE_JSON_FILE" "$class_name"
+    if ! rg -q -F "${class_name}.class" "${NATIVE_JSON_FILES[@]}"; then
+        printf 'Native registrations missing %s.class\n' "$class_name"
         NATIVE_JSON_STATUS=1
     fi
 }
@@ -98,9 +99,9 @@ is_native_json_container() {
     esac
 }
 for dto_dir in \
-    src/main/java/com/zrlog/admin/business/rest/base \
-    src/main/java/com/zrlog/admin/business/rest/request \
-    src/main/java/com/zrlog/admin/business/rest/response; do
+    zrlog-admin-*/src/main/java/com/zrlog/admin/business/rest/base \
+    zrlog-admin-*/src/main/java/com/zrlog/admin/business/rest/request \
+    zrlog-admin-*/src/main/java/com/zrlog/admin/business/rest/response; do
     for file in "$dto_dir"/*.java; do
         class_name="$(basename "$file" .java)"
         if is_native_json_container "$class_name"; then
@@ -109,11 +110,11 @@ for dto_dir in \
         check_native_json_class "$class_name"
     done
 done
-for file in src/main/java/com/zrlog/admin/business/rest/response/*.java; do
+for file in zrlog-admin-*/src/main/java/com/zrlog/admin/business/rest/response/*.java; do
     while IFS= read -r line; do
         class_name="$(printf '%s' "$line" | sed -E 's/.*class ([A-Za-z0-9_]+).*/\1/')"
-        if ! rg -q -F ".${class_name}.class" "$NATIVE_JSON_FILE"; then
-            printf '%s missing nested %s.class\n' "$NATIVE_JSON_FILE" "$class_name"
+        if ! rg -q -F ".${class_name}.class" "${NATIVE_JSON_FILES[@]}"; then
+            printf 'Native registrations missing nested %s.class\n' "$class_name"
             NATIVE_JSON_STATUS=1
         fi
     done < <(rg 'public static (final )?class [A-Za-z0-9_]+' "$file")
@@ -139,9 +140,9 @@ else
 fi
 
 section "Backend audit i18n completeness"
-AUDIT_KEYS="$(rg -o '"admin\.audit\.action\.[^"]+"' src/main/java/com/zrlog/admin/business/type/AdminAuditAction.java | tr -d '"' | sort -u)"
+AUDIT_KEYS="$(rg -o '"admin\.audit\.action\.[^"]+"' zrlog-admin-common/src/main/java/com/zrlog/admin/business/type/AdminAuditAction.java | tr -d '"' | sort -u)"
 AUDIT_I18N_STATUS=0
-for locale in src/main/resources/i18n/admin_backend_*.properties; do
+for locale in zrlog-admin-common/src/main/resources/i18n/admin_backend_*.properties; do
     missing=0
     while IFS= read -r key; do
         if [ -n "$key" ] && ! rg -q -F "${key}=" "$locale"; then
@@ -163,14 +164,14 @@ node scripts/check-access-descriptions.mjs
 
 scan "Admin SQL portability candidates" \
     'DATE_FORMAT|UNIX_TIMESTAMP|FROM_UNIXTIME|strftime|information_schema|pg_stat_user_tables|OPTIMIZE TABLE|VACUUM|group by|GROUP BY|select count|SELECT count|count\(1\)' \
-    src/main/java/com/zrlog/admin/business \
-    src/main/java/com/zrlog/admin/web \
+    zrlog-admin-*/src/main/java/com/zrlog/admin/business \
+    zrlog-admin-*/src/main/java/com/zrlog/admin/web \
     --glob '*.java'
 
 section "Controller persistence boundary"
 CONTROLLER_PERSISTENCE_MATCHES="$(rg -n \
     'import com\.zrlog\.model|\.(query|queryList|queryFirst|updateByKV|deleteById)\(' \
-    src/main/java/com/zrlog/admin/web/controller \
+    zrlog-admin-*/src/main/java/com/zrlog/admin/web/controller \
     --glob '*.java' || true)"
 if [ -n "$CONTROLLER_PERSISTENCE_MATCHES" ]; then
     printf '%s\n' "$CONTROLLER_PERSISTENCE_MATCHES"
@@ -180,7 +181,7 @@ fi
 echo "OK"
 
 section "Build artifact diff candidates"
-BUILD_ARTIFACT_DIFF="$(git diff --name-only -- src/main/resources/admin src/main/frontend/build static/changelog || true)"
+BUILD_ARTIFACT_DIFF="$(git diff --name-only -- src/main/resources/admin zrlog-admin-web-ui/src/main/frontend/build static/changelog || true)"
 if [ -n "$BUILD_ARTIFACT_DIFF" ]; then
     printf '%s\n' "$BUILD_ARTIFACT_DIFF"
 else
@@ -192,10 +193,10 @@ if [ "$FULL" -eq 1 ]; then
     "${MAVEN[@]}" -q -DskipTests compile
 
     section "API documentation contract"
-    (cd src/main/frontend && yarn api-docs:check)
+    (cd zrlog-admin-web-ui/src/main/frontend && yarn api-docs:check)
 
     section "Frontend type check"
-    (cd src/main/frontend && yarn type-check)
+    (cd zrlog-admin-web-ui/src/main/frontend && yarn type-check)
 
     section "Diff whitespace check"
     git diff --check

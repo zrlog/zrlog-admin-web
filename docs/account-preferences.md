@@ -40,7 +40,7 @@
 - base：`mvn -o -Dmaven.repo.local=/tmp/zrlog-accounts-m2 test`，447 项通过（含 H2 / SQLite 旧库升级）。
 - install：同一临时 Maven 仓库运行 `mvn install`，175 项，4 项环境相关跳过；新安装 preferences 为空。
 - admin：`mvn -o -Dmaven.repo.local=/tmp/zrlog-accounts-m2 '-Dtest=*,!MemoryApplicationTest' test`，503 项通过。MemoryApplicationTest 会重置正在使用的预览数据，因此通过独立 18083 内存安装和 HTTP 检查覆盖启动链路。
-- frontend：`yarn type-check`、`CI=true yarn test --watchAll=false --runInBand`（251 项）、`BUILD_PATH=../resources/admin yarn build`，以及改动文件 ESLint 通过。
+- frontend：`yarn type-check`、`CI=true yarn test --watchAll=false --runInBand`（251 项）、`yarn build`，以及改动文件 ESLint 通过。
 - 工程护栏、权限接口中英文说明检查、各仓库 `git diff --check` 通过。
 - 独立 HTTP 检查覆盖作者自行设置、跨账号隔离、无权限字段拒绝、后台 HTML/公共资源隔离、分页、编辑器、布局分区、重置，以及原会话和 OAuth access token 保持有效。
 - 浏览器工具连接失败，未取得桌面/移动端截图；组件测试覆盖表单继承值、false 覆盖、保存失败保留输入、恢复默认、中英文及离线禁写。未运行 native-image 编译或真实 MySQL 数据库测试。

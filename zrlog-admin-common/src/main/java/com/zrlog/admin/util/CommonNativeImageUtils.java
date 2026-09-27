@@ -1,0 +1,65 @@
+package com.zrlog.admin.util;
+
+import com.hibegin.http.server.util.NativeImageUtils;
+import java.util.*;
+
+public final class CommonNativeImageUtils {
+    private CommonNativeImageUtils() { }
+    public static void reg() {
+        NativeImageUtils.gsonNativeAgentByClazz(Arrays.asList(
+                com.zrlog.common.vo.TemplateVO.TemplateConfigMap.class,
+                com.zrlog.business.rest.response.UpgradeProcessResponse.class,
+                com.zrlog.business.rest.response.PreCheckVersionResponse.class,
+                com.zrlog.business.rest.response.BackupProtectionStatus.class,
+                com.zrlog.admin.business.rest.base.BlogWebSiteInfo.class,
+                com.zrlog.admin.business.rest.base.OtherWebSiteInfo.class,
+                com.zrlog.admin.business.rest.base.AdminWebSiteInfo.class,
+                com.zrlog.business.rest.base.UpgradeWebSiteInfo.class,
+                com.zrlog.admin.business.rest.base.ArticleEditWebSiteInfo.class,
+                com.zrlog.common.vo.TemplateVO.class,
+                com.zrlog.common.vo.TemplateVO.TemplateConfigVO.class,
+                com.zrlog.common.vo.BaseTemplateVO.class,
+                com.zrlog.admin.business.rest.base.BasicWebSiteInfo.class,
+                com.zrlog.admin.business.rest.base.FeatureLabWebSiteInfo.class,
+                com.zrlog.admin.business.rest.base.ContentProtectorWebSiteInfo.class,
+                com.hibegin.common.dao.dto.PageData.class,
+                com.zrlog.common.cache.dto.LinkDTO.class,
+                com.zrlog.common.cache.dto.LogNavDTO.class,
+                com.zrlog.common.cache.dto.TypeDTO.class,
+                com.zrlog.data.dto.CommentDTO.class,
+                com.zrlog.common.rest.response.ApiStandardResponse.class,
+                com.zrlog.admin.business.rest.response.AdminResourceInfoResponse.class,
+                com.zrlog.admin.business.rest.response.AdminResourceInfoResponse.Capabilities.class,
+                com.zrlog.admin.business.rest.response.AdminResourceInfoResponse.DefaultLoginInfo.class,
+                com.zrlog.admin.business.rest.response.AdminAuditLogEntryResponse.class,
+                com.zrlog.admin.business.rest.response.AdminSsePayloads.Message.class,
+                com.zrlog.admin.business.rest.response.AdminSsePayloads.Tool.class,
+                com.zrlog.admin.business.rest.response.AdminSsePayloads.Error.class,
+                com.zrlog.common.vo.AdminTokenVO.class,
+                com.zrlog.common.vo.AdminFullTokenVO.class,
+                com.zrlog.admin.business.rest.response.VersionResponse.class,
+                com.zrlog.business.rest.response.PluginStatusResponse.class,
+                com.zrlog.admin.business.rest.response.DeleteResponse.class,
+                com.zrlog.admin.business.rest.response.DeleteResponse.DeleteResponseData.class,
+                com.zrlog.admin.business.rest.response.UpdateRecordResponse.class,
+                com.zrlog.admin.business.rest.response.WebsiteKvEntryResponse.class,
+                com.zrlog.common.vo.LockVO.class,
+                com.zrlog.data.dto.FaviconBase64DTO.class,
+                com.zrlog.admin.business.rest.response.MessageCenterStatusResponse.class,
+                com.zrlog.admin.business.rest.response.MessageCenterNoticeResponse.class,
+                com.zrlog.admin.business.rest.response.MessageCenterNoticeResponse.VersionUpdatePayload.class,
+                com.zrlog.admin.business.rest.response.MessageCenterNoticeResponse.UnreadCommentPayload.class,
+                com.zrlog.admin.business.rest.response.MessageCenterNoticeResponse.WebhookMessagePayload.class,
+                com.zrlog.admin.business.rest.response.MessageCenterNoticeResponse.OperationTaskPayload.class,
+                com.zrlog.admin.business.rest.response.MessageCenterOperationNoticeEntry.class,
+                com.zrlog.admin.business.rest.response.MessageCenterOperationNoticeEntry.ReplaceArticleResourceUrlPayload.class,
+                com.zrlog.admin.business.rest.response.MessageCenterOperationNoticeEntry.StaticSiteSyncPayload.class,
+                com.zrlog.admin.business.rest.response.MessageCenterOperationNoticeEntry.UpgradePayload.class,
+                com.zrlog.admin.business.rest.response.MessageCenterOperationNoticeEntry.UpgradeRestartPayload.class,
+                com.zrlog.admin.business.rest.response.MessageCenterOperationNoticeEntry.PublishCheckPayload.class,
+                com.zrlog.admin.business.rest.response.StaticSiteProgressResponse.class,
+                com.zrlog.business.dto.StoredUpgradeNotice.class,
+                com.zrlog.common.vo.SocialPreviewDTO.class,
+                com.zrlog.business.rest.response.CheckVersionResponse.class));
+    }
+}

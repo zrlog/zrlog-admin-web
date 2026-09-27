@@ -31,11 +31,11 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            src/main/frontend/node_modules
+            zrlog-admin-web-ui/src/main/frontend/node_modules
             ~/.cache/yarn
             target/node
             target/yarn
-          key: ${{ runner.os }}-frontend-${{ hashFiles('src/main/frontend/yarn.lock', 'pom.xml') }}
+          key: ${{ runner.os }}-frontend-${{ hashFiles('zrlog-admin-web-ui/src/main/frontend/yarn.lock', 'pom.xml') }}
           restore-keys: |
             ${{ runner.os }}-frontend-
 

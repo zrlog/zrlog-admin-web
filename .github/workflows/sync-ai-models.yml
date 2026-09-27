@@ -38,7 +38,7 @@ jobs:
         run: python3 -m unittest discover -s scripts -p test_sync_ai_models.py -v
 
       - name: Sync official model catalogs
-        run: python3 scripts/sync-ai-models.py --output src/main/resources/ai/models.json
+        run: python3 scripts/sync-ai-models.py --output zrlog-admin-ai/src/main/resources/ai/models.json
 
       - name: Validate generated catalog
         run: |
@@ -47,7 +47,7 @@ jobs:
           from pathlib import Path
 
           sync = runpy.run_path("scripts/sync-ai-models.py")
-          sync["read_catalog"](Path("src/main/resources/ai/models.json"))
+          sync["read_catalog"](Path("zrlog-admin-ai/src/main/resources/ai/models.json"))
           PY
           git diff --check
 
@@ -58,7 +58,7 @@ jobs:
           base: ${{ github.event.repository.default_branch }}
           branch: automation/ai-model-catalog
           delete-branch: true
-          add-paths: src/main/resources/ai/models.json
+          add-paths: zrlog-admin-ai/src/main/resources/ai/models.json
           commit-message: "chore(ai): update model catalog"
           title: "chore(ai): update model catalog"
           body: |

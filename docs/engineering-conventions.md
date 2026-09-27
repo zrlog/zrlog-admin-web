@@ -35,7 +35,7 @@
 
 ## 前端约束
 
-- 前端可见文案统一维护在 `src/main/frontend/src/i18n/admin.ts`，详见 [i18n 规则](i18n.md)。
+- 前端可见文案统一维护在 `zrlog-admin-web-ui/src/main/frontend/src/i18n/admin.ts`，详见 [i18n 规则](i18n.md)。
 - 后台主题样式、圆角、链接颜色和公共 shell 行为必须复用现有主题和组件约定，详见 [前端主题规则](frontend-theme.md)。
 - 前端不应通过“显示能跑”的局部字符串拼接掩盖接口契约问题。跨前后端数据形状变化时，应先修 DTO 和调用类型。
 - 修改页面行为后，优先用真实页面或现有脚本验证用户路径，而不是只检查静态代码。
@@ -54,14 +54,14 @@
 ## 验证要求
 
 - 后端 Java 行为变更至少运行相关单测；影响共享服务或接口契约时运行 `mvn -q test`。
-- 前端 TypeScript 或页面行为变更至少运行 `cd src/main/frontend && yarn type-check`，必要时运行 `yarn build`。
+- 前端 TypeScript 或页面行为变更至少运行 `cd zrlog-admin-web-ui/src/main/frontend && yarn type-check`，必要时运行 `yarn build`。
 - URL、安全、清洗、校验类改动必须补覆盖异常输入的测试，不只测正常路径。
 - 提交前按范围运行：
 
 ```shell
 scripts/check-admin-guardrails.sh
 mvn -q -DskipTests compile
-cd src/main/frontend && yarn type-check
-cd src/main/frontend && yarn build
+cd zrlog-admin-web-ui/src/main/frontend && yarn type-check
+cd zrlog-admin-web-ui/src/main/frontend && yarn build
 git diff --check
 ```
