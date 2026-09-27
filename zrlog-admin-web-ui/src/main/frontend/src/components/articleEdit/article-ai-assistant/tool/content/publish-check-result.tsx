@@ -46,6 +46,8 @@ const PublishCheckResult: FunctionComponent<PublishCheckResultProps> = ({ toolPa
             size={8}
             style={{
                 width: "100%",
+                minWidth: 0,
+                overflowWrap: "anywhere",
                 paddingInlineEnd: 4,
                 ...style,
             }}
@@ -62,28 +64,33 @@ const PublishCheckResult: FunctionComponent<PublishCheckResultProps> = ({ toolPa
                     return (
                         <List.Item>
                             <Space direction="vertical" size={2} style={{ width: "100%" }}>
-                                <Space
+                                <div
                                     style={{
+                                        display: "flex",
+                                        flexWrap: "wrap",
+                                        gap: theme.marginXS,
                                         width: "100%",
                                         justifyContent: "space-between",
                                         alignItems: "center",
                                     }}
                                 >
-                                    <Space>
-                                        <Typography.Text>{item.name}</Typography.Text>
-                                        <Typography.Text type="secondary">{item.score}</Typography.Text>
-                                    </Space>
+                                    <div style={{ display: "flex", flex: 1, minWidth: 0, gap: theme.marginXS }}>
+                                        <Typography.Text style={{ minWidth: 0 }}>{item.name}</Typography.Text>
+                                        <Typography.Text type="secondary" style={{ flexShrink: 0 }}>
+                                            {item.score}
+                                        </Typography.Text>
+                                    </div>
                                     {target && (
                                         <Button
                                             size="small"
                                             type="link"
-                                            style={{ paddingInline: 0 }}
+                                            style={{ paddingInline: 0, flexShrink: 0 }}
                                             onClick={() => onLocateTarget?.(target)}
                                         >
                                             {getRes().articleEdit.publishCheck.locate}
                                         </Button>
                                     )}
-                                </Space>
+                                </div>
                                 <Progress
                                     percent={item.score}
                                     size="small"

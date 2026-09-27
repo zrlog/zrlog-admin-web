@@ -1,4 +1,4 @@
-import { Button, Grid, Popover, Space, Tag, Typography } from "antd";
+import { Button, Drawer, Popover, Space, Tag, Typography } from "antd";
 import {
     CheckCircleOutlined,
     CloseOutlined,
@@ -14,6 +14,7 @@ import { ArticleEditState, PublishCheckTarget, PublishStatusPopoverState } from 
 import PublishCheckResult from "./article-ai-assistant/tool/content/publish-check-result";
 import { useTheme } from "antd-style";
 import TimeAgo from "@editor/dist/editor/TimeAgo";
+import useArticleEditorScreens from "./use-article-editor-screens";
 
 type PublishStatusBarProps = {
     saving: ArticleEditState["saving"];
@@ -36,8 +37,9 @@ const PublishStatusBar: FunctionComponent<PublishStatusBarProps> = ({
     onLocatePublishCheckTarget,
     getContainer,
 }) => {
-    const screens = Grid.useBreakpoint();
+    const screens = useArticleEditorScreens();
     const theme = useTheme();
+    const isMobile = screens.xs === true;
     const triggerColor = theme.colorTextSecondary;
 
     if (!publishStatus.visible) {
@@ -59,7 +61,6 @@ const PublishStatusBar: FunctionComponent<PublishStatusBarProps> = ({
         }
         return "calc(100vw - 24px)";
     })();
-    const resultMaxHeight = screens.xs && !screens.sm ? 240 : 320;
     const statusTextStyle: CSSProperties = {
         flex: 1,
         minWidth: 0,
@@ -149,21 +150,34 @@ const PublishStatusBar: FunctionComponent<PublishStatusBarProps> = ({
         return null;
     };
 
+    const title = (
+        <Space direction="vertical" size={0} style={{ minWidth: 0 }}>
+            <Typography.Text strong>{getRes().articleEdit.publishStatus.title}</Typography.Text>
+            {publishStatus.updatedAt && (
+                <Typography.Text type="secondary" style={{ fontSize: theme.fontSizeSM }}>
+                    {getRes().backgroundTask.updatedAt}
+                    {getLabelValueSeparator()}
+                    <TimeAgo timestamp={publishStatus.updatedAt} />
+                </Typography.Text>
+            )}
+        </Space>
+    );
+
     const content = (
-        <Space direction="vertical" size={10} style={{ width: "100%", minWidth: 0 }}>
-            <Space style={{ width: "100%", justifyContent: "space-between", alignItems: "flex-start" }}>
-                <Space direction="vertical" size={0} style={{ minWidth: 0 }}>
-                    <Typography.Text strong>{getRes().articleEdit.publishStatus.title}</Typography.Text>
-                    {publishStatus.updatedAt && (
-                        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                            {getRes().backgroundTask.updatedAt}
-                            {getLabelValueSeparator()}
-                            <TimeAgo timestamp={publishStatus.updatedAt} />
-                        </Typography.Text>
-                    )}
-                </Space>
-                <Button size="small" type="text" icon={<CloseOutlined />} onClick={onClose} />
-            </Space>
+        <Space direction="vertical" size={10} style={{ width: "100%", minWidth: 0, overflowWrap: "anywhere" }}>
+            {!isMobile && (
+                <div
+                    style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "flex-start",
+                        gap: theme.marginXS,
+                    }}
+                >
+                    {title}
+                    <Button size="small" type="text" icon={<CloseOutlined />} onClick={onClose} />
+                </div>
+            )}
             <Space direction="vertical" size={6} style={{ width: "100%" }}>
                 {publishStatus.publishState !== "idle" &&
                     renderStatusRow(
@@ -211,7 +225,7 @@ const PublishStatusBar: FunctionComponent<PublishStatusBarProps> = ({
             {publishStatus.checkPayload && (
                 <PublishCheckResult
                     toolPayload={publishStatus.checkPayload}
-                    style={{ maxHeight: resultMaxHeight, overflowY: "auto" }}
+                    style={isMobile ? undefined : { maxHeight: 320, overflowY: "auto" }}
                     onLocateTarget={onLocatePublishCheckTarget}
                 />
             )}
@@ -238,6 +252,50 @@ const PublishStatusBar: FunctionComponent<PublishStatusBarProps> = ({
         </Space>
     );
 
+    const trigger = (
+        <Button
+            size="small"
+            type="text"
+            icon={getStatusIcon()}
+            aria-label={`${getRes().articleEdit.publishStatus.title}${getLabelValueSeparator()}${getTriggerText()}`}
+            aria-expanded={publishStatus.open}
+            title={getTriggerText()}
+            style={{ color: triggerColor, flexShrink: 0, paddingInline: theme.paddingXXS }}
+            onClick={isMobile ? () => onOpenChange(!publishStatus.open) : undefined}
+        >
+            {isMobile ? null : getTriggerText()}
+        </Button>
+    );
+
+    if (isMobile) {
+        return (
+            <>
+                {trigger}
+                <Drawer
+                    title={title}
+                    placement="bottom"
+                    size="min(80vh, 640px)"
+                    open={publishStatus.open}
+                    onClose={onClose}
+                    getContainer={getContainer}
+                    styles={{
+                        wrapper: { maxHeight: "80dvh" },
+                        section: {
+                            borderStartStartRadius: theme.borderRadiusLG,
+                            borderStartEndRadius: theme.borderRadiusLG,
+                        },
+                        body: {
+                            padding: theme.padding,
+                            paddingBottom: `max(${theme.padding}px, env(safe-area-inset-bottom))`,
+                        },
+                    }}
+                >
+                    {content}
+                </Drawer>
+            </>
+        );
+    }
+
     return (
         <Popover
             open={publishStatus.open}
@@ -247,24 +305,17 @@ const PublishStatusBar: FunctionComponent<PublishStatusBarProps> = ({
             getPopupContainer={getContainer}
             placement="topRight"
             autoAdjustOverflow
-            overlayInnerStyle={{ width: popoverWidth, maxWidth: "calc(100vw - 24px)" }}
+            styles={{
+                container: {
+                    boxSizing: "border-box",
+                    width: popoverWidth,
+                    maxWidth: "calc(100vw - 24px)",
+                    maxHeight: "calc(100dvh - 80px)",
+                    overflowY: "auto",
+                },
+            }}
         >
-            <Space
-                size={4}
-                role="button"
-                tabIndex={0}
-                title={getRes().articleEdit.publishStatus.title}
-                style={{ color: triggerColor, cursor: "pointer", paddingInline: 4 }}
-                onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                        event.preventDefault();
-                        onOpenChange(!publishStatus.open);
-                    }
-                }}
-            >
-                {getStatusIcon()}
-                <Typography.Text style={{ color: triggerColor }}>{getTriggerText()}</Typography.Text>
-            </Space>
+            {trigger}
         </Popover>
     );
 };
