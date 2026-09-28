@@ -50,6 +50,11 @@ public final class KnowledgeModels {
         public boolean idempotentHint = true;
         public boolean openWorldHint = false;
     }
-    public static class ToolError { public String error; public ToolError(String error) { this.error = error; } }
+    public static class ToolError {
+        public String error;
+        public String code;
+        public ToolError(String error) { this.error = error; }
+        public ToolError(String error, String code) { this.error = error; this.code = code; }
+    }
 
 }

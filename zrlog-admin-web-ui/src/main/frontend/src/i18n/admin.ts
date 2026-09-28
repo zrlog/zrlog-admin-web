@@ -8,7 +8,7 @@ const zhCN = {
         "applicationScopes": "应用授权范围",
         "scopesDescription": "应用只能在你授权的范围内操作，且不能超出你的账号权限",
         "scopeRangeHelp": "默认只能读取你的公开文章。访问其他成员的文章、草稿或私密文章，需要你有相应权限并单独授权",
-        "mcpReadOnly": "下方列出 OAuth 授权范围。MCP 知识库仅提供文章读取工具，个人令牌使用账号权限",
+        "mcpAccess": "MCP 可按授权查询、编辑和发布文章、读取分类标签及上传附件；个人令牌使用账号权限",
         "loadFailed": "权限说明加载失败",
         "retry": "重新加载",
         "description": "不同角色可使用的功能和文章范围如下",
@@ -311,6 +311,7 @@ const zhCN = {
             "articles:publish": "发布、撤回及修改线上文章",
             "articles:delete": "删除文章",
             "assets:write": "上传素材",
+            "taxonomy:read": "读取分类和标签",
             "offline_access": "保持连接"
         },
         "scopeHint": "草稿和私密内容需单独授权。写入、发布和删除均受上述文章范围限制",
@@ -1842,7 +1843,7 @@ const enUS: AdminI18nResource = {
         "applicationScopes": "Application scopes",
         "scopesDescription": "Applications can only perform actions you authorize, within your account permissions",
         "scopeRangeHelp": "Access starts with your public articles. Other members' articles, drafts and private articles require your permission to access them and a separate authorization",
-        "mcpReadOnly": "OAuth scopes are listed below. MCP provides article reading tools; personal tokens use account permissions",
+        "mcpAccess": "MCP can query, edit and publish articles, read categories and tags, and upload attachments as authorized; personal tokens use account permissions",
         "loadFailed": "Could not load permission details",
         "retry": "Reload",
         "description": "See the features and articles each role can access",
@@ -2145,6 +2146,7 @@ const enUS: AdminI18nResource = {
             "articles:publish": "Publish, unpublish and change live articles",
             "articles:delete": "Delete articles",
             "assets:write": "Upload assets",
+            "taxonomy:read": "Read categories and tags",
             "offline_access": "Stay connected"
         },
         "scopeHint": "Draft and private access require separate authorization. Writing, publishing and deletion also respect the selected article access",

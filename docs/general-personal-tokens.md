@@ -10,7 +10,7 @@
 
 - 两种明确模式：指定权限、继承账号权限；指定权限直接使用 `AccountAction` ID，与账号当前权限取交集
 - 后台 Bearer 适配器复用 controller 的 `@RequiresAction`，不维护第二套接口白名单或权限表；附加条件（发布、管理员任命）、文章归属与私密内容规则保持有效
-- MCP 仍只开放现有读取工具；令牌权限不能增加 MCP 工具。旧 OAuth scope/resource 和旧 `zrmcp_` 令牌不自动扩权
+- MCP 按当前令牌权限提供文章读取、创建、更新、发布、分类标签读取和附件上传工具；详见 [MCP 内容工具](mcp-content-tools.md)。旧 OAuth 授权和旧 `zrmcp_` 令牌不自动扩权；继承账号权限的通用个人令牌可使用账号允许的新工具
 - 新 `zrpat_` 令牌绑定站点地址和 context path；权限模式编码在原有 `scope` 列中，数据库只存摘要，明文仅返回一次
 - 老请求未传 permissionMode 时维持 MCP-only 语义；新请求显式选择 `custom` + permissions 或 `inherit`
 - 继承模式使用账号当前权限；账号停用、认证版本变化、过期、撤销仍立即失效

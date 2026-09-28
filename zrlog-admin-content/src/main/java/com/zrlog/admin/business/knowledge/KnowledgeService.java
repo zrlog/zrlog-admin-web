@@ -14,7 +14,7 @@ import java.util.*;
 import java.util.function.Supplier;
 
 /** The one read boundary used by the internal assistant and remote MCP transport. */
-public final class KnowledgeService {
+public final class KnowledgeService implements ToolProvider {
     private final Supplier<AccountAccess> actor;
     private final Set<String> scopes;
     private final Supplier<String> siteUrl;
@@ -29,6 +29,7 @@ public final class KnowledgeService {
         this.actor = actor; this.scopes = Set.copyOf(scopes); this.siteUrl = siteUrl;
         this.messages = new KnowledgeMessages(language);
     }
+    @Override public List<Tool> definitions(String language) { return tools(language); }
     public static List<Tool> tools() {
         return tools("en_US");
     }

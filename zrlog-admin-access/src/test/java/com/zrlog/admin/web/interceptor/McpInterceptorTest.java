@@ -57,7 +57,10 @@ public class McpInterceptorTest {
             }
             db.putWebsite("language", "en_US");
             assertTitle(chineseToken, "Search articles");
-            assertEquals(401, call("bad-token", "tools/list", "{}").status);
+            Recorder rejected = call("bad-token", "tools/list", "{}");
+            assertEquals(401, rejected.status);
+            assertTrue(rejected.headers.get("WWW-Authenticate").contains("resource_metadata="));
+            assertFalse(rejected.headers.get("WWW-Authenticate").contains("scope="));
             assertSame(context, I18nUtil.threadLocal.get());
         } finally {
             if (previous == null) I18nUtil.removeI18n(); else I18nUtil.threadLocal.set(previous);
@@ -71,7 +74,7 @@ public class McpInterceptorTest {
             AdminTokenThreadLocal.remove();
             assertTitle(token, "搜索文章");
             JsonObject initialize = call(token, "initialize", "{\"protocolVersion\":\"2025-11-25\",\"capabilities\":{},\"clientInfo\":{}}").result();
-            assertTrue(initialize.get("instructions").getAsString().startsWith("ZrLog Test\n\n需要引用文章时"));
+            assertTrue(initialize.get("instructions").getAsString().startsWith("ZrLog Test\n\n按授权搜索和读取文章"));
             assertEquals("ZrLog Test", initialize.getAsJsonObject("serverInfo").get("title").getAsString());
             Recorder unknown = call(token, "tools/call", "{\"name\":\"unknown\"}");
             assertEquals(-32602, unknown.body.getAsJsonObject("error").get("code").getAsInt());
@@ -86,6 +89,50 @@ public class McpInterceptorTest {
             db.execute("update user set preferences=? where userId=1", "{\"language\":\"en_US\"}");
             assertTitle(token, "Search articles");
             assertToolError(call(token, "tools/call", "{\"name\":\"read_article\",\"arguments\":{\"id\":999}}").result(), "Article unavailable");
+        }
+    }
+
+    @Test public void exposesAndExecutesAuthorizedWritesThroughTheBearerTransport() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            db.execute("update user set preferences=? where userId=1", "{\"language\":\"en_US\"}");
+            PersonalTokenModels.Create input = new PersonalTokenModels.Create();input.name="writer";input.permissionMode="custom";
+            input.permissions=List.of("article.read","article.create","article.update","article.publish","taxonomy.read");
+            String token=new PersonalAccessTokenService(new OAuthService().mcpResource()).create(input).token;
+            AdminTokenThreadLocal.remove();
+            JsonObject created=call(token,"tools/call","{\"name\":\"create_article\",\"arguments\":{\"title\":\"Remote draft\",\"typeId\":1,\"status\":\"draft\",\"content\":\""+"a".repeat(20000)+"\"}}").result();
+            assertFalse(created.toString(),created.get("isError").getAsBoolean());
+            long id=created.getAsJsonObject("structuredContent").get("id").getAsLong();
+            JsonObject detail=call(token,"tools/call","{\"name\":\"get_article\",\"arguments\":{\"id\":"+id+"}}").result();
+            assertEquals(0,detail.getAsJsonObject("structuredContent").get("version").getAsInt());
+            JsonObject published=call(token,"tools/call","{\"name\":\"publish_article\",\"arguments\":{\"id\":"+id+",\"version\":0}}").result();
+            assertFalse(published.toString(),published.get("isError").getAsBoolean());
+            assertEquals("published",published.getAsJsonObject("structuredContent").get("status").getAsString());
+            assertNull(AdminTokenThreadLocal.getUser());
+            login(1);
+            String taxonomy=oauthToken("taxonomy:read");
+            AdminTokenThreadLocal.remove();
+            JsonArray tools=call(taxonomy,"tools/list","{}").result().getAsJsonArray("tools");
+            assertEquals(2,tools.size());assertEquals("list_categories",tools.get(0).getAsJsonObject().get("name").getAsString());
+            assertFalse(call(taxonomy,"tools/call","{\"name\":\"list_categories\",\"arguments\":{}}").result().get("isError").getAsBoolean());
+            assertTrue(call(taxonomy,"tools/call","{\"name\":\"create_article\",\"arguments\":{}}").result().get("isError").getAsBoolean());
+        }
+    }
+
+    @Test public void oauthWriteScopeDoesNotGrantPublishOrOtherAuthorsArticles() throws Exception {
+        try (InMemoryZrLogDatabase db=InMemoryZrLogDatabase.open()) {
+            String token=oauthToken("articles:write");
+            db.execute("insert into user(userId,userName,role) values(2,'other','author')");
+            db.execute("insert into log(logId,userId,typeId,title,content,rubbish,privacy,version) values(10,2,1,'Other','Text',true,false,0)");
+            db.execute("insert into log(logId,userId,typeId,title,content,rubbish,privacy,version) values(11,1,1,'Live','Text',false,false,0)");
+            AdminTokenThreadLocal.remove();
+            assertEquals(2,call(token,"tools/list","{}").result().getAsJsonArray("tools").size());
+            assertTrue(call(token,"tools/call","{\"name\":\"update_article\",\"arguments\":{\"id\":10,\"version\":0,\"title\":\"Changed\"}}").result().get("isError").getAsBoolean());
+            assertTrue(call(token,"tools/call","{\"name\":\"create_article\",\"arguments\":{\"title\":\"Denied\",\"typeId\":1,\"status\":\"published\"}}").result().get("isError").getAsBoolean());
+            assertEquals("Other",db.scalar("select title from log where logId=10"));
+            assertTrue(call(token,"tools/call","{\"name\":\"update_article\",\"arguments\":{\"id\":11,\"version\":0,\"title\":\"Changed\"}}").result().get("isError").getAsBoolean());
+            assertTrue(call(token,"tools/call","{\"name\":\"update_article\",\"arguments\":{\"id\":11,\"version\":0,\"status\":\"draft\"}}").result().get("isError").getAsBoolean());
+            assertEquals("Live",db.scalar("select title from log where logId=11"));
+            assertFalse(com.zrlog.data.security.AccountAccess.truth(db.scalar("select rubbish from log where logId=11")));
         }
     }
 
@@ -113,14 +160,15 @@ public class McpInterceptorTest {
         setter.setAccessible(true); AdminTokenThreadLocal.remove(); setter.invoke(null, token);
     }
 
-    private static String oauthToken() throws Exception {
+    private static String oauthToken() throws Exception { return oauthToken("articles:read"); }
+    private static String oauthToken(String scopes) throws Exception {
         OAuthService oauth = new OAuthService();
         Client client = new Client(); client.name = "MCP language test"; client.redirectUris = List.of("http://127.0.0.1:3000/callback");
         client = oauth.register(client);
         String verifier = OAuthService.random();
         AuthorizationRequest request = new AuthorizationRequest();
         request.client_id = client.clientId; request.redirect_uri = client.redirectUris.get(0);
-        request.response_type = "code"; request.scope = "articles:read"; request.resource = oauth.mcpResource();
+        request.response_type = "code"; request.scope = scopes; request.resource = oauth.mcpResource();
         request.state = "language-test"; request.code_challenge = OAuthService.hash(verifier); request.code_challenge_method = "S256";
         String requestId = OAuthInterceptor.parameters(URI.create(oauth.authorize(request)).getRawQuery()).get("request_id");
         Consent consent = oauth.consent(requestId);
@@ -141,6 +189,9 @@ public class McpInterceptorTest {
             switch (invoked.getName()) {
                 case "getUri": return "/mcp";
                 case "getMethod": return HttpMethod.POST;
+                case "getContextPath": return "";
+                case "getRemoteHost": return "127.0.0.1";
+                case "getHeaderMap": return headers;
                 case "getHeader": return headers.get(args[0]);
                 case "getRequestBodyByteBuffer": return ByteBuffer.wrap(body);
                 default: throw new UnsupportedOperationException(invoked.getName());
@@ -154,6 +205,7 @@ public class McpInterceptorTest {
     private static class Recorder {
         int status = 200;
         JsonObject body;
+        Map<String, String> headers = new HashMap<>();
         JsonObject result() { return body.getAsJsonObject("result"); }
         HttpResponse response() {
             return (HttpResponse) Proxy.newProxyInstance(getClass().getClassLoader(), new Class[]{HttpResponse.class}, (proxy, method, args) -> {
@@ -161,6 +213,7 @@ public class McpInterceptorTest {
                     status = (Integer) args[1];
                     body = JsonParser.parseString(new String(((InputStream) args[0]).readAllBytes(), StandardCharsets.UTF_8)).getAsJsonObject();
                 } else if (method.getName().equals("renderCode")) status = (Integer) args[0];
+                else if (method.getName().equals("addHeader")) headers.put((String) args[0], (String) args[1]);
                 return null;
             });
         }

@@ -16,11 +16,12 @@ public final class McpModels {
     public static class ServerInfo {
         public String name = "zrlog-knowledge";
         public String title;
+        public String description;
         public String version = "1.0.0";
     }
     public static class ToolList {
         public List<KnowledgeModels.Tool> tools;
-        public ToolList(String language) { tools = KnowledgeService.tools(language); }
+        public ToolList(List<KnowledgeModels.Tool> tools) { this.tools = tools; }
     }
     public static class TextContent {
         public String type = "text";

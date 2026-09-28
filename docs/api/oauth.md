@@ -1,6 +1,6 @@
 # 外部应用授权协议
 
-OAuth 支持只读 MCP 和按账号权限访问后台 API。Java 客户端优先通过浏览器完成授权，个人令牌适用于手动配置或脚本接入。
+OAuth 支持按授权访问 MCP 内容工具和后台 API。Java 客户端优先通过浏览器完成授权，个人令牌适用于手动配置或脚本接入。
 
 ## Java 客户端浏览器登录
 
@@ -19,7 +19,7 @@ zrlogctl logout --site https://blog.example/sub
 
 客户端可用 `--permissions` 替换默认权限集合，例如发布文章使用 `--permissions article.read,article.create,article.update,article.publish,taxonomy.read,asset.upload`，仅更新模板使用 `--permissions site.configure`；客户端会自动附加 `offline_access`。`--inherit-permissions` 保留原来的继承申请入口，需要在浏览器显式选择继承，不能与 `--permissions` 同时传入。旧只读授权不会自动扩权，需要重新登录确认。
 
-MCP 仍使用自己的 resource 和读取 scope，不因后台授权增加工具或扩大旧令牌的权限。新个人令牌的 MCP 读取范围遵守账号权限；已有 MCP 个人令牌保留原 scope 限制。
+MCP 使用自己的 resource，支持文章读取、写入、发布、分类标签读取与附件上传 scope；不提供删除工具。旧授权不自动扩大范围。通用个人令牌遵守账号 Action 权限，旧 MCP 个人令牌保留原只读 scope 限制。详见 [MCP 内容工具](../mcp-content-tools.md)。
 
 ## 部署与客户端
 
@@ -55,7 +55,7 @@ OAuth 与 MCP 优先使用“设置 → 管理设置 → 后端服务地址”�
 1. 应用生成随机 `state` 与 43–128 字符的 PKCE `code_verifier`，计算 S256 challenge。
 2. 授权地址传入 `response_type=code`、`client_id`、精确的 `redirect_uri`、空格分隔 `scope`、
    `code_challenge_method=S256`、`code_challenge`、`resource` 和 `state`。
-   `resource` 必须为本服务的 `{issuer}/api/admin`、`{issuer}/api/oauth` 或只读知识库 `{issuer}/mcp`，令牌不能跨资源使用。
+   `resource` 必须为本服务的 `{issuer}/api/admin`、`{issuer}/api/oauth` 或 MCP `{issuer}/mcp`，令牌不能跨资源使用。
 3. 用户登录并选择授权范围。连接默认仅本人、默认只勾选读取公开文章；草稿、私密、全站、写入、发布、删除和长期连接需明确选择。
    授权页请求绑定当前账号、会话和一次性 CSRF 值，10 分钟后失效。
 4. 服务仅向已登记回调返回 `code`（有效期 2 分钟）、原始 `state` 与 `iss`。
@@ -84,6 +84,7 @@ access token 不允许出现在 query 或 cookie；`/api/oauth/me` 要求 `Autho
 | `articles:publish` | 发布、撤回或修改线上文章；写入仍需 write |
 | `articles:delete` | 删除范围内文章 |
 | `assets:write` | 上传素材 |
+| `taxonomy:read` | 读取分类和标签 |
 | `offline_access` | 允许刷新令牌 |
 
 最终权限 = 账号当前固定角色允许的 Action ∩ 连接授权的 scope ∩ 资源归属与可见性。

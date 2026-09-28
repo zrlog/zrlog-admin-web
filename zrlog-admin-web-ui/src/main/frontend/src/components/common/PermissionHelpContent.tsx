@@ -34,7 +34,7 @@ export default function PermissionHelpContent({
                                 <br />
                                 {res.access.ranges[data.currentRole]}
                             </Typography.Paragraph>
-                            <Typography.Paragraph type="secondary">{res.access.mcpReadOnly}</Typography.Paragraph>
+                            <Typography.Paragraph type="secondary">{res.access.mcpAccess}</Typography.Paragraph>
                             <List
                                 dataSource={Object.entries(res.oauth.scopeLabels)}
                                 renderItem={([scope, label]) => (

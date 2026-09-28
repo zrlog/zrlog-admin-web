@@ -251,7 +251,7 @@ describe("account management pages", () => {
         act(() => root.render(<Access data={page} initialView="scopes" />));
         expect(container.textContent).toContain(getRes().access.scopesDescription);
         expect(container.textContent).toContain(getRes().access.scopeRangeHelp);
-        expect(container.textContent).toContain(getRes().access.mcpReadOnly);
+        expect(container.textContent).toContain(getRes().access.mcpAccess);
         expect(container.textContent).toContain(getRes().oauth.scopeLabels["articles:read_private"]);
     });
     it.each(["zh_CN", "en_US"])("describes endpoint purposes in %s while keeping the exact path", (lang) => {
@@ -348,6 +348,46 @@ describe("account management pages", () => {
                 csrf: "csrf",
                 approve: true,
                 scopes: available,
+            });
+        }
+    );
+
+    it.each(["zh_CN", "en_US"])(
+        "lets users select MCP writing, publishing, taxonomy and upload scopes in %s",
+        (lang) => {
+            window.__SS_DATA__!.resourceInfo = { lang: lang as "zh_CN" | "en_US" };
+            const scopes = ["articles:read", "articles:write", "articles:publish", "taxonomy:read", "assets:write"];
+            mockPost.mockImplementation(() => new Promise(() => undefined));
+            act(() =>
+                root.render(
+                    <OAuthConsent
+                        data={{
+                            requestId: "mcp",
+                            csrf: "csrf",
+                            clientName: "MCP client",
+                            redirectUri: "https://client.example/callback",
+                            resource: "https://blog.example/mcp",
+                            scopes,
+                            availableScopes: scopes,
+                        }}
+                    />
+                )
+            );
+            expect(container.textContent).toContain(getRes().oauth.scopeLabels["taxonomy:read"]);
+            expect(container.querySelector<HTMLInputElement>('input[value="articles:publish"]')!.checked).toBe(false);
+            for (const scope of scopes.slice(1)) {
+                act(() => container.querySelector<HTMLInputElement>(`input[value="${scope}"]`)!.click());
+            }
+            act(() =>
+                Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
+                    .find((button) => button.textContent === getRes().oauth.allow)!
+                    .click()
+            );
+            expect(mockPost).toHaveBeenCalledWith("/api/admin/oauth/decide", {
+                requestId: "mcp",
+                csrf: "csrf",
+                approve: true,
+                scopes,
             });
         }
     );

@@ -35,7 +35,7 @@ public class OAuthServerAddressTest {
             }
             request.resource = service.mcpResource();
             assertTrue(service.authorize(request).startsWith(service.issuer() + "/admin/user/applications/authorize?"));
-            request.scope += " articles:write";
+            request.scope += " articles:delete";
             assertEquals("invalid_scope", assertThrows(OAuthException.class, () -> service.authorize(request)).getOAuthError());
         }
     }

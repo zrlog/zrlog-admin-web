@@ -61,4 +61,4 @@ cd zrlog-admin-web-ui/src/main/frontend
 yarn api-docs:check
 ```
 
-OpenAPI 稳定并达到足够覆盖率之前，不从契约自动生成客户端、运行时 Swagger UI 或 MCP 工具。独立的只读知识库工具契约见 [MCP 知识库](../mcp-knowledge-base.md)，它不映射或开放后台管理接口。
+OpenAPI 稳定并达到足够覆盖率之前，不从契约自动生成客户端、运行时 Swagger UI 或 MCP 工具。独立的内容工具契约见 [MCP](../mcp-knowledge-base.md) 与 [MCP 内容工具](../mcp-content-tools.md)，它复用业务服务和账号权限，不自动映射后台管理接口。

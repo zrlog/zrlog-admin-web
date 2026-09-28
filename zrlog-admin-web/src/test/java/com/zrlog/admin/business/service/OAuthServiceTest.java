@@ -37,12 +37,12 @@ public class OAuthServiceTest {
         assertEquals("state & 中文",p.get("state"));assertEquals(service.issuer(),p.get("iss"));
         TokenRequest t=new TokenRequest();t.grant_type="authorization_code";t.client_id=app.clientId;t.redirect_uri=app.redirectUris.get(0);t.code=p.get("code");t.code_verifier=verifier;t.resource=service.resource();return t;
     }
-    @Test public void mcpAudienceHasReadOnlyScopesAndCannotCrossUseLegacyTokens() throws Exception {
+    @Test public void mcpAudienceAllowsExplicitContentScopesAndCannotCrossUseLegacyTokens() throws Exception {
         try(InMemoryZrLogDatabase db=database()) {
             Client app=client();
-            AuthorizationRequest r=request(app,"articles:read articles:write"); r.resource=service.mcpResource();
+            AuthorizationRequest r=request(app,"articles:read articles:delete"); r.resource=service.mcpResource();
             assertEquals("invalid_scope",assertThrows(OAuthException.class,()->service.authorize(r)).getOAuthError());
-            r.scope="articles:read articles:read_private offline_access";
+            r.scope="articles:read articles:read_private articles:write articles:publish assets:write taxonomy:read offline_access";
             Redirect redirect=service.decide(decision(consent(r)));
             TokenRequest t=new TokenRequest(); t.grant_type="authorization_code";t.client_id=app.clientId;t.redirect_uri=r.redirect_uri;t.code_verifier=verifier;t.resource=service.mcpResource();
             t.code=OAuthInterceptor.parameters(URI.create(redirect.redirectUri).getRawQuery()).get("code");
@@ -52,7 +52,8 @@ public class OAuthServiceTest {
             TokenResponse legacy=service.token(code(app,"articles:read"));
             assertThrows(OAuthException.class,()->service.authenticate(legacy.access_token,service.mcpResource(),Set.of("articles:read")));
             assertEquals("https://blog.example/.well-known/oauth-protected-resource/sub/mcp",service.mcpResourceMetadataUrl());
-            assertFalse(service.mcpResourceMetadata().scopes_supported.contains("articles:write"));
+            assertTrue(service.mcpResourceMetadata().scopes_supported.containsAll(List.of("articles:write", "articles:publish", "assets:write", "taxonomy:read")));
+            assertTrue(service.authenticate(token.access_token,service.mcpResource(),Set.of("articles:write", "articles:publish", "assets:write", "taxonomy:read")).scopes.contains("taxonomy:read"));
             service.revoke(token.access_token,app.clientId);
             assertThrows(OAuthException.class,()->service.authenticate(token.access_token,service.mcpResource(),Set.of("articles:read")));
         }

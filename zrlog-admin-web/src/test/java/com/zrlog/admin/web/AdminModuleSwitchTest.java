@@ -73,6 +73,7 @@ public class AdminModuleSwitchTest {
             assertEquals(ui, config.getWebSetup(AdminUiWebSetup.class) != null);
             assertEquals(ui, router.getMethod("/admin", HttpMethod.GET) != null);
             assertEquals(ai, config.getWebSetup(ArticleAssistant.class) != null);
+            assertEquals(assets, com.zrlog.admin.business.content.AttachmentStorage.current() != null);
             assertEquals(mcp, config.getServerConfig().getInterceptors().contains(McpInterceptor.class));
             assertEquals(access, config.getServerConfig().getInterceptors().contains(OAuthInterceptor.class));
             assertEquals(access, config.getServerConfig().getInterceptors().contains(BearerTokenInterceptor.class));

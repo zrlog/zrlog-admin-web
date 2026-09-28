@@ -19,7 +19,7 @@ import java.util.stream.Collectors;
 
 /** Authorization-code provider with pre-registered public clients and mandatory S256 PKCE. */
 public final class OAuthService {
-    public static final List<String> SCOPES = List.of("articles:read", "articles:read_drafts", "articles:read_private", "articles:all", "articles:write", "articles:publish", "articles:delete", "assets:write", "offline_access");
+    public static final List<String> SCOPES = List.of("articles:read", "articles:read_drafts", "articles:read_private", "articles:all", "articles:write", "articles:publish", "articles:delete", "assets:write", "taxonomy:read", "offline_access");
     public static final String CLI_CLIENT_ID = "zrlogctl";
     public static final String INHERIT_SCOPE = "account:inherit";
     private static final String CLI_REDIRECT = "http://127.0.0.1/oauth/callback";
@@ -49,7 +49,7 @@ public final class OAuthService {
     public String resource() { return issuer() + "/api/oauth"; }
     public String adminResource() { return issuer() + "/api/admin"; }
     public String mcpResource() { return issuer() + "/mcp"; }
-    public static final List<String> MCP_SCOPES = List.of("articles:read", "articles:read_drafts", "articles:read_private", "articles:all", "offline_access");
+    public static final List<String> MCP_SCOPES = List.of("articles:read", "articles:read_drafts", "articles:read_private", "articles:all", "articles:write", "articles:publish", "assets:write", "taxonomy:read", "offline_access");
     private void requireResource(String resource) {
         if (!resource().equals(resource) && !(com.zrlog.admin.web.McpWebSetup.enabled() && mcpResource().equals(resource)) && !adminResource().equals(resource)) throw new OAuthException("invalid_target");
     }
@@ -143,9 +143,14 @@ public final class OAuthService {
         if (!actions.containsAll(selected)) throw new OAuthException("invalid_scope");
         return selected;
     }
+    private static Set<String> protocolScopes(AccountAccess account) {
+        Set<String> scopes = new LinkedHashSet<>(account.scopes());
+        if (com.zrlog.data.security.AccountAction.TAXONOMY_READ.allowed(account)) scopes.add("taxonomy:read");
+        return scopes;
+    }
     private Set<String> availableScopes(AccountAccess account, String resource) {
         Set<String> available = new LinkedHashSet<>(adminResource().equals(resource)
-                ? PersonalAccessTokenService.availablePermissions(account) : account.scopes());
+                ? PersonalAccessTokenService.availablePermissions(account) : protocolScopes(account));
         available.add("offline_access");
         if (adminResource().equals(resource) && !com.zrlog.admin.business.security.DelegatedAccess.restricted()) available.add(INHERIT_SCOPE);
         return available;
@@ -165,7 +170,7 @@ public final class OAuthService {
     private static Set<String> scopes(String scope) {
         if (scope == null || scope.isBlank() || scope.length() > 512) throw new OAuthException("invalid_scope");
         Set<String> values = new LinkedHashSet<>(Arrays.asList(scope.split(" +")));
-        if (!SCOPES.containsAll(values) || Collections.disjoint(values, Set.of("articles:read", "articles:write", "articles:publish", "articles:delete", "assets:write"))) throw new OAuthException("invalid_scope");
+        if (!SCOPES.containsAll(values) || Collections.disjoint(values, Set.of("articles:read", "articles:write", "articles:publish", "articles:delete", "assets:write", "taxonomy:read"))) throw new OAuthException("invalid_scope");
         return values;
     }
     public String authorize(AuthorizationRequest request) throws SQLException {
@@ -347,7 +352,7 @@ public final class OAuthService {
                     identity.permissions = PersonalAccessTokenService.availablePermissions(
                             scopes.contains(INHERIT_SCOPE) ? account : account.restrictActions(scopes));
                     scopes = account.restrictActions(identity.permissions).scopes();
-                } else scopes.retainAll(account.scopes());
+                } else scopes.retainAll(protocolScopes(account));
                 if (!scopes.containsAll(required)) throw new OAuthException("insufficient_scope", 403);
                 identity.userId = account.getUserId(); identity.authVersion = account.getAuthVersion(); identity.role = account.getRole();
                 identity.clientId = (String) record.get("clientId"); identity.scopes = new ArrayList<>(scopes); return identity;

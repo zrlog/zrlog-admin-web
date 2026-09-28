@@ -42,5 +42,6 @@ public final class ContentNativeImageUtils {
                 com.zrlog.admin.business.rest.response.LinkPreviewResponse.class,
                 com.zrlog.admin.business.service.LinkPreviewService.LinkPreviewCacheEntry.class));
         NativeImageUtils.gsonNativeAgentByClazz(Arrays.asList(com.zrlog.admin.business.knowledge.KnowledgeModels.class.getDeclaredClasses()));
+        NativeImageUtils.gsonNativeAgentByClazz(Arrays.asList(com.zrlog.admin.business.knowledge.ContentToolModels.class.getDeclaredClasses()));
     }
 }

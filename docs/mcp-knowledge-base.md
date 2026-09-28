@@ -1,4 +1,4 @@
-# 只读知识库与 MCP 首期契约
+# 内容工具与 MCP 契约
 
 ## 实现顺序与数据归属
 
@@ -6,16 +6,18 @@
 2. 普通助手对话默认挂载知识库工具，展示调用进度和可点击来源，不再单独切换知识库模式。普通对话与结构化写作技能共用持久记录，按账号和文章隔离，重新打开文章后恢复；旧文章记录兼容读取。知识范围统一在个人设置选择。
 3. `/mcp` 提供 OAuth 保护的远程 Streamable HTTP 接口，复用相同工具与权限服务；连接信息放在个人资料的「外部应用」页签。手动配置客户端可以创建账号专属的个人访问令牌；MCP 使用相同的账号与范围校验。
 
-不增加文章表或向量数据库。首期不提供写文章、发布、删除、附件读取、任意 SQL、外部 URL 抓取或插件动作。
+不增加文章表或向量数据库。外部 MCP 提供文章创建、更新、发布、分类标签读取及附件上传，完整参数、权限与验证范围见 [内容工具扩展契约](mcp-content-tools.md)。不提供删除、附件读取、任意 SQL、外部 URL 抓取或插件动作。
 
 内置助手统一使用 `POST /api/admin/article/ai`，普通对话在 JSON body 中提交 `input`、`articleId`、`includeArticleContext`；写作技能沿用同一入口的 `tool` 参数与文章上下文。普通对话只有一套模型流式处理流程，知识库按个人范围作为可选工具挂载，不单独提供知识库聊天 API。旧 `/api/admin/knowledge/chat` 已移除。聊天请求、事件 DTO 与流读取器归属 AI 模块；`KnowledgeService` 只负责文章检索、读取及权限范围，供助手与外部 MCP 共用。已有 `messageType=knowledge` 记录继续兼容读取。
 
-## 工具
+## 共用读取工具
 
 - `search_articles({query?, offset?, limit?})`：标题、摘要、标签、正文的字面关键词检索；空查询按更新时间浏览。limit 默认 5，上限 10；offset 上限 1000。返回有权访问的标题、摘要、URL、状态、分页信息，不返回未授权文章的数量或元数据。
 - `read_article({id, offset?, length?})`：读取 Markdown（无 Markdown 时读取 HTML 纯文本），默认 8000 字符，上限 12000；返回来源和下一段位置。不可读和不存在使用相同错误。
 
-工具输入有长度与整数边界，文章是资料而非指令。模型只能调用这两个固定工具，最多 8 次调用，4 轮后要求总结；供应商不支持工具调用时显示错误。引用来自实际返回资料，来源列表由服务端生成。
+外部 MCP 另提供 `get_article`、`list_categories`、`list_tags`、`create_article`、`update_article`、`publish_article`、`upload_attachment`，工具列表按令牌授权和启用模块过滤。
+
+工具输入有长度与整数边界，文章是资料而非指令。内置助手只能调用上述两个读取工具，最多 8 次调用，4 轮后要求总结；供应商不支持工具调用时显示错误。引用来自实际返回资料，来源列表由服务端生成。
 
 ## 授权
 
@@ -23,7 +25,7 @@
 
 内置助手沿用登录态与 `ARTICLE_ASSIST` action。个人设置的 `assistant.knowledgeScope` 用单个下拉选择：关闭、我的公开文章（默认）、我的全部文章、所有可访问的公开文章、所有可访问文章；全部包含草稿和私密文章。普通账号只展示关闭与本人范围。配置由服务端加载，请求体不能扩大范围；每次工具调用、模型轮次、流式内容转发及最终返回核对账号状态、authVersion 和设置快照。扩大范围不会扩大角色权限；关闭时移除模型工具但仍可普通对话。
 
-外部 MCP 可使用 OAuth 访问令牌或有限期个人访问令牌。个人令牌仅接受读取相关 scope，不支持刷新，管理说明见 [个人令牌](mcp-personal-tokens.md)。OAuth 使用独立 resource `站点 issuer/mcp`，只接受对应 audience 的 Bearer token。支持 `articles:read`、`articles:all`、`articles:read_drafts`、`articles:read_private`、`offline_access`，不接受写 scope。撤销和帐号变更立即生效。现有 `/api/oauth` resource 保持兼容，token 不跨 resource 使用。
+外部 MCP 可使用 OAuth 访问令牌或有限期个人访问令牌。通用个人令牌沿用账号 Action 权限，旧 `zrmcp_` 令牌保留只读范围，管理说明见 [统一授权](general-personal-tokens.md) 与 [旧令牌兼容](mcp-personal-tokens.md)。OAuth 使用独立 resource `站点 issuer/mcp`，只接受对应 audience 的 Bearer token。支持 `articles:read`、`articles:all`、`articles:read_drafts`、`articles:read_private`、`articles:write`、`articles:publish`、`assets:write`、`taxonomy:read`、`offline_access`。旧授权不自动获得新 scope。撤销和帐号变更立即生效。现有 `/api/oauth` resource 保持兼容，token 不跨 resource 使用。
 
 ## 外部兼容
 
@@ -31,7 +33,7 @@
 
 协商到 2025-06-18 及以上版本时，initialize 的 `serverInfo.title` 使用当前博客名称（空名称回退为 `ZrLog`），`serverInfo.name` 保持稳定的 `zrlog-knowledge`。博客名称直接沿用站点配置，无需为 MCP 重复设置或翻译；修改后在客户端重新连接时获取。客户端自行保存的连接名称可能优先于服务端标题，例如 Codex 的 `mcp_servers.<name>`；这类名称仍需在客户端修改。
 
-初始化 `instructions` 同样以当前网站标题开头，空标题回退为 `ZrLog`。后续说明描述工具使用方式，并以服务端实际提供的工具、连接授权范围和账号权限限定可用操作。
+初始化 `instructions` 同样以当前网站标题开头，空标题回退为 `ZrLog`。随后给出 MCP 能力描述和工具使用说明；2025-11-25 还将能力描述放入 `serverInfo.description`。能力描述随账号语言翻译，不使用站点 SEO 描述。实际可用操作由服务端工具、连接授权和账号权限共同决定。
 
 MCP 说明语言跟随 Bearer 令牌所属账号的个人语言设置，未设置时使用站点后台默认语言（`zh_CN` / `en_US`）。OAuth 和个人访问令牌使用同一规则，不依赖浏览器登录态、`Accept-Language` 或另一个管理员的设置。每次有效请求重新读取偏好，修改个人语言后无需重建令牌；客户端缓存的工具列表和初始化说明可能需要重新连接才会更新，不主动推送 `listChanged`。
 

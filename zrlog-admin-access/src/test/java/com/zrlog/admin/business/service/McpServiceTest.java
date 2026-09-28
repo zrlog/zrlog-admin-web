@@ -21,6 +21,7 @@ public class McpServiceTest {
             assertEquals("zrlog-knowledge", serverInfo.get("name").getAsString());
             if ("2025-03-26".equals(version)) assertFalse(serverInfo.has("title"));
             else assertEquals("我的博客", serverInfo.get("title").getAsString());
+            assertEquals(McpService.LATEST.equals(result.get("protocolVersion").getAsString()), serverInfo.has("description"));
         }
         assertEquals(2,request("tools/list","{}").body.getAsJsonObject("result").getAsJsonArray("tools").size());
         assertEquals(202,service.handle("{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}",knowledge()).status);
@@ -61,6 +62,8 @@ public class McpServiceTest {
                 String initialize = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"" + version + "\",\"capabilities\":{},\"clientInfo\":{}}}";
                 JsonObject result = localized.handle(initialize, null).body.getAsJsonObject("result");
                 assertLocalized(result.get("instructions").getAsString(), chinese);
+                if (McpService.LATEST.equals(version)) assertLocalized(result.getAsJsonObject("serverInfo").get("description").getAsString(), chinese);
+                else assertFalse(result.getAsJsonObject("serverInfo").has("description"));
                 assertTrue(result.get("instructions").getAsString().startsWith("My original blog\n\n"));
                 assertEquals(version, result.get("protocolVersion").getAsString());
                 assertEquals("zrlog-knowledge", result.getAsJsonObject("serverInfo").get("name").getAsString());
@@ -81,7 +84,7 @@ public class McpServiceTest {
             JsonObject result = localized.handle(initialize, null).body.getAsJsonObject("result");
             String expected = name == null || name.isBlank() ? "ZrLog" : name;
             assertEquals(expected, result.getAsJsonObject("serverInfo").get("title").getAsString());
-            assertTrue(result.get("instructions").getAsString().startsWith(expected + "\n\nWhen citing articles"));
+            assertTrue(result.get("instructions").getAsString().startsWith(expected + "\n\nSearch and read articles"));
             assertFalse(result.get("instructions").getAsString().contains("Read-only blog knowledge base"));
         }
     }

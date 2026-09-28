@@ -3,7 +3,6 @@ package com.zrlog.admin.business.knowledge;
 import com.google.gson.*;
 import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.knowledge.McpModels.*;
-import java.sql.SQLException;
 import java.util.*;
 import java.util.function.Supplier;
 
@@ -28,7 +27,12 @@ public final class McpService {
         public final JsonObject body;
         Reply(int status, JsonObject body) { this.status = status; this.body = body; }
     }
-    public Reply handle(String body, KnowledgeService knowledge) throws SQLException {
+    public Reply handle(String body, ToolProvider knowledge) throws Exception {
+        try (com.zrlog.admin.util.AdminLanguageContext ignored = com.zrlog.admin.util.AdminLanguageContext.open(language)) {
+            return handleRequest(body, knowledge);
+        }
+    }
+    private Reply handleRequest(String body, ToolProvider knowledge) throws Exception {
         JsonElement parsed;
         try { parsed = JSON.fromJson(body, JsonElement.class); }
         catch (JsonParseException e) { return localizedError(JsonNull.INSTANCE, -32700, "parse", 400); }
@@ -49,24 +53,37 @@ public final class McpService {
                 InitializeResult initialize = new InitializeResult();
                 String title = Objects.toString(websiteTitle.get(), "").strip();
                 if (title.isEmpty()) title = "ZrLog";
-                initialize.instructions = title + "\n\n" + messages.get("admin.mcp.instructions");
+                String description = messages.get("admin.mcp.description");
+                initialize.instructions = title + "\n\n" + description + "\n\n" + messages.get("admin.mcp.instructions");
                 String version = params.get("protocolVersion").getAsString(); initialize.protocolVersion = VERSIONS.contains(version) ? version : LATEST;
                 // Display titles were introduced in 2025-06-18; omit that field for the older version.
                 if (!"2025-03-26".equals(initialize.protocolVersion)) {
                     initialize.serverInfo.title = title;
                 }
+                if (LATEST.equals(initialize.protocolVersion)) initialize.serverInfo.description = description;
                 return result(id, initialize);
             case "ping": return result(id, new JsonObject());
             case "tools/list":
                 if (params.has("cursor")) return localizedError(id, -32602, "cursor", 200);
-                return result(id, new ToolList(language));
+                return result(id, new ToolList(knowledge == null ? KnowledgeService.tools(language) : knowledge.definitions(language)));
             case "tools/call":
                 if (!isString(params.get("name")) || params.has("arguments") && !params.get("arguments").isJsonObject()) return localizedError(id, -32602, "toolCall", 200);
                 String name = params.get("name").getAsString();
-                if (!Set.of("search_articles", "read_article").contains(name)) return localizedError(id, -32602, "unknownTool", 200);
+                if (!McpToolCatalog.NAMES.contains(name)) return localizedError(id, -32602, "unknownTool", 200);
                 ToolResult tool = new ToolResult();
                 try { tool.structuredContent = JSON.toJsonTree(knowledge.call(name, params.getAsJsonObject("arguments"))); }
                 catch (IllegalArgumentException e) { tool.isError = true; tool.structuredContent = JSON.toJsonTree(new KnowledgeModels.ToolError(e.getMessage())); }
+                catch (com.zrlog.admin.business.security.OAuthException e) { throw e; }
+                catch (com.zrlog.admin.business.exception.AbstractAdminBusinessException e) {
+                    tool.isError = true; tool.structuredContent = JSON.toJsonTree(new KnowledgeModels.ToolError(e.getUserMessage(), e.getErrorCode()));
+                }
+                catch (com.zrlog.common.exception.ArgsException e) {
+                    tool.isError = true; tool.structuredContent = JSON.toJsonTree(new KnowledgeModels.ToolError(messages.get("admin.mcp.validation.arguments")));
+                }
+                catch (Exception e) {
+                    java.util.logging.Logger.getLogger(McpService.class.getName()).warning("MCP tool failed: tool=" + name + ", exception=" + e.getClass().getSimpleName());
+                    tool.isError = true; tool.structuredContent = JSON.toJsonTree(new KnowledgeModels.ToolError(messages.get("admin.mcp.error.toolExecution")));
+                }
                 tool.content = List.of(new TextContent(JSON.toJson(tool.structuredContent)));
                 return result(id, tool);
             default: return localizedError(id, -32601, "method", 200);

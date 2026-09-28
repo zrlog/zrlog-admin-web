@@ -4,7 +4,7 @@ import com.hibegin.http.server.web.Router;
 import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.web.controller.api.*;
 
-public class AssetsWebSetup implements com.zrlog.admin.business.account.AvatarStorage {
+public class AssetsWebSetup implements com.zrlog.admin.business.account.AvatarStorage, com.zrlog.admin.business.content.AttachmentStorage {
     private final com.hibegin.http.server.config.ServerConfig config;
     public AssetsWebSetup(com.hibegin.http.server.config.ServerConfig config) { this.config = config; }
     @Override public void setup() {
@@ -28,4 +28,17 @@ public class AssetsWebSetup implements com.zrlog.admin.business.account.AvatarSt
         return new com.zrlog.admin.business.service.UploadService().saveBytes(bytes, extension, "image", request,
                 com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser()).getUrl();
     }
+    @Override public String saveAttachment(byte[] bytes, String filename, com.hibegin.http.server.api.HttpRequest request) throws Exception {
+        com.zrlog.admin.business.service.AccountPermissionService.require(com.zrlog.data.security.AccountAction.ASSET_UPLOAD);
+        if (com.zrlog.util.ZrLogUtil.isPreviewMode()) throw new com.zrlog.admin.business.exception.PermissionErrorException();
+        String extension = filename.substring(filename.lastIndexOf('.') + 1).toLowerCase(java.util.Locale.ROOT);
+        if (!extension.matches("[a-z0-9]{1,16}")) throw new com.zrlog.common.exception.ArgsException("filename");
+        java.nio.file.Path temporary = java.nio.file.Files.createTempFile("zrlog-mcp-upload-", "." + extension);
+        try {
+            java.nio.file.Files.write(temporary, bytes);
+            return new com.zrlog.admin.business.service.UploadService().saveUploadedFile(temporary.toFile(), "mcp", null,
+                    request, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser()).getUrl();
+        } finally { java.nio.file.Files.deleteIfExists(temporary); }
+    }
+
 }
