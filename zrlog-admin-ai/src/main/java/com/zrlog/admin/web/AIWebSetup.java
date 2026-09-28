@@ -132,6 +132,7 @@ public class AIWebSetup implements ArticleAssistant {
     }
 
     private void registerRoutes(Router router) {
+        router.addMapper("/api/admin/internal/ai/comment/analyze", com.zrlog.admin.web.controller.ai.AICommentController.class, "analyze");
         router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/article/cover/apply", AIArticleController.class, "applyCover");
         router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/article/ai/context", AIArticleController.class, "appendAiContext");
         router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/article/ai/message", AIArticleController.class, "updateAiMessage");

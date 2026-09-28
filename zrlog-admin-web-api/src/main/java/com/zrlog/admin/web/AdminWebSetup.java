@@ -34,6 +34,7 @@ public class AdminWebSetup implements WebSetup {
         interceptors.add(AdminLoginInterceptor.class);
         interceptors.add(AdminDevFileInterceptor.class);
         interceptors.add(AdminRefreshCacheInterceptor.class);
+        interceptors.add(AdminInternalAiInterceptor.class);
         interceptors.add(AdminInterceptor.class);
         if (EnvKit.isDevMode()) {
             DevKit.configDev(zrLogConfig.getServerConfig());

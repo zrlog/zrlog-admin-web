@@ -2,6 +2,14 @@
 
 这里是 `zrlog-admin-web` 后台 API 的统一文档入口，供开发者、调用方和 AI Agent 共同使用。
 
+## 评论插件内部 AI 接口
+
+`POST /api/admin/internal/ai/comment/analyze` 由 `zrlog-admin-ai` 提供，使用与 `refreshCache` 相同的 `PluginTokenValidator` 校验 `X-Plugin-Token`。`plugin-core` 仅为宿主配置地址下的此精确路径 POST 请求注入内部 token，并清除用户会话凭据；插件不持有该 token。后台由专用拦截器处理此精确路由，不接受仅有登录 Cookie 的请求。评论插件页面仍要求后台登录和操作令牌。后台、plugin-core 与评论插件需同步更新。
+
+请求只包含 `content`（非空、最多 5000 字符）；成功响应为 `ApiStandardResponse<AnalyzeCommentResponse>`，数据包含 `verdict`（`normal` / `spam` / `review`）、`reason`（最多 300 字符）和 `reply`（最多 600 字符）。结果仅作建议，不执行评论写入、删除或回复。
+
+模型配置、提示词、供应商适配和调用统一归属 `admin-ai`，复用 `AIConfigService` 与 `AIService`。请求超时 25 秒，输出 token 上限为站点配置和 2048 的较小值。接口错误由插件转为人工审核提示。此接口仅供后台与插件内部协作，不纳入稳定公开 OpenAPI。
+
 ## 文档来源
 
 - [`openapi.yaml`](openapi.yaml)：机器可读的 OpenAPI 3.1 契约，是路径、方法、参数和响应结构的文档来源。

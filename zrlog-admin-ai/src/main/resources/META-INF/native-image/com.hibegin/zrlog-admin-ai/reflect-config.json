@@ -19,5 +19,18 @@
       {"name": "optimizeAiPrompt", "parameterTypes": []},
       {"name": "optimizeDescription", "parameterTypes": []}
     ]
-  }
+  },
+{
+  "name": "com.zrlog.admin.web.controller.ai.AICommentController",
+  "methods": [
+    {
+      "name": "<init>",
+      "parameterTypes": []
+    },
+    {
+      "name": "analyze",
+      "parameterTypes": []
+    }
+  ]
+}
 ]

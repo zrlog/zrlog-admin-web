@@ -7,6 +7,8 @@ public final class AiNativeImageUtils {
     private AiNativeImageUtils() { }
     public static void reg() {
         NativeImageUtils.gsonNativeAgentByClazz(Arrays.asList(
+                com.zrlog.admin.business.rest.request.AnalyzeCommentRequest.class,
+                com.zrlog.admin.business.rest.response.AnalyzeCommentResponse.class,
                 com.zrlog.admin.business.rest.request.OptimizeWebsiteDescriptionRequest.class,
                 com.zrlog.admin.business.rest.request.OptimizeAiPromptRequest.class,
                 com.zrlog.admin.business.rest.request.GenerateArticleTitleRequest.class,
@@ -81,6 +83,8 @@ public final class AiNativeImageUtils {
     }
     public static List<String> resources() {
         List<String> resourceUris = new ArrayList<>();
+        resourceUris.add("/ai/comment-review/prompt_zh_CN.md");
+        resourceUris.add("/ai/comment-review/prompt_en_US.md");
         resourceUris.add(com.zrlog.admin.business.ai.model.AIModelCatalog.RESOURCE);
         for (com.zrlog.admin.business.ai.prompt.AIPromptVO promptVO : com.zrlog.admin.business.ai.prompt.AIPromptVO.getAll()) {
             if (promptVO.getPromptPrefix() != null) {
