@@ -29,10 +29,15 @@ public abstract class AbstractAdminBusinessException extends AbstractBusinessExc
 
     @Override
     public String getMessage() {
-        String message = I18nUtil.getAdminBackendStringFromRes(errorCode.getMessageKey());
+        String message = getUserMessage();
         if (StringUtils.isNotEmpty(detail)) {
             return message + ": " + detail;
         }
         return message;
+    }
+
+    /** Localized display text, without diagnostic details supplied by the caller. */
+    public String getUserMessage() {
+        return I18nUtil.getAdminBackendStringFromRes(errorCode.getMessageKey());
     }
 }

@@ -4,11 +4,14 @@ import com.google.gson.Gson;
 import com.hibegin.http.server.api.HandleAbleInterceptor;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
+import com.hibegin.http.server.execption.HttpCodeException;
 import com.zrlog.admin.business.security.OAuthException;
 import com.zrlog.admin.business.security.OAuthModels;
 import com.zrlog.admin.business.security.DelegatedAccess;
 import com.zrlog.admin.business.service.AccountPermissionService;
 import com.zrlog.admin.business.service.OAuthService;
+import com.zrlog.admin.business.service.UserPreferenceService;
+import com.zrlog.admin.util.AdminLanguageContext;
 import com.zrlog.admin.business.service.WebhookService;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.vo.AdminTokenVO;
@@ -55,7 +58,18 @@ public final class BearerTokenInterceptor implements HandleAbleInterceptor {
                 catch (com.zrlog.admin.business.exception.PermissionErrorException denied) {
                     throw new OAuthException("insufficient_scope", 403);
                 }
-                new AdminInterceptor().doMethodInterceptor(request, response, method);
+                try (AdminLanguageContext ignored = AdminLanguageContext.open(new UserPreferenceService().effective(identity.userId).language)) {
+                    try {
+                        new AdminInterceptor().doMethodInterceptor(request, response, method);
+                    } catch (Exception failure) {
+                        // Render controller errors before restoring the request thread's language.
+                        int status = failure instanceof HttpCodeException ? ((HttpCodeException) failure).getCode() : 500;
+                        var handler = request.getServerConfig().getErrorHandle(status);
+                        if (handler == null) throw failure;
+                        handler.doHandle(request, response, failure instanceof java.lang.reflect.InvocationTargetException
+                                ? ((java.lang.reflect.InvocationTargetException) failure).getTargetException() : failure);
+                    }
+                }
                 return false;
             }));
         } catch (OAuthException error) {

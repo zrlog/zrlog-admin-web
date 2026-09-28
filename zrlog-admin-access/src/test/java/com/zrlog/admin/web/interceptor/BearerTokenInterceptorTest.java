@@ -12,6 +12,8 @@ import com.zrlog.admin.business.service.*;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.annotation.RequiresAction;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
+import com.zrlog.admin.util.AdminLanguageContext;
+import com.zrlog.util.I18nUtil;
 import com.zrlog.common.Constants;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.data.security.AccountAction;
@@ -27,6 +29,36 @@ public class BearerTokenInterceptorTest {
         @ResponseBody @RequiresAction(value=AccountAction.SITE_CONFIGURE, descriptionKey="website.basic")
         public ApiStandardResponse<Boolean> write() { return new ApiStandardResponse<>(true); }
         @ResponseBody public ApiStandardResponse<Boolean> unbound() { return new ApiStandardResponse<>(true); }
+        @ResponseBody @RequiresAction(value=AccountAction.TAXONOMY_READ, descriptionKey="taxonomy.list")
+        public ApiStandardResponse<String> language() { return new ApiStandardResponse<>(I18nUtil.getCurrentLocale()); }
+        @ResponseBody @RequiresAction(value=AccountAction.TAXONOMY_READ, descriptionKey="taxonomy.list")
+        public ApiStandardResponse<Void> failure() { throw new com.zrlog.admin.business.exception.PermissionErrorException(); }
+    }
+    @Test public void localizesResponsesAndControllerErrorsForTheTokenOwnerAndRestoresTheThread() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open(); var language = AdminLanguageContext.open("zh_CN")) {
+            var config = Constants.zrLogConfig.getServerConfig();
+            config.getRouter().addMapper("/api/admin/test", TestController.class);
+            db.putWebsite("language", "zh_CN");
+            db.execute("update user set preferences=? where userId=1", "{\"language\":\"en_US\"}");
+            PersonalTokenModels.Create body = new PersonalTokenModels.Create();
+            body.name = "language"; body.permissionMode = "custom"; body.permissions = List.of("taxonomy.read");
+            String token = new PersonalAccessTokenService(new OAuthService().mcpResource()).create(body).token;
+            AdminTokenThreadLocal.remove();
+            var parent = I18nUtil.threadLocal.get();
+            assertEquals("en_US", ((ApiStandardResponse<?>) call("/api/admin/test/language", token).rendered).getData());
+            var error = (ApiStandardResponse<?>) call("/api/admin/test/failure", token).rendered;
+            assertEquals(9016, error.getError());
+            try (var english = AdminLanguageContext.open("en_US")) {
+                assertEquals(I18nUtil.getAdminBackendStringFromRes("admin.permission.error"), error.getMessage());
+            }
+            assertSame(parent, I18nUtil.threadLocal.get());
+            assertEquals("zh_CN", parent.getLocale());
+            assertNull(AdminTokenThreadLocal.getUser());
+            db.execute("update user set preferences=null where userId=1");
+            assertEquals("zh_CN", ((ApiStandardResponse<?>) call("/api/admin/test/language", token).rendered).getData());
+            assertEquals(401, call("/api/admin/test/language", "invalid").status);
+            assertSame(parent, I18nUtil.threadLocal.get());
+        }
     }
     @Test public void bearerReusesActionBindingsWithoutCookieOrSessionFallback() throws Exception {
         try (InMemoryZrLogDatabase db=InMemoryZrLogDatabase.open()) {

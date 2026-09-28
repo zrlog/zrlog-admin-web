@@ -3,6 +3,8 @@ package com.zrlog.admin.business.ai.service;
 import com.zrlog.admin.business.service.WebSiteService;
 import com.zrlog.admin.business.service.MessageCenterOperationService;
 import com.zrlog.admin.business.rest.response.AIArticleGlobalResponse;
+import com.zrlog.admin.util.AdminLanguageContext;
+import com.zrlog.util.I18nUtil;
 
 import com.zrlog.admin.business.ai.service.AIConversationService;
 import com.hibegin.common.util.LoggerUtil;
@@ -41,8 +43,13 @@ public class AIPublishCheckService {
         GenerateArticleFieldRequest context = publishCheckContext(body);
         PublishCheckPersistenceGuard guard = new PublishCheckPersistenceGuard();
         AIConversationService conversationStore = new AIConversationService().captureAccount();
+        String language = I18nUtil.getCurrentLocale();
         CompletableFuture<PublishCheckResponse> future = CompletableFuture.supplyAsync(
-                () -> buildPublishCheckPayload(articleId, context, guard, conversationStore));
+                () -> {
+                    try (AdminLanguageContext ignored = AdminLanguageContext.open(language)) {
+                        return buildPublishCheckPayload(articleId, context, guard, conversationStore);
+                    }
+                });
         return new PublishCheckTask(future, guard, articleId, context.getTitle());
     }
 
@@ -73,7 +80,7 @@ public class AIPublishCheckService {
         return context;
     }
 
-    private PublishCheckResponse buildPublishCheckPayload(Long articleId, GenerateArticleFieldRequest context,
+    PublishCheckResponse buildPublishCheckPayload(Long articleId, GenerateArticleFieldRequest context,
                                                           PublishCheckPersistenceGuard guard, AIConversationService conversationStore) {
         try {
             List<AIResponseEntry.AIContentEntry> messages = new AIWritingSkillService(conversationStore)

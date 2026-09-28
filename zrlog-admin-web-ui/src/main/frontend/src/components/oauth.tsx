@@ -1,3 +1,4 @@
+import { formatDateTime } from "../utils/date-time";
 import { isModuleEnabled } from "../utils/module-capabilities";
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
@@ -183,7 +184,7 @@ function OAuthConnections({
                                                     description={
                                                         <Space orientation="vertical">
                                                             <Typography.Text type="secondary">
-                                                                {new Date(grant.createdAt).toLocaleString()}
+                                                                {formatDateTime(grant.createdAt)}
                                                             </Typography.Text>
                                                             {grant.scope.includes("articles:") && (
                                                                 <Typography.Text>

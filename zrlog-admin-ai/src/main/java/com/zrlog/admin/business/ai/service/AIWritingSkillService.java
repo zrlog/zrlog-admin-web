@@ -136,7 +136,8 @@ public class AIWritingSkillService extends AIService {
             case "cover": {
                 com.zrlog.admin.business.rest.response.GenerateArticleCoverResponse response =
                         new AIImageService().generateArticleCover(articleContext);
-                return new ToolResult("已生成文章封面", new AIStreamPayloads.CoverPayload(response.getUrl()));
+                return new ToolResult(I18nUtil.getAdminBackendStringFromRes("admin.ai.cover.success"),
+                        new AIStreamPayloads.CoverPayload(response.getUrl()));
             }
             default:
                 throw new UnsupportedAIToolException(tool);
@@ -248,7 +249,8 @@ public class AIWritingSkillService extends AIService {
 
     private String formatScore(ScoreArticleResponse response) {
         StringBuilder sb = new StringBuilder();
-        sb.append("Score: ").append(response.getScore()).append("\n\n");
+        sb.append(I18nUtil.getAdminBackendStringFromRes("admin.ai.score.label")).append(": ")
+                .append(response.getScore()).append("\n\n");
         sb.append(response.getSummary()).append("\n\n");
         for (ScoreArticleResponse.ScoreItem item : response.getItems()) {
             sb.append("- ").append(item.getName()).append(" ").append(item.getScore()).append(": ")
@@ -332,10 +334,7 @@ public class AIWritingSkillService extends AIService {
 
     AIStreamPayloads.ErrorPayload buildStreamErrorPayload(Exception e, AIWebSiteInfoWithAIMessages info, String tool) {
         AIStreamPayloads.ErrorPayload payload = new AIStreamPayloads.ErrorPayload();
-        String message = StringUtils.isNotEmpty(e.getMessage())
-                ? e.getMessage()
-                : I18nUtil.getAdminBackendStringFromRes("admin.ai.error.request");
-        payload.setMessage(message);
+        payload.setMessage(AIErrorMessages.message(e, "admin.ai.error.request"));
         payload.setErrorType(getStreamErrorType(e));
         if (e instanceof AIIncompleteResponseException) {
             AIIncompleteResponseException incomplete = (AIIncompleteResponseException) e;

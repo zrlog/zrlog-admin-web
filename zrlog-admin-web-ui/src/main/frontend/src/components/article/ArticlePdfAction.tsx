@@ -1,3 +1,4 @@
+import { formatDateTime } from "../../utils/date-time";
 import { FilePdfOutlined } from "@ant-design/icons";
 import { markdownToHtmlSyncWithCallback } from "@editor/dist/editor/utils/marked-utils";
 import { App, Button, Tooltip } from "antd";
@@ -95,7 +96,7 @@ const buildPrintDocument = (article: ArticlePrintableEntry, bodyHtml: string) =>
     const res = getRes();
     const title = article.title || res.article.label;
     const digest = article.digest?.trim();
-    const generatedAt = new Date().toLocaleString();
+    const generatedAt = formatDateTime(new Date());
     const safeBodyHtml = sanitizeArticleHtml(bodyHtml).trim();
     const keywordHtml = buildKeywordHtml(article.keywords);
     const baseHref = getPrintBaseHref();

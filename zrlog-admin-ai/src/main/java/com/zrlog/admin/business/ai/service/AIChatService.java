@@ -20,6 +20,9 @@ import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.util.ThreadUtils;
+import com.zrlog.util.I18nUtil;
+import com.zrlog.admin.util.AdminLanguageContext;
+import com.zrlog.admin.util.BackendServerUrl;
 import java.io.*;
 import java.net.http.*;
 import java.nio.charset.StandardCharsets;
@@ -72,6 +75,7 @@ public class AIChatService extends AIService {
         checkAiConfig(info);
         input.history = history(info.getAiMessages(), input.includeArticleContext);
         UserPreferenceService preferences = new UserPreferenceService();
+        String language = preferences.effective(token.getUserId()).language;
         UserPreferences.Assistant settings = preferences.assistant(token);
         String snapshot = gson.toJson(settings);
         Runnable reauthorize = () -> {
@@ -81,11 +85,11 @@ public class AIChatService extends AIService {
         KnowledgeService knowledge = !"off".equals(settings.knowledgeScope) ? new KnowledgeService(() -> {
             reauthorize.run();
             return AccountPermissionService.account(token);
-        }, scopes(settings)) : null;
+        }, scopes(settings), BackendServerUrl::configured, language) : null;
         PipedInputStream in = new PipedInputStream(16384);
         PipedOutputStream out = new PipedOutputStream(in);
         ThreadUtils.start(() -> {
-            try (OutputStream sink = out) {
+            try (AdminLanguageContext ignored = AdminLanguageContext.open(language); OutputStream sink = out) {
                 try { run(input, info, knowledge, sink, reauthorize, answer -> {
                     reauthorize.run();
                     AIResponseEntry.AIContentEntry question = new AIResponseEntry.AIContentEntry("user", input.input.trim());
@@ -227,7 +231,9 @@ public class AIChatService extends AIService {
                     JsonElement args = JsonParser.parseString(call.function.arguments);
                     if (!args.isJsonObject()) throw new IllegalArgumentException();
                     result = knowledge.call(call.function.name, args.getAsJsonObject());
-                } catch (JsonParseException | IllegalArgumentException e) { result = new ToolError("Invalid tool arguments, unknown tool, or article unavailable"); }
+                } catch (JsonParseException | IllegalArgumentException e) {
+                    result = new ToolError(I18nUtil.getAdminBackendStringFromRes("admin.ai.error.knowledgeTool"));
+                }
                 if (result instanceof SearchResult) for (SearchHit hit : ((SearchResult) result).articles) sources.put(hit.id, sourceOnly(hit));
                 if (result instanceof ArticleResult) { Source source = ((ArticleResult) result).source; sources.put(source.id, source); }
                 AIProviderRequests.Message tool = new AIProviderRequests.Message("tool", gson.toJson(result)); tool.toolCallId = call.id; messages.add(tool);
@@ -289,7 +295,7 @@ public class AIChatService extends AIService {
         request.setMessages(messages);
         if (allowTools) {
             request.tools = new ArrayList<>(); request.tool_choice = "auto";
-            for (Tool tool : KnowledgeService.tools()) {
+            for (Tool tool : KnowledgeService.tools(I18nUtil.getCurrentLocale())) {
                 AIProviderRequests.Tool definition = new AIProviderRequests.Tool(); definition.function = new AIProviderRequests.Function();
                 definition.function.name = tool.name; definition.function.description = tool.description; definition.function.parameters = tool.inputSchema;
                 request.tools.add(definition);

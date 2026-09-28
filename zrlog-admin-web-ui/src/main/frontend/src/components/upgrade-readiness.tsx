@@ -1,3 +1,4 @@
+import { formatDateTime } from "../utils/date-time";
 import { DatabaseOutlined, ReloadOutlined, SafetyCertificateOutlined } from "@ant-design/icons";
 import { Alert, Button, Descriptions, Space, Tag, Tooltip, Typography } from "antd";
 import { useTheme } from "antd-style";
@@ -38,7 +39,7 @@ const UpgradeReadiness = ({
     const hasCheckedDate = checkedDate !== undefined && Number.isFinite(checkedDate.getTime());
     const runtimeModeLabels: Record<UpgradeRuntimeMode, string> = res.runtimeMode;
     const formatEvidenceTime = (value?: number) =>
-        typeof value === "number" && Number.isFinite(value) ? new Date(value).toLocaleString() : backupRes.notAvailable;
+        typeof value === "number" && Number.isFinite(value) ? formatDateTime(value) : backupRes.notAvailable;
     const renderEvidence = (
         timestamp?: number,
         file?: string,
@@ -156,7 +157,7 @@ const UpgradeReadiness = ({
                     type="secondary"
                     style={{ fontSize: theme.fontSizeSM, marginBottom: theme.marginSM }}
                 >
-                    {res.lastChecked}: <time dateTime={checkedDate.toISOString()}>{checkedDate.toLocaleString()}</time>
+                    {res.lastChecked}: <time dateTime={checkedDate.toISOString()}>{formatDateTime(checkedDate)}</time>
                 </Typography.Paragraph>
             )}
             {refreshError && (

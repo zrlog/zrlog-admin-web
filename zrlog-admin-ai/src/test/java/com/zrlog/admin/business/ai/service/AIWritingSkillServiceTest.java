@@ -43,6 +43,31 @@ public class AIWritingSkillServiceTest {
 
     private static final Gson GSON = new Gson();
 
+    @Test public void translatesFailuresWithoutShowingRawDiagnostics() {
+        for (String language : List.of("zh_CN", "en_US")) {
+            try (var ignored = com.zrlog.admin.util.AdminLanguageContext.open(language)) {
+                AIWritingSkillService service = new AIWritingSkillService();
+                AIResponseException failure = new AIResponseException("title response is invalid");
+                var payload = service.buildStreamErrorPayload(failure, null);
+                assertEquals(com.zrlog.util.I18nUtil.getAdminBackendStringFromRes("admin.ai.error.response"), payload.getMessage());
+                assertFalse(payload.getMessage().contains("title response"));
+                assertTrue(failure.getMessage().contains("title response"));
+                assertEquals("provider_response", payload.getErrorType());
+                for (Exception error : List.of(new AIRequestException("raw provider response", 429),
+                        new IOException("internal network detail"), new RuntimeException("unexpected detail"))) {
+                    assertEquals(com.zrlog.util.I18nUtil.getAdminBackendStringFromRes("admin.ai.error.request"),
+                            service.buildStreamErrorPayload(error, null).getMessage());
+                }
+                assertEquals(com.zrlog.util.I18nUtil.getAdminBackendStringFromRes("admin.ai.error.configuration"),
+                        service.buildStreamErrorPayload(new ArgsException("ai_api_key"), null).getMessage());
+                assertEquals(com.zrlog.util.I18nUtil.getAdminBackendStringFromRes("admin.ai.error.timeout"),
+                        service.buildStreamErrorPayload(new java.net.http.HttpTimeoutException("timeout"), null).getMessage());
+                assertEquals(com.zrlog.util.I18nUtil.getAdminBackendStringFromRes("admin.article.publishCheck.error.failed"),
+                        AIErrorMessages.message(new RuntimeException("raw detail"), "admin.article.publishCheck.error.failed"));
+            }
+        }
+    }
+
     @Test
     public void shouldBuildIncompleteStreamErrorPayload() {
         AIWebSiteInfoWithAIMessages info = new AIWebSiteInfoWithAIMessages();
@@ -171,7 +196,12 @@ public class AIWritingSkillServiceTest {
         assertEquals("java, zrlog", invoke(service, "formatTags", tags));
         assertEquals("changed", invoke(service, "formatMarkdownRewrite", rewriteWithSummary));
         assertEquals("markdown", invoke(service, "formatMarkdownRewrite", rewriteWithoutSummary));
-        assertEquals("Score: 88\n\nLooks good\n\n- SEO 80: Improve title", invoke(service, "formatScore", score));
+        for (String language : List.of("en_US", "zh_CN")) {
+            try (var ignored = com.zrlog.admin.util.AdminLanguageContext.open(language)) {
+                assertEquals((language.equals("en_US") ? "Score" : "评分")
+                        + ": 88\n\nLooks good\n\n- SEO 80: Improve title", invoke(service, "formatScore", score));
+            }
+        }
         assertEquals("SEO: 76\n\nSEO ok\n\n- title warning: shorten", invoke(service, "formatSeo", seo));
         assertEquals("Proofread ok\n- teh: typo -> the", invoke(service, "formatProofread", proofread));
         assertEquals("Structure ok\n- intro good: keep", invoke(service, "formatStructure", structure));

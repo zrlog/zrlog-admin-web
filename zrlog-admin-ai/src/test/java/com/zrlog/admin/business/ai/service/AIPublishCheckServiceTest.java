@@ -1,12 +1,52 @@
 package com.zrlog.admin.business.ai.service;
 
 import com.zrlog.admin.business.rest.response.ScoreArticleResponse;
+import com.zrlog.admin.business.rest.response.AIArticleGlobalResponse;
+import com.zrlog.admin.business.rest.response.LoadEditArticleResponse;
+import com.zrlog.admin.business.rest.response.PublishCheckResponse;
+import com.zrlog.admin.business.rest.request.CreateArticleRequest;
+import com.zrlog.admin.business.rest.request.GenerateArticleFieldRequest;
+import com.zrlog.admin.support.InMemoryZrLogDatabase;
+import com.zrlog.admin.util.AdminLanguageContext;
+import com.zrlog.util.I18nUtil;
 import java.lang.reflect.Method;
 import java.util.*;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class AIPublishCheckServiceTest {
+    @Test public void publishWorkerUsesTheRequestLanguageEvenWhenTheSiteAndLaterRequestDiffer() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            db.cacheService().getPublicWebSiteInfo().setLanguage("zh_CN");
+            for (String language : List.of("en_US", "zh_CN")) {
+                var started = new java.util.concurrent.CountDownLatch(1);
+                var proceed = new java.util.concurrent.CountDownLatch(1);
+                AIPublishCheckService service = new AIPublishCheckService() {
+                    @Override PublishCheckResponse buildPublishCheckPayload(Long id, GenerateArticleFieldRequest context,
+                            PublishCheckPersistenceGuard guard, AIConversationService conversations) {
+                        started.countDown();
+                        try { assertTrue(proceed.await(5, java.util.concurrent.TimeUnit.SECONDS)); }
+                        catch (InterruptedException e) { throw new RuntimeException(e); }
+                        return new PublishCheckResponse(null, I18nUtil.getCurrentLocale(), "test", List.of());
+                    }
+                };
+                AIArticleGlobalResponse detail = new AIArticleGlobalResponse();
+                LoadEditArticleResponse article = new LoadEditArticleResponse(); article.setLogId(1);
+                detail.setArticle(article); detail.setAiConfigured(true); detail.setPublishCheckEnabled(true);
+                AIPublishCheckService.PublishCheckTask task;
+                try (var ignored = AdminLanguageContext.open(language)) {
+                    task = service.startPublishCheck(detail, new CreateArticleRequest());
+                }
+                try {
+                    assertTrue(started.await(5, java.util.concurrent.TimeUnit.SECONDS));
+                    try (var ignored = AdminLanguageContext.open(language.equals("en_US") ? "zh_CN" : "en_US")) {
+                        proceed.countDown();
+                        assertEquals(language, task.getFuture().get(5, java.util.concurrent.TimeUnit.SECONDS).getContent());
+                    }
+                } finally { proceed.countDown(); }
+            }
+        }
+    }
     @Test
     public void shouldExtractScoresAndItemCountsFromKnownPayloads() throws Exception {
         AIPublishCheckService service = new AIPublishCheckService();

@@ -449,7 +449,9 @@ public class AdminArticleControllerDatabaseTest {
             assertEquals(200, response.statusCode);
             assertTrue(response.writtenBody.contains("event: ai-error"));
             assertTrue(response.writtenBody.contains("\"errorType\":\"configuration_required\""));
-            assertTrue(response.writtenBody.contains("ai_provider"));
+            assertTrue(response.writtenBody.contains(I18nUtil.getAdminBackendStringFromRes(
+                    "admin.ai.error.configuration")));
+            assertFalse(response.writtenBody.contains("ai_provider"));
         }
     }
 
@@ -489,7 +491,9 @@ public class AdminArticleControllerDatabaseTest {
             assertTrue(successPayload.contains("event: publish-check-complete"));
             assertTrue(successPayload.contains("\"ok\":true"));
             assertTrue(errorPayload.contains("event: publish-check-error"));
-            assertTrue(errorPayload.contains("publish failed"));
+            assertTrue(errorPayload.contains(I18nUtil.getAdminBackendStringFromRes(
+                    "admin.article.publishCheck.error.failed")));
+            assertFalse(errorPayload.contains("publish failed"));
         }
     }
 
@@ -641,7 +645,11 @@ public class AdminArticleControllerDatabaseTest {
 
             assertEquals(1, countOccurrences(payload, "event: publish-check-error"));
             assertEquals(1, countOccurrences(storedNotices, "Failed publish check"));
-            assertEquals(1, countOccurrences(storedNotices, "provider unavailable"));
+            var notices = com.google.gson.JsonParser.parseString(storedNotices).getAsJsonArray();
+            assertEquals(1, notices.size());
+            assertEquals(I18nUtil.getAdminBackendStringFromRes("admin.article.publishCheck.error.failed"),
+                    notices.get(0).getAsJsonObject().get("description").getAsString());
+            assertFalse(storedNotices.contains("provider unavailable"));
         }
     }
 
@@ -672,7 +680,8 @@ public class AdminArticleControllerDatabaseTest {
                     "select value from website where name=?", "admin_cache:message_center_operation_notices")
                     .get("value"));
             assertTrue(stored.contains("Publish Check"));
-            assertTrue(stored.contains("ai_provider"));
+            assertTrue(stored.contains(I18nUtil.getAdminBackendStringFromRes("admin.ai.error.configuration")));
+            assertFalse(stored.contains("ai_provider"));
         }
     }
 

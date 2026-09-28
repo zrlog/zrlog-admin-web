@@ -95,9 +95,8 @@ public class AIWebSetup implements ArticleAssistant {
             while (cause instanceof CompletionException && cause.getCause() != null) {
                 cause = cause.getCause();
             }
-            String message = StringUtils.isNotEmpty(cause.getMessage())
-                    ? cause.getMessage()
-                    : I18nUtil.getAdminBackendStringFromRes("admin.article.publishCheck.error.failed");
+            String message = com.zrlog.admin.business.ai.service.AIErrorMessages.message(
+                    cause, "admin.article.publishCheck.error.failed");
             if (publishCheckTask.getArticleId() != null) {
                 publishingService.recordPublishCheckError(
                         publishCheckTask.getArticleId(), publishCheckTask.getArticleTitle(), message);

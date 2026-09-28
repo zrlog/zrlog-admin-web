@@ -1,3 +1,4 @@
+import { formatDateTime } from "../utils/date-time";
 import { useState } from "react";
 import {
     Alert,
@@ -182,10 +183,10 @@ export default function PersonalAccessTokens({
                                         </Space>
                                     )}
                                     <Typography.Text type="secondary">
-                                        {res.personalTokens.createdAt}: {new Date(token.createdAt).toLocaleString()}
+                                        {res.personalTokens.createdAt}: {formatDateTime(token.createdAt)}
                                     </Typography.Text>
                                     <Typography.Text type="secondary">
-                                        {res.personalTokens.expiresAt}: {new Date(token.expiresAt).toLocaleString()}
+                                        {res.personalTokens.expiresAt}: {formatDateTime(token.expiresAt)}
                                     </Typography.Text>
                                 </Space>
                             }
@@ -232,7 +233,7 @@ export default function PersonalAccessTokens({
                             </Typography.Paragraph>
                         </div>
                         <Typography.Text type="secondary">
-                            {res.personalTokens.expiresAt}: {new Date(created.info.expiresAt).toLocaleString()}
+                            {res.personalTokens.expiresAt}: {formatDateTime(created.info.expiresAt)}
                         </Typography.Text>
                         <Button onClick={close} disabled={busy}>
                             {res.personalTokens.close}

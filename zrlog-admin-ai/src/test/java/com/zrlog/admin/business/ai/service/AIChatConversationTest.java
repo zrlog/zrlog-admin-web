@@ -15,6 +15,24 @@ import java.util.*;
 import static org.junit.Assert.*;
 
 public class AIChatConversationTest {
+    @Test public void asynchronousToolsFollowAccountLanguageWithoutLeakingTheBrowserLocale() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open();
+             var ignored = com.zrlog.admin.util.AdminLanguageContext.open("zh_CN")) {
+            configure(db);
+            for (String language : List.of("en_US", "zh_CN", "en_US")) {
+                db.execute("update user set preferences=? where userId=1", "{\"language\":\"" + language + "\"}");
+                Model model = new Model(tool("read_article", "{\"id\":999}"), ANSWER);
+                model.start(input()).getInputStream().readAllBytes();
+                JsonObject function = model.requests.get(0).getAsJsonArray("tools").get(0).getAsJsonObject().getAsJsonObject("function");
+                assertEquals("search_articles", function.get("name").getAsString());
+                assertTrue(function.get("description").getAsString().startsWith(language.equals("en_US") ? "Search blog articles" : "按字面关键词"));
+                String messages = model.requests.get(1).getAsJsonArray("messages").toString();
+                assertTrue(messages, messages.contains(language.equals("en_US")
+                        ? "Invalid tool arguments, unknown tool, or article unavailable" : "工具参数无效、工具不存在或文章不可用"));
+                assertEquals("zh_CN", com.zrlog.util.I18nUtil.getCurrentLocale());
+            }
+        }
+    }
     @Test public void returnsDistinctSafeErrorsWithoutSavingFailedResponses() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open();
              var logs = com.zrlog.test.support.TestLogCapture.forClass(AIChatService.class)) {
@@ -239,7 +257,8 @@ public class AIChatConversationTest {
             Model model=new Model(tool("delete_article","{}"));
             assertThrows(com.zrlog.admin.business.ai.exception.AIResponseException.class,()->model.run(input(),new AIWebSiteInfo(),knowledge(),new ByteArrayOutputStream(),()->{}));
             assertEquals(5,model.requests.size());assertFalse(model.requests.get(4).has("tools"));
-            assertTrue(model.requests.get(1).toString().contains("Invalid tool arguments"));
+            assertTrue(model.requests.get(1).toString().contains(
+                    com.zrlog.util.I18nUtil.getAdminBackendStringFromRes("admin.ai.error.knowledgeTool")));
         }
     }
     @Test public void permissionChangeStopsBeforeSendingAnotherModelRequestAndDisconnectStopsWork() throws Exception {

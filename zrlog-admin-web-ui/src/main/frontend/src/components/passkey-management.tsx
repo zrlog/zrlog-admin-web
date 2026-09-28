@@ -1,3 +1,4 @@
+import { formatDateTime } from "../utils/date-time";
 import { DeleteOutlined, KeyOutlined, PlusOutlined } from "@ant-design/icons";
 import { Button, Card, Empty, Form, Input, List, message, Modal, Space, Tooltip, Typography } from "antd";
 import { useTheme } from "antd-style";
@@ -257,7 +258,7 @@ const PasskeyManagement = ({ offline, mfaEnabled, cardStyle, modalWidth }: Passk
         if (!timestamp) {
             return getRes().accountSecurity.passkeyNeverUsed;
         }
-        return new Date(timestamp).toLocaleString();
+        return formatDateTime(timestamp);
     };
 
     return (
