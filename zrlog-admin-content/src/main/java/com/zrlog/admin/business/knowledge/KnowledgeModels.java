@@ -44,6 +44,7 @@ public final class KnowledgeModels {
         public Annotations annotations = new Annotations();
     }
     public static class Annotations {
+        public String title;
         public boolean readOnlyHint = true;
         public boolean destructiveHint = false;
         public boolean idempotentHint = true;

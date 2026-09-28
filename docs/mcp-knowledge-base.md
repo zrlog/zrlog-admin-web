@@ -31,6 +31,12 @@
 
 协商到 2025-06-18 及以上版本时，initialize 的 `serverInfo.title` 使用当前博客名称（空名称回退为 `ZrLog`），`serverInfo.name` 保持稳定的 `zrlog-knowledge`。博客名称直接沿用站点配置，无需为 MCP 重复设置或翻译；修改后在客户端重新连接时获取。客户端自行保存的连接名称可能优先于服务端标题，例如 Codex 的 `mcp_servers.<name>`；这类名称仍需在客户端修改。
 
+初始化 `instructions` 同样以当前网站标题开头，空标题回退为 `ZrLog`。后续说明描述工具使用方式，并以服务端实际提供的工具、连接授权范围和账号权限限定可用操作。
+
+MCP 说明语言跟随 Bearer 令牌所属账号的个人语言设置，未设置时使用站点后台默认语言（`zh_CN` / `en_US`）。OAuth 和个人访问令牌使用同一规则，不依赖浏览器登录态、`Accept-Language` 或另一个管理员的设置。每次有效请求重新读取偏好，修改个人语言后无需重建令牌；客户端缓存的工具列表和初始化说明可能需要重新连接才会更新，不主动推送 `listChanged`。
+
+工具展示标题（`annotations.title`，兼容全部已支持版本）、用途、参数说明、初始化 `instructions` 和 JSON-RPC/工具执行错误文案来自后端 `admin_backend_*.properties`。工具名、参数名、JSON 字段、枚举值、错误码与授权范围保持稳定；博客名称和文章内容保留原文。语言显式传入 MCP 与知识库服务，不修改请求线程的全局语言上下文。共享知识库工具支持语言参数，未指定语言的现有内置助手调用继续使用英文说明。
+
 OAuth 使用已有预注册 public client + S256 PKCE；管理员登记客户端准确回调 URL，客户端配置 client ID。尚不提供动态注册或 Client ID Metadata Document，因此需要自动注册、不能填 client ID 的客户端暂不兼容。服务端校验 Origin；浏览器直接跨域调用不开放，桌面/服务端客户端无 Origin 正常使用。
 
 规范参考：[MCP HTTP](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports)、[OAuth](https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization)。本功能是独立工具契约，不从后台 OpenAPI 自动生成。

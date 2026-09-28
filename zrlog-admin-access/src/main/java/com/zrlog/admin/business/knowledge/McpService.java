@@ -13,9 +13,15 @@ public final class McpService {
     public static final Set<String> VERSIONS = Set.of("2025-03-26", "2025-06-18", LATEST);
     private static final Gson JSON = new GsonBuilder().setStrictness(Strictness.STRICT).create();
     private final Supplier<String> websiteTitle;
+    private final String language;
+    private final KnowledgeMessages messages;
 
-    public McpService() { this(() -> AdminConstants.getPublicWebSiteInfo().getTitle()); }
-    public McpService(Supplier<String> websiteTitle) { this.websiteTitle = websiteTitle; }
+    public McpService() { this("en_US"); }
+    public McpService(String language) { this(() -> AdminConstants.getPublicWebSiteInfo().getTitle(), language); }
+    public McpService(Supplier<String> websiteTitle) { this(websiteTitle, "en_US"); }
+    public McpService(Supplier<String> websiteTitle, String language) {
+        this.websiteTitle = websiteTitle; this.language = language; this.messages = new KnowledgeMessages(language);
+    }
 
     public static final class Reply {
         public final int status;
@@ -25,13 +31,13 @@ public final class McpService {
     public Reply handle(String body, KnowledgeService knowledge) throws SQLException {
         JsonElement parsed;
         try { parsed = JSON.fromJson(body, JsonElement.class); }
-        catch (JsonParseException e) { return error(JsonNull.INSTANCE, -32700, "Parse error", 400); }
-        if (parsed == null || !parsed.isJsonObject()) return error(JsonNull.INSTANCE, -32600, "Invalid Request", 400);
+        catch (JsonParseException e) { return localizedError(JsonNull.INSTANCE, -32700, "parse", 400); }
+        if (parsed == null || !parsed.isJsonObject()) return localizedError(JsonNull.INSTANCE, -32600, "request", 400);
         JsonObject rpc = parsed.getAsJsonObject();
         JsonElement id = rpc.get("id");
         if (!stringEquals(rpc.get("jsonrpc"), "2.0") || !isString(rpc.get("method"))
                 || id != null && (!id.isJsonPrimitive() || !(id.getAsJsonPrimitive().isString() || id.getAsJsonPrimitive().isNumber()))
-                || rpc.has("params") && !rpc.get("params").isJsonObject()) return error(JsonNull.INSTANCE, -32600, "Invalid Request", 400);
+                || rpc.has("params") && !rpc.get("params").isJsonObject()) return localizedError(JsonNull.INSTANCE, -32600, "request", 400);
         // Notifications have no response and never invoke knowledge tools.
         if (id == null) return new Reply(202, null);
         String method = rpc.get("method").getAsString();
@@ -39,30 +45,35 @@ public final class McpService {
         switch (method) {
             case "initialize":
                 if (!isString(params.get("protocolVersion")) || !params.has("capabilities") || !params.get("capabilities").isJsonObject()
-                        || !params.has("clientInfo") || !params.get("clientInfo").isJsonObject()) return error(id, -32602, "Invalid initialize parameters", 200);
+                        || !params.has("clientInfo") || !params.get("clientInfo").isJsonObject()) return localizedError(id, -32602, "initialize", 200);
                 InitializeResult initialize = new InitializeResult();
+                String title = Objects.toString(websiteTitle.get(), "").strip();
+                if (title.isEmpty()) title = "ZrLog";
+                initialize.instructions = title + "\n\n" + messages.get("admin.mcp.instructions");
                 String version = params.get("protocolVersion").getAsString(); initialize.protocolVersion = VERSIONS.contains(version) ? version : LATEST;
-                // Display titles were introduced in 2025-06-18; keep the older handshake unchanged.
+                // Display titles were introduced in 2025-06-18; omit that field for the older version.
                 if (!"2025-03-26".equals(initialize.protocolVersion)) {
-                    String title = Objects.toString(websiteTitle.get(), "").strip();
-                    initialize.serverInfo.title = title.isEmpty() ? "ZrLog" : title;
+                    initialize.serverInfo.title = title;
                 }
                 return result(id, initialize);
             case "ping": return result(id, new JsonObject());
             case "tools/list":
-                if (params.has("cursor")) return error(id, -32602, "No more tools", 200);
-                return result(id, new ToolList());
+                if (params.has("cursor")) return localizedError(id, -32602, "cursor", 200);
+                return result(id, new ToolList(language));
             case "tools/call":
-                if (!isString(params.get("name")) || params.has("arguments") && !params.get("arguments").isJsonObject()) return error(id, -32602, "Invalid tool call", 200);
+                if (!isString(params.get("name")) || params.has("arguments") && !params.get("arguments").isJsonObject()) return localizedError(id, -32602, "toolCall", 200);
                 String name = params.get("name").getAsString();
-                if (!Set.of("search_articles", "read_article").contains(name)) return error(id, -32602, "Unknown tool", 200);
+                if (!Set.of("search_articles", "read_article").contains(name)) return localizedError(id, -32602, "unknownTool", 200);
                 ToolResult tool = new ToolResult();
                 try { tool.structuredContent = JSON.toJsonTree(knowledge.call(name, params.getAsJsonObject("arguments"))); }
                 catch (IllegalArgumentException e) { tool.isError = true; tool.structuredContent = JSON.toJsonTree(new KnowledgeModels.ToolError(e.getMessage())); }
                 tool.content = List.of(new TextContent(JSON.toJson(tool.structuredContent)));
                 return result(id, tool);
-            default: return error(id, -32601, "Method not found", 200);
+            default: return localizedError(id, -32601, "method", 200);
         }
+    }
+    private Reply localizedError(JsonElement id, int code, String key, int status) {
+        return error(id, code, messages.get("admin.mcp.error." + key), status);
     }
     private static boolean isString(JsonElement value) { return value != null && value.isJsonPrimitive() && value.getAsJsonPrimitive().isString(); }
     private static boolean stringEquals(JsonElement value, String expected) { return isString(value) && expected.equals(value.getAsString()); }

@@ -6,6 +6,8 @@ import com.hibegin.http.server.api.*;
 import com.zrlog.admin.business.knowledge.*;
 import com.zrlog.admin.business.security.*;
 import com.zrlog.admin.business.service.OAuthService;
+import com.zrlog.admin.business.service.UserPreferenceService;
+import com.zrlog.admin.util.BackendServerUrl;
 import com.zrlog.data.security.AccountAccess;
 import java.io.ByteArrayInputStream;
 import java.nio.ByteBuffer;
@@ -20,6 +22,7 @@ public class McpInterceptor implements HandleAbleInterceptor {
         response.addHeader("Cache-Control", "no-store");
         response.addHeader("X-Content-Type-Options", "nosniff");
         response.addHeader("Access-Control-Expose-Headers", "WWW-Authenticate");
+        String language = "en_US";
         try {
             String origin = request.getHeader("Origin");
             if (origin != null) {
@@ -46,19 +49,22 @@ public class McpInterceptor implements HandleAbleInterceptor {
             if (!accept.contains("application/json") || !accept.contains("text/event-stream")) { response.renderCode(406); return false; }
             ByteBuffer buffer = request.getRequestBodyByteBuffer();
             if (buffer == null || buffer.remaining() > 16384) { response.renderCode(413); return false; }
+            // Bearer requests have no admin session. Resolve the authenticated token owner's preferences each time.
+            language = new UserPreferenceService().effective(identity.userId).language;
             KnowledgeService knowledge = new KnowledgeService(() -> {
                 try {
                     OAuthModels.Identity current = oauth.authenticate(token, oauth.mcpResource(), Set.of("articles:read"));
                     return AccountAccess.load(current.userId);
                 } catch (java.sql.SQLException e) { throw new OAuthException("temporarily_unavailable", 503); }
-            }, new HashSet<>(identity.scopes));
-            McpService.Reply reply = new McpService().handle(StandardCharsets.UTF_8.decode(buffer.asReadOnlyBuffer()).toString(), knowledge);
+            }, new HashSet<>(identity.scopes), BackendServerUrl::configured, language);
+            McpService.Reply reply = new McpService(language).handle(StandardCharsets.UTF_8.decode(buffer.asReadOnlyBuffer()).toString(), knowledge);
             if (reply.body == null) response.renderCode(reply.status);
             else json(response, reply.body, reply.status);
         } catch (OAuthException e) {
             if (e.getStatus() == 401 || e.getStatus() == 403) response.addHeader("WWW-Authenticate", "Bearer error=\"" + e.getOAuthError() + "\", resource_metadata=\"" + oauth.mcpResourceMetadataUrl() + "\", scope=\"articles:read\"");
             json(response, new OAuthModels.Error(e.getOAuthError()), e.getStatus());
-        } catch (Exception e) { json(response, McpService.error(JsonNull.INSTANCE, -32603, "Internal error", 500).body, 500); }
+        } catch (Exception e) { json(response, McpService.error(JsonNull.INSTANCE, -32603,
+                new KnowledgeMessages(language).get("admin.mcp.error.internal"), 500).body, 500); }
         return false;
     }
     private static void json(HttpResponse response, Object data, int status) {

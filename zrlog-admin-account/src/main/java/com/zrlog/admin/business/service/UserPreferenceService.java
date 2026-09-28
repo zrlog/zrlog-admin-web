@@ -40,6 +40,11 @@ public class UserPreferenceService {
         }
     }
 
+    /** Resolve preferences for an already authenticated external account, without a browser session. */
+    public UserPreferences effective(int userId) throws SQLException {
+        return merge(defaults(), read(userId));
+    }
+
     public UserPreferencesResponse updateBody(String body) throws SQLException {
         try {
             JsonElement parsed = JsonParser.parseString(body);
