@@ -16,6 +16,14 @@
 
 工作流仅在四家同步和目录校验全部成功后创建或更新 PR。任一家同步失败时，任务直接失败并记录原因，不修改已有 PR，避免临时抓取失败覆盖或关闭待合并的更新。PR 合并只更新仓库的内置快照，不会主动修改已部署实例；实例可随下次发布获取新快照，或由现有部署流程将合并后的 JSON 复制到 `conf/ai-models.json` 热加载。仓库不再提供服务器 crontab 条目。
 
+### PR 创建权限错误
+
+如果 **Create or update model catalog PR** 报错 `GitHub Actions is not permitted to create or approve pull requests`，说明模型抓取和校验已经完成，但仓库禁止 `GITHUB_TOKEN` 创建 PR。工作流会保留失败状态，并在运行摘要中显示排障说明；更新分支可能已经推送成功，不能据此判断 PR 已创建。
+
+仓库管理员需要在 **Settings → Actions → General → Workflow permissions** 启用 **Allow GitHub Actions to create and approve pull requests**。这是仓库级设置，不能通过 YAML 中的 `pull-requests: write` 开启；若组织策略锁定该选项，需由组织管理员先允许。默认 Workflow permissions 继续使用只读，仅本工作流的同步 job 声明所需写权限。该开关也允许仓库内其他获得相应 token 权限的工作流创建或审批 PR；本工作流只创建或更新 PR，不审批或合并。
+
+设置生效后，手动运行 **Sync AI model catalog**，确认 PR 步骤成功，并在有模型变化时生成或更新 `automation/ai-model-catalog` 对应的 PR。没有模型差异时不会尝试创建 PR，因此此前无变更运行成功不代表此权限已经开启。GitHub Actions 的运行步骤使用支持 Node.js 24 的 action 版本，避免依赖已弃用的 Node.js 20。
+
 ## 手动同步与部署
 
 `scripts/sync-ai-models.py` 在 Linux/Unix 上使用 Python 3.8+ 标准库读取四家官方公开模型文档，无需 API Key。只识别已有协议支持的模型系列，区分文本与图像生成，过滤音频、向量、视频、专用受限模型。新型号排在前面，原有条目保留，避免目录变化使已有图像配置失效。明确下线的模型由维护者按官方公告在 JSON 中添加标记；同步会保留这些标记，即使官方列表再次出现该模型也不会自动清除。新系列或接口协议变化仍需调整规则，不能保证所有未来模型自动兼容。

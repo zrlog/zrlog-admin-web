@@ -25,12 +25,12 @@ jobs:
 
     steps:
       - name: Checkout default branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ github.event.repository.default_branch }}
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.12'
 
@@ -52,7 +52,8 @@ jobs:
           git diff --check
 
       - name: Create or update model catalog PR
-        uses: peter-evans/create-pull-request@v7
+        id: catalog-pr
+        uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           base: ${{ github.event.repository.default_branch }}
@@ -69,3 +70,18 @@ jobs:
             Validation: Python synchronization tests, successful synchronization of all four providers, and generated catalog validation.
 
             Merging this PR updates the bundled snapshot. Running installations receive the new catalog through their deployment process or an update to `conf/ai-models.json`.
+
+      - name: Explain model catalog PR failure
+        if: ${{ failure() && steps.catalog-pr.conclusion == 'failure' }}
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<'MARKDOWN'
+          ### Model catalog PR failed
+
+          Catalog synchronization and validation succeeded. Check the **Create or update model catalog PR** log for the exact error.
+
+          If the error is `GitHub Actions is not permitted to create or approve pull requests`, enable **Settings → Actions → General → Workflow permissions → Allow GitHub Actions to create and approve pull requests** in this repository. If the option is disabled by organization policy, an organization owner must allow it first.
+
+          The workflow's `pull-requests: write` permission does not enable this repository setting. Keep the default workflow token permissions at read-only; only this job needs write permissions. After enabling the setting, run **Sync AI model catalog** again.
+
+          See `docs/ai-model-catalog.md` for troubleshooting. A pushed `automation/ai-model-catalog` branch alone does not mean a PR was created successfully.
+          MARKDOWN
