@@ -18,7 +18,8 @@
       {"name": "enable", "parameterTypes": []},
       {"name": "index", "parameterTypes": []},
       {"name": "mode", "parameterTypes": []},
-      {"name": "releaseLocks", "parameterTypes": []}
+      {"name": "releaseLocks", "parameterTypes": []},
+      {"name": "ui", "parameterTypes": []}
     ]
   },
   {
