@@ -74,7 +74,7 @@ describe("default-theme Spin integration", () => {
             "default",
         ] as const) {
             act(() => root.render(<ThemePreview theme={theme} />));
-            expect(container.querySelector(".admin-material-spin") !== null).toBe(theme === "default");
+            expect(container.querySelector(".zrlog-material-spin") !== null).toBe(theme === "default");
             expect(container.querySelectorAll(".ant-spin-dot-item").length).toBe(theme === "default" ? 0 : 4);
         }
     });
@@ -87,9 +87,9 @@ describe("default-theme Spin integration", () => {
                 </ThemePreview>
             )
         );
-        expect(container.querySelector(".admin-material-spin")).toBeNull();
+        expect(container.querySelector(".zrlog-material-spin")).toBeNull();
         act(() => jest.advanceTimersByTime(300));
-        expect(container.querySelector(".admin-material-spin")).not.toBeNull();
+        expect(container.querySelector(".zrlog-material-spin")).not.toBeNull();
         expect(container.querySelector(".ant-spin")?.getAttribute("aria-busy")).toBe("true");
         act(() =>
             root.render(
@@ -98,7 +98,7 @@ describe("default-theme Spin integration", () => {
                 </ThemePreview>
             )
         );
-        expect(container.querySelector(".admin-material-spin")).toBeNull();
+        expect(container.querySelector(".zrlog-material-spin")).toBeNull();
         expect(container.querySelector(".ant-spin")?.getAttribute("aria-busy")).toBe("false");
         expect(container.textContent).toContain("Content");
     });
@@ -106,16 +106,16 @@ describe("default-theme Spin integration", () => {
     it("keeps explicit indicators and semantic indicator styles usable", () => {
         act(() => root.render(<ThemePreview theme="default" indicator={<span data-custom-indicator />} />));
         expect(container.querySelector("[data-custom-indicator]")).not.toBeNull();
-        expect(container.querySelector(".admin-material-spin")).toBeNull();
+        expect(container.querySelector(".zrlog-material-spin")).toBeNull();
         act(() => root.render(<ThemePreview theme="default" styles={{ indicator: { fontSize: 32 } }} />));
-        expect(container.querySelector<HTMLElement>(".admin-material-spin")?.style.fontSize).toBe("32px");
+        expect(container.querySelector<HTMLElement>(".zrlog-material-spin")?.style.fontSize).toBe("32px");
     });
 
     it("renders supplied progress instead of an indefinite animation", () => {
         for (const percent of [0, 42, 100]) {
             act(() => root.render(<ThemePreview theme="default" percent={percent} />));
             expect(container.querySelector("[role=progressbar]")?.getAttribute("aria-valuenow")).toBe(String(percent));
-            expect(container.querySelector(".admin-material-spin")?.getAttribute("data-indeterminate")).toBe("false");
+            expect(container.querySelector(".zrlog-material-spin")?.getAttribute("data-indeterminate")).toBe("false");
         }
     });
 });

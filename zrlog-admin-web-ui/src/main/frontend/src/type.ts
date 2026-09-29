@@ -1,3 +1,4 @@
+import type { ThemeAppearance, UiThemeOptions } from "@zrlog/ui";
 import type {
     AuthenticationResponseJSON,
     PublicKeyCredentialCreationOptionsJSON,
@@ -6,25 +7,17 @@ import type {
 } from "@simplewebauthn/browser";
 import type {BackgroundTaskStatus} from "./utils/background-task-store";
 
-export type AppCompactModeState = {
-    compactMode: boolean;
-};
+export type AppCompactModeState = Required<Pick<ThemeAppearance, "compactMode">>;
 
-export type AppColorPrimaryState = {
-    colorPrimary: string;
-};
+export type AppColorPrimaryState = Pick<ThemeAppearance, "colorPrimary">;
 
-export type AppDarkState = {
-    dark: boolean;
-};
+export type AppDarkState = Pick<ThemeAppearance, "dark">;
 
 export type AppLangState = {
     lang: "en_US" | "zh_CN";
 };
 
-export type AppThemeState = {
-    theme: string;
-};
+export type AppThemeState = Pick<UiThemeOptions, "theme">;
 
 export type AppState = AppCompactModeState &
     AppColorPrimaryState &

@@ -1,3 +1,4 @@
+import { DEFAULT_PRIMARY_COLOR } from "@zrlog/ui/themes";
 import AppBase, { useAxiosBaseInstance } from "base/AppBase";
 import { FunctionComponent, useEffect, useRef, useState } from "react";
 import { AdminTheme, getRes, isStaticPage, setBackendServerUrl, setRes } from "../utils/constants";
@@ -36,7 +37,7 @@ export const getColorByTheme = (theme: string) => {
     if (fixedPrimary) return fixedPrimary;
     const color: string | undefined = getRes().admin_color_primary;
     if (color === undefined || (color as string).length === 0) {
-        return "#1677ff";
+        return DEFAULT_PRIMARY_COLOR;
     }
     return color;
 };

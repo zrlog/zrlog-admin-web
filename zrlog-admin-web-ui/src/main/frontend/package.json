@@ -19,7 +19,9 @@
     "react-router-dom": "6.30.3",
     "rxjs": "7.8.1",
     "styled-components": "6.1.15",
-    "yaml": "2.8.0"
+    "yaml": "2.8.0",
+    "@zrlog/ui": "https://dl.zrlog.com/frontend-common/0.1.0/zrlog-ui-0.1.0.tgz",
+    "@zrlog/utils": "https://dl.zrlog.com/frontend-common/0.1.0/zrlog-utils-0.1.0.tgz"
   },
   "resolutions": {
     "@babel/plugin-transform-modules-systemjs": "7.29.4",

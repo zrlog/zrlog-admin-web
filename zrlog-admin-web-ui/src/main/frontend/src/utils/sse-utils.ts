@@ -1,3 +1,5 @@
+import { parseJsonSseEvent, readJsonSseStream } from "@zrlog/utils";
+import type { SseEvent as SharedSseEvent } from "@zrlog/utils";
 import {MessageInstance} from "antd/es/message/interface";
 import {formatLabelValue, getBackendServerUrl, getRes, isStaticPage} from "./constants";
 import {
@@ -17,10 +19,7 @@ export type StaticProgress = {
     siteTypes?: string[];
 };
 
-export type SseEvent<T = any> = {
-    event: string;
-    data: T;
-};
+export type SseEvent<T = any> = SharedSseEvent<T>;
 
 export type RefreshCacheSseOptions<T> = {
     body?: any;
@@ -123,24 +122,7 @@ const getStaticSiteActionText = (siteTypes: string[], stage: "generating" | "syn
     return stage === "generating" ? staticSiteRes.generatingHtml : staticSiteRes.syncing;
 };
 
-export const parseSseEvent = (chunk: string): SseEvent | null => {
-    const lines = chunk.split("\n");
-    const event = lines
-        .find((line) => line.startsWith("event:"))
-        ?.substring("event:".length)
-        .trim();
-    const data = lines
-        .filter((line) => line.startsWith("data:"))
-        .map((line) => line.substring("data:".length).trim())
-        .join("\n");
-    if (!event || !data) {
-        return null;
-    }
-    return {
-        event,
-        data: JSON.parse(data),
-    };
-};
+export const parseSseEvent = (chunk: string): SseEvent | null => parseJsonSseEvent(chunk);
 
 /** Shared POST transport for controller methods annotated with @RefreshCache. */
 export const postRefreshCacheSse = async <T>(uri: string, options: RefreshCacheSseOptions<T> = {}): Promise<T> => {
@@ -275,8 +257,7 @@ const consumeRefreshCacheSse = async <T>(
     onFatal?: (error: Error) => void,
     backgroundTaskId?: string
 ) => {
-    const reader = response.body?.getReader();
-    if (!reader) {
+    if (!response.body) {
         if (backgroundTaskId) {
             finishBackgroundTask(backgroundTaskId, "error", getRes().error.requestError);
         }
@@ -285,8 +266,6 @@ const consumeRefreshCacheSse = async <T>(
     const messageKey = options.messageKey || "refreshCache";
     const responseEvents =
         options.responseEvents && options.responseEvents.length > 0 ? options.responseEvents : ["response"];
-    const decoder = new TextDecoder();
-    let buffer = "";
     let latestResponseMessage = "";
     let hasError = false;
     let responseEventSeen = false;
@@ -295,151 +274,127 @@ const consumeRefreshCacheSse = async <T>(
     let responseTaskResult: BackgroundTaskResult | undefined;
     const showProgressMessage = !backgroundTaskId;
     const showSuccessMessage = !backgroundTaskId;
-    readLoop: for (;;) {
-        const { done, value } = await reader.read();
-        if (done) {
-            buffer += decoder.decode();
-        } else {
-            buffer += decoder.decode(value, { stream: true });
+    for await (const event of readJsonSseStream<any>(response.body)) {
+        options.onEvent?.(event);
+        if (event.event === options.requiredCompletionEvent) {
+            requiredCompletionEventSeen = true;
         }
-        const chunks = buffer.split("\n\n");
-        buffer = done ? "" : chunks.pop() || "";
-        for (const chunk of chunks) {
-            const event = parseSseEvent(chunk);
-            if (!event) {
-                continue;
+        if (responseEvents.includes(event.event)) {
+            responseEventSeen = true;
+            const data = event.data as T;
+            onResponseData?.(data);
+            options.onResponse?.(data);
+            latestResponseMessage = (event.data as any)?.message || latestResponseMessage;
+            responseHasError = (event.data as any)?.error > 0;
+            responseTaskResult = options.getBackgroundTaskResult?.(data) || buildBackgroundTaskResult(data);
+        }
+        if (event.event === "static-progress") {
+            if (backgroundTaskId) {
+                updateBackgroundTask(backgroundTaskId, {
+                    title: getStaticSiteActionText(event.data?.siteTypes || [], "syncing"),
+                    description: getStaticProgressDetailText(event.data),
+                });
             }
-            options.onEvent?.(event);
-            if (event.event === options.requiredCompletionEvent) {
-                requiredCompletionEventSeen = true;
-            }
-            if (responseEvents.includes(event.event)) {
-                responseEventSeen = true;
-                const data = event.data as T;
-                onResponseData?.(data);
-                options.onResponse?.(data);
-                latestResponseMessage = (event.data as any)?.message || latestResponseMessage;
-                responseHasError = (event.data as any)?.error > 0;
-                responseTaskResult = options.getBackgroundTaskResult?.(data) || buildBackgroundTaskResult(data);
-            }
-            if (event.event === "static-progress") {
-                if (backgroundTaskId) {
-                    updateBackgroundTask(backgroundTaskId, {
-                        title: getStaticSiteActionText(event.data?.siteTypes || [], "syncing"),
-                        description: getStaticProgressDetailText(event.data),
-                    });
-                }
-                if (showProgressMessage) {
-                    options.messageApi?.open({
-                        key: messageKey,
-                        type: "loading",
-                        content: getStaticProgressText(event.data),
-                        duration: 0,
-                    });
-                }
-            }
-            if (event.event === "static-sync-start" || event.event === "static-sync-progress") {
-                if (backgroundTaskId) {
-                    updateBackgroundTask(backgroundTaskId, {
-                        title: getStaticSiteActionText(
-                            event.data?.siteTypes || [],
-                            event.event === "static-sync-start" ? "generating" : "syncing"
-                        ),
-                        description: getStaticProgressDetailText(event.data),
-                    });
-                }
-                if (showProgressMessage) {
-                    options.messageApi?.open({
-                        key: messageKey,
-                        type: "loading",
-                        content: getStaticProgressText(event.data),
-                        duration: 0,
-                    });
-                }
-            }
-            if (event.event === "static-sync-complete") {
-                if (backgroundTaskId) {
-                    updateBackgroundTask(backgroundTaskId, {
-                        title: getRes().staticSite.syncComplete,
-                        description: getStaticProgressDetailText(event.data) || getRes().staticSite.syncComplete,
-                    });
-                }
-                if (showSuccessMessage) {
-                    options.messageApi?.open({
-                        key: messageKey,
-                        type: "success",
-                        content: getRes().staticSite.syncComplete,
-                    });
-                }
-            }
-            if (event.event === "refresh-complete") {
-                if (backgroundTaskId) {
-                    updateBackgroundTask(backgroundTaskId, {
-                        description: getRes().staticSite.syncComplete,
-                    });
-                }
-                if (showSuccessMessage) {
-                    options.messageApi?.success({
-                        key: messageKey,
-                        content: getRes().staticSite.syncComplete,
-                    });
-                }
-            }
-            if (event.event === "publish-start") {
-                if (backgroundTaskId) {
-                    updateBackgroundTask(backgroundTaskId, {
-                        description: event.data?.message || getRes().staticSite.publishStart,
-                    });
-                }
-            }
-            if (event.event === "publish-check-start") {
-                if (backgroundTaskId) {
-                    updateBackgroundTask(backgroundTaskId, {
-                        description: getRes().articleEdit.publishCheck.running,
-                    });
-                }
-            }
-            if (event.event === "publish-check-complete") {
-                if (backgroundTaskId) {
-                    updateBackgroundTask(backgroundTaskId, {
-                        description: getRes().articleEdit.publishCheck.finished,
-                    });
-                }
-            }
-            if (event.event === "publish-complete") {
-                if (backgroundTaskId) {
-                    updateBackgroundTask(backgroundTaskId, {
-                        description: event.data?.message || getRes().staticSite.publishComplete,
-                    });
-                }
-            }
-            if (event.event === "static-error" || event.event === "sse-error" || event.event === "publish-error") {
-                hasError = true;
-                if (options.showErrorMessage !== false) {
-                    options.messageApi?.error({
-                        key: messageKey,
-                        content: event.data?.message || getRes().staticSite.syncFailed,
-                    });
-                }
-                if (backgroundTaskId) {
-                    finishBackgroundTask(backgroundTaskId, "error", event.data?.message || getRes().staticSite.syncFailed);
-                }
-                const error = new Error(event.data?.message || getRes().staticSite.syncFailed);
-                onFatal?.(error);
-                throw error;
-            }
-            if (event.event === options.requiredCompletionEvent) {
-                try {
-                    await reader.cancel?.();
-                } catch {
-                    // The required terminal event already confirmed completion.
-                }
-                break readLoop;
+            if (showProgressMessage) {
+                options.messageApi?.open({
+                    key: messageKey,
+                    type: "loading",
+                    content: getStaticProgressText(event.data),
+                    duration: 0,
+                });
             }
         }
-        if (done) {
-            break;
+        if (event.event === "static-sync-start" || event.event === "static-sync-progress") {
+            if (backgroundTaskId) {
+                updateBackgroundTask(backgroundTaskId, {
+                    title: getStaticSiteActionText(
+                        event.data?.siteTypes || [],
+                        event.event === "static-sync-start" ? "generating" : "syncing"
+                    ),
+                    description: getStaticProgressDetailText(event.data),
+                });
+            }
+            if (showProgressMessage) {
+                options.messageApi?.open({
+                    key: messageKey,
+                    type: "loading",
+                    content: getStaticProgressText(event.data),
+                    duration: 0,
+                });
+            }
         }
+        if (event.event === "static-sync-complete") {
+            if (backgroundTaskId) {
+                updateBackgroundTask(backgroundTaskId, {
+                    title: getRes().staticSite.syncComplete,
+                    description: getStaticProgressDetailText(event.data) || getRes().staticSite.syncComplete,
+                });
+            }
+            if (showSuccessMessage) {
+                options.messageApi?.open({
+                    key: messageKey,
+                    type: "success",
+                    content: getRes().staticSite.syncComplete,
+                });
+            }
+        }
+        if (event.event === "refresh-complete") {
+            if (backgroundTaskId) {
+                updateBackgroundTask(backgroundTaskId, {
+                    description: getRes().staticSite.syncComplete,
+                });
+            }
+            if (showSuccessMessage) {
+                options.messageApi?.success({
+                    key: messageKey,
+                    content: getRes().staticSite.syncComplete,
+                });
+            }
+        }
+        if (event.event === "publish-start") {
+            if (backgroundTaskId) {
+                updateBackgroundTask(backgroundTaskId, {
+                    description: event.data?.message || getRes().staticSite.publishStart,
+                });
+            }
+        }
+        if (event.event === "publish-check-start") {
+            if (backgroundTaskId) {
+                updateBackgroundTask(backgroundTaskId, {
+                    description: getRes().articleEdit.publishCheck.running,
+                });
+            }
+        }
+        if (event.event === "publish-check-complete") {
+            if (backgroundTaskId) {
+                updateBackgroundTask(backgroundTaskId, {
+                    description: getRes().articleEdit.publishCheck.finished,
+                });
+            }
+        }
+        if (event.event === "publish-complete") {
+            if (backgroundTaskId) {
+                updateBackgroundTask(backgroundTaskId, {
+                    description: event.data?.message || getRes().staticSite.publishComplete,
+                });
+            }
+        }
+        if (event.event === "static-error" || event.event === "sse-error" || event.event === "publish-error") {
+            hasError = true;
+            if (options.showErrorMessage !== false) {
+                options.messageApi?.error({
+                    key: messageKey,
+                    content: event.data?.message || getRes().staticSite.syncFailed,
+                });
+            }
+            if (backgroundTaskId) {
+                finishBackgroundTask(backgroundTaskId, "error", event.data?.message || getRes().staticSite.syncFailed);
+            }
+            const error = new Error(event.data?.message || getRes().staticSite.syncFailed);
+            onFatal?.(error);
+            throw error;
+        }
+        if (event.event === options.requiredCompletionEvent) break;
     }
     if (!requiredCompletionEventSeen) {
         throw new Error(responseEventSeen ? getRes().staticSite.syncFailed : getRes().error.requestError);

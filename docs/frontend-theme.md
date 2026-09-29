@@ -14,12 +14,13 @@
 
 隔离与验收规则统一见 [Ops 后台默认主题隔离规则](../../zrlog-ops/docs/material3-agent-guide.md#后台默认主题的隔离规则)。本地前端路径以 `zrlog-admin-web-ui/src/main/frontend/src/` 为根：
 
-- `utils/theme-utils.tsx` 的 `useThemeConfig` 负责分派，当前 `desk`、`antd` 等为显式分支，默认分支返回 `base/theme/muiTheme.ts` 的结果。
-- `utils/admin-themes.ts` 是主题标识、展示顺序、明暗与自定义主色能力的唯一数据来源；个人外观、站点后台设置、审查页和初始化读取它。显示名称仍由 i18n 管理，不在各页面手写主题数组或能力白名单。
-- `themeAlgorithms` 组合 light / dark / compact 算法；`base/ConfigProviderApp.tsx` 承载当前 AppState。
-- 共用组件使用 `useTheme` 或由 shell 显式传入主题值，具体写法见下文。产品隔离要求引用 ops，不在本地另写一份。
-- 默认主题的 `Spin` 由 `muiTheme.ts` 的 `spin.indicator` 注入 `MaterialSpinIndicator.tsx`，尺寸使用 `Spin` token，圆弧动画在 `DefaultGlobalStyle.tsx`；不使用全局 `Spin.setDefaultIndicator`。顶部加载条和按钮 loading 图标各自沿用现有实现。
-- 默认主题控件配置在 `material-component-config.ts`，通过 Ant Design 公开语义槽注入样式类；`MaterialControlsStyle.tsx` 仅由 `DefaultGlobalStyle` 挂载。字段保留独立 label 与布局，Input / InputNumber / Select 只补交互状态，不引入浮动标签。
+- 全部九套主题、公共外观类型与能力、控件样式由 [zrlog-frontend-common](../../zrlog-frontend-common/README.md) 的 `@zrlog/ui` 维护，通过固定 CDN tarball URL 与 yarn.lock 消费；更改公共主题需在公共仓库发版，再显式升级消费者。
+- `utils/theme-utils.tsx` 的 `useThemeConfig` 只把 AppState 传给 `useUiTheme`；共享包完成主题分派和 light / dark / compact 算法组合。
+- `utils/admin-themes.ts` 是 `@zrlog/ui/themes` 的兼容转出，主题标识、展示顺序、明暗与主色能力只有公共包 `src/themes.ts` 一个来源。个人外观、站点后台设置、审查页和初始化复用它；显示名称仍由后台 i18n 管理。
+- `base/ConfigProviderApp.tsx` 承载当前 AppState；`ThemeGlobalStyle.tsx` 挂载公共 `ThemeStyles`，并保留本地 `DefaultGlobalStyle` / `DeskGlobalStyle` 的导航、布局、文章列表和编辑器宿主样式。
+- 默认主题的 `Spin` 由公共包 `material-theme.ts` 的 `spin.indicator` 注入，动画由 `MaterialStyles` 挂载，不使用全局 `Spin.setDefaultIndicator`。顶部加载条和按钮 loading 图标保持各自实现。
+- 默认主题控件通过公共包 `material-component-config.ts` 的公开语义槽和 `MaterialControlsStyle` 适配。字段保持独立 label，Input / InputNumber / Select 只适配交互状态。
+- `icons/ZrLogOutlined.tsx` 适配公共 `ZrLogMark`。公共包不管理后台语言、偏好、路由或编辑器；`utils/sse-utils.ts` 只把事件解码委托给 `@zrlog/utils`，保留请求、任务进度及业务完成策略。
 - 全局 `ConfigProviderApp` 为普通密度显式传 `componentSize="medium"`，紧凑密度传 `small`。不要改回普通密度 `undefined`，否则 Ant Design 会插入/移除 SizeContext，重建整个页面并触发未保存预览的回滚。
 - `AdminDashboardRouter` 为同一会话、同一路由且内容未变的数据保留引用，避免外观重绘时缓存反序列化产生新对象，触发表单重新填值。路由、会话或实际数据变化仍更新快照。
 - `applyUserPreferences` 是有效外观与语言的统一应用入口，负责资源、React 状态、文档语言和偏好请求版本。`useAppearancePreview` 供站点后台设置和审查页临时预览、按会话恢复；个人设置保留自己的保存与请求生命周期。站点表单始终保存站点字段，不把个人偏好混入提交。

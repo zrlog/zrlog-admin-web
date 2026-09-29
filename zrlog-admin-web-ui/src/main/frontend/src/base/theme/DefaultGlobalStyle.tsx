@@ -1,6 +1,5 @@
 import { theme as antdTheme } from "antd";
 import { FunctionComponent } from "react";
-import MaterialControlsStyle from "./MaterialControlsStyle";
 
 // Mounted only by the default theme. Shell overrides use a dedicated scope so
 // switching to Desk / Ant Design also removes all Material presentation.
@@ -8,31 +7,8 @@ const DefaultGlobalStyle: FunctionComponent = () => {
     const { token: t } = antdTheme.useToken();
     return (
         <>
-            <MaterialControlsStyle />
             <style data-admin-material-style>
                 {`
-            .ant-modal-close, .ant-drawer-close { border-radius: 50%; }
-
-            .admin-material-spin > svg {
-                display: block;
-                width: 100%;
-                height: 100%;
-            }
-            .admin-material-spin[data-indeterminate="true"] > svg {
-                animation: admin-material-spin-rotate 1.4s linear infinite;
-            }
-            .admin-material-spin[data-indeterminate="true"] circle {
-                animation: admin-material-spin-sweep 1.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-            }
-            @keyframes admin-material-spin-rotate {
-                to { transform: rotate(360deg); }
-            }
-            @keyframes admin-material-spin-sweep {
-                0% { stroke-dasharray: 5 100; stroke-dashoffset: 0; }
-                50% { stroke-dasharray: 70 100; stroke-dashoffset: -15; }
-                100% { stroke-dasharray: 5 100; stroke-dashoffset: -100; }
-            }
-
             .admin-material-shell.admin-material-shell {
                 background: ${t.colorBgLayout};
             }
@@ -168,10 +144,6 @@ const DefaultGlobalStyle: FunctionComponent = () => {
                 }
             }
             @media (prefers-reduced-motion: reduce) {
-                .admin-material-spin > svg,
-                .admin-material-spin circle {
-                    animation: none !important;
-                }
                 .admin-material-shell.admin-material-shell .sidebar-rail .anticon,
                 .admin-material-shell.admin-material-shell .dashboard-action-tile,
                 .admin-material-shell.admin-material-shell .admin-dashboard-item {
