@@ -14,7 +14,7 @@
 
 隔离与验收规则统一见 [Ops 后台默认主题隔离规则](../../zrlog-ops/docs/material3-agent-guide.md#后台默认主题的隔离规则)。本地前端路径以 `zrlog-admin-web-ui/src/main/frontend/src/` 为根：
 
-- 全部九套主题、公共外观类型与能力、控件样式由 [zrlog-frontend-common](../../zrlog-frontend-common/README.md) 的 `@zrlog/ui` 维护，通过固定 CDN tarball URL 与 yarn.lock 消费；更改公共主题需在公共仓库发版，再显式升级消费者。
+- 全部九套主题、公共外观类型与能力、控件样式由 [zrlog-frontend-common](../../zrlog-frontend-common/README.md) 的 `@zrlog/ui` 维护，通过 npmjs 的固定版本依赖与 yarn.lock 消费；更改公共主题需在公共仓库发版，再显式升级消费者。
 - `utils/theme-utils.tsx` 的 `useThemeConfig` 只把 AppState 传给 `useUiTheme`；共享包完成主题分派和 light / dark / compact 算法组合。
 - `utils/admin-themes.ts` 是 `@zrlog/ui/themes` 的兼容转出，主题标识、展示顺序、明暗与主色能力只有公共包 `src/themes.ts` 一个来源。个人外观、站点后台设置、审查页和初始化复用它；显示名称仍由后台 i18n 管理。
 - `base/ConfigProviderApp.tsx` 承载当前 AppState；`ThemeGlobalStyle.tsx` 挂载公共 `ThemeStyles`，并保留本地 `DefaultGlobalStyle` / `DeskGlobalStyle` 的导航、布局、文章列表和编辑器宿主样式。
