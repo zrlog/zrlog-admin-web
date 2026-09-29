@@ -1,5 +1,5 @@
-import Editor from "@editor/dist/editor";
-import { EditorMode } from "@editor/dist/editor/editor.types";
+import Editor from "@zrlog/editor/dist/editor";
+import { EditorMode } from "@zrlog/editor/dist/editor/editor.types";
 import { useAxiosBaseInstance } from "../../base/AppBase";
 import { getRes } from "../../utils/constants";
 import { getAppState } from "../../base/ConfigProviderApp";

@@ -2,7 +2,7 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { Simulate } from "react-dom/test-utils";
 import { describe, expect, it, jest } from "@jest/globals";
-import ConfigProviderApp, { getAppState } from "./ConfigProviderApp";
+import ConfigProviderApp, { changeAppState, getAppState } from "./ConfigProviderApp";
 import { applyUserPreferences } from "../utils/user-preferences";
 import { getRes } from "../utils/constants";
 
@@ -97,6 +97,16 @@ describe("global appearance updates", () => {
             expect(input.dataset.lang).toBe("en_US");
             expect(document.documentElement.lang).toBe("en");
             expect(getRes().lang).toBe(getAppState().lang);
+            for (const theme of [undefined, null, "", "unknown-theme"]) {
+                await act(async () => changeAppState({ theme: "desk" }));
+                expect(container.querySelector("[data-zrlog-desk-style]")).not.toBeNull();
+                await act(async () => changeAppState({ theme } as any));
+                expect(getAppState().theme).toBe("default");
+                expect(container.querySelector("[data-zrlog-material-controls]")).not.toBeNull();
+                expect(container.querySelector("[data-zrlog-desk-style]")).toBeNull();
+                expect(container.querySelector("input")).toBe(input);
+                expect(input.value).toBe("unsaved draft");
+            }
             expect(mockMounts).toBe(1);
         } finally {
             act(() => root.unmount());

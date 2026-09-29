@@ -1,15 +1,15 @@
 import { act } from "react";
 import { createRoot, Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { markdownToHtmlSyncWithCallback } from "@editor/dist/editor/utils/marked-utils";
+import { markdownToHtmlSyncWithCallback } from "@zrlog/editor/dist/editor/utils/marked-utils";
 import { UpgradeData } from "../type";
 import UpgradeContent from "./upgrade-content";
 
-jest.mock("@editor/dist/editor/utils/marked-utils", () => ({
+jest.mock("@zrlog/editor/dist/editor/utils/marked-utils", () => ({
     markdownToHtmlSyncWithCallback: require("@jest/globals").jest.fn(),
 }));
 
-jest.mock("@editor/dist/editor/html-preview-panel", () => ({
+jest.mock("@zrlog/editor/dist/editor/html-preview-panel", () => ({
     __esModule: true,
     default: () => null,
 }));

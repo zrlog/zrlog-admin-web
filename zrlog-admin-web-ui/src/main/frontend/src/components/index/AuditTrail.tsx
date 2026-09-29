@@ -1,6 +1,6 @@
 import { Card, Drawer, Tag, Timeline, Typography } from "antd";
 import { EditOutlined, HistoryOutlined, LoginOutlined, SettingOutlined } from "@ant-design/icons";
-import TimeAgo from "@editor/dist/editor/TimeAgo";
+import TimeAgo from "@zrlog/editor/dist/editor/TimeAgo";
 import React, { useState } from "react";
 import { getRes } from "../../utils/constants";
 import { useTheme } from "antd-style";

@@ -84,11 +84,7 @@ export const getLangByRes = (): "en_US" | "zh_CN" => {
 };
 
 export const getThemeByRes = (): AdminTheme => {
-    const theme = getRes().admin_theme;
-    if (theme !== undefined) {
-        return theme;
-    }
-    return "default";
+    return getAdminThemeDefinition(getRes().admin_theme ?? "").id;
 };
 
 export const getLangByAppState = (): "en_US" | "zh_CN" => {

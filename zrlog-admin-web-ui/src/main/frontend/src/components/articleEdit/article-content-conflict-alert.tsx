@@ -1,6 +1,6 @@
 import { FunctionComponent } from "react";
 import { Alert, Button, Space, Tag } from "antd";
-import TimeAgo from "@editor/dist/editor/TimeAgo";
+import TimeAgo from "@zrlog/editor/dist/editor/TimeAgo";
 import { getLabelValueSeparator, getRes } from "../../utils/constants";
 import { ArticleEditState, ArticleEntry } from "./index.types";
 

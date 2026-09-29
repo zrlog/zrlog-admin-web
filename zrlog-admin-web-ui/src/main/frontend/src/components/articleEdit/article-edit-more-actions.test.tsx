@@ -51,7 +51,7 @@ jest.mock("screenfull", () => ({
     },
 }));
 
-jest.mock("@editor/dist/ai/AIDrawer", () => ({ getAiDrawerOpen: () => false }));
+jest.mock("@zrlog/editor/dist/ai/AIDrawer", () => ({ getAiDrawerOpen: () => false }));
 jest.mock("../../base/ConfigProviderApp", () => ({ getAppState: () => ({ compactMode: false }) }));
 jest.mock("../../utils/cache", () => ({
     addToCache: require("@jest/globals").jest.fn(),

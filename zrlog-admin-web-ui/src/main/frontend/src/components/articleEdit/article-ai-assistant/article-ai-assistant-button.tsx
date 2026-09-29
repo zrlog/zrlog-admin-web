@@ -3,11 +3,15 @@ import { isChatMessage, renderChatMessage, useArticleChat } from "./use-article-
 import ArticleAiReasoning from "./article-ai-reasoning";
 import { EyeOutlined, RobotOutlined } from "@ant-design/icons";
 import { FunctionComponent, useEffect, useMemo, useRef, useState } from "react";
-import { AIContent } from "@editor/dist/ai/AIContentItem";
-import AIButton, { AIButtonRenderMessageOptions, AIStateCache, getAIButtonDrawerOpen } from "@editor/dist/ai/AIButton";
-import AIIcon from "@editor/dist/ai/AIIcon";
+import { AIContent } from "@zrlog/editor/dist/ai/AIContentItem";
+import AIButton, {
+    AIButtonRenderMessageOptions,
+    AIStateCache,
+    getAIButtonDrawerOpen,
+} from "@zrlog/editor/dist/ai/AIButton";
+import AIIcon from "@zrlog/editor/dist/ai/AIIcon";
 import useArticleEditorScreens from "../use-article-editor-screens";
-import { resolveDrawerWidth } from "@editor/dist/ai/AIDrawer";
+import { resolveDrawerWidth } from "@zrlog/editor/dist/ai/AIDrawer";
 import { AxiosInstance } from "axios";
 import {
     formatLabelValue,
@@ -42,7 +46,7 @@ import ArticleAiAssistantToolContent from "./tool/article-ai-assistant-tool-cont
 import ArticleAiAssistantSkillContent from "./article-ai-assistant-skill-content";
 import { getShortcutTitle, isTouchLikeDevice } from "../shortcut-utils";
 import { ApiResponse } from "../../../type";
-import { markdownToHtmlSyncWithCallback } from "@editor/dist/editor/utils/marked-utils";
+import { markdownToHtmlSyncWithCallback } from "@zrlog/editor/dist/editor/utils/marked-utils";
 import ArticlePreviewSnapshot from "../../article/article-preview-snapshot";
 import { collectMarkdownReferenceSummary } from "../markdown-reference-utils";
 import { DraftAiSaveGate } from "../draft-ai-save-gate";

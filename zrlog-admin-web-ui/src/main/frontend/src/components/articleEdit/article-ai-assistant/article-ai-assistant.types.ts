@@ -1,4 +1,4 @@
-import {AIContent} from "@editor/dist/ai/AIContentItem";
+import {AIContent} from "@zrlog/editor/dist/ai/AIContentItem";
 import {ReactNode} from "react";
 
 export type AssistantTool =

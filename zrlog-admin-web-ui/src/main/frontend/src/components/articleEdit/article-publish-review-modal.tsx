@@ -9,7 +9,7 @@ import {
 import { Alert, Button, Grid, Modal, Segmented, Space, Tooltip, Typography } from "antd";
 import { useTheme } from "antd-style";
 import { FunctionComponent, useEffect, useMemo, useRef, useState } from "react";
-import { markdownToHtmlSyncWithCallback } from "@editor/dist/editor/utils/marked-utils";
+import { markdownToHtmlSyncWithCallback } from "@zrlog/editor/dist/editor/utils/marked-utils";
 import { getAppState } from "../../base/ConfigProviderApp";
 import { getRes } from "../../utils/constants";
 import ArticlePreviewSnapshot from "../article/article-preview-snapshot";

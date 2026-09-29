@@ -1,6 +1,6 @@
 import { formatDateTime } from "../../utils/date-time";
 import { FilePdfOutlined } from "@ant-design/icons";
-import { markdownToHtmlSyncWithCallback } from "@editor/dist/editor/utils/marked-utils";
+import { markdownToHtmlSyncWithCallback } from "@zrlog/editor/dist/editor/utils/marked-utils";
 import { App, Button, Tooltip } from "antd";
 import type { ButtonProps } from "antd";
 import { getAppState } from "../../base/ConfigProviderApp";

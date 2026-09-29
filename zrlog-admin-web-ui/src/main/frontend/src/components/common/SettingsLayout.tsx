@@ -1,7 +1,6 @@
 import { ReactNode } from "react";
 import { Card, Grid, Menu, Select, theme } from "antd";
 import { Link, useNavigate } from "react-router-dom";
-import { getAppState } from "../../base/ConfigProviderApp";
 import { getRealRouteUrl } from "../../utils/constants";
 import SidebarNavItem from "./SidebarNavItem";
 
@@ -33,9 +32,7 @@ const SettingsLayout = ({
     const { token } = theme.useToken();
     const compact = screens.md !== true;
     const border = `${token.lineWidth}px ${token.lineType} ${token.colorBorderSecondary}`;
-    const headerHeight = getAppState().compactMode ? 54 : 64;
-    // Match the editor: admin header plus 12px content padding on each side vertically.
-    const height = compact ? undefined : `calc(100vh - ${headerHeight + 24}px)`;
+    const height = compact ? undefined : "var(--admin-content-height)";
     const options = groups.map((group) => ({
         label: group.label,
         options: group.items.map((item) => ({
@@ -45,7 +42,14 @@ const SettingsLayout = ({
     }));
     return (
         <Card
-            style={{ height, maxHeight: height, minHeight: 0, width: "100%", overflow: "hidden" }}
+            style={{
+                height,
+                maxHeight: height,
+                minHeight: 0,
+                width: "100%",
+                overflow: "hidden",
+                boxSizing: "border-box",
+            }}
             styles={{
                 body: {
                     display: "flex",

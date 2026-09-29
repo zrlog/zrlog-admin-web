@@ -1,7 +1,7 @@
 import { act, SetStateAction, useSyncExternalStore } from "react";
 import { createRoot, Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { AIContent } from "@editor/dist/ai/AIContentItem";
+import { AIContent } from "@zrlog/editor/dist/ai/AIContentItem";
 import { articleDataToState, articleSaveToCache } from "../../utils/article-cache";
 import { getCacheByKey, removeCacheDataByKey } from "../../utils/cache";
 import { disableExitTips } from "../../utils/helpers";
@@ -115,7 +115,7 @@ jest.mock("./use-transparent-publish", () => ({
         return mockPostPublish;
     },
 }));
-jest.mock("@editor/dist/editor/utils/marked-utils", () => ({
+jest.mock("@zrlog/editor/dist/editor/utils/marked-utils", () => ({
     markdownToHtml: require("@jest/globals").jest.fn(async () => "<p>Body</p>"),
 }));
 

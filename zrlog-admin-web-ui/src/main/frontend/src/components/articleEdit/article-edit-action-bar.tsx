@@ -5,10 +5,10 @@ import { SaveOutlined, SendOutlined } from "@ant-design/icons";
 import { getRes } from "../../utils/constants";
 import { ArticleChangeableValue, ArticleEditState, ArticleEntry } from "./index.types";
 import { FunctionComponent, useEffect, useRef } from "react";
-import { AIContent } from "@editor/dist/ai/AIContentItem";
-import { AIStateCache } from "@editor/dist/ai/AIStateCache";
+import { AIContent } from "@zrlog/editor/dist/ai/AIContentItem";
+import { AIStateCache } from "@zrlog/editor/dist/ai/AIStateCache";
 import { useAxiosBaseInstance } from "../../base/AppBase";
-import { getAiDrawerOpen } from "@editor/dist/ai/AIDrawer";
+import { getAiDrawerOpen } from "@zrlog/editor/dist/ai/AIDrawer";
 import { getShortcutTitle, isMacLikeDevice, isTouchLikeDevice } from "./shortcut-utils";
 import ArticleAiAssistantButton, {
     getArticleAiAssistantDrawerOpen,

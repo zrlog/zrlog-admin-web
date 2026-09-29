@@ -53,10 +53,10 @@ import { useTheme } from "antd-style";
 import { useAxiosBaseInstance } from "../../base/AppBase";
 import { addToCache, getCacheByKey } from "../../utils/cache";
 import { getLabelValueSeparator, getRealRouteUrl, getRes, tryAppendBackendServerUrl } from "../../utils/constants";
-import TimeAgo from "@editor/dist/editor/TimeAgo";
+import TimeAgo from "@zrlog/editor/dist/editor/TimeAgo";
 import FileManagerView from "./view";
 import { FileEntry, formatSize, getFileIcon, hasAction, hasDirectoryAction, isExternalPath, isImage } from "./shared";
-import BaseDragger from "@editor/dist/editor/common/BaseDragger";
+import BaseDragger from "@zrlog/editor/dist/editor/common/BaseDragger";
 import SidebarNavItem from "../common/SidebarNavItem";
 import BackendImage, { resolveBackendImageSrc } from "../../common/BackendImage";
 import { postRefreshCacheSse } from "../../utils/sse-utils";
@@ -1629,7 +1629,7 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                         </Space>
                     </Modal>
                     <BackendImage
-                        style={{ display: "none" }}
+                        styles={{ root: { display: "none" } }}
                         preview={{
                             visible: !!previewSrc,
                             src: resolveBackendImageSrc(previewSrc ?? undefined),

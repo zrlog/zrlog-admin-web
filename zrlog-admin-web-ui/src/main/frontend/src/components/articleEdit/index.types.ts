@@ -1,5 +1,5 @@
 import {AdminCommonProps, AIProviderType} from "../../type";
-import {AIContent} from "@editor/dist/ai/AIContentItem";
+import {AIContent} from "@zrlog/editor/dist/ai/AIContentItem";
 import {AssistantToolPayload} from "./article-ai-assistant/article-ai-assistant.types";
 
 export type ArticleEntry = ChangedContent &

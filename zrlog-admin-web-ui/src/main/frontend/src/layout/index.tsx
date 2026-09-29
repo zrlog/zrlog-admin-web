@@ -4,7 +4,7 @@ import { HomeOutlined } from "@ant-design/icons";
 import { Alert, Col, FloatButton, Layout, Row, Tag, Typography } from "antd";
 
 import { getRes } from "../utils/constants";
-import { FunctionComponent, PropsWithChildren, useCallback, useEffect, useRef, useState } from "react";
+import { CSSProperties, FunctionComponent, PropsWithChildren, useCallback, useEffect, useRef, useState } from "react";
 import UserInfo from "./user-info";
 import SliderMenu from "./slider";
 import { ApiResponse, BasicUserInfo, MessageCenterNotice } from "../type";
@@ -134,7 +134,7 @@ const AdminManageLayout: FunctionComponent<AdminManageLayoutProps> = ({
     }
 
     const getMainHeight = () => {
-        return `calc(100vh - ${getHeaderHeight()}px)`;
+        return fullScreen ? "100dvh" : `calc(100dvh - ${getHeaderHeight()}px)`;
     };
 
     const getHeaderHeight = () => {
@@ -431,6 +431,7 @@ const AdminManageLayout: FunctionComponent<AdminManageLayoutProps> = ({
                     <Col
                         style={{
                             flex: 1,
+                            minWidth: 0,
                             width: fullScreen || mobileMode ? "100%" : `calc(100% - ${getSiderWidth()}px)`,
                             minHeight: fullScreen ? 0 : 1,
                             marginLeft: fullScreen ? 0 : mobileMode ? 0 : getSiderWidth(),
@@ -439,10 +440,15 @@ const AdminManageLayout: FunctionComponent<AdminManageLayoutProps> = ({
                     >
                         <Layout style={{ minHeight: getMainHeight(), overflow: fullScreen ? "hidden" : "auto" }}>
                             <Content
-                                style={{
-                                    position: "relative",
-                                    padding: contentPadding(),
-                                }}
+                                style={
+                                    {
+                                        position: "relative",
+                                        padding: contentPadding(),
+                                        "--admin-content-height": `calc(100dvh - ${
+                                            (fullScreen ? 0 : getHeaderHeight()) + 2 * contentPadding()
+                                        }px)`,
+                                    } as CSSProperties
+                                }
                             >
                                 {loading && <MyLoadingComponent mode="delayed" />}
                                 {children}

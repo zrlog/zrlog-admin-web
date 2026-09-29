@@ -44,7 +44,7 @@ jest.mock("antd-style", () => ({
     }),
 }));
 
-jest.mock("@editor/dist/editor/TimeAgo", () => ({
+jest.mock("@zrlog/editor/dist/editor/TimeAgo", () => ({
     __esModule: true,
     default: () => null,
 }));

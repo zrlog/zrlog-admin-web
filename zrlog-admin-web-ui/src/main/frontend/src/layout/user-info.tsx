@@ -5,7 +5,6 @@ import { Link } from "react-router-dom";
 
 import Dropdown from "antd/es/dropdown";
 import { AdminResourceInfo, getBackendServerUrl, getRealRouteUrl, getRes, isStaticPage } from "../utils/constants";
-import Divider from "antd/es/divider";
 import { BasicUserInfo } from "../type";
 import { tryBlock } from "../utils/helpers";
 import { resolveBackendImageSrc } from "../common/BackendImage";
@@ -18,34 +17,32 @@ const UserInfo = ({ data, offline }: { data: BasicUserInfo; offline: boolean }) 
     const theme = useTheme();
 
     const adminSettings = (res: AdminResourceInfo): MenuProps["items"] => {
-        const base = [
+        const base: NonNullable<MenuProps["items"]> = [
             {
                 key: "1",
+                icon: <UserOutlined />,
                 label: (
                     <Link
                         style={{ whiteSpace: "nowrap" }}
                         to={getRealRouteUrl(USER_ROUTES.profile)}
                         onClick={(e) => tryBlock(e, modal)}
                     >
-                        <UserOutlined />
-                        <Text style={{ paddingLeft: "5px", paddingRight: 16 }}>{res.user.title}</Text>
+                        {res.user.title}
                     </Link>
                 ),
             },
             {
                 key: "2",
+                icon: <KeyOutlined />,
                 label: (
                     <Link to={getRealRouteUrl(USER_ROUTES.security)} onClick={(e) => tryBlock(e, modal)}>
-                        <KeyOutlined />
-                        <Text style={{ paddingLeft: "5px", paddingRight: 16 }}>{res.accountSecurity.title}</Text>
+                        {res.accountSecurity.title}
                     </Link>
                 ),
             },
             {
                 key: "-",
-                label: (
-                    <Divider style={{ marginTop: "5px", marginBottom: "5px", userSelect: "none", cursor: "none" }} />
-                ),
+                type: "divider",
             },
         ];
         if (!offline) {
@@ -53,13 +50,13 @@ const UserInfo = ({ data, offline }: { data: BasicUserInfo; offline: boolean }) 
                 ...base,
                 {
                     key: "3",
+                    icon: <LogoutOutlined />,
                     label: (
                         <a
                             href={getBackendServerUrl() + "admin/logout" + (isStaticPage() ? "?sp=true" : "")}
                             onClick={(e) => tryBlock(e, modal)}
                         >
-                            <LogoutOutlined />
-                            <Text style={{ paddingLeft: "5px", paddingRight: 16 }}>{res.user.logout}</Text>
+                            {res.user.logout}
                         </a>
                     ),
                 },
@@ -73,7 +70,7 @@ const UserInfo = ({ data, offline }: { data: BasicUserInfo; offline: boolean }) 
     return (
         <>
             {contextHolder}
-            <Dropdown menu={{ items }} placement="bottom">
+            <Dropdown menu={{ items }} placement="bottomRight" styles={{ root: { width: "max-content", minWidth: 0 } }}>
                 <div
                     style={{
                         color: theme.colorText,

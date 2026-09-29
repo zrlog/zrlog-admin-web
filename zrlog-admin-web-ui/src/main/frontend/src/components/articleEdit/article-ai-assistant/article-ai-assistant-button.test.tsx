@@ -1,7 +1,7 @@
 import { act, ReactElement } from "react";
 import { createRoot, Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { AIContent } from "@editor/dist/ai/AIContentItem";
+import { AIContent } from "@zrlog/editor/dist/ai/AIContentItem";
 import { AIProviderType } from "../../../type";
 import { ArticleEditState } from "../index.types";
 import { createDraftAiSaveGate, DraftAiSaveGate } from "../draft-ai-save-gate";
@@ -52,14 +52,14 @@ jest.mock("antd-style", () => ({
         lineWidth: 1,
     }),
 }));
-jest.mock("@editor/dist/ai/AIButton", () => ({
+jest.mock("@zrlog/editor/dist/ai/AIButton", () => ({
     __esModule: true,
     default: () => null,
     getAIButtonDrawerOpen: () => false,
 }));
-jest.mock("@editor/dist/ai/AIIcon", () => ({ __esModule: true, default: () => null }));
-jest.mock("@editor/dist/ai/AIDrawer", () => ({ resolveDrawerWidth: (width: unknown) => width }));
-jest.mock("@editor/dist/editor/utils/marked-utils", () => ({
+jest.mock("@zrlog/editor/dist/ai/AIIcon", () => ({ __esModule: true, default: () => null }));
+jest.mock("@zrlog/editor/dist/ai/AIDrawer", () => ({ resolveDrawerWidth: (width: unknown) => width }));
+jest.mock("@zrlog/editor/dist/editor/utils/marked-utils", () => ({
     markdownToHtmlSyncWithCallback: (markdown: string) => markdown,
 }));
 jest.mock("../../../base/ConfigProviderApp", () => ({ getAppState: () => ({ dark: false }) }));

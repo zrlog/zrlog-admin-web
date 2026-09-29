@@ -23,6 +23,7 @@ import {
 } from "../type";
 import { useThemeConfig } from "../utils/theme-utils";
 import ThemeGlobalStyle from "./theme/ThemeGlobalStyle";
+import { getAdminThemeDefinition } from "../utils/admin-themes";
 
 type ChangeAbleState = AppCompactModeState | AppColorPrimaryState | AppDarkState | AppLangState | AppThemeState;
 
@@ -111,6 +112,7 @@ const ConfigProviderApp = () => {
                 ...prevState,
                 ...newAppState,
             };
+            gAppState.theme = getAdminThemeDefinition(gAppState.theme).id;
             return gAppState;
         });
     };

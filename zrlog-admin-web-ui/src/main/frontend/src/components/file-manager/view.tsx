@@ -169,6 +169,8 @@ const FileManagerView: FunctionComponent<FileManagerViewProps> = ({
             <div
                 style={{
                     display: "flex",
+                    boxSizing: "border-box",
+                    minHeight: 0,
                     height: "100%",
                     border: borderSecondary,
                     borderRadius: themeVars.borderRadiusLG,

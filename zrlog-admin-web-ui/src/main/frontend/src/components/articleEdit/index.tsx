@@ -12,19 +12,19 @@ import { getEditorUser } from "../../utils/helpers";
 import { useLocation } from "react-router";
 import { addToCache, getCacheByKey } from "../../utils/cache";
 import { getAppState } from "../../base/ConfigProviderApp";
-import Editor, { insertTextAtCursor } from "@editor/dist/editor";
-import EditorStatusBar from "@editor/dist/editor/editor-statistics-info";
-import { toStatisticsByMarkdown } from "@editor/dist/editor/utils/editor-utils";
+import Editor, { insertTextAtCursor } from "@zrlog/editor/dist/editor";
+import EditorStatusBar from "@zrlog/editor/dist/editor/editor-statistics-info";
+import { toStatisticsByMarkdown } from "@zrlog/editor/dist/editor/utils/editor-utils";
 import { EditorView } from "@uiw/react-codemirror";
-import { Locale } from "@editor/dist/editor/lang/editor-lang";
-import { AIStateCache } from "@editor/dist/ai/AIStateCache";
+import { Locale } from "@zrlog/editor/dist/editor/lang/editor-lang";
+import { AIStateCache } from "@zrlog/editor/dist/ai/AIStateCache";
 import { useNavigate } from "react-router-dom";
 import PublishStatusBar from "./publish-status-bar";
 import { useArticleAiAssistantConfig } from "./article-ai-assistant/article-ai-assistant-button";
 import useArticleEditUiState from "./use-article-edit-ui-state";
 import ArticleContentConflictAlert from "./article-content-conflict-alert";
 import useArticleSaveCoordinator from "./use-article-save-coordinator";
-import { markdownToHtml } from "@editor/dist/editor/utils/marked-utils";
+import { markdownToHtml } from "@zrlog/editor/dist/editor/utils/marked-utils";
 import { buildMarkdownImportedArticle, buildMarkdownImportedPatch } from "./markdown-import";
 import { MarkdownImportApplyOptions } from "./markdown-import-modal";
 import ArticlePublishReviewModal from "./article-publish-review-modal";
@@ -32,6 +32,7 @@ import { ArticlePublishReviewTarget } from "./article-publish-review";
 import { createDraftAiSaveGate } from "./draft-ai-save-gate";
 import { getArticleEditorChange } from "./article-editor-change";
 import useArticleEditorScreens from "./use-article-editor-screens";
+import useArticleEditorHeight from "./use-article-editor-height";
 
 const Index: FunctionComponent<ArticleEditProps> = ({
     offline,
@@ -276,18 +277,7 @@ const Index: FunctionComponent<ArticleEditProps> = ({
     const screens = useArticleEditorScreens();
     const editorActionGroupGap = screens.sm ? 8 : 6;
 
-    // Admin header and content padding; article actions now share the editor header.
-    const rawBaseHeight = (getAppState().compactMode ? 54 : 64) + 24;
-
-    const getBaseHeight = () => {
-        const editorHeaderWrapHeight = screens.lg ? 0 : screens.sm ? 48 + 38 : 38 + 58;
-        return (fullScreen ? 0 : rawBaseHeight) + editorHeaderWrapHeight;
-    };
-
-    const getEditorHeight = () => {
-        const baseHeight = 58 + 48 + 32 + getBaseHeight();
-        return `calc(100vh - ${baseHeight}px)`;
-    };
+    const editorLayout = useArticleEditorHeight();
 
     const insertAssetToMarkdown = (path: string) => {
         const fileName = path.split("/").pop() || "file";
@@ -387,160 +377,182 @@ const Index: FunctionComponent<ArticleEditProps> = ({
             <Card
                 title={""}
                 ref={editCardRef}
-                style={getCardStyle()}
+                style={{
+                    ...getCardStyle(),
+                    height: fullScreen ? "100dvh" : "var(--admin-content-height)",
+                    boxSizing: "border-box",
+                }}
                 styles={{
                     body: {
                         padding: 0,
+                        height: "100%",
+                        boxSizing: "border-box",
+                        display: "flex",
+                        flexDirection: "column",
+                        overflow: "auto",
                     },
                 }}
             >
-                <ArticleEditHeader
-                    articleVersion={state.article.version}
-                    articleStatusText={articleStatusText}
-                    dataDigest={state.article.digest}
-                    state={state}
-                    draftAiPending={draftAiPending}
-                    draftAiSaveGate={draftAiSaveGate}
-                    fullScreen={fullScreen}
-                    offline={offline}
-                    shortcutsDisabled={publishReviewOpen}
-                    screens={screens}
-                    editorActionGroupGap={editorActionGroupGap}
-                    editCardRef={editCardRef}
-                    getFullScreenElement={() => editCardRef.current}
-                    titleRef={titleRef}
-                    aliasRef={aliasRef}
-                    digestRef={digestRef}
-                    titleInputRevision={fieldAi.titleInputRevision + restoreInputRevision + markdownImportInputRevision}
-                    aliasInputRevision={fieldAi.aliasInputRevision + restoreInputRevision + markdownImportInputRevision}
-                    settingsOpen={settingsOpen}
-                    versionDrawerOpen={versionDrawerOpen}
-                    axiosInstance={axiosInstance}
-                    aiDrawerWidth={getDefaultAiDrawerWidth()}
-                    aiStateCache={articleAiStateCache}
-                    articleAssistantOpen={articleAssistantOpen}
-                    onArticleAssistantOpenChange={updateArticleAssistantOpen}
-                    stateCacheKey={articleEditUiStateCacheKey}
-                    saving={isSaving}
-                    onValuesChange={handleValuesChange}
-                    onApplyAiValues={fieldAi.applyGeneratedValues}
-                    onApplyGeneratedCover={applyGeneratedCover}
-                    onSettingsOpenChange={updateSettingsOpen}
-                    onVersionOpenChange={updateVersionDrawerOpen}
-                    onRollback={onRollback}
-                    onSubmit={onSubmit}
-                    onRequestPublish={openPublishReview}
-                    onPreview={openContentPreview}
-                    onAiMessagesChange={updateAiMessageCache}
-                    onAiDrawerSizeChange={updateAiDrawerWidth}
-                    onInsertMarkdownFromAsset={insertAssetToMarkdown}
-                    getCurrentMarkdown={getCurrentMarkdown}
-                    onImportMarkdown={importMarkdown}
-                    importMarkdownIntent={importMarkdownIntent}
-                    onExitFullScreen={onExitFullScreen}
-                    onFullScreen={onFullScreen}
-                    getSelectStyle={getSelectStyle}
-                />
-                <Divider style={{ padding: 0, margin: 0 }} />
-                <Editor
-                    config={
-                        {
-                            lang: getAppState().lang as Locale,
-                            dark: getAppState().dark,
-                            onPreviewChange: (preview: boolean) => {
-                                addToCache(editorPreviewStateKey, preview);
-                            },
-                            preview: getEditorPreviewState(),
-                            colorPrimary: getAppState().colorPrimary,
-                            uploadConfig: {
-                                buildUploadUrl: (type: string) => {
-                                    return "/api/admin/upload?dir=" + type;
-                                },
-                                axiosInstance: axiosInstance,
-                                formName: "imgFile",
-                                tryAppendBackendServerUrl: tryAppendBackendServerUrl,
-                            },
-                            aiConfig: isModuleEnabled("ai")
-                                ? {
-                                      aiApiUri: "/api/admin/article/ai",
-                                      configUrl: getRealRouteUrl("/website/ai"),
-                                      subject: state.article.title,
-                                      aiProvider: state.aiConfigured === true ? state.aiProvider : undefined,
-                                      aiMessages: state.aiMessages ? state.aiMessages : [],
-                                      messages: assistantConfig.messages,
-                                      contentMaxWidth: assistantConfig.contentMaxWidth,
-                                      renderMessage: assistantConfig.renderMessage,
-                                      renderFooter: ({ selectedText }: { selectedText?: string }) =>
-                                          assistantConfig.renderFooter(selectedText),
-                                      overlays: assistantConfig.overlays,
-                                      onAiMessagesChange: updateAiMessageCache,
-                                      drawerWidth: getDefaultAiDrawerWidth(),
-                                      stateCache: articleAiStateCache,
-                                      user: getEditorUser(),
-                                      onSizeChange: updateAiDrawerWidth,
-                                      sessionId: state.article.logId ? state.article.logId : 0,
-                                  }
-                                : undefined,
-                            linkPreview: {
-                                enabled: state.linkPreviewEnabled,
-                                apiUrl: "/api/admin/link-preview",
-                            },
-                        } as any
-                    }
-                    fullscreen={fullScreen}
-                    placeholder={getRes().articleEdit.editor.placeholder}
-                    height={getEditorHeight()}
-                    loadSuccess={(editor) => {
-                        editorViewRef.current = editor as EditorView;
-                    }}
-                    previewContent={state.article.content ? state.article.content : ""}
-                    getContainer={() => {
-                        return editCardRef.current as HTMLDivElement;
-                    }}
-                    axiosInstance={axiosInstance}
-                    value={state.article.markdown}
-                    onChange={(v) => {
-                        if (suppressedEditorMarkdownRef.current !== undefined) {
-                            const suppress = suppressedEditorMarkdownRef.current === v.value;
-                            suppressedEditorMarkdownRef.current = undefined;
-                            if (suppress) {
-                                return;
-                            }
+                <div style={{ flex: "none" }}>
+                    <ArticleEditHeader
+                        articleVersion={state.article.version}
+                        articleStatusText={articleStatusText}
+                        dataDigest={state.article.digest}
+                        state={state}
+                        draftAiPending={draftAiPending}
+                        draftAiSaveGate={draftAiSaveGate}
+                        fullScreen={fullScreen}
+                        offline={offline}
+                        shortcutsDisabled={publishReviewOpen}
+                        screens={screens}
+                        editorActionGroupGap={editorActionGroupGap}
+                        editCardRef={editCardRef}
+                        getFullScreenElement={() => editCardRef.current}
+                        titleRef={titleRef}
+                        aliasRef={aliasRef}
+                        digestRef={digestRef}
+                        titleInputRevision={
+                            fieldAi.titleInputRevision + restoreInputRevision + markdownImportInputRevision
                         }
-                        const change = getArticleEditorChange(
-                            v,
-                            state.article.markdown,
-                            editorViewRef.current?.state.doc.toString()
-                        );
-                        if (change) {
-                            handleValuesChange(change);
+                        aliasInputRevision={
+                            fieldAi.aliasInputRevision + restoreInputRevision + markdownImportInputRevision
                         }
-                    }}
-                />
-                <EditorStatusBar
-                    rubbish={state.article.rubbish}
-                    offline={offline}
-                    lastUpdateDate={statusBarLastUpdateDate}
-                    data={toStatisticsByMarkdown(state.article.markdown)}
-                    fullScreen={fullScreen}
-                    dark={getAppState().dark}
-                    extra={
-                        <PublishStatusBar
-                            saving={state.saving}
-                            publishStatus={publishStatus}
-                            onOpenChange={updatePublishStatusOpen}
-                            onClose={closePublishStatus}
-                            onOpenAssistant={
-                                isModuleEnabled("ai") && !fullScreen
-                                    ? () => updateArticleAssistantOpen(true)
-                                    : undefined
+                        settingsOpen={settingsOpen}
+                        versionDrawerOpen={versionDrawerOpen}
+                        axiosInstance={axiosInstance}
+                        aiDrawerWidth={getDefaultAiDrawerWidth()}
+                        aiStateCache={articleAiStateCache}
+                        articleAssistantOpen={articleAssistantOpen}
+                        onArticleAssistantOpenChange={updateArticleAssistantOpen}
+                        stateCacheKey={articleEditUiStateCacheKey}
+                        saving={isSaving}
+                        onValuesChange={handleValuesChange}
+                        onApplyAiValues={fieldAi.applyGeneratedValues}
+                        onApplyGeneratedCover={applyGeneratedCover}
+                        onSettingsOpenChange={updateSettingsOpen}
+                        onVersionOpenChange={updateVersionDrawerOpen}
+                        onRollback={onRollback}
+                        onSubmit={onSubmit}
+                        onRequestPublish={openPublishReview}
+                        onPreview={openContentPreview}
+                        onAiMessagesChange={updateAiMessageCache}
+                        onAiDrawerSizeChange={updateAiDrawerWidth}
+                        onInsertMarkdownFromAsset={insertAssetToMarkdown}
+                        getCurrentMarkdown={getCurrentMarkdown}
+                        onImportMarkdown={importMarkdown}
+                        importMarkdownIntent={importMarkdownIntent}
+                        onExitFullScreen={onExitFullScreen}
+                        onFullScreen={onFullScreen}
+                        getSelectStyle={getSelectStyle}
+                    />
+                </div>
+                <Divider style={{ padding: 0, margin: 0, flex: "none" }} />
+                <div ref={editorLayout.slotRef} style={{ flex: "1 1 0", minHeight: 120 }}>
+                    <div ref={editorLayout.contentRef}>
+                        <Editor
+                            config={
+                                {
+                                    lang: getAppState().lang as Locale,
+                                    dark: getAppState().dark,
+                                    onPreviewChange: (preview: boolean) => {
+                                        addToCache(editorPreviewStateKey, preview);
+                                    },
+                                    preview: getEditorPreviewState(),
+                                    colorPrimary: getAppState().colorPrimary,
+                                    uploadConfig: {
+                                        buildUploadUrl: (type: string) => {
+                                            return "/api/admin/upload?dir=" + type;
+                                        },
+                                        axiosInstance: axiosInstance,
+                                        formName: "imgFile",
+                                        tryAppendBackendServerUrl: tryAppendBackendServerUrl,
+                                    },
+                                    aiConfig: isModuleEnabled("ai")
+                                        ? {
+                                              aiApiUri: "/api/admin/article/ai",
+                                              configUrl: getRealRouteUrl("/website/ai"),
+                                              subject: state.article.title,
+                                              aiProvider: state.aiConfigured === true ? state.aiProvider : undefined,
+                                              aiMessages: state.aiMessages ? state.aiMessages : [],
+                                              messages: assistantConfig.messages,
+                                              contentMaxWidth: assistantConfig.contentMaxWidth,
+                                              renderMessage: assistantConfig.renderMessage,
+                                              renderFooter: ({ selectedText }: { selectedText?: string }) =>
+                                                  assistantConfig.renderFooter(selectedText),
+                                              overlays: assistantConfig.overlays,
+                                              onAiMessagesChange: updateAiMessageCache,
+                                              drawerWidth: getDefaultAiDrawerWidth(),
+                                              stateCache: articleAiStateCache,
+                                              user: getEditorUser(),
+                                              onSizeChange: updateAiDrawerWidth,
+                                              sessionId: state.article.logId ? state.article.logId : 0,
+                                          }
+                                        : undefined,
+                                    linkPreview: {
+                                        enabled: state.linkPreviewEnabled,
+                                        apiUrl: "/api/admin/link-preview",
+                                    },
+                                } as any
                             }
-                            onLocatePublishCheckTarget={locatePublishCheckTarget}
-                            getContainer={() => editCardRef.current as HTMLDivElement}
+                            fullscreen={fullScreen}
+                            placeholder={getRes().articleEdit.editor.placeholder}
+                            height={editorLayout.height}
+                            loadSuccess={(editor) => {
+                                editorViewRef.current = editor as EditorView;
+                                editorLayout.onLoad(editor as EditorView);
+                            }}
+                            previewContent={state.article.content ? state.article.content : ""}
+                            getContainer={() => {
+                                return editCardRef.current as HTMLDivElement;
+                            }}
+                            axiosInstance={axiosInstance}
+                            value={state.article.markdown}
+                            onChange={(v) => {
+                                if (suppressedEditorMarkdownRef.current !== undefined) {
+                                    const suppress = suppressedEditorMarkdownRef.current === v.value;
+                                    suppressedEditorMarkdownRef.current = undefined;
+                                    if (suppress) {
+                                        return;
+                                    }
+                                }
+                                const change = getArticleEditorChange(
+                                    v,
+                                    state.article.markdown,
+                                    editorViewRef.current?.state.doc.toString()
+                                );
+                                if (change) {
+                                    handleValuesChange(change);
+                                }
+                            }}
                         />
-                    }
-                    extraPlacement="right"
-                />
+                    </div>
+                </div>
+                <div style={{ flex: "none" }}>
+                    <EditorStatusBar
+                        rubbish={state.article.rubbish}
+                        offline={offline}
+                        lastUpdateDate={statusBarLastUpdateDate}
+                        data={toStatisticsByMarkdown(state.article.markdown)}
+                        fullScreen={fullScreen}
+                        dark={getAppState().dark}
+                        extra={
+                            <PublishStatusBar
+                                saving={state.saving}
+                                publishStatus={publishStatus}
+                                onOpenChange={updatePublishStatusOpen}
+                                onClose={closePublishStatus}
+                                onOpenAssistant={
+                                    isModuleEnabled("ai") && !fullScreen
+                                        ? () => updateArticleAssistantOpen(true)
+                                        : undefined
+                                }
+                                onLocatePublishCheckTarget={locatePublishCheckTarget}
+                                getContainer={() => editCardRef.current as HTMLDivElement}
+                            />
+                        }
+                        extraPlacement="right"
+                    />
+                </div>
             </Card>
             <ArticlePublishReviewModal
                 open={publishReviewOpen}

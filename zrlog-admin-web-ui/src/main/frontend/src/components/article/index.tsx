@@ -89,6 +89,13 @@ const StyledArticleList = styled.div<{ $gap: number }>`
         width: auto;
     }
 
+    .article-status-filter {
+        min-width: 0;
+        max-width: 100%;
+        overflow-x: auto;
+        scrollbar-width: thin;
+    }
+
     .article-desk-list-search {
         max-width: 100%;
         width: 260px;
@@ -109,14 +116,14 @@ const StyledArticleList = styled.div<{ $gap: number }>`
             width: 100%;
         }
 
-        .article-status-segmented {
-            display: flex;
+        .article-status-filter {
             flex: 1 1 0;
         }
 
-        .article-status-segmented .ant-segmented-item {
-            flex: 1;
-            min-width: 0;
+        .article-status-filter .article-status-segmented {
+            max-width: none;
+            width: max-content;
+            min-width: 100%;
         }
 
         .article-desk-list-search {
@@ -517,12 +524,14 @@ const Index = ({ data, offline, updateCache }: AdminCommonProps<ArticlePageDataS
         <StyledArticleList className="article-desk-list" $gap={token.margin}>
             <div className="article-desk-list-toolbar">
                 <div className="article-desk-list-toolbar-controls">
-                    <Segmented
-                        className="article-status-segmented"
-                        options={statusOptions}
-                        value={currentStatus}
-                        onChange={handleStatusChange}
-                    />
+                    <div className="article-status-filter">
+                        <Segmented
+                            className="article-status-segmented"
+                            options={statusOptions}
+                            value={currentStatus}
+                            onChange={handleStatusChange}
+                        />
+                    </div>
                     {hasAction("article.pin") && (
                         <Tooltip title={pinningRes.manage}>
                             <Button

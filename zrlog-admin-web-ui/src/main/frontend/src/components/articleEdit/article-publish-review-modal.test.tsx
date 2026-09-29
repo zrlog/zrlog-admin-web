@@ -92,7 +92,7 @@ jest.mock("antd-style", () => ({
     }),
 }));
 
-jest.mock("@editor/dist/editor/utils/marked-utils", () => ({
+jest.mock("@zrlog/editor/dist/editor/utils/marked-utils", () => ({
     markdownToHtmlSyncWithCallback: (markdown: string, onSuccess: (html: string) => void) => {
         const html = markdown ? `<p>${markdown}</p>` : "";
         onSuccess(html);
