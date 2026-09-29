@@ -1,14 +1,15 @@
 package com.zrlog.admin.business.service;
 
 import com.hibegin.http.server.config.ServerConfig;
-import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.rest.request.CreateArticleRequest;
 import com.zrlog.admin.business.rest.request.UpdateArticleRequest;
 import com.zrlog.admin.business.security.MemberModels;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.annotation.RequiresAction;
-import com.zrlog.admin.web.config.AdminRouters;
+import com.zrlog.admin.web.controller.ai.AICommentController;
+import com.zrlog.admin.web.interceptor.AdminInternalAiInterceptor;
+import com.zrlog.admin.web.interceptor.AdminInterceptor;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.data.security.*;
@@ -44,15 +45,27 @@ public class AccountAuthorizationTest {
         assertFalse(AccountAction.ARTICLE_DELETE.allowed(account("contributor")));
         assertFalse(ArticleAccess.canRead(AccountAccess.from(null),Set.of("articles:read"),1,false,false));
     }
-    @Test public void everyRegisteredAdminRouteRequiresAnExplicitAction() throws Exception {
+    @Test public void everyRegisteredAdminRouteRequiresAnExplicitAuthenticationPolicy() throws Exception {
         try(InMemoryZrLogDatabase db=InMemoryZrLogDatabase.open()) {
             db.loadAdminWebModules();
             ServerConfig config=com.zrlog.common.Constants.zrLogConfig.getServerConfig();
             assertFalse(config.getRouter().getRouterMap().containsKey("/api/admin/knowledge/chat"));
             assertNotNull(config.getRouter().getMethod("/api/admin/article/ai", com.hibegin.http.HttpMethod.POST));
+            java.lang.reflect.Method commentAnalyze = AICommentController.class.getMethod("analyze");
+            assertEquals(commentAnalyze, config.getRouter().getMethod(
+                    AdminInternalAiInterceptor.COMMENT_ANALYZE_PATH, com.hibegin.http.HttpMethod.POST));
+            int internalAiIndex = config.getInterceptors().indexOf(AdminInternalAiInterceptor.class);
+            assertTrue("Internal AI route must have plugin-token authentication", internalAiIndex >= 0);
+            assertTrue("Plugin-token authentication must precede account authentication",
+                    internalAiIndex < config.getInterceptors().indexOf(AdminInterceptor.class));
             Set<String> ids=new HashSet<>();
             for(AccountAction action:AccountAction.values()) assertTrue(ids.add(action.getId()));
             config.getRouter().getRouterMap().forEach((path,method)-> {
+                // This exact route authenticates plugin-core, without an admin account session.
+                if (AdminInternalAiInterceptor.COMMENT_ANALYZE_PATH.equals(path)) {
+                    assertEquals(commentAnalyze, method);
+                    return;
+                }
                 if(path.contains("admin")) {
                     RequiresAction binding = method.getAnnotation(RequiresAction.class);
                     assertNotNull(path+" -> "+method, binding);
