@@ -4,7 +4,7 @@ import Input from "antd/es/input";
 import { getRes } from "../../utils/constants";
 import Select from "antd/es/select";
 import { useEffect, useState } from "react";
-import { InputNumber } from "antd";
+import { InputNumber, Typography } from "antd";
 import { Admin } from "./index";
 import FaviconUpload from "./FaviconUpload";
 import zh_CN from "antd/es/locale/zh_CN";
@@ -12,6 +12,7 @@ import en_US from "antd/es/locale/en_US";
 import AdminAppearanceFields from "../common/AdminAppearanceFields";
 import { useResponsiveFormLayout } from "../../utils/responsive-form";
 import WebsiteSubmitBar from "./WebsiteSubmitBar";
+import { useAppearancePreview } from "../../utils/use-appearance-preview";
 
 const layout = {
     labelCol: { span: 8 },
@@ -39,6 +40,7 @@ const BlogForm = ({
     const [form] = Form.useForm();
     const { formLayout } = useResponsiveFormLayout(layout);
     const theme = useTheme();
+    const { preview, restore } = useAppearancePreview();
 
     const getItemsPerPage = () => {
         const paginationLocale = getRes().lang === "zh_CN" ? zh_CN.Pagination : en_US.Pagination;
@@ -46,8 +48,28 @@ const BlogForm = ({
     };
 
     const onValueChange = (value: any) => {
-        setState({ ...state, ...value });
+        const next = { ...state, ...value };
+        setState(next);
+        if (
+            ["language", "admin_theme", "admin_darkMode", "admin_compactMode", "admin_color_primary"].some((key) =>
+                Object.prototype.hasOwnProperty.call(value, key)
+            )
+        ) {
+            preview({
+                language: next.language === "en_US" ? "en_US" : "zh_CN",
+                appearance: {
+                    theme: next.admin_theme ?? "default",
+                    darkMode: next.admin_darkMode,
+                    compactMode: next.admin_compactMode,
+                    colorPrimary: next.admin_color_primary,
+                },
+            });
+        }
     };
+
+    useEffect(() => {
+        if (offline) restore();
+    }, [offline, restore]);
 
     useEffect(() => {
         setState(data);
@@ -152,6 +174,7 @@ const BlogForm = ({
                     colorPrimary: "admin_color_primary",
                 }}
             />
+            <Typography.Paragraph type="secondary">{getRes().websiteAdmin.appearancePreviewHint}</Typography.Paragraph>
             <div
                 style={{ color: theme.colorText, fontSize: theme.fontSizeLG, fontWeight: 600, margin: "24px 0 16px 0" }}
             >

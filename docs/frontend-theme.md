@@ -1,12 +1,38 @@
-# 前端主题规范
+# 前端主题实现
 
-本文档用于约束后台前端的主题相关实现，避免组件样式脱离全局主题配置。
+本文维护后台主题的源码入口、Ant Design / `antd-style` 用法与代码示例。
+
+产品范围与通用规则从 [Ops UI 总入口](../../zrlog-ops/docs/ui-design-guide.md) 读取；M3 视觉与隔离规则在 [专项规范](../../zrlog-ops/docs/material3-agent-guide.md) 维护，检查矩阵在 [后台验收契约](../../zrlog-ops/acceptance/zrlog-admin-web.yaml) 维护。文案表达见 [产品文案规范](../../zrlog-ops/docs/content-writing-guide.md)，资源实现见 [i18n 规则](i18n.md)。
 
 ## 总原则
 
 - 后台前端的可配置视觉属性应尽量复用主题 token，不要在业务组件里直接写死。
 - 优先复用 Ant Design / `antd-style` 暴露的主题值，例如 `theme.borderRadius`、`theme.borderRadiusSM`、`theme.borderRadiusLG`、`theme.colorPrimary`、`theme.colorLink`。
 - 当样式写在 `styled-components`、封装布局组件或跨组件公共样式里时，需要把主题值显式传入，不要重新写一套固定值。
+
+## 多主题实现边界
+
+隔离与验收规则统一见 [Ops 后台默认主题隔离规则](../../zrlog-ops/docs/material3-agent-guide.md#后台默认主题的隔离规则)。本地前端路径以 `zrlog-admin-web-ui/src/main/frontend/src/` 为根：
+
+- `utils/theme-utils.tsx` 的 `useThemeConfig` 负责分派，当前 `desk`、`antd` 等为显式分支，默认分支返回 `base/theme/muiTheme.ts` 的结果。
+- `utils/admin-themes.ts` 是主题标识、展示顺序、明暗与自定义主色能力的唯一数据来源；个人外观、站点后台设置、审查页和初始化读取它。显示名称仍由 i18n 管理，不在各页面手写主题数组或能力白名单。
+- `themeAlgorithms` 组合 light / dark / compact 算法；`base/ConfigProviderApp.tsx` 承载当前 AppState。
+- 共用组件使用 `useTheme` 或由 shell 显式传入主题值，具体写法见下文。产品隔离要求引用 ops，不在本地另写一份。
+- 默认主题的 `Spin` 由 `muiTheme.ts` 的 `spin.indicator` 注入 `MaterialSpinIndicator.tsx`，尺寸使用 `Spin` token，圆弧动画在 `DefaultGlobalStyle.tsx`；不使用全局 `Spin.setDefaultIndicator`。顶部加载条和按钮 loading 图标各自沿用现有实现。
+- 默认主题控件配置在 `material-component-config.ts`，通过 Ant Design 公开语义槽注入样式类；`MaterialControlsStyle.tsx` 仅由 `DefaultGlobalStyle` 挂载。字段保留独立 label 与布局，Input / InputNumber / Select 只补交互状态，不引入浮动标签。
+- 全局 `ConfigProviderApp` 为普通密度显式传 `componentSize="medium"`，紧凑密度传 `small`。不要改回普通密度 `undefined`，否则 Ant Design 会插入/移除 SizeContext，重建整个页面并触发未保存预览的回滚。
+- `AdminDashboardRouter` 为同一会话、同一路由且内容未变的数据保留引用，避免外观重绘时缓存反序列化产生新对象，触发表单重新填值。路由、会话或实际数据变化仍更新快照。
+- `applyUserPreferences` 是有效外观与语言的统一应用入口，负责资源、React 状态、文档语言和偏好请求版本。`useAppearancePreview` 供站点后台设置和审查页临时预览、按会话恢复；个人设置保留自己的保存与请求生命周期。站点表单始终保存站点字段，不把个人偏好混入提交。
+
+## 开发 UI 审查页
+
+登录具备 `system.manage` 权限的账号，直接访问 `<contextPath>/admin/dev/ui`。例如本地 MemoryApplication 为 `http://localhost:18080/sub/admin/dev/ui`。这是在线开发工具，不加入菜单、全局搜索、原有 `/dev` 数据页面、PWA 预缓存或静态发布清单。
+
+- 页面源码：`src/components/dev-ui.tsx`，懒加载路由：`admin-dashboard-routes.tsx`；后端由 `AdminUiWebSetup` 显式注册，`AdminDevController.ui()` 提供只读初始化标记，不读取缓存条目与锁列表。
+- 页面复用当前全局主题，组件示例不能用局部 CSS 伪造适配。临时外观预览不写个人/站点偏好，退出页面恢复进入时的主题、主色、深浅和密度；重置示例只重置本地交互状态。
+- 状态清单是人工维护的工程进度，随组件实现一起更新。`已适配`、`仅交互适配`、`仅主题基础` 不代表自动通过视觉验收，也不代表覆盖 Ant Design 的全部组件与变体。完整 Chip 家族、基础数据与反馈组件仍需按实际场景补充。
+- 审查可通过稳定的 `#ui-controls`、`#ui-navigation`、`#ui-buttons`、`#ui-progress`、`#ui-fields`、`#ui-overlays`、`#ui-foundation`、`#ui-feedback` 定位；字段和触发器有可访问名称。示例只使用本地数据，不提交业务操作、启用开发模式或上传文件。
+- Agent / UI 审核先检查本页的明暗、紧凑、主题切换、键盘焦点、错误与禁用状态，再检查真实业务页面的布局和内容。规则仍读取 Ops，不能以本页截图替代业务验收。
 
 ## 圆角规则
 
@@ -45,12 +71,11 @@ const dashedBorder = `${theme.lineWidth}px dashed ${theme.colorBorderSecondary}`
 
 - 只有确实表达品牌、状态或图表语义时，才可以使用业务色边框；线宽和线型仍优先使用主题 token。
 
-## Drawer 关闭按钮规则
+## Drawer 关闭按钮配置
 
-- 所有使用默认关闭按钮的 `Drawer`，关闭按钮统一放在右侧。
+- 关闭入口位置按 [Ops 后台 UI 规则](../../zrlog-ops/docs/ui-design-guide.md#zrlog-admin-web)。
 - 优先在全局 `ConfigProvider` 中配置 `drawer={{ closable: { placement: "end" } }}` 作为默认行为，不要在每个页面重复声明。
 - 只有确实需要覆盖全局默认时，才在单个 `Drawer` 上显式写 `closable`。
-- 如果 `Drawer` 使用自定义标题区并手动渲染关闭按钮，也应保持关闭按钮位于右上角。
 
 ## 推荐写法
 

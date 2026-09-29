@@ -249,7 +249,7 @@ const Index: FunctionComponent<IndexProps> = ({ data, updateCache }) => {
         return (
             <Card
                 bordered={false}
-                className="dashboard-card"
+                className="dashboard-card dashboard-welcome"
                 style={{
                     overflow: "hidden",
                     borderRadius: theme.borderRadiusLG,

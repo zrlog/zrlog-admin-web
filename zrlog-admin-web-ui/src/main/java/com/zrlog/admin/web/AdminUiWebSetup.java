@@ -43,6 +43,8 @@ public class AdminUiWebSetup implements WebSetup {
         resources.getAdminPageUris().forEach(uri -> router.addMapper(
                 uri.substring(contextPath.length()), AdminPageController.class, "index"));
         AdminAccountPages.PAGE_APIS.keySet().forEach(uri -> router.addMapper(uri, AdminPageController.class, "index"));
+        // Live developer tooling, deliberately excluded from PWA pre-cache and static publishing.
+        router.addMapper(AdminConstants.ADMIN_DEV_URI_BASE_PATH + "/ui", AdminPageController.class, "index");
         router.addMapper(AdminConstants.ADMIN_URI_BASE_PATH + "/template/download", AdminTemplatePageController.class, "download");
         router.addMapper(TemplateInfoHelper.ADMIN_PREVIEW_IMAGE_URI, AdminTemplatePageController.class, "previewImage");
         router.addMapper(AdminConstants.ADMIN_PWA_MANIFEST_API_URI_PATH, AdminManifestController.class, "manifest");

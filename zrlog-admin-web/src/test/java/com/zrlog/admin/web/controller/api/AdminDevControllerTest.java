@@ -1,6 +1,10 @@
 package com.zrlog.admin.web.controller.api;
 
 import com.hibegin.http.server.api.HttpRequest;
+import com.hibegin.http.HttpMethod;
+import com.hibegin.http.annotation.RequestMethod;
+import com.zrlog.admin.web.annotation.RequiresAction;
+import com.zrlog.data.security.AccountAction;
 import com.hibegin.http.server.api.HttpResponse;
 import com.hibegin.http.server.config.ServerConfig;
 import com.hibegin.http.server.web.Controller;
@@ -30,6 +34,22 @@ public class AdminDevControllerTest {
             System.clearProperty("sws.run.mode");
         } else {
             System.setProperty("sws.run.mode", previousRunMode);
+        }
+    }
+
+    @Test
+    public void shouldProvideReadOnlyUiReviewWithoutChangingDevelopmentMode() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            String runMode = System.getProperty("sws.run.mode");
+            Object before = db.queryOne("select value from website where name=?", "admin_audit_log");
+            AdminPageDataResponse<Boolean> result = controller(Map.of()).ui();
+            assertEquals(Boolean.TRUE, result.getData());
+            assertEquals(runMode, System.getProperty("sws.run.mode"));
+            assertEquals(before, db.queryOne("select value from website where name=?", "admin_audit_log"));
+            assertEquals(AccountAction.SYSTEM_MANAGE, AdminDevController.class.getMethod("ui")
+                    .getAnnotation(RequiresAction.class).value());
+            assertEquals(HttpMethod.GET, AdminDevController.class.getMethod("ui")
+                    .getAnnotation(RequestMethod.class).method());
         }
     }
 

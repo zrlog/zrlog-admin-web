@@ -2,7 +2,7 @@ import { ColorPicker, Form, Select, Switch } from "antd";
 import type { FormItemProps } from "antd";
 import { getPreset, getRes } from "../../utils/constants";
 import { colorPickerBgColors } from "../../utils/helpers";
-import { isSupportDarkMode } from "../../base/AppInit";
+import { getAdminThemeOptions, supportsDarkMode, supportsCustomPrimary } from "../../utils/admin-themes";
 
 const namedPresetColorDefs = [
     { key: "azureBlue", color: "rgb(22, 119, 255)" },
@@ -44,18 +44,7 @@ const AdminAppearanceFields = ({ names }: { names: AppearanceFieldNames }) => {
     const selectedTheme = Form.useWatch(names.theme, form) ?? "default";
     const res = getRes().websiteAdmin;
     const selectStyle = { width: 200, maxWidth: "100%" };
-    const themes = [
-        "default",
-        "desk",
-        "antd",
-        "bootstrap",
-        "geek",
-        "cartoon",
-        "glass",
-        "shadcn",
-        "illustration",
-    ] as const;
-    const customColor = ["default", "antd", "bootstrap", "glass"].includes(selectedTheme);
+    const customColor = supportsCustomPrimary(selectedTheme);
     const namedColorLabelMap = new Map<string, string>(
         namedPresetColorDefs.map((item) => [
             item.color
@@ -82,12 +71,9 @@ const AdminAppearanceFields = ({ names }: { names: AppearanceFieldNames }) => {
                 />
             </Form.Item>
             <Form.Item name={names.theme} label={res.theme.label}>
-                <Select
-                    style={selectStyle}
-                    options={themes.map((value) => ({ value, label: res.theme.option[value] }))}
-                />
+                <Select style={selectStyle} options={getAdminThemeOptions(res.theme.option)} />
             </Form.Item>
-            {isSupportDarkMode(selectedTheme) && (
+            {supportsDarkMode(selectedTheme) && (
                 <Form.Item name={names.darkMode} label={res.dark.mode} valuePropName="checked">
                     <Switch />
                 </Form.Item>

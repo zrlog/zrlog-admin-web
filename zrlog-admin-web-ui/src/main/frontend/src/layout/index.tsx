@@ -309,12 +309,17 @@ const AdminManageLayout: FunctionComponent<AdminManageLayoutProps> = ({
         if (isPlugin || isTemplateCenter || fullScreen) {
             return 0;
         }
+        if (getAppState().theme === "default") {
+            return mobileMode ? theme.paddingSM : theme.paddingLG;
+        }
         return 12;
     };
 
     return (
         <PWAHandler>
             <StyledIndexLayout
+                className={getAppState().theme === "default" ? "admin-material-shell" : undefined}
+                data-compact-mode={getAppState().compactMode}
                 compactMode={getAppState().compactMode}
                 colorPrimary={theme.colorPrimary}
                 borderRadius={theme.borderRadius}

@@ -1,6 +1,9 @@
 package com.zrlog.admin.web;
 
 import com.hibegin.http.server.util.PathUtil;
+import com.hibegin.http.HttpMethod;
+import com.zrlog.admin.web.controller.api.AdminDevController;
+import com.zrlog.admin.web.controller.page.AdminPageController;
 import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.web.interceptor.AdminCrossOriginInterceptor;
 import com.zrlog.admin.web.interceptor.AdminInterceptor;
@@ -61,6 +64,11 @@ public class AdminWebSetupProviderTest {
         assertFalse(config.getServerConfig().getStaticResourceMapper().containsKey("/admin/static/"));
         AdminUiWebSetup ui = new AdminUiWebSetup(config, "/blog");
         ui.setup();
+        assertEquals(AdminPageController.class.getMethod("index"),
+                config.getServerConfig().getRouter().getMethod("/admin/dev/ui", HttpMethod.GET));
+        assertEquals(AdminDevController.class.getMethod("ui"),
+                config.getServerConfig().getRouter().getMethod("/api/admin/dev/ui", HttpMethod.GET));
+        assertFalse(AdminConstants.adminResource.getAdminPageUris().contains("/blog/admin/dev/ui"));
         List<IPlugin> plugins = setup.getPlugins();
         plugins.addAll(ui.getPlugins());
 

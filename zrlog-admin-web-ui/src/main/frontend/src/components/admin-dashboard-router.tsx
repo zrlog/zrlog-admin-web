@@ -292,8 +292,20 @@ const AdminDashboardRouter: FunctionComponent<AdminDashboardRouterProps> = ({ of
         return state.visiblePageDataCacheKey;
     };
 
-    const visibleRouteData = getDataFromCache();
     const visiblePageDataCacheKey = getVisiblePageDataCacheKey();
+    const nextRouteData = getDataFromCache();
+    const sessionKey = getSsDate().key;
+    const routeSnapshot = useRef({ sessionKey, key: visiblePageDataCacheKey, data: nextRouteData });
+    // localStorage deserializes a fresh object on every render. A theme/language
+    // render is not new server data: keep its identity so forms retain drafts.
+    if (
+        routeSnapshot.current.sessionKey !== sessionKey ||
+        routeSnapshot.current.key !== visiblePageDataCacheKey ||
+        !deepEqualWithSpecialJSON(routeSnapshot.current.data, nextRouteData)
+    ) {
+        routeSnapshot.current = { sessionKey, key: visiblePageDataCacheKey, data: nextRouteData };
+    }
+    const visibleRouteData = routeSnapshot.current.data;
     const offlineData = isOfflineData();
     const pageBuildId = getPageBuildId();
 

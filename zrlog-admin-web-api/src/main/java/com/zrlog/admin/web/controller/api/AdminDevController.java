@@ -4,6 +4,7 @@ import com.zrlog.admin.web.annotation.RequiresAction;
 import com.zrlog.data.security.AccountAction;
 
 import com.hibegin.common.util.EnvKit;
+import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.RequestMethod;
 import com.hibegin.http.annotation.ResponseBody;
 import com.hibegin.http.server.web.Controller;
@@ -21,6 +22,14 @@ import com.zrlog.data.util.DistributedLockManager;
 import java.util.List;
 
 public class AdminDevController extends Controller {
+
+    @ResponseBody
+    @RequestMethod(method = HttpMethod.GET)
+    @RequiresAction(value = AccountAction.SYSTEM_MANAGE, descriptionKey = "system.development")
+    public AdminPageDataResponse<Boolean> ui() {
+        // A ready marker for page hydration; component fixtures live entirely in the browser.
+        return new AdminPageDataResponse<>(Boolean.TRUE, "", "/admin/dev/ui");
+    }
 
     @ResponseBody
     @RequestMethod

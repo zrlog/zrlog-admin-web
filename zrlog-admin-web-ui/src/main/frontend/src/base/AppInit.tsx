@@ -7,6 +7,7 @@ import UnknownErrorPage from "../components/unknown-error-page";
 import { AppState } from "../type";
 import { changeAppState, getAppState } from "./ConfigProviderApp";
 import { getSsDate } from "./SsData";
+import { getAdminThemeDefinition, supportsDarkMode } from "../utils/admin-themes";
 
 declare global {
     interface Window {
@@ -31,21 +32,8 @@ export const getColorPrimaryByRes = (): string => {
 };
 
 export const getColorByTheme = (theme: string) => {
-    if (theme === "geek") {
-        return "#39ff14";
-    }
-    if (theme === "cartoon") {
-        return "#225555";
-    }
-    if (theme === "shadcn") {
-        return "#262626";
-    }
-    if (theme === "illustration") {
-        return "#52C41A";
-    }
-    if (theme === "desk") {
-        return "#172033";
-    }
+    const fixedPrimary = getAdminThemeDefinition(theme).primaryColor;
+    if (fixedPrimary) return fixedPrimary;
     const color: string | undefined = getRes().admin_color_primary;
     if (color === undefined || (color as string).length === 0) {
         return "#1677ff";
@@ -65,23 +53,12 @@ const getPreferredColorScheme = (): string => {
 };
 
 export const isSupportDarkMode = (theme: string): boolean => {
-    return theme === "antd" || theme === "default";
+    return supportsDarkMode(theme);
 };
 
 export const isDarkByTheme = (theme: string) => {
-    if (theme === "geek") {
-        return true;
-    }
-    if (
-        theme === "cartoon" ||
-        theme === "shadcn" ||
-        theme === "illustration" ||
-        theme === "bootstrap" ||
-        theme === "desk" ||
-        theme === "glass"
-    ) {
-        return false;
-    }
+    const { colorMode } = getAdminThemeDefinition(theme);
+    if (colorMode !== "selectable") return colorMode === "dark";
     const configDarkMode = getRes().admin_darkMode;
     if (configDarkMode !== undefined) {
         return configDarkMode;

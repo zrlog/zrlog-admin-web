@@ -331,17 +331,20 @@ const StyledIndexLayout = styled.div<StyledIndexLayoutProps>`
 
     /* Refined Input Fields */
 
-    .ant-input,
-    .ant-input-number,
-    .ant-select-selector {
-        &:hover {
-            border-color: ${(props) => props.colorPrimary}80;
-        }
+    /* The default theme supplies field states through component tokens. */
+    &:not(.admin-material-shell) {
+        .ant-input,
+        .ant-input-number,
+        .ant-select-selector {
+            &:hover {
+                border-color: ${(props) => props.colorPrimary}80;
+            }
 
-        &:focus,
-        &:focus-within {
-            border-color: ${(props) => props.colorPrimary};
-            box-shadow: 0 0 0 3px ${(props) => props.colorPrimary}15;
+            &:focus,
+            &:focus-within {
+                border-color: ${(props) => props.colorPrimary};
+                box-shadow: 0 0 0 3px ${(props) => props.colorPrimary}15;
+            }
         }
     }
 

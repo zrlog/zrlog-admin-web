@@ -10,6 +10,8 @@ const mockUpdateDocumentTitle = jest.fn();
 const mockAxios = {};
 let mockCache: Record<string, any>;
 let mockSsData: Record<string, any>;
+let mockDeserializeCache = false;
+const mockPageDataChanged = jest.fn();
 
 jest.mock("../api", () => ({
     getCsrData: (uri: string, time: number, axios: unknown) => mockGetCsrData(uri, time, axios),
@@ -30,7 +32,10 @@ jest.mock("../utils/cache", () => ({
     addToCache: (key: string, value: unknown) => {
         mockCache[key] = value;
     },
-    getCacheByKey: (key: string) => mockCache[key],
+    getCacheByKey: (key: string) =>
+        mockDeserializeCache && mockCache[key] !== undefined
+            ? JSON.parse(JSON.stringify(mockCache[key]))
+            : mockCache[key],
     getLastOpenedPage: () => null,
     getPageBuildId: () => "400",
     getPageDataCacheKey: (location: { pathname: string; search: string }) => location.pathname + location.search,
@@ -46,7 +51,12 @@ jest.mock("layout", () => ({
 jest.mock("./my-loading-component", () => () => null);
 jest.mock("components/not-found-page", () => () => null);
 jest.mock("./admin-dashboard-routes", () => {
-    const Page = ({ data }: { data: { label: string } }) => require("react").createElement("p", null, data.label);
+    const Page = ({ data }: { data: { label: string } }) => {
+        require("react").useEffect(() => {
+            mockPageDataChanged(data);
+        }, [data]);
+        return require("react").createElement("p", null, data.label);
+    };
     return {
         createAdminDashboardRoutes: () => [
             {
@@ -113,6 +123,8 @@ describe("dashboard route request lifecycle", () => {
         mockGetCsrData.mockReset();
         mockUpdateDocumentTitle.mockClear();
         mockCache = {};
+        mockDeserializeCache = false;
+        mockPageDataChanged.mockClear();
         mockSsData = { pageBuildId: "400" };
         container = document.createElement("div");
         document.body.appendChild(container);
@@ -173,6 +185,24 @@ describe("dashboard route request lifecycle", () => {
         await act(async () => navigate(-1));
         expect(container.textContent).toBe("Loaded page");
         expect(mockGetCsrData).not.toHaveBeenCalled();
+    });
+
+    it("does not rehydrate forms on appearance renders, but accepts changed data and session boundaries", async () => {
+        mockDeserializeCache = true;
+        mockSsData.data = { label: "Saved data" };
+        await render();
+        const initialSnapshot = mockPageDataChanged.mock.calls[0][0];
+        await render();
+        await render();
+        expect(mockPageDataChanged).toHaveBeenCalledTimes(1);
+        expect(mockPageDataChanged.mock.calls[0][0]).toBe(initialSnapshot);
+        mockCache["/index"] = { label: "Updated on server" };
+        await render();
+        expect(container.textContent).toBe("Updated on server");
+        expect(mockPageDataChanged).toHaveBeenCalledTimes(2);
+        mockSsData.key = "another-session";
+        await render();
+        expect(mockPageDataChanged).toHaveBeenCalledTimes(3);
     });
 
     it.each([

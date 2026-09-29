@@ -152,7 +152,8 @@ const ConfigProviderApp = () => {
             }}
             {...configProviderProps}
             locale={appState.lang.startsWith("en") ? en_US : zh_CN}
-            componentSize={appState.compactMode ? "small" : undefined}
+            // Keep SizeContext mounted when density changes so local page state survives.
+            componentSize={appState.compactMode ? "small" : "medium"}
         >
             <ConfiguredAppContent
                 appState={appState}

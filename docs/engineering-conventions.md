@@ -35,6 +35,7 @@
 
 ## 前端约束
 
+- UI 任务从 [Ops UI 统一入口](../../zrlog-ops/docs/ui-design-guide.md) 按适用范围加载专项规范；主题分派与 API 用法见 [本地实现](frontend-theme.md)，不在此复制视觉路线与隔离规则。
 - 前端可见文案统一维护在 `zrlog-admin-web-ui/src/main/frontend/src/i18n/admin.ts`，详见 [i18n 规则](i18n.md)。
 - 后台主题样式、圆角、链接颜色和公共 shell 行为必须复用现有主题和组件约定，详见 [前端主题规则](frontend-theme.md)。
 - 前端不应通过“显示能跑”的局部字符串拼接掩盖接口契约问题。跨前后端数据形状变化时，应先修 DTO 和调用类型。

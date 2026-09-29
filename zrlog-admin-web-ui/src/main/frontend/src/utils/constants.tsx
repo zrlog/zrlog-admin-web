@@ -3,16 +3,8 @@ import { getSsDate } from "../base/SsData";
 import type { AdminI18nResource, AdminLang } from "../i18n/admin";
 import { getAdminI18n } from "../i18n/admin";
 
-export type AdminTheme =
-    | "geek"
-    | "antd"
-    | "shadcn"
-    | "default"
-    | "cartoon"
-    | "illustration"
-    | "bootstrap"
-    | "desk"
-    | "glass";
+import type { AdminTheme } from "./admin-themes";
+export type { AdminTheme } from "./admin-themes";
 
 class Constants {
     static getFillBackImg() {

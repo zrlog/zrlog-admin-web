@@ -2,6 +2,7 @@ import { MenuOutlined } from "@ant-design/icons";
 import { Button } from "antd";
 import { FunctionComponent } from "react";
 import { useTheme } from "antd-style";
+import { getRes } from "../utils/constants";
 
 type NavigationTriggerButtonProps = {
     active: boolean;
@@ -25,6 +26,9 @@ const NavigationTriggerButton: FunctionComponent<NavigationTriggerButtonProps> =
             }}
         >
             <Button
+                className="admin-navigation-trigger"
+                aria-label={getRes().common.management}
+                aria-expanded={active}
                 type="text"
                 onClick={onClick}
                 style={{

@@ -93,6 +93,7 @@ const AsyncSystem = lazy(() => import("components/system"));
 const AsyncVersion = lazy(() => import("components/website/version"));
 const AsyncStaticSite = lazy(() => import("components/StaticSite"));
 const DevAsync = lazy(() => import("components/dev"));
+const DevUiAsync = lazy(() => import("components/dev-ui"));
 const AsyncFileManagerPage = lazy(() => import("components/file-manager-page"));
 
 export type AdminDashboardRouteSearchItem = {
@@ -687,6 +688,12 @@ export const createAdminDashboardRoutes = (
     {
         paths: buildUriPaths("dev"),
         lazy: DevAsync,
+        fallback: LightweightFallback,
+    },
+    {
+        // Developer review surface: direct access only, no navigation/search entry or static export.
+        paths: ["dev/ui"],
+        lazy: DevUiAsync,
         fallback: LightweightFallback,
     },
     {

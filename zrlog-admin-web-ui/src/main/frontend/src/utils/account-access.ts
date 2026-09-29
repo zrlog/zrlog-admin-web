@@ -12,6 +12,7 @@ export const actionForPath = (raw: string): string => {
     if (path.startsWith("/comment")) return "comment.manage";
     if (path.startsWith("/file-manager")) return "file.manage";
     if (path.startsWith("/plugin")) return "plugin.manage";
+    if (path === "/dev/ui") return "system.manage";
     if (["/", "", "/index"].includes(path)) return "dashboard.read";
     return "site.configure";
 };

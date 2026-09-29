@@ -22,6 +22,8 @@ jest.mock("../../base/ConfigProviderApp", () => ({
 }));
 jest.mock("../../base/AppInit", () => ({
     isSupportDarkMode: (theme: string) => theme === "default" || theme === "antd",
+    isDarkModeByRes: () => require("../../utils/constants").getRes().admin_darkMode,
+    getColorPrimaryByRes: () => require("../../utils/constants").getRes().admin_color_primary,
 }));
 jest.mock("./FaviconUpload", () => () => null);
 
@@ -112,6 +114,38 @@ describe("site admin defaults", () => {
         });
         expect(submit).toHaveBeenCalledWith(
             expect.objectContaining({ session_timeout: 90, admin_theme: "antd", admin_color_primary: "#123456" })
+        );
+        expect(mockChangeAppState).not.toHaveBeenCalled();
+    });
+    it("previews edited site appearance and restores personal appearance on leaving", async () => {
+        await render();
+        await act(async () => (container.querySelector("#admin_compactMode") as HTMLElement).click());
+        expect(mockChangeAppState).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                theme: "antd",
+                dark: false,
+                compactMode: true,
+                colorPrimary: "#123456",
+                lang: "zh_CN",
+            })
+        );
+        await act(async () => Simulate.submit(container.querySelector("form")!));
+        expect(submit).toHaveBeenCalledWith(
+            expect.objectContaining({
+                admin_theme: "antd",
+                admin_compactMode: true,
+                admin_color_primary: "#123456",
+            })
+        );
+        act(() => root.render(<div />));
+        expect(mockChangeAppState).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                theme: "geek",
+                dark: true,
+                compactMode: true,
+                colorPrimary: "#39ff14",
+                lang: "en_US",
+            })
         );
     });
     it("uses the site theme to decide whether dark mode can be configured", async () => {

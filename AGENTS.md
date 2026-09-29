@@ -74,6 +74,8 @@ cd zrlog-admin-web-ui/src/main/frontend && yarn build
 
 后台 i18n 相关工作必须遵守 `docs/i18n.md`。
 
+产品表达读取 [Ops 产品文案规范](../zrlog-ops/docs/content-writing-guide.md)，资源与语言实现读取本地 `docs/i18n.md`。
+
 关键约束：
 
 - 前端可见 UI 文案统一放在 `zrlog-admin-web-ui/src/main/frontend/src/i18n/admin.ts`。
@@ -84,10 +86,4 @@ cd zrlog-admin-web-ui/src/main/frontend && yarn build
 
 ## 前端主题
 
-后台前端主题相关工作必须遵守 `docs/frontend-theme.md`。
-
-关键约束： 
-
-- 普通矩形块、卡片、面板、输入框、列表项、弹层容器等圆角统一使用主题配置，不要硬编码 `8/10/12/14/16/18/24/999` 这类值。
-- 链接、链接按钮、可点击文字的颜色应优先复用主题色或组件默认主题行为，不要直接写死蓝色或其他固定颜色值。
-- `styled-components`、布局壳组件、跨组件公共样式如果需要圆角或链接颜色，也要通过主题值传入，不要在样式文件里单独维护固定值。
+后台 UI 从 [Ops UI 统一入口](../zrlog-ops/docs/ui-design-guide.md) 读取适用范围与专项规范；[主题隔离规则](../zrlog-ops/docs/material3-agent-guide.md#后台默认主题的隔离规则) 和 [后台验收契约](../zrlog-ops/acceptance/zrlog-admin-web.yaml) 为对应规则来源。本地 [前端主题实现](docs/frontend-theme.md) 维护源码分派、token API 与代码示例，本入口不复制规则正文。
