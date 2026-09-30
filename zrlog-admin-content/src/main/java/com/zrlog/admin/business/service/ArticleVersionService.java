@@ -57,7 +57,6 @@ public class ArticleVersionService {
         if (patch.isEmpty()) {
             return;
         }
-        logVersion.deleteByLogIdAndArticleVersion(logId, articleVersion);
         logVersion.savePatch(
                 logId,
                 articleVersion,

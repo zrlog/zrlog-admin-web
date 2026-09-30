@@ -67,38 +67,12 @@ public class AdminResourceImpl implements AdminResource {
     }
 
 
-    private List<String> buildRealPageUrls(String e, String adminResourceUrl, HttpRequest request) {
-        StringBuilder sb = new StringBuilder();
-        String[] split = e.split("\\?");
-        if (split.length == 1) {
-            sb.append(adminResourceUrl).append(e);
-        } else {
-            sb.append(adminResourceUrl).append(split[0]);
-        }
-        if (e.endsWith("/?pwa=true") || e.endsWith("/")) {
-            sb.append("?");
-        } else {
-            sb.append(BaseStaticSitePlugin.isStaticPluginRequest(request) ? ".html?" : "?");
-        }
-        if (e.contains("?pwa=true")) {
-            sb.append(split[1]);
-        } else {
-            sb.append("v=").append(fileBuildId);
-            if (split.length > 1) {
-                sb.append("&");
-                sb.append(split[1]);
-            }
-        }
-        return Collections.singletonList(sb.toString());
-    }
-
     @Override
     public ByteArrayInputStream renderServiceWorker(HttpRequest request) {
         Set<String> realUris = new LinkedHashSet<>();
         String adminResourceUrl = AdminWebTools.getAdminStaticResourceBaseUrlByWebSite(request);
         String withoutContextPath = adminResourceUrl.substring(0, adminResourceUrl.length() - contextPath.length());
-        pageUris.stream().filter(uri -> !com.zrlog.admin.web.config.AdminAccountPages.isSensitive(uri.substring(contextPath.length())))
-                .forEach(uri -> realUris.addAll(buildRealPageUrls(uri, withoutContextPath, request)));
+        // HTML embeds account identity and article data, so only precache static assets.
         staticUris.forEach(uri -> realUris.add(withoutContextPath + uri));
         String newUrls = "const urlsToCache = " + new Gson().newBuilder().disableHtmlEscaping().setPrettyPrinting().create().toJson(realUris);
         return new ByteArrayInputStream(IOUtil.getStringInputStream(AdminResourceImpl.class.getResourceAsStream(AdminConstants.ADMIN_SERVICE_WORKER_JS)).replace("const urlsToCache = []", newUrls).getBytes());

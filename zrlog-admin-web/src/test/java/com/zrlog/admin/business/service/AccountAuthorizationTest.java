@@ -86,7 +86,7 @@ public class AccountAuthorizationTest {
             assertThrows(PermissionErrorException.class,()->AccountPermissionService.readArticle(id));
             assertThrows(PermissionErrorException.class,()->new ArticleVersionService().listVersions((int)id));
             db.execute("update log set privacy=? where logId=?",false,id);
-            UpdateArticleRequest update=new UpdateArticleRequest();update.setLogId((int)id);update.setTitle("Edited");update.setTypeId(1L);update.setVersion(1);update.setRubbish(true);update.setContent("edited");
+            UpdateArticleRequest update=new UpdateArticleRequest();update.setLogId((int)id);update.setTitle("Edited");update.setTypeId(1L);update.setVersion(0);update.setRubbish(true);update.setContent("edited");
             service.update(AdminTokenThreadLocal.getUser(),update);
             assertEquals(1,((Number)db.scalar("select userId from log where logId=?",id)).intValue());
             login(db,2,"author");

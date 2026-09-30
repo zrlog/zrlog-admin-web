@@ -46,8 +46,7 @@ public final class AccountPermissionService {
 
     public static void requireAdminOrigin(HttpRequest request) {
         try {
-            com.zrlog.admin.util.BackendServerUrl.requireAdminOrigin(request.getHeader("Origin"),
-                    com.zrlog.admin.util.BackendServerUrl.configured());
+            com.zrlog.admin.util.BackendServerUrl.requireAdminRequestOrigin(request);
         } catch (IllegalArgumentException e) { throw new com.zrlog.admin.business.exception.AdminOriginException(); }
     }
 
