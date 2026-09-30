@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { Alert, Button, Card, Drawer, Form, Input, List, Select, Space, Switch, Tag, Typography, message } from "antd";
+import { Alert, Button, Drawer, Form, Input, List, Select, Space, Switch, Tag, Typography, message } from "antd";
 import { useAxiosBaseInstance } from "../base/AppBase";
 import { getRes } from "../utils/constants";
 import { getSsDate } from "../base/SsData";
@@ -89,9 +89,19 @@ export default function Members({ data, updateCache }: Pick<AdminCommonProps<Pag
                     renderItem={(member) => (
                         <List.Item
                             actions={[
-                                member.role !== "owner" &&
-                                member.userId !== getSsDate().user?.userId &&
-                                (hasAction("member.appoint_admin") || member.role !== "admin") ? (
+                                member.role === "owner" && hasAction("ownership.transfer") ? (
+                                    <Button
+                                        key="transfer"
+                                        onClick={() => {
+                                            transferForm.resetFields();
+                                            setTransferring(true);
+                                        }}
+                                    >
+                                        {res.transfer}
+                                    </Button>
+                                ) : member.role !== "owner" &&
+                                  member.userId !== getSsDate().user?.userId &&
+                                  (hasAction("member.appoint_admin") || member.role !== "admin") ? (
                                     <Button key="edit" onClick={() => open(member)}>
                                         {res.edit}
                                     </Button>
@@ -113,18 +123,6 @@ export default function Members({ data, updateCache }: Pick<AdminCommonProps<Pag
                         </List.Item>
                     )}
                 />
-                {hasAction("ownership.transfer") && (
-                    <Card>
-                        <Button
-                            onClick={() => {
-                                transferForm.resetFields();
-                                setTransferring(true);
-                            }}
-                        >
-                            {res.transfer}
-                        </Button>
-                    </Card>
-                )}
                 <Drawer
                     title={editing ? res.edit : res.create}
                     open={editing !== undefined}
