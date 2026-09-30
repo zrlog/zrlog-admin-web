@@ -44,11 +44,16 @@ public class AdminAuditService {
             newLog.setContent(sanitizeContent(action, content));
 
             String uaString = request.getHeader("User-Agent");
-            if (StringUtils.isNotEmpty(uaString)) {
+            if (uaString != null && !uaString.isBlank()) {
                 UserAgentUtils.UserAgentInfo uaInfo = UserAgentUtils.parse(uaString);
                 newLog.setOs(uaInfo.getOs());
                 newLog.setBrowser(uaInfo.getFullBrowser());
                 newLog.setCrawler(uaInfo.isCrawler());
+            }
+            if ((newLog.getBrowser() == null || "Unknown".equals(newLog.getBrowser()))
+                    && "/mcp".equals(request.getUri())) {
+                // Stateless MCP calls may omit User-Agent; do not invent a client version.
+                newLog.setBrowser("MCP");
             }
 
             logs.add(0, newLog); // Add to the beginning

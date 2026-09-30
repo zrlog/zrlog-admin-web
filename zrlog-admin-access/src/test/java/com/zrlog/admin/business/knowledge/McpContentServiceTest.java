@@ -77,6 +77,7 @@ public class McpContentServiceTest {
             assertEquals(1,refreshes.get());assertFalse(AccountAccess.truth(db.scalar("select rubbish from log where logId=?",saved.id)));
             String audit=String.valueOf(db.scalar("select value from website where name='admin_audit_log'"));
             assertTrue(audit.contains("CREATE_ARTICLE"));assertTrue(audit.contains("UPDATE_ARTICLE"));
+            assertEquals("MCP", new AdminAuditService().getRecentLogs().get(0).getBrowser());
             for(int version:new int[]{0,1,99}) assertThrows(UpdateArticleExpireException.class,()->tools.call("update_article",args("{\"id\":"+saved.id+",\"version\":"+version+",\"title\":\"Stale\"}")));
             JsonObject conflict = new McpService("en_US").handle("{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\",\"params\":{\"name\":\"publish_article\",\"arguments\":{\"id\":"+saved.id+",\"version\":0}}}",tools).body.getAsJsonObject("result");
             assertTrue(conflict.get("isError").getAsBoolean());
