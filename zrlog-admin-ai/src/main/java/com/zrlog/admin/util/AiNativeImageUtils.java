@@ -79,6 +79,7 @@ public final class AiNativeImageUtils {
                 com.zrlog.admin.business.rest.response.ArticleReaderQuestionsResponse.ReaderQuestionItem.class));
         NativeImageUtils.gsonNativeAgentByClazz(Arrays.asList(com.zrlog.admin.business.ai.model.AIChatModels.class.getDeclaredClasses()));
         NativeImageUtils.gsonNativeAgentByClazz(Arrays.asList(com.zrlog.admin.business.ai.model.AIProviderRequests.class.getDeclaredClasses()));
+        NativeImageUtils.gsonNativeAgentByClazz(Arrays.asList(com.zrlog.admin.business.ai.model.OpenAIResponses.class.getDeclaredClasses()));
     }
     public static List<String> resources() {
         List<String> resourceUris = new ArrayList<>();

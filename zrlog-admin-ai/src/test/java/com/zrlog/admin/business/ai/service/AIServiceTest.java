@@ -101,6 +101,24 @@ public class AIServiceTest {
     }
 
     @Test
+    public void shouldResolveResponsesEndpointFromBaseOrFullTextUrlsWithoutLosingQuery() {
+        for (String base : List.of("https://gateway.example/v1", "https://gateway.example/v1/",
+                "https://gateway.example/v1/chat/completions", "https://gateway.example/v1/responses/")) {
+            assertEquals("https://gateway.example/v1/responses?api-version=1&route=chat%2Fcompletions",
+                    AIService.resolveEndpointUrl(base + "?api-version=1&route=chat%2Fcompletions", "unused", "/responses"));
+            assertEquals("https://gateway.example/v1/chat/completions",
+                    AIService.resolveEndpointUrl(base, "unused", "/chat/completions"));
+        }
+        assertEquals("https://api.openai.com/v1/responses", AIService.resolveEndpointUrl(null, "https://api.openai.com/v1", "/responses"));
+        AIWebSiteInfo info = info(AIProviderType.OPEN_AI);
+        info.setAi_base_url("https://gateway.example/v1/responses?api-version=1");
+        assertEquals("https://gateway.example/v1/responses?api-version=1", info.getAi_base_url());
+        for (String url : List.of("javascript:alert(1)", "https://gateway.example/v1/responses#secret", "//gateway.example/v1")) {
+            info.setAi_base_url(url); assertThrows(ArgsException.class, info::doValid);
+        }
+    }
+
+    @Test
     public void shouldParseProviderErrorDetails() {
         TestAIService service = new TestAIService();
 

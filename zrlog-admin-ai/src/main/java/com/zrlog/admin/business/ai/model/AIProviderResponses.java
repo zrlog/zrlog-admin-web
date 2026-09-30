@@ -112,6 +112,7 @@ public final class AIProviderResponses {
         @SerializedName(value = "reasoning_content", alternate = {"reasoningContent"})
         public String reasoningContent;
         public JsonElement reasoning;
+        public List<OpenAIResponses.Item> responsesOutput;
 
         public String getReasoningText() {
             if (reasoningContent != null) return reasoningContent;

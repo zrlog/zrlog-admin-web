@@ -102,8 +102,12 @@ public class AIService {
     }
 
     protected HttpRequest buildRequest(AIWebSiteInfo info, String body) {
+        return buildRequest(info, body, "/chat/completions");
+    }
+
+    protected HttpRequest buildRequest(AIWebSiteInfo info, String body, String endpointPath) {
         HttpRequest.Builder builder = HttpRequest.newBuilder()
-                .uri(URI.create(resolveRequestUrl(info)))
+                .uri(URI.create(resolveEndpointUrl(info.getAi_base_url(), info.getAi_provider().getBaseUrl(), endpointPath)))
                 .header("Content-Type", "application/json")
                 .header("Accept-Encoding", "identity")
                 .POST(HttpRequest.BodyPublishers.ofString(body));
@@ -113,10 +117,6 @@ public class AIService {
         return builder.build();
     }
 
-    private String resolveRequestUrl(AIWebSiteInfo info) {
-        return resolveEndpointUrl(info.getAi_base_url(), info.getAi_provider().getBaseUrl(), "/chat/completions");
-    }
-
     protected static String resolveEndpointUrl(String configuredBaseUrl, String defaultBaseUrl, String endpointPath) {
         String baseUrl = StringUtils.isEmpty(configuredBaseUrl) ? defaultBaseUrl : configuredBaseUrl;
         int queryIndex = baseUrl.indexOf('?');
@@ -124,6 +124,15 @@ public class AIService {
         String path = queryIndex >= 0 ? baseUrl.substring(0, queryIndex) : baseUrl;
         while (path.endsWith("/")) {
             path = path.substring(0, path.length() - 1);
+        }
+        // Existing configurations may contain a full text endpoint instead of a base URL.
+        if (endpointPath.equals("/responses") || endpointPath.equals("/chat/completions")) {
+            for (String textEndpoint : List.of("/chat/completions", "/responses")) {
+                if (path.endsWith(textEndpoint)) {
+                    path = path.substring(0, path.length() - textEndpoint.length());
+                    break;
+                }
+            }
         }
         if (!path.endsWith(endpointPath)) {
             path += endpointPath;

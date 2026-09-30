@@ -121,9 +121,9 @@ final class AIChatStreamReader {
     }
     private static AIResponseException invalid() { return new AIResponseException("Invalid AI stream"); }
 
-    private static final class LimitedInput extends FilterInputStream {
+    static final class LimitedInput extends FilterInputStream {
         private long remaining = MAX_RESPONSE_BYTES;
-        private LimitedInput(InputStream input) { super(input); }
+        LimitedInput(InputStream input) { super(input); }
         private int count(int size) throws IOException {
             if (size > 0 && (remaining -= size) < 0) throw new IOException("Response too large");
             return size;
