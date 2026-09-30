@@ -1,5 +1,6 @@
 import { Alert, App, Button, Space, Tag, Typography } from "antd";
 import { isChatMessage, renderChatMessage, useArticleChat } from "./use-article-chat";
+import ArticleAiApproval from "./article-ai-approval";
 import ArticleAiReasoning from "./article-ai-reasoning";
 import { RobotOutlined } from "@ant-design/icons";
 import { FunctionComponent, useEffect, useMemo, useRef, useState } from "react";
@@ -110,9 +111,19 @@ export const useArticleAiAssistantConfig = ({
         offline || data.aiConfigured !== true,
         `${getSsDate().key}/${data.article.logId || "draft"}`,
         onAiMessagesChange,
-        onArticleUpdated
+        onArticleUpdated,
+        { articleId: data.article.logId || 0, messages: aiMessages }
     );
     const visibleMessages = aiMessages;
+    const activeRun = aiMessages.some(
+        (content) =>
+            isChatMessage(content) &&
+            content.run &&
+            ["awaiting_approval", "running", "executing"].includes(content.run.status)
+    );
+    const runningElsewhere = aiMessages.some(
+        (content) => isChatMessage(content) && content.run && ["running", "executing"].includes(content.run.status)
+    );
 
     useEffect(() => {
         latestDataRef.current = data;
@@ -332,7 +343,7 @@ export const useArticleAiAssistantConfig = ({
 
     const sendMessage = async (messageInput: string, tool?: AssistantTool, selectedText?: string) => {
         const normalizedInput = messageInput.trim();
-        if (!normalizedInput || loadingKey) {
+        if (!normalizedInput || loadingKey || chat.busy || activeRun) {
             return;
         }
         const articleId = latestDataRef.current.article.logId || 0;
@@ -564,6 +575,24 @@ export const useArticleAiAssistantConfig = ({
     };
 
     const renderMessage = ({ content, index, defaultNode }: AIButtonRenderMessageOptions) => {
+        if (isChatMessage(content) && content.run) {
+            const run = content.run;
+            return (
+                <ArticleAiApproval
+                    run={run}
+                    disabled={offline || chat.busy || Boolean(loadingKey)}
+                    onRefresh={() => void chat.refreshRun(run.articleId)}
+                    onDecide={(decision) => {
+                        const release = draftAiSaveGate.tryBeginAiRequest(run.articleId);
+                        if (!release) {
+                            void message.warning(getRes().articleEdit.assistant.saveInProgress);
+                            return;
+                        }
+                        void chat.decide(run, decision, aiMessages).finally(release);
+                    }}
+                />
+            );
+        }
         if (isChatMessage(content)) return renderChatMessage({ content, index, defaultNode });
         const toolAwareContent = content as ToolAwareAIContent;
         if (toolAwareContent.messageType === "articleContext") {
@@ -622,7 +651,7 @@ export const useArticleAiAssistantConfig = ({
     const renderFooter = (selectedText?: string) => (
         <ArticleAiAssistantSkillContent
             aiProvider={data.aiProvider}
-            disabled={offline || Boolean(loadingKey)}
+            disabled={offline || Boolean(loadingKey) || chat.busy || activeRun}
             loadingKey={loadingKey}
             chatStatus={chat.status}
             onStopChat={chat.busy ? chat.stop : undefined}
@@ -686,7 +715,7 @@ export const useArticleAiAssistantConfig = ({
 
     return {
         conversationActions: {
-            disabled: offline || Boolean(loadingKey) || chat.busy || aiMessages.length === 0,
+            disabled: offline || Boolean(loadingKey) || chat.busy || runningElsewhere || aiMessages.length === 0,
             exporting: aiMessagesExporting,
             clearing: aiMessagesClearing,
             onExport: exportAiMessages,

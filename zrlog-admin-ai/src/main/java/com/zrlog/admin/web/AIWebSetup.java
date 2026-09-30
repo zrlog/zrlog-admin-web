@@ -140,6 +140,8 @@ public class AIWebSetup implements ArticleAssistant {
         router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/website/description/optimize", AIWebSiteController.class, "optimizeDescription");
         router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/website/ai/prompt/optimize", AIWebSiteController.class, "optimizeAiPrompt");
         router.addMapper("/api/admin/article/ai", AIArticleController.class, "ai");
+        router.addMapper("/api/admin/article/ai/approval", AIArticleController.class, "approveAiOperation");
+        router.addMapper("/api/admin/article/ai/run", AIArticleController.class, "aiRun");
         router.addMapper("/api/admin/article/applyCover", AIArticleController.class, "applyCover");
         router.addMapper("/api/admin/article/updateAiMessage", AIArticleController.class, "updateAiMessage");
         router.addMapper("/api/admin/article/clearAiMessages", AIArticleController.class, "clearAiMessages");

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, Space, Typography } from "antd";
 import { AxiosInstance, AxiosRequestConfig } from "axios";
 import { AIContent } from "@zrlog/editor/dist/ai/AIContentItem";
@@ -14,8 +14,40 @@ export type ChatMessage = AIContent & {
     sources?: Source[];
     reasoningContent?: string;
     failed?: boolean;
+    runId?: string;
+    run?: ChatRun;
 };
+export type ChatRun = {
+    runId: string;
+    articleId: number;
+    input: string;
+    status:
+        | "awaiting_approval"
+        | "running"
+        | "executing"
+        | "completed"
+        | "failed"
+        | "uncertain"
+        | "expired"
+        | "cancelled";
+    error?: string;
+    approval?: {
+        id: string;
+        tool: string;
+        title?: string;
+        articleId?: number;
+        version?: number;
+        publicImpact: boolean;
+        expiresAt: number;
+        changes: { field: string; before: string; after: string; truncated: boolean }[];
+    };
+    answer?: Event;
+    articleUpdates?: ArticleUpdatedEvent[];
+};
+
 type Event = {
+    runId?: string;
+    run?: ChatRun;
     type: string;
     reasoningContent?: string;
     content?: string;
@@ -80,7 +112,8 @@ export const useArticleChat = (
     disabled: boolean,
     scope: string,
     onMessagesChange?: (messages: AIContent[], articleId?: number) => void,
-    onArticleUpdated?: (event: ArticleUpdatedEvent) => void
+    onArticleUpdated?: (event: ArticleUpdatedEvent) => void,
+    session?: { articleId: number; messages: AIContent[] }
 ) => {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [busy, setBusy] = useState(false);
@@ -90,6 +123,87 @@ export const useArticleChat = (
     const restorePending = useRef<() => void>();
     const onArticleUpdatedRef = useRef(onArticleUpdated);
     onArticleUpdatedRef.current = onArticleUpdated;
+    const contextRef = useRef({ api, session, onMessagesChange });
+    contextRef.current = { api, session, onMessagesChange };
+    const mergeRun = useCallback((view: ChatRun, context: AIContent[]) => {
+        const current = context as ChatMessage[];
+        const belongsToRun = (message: ChatMessage) =>
+            message.runId === view.runId || message.messageId?.startsWith(`${view.runId}:`);
+        let index = current.findIndex(belongsToRun);
+        // A connection can fail before run-start arrives. Replace only an unfinished tail with the same prompt.
+        if (index < 0 && current.length >= 2) {
+            const question = current[current.length - 2],
+                reply = current[current.length - 1];
+            if (
+                question.role === "user" &&
+                question.content === view.input &&
+                !question.messageId &&
+                !question.runId &&
+                reply.role === "assistant" &&
+                !reply.messageId &&
+                (reply.thinking || reply.failed)
+            )
+                index = current.length - 2;
+        }
+        const history = current.filter(
+            (message, position) =>
+                !belongsToRun(message) &&
+                !(
+                    index === current.length - 2 &&
+                    !current[index]?.runId &&
+                    !current[index]?.messageId &&
+                    position >= index
+                )
+        );
+        const restored: ChatMessage[] =
+            view.status === "cancelled"
+                ? []
+                : view.status === "completed" && view.answer?.messages
+                ? view.answer.messages.map((message) => ({ ...message, thinking: false }))
+                : [
+                      {
+                          role: "user",
+                          content: view.input,
+                          messageType: "knowledge",
+                          runId: view.runId,
+                          thinking: false,
+                      },
+                      {
+                          role: "assistant",
+                          content: "",
+                          messageType: "knowledge",
+                          runId: view.runId,
+                          run: view,
+                          thinking: false,
+                      },
+                  ];
+        const next = [...history];
+        next.splice(index < 0 ? history.length : index, 0, ...restored);
+        setMessages(next);
+        contextRef.current.onMessagesChange?.(next, view.articleId);
+    }, []);
+    const refreshRun = useCallback(
+        async (articleId = contextRef.current.session?.articleId) => {
+            if (articleId === undefined) return false;
+            const revision = generation.current;
+            try {
+                const response = await contextRef.current.api.get<{ error: number; data?: ChatRun }>(
+                    "/api/admin/article/ai/run",
+                    { params: { id: articleId } }
+                );
+                if (revision !== generation.current || response?.data?.error || !response?.data?.data) return false;
+                const view = response.data.data;
+                if (view.articleId !== articleId) return false;
+                for (const updated of view.articleUpdates || []) onArticleUpdatedRef.current?.(updated);
+                mergeRun(view, contextRef.current.session?.messages || []);
+                return true;
+            } catch {
+                return false;
+            }
+        },
+        [mergeRun]
+    );
+
     const stop = () => {
         generation.current++;
         pending.current?.abort();
@@ -116,7 +230,23 @@ export const useArticleChat = (
         };
     }, [scope]);
 
-    const send = async (input: string, context: AIContent[], articleId: number) => {
+    const restoreArticleId = session?.articleId;
+    useEffect(() => {
+        if (!disabled && restoreArticleId !== undefined) void refreshRun(restoreArticleId);
+        // Read once when entering an editor. Confirmations use a new POST/SSE, never polling.
+    }, [scope, restoreArticleId, disabled, refreshRun]);
+
+    const send = async (
+        input: string,
+        context: AIContent[],
+        articleId: number,
+        approval?: { run: ChatRun; decision: "approve" | "reject" }
+    ) => {
+        if (approval)
+            context = (context as ChatMessage[]).filter(
+                (message) =>
+                    message.runId !== approval.run.runId && !message.messageId?.startsWith(`${approval.run.runId}:`)
+            );
         const prompt = input.trim();
         if (!prompt || disabled || pending.current) return;
         const res = getRes().articleEdit.knowledge;
@@ -138,16 +268,24 @@ export const useArticleChat = (
             setMessages(next);
             onMessagesChange?.(next, articleId);
         };
-        restorePending.current = () => publish(context);
-        const question: ChatMessage = { role: "user", content: prompt, thinking: false, messageType: "knowledge" };
+        restorePending.current = () => (approval ? mergeRun(approval.run, context) : publish(context));
+        const question: ChatMessage = {
+            role: "user",
+            content: prompt,
+            thinking: false,
+            messageType: "knowledge",
+            runId: approval?.run.runId,
+        };
         const base: ChatMessage[] = [...context, question];
         publish([...base, { role: "assistant", content: "", thinking: true, messageType: "knowledge" }]);
         let lastReasoning = "";
         let lastContent = "";
+        let latestCheckpoint: ChatRun | undefined;
         const updatedVersions = new Set<string>();
         const consume = (text: string, final: boolean) => {
             if (run !== generation.current) return;
             const events = parseChatEvents(text);
+            question.runId = events.find((event) => event.type === "run-start")?.runId || question.runId;
             // XHR supplies the entire response again on each progress callback and at completion.
             // A committed write still needs refreshing if a later model/conversation step fails.
             for (const event of events) {
@@ -163,6 +301,23 @@ export const useArticleChat = (
                 if (updatedVersions.has(key)) continue;
                 updatedVersions.add(key);
                 onArticleUpdatedRef.current?.({ articleId, version: event.version! });
+            }
+            const checkpoint = [...events]
+                .reverse()
+                .find((event) => event.type === "approval-required" || event.type === "run-state");
+            if (checkpoint?.run && checkpoint.run.articleId === articleId) {
+                const view = checkpoint.run;
+                latestCheckpoint = view;
+                for (const updated of view.articleUpdates || []) {
+                    const key = `${updated.articleId}/${updated.version}`;
+                    if (updated.articleId === articleId && !updatedVersions.has(key)) {
+                        updatedVersions.add(key);
+                        onArticleUpdatedRef.current?.(updated);
+                    }
+                }
+                mergeRun(view, context);
+                restorePending.current = () => mergeRun(view, context);
+                return;
             }
             const error = events.find((e) => e.type === "error");
             if (error) throw new Error(errors[error.error || ""] || res.requestFailed);
@@ -199,7 +354,14 @@ export const useArticleChat = (
                 lastContent = content;
                 publish([
                     ...base,
-                    { role: "assistant", content, thinking: !content, messageType: "knowledge", reasoningContent },
+                    {
+                        role: "assistant",
+                        content,
+                        thinking: !content,
+                        messageType: "knowledge",
+                        reasoningContent,
+                        runId: question.runId,
+                    },
                 ]);
             }
             const answer = events.find((e) => e.type === "answer");
@@ -230,9 +392,25 @@ export const useArticleChat = (
                     }
                 },
             };
-            const response = await api.post("/api/admin/article/ai", { input: prompt, articleId }, requestConfig);
+            const response = await api.post(
+                approval ? "/api/admin/article/ai/approval" : "/api/admin/article/ai",
+                approval
+                    ? {
+                          articleId,
+                          runId: approval.run.runId,
+                          approvalId: approval.run.approval?.id,
+                          decision: approval.decision,
+                      }
+                    : { input: prompt, articleId },
+                requestConfig
+            );
             consume(typeof response.data === "string" ? response.data : "", true);
         } catch (error) {
+            if (approval && run === generation.current && (await refreshRun(articleId))) return;
+            if (latestCheckpoint && run === generation.current) {
+                mergeRun(latestCheckpoint, context);
+                return;
+            }
             if (run === generation.current)
                 publish([
                     ...base,
@@ -245,6 +423,7 @@ export const useArticleChat = (
                         thinking: false,
                         failed: true,
                         messageType: "knowledge",
+                        runId: question.runId,
                     },
                 ]);
         } finally {
@@ -256,5 +435,7 @@ export const useArticleChat = (
             }
         }
     };
-    return { messages, busy, status, send, clear, stop };
+    const decide = (view: ChatRun, decision: "approve" | "reject", context: AIContent[]) =>
+        send(view.input, context, view.articleId, { run: view, decision });
+    return { messages, busy, status, send, clear, stop, decide, refreshRun };
 };

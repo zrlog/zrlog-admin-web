@@ -243,7 +243,21 @@ public class AIChatToolParityTest {
         String chat(long articleId) throws Exception {
             ChatRequest input = new ChatRequest(); input.input = "Save and publish the article as requested";
             input.articleId = articleId;
-            return new String(start(input).getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+            String chunk = new String(start(input).getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+            StringBuilder wire = new StringBuilder(chunk);
+            for (int i = 0; i < 8; i++) {
+                var paused = chunk.lines().filter(line -> line.startsWith("data: "))
+                        .map(line -> JsonParser.parseString(line.substring(6)).getAsJsonObject())
+                        .filter(event -> event.get("type").getAsString().equals("approval-required")).findFirst();
+                if (paused.isEmpty()) break;
+                var view = paused.get().getAsJsonObject("run");
+                var confirmation = new com.zrlog.admin.business.ai.model.AIChatModels.ApprovalRequest();
+                confirmation.articleId = articleId; confirmation.runId = view.get("runId").getAsString();
+                confirmation.approvalId = view.getAsJsonObject("approval").get("id").getAsString(); confirmation.decision = "approve";
+                chunk = new String(resume(confirmation).getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+                wire.append(chunk);
+            }
+            return wire.toString();
         }
         @Override protected AIProviderResponses.Choice complete(AIWebSiteInfo info, String body, AIChatStreamReader.Progress progress) throws IOException {
             requests.add(JsonParser.parseString(body).getAsJsonObject());

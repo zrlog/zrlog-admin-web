@@ -51,6 +51,27 @@ public class AIArticleController extends BaseController {
             streamResponse = new AIChatService(request).startStreamResponse(getParamWithEmptyCheck("input"),
                     aiContextId(), tool, articleContext);
         }
+        writeStream(streamResponse);
+    }
+
+    @RequiresAction(value = AccountAction.ARTICLE_ASSIST, descriptionKey = "article.assist")
+    @RequestMethod(method = HttpMethod.POST)
+    public void approveAiOperation() throws IOException, SQLException {
+        java.nio.ByteBuffer body = request.getRequestBodyByteBuffer();
+        if (body == null || body.remaining() > 4096) throw new ArgsException();
+        writeStream(new AIChatService(request).resume(getRequestBodyWithNullCheck(
+                com.zrlog.admin.business.ai.model.AIChatModels.ApprovalRequest.class)));
+    }
+
+    @ResponseBody
+    @RequiresAction(value = AccountAction.ARTICLE_ASSIST, articleQuery = true, descriptionKey = "article.assist")
+    @RequestMethod(method = HttpMethod.GET)
+    public ApiStandardResponse<com.zrlog.admin.business.ai.model.AIChatModels.RunView> aiRun() throws SQLException {
+        response.addHeader("Cache-Control", "no-store");
+        return new ApiStandardResponse<>(new AIChatService(request).getRun(Long.parseLong(request.getParaToStr("id", "0"))));
+    }
+
+    private void writeStream(AIStreamResponse streamResponse) throws IOException {
         AdminSseEmitter.setHeaders(response);
         response.addHeader("Cache-Control", "no-store, no-transform");
         if (streamResponse.getInputStream() == null) {

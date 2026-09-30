@@ -30,7 +30,7 @@ import { MarkdownImportApplyOptions } from "./markdown-import-modal";
 import ArticlePublishReviewModal from "./article-publish-review-modal";
 import { ArticlePublishReviewTarget } from "./article-publish-review";
 import { createDraftAiSaveGate } from "./draft-ai-save-gate";
-import { getArticleEditorChange } from "./article-editor-change";
+import useArticleEditorDocument from "./use-article-editor-document";
 import useArticleEditorScreens from "./use-article-editor-screens";
 import useArticleEditorHeight from "./use-article-editor-height";
 
@@ -44,7 +44,6 @@ const Index: FunctionComponent<ArticleEditProps> = ({
 }) => {
     const location = useLocation();
     const editCardRef = useRef<HTMLDivElement>(null);
-    const editorViewRef = useRef<EditorView | null>(null);
     const suppressedEditorMarkdownRef = useRef<string>();
     const [publishReviewOpen, setPublishReviewOpen] = useState(false);
     const [publishReviewMode, setPublishReviewMode] = useState<"publish" | "preview">("publish");
@@ -120,6 +119,8 @@ const Index: FunctionComponent<ArticleEditProps> = ({
         updateCache,
         updatePublishStatus,
     });
+    const editorDocument = useArticleEditorDocument(state.article.markdown, restoreInputRevision, handleValuesChange);
+    const editorViewRef = editorDocument.viewRef;
     const draftAiPending = !state.article.logId && draftAiPendingCount > 0;
     const isNewArticle = !state.article.logId;
     const articleStatusText = isNewArticle
@@ -501,7 +502,7 @@ const Index: FunctionComponent<ArticleEditProps> = ({
                             placeholder={getRes().articleEdit.editor.placeholder}
                             height={editorLayout.height}
                             loadSuccess={(editor) => {
-                                editorViewRef.current = editor as EditorView;
+                                editorDocument.onLoad(editor as EditorView);
                                 editorLayout.onLoad(editor as EditorView);
                             }}
                             previewContent={state.article.content ? state.article.content : ""}
@@ -518,14 +519,7 @@ const Index: FunctionComponent<ArticleEditProps> = ({
                                         return;
                                     }
                                 }
-                                const change = getArticleEditorChange(
-                                    v,
-                                    state.article.markdown,
-                                    editorViewRef.current?.state.doc.toString()
-                                );
-                                if (change) {
-                                    handleValuesChange(change);
-                                }
+                                editorDocument.onChange(v);
                             }}
                         />
                     </div>

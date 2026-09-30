@@ -4,6 +4,8 @@
     "methods": [
       {"name": "<init>", "parameterTypes": []},
       {"name": "ai", "parameterTypes": []},
+      {"name": "approveAiOperation", "parameterTypes": []},
+      {"name": "aiRun", "parameterTypes": []},
       {"name": "applyCover", "parameterTypes": []},
       {"name": "clearAiMessages", "parameterTypes": []},
       {"name": "exportAiMessages", "parameterTypes": []},

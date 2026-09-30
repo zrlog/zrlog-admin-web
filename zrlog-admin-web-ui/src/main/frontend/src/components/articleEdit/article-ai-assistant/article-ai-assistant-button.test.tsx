@@ -118,6 +118,7 @@ jest.mock("./tool/article-ai-assistant-tools", () => ({ getAssistantToolLabel: (
 
 type AssistantConfig = ReturnType<typeof useArticleAiAssistantConfig>;
 type FooterActions = {
+    disabled: boolean;
     onClearAiMessages: () => void;
     onSubmit: (message: string, tool?: AssistantTool) => void;
 };
@@ -281,6 +282,29 @@ describe("useArticleAiAssistantConfig draft request gate", () => {
         reactActEnvironment.IS_REACT_ACT_ENVIRONMENT = false;
     });
 
+    it("blocks new chat and skills while awaiting confirmation but keeps clear available", async () => {
+        const gate = createDraftAiSaveGate();
+        const post = jest.fn(async () => ({ data: "" }));
+        const pending = {
+            role: "assistant" as const,
+            thinking: false,
+            content: "",
+            messageType: "knowledge",
+            run: { runId: "run", articleId: 7, input: "Update", status: "awaiting_approval" },
+        };
+        const mounted = mountHook(gate, post, undefined, 7, [pending]);
+        expect(mounted.getFooter().disabled).toBe(true);
+        expect(mounted.getConfig().conversationActions.disabled).toBe(false);
+        await act(async () => {
+            mounted.getFooter().onSubmit("Another question");
+            mounted.getFooter().onSubmit("Rewrite", "rewrite");
+            await flushRequest();
+        });
+        expect(post).not.toHaveBeenCalled();
+        const executing = { ...pending, run: { ...pending.run, status: "executing" } };
+        mounted.rerender(7, [executing]);
+        expect(mounted.getConfig().conversationActions.disabled).toBe(true);
+    });
     it("restores saved ordinary chat through the same article state as writing skills", async () => {
         const gate = createDraftAiSaveGate();
         const saved = [

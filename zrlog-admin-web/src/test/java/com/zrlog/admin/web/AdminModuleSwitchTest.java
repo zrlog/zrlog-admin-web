@@ -81,12 +81,14 @@ public class AdminModuleSwitchTest {
             assertEquals(access, router.getMethod("/api/admin/oauth", HttpMethod.GET) != null);
             assertEquals(access, router.getMethod("/api/webhook/message-center/notice", HttpMethod.POST) != null);
             for (String path : new String[]{"/api/admin/article/ai",
+                    "/api/admin/article/ai/approval",
                     "/api/admin/article/clearAiMessages",
                     "/api/admin/article/cover/apply", "/api/admin/website/ai", "/api/admin/website/optimizeAiPrompt"}) {
                 var method = router.getMethod(path, HttpMethod.POST);
                 if (ai) assertNotNull(path, method);
                 else assertNull(path, method);
             }
+            assertEquals(ai, router.getMethod("/api/admin/article/ai/run", HttpMethod.GET) != null);
             assertEquals(account, router.getMethod("/api/admin/login", HttpMethod.POST) != null);
             assertEquals(content, router.getMethod("/api/admin/article/create", HttpMethod.POST) != null);
             assertEquals(assets, router.getMethod("/api/admin/upload", HttpMethod.POST) != null);

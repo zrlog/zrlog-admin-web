@@ -4,13 +4,14 @@ import { createRoot, Root } from "react-dom/client";
 import { AxiosInstance } from "axios";
 import { getRes } from "../../../utils/constants";
 import { BasicUserInfo } from "../../../type";
-import { ChatMessage, parseChatEvents, renderChatMessage, useArticleChat } from "./use-article-chat";
+import { ChatMessage, ChatRun, parseChatEvents, renderChatMessage, useArticleChat } from "./use-article-chat";
 
 describe("knowledge assistant", () => {
     let root: Root;
     let container: HTMLDivElement;
     const post = jest.fn<Promise<{ data: string }>, any[]>();
-    const api = { post } as unknown as AxiosInstance;
+    const get = jest.fn<Promise<{ data: { error: number; data?: ChatRun } }>, any[]>();
+    const api = { post, get } as unknown as AxiosInstance;
     const onMessagesChange = jest.fn();
     const onArticleUpdated = jest.fn();
     const completed = (
@@ -36,8 +37,23 @@ describe("knowledge assistant", () => {
             ],
         })}\n\ndata: {"type":"done"}\n\n`;
     let chat: ReturnType<typeof useArticleChat>;
-    function Harness({ scope = "1" }: { scope?: string }) {
-        chat = useArticleChat(api, false, scope, onMessagesChange, onArticleUpdated);
+    function Harness({
+        scope = "1",
+        restore = false,
+        history = [],
+    }: {
+        scope?: string;
+        restore?: boolean;
+        history?: ChatMessage[];
+    }) {
+        chat = useArticleChat(
+            api,
+            false,
+            scope,
+            onMessagesChange,
+            onArticleUpdated,
+            restore ? { articleId: 7, messages: history } : undefined
+        );
         return (
             <>
                 {chat.messages.map((m, index) => (
@@ -91,6 +107,7 @@ describe("knowledge assistant", () => {
         document.body.appendChild(container);
         root = createRoot(container);
         post.mockReset();
+        get.mockReset();
         onMessagesChange.mockClear();
         onArticleUpdated.mockClear();
         act(() => root.render(<Harness />));
@@ -105,6 +122,148 @@ describe("knowledge assistant", () => {
             await chat.send("Find deployment articles", chat.messages, 0);
         });
     }
+    const pausedRun = (): ChatRun => ({
+        runId: "run-1",
+        articleId: 7,
+        input: "Update title",
+        status: "awaiting_approval",
+        approval: {
+            id: "approval-1",
+            tool: "update_article",
+            articleId: 7,
+            title: "Before",
+            version: 2,
+            expiresAt: Date.now() + 60000,
+            publicImpact: false,
+            changes: [{ field: "title", before: "Before", after: "After", truncated: false }],
+        },
+    });
+    it("accepts a paused SSE and continues the same question through a new POST", async () => {
+        const view = pausedRun();
+        post.mockResolvedValueOnce({ data: `data: ${JSON.stringify({ type: "approval-required", run: view })}\n\n` });
+        await act(async () => {
+            await chat.send(view.input, [], 7);
+        });
+        expect(chat.busy).toBe(false);
+        expect(chat.messages).toHaveLength(2);
+        expect(chat.messages[1].run).toEqual(view);
+        expect(chat.messages[1].failed).toBeUndefined();
+        expect(get).not.toHaveBeenCalled();
+        post.mockResolvedValueOnce({
+            data: 'data: {"type":"article-updated","articleId":7,"version":3}\n\n' + completed("Saved", view.input),
+        });
+        await act(async () => {
+            await chat.decide(view, "approve", chat.messages);
+        });
+        expect(post.mock.calls[1][0]).toBe("/api/admin/article/ai/approval");
+        expect(post.mock.calls[1][1]).toEqual({
+            articleId: 7,
+            runId: "run-1",
+            approvalId: "approval-1",
+            decision: "approve",
+        });
+        expect(chat.messages).toHaveLength(2);
+        expect(chat.messages[0].content).toBe(view.input);
+        expect(chat.messages[1].content).toBe("Saved");
+        expect(onArticleUpdated).toHaveBeenCalledWith({ articleId: 7, version: 3 });
+        expect(get).not.toHaveBeenCalled();
+    });
+    it("keeps a received approval card if the first connection closes with a transport error", async () => {
+        const view = pausedRun();
+        post.mockImplementationOnce(async (_url, _body, config) => {
+            config.onDownloadProgress({
+                event: {
+                    target: { responseText: `data: ${JSON.stringify({ type: "approval-required", run: view })}\n\n` },
+                },
+            });
+            throw new Error("connection closed");
+        });
+        await act(async () => {
+            await chat.send(view.input, [], 7);
+        });
+        expect(chat.messages).toHaveLength(2);
+        expect(chat.messages[1].run).toEqual(view);
+        expect(chat.messages[1].failed).toBeUndefined();
+    });
+    it("restores once on entry without polling and ignores a previous editor response", async () => {
+        let resolve!: (value: { data: { error: number; data: ChatRun } }) => void;
+        get.mockReturnValueOnce(
+            new Promise((done) => {
+                resolve = done;
+            })
+        );
+        await act(async () => root.render(<Harness scope="restore" restore />));
+        expect(get).toHaveBeenCalledTimes(1);
+        await act(async () => root.render(<Harness scope="restore" restore />));
+        expect(get).toHaveBeenCalledTimes(1);
+        await act(async () => {
+            resolve({ data: { error: 0, data: pausedRun() } });
+        });
+        expect(chat.messages[1].run?.approval?.id).toBe("approval-1");
+        get.mockReturnValueOnce(
+            new Promise((done) => {
+                resolve = done;
+            })
+        );
+        let refreshing!: Promise<boolean>;
+        act(() => {
+            refreshing = chat.refreshRun(7);
+        });
+        act(() => root.render(<Harness scope="another" />));
+        await act(async () => {
+            resolve({ data: { error: 0, data: pausedRun() } });
+            await refreshing;
+        });
+        expect(chat.messages).toHaveLength(0);
+    });
+    it("reconciles a disconnected confirmation once and keeps the persisted task state", async () => {
+        const view = pausedRun();
+        post.mockRejectedValue(new Error("connection lost"));
+        get.mockResolvedValue({ data: { error: 0, data: { ...view, status: "uncertain" } } });
+        await act(async () => {
+            await chat.decide(view, "approve", []);
+        });
+        expect(get).toHaveBeenCalledTimes(1);
+        expect(post).toHaveBeenCalledTimes(1);
+        expect(chat.messages[1].run?.status).toBe("uncertain");
+        expect(chat.busy).toBe(false);
+    });
+    it("keeps a recovered completed turn in its original place and removes cancelled cards", async () => {
+        const view = pausedRun();
+        const pair: ChatMessage[] = [
+            { role: "user", thinking: false, content: view.input, messageId: `${view.runId}:user` },
+            { role: "assistant", thinking: false, content: "Saved", messageId: `${view.runId}:assistant` },
+        ];
+        const later: ChatMessage = { role: "assistant", thinking: false, content: "Later answer", messageId: "later" };
+        get.mockResolvedValue({
+            data: { error: 0, data: { ...view, status: "completed", answer: { type: "answer", messages: pair } } },
+        });
+        await act(async () => root.render(<Harness restore history={[...pair, later]} />));
+        expect(chat.messages.map((message) => message.messageId)).toEqual([
+            `${view.runId}:user`,
+            `${view.runId}:assistant`,
+            "later",
+        ]);
+        const pending: ChatMessage[] = [
+            later,
+            { role: "user", thinking: false, content: view.input, runId: view.runId },
+            { role: "assistant", thinking: false, content: "", runId: view.runId, run: view },
+        ];
+        get.mockResolvedValue({ data: { error: 0, data: { ...view, status: "cancelled" } } });
+        await act(async () => root.render(<Harness scope="cancelled" restore history={pending} />));
+        expect(chat.messages).toEqual([later]);
+    });
+    it("replaces an unfinished question after losing the initial run-start event", async () => {
+        const view = pausedRun();
+        const unfinished: ChatMessage[] = [
+            { role: "user", thinking: false, content: view.input },
+            { role: "assistant", thinking: false, content: "Connection lost", failed: true },
+        ];
+        get.mockResolvedValue({ data: { error: 0, data: view } });
+        await act(async () => root.render(<Harness restore history={unfinished} />));
+        expect(chat.messages).toHaveLength(2);
+        expect(chat.messages[1].run).toEqual(view);
+    });
     it("publishes saved messages with stable IDs and sources to the article cache", async () => {
         const sources = [
             { id: 1, title: "Deploy guide", url: "https://example.com/1", draft: false, privateArticle: false },

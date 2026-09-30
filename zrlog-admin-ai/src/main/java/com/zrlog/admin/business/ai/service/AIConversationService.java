@@ -11,6 +11,8 @@ import com.zrlog.model.WebSite;
 
 import java.sql.SQLException;
 import java.util.*;
+import java.util.function.UnaryOperator;
+import com.zrlog.admin.business.security.SecurityStore;
 
 /** Account-scoped conversation storage, including legacy history migration. */
 public class AIConversationService {
@@ -37,12 +39,6 @@ public class AIConversationService {
     }
 
     private static final long DRAFT_ARTICLE_ID = 0L;
-    private static final Object[] AI_MESSAGE_LOCKS = new Object[64];
-
-    static {
-        Arrays.setAll(AI_MESSAGE_LOCKS, ignored -> new Object());
-    }
-
     static String buildCacheKey(Long articleId) {
         return "ai_chat_message_" + articleId;
     }
@@ -55,39 +51,27 @@ public class AIConversationService {
         if (articleId == null || articleId <= DRAFT_ARTICLE_ID) {
             return false;
         }
-        int draftLockIndex = aiMessageLockIndex(draftId);
-        int articleLockIndex = aiMessageLockIndex(articleId);
-        Object draftLock = AI_MESSAGE_LOCKS[draftLockIndex];
-        Object articleLock = AI_MESSAGE_LOCKS[articleLockIndex];
-        if (draftLock == articleLock) {
-            synchronized (draftLock) {
-                return migrateDraftAIMessageToArticleUnlocked(articleId, draftId);
-            }
-        }
-        Object firstLock = draftLockIndex < articleLockIndex ? draftLock : articleLock;
-        Object secondLock = draftLockIndex < articleLockIndex ? articleLock : draftLock;
-        synchronized (firstLock) {
-            synchronized (secondLock) {
-                return migrateDraftAIMessageToArticleUnlocked(articleId, draftId);
-            }
-        }
-    }
-
-    private boolean migrateDraftAIMessageToArticleUnlocked(Long articleId, Long draftId) throws SQLException {
-        WebsiteKvService kvService = new WebsiteKvService();
-        String draftAIMessageKey = conversationKey(draftId);
-        Map<String, Object> draftValues = new WebSite().getWebSiteByNameIn(
-                Arrays.asList(draftAIMessageKey, buildCacheKey(draftId)));
-        String draftAIMessage = (String) draftValues.get(draftAIMessageKey);
-        if (draftAIMessage == null) draftAIMessage = (String) draftValues.get(buildCacheKey(draftId));
-        if (StringUtils.isEmpty(draftAIMessage)) {
-            return false;
-        }
-        boolean saved = kvService.putString(conversationKey(articleId), draftAIMessage);
-        if (saved) {
-            kvService.putString(draftAIMessageKey, "[]");
-        }
-        return saved;
+        // Persist stable IDs before copying, so retrying an interrupted migration is idempotent.
+        java.util.concurrent.atomic.AtomicReference<List<AIResponseEntry.AIContentEntry>> snapshot =
+                new java.util.concurrent.atomic.AtomicReference<>();
+        if (!mutateMessages(draftId, messages -> {
+            if (messages.isEmpty()) return null;
+            snapshot.set(messages);
+            return messages;
+        })) return false;
+        List<AIResponseEntry.AIContentEntry> entries = snapshot.get();
+        Set<String> migrated = new HashSet<>();
+        for (AIResponseEntry.AIContentEntry entry : entries) migrated.add(entry.getMessageId());
+        if (!mutateMessages(articleId, messages -> {
+            Set<String> existing = new HashSet<>();
+            for (AIResponseEntry.AIContentEntry entry : messages) existing.add(entry.getMessageId());
+            for (AIResponseEntry.AIContentEntry entry : entries) if (existing.add(entry.getMessageId())) messages.add(entry);
+            return messages;
+        })) return false;
+        return mutateMessages(draftId, messages -> {
+            messages.removeIf(entry -> migrated.contains(entry.getMessageId()));
+            return messages;
+        });
     }
 
     public boolean removeAIMessage(Long articleId) {
@@ -96,7 +80,8 @@ public class AIConversationService {
         }
         try {
             // Article deletion is already authorized by AdminArticleService.
-            new WebSite().execute("update website set value=null where name like ? escape '!'", "ai!_chat!_message!_u%!_" + articleId);
+            new WebSite().execute("update website set value=null,remark=? where name like ? escape '!'",
+                    UUID.randomUUID().toString(), "ai!_chat!_message!_u%!_" + articleId);
             return new WebsiteKvService().remove(buildCacheKey(articleId));
         } catch (SQLException e) { throw new IllegalStateException("Unable to remove article AI messages", e); }
     }
@@ -105,9 +90,16 @@ public class AIConversationService {
         if (articleId == null || (articleId < DRAFT_ARTICLE_ID && articleId != -(long) Objects.requireNonNullElse(conversationUserId(), 0))) {
             return false;
         }
-        synchronized (aiMessageLock(articleId)) {
-            return new WebsiteKvService().putStringQuietly(conversationKey(articleId), "[]");
-        }
+        try {
+            AIApprovalStore checkpoints = new AIApprovalStore();
+            com.zrlog.admin.business.ai.model.AIChatModels.Run run = checkpoints.read(conversationUserId(), Math.max(0, articleId));
+            if (run != null) {
+                String status = AIApprovalStore.view(run).status;
+                if ("running".equals(status) || "executing".equals(status)) return false;
+                run.answer = null; run.approval = null; checkpoints.save(run, "cancelled");
+            }
+            return mutateMessages(articleId, messages -> new ArrayList<>());
+        } catch (SQLException | AIApprovalStore.Changed e) { return false; }
     }
 
     public ArticleAIMessageExportResponse exportAIMessage(Long articleId) {
@@ -143,64 +135,63 @@ public class AIConversationService {
         }
     }
 
-    private static Object aiMessageLock(Long articleId) {
-        return AI_MESSAGE_LOCKS[aiMessageLockIndex(articleId)];
-    }
-
-    private static int aiMessageLockIndex(Long articleId) {
-        return Math.floorMod(Objects.hashCode(articleId), AI_MESSAGE_LOCKS.length);
-    }
-
-    private boolean saveAIMessageUnlocked(List<AIResponseEntry.AIContentEntry> messages, Long articleId)
-            throws SQLException {
-        fillMissingMessageIds(messages);
-        String jsonStr = new Gson().toJson(messages);
-        return new WebsiteKvService().putString(conversationKey(articleId), jsonStr);
+    /** Compare-and-set the website row; retries merge against the latest committed conversation. */
+    private boolean mutateMessages(Long articleId, UnaryOperator<List<AIResponseEntry.AIContentEntry>> change) throws SQLException {
+        SecurityStore db = new SecurityStore();
+        String key = conversationKey(articleId);
+        Gson json = new Gson();
+        for (int attempt = 0; attempt < 8; attempt++) {
+            Map<String, Object> row = db.withSession(c -> db.one(c, "select value,remark from website where name=?", key));
+            String old = row == null ? null : Objects.toString(row.get("value"), null);
+            List<AIResponseEntry.AIContentEntry> current = old == null || old.isBlank()
+                    ? new ArrayList<>(getAiMessageInfoByArticleId(articleId).getAiMessages())
+                    : new ArrayList<>(Arrays.asList(json.fromJson(old, AIResponseEntry.AIContentEntry[].class)));
+            List<AIResponseEntry.AIContentEntry> updated = change.apply(current);
+            if (updated == null) return false;
+            fillMissingMessageIds(updated);
+            String value = json.toJson(updated), revision = UUID.randomUUID().toString();
+            if (row == null) {
+                try {
+                    db.withSession(c -> db.update(c, "insert into website(name,value,remark) values(?,?,?)", key, value, revision));
+                    return true;
+                } catch (SQLException e) {
+                    if (db.withSession(c -> db.one(c, "select name from website where name=?", key)) == null) throw e;
+                }
+            } else {
+                Object previous = row.get("remark");
+                int count = previous == null
+                        ? db.withSession(c -> db.update(c, "update website set value=?,remark=? where name=? and remark is null", value, revision, key))
+                        : db.withSession(c -> db.update(c, "update website set value=?,remark=? where name=? and remark=?", value, revision, key, previous));
+                if (count == 1) return true;
+            }
+        }
+        throw new SQLException("Conversation changed concurrently");
     }
 
     public boolean saveAIMessage(List<AIResponseEntry.AIContentEntry> messages, Long articleId) throws SQLException {
-        synchronized (aiMessageLock(articleId)) {
-            return saveAIMessageUnlocked(messages, articleId);
-        }
+        return mutateMessages(articleId, ignored -> new ArrayList<>(messages));
     }
 
-    public boolean appendAIMessageEntries(List<AIResponseEntry.AIContentEntry> entries, Long articleId)
-            throws SQLException {
-        synchronized (aiMessageLock(articleId)) {
-            AIWebSiteInfoWithAIMessages currentInfo = getAiMessageInfoByArticleId(articleId);
-            List<AIResponseEntry.AIContentEntry> currentMessages = currentInfo.getAiMessages();
-            ensureSystemMessage(currentMessages, currentInfo.getAi_prompt());
-            fillMissingMessageIds(currentMessages);
-            fillMissingMessageIds(entries);
-            Set<String> currentIds = new HashSet<>();
-            for (AIResponseEntry.AIContentEntry currentMessage : currentMessages) {
-                currentIds.add(currentMessage.getMessageId());
-            }
-            for (AIResponseEntry.AIContentEntry entry : entries) {
-                if (currentIds.add(entry.getMessageId())) {
-                    currentMessages.add(entry);
-                }
-            }
-            return saveAIMessageUnlocked(currentMessages, articleId);
-        }
+    public boolean appendAIMessageEntries(List<AIResponseEntry.AIContentEntry> entries, Long articleId) throws SQLException {
+        fillMissingMessageIds(entries);
+        String prompt = getAiMessageInfoByArticleId(articleId).getAi_prompt();
+        return mutateMessages(articleId, messages -> {
+            ensureSystemMessage(messages, prompt);
+            fillMissingMessageIds(messages);
+            Set<String> ids = new HashSet<>();
+            for (AIResponseEntry.AIContentEntry entry : messages) ids.add(entry.getMessageId());
+            for (AIResponseEntry.AIContentEntry entry : entries) if (ids.add(entry.getMessageId())) messages.add(entry);
+            return messages;
+        });
     }
 
-    public boolean updateAIMessagePayload(Long articleId, String messageId, String tool, Object payload)
-            throws SQLException {
-        synchronized (aiMessageLock(articleId)) {
-            AIWebSiteInfoWithAIMessages info = getAiMessageInfoByArticleId(articleId);
-            List<AIResponseEntry.AIContentEntry> messages = info.getAiMessages();
-            boolean changed = false;
-            for (AIResponseEntry.AIContentEntry message : messages) {
-                if (Objects.equals(messageId, message.getMessageId())) {
-                    message.setTool(tool);
-                    message.setPayload(payload);
-                    changed = true;
-                    break;
-                }
+    public boolean updateAIMessagePayload(Long articleId, String messageId, String tool, Object payload) throws SQLException {
+        return mutateMessages(articleId, messages -> {
+            for (AIResponseEntry.AIContentEntry entry : messages) if (Objects.equals(messageId, entry.getMessageId())) {
+                entry.setTool(tool); entry.setPayload(payload); return messages;
             }
-            return changed && saveAIMessageUnlocked(messages, articleId);
-        }
+            return null;
+        });
     }
 
     public void ensureSystemMessage(List<AIResponseEntry.AIContentEntry> messages, String aiPrompt) {

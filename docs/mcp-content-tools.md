@@ -10,7 +10,7 @@ access 负责 MCP 协议和外部授权适配；content 统一维护工具定义
 
 - `get_article(id)`：返回可编辑元数据、当前状态与版本；正文通过 `read_article` 分页读取。
 - `list_categories` / `list_tags`：按 ID 分页，`offset` 默认 0，`limit` 默认 50、上限 100；不返回全站文章统计。
-- `create_article(title, typeId, status, markdown?, content?, ...)`：明确选择 `draft`、`private` 或 `published`；沿用文章字段 `alias`、`digest`、`keywords`、`thumbnail`、`canComment`、`recommended`、`editorType`。可直接发布，不增加人工审批门槛。默认保留后台编辑器的 AI 上下文。
+- `create_article(title, typeId, status, markdown?, content?, ...)`：明确选择 `draft`、`private` 或 `published`；沿用文章字段 `alias`、`digest`、`keywords`、`thumbnail`、`canComment`、`recommended`、`editorType`。外部 MCP 可直接调用发布，确认策略由客户端管理。默认保留后台编辑器的 AI 上下文。
 - `update_article(id, version, ...)`：只更新提供的字段，省略字段保持原值；版本必须与当前版本一致，冲突后重新读取再决定修改。仅提供 Markdown 时重新生成 HTML；仅提供 HTML 时清空旧 Markdown 并切换编辑格式，未提供正文时保持现有正文。运行环境不含 Markdown 渲染器时，需同时提供对应的 HTML。
 - `publish_article(id, version)`：保留内容并改为公开发布，独立检查文章更新与发布权限。
 - `upload_attachment(filename, data)`：`data` 为标准 Base64，单个附件最多 4 MiB；只接收客户端提供的文件字节，不读取服务端路径或抓取 URL。复用账号上传目录与上传插件，返回 URL。assets 禁用时不提供该工具。
@@ -40,6 +40,14 @@ access 负责 MCP 协议和外部授权适配；content 统一维护工具定义
 编辑页只处理当前文章的事件，按 ID/版本去重，通过 `GET /api/admin/article-edit?id=7` 拉取最新数据并更新编辑器、版本及页面缓存，保留正在进行的助手对话。已有保存请求完成后再刷新；重复进度、旧版本和切换文章后的响应不会回退页面。有未保存内容时复用现有冲突处理，保留本地稿供用户选择。此事件只属于内置助手当前请求流，不是外部 MCP 或其他浏览器的订阅通知。
 
 助手底部仅保留技能选择、输入和发送。导出与清空位于抽屉左侧“AI 助手”标题的下拉菜单；清空前确认，对话进行中和空会话禁用会话操作。不提供导入，移除请求预览和字段勾选入口；写作技能继续使用当前编辑器字段和选中文本。
+
+## 内置助手写入确认（实现契约）
+
+内置助手的创建、修改、发布与上传先经过人工确认；外部 MCP 保留客户端确认策略和原有协议。只读工具自动执行。待确认时先将完整模型消息（含工具调用 ID、供应商签名）、当前轮次、工具执行位置及结果写入 `website`，再发送 `approval-required` 并结束本段 SSE。`POST /api/admin/article/ai/approval` 只接收文章定位、任务 ID、确认 ID 与决定，使用持久化参数继续原任务并返回新的 SSE；`GET /api/admin/article/ai/run?id=...` 用于页面打开及断线后的按需恢复，不轮询。等待确认期间原请求退出，不占用 Lambda 等待，也不在 SSE 服务端轮询 `website`。
+
+记录按账号与编辑文章隔离，使用 `ai_pending_u{userId}_{articleId}` 的一个有界槽位；JSON 放在 `value`，随机修订令牌放在 `remark`。所有状态迁移使用带修订令牌的条件更新并检查受影响行数，兼容 JDBC 与逐语句提交的 Web API 数据库，不依赖内存锁或跨请求线程。确认绑定原始参数、文章版本与账号授权版本，重复或过期确认不得重复写入。确认有效期为 30 分钟，已完成记录在下一次需要确认的任务时替换。
+
+执行前先持久化领取状态，结果持久化后才进入下一步。现有文章写入链与附件存储无法统一到 KV 事务；发生写入结果不确定或执行实例中断时，不自动接管重试该写入，界面要求核对文章或附件。模型续接失败不撤销已保存的工具结果和文章更新事件。专项覆盖新实例恢复、多工具连续确认、拒绝、重复并发确认、过期、账号/文章隔离、版本及权限变化、写入后模型失败，以及前端跨两段 SSE 的消息衔接。
 
 ## 验证切片
 
