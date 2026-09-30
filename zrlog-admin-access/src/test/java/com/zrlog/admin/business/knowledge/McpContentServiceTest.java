@@ -198,7 +198,7 @@ public class McpContentServiceTest {
                 JsonObject input=new JsonObject();input.addProperty("filename",filename);input.addProperty("data","aA==");
                 assertThrows(IllegalArgumentException.class,()->tools.call("upload_attachment",input));
             }
-            for(String data:List.of("%%%","","data:image/png;base64,aA==",Base64.getEncoder().encodeToString(new byte[McpToolCatalog.MAX_ATTACHMENT_BYTES+1]))) {
+            for(String data:List.of("%%%","","data:image/png;base64,aA==",Base64.getEncoder().encodeToString(new byte[ContentToolCatalog.MAX_ATTACHMENT_BYTES+1]))) {
                 JsonObject input=new JsonObject();input.addProperty("filename","a.png");input.addProperty("data",data);
                 assertThrows(IllegalArgumentException.class,()->tools.call("upload_attachment",input));
             }
@@ -209,7 +209,7 @@ public class McpContentServiceTest {
     @Test public void localizesEveryNewDefinitionAndErrorWithoutLeakingThreadLanguage() throws Exception {
         try(InMemoryZrLogDatabase db=open();var ignored=AdminLanguageContext.open("en_US")) {
             for(String language:List.of("zh_CN","en_US")) {
-                for(var tool:McpToolCatalog.tools(language)) {
+                for(var tool:ContentToolCatalog.tools(language)) {
                     assertEquals(language.equals("zh_CN"),tool.description.codePoints().anyMatch(c->c>=0x4e00&&c<=0x9fff));
                     for(var property:tool.inputSchema.getAsJsonObject("properties").entrySet()) assertFalse(property.getValue().getAsJsonObject().get("description").getAsString().isBlank());
                 }

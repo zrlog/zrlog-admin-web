@@ -1,6 +1,7 @@
 package com.zrlog.admin.business.ai.service;
 
 import com.google.gson.Gson;
+import com.zrlog.admin.business.knowledge.ContentToolCatalog;
 import com.zrlog.admin.business.ai.exception.AIResponseException;
 import com.zrlog.admin.business.ai.exception.AIIncompleteResponseException;
 import com.zrlog.admin.business.ai.model.AIProviderResponses;
@@ -64,6 +65,27 @@ public class AIChatStreamReaderTest {
         assertEquals(List.of("reasoning_delta:First ", "reasoning_delta:then answer", "delta:Answer"), events);
     }
 
+    @Test public void acceptsFullSizeAttachmentArgumentsInStreamingAndJsonResponses() throws Exception {
+        String arguments = "{\"filename\":\"image.png\",\"data\":\"" + "A".repeat(ContentToolCatalog.MAX_BASE64_LENGTH) + "\"}";
+        String first = "{\"tool_calls\":[{\"index\":0,\"id\":\"a\",\"type\":\"function\",\"function\":{\"name\":\"upload_attachment\",\"arguments\":"
+                + new Gson().toJson(arguments.substring(0, 5000)) + "}}]}";
+        String second = "{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":"
+                + new Gson().toJson(arguments.substring(5000)) + "}}]}";
+        var streamed = read(frame(first, null) + frame(second, "tool_calls"), (type, text) -> {});
+        assertEquals(arguments, streamed.getMessage().toolCalls.get(0).function.arguments);
+        var message = com.google.gson.JsonParser.parseString(first).getAsJsonObject();
+        message.getAsJsonArray("tool_calls").get(0).getAsJsonObject().getAsJsonObject("function").addProperty("arguments", arguments);
+        String json = "{\"choices\":[{\"finish_reason\":\"tool_calls\",\"message\":" + message + "}]}";
+        var response = new AIChatStreamReader().read(new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8)), false, (type, text) -> {});
+        assertEquals(arguments, response.getMessage().toolCalls.get(0).function.arguments);
+    }
+
+    @Test public void rejectsArgumentsBeyondTheSharedToolBoundary() {
+        String delta = "{\"tool_calls\":[{\"index\":0,\"id\":\"a\",\"type\":\"function\",\"function\":{\"name\":\"upload_attachment\",\"arguments\":"
+                + new Gson().toJson("x".repeat(ContentToolCatalog.MAX_ARGUMENT_LENGTH + 1)) + "}}]}";
+        assertThrows(AIResponseException.class, () -> read(frame(delta, "tool_calls"), (type, text) -> {}));
+    }
+
     @Test public void rejectsTruncationErrorsOversizeBodiesAndInvalidToolIndexes() throws Exception {
         for (String wire : List.of(frame("{\"content\":\"partial\"}", null), "data: [DONE]\n\n")) {
             assertThrows(AIIncompleteResponseException.class, () -> read(wire, (type, text) -> { }));
@@ -72,7 +94,7 @@ public class AIChatStreamReaderTest {
                 frame("{\"tool_calls\":[{\"index\":8}]}", "tool_calls"))) {
             assertThrows(AIResponseException.class, () -> read(wire, (type, text) -> { }));
         }
-        assertThrows(IOException.class, () -> read("data: " + "x".repeat(1024 * 1024), (type, text) -> { }));
+        assertThrows(IOException.class, () -> read("data: " + "x".repeat(AIChatStreamReader.MAX_RESPONSE_BYTES), (type, text) -> { }));
     }
 
     @Test public void closesTheProviderStreamWhenTheConsumerDisconnects() throws Exception {

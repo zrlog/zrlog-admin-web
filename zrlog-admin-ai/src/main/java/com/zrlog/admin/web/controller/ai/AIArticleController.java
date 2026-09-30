@@ -39,7 +39,7 @@ public class AIArticleController extends BaseController {
         if (StringUtils.isEmpty(tool) && StringUtils.isEmpty(request.getParaToStr("input", ""))) {
             java.nio.ByteBuffer body = request.getRequestBodyByteBuffer();
             if (body == null || body.remaining() > 256 * 1024) throw new ArgsException();
-            streamResponse = new AIChatService().start(getRequestBodyWithNullCheck(
+            streamResponse = new AIChatService(request).start(getRequestBodyWithNullCheck(
                     com.zrlog.admin.business.ai.model.AIChatModels.ChatRequest.class));
         } else {
             GenerateArticleFieldRequest articleContext = StringUtils.isNotEmpty(tool)
@@ -49,7 +49,7 @@ public class AIArticleController extends BaseController {
                 publishingService.fillPublishCheckContext(articleContext);
             }
             boolean includeArticleContext = !Objects.equals(request.getParaToStr("includeArticleContext", "true"), "false");
-            streamResponse = new AIChatService().startStreamResponse(getParamWithEmptyCheck("input"),
+            streamResponse = new AIChatService(request).startStreamResponse(getParamWithEmptyCheck("input"),
                     aiContextId(), tool, articleContext, includeArticleContext);
         }
         AdminSseEmitter.setHeaders(response);

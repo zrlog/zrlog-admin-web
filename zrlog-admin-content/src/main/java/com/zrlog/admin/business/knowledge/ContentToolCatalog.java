@@ -4,13 +4,15 @@ import com.google.gson.*;
 import com.zrlog.admin.business.knowledge.KnowledgeModels.Tool;
 import java.util.*;
 
-/** The external tool contract; the internal assistant keeps its read-only catalog. */
-public final class McpToolCatalog {
+/** The tool contract shared by the internal assistant and the external MCP adapter. */
+public final class ContentToolCatalog {
+    // Allows Base64 attachments and JSON-escaped article bodies in model tool calls.
+    public static final int MAX_ARGUMENT_LENGTH = 6 * 1024 * 1024;
     public static final int MAX_ATTACHMENT_BYTES = 4 * 1024 * 1024;
     public static final int MAX_BASE64_LENGTH = ((MAX_ATTACHMENT_BYTES + 2) / 3) * 4;
     public static final Set<String> NAMES = Set.of("search_articles", "read_article", "get_article", "list_categories", "list_tags",
             "create_article", "update_article", "publish_article", "upload_attachment");
-    private McpToolCatalog() { }
+    private ContentToolCatalog() { }
 
     public static List<Tool> tools(String language) {
         KnowledgeMessages messages = new KnowledgeMessages(language);

@@ -63,7 +63,7 @@ public class AIChatConversationTest {
         AIProviderRequests.Message message=new AIProviderRequests.Message("assistant",null);
         AIProviderRequests.ToolCall call=new Gson().fromJson("{\"id\":\"a\",\"type\":\"function\",\"function\":{\"name\":\"search_articles\",\"arguments\":\"{}\"},\"extra_content\":{\"google\":{\"thought_signature\":\"opaque-signature\"}}}",AIProviderRequests.ToolCall.class);
         message.toolCalls=List.of(call);message.reasoningContent="provider reasoning";
-        JsonObject request=JsonParser.parseString(new AIChatService().request(info,List.of(message),true)).getAsJsonObject();
+        JsonObject request=JsonParser.parseString(new AIChatService().request(info,List.of(message),KnowledgeService.tools())).getAsJsonObject();
         assertTrue(request.get("enable_thinking").getAsBoolean());
         assertTrue(request.get("stream").getAsBoolean());
         assertTrue(request.toString().contains("opaque-signature"));assertTrue(request.toString().contains("provider reasoning"));
@@ -263,8 +263,9 @@ public class AIChatConversationTest {
     }
     @Test public void permissionChangeStopsBeforeSendingAnotherModelRequestAndDisconnectStopsWork() throws Exception {
         try(InMemoryZrLogDatabase db=InMemoryZrLogDatabase.open()) {
-            Model model=new Model(tool("search_articles","{}")); int[] calls={0};
-            assertThrows(com.zrlog.admin.business.exception.PermissionErrorException.class,()->model.run(input(),new AIWebSiteInfo(),knowledge(),new ByteArrayOutputStream(),()->{if(++calls[0]>1)throw new com.zrlog.admin.business.exception.PermissionErrorException();}));
+            Model model=new Model(tool("search_articles","{}")); boolean[] revoked={false};
+            model.afterRequest = () -> revoked[0] = true;
+            assertThrows(com.zrlog.admin.business.exception.PermissionErrorException.class,()->model.run(input(),new AIWebSiteInfo(),knowledge(),new ByteArrayOutputStream(),()->{if(revoked[0])throw new com.zrlog.admin.business.exception.PermissionErrorException();}));
             assertEquals(1,model.requests.size());
             Model disconnected=new Model(tool("search_articles","{}"));
             assertThrows(IOException.class,()->disconnected.run(input(),new AIWebSiteInfo(),knowledge(),new OutputStream(){public void write(int b)throws IOException{throw new IOException();}},()->{}));

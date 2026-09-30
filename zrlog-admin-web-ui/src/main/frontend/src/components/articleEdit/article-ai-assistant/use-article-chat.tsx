@@ -144,14 +144,20 @@ export const useArticleChat = (
             const error = events.find((e) => e.type === "error");
             if (error) throw new Error(errors[error.error || ""] || res.requestFailed);
             const progress = [...events].reverse().find((e) => e.type === "tool" || e.type === "thinking");
-            if (progress)
-                setStatus(
-                    progress.tool === "search_articles"
-                        ? res.searching
-                        : progress.tool === "read_article"
-                        ? res.reading
-                        : res.thinking
-                );
+            if (progress) {
+                const toolStatus: Record<string, string> = {
+                    search_articles: res.searching,
+                    read_article: res.reading,
+                    get_article: res.reading,
+                    list_categories: res.listingCategories,
+                    list_tags: res.listingTags,
+                    create_article: res.creating,
+                    update_article: res.updating,
+                    publish_article: res.publishing,
+                    upload_attachment: res.uploading,
+                };
+                setStatus(toolStatus[progress.tool || ""] || res.thinking);
+            }
             const completedReasoning: string[] = [];
             let partialReasoning = "";
             let content = "";

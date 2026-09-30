@@ -1,6 +1,7 @@
 package com.zrlog.admin.business.ai.service;
 
 import com.google.gson.Gson;
+import com.zrlog.admin.business.knowledge.ContentToolCatalog;
 import com.google.gson.JsonParseException;
 import com.zrlog.admin.business.ai.exception.AIResponseException;
 import com.zrlog.admin.business.ai.exception.AIIncompleteResponseException;
@@ -13,11 +14,13 @@ import java.util.*;
 
 /** Reads provider SSE incrementally, assembling fragmented tool arguments before executing tools. */
 final class AIChatStreamReader {
+    static final int MAX_RESPONSE_BYTES = 16 * 1024 * 1024;
     interface Progress { void emit(String type, String text) throws IOException; }
     private final Gson gson = new Gson();
     private final StringBuilder content = new StringBuilder();
     private final StringBuilder reasoning = new StringBuilder();
     private final Map<Integer, AIProviderRequests.ToolCall> calls = new TreeMap<>();
+    private final Map<Integer, StringBuilder> toolArguments = new HashMap<>();
     private String finish;
 
     AIProviderResponses.Choice read(InputStream input, boolean sse, Progress progress) throws IOException {
@@ -46,7 +49,12 @@ final class AIChatStreamReader {
             if (finish == null) throw new AIIncompleteResponseException("stream_ended");
             AIProviderResponses.Message message = new AIProviderResponses.Message();
             message.setContent(content.toString()); message.reasoningContent = reasoning.toString();
-            if (!calls.isEmpty()) message.toolCalls = new ArrayList<>(calls.values());
+            if (!calls.isEmpty()) {
+                calls.forEach((index, call) -> {
+                    if (toolArguments.containsKey(index)) call.function.arguments = toolArguments.get(index).toString();
+                });
+                message.toolCalls = new ArrayList<>(calls.values());
+            }
             AIProviderResponses.Choice choice = new AIProviderResponses.Choice(); choice.setMessage(message); choice.setFinishReason(finish);
             return choice;
         }
@@ -80,8 +88,11 @@ final class AIChatStreamReader {
         if (part.type != null) call.type = identifier(call.type, part.type);
         if (part.function != null) {
             if (part.function.name != null) call.function.name = identifier(call.function.name, part.function.name);
-            if (part.function.arguments != null) call.function.arguments = Objects.toString(call.function.arguments, "") + part.function.arguments;
-            if (call.function.arguments != null && call.function.arguments.length() > 4096) throw invalid();
+            if (part.function.arguments != null) {
+                StringBuilder arguments = toolArguments.computeIfAbsent(part.index, ignored -> new StringBuilder());
+                if (arguments.length() + part.function.arguments.length() > ContentToolCatalog.MAX_ARGUMENT_LENGTH) throw invalid();
+                arguments.append(part.function.arguments);
+            }
         }
         if (part.extra_content != null) call.extra_content = part.extra_content;
     }
@@ -111,7 +122,7 @@ final class AIChatStreamReader {
     private static AIResponseException invalid() { return new AIResponseException("Invalid AI stream"); }
 
     private static final class LimitedInput extends FilterInputStream {
-        private long remaining = 1024 * 1024;
+        private long remaining = MAX_RESPONSE_BYTES;
         private LimitedInput(InputStream input) { super(input); }
         private int count(int size) throws IOException {
             if (size > 0 && (remaining -= size) < 0) throw new IOException("Response too large");

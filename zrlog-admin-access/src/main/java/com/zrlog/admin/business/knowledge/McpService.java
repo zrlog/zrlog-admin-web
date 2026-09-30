@@ -69,7 +69,7 @@ public final class McpService {
             case "tools/call":
                 if (!isString(params.get("name")) || params.has("arguments") && !params.get("arguments").isJsonObject()) return localizedError(id, -32602, "toolCall", 200);
                 String name = params.get("name").getAsString();
-                if (!McpToolCatalog.NAMES.contains(name)) return localizedError(id, -32602, "unknownTool", 200);
+                if (!ContentToolCatalog.NAMES.contains(name)) return localizedError(id, -32602, "unknownTool", 200);
                 ToolResult tool = new ToolResult();
                 try { tool.structuredContent = JSON.toJsonTree(knowledge.call(name, params.getAsJsonObject("arguments"))); }
                 catch (IllegalArgumentException e) { tool.isError = true; tool.structuredContent = JSON.toJsonTree(new KnowledgeModels.ToolError(e.getMessage())); }
