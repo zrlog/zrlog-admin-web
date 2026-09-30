@@ -117,6 +117,9 @@ const UserProfile = ({ data, offline }: { data: BasicUserInfo; offline: boolean 
                             <Form.Item label={getRes().user.headPortrait} rules={[{ required: true }]}>
                                 <ResourceDragger
                                     axiosInstance={axiosInstance}
+                                    cardStyle={{
+                                        border: `${token.lineWidth}px ${token.lineType} ${token.colorBorder}`,
+                                    }}
                                     style={surface.uploader}
                                     onSuccess={(e) => onUploadChange(e)}
                                     onError={(e) => {
