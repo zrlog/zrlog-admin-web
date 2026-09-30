@@ -305,6 +305,31 @@ describe("useArticleAiAssistantConfig draft request gate", () => {
         mounted.rerender(7, [executing]);
         expect(mounted.getConfig().conversationActions.disabled).toBe(true);
     });
+    it("blocks ordinary draft creation between tool approvals until the saved article is adopted", () => {
+        const gate = createDraftAiSaveGate();
+        const pending = {
+            role: "assistant" as const,
+            thinking: false,
+            content: "",
+            messageType: "knowledge",
+            run: { runId: "run", articleId: 0, input: "Write", status: "awaiting_approval" },
+        };
+        const mounted = mountHook(
+            gate,
+            jest.fn(async () => ({ data: "" })),
+            undefined,
+            undefined,
+            [pending]
+        );
+        expect(gate.getPendingAiCount()).toBe(1);
+        expect(gate.tryBeginCreate()).toBeUndefined();
+        mounted.rerender(18, []);
+        expect(gate.getPendingAiCount()).toBe(0);
+        const release = gate.tryBeginCreate();
+        expect(release).toBeDefined();
+        release?.();
+    });
+
     it("restores saved ordinary chat through the same article state as writing skills", async () => {
         const gate = createDraftAiSaveGate();
         const saved = [

@@ -57,6 +57,23 @@ type Event = {
     messages?: ChatMessage[];
     articleId?: number;
     version?: number;
+    created?: boolean;
+};
+
+const activeRun = (view: ChatRun) => ["awaiting_approval", "running", "executing"].includes(view.status);
+const createdArticleUpdate = (updates: ArticleUpdatedEvent[]) => {
+    const valid = updates.filter(
+        (update) =>
+            Number.isInteger(update.articleId) &&
+            update.articleId > 0 &&
+            Number.isInteger(update.version) &&
+            update.version >= 0
+    );
+    const created = valid.find((update) => update.created);
+    if (!created) return undefined;
+    return valid
+        .filter((update) => update.articleId === created.articleId)
+        .reduce((latest, update) => (update.version > latest.version ? { ...update, created: true } : latest), created);
 };
 
 export const parseChatEvents = (text: string): Event[] =>
@@ -194,8 +211,23 @@ export const useArticleChat = (
                 if (revision !== generation.current || response?.data?.error || !response?.data?.data) return false;
                 const view = response.data.data;
                 if (view.articleId !== articleId) return false;
-                for (const updated of view.articleUpdates || []) onArticleUpdatedRef.current?.(updated);
+                const created = articleId === 0 ? createdArticleUpdate(view.articleUpdates || []) : undefined;
+                // A completed draft run has moved its conversation to the created article. A fresh
+                // new-article page must not reopen it; an interrupted local turn can still recover it.
+                if (
+                    created &&
+                    !activeRun(view) &&
+                    !(contextRef.current.session?.messages as ChatMessage[] | undefined)?.some(
+                        (message) => message.runId === view.runId || message.messageId?.startsWith(`${view.runId}:`)
+                    )
+                )
+                    return false;
                 mergeRun(view, contextRef.current.session?.messages || []);
+                if (created) {
+                    if (!activeRun(view)) onArticleUpdatedRef.current?.(created);
+                } else {
+                    for (const updated of view.articleUpdates || []) onArticleUpdatedRef.current?.(updated);
+                }
                 return true;
             } catch {
                 return false;
@@ -281,7 +313,23 @@ export const useArticleChat = (
         let lastReasoning = "";
         let lastContent = "";
         let latestCheckpoint: ChatRun | undefined;
+        let restoredRun = false;
         const updatedVersions = new Set<string>();
+        const draftUpdates: ArticleUpdatedEvent[] = [...(approval?.run.articleUpdates || [])];
+        const receiveUpdate = (event: ArticleUpdatedEvent) => {
+            if (
+                !Number.isInteger(event.articleId) ||
+                event.articleId <= 0 ||
+                !Number.isInteger(event.version) ||
+                event.version < 0
+            )
+                return;
+            const key = `${event.articleId}/${event.version}`;
+            if (updatedVersions.has(key)) return;
+            updatedVersions.add(key);
+            if (articleId === 0) draftUpdates.push(event);
+            else if (event.articleId === articleId) onArticleUpdatedRef.current?.(event);
+        };
         const consume = (text: string, final: boolean) => {
             if (run !== generation.current) return;
             const events = parseChatEvents(text);
@@ -289,18 +337,12 @@ export const useArticleChat = (
             // XHR supplies the entire response again on each progress callback and at completion.
             // A committed write still needs refreshing if a later model/conversation step fails.
             for (const event of events) {
-                if (
-                    event.type !== "article-updated" ||
-                    event.articleId !== articleId ||
-                    articleId <= 0 ||
-                    !Number.isInteger(event.version) ||
-                    event.version! < 0
-                )
-                    continue;
-                const key = `${event.articleId}/${event.version}`;
-                if (updatedVersions.has(key)) continue;
-                updatedVersions.add(key);
-                onArticleUpdatedRef.current?.({ articleId, version: event.version! });
+                if (event.type === "article-updated")
+                    receiveUpdate({
+                        articleId: event.articleId!,
+                        version: event.version!,
+                        ...(event.created ? { created: true } : {}),
+                    });
             }
             const checkpoint = [...events]
                 .reverse()
@@ -308,13 +350,7 @@ export const useArticleChat = (
             if (checkpoint?.run && checkpoint.run.articleId === articleId) {
                 const view = checkpoint.run;
                 latestCheckpoint = view;
-                for (const updated of view.articleUpdates || []) {
-                    const key = `${updated.articleId}/${updated.version}`;
-                    if (updated.articleId === articleId && !updatedVersions.has(key)) {
-                        updatedVersions.add(key);
-                        onArticleUpdatedRef.current?.(updated);
-                    }
-                }
+                for (const updated of view.articleUpdates || []) receiveUpdate(updated);
                 mergeRun(view, context);
                 restorePending.current = () => mergeRun(view, context);
                 return;
@@ -406,7 +442,7 @@ export const useArticleChat = (
             );
             consume(typeof response.data === "string" ? response.data : "", true);
         } catch (error) {
-            if (approval && run === generation.current && (await refreshRun(articleId))) return;
+            if (approval && run === generation.current && (restoredRun = await refreshRun(articleId))) return;
             if (latestCheckpoint && run === generation.current) {
                 mergeRun(latestCheckpoint, context);
                 return;
@@ -432,6 +468,11 @@ export const useArticleChat = (
                 restorePending.current = undefined;
                 setBusy(false);
                 setStatus("");
+                // Switching from draft to article changes the hook scope and aborts its stream.
+                // Bind only after the answer is saved or a terminal checkpoint is received.
+                const created = articleId === 0 ? createdArticleUpdate(draftUpdates) : undefined;
+                if (created && !restoredRun && (!latestCheckpoint || !activeRun(latestCheckpoint)))
+                    onArticleUpdatedRef.current?.(created);
             }
         }
     };

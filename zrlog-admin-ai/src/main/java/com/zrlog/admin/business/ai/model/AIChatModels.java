@@ -107,6 +107,7 @@ public final class AIChatModels {
         public String error;
         public Long articleId;
         public Integer version;
+        public Boolean created;
         public List<com.zrlog.admin.business.rest.response.AIResponseEntry.AIContentEntry> messages;
         public List<Source> sources;
         public Event(String type) { this.type = type; }

@@ -41,10 +41,12 @@ describe("knowledge assistant", () => {
         scope = "1",
         restore = false,
         history = [],
+        articleId = 7,
     }: {
         scope?: string;
         restore?: boolean;
         history?: ChatMessage[];
+        articleId?: number;
     }) {
         chat = useArticleChat(
             api,
@@ -52,7 +54,7 @@ describe("knowledge assistant", () => {
             scope,
             onMessagesChange,
             onArticleUpdated,
-            restore ? { articleId: 7, messages: history } : undefined
+            restore ? { articleId, messages: history } : undefined
         );
         return (
             <>
@@ -368,6 +370,98 @@ describe("knowledge assistant", () => {
         });
         expect(onArticleUpdated.mock.calls).toEqual([[{ articleId: 7, version: 4 }], [{ articleId: 7, version: 5 }]]);
         expect(chat.messages[1].failed).toBe(true);
+    });
+
+    it("binds the first created draft only after the complete reply, including version zero", async () => {
+        let resolve!: (value: { data: string }) => void;
+        post.mockReturnValue(
+            new Promise((done) => {
+                resolve = done;
+            })
+        );
+        let pending!: Promise<void>;
+        act(() => {
+            pending = chat.send("Write a draft", [], 0);
+        });
+        const wire = 'data: {"type":"article-updated","articleId":18,"version":0,"created":true}\n\n';
+        act(() => post.mock.calls[0][2].onDownloadProgress({ event: { target: { responseText: wire } } }));
+        expect(onArticleUpdated).not.toHaveBeenCalled();
+        expect(chat.busy).toBe(true);
+        await act(async () => {
+            resolve({
+                data:
+                    wire +
+                    'data: {"type":"article-updated","articleId":19,"version":0,"created":true}\n\n' +
+                    completed("Draft saved", "Write a draft"),
+            });
+            await pending;
+        });
+        expect(onArticleUpdated.mock.calls).toEqual([[{ articleId: 18, version: 0, created: true }]]);
+        expect(chat.messages[1].content).toBe("Draft saved");
+        expect(chat.busy).toBe(false);
+        expect(
+            onMessagesChange.mock.invocationCallOrder[onMessagesChange.mock.invocationCallOrder.length - 1]
+        ).toBeLessThan(onArticleUpdated.mock.invocationCallOrder[0]);
+    });
+
+    it("keeps the draft scope through another approval and binds the latest saved version on completion", async () => {
+        const view: ChatRun = {
+            ...pausedRun(),
+            articleId: 0,
+            articleUpdates: [{ articleId: 18, version: 0, created: true }],
+        };
+        post.mockResolvedValueOnce({ data: `data: ${JSON.stringify({ type: "approval-required", run: view })}\n\n` });
+        await act(async () => {
+            await chat.send("Write and refine", [], 0);
+        });
+        expect(onArticleUpdated).not.toHaveBeenCalled();
+        post.mockResolvedValueOnce({
+            data: 'data: {"type":"article-updated","articleId":18,"version":1}\n\n' + completed("Refined", view.input),
+        });
+        await act(async () => {
+            await chat.decide(view, "approve", chat.messages);
+        });
+        expect(post.mock.calls[1][1].articleId).toBe(0);
+        expect(onArticleUpdated.mock.calls).toEqual([[{ articleId: 18, version: 1, created: true }]]);
+    });
+
+    it("does not bind unrelated writes, but still loads a created draft if the model later fails", async () => {
+        post.mockResolvedValueOnce({
+            data: 'data: {"type":"article-updated","articleId":7,"version":4}\n\n' + completed("Saved"),
+        });
+        await send();
+        expect(onArticleUpdated).not.toHaveBeenCalled();
+        post.mockResolvedValueOnce({
+            data:
+                'data: {"type":"article-updated","articleId":18,"version":0,"created":true}\n\n' +
+                'data: {"type":"error","error":"providerRequestFailed"}\n\n',
+        });
+        await send();
+        expect(onArticleUpdated).toHaveBeenCalledWith({ articleId: 18, version: 0, created: true });
+    });
+
+    it("does not reopen a completed created article on a fresh draft page, but recovers an interrupted turn", async () => {
+        const view: ChatRun = {
+            ...pausedRun(),
+            articleId: 0,
+            status: "completed",
+            articleUpdates: [{ articleId: 18, version: 0, created: true }],
+        };
+        get.mockResolvedValue({ data: { error: 0, data: view } });
+        await act(async () => root.render(<Harness restore articleId={0} />));
+        expect(onArticleUpdated).not.toHaveBeenCalled();
+        expect(chat.messages).toEqual([]);
+        await act(async () =>
+            root.render(
+                <Harness
+                    scope="recover"
+                    restore
+                    articleId={0}
+                    history={[{ role: "user", content: view.input, runId: view.runId, thinking: false }]}
+                />
+            )
+        );
+        expect(onArticleUpdated).toHaveBeenCalledWith({ articleId: 18, version: 0, created: true });
     });
 
     it("discards partial streamed text when saving fails", async () => {

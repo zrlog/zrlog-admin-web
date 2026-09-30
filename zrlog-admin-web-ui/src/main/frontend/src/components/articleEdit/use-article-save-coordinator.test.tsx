@@ -307,6 +307,45 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
         expect(mockArticleGet).toHaveBeenCalledTimes(1);
     });
 
+    it("loads an AI-created draft, migrates the editor session, and updates it on the next save", async () => {
+        const draft = { ...data, article: { title: "", version: -1, rubbish: true } };
+        remountWith(draft);
+        const request = deferred<any>();
+        mockArticleGet.mockReturnValue(request.promise);
+        const conversation = [{ role: "assistant" as const, content: "Draft saved", thinking: false }];
+        act(() => coordinator.updateAiMessageCache(conversation, 0));
+        act(() => coordinator.onArticleUpdated({ articleId: 18, version: 0, created: true }));
+        expect(coordinator.state.article.logId).toBe(18);
+        const created = { ...initialArticle, logId: 18, title: "AI draft", markdown: "AI body", version: 0 };
+        await act(async () => request.resolve({ data: { error: 0, data: { ...data, article: created } } }));
+        expect(mockArticleGet).toHaveBeenCalledWith("/api/admin/article-edit", { params: { id: 18 } });
+        expect(coordinator.state.article).toEqual(created);
+        expect(coordinator.state.aiMessages).toEqual(conversation);
+        expect(coordinator.restoreInputRevision).toBe(1);
+        expect(migrateUiStateToArticle).toHaveBeenCalledWith(18);
+        expect(navigate).toHaveBeenCalledWith("/article-edit?id=18", { replace: true });
+        expect(mockPageCache.get("/article-edit?id=18")?.aiMessages).toEqual(conversation);
+        expect(mockPageCache.has("/article-edit")).toBe(false);
+        mockArticlePost.mockResolvedValue({
+            data: { error: 0, data: { ...data, article: { ...created, version: 1 } } },
+        });
+        await act(async () => {
+            await coordinator.onSubmit(coordinator.state.article, false, false, false);
+        });
+        expect(mockArticlePost).toHaveBeenCalledWith(
+            "/api/admin/article/update",
+            expect.objectContaining({ logId: 18, version: 0 }),
+            undefined
+        );
+    });
+
+    it("does not switch an existing article to an AI-created article", () => {
+        act(() => coordinator.onArticleUpdated({ articleId: 18, version: 0, created: true }));
+        expect(mockArticleGet).not.toHaveBeenCalled();
+        expect(coordinator.state.article.logId).toBe(7);
+        expect(navigate).not.toHaveBeenCalled();
+    });
+
     it("preserves edits made during the read as a conflict instead of autosaving over the AI update", async () => {
         const request = deferred<any>();
         mockArticleGet.mockReturnValue(request.promise);

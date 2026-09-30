@@ -105,6 +105,35 @@ describe("useArticleDraftSync", () => {
         expect(current.state.sync).toBe("queued");
     });
 
+    it("moves unsaved local edits to the created article and preserves them as a conflict", () => {
+        const props = createProps();
+        render(props);
+        act(() => {
+            current.applyPatch({ title: "Local title" });
+        });
+        const serverArticle = { ...baseArticle, logId: 18, title: "AI title", version: 0 };
+        act(() => {
+            expect(current.receiveServerArticle(serverArticle)?.article).toMatchObject({
+                logId: 18,
+                title: "Local title",
+                version: 0,
+            });
+        });
+        expect(props.onRemove).toHaveBeenCalledWith(expect.objectContaining({ title: "Local title" }));
+        expect(props.onPersist).toHaveBeenLastCalledWith(
+            expect.objectContaining({ logId: 18, title: "Local title" }),
+            123,
+            expect.objectContaining({ sync: "conflict" })
+        );
+        render({ ...props, article: serverArticle });
+        act(() => current.discard());
+        let next!: ArticleDraftChange;
+        act(() => {
+            next = current.applyPatch({ digest: "Next edit" })!;
+        });
+        expect(next.article).toEqual({ ...serverArticle, digest: "Next edit" });
+    });
+
     beforeEach(() => {
         reactActEnvironment.IS_REACT_ACT_ENVIRONMENT = true;
         container = document.createElement("div");

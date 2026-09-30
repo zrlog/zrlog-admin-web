@@ -215,6 +215,7 @@ const useArticleSaveCoordinator = ({
     const [state, setState] = useState<ArticleEditState>(defaultState);
     const [restoreInputRevision, setRestoreInputRevision] = useState(0);
     const [articleUpdate, setArticleUpdate] = useState<ArticleUpdatedEvent>();
+    const createdArticleRef = useRef<number>();
     const articleRefreshContextRef = useRef({ axiosInstance, data, updateCache, messageApi });
     articleRefreshContextRef.current = { axiosInstance, data, updateCache, messageApi };
     const savingRef = useRef(state.saving);
@@ -839,6 +840,13 @@ const useArticleSaveCoordinator = ({
     markDraftCommittedRef.current = draftSync.markCommitted;
 
     const onArticleUpdated = useCallback((event: ArticleUpdatedEvent) => {
+        if (event.created && logIdRef.current <= 0 && event.articleId > 0) {
+            // Reserve the saved identity before any deferred draft autosave can create a duplicate.
+            createdArticleRef.current = event.articleId;
+            logIdRef.current = event.articleId;
+            versionRef.current = -1;
+            setState((previous) => ({ ...previous, article: { ...previous.article, logId: event.articleId } }));
+        }
         if (event.articleId !== logIdRef.current || event.version <= versionRef.current) return;
         setArticleUpdate((previous) =>
             previous?.articleId === event.articleId && previous.version > event.version ? previous : event
@@ -873,13 +881,26 @@ const useArticleSaveCoordinator = ({
                 versionRef.current = serverArticle.version;
                 loadedArticleRef.current = serverArticle;
                 const currentContext = articleRefreshContextRef.current;
-                const aiMessages = readArticleAiMessages(articlePageCacheKey, currentContext.data.aiMessages);
-                currentContext.updateCache?.({ ...response.data, aiMessages }, articlePageCacheKey);
+                const created = createdArticleRef.current === serverArticle.logId;
+                const url = getArticleRouteUrl();
+                if (created) url.searchParams.set("id", String(serverArticle.logId));
+                const cacheKey = created ? getLocalCacheKey(url) : articlePageCacheKey;
+                const aiMessages = created
+                    ? migrateArticleAiMessageScope(articlePageCacheKey, cacheKey, response.data.aiMessages)
+                    : readArticleAiMessages(articlePageCacheKey, currentContext.data.aiMessages);
+                currentContext.updateCache?.({ ...response.data, aiMessages }, cacheKey);
+                if (created) {
+                    createdArticleRef.current = undefined;
+                    removeLocalArticleCache();
+                    migrateUiStateToArticle(serverArticle.logId!);
+                    navigate(location.pathname + url.search, { replace: true });
+                }
                 setState((previous) => ({
                     ...previous,
                     article: serverArticle,
                     rubbish: serverArticle.rubbish === true,
                     editorVersion: serverArticle.version,
+                    aiMessages,
                     contentSource: local ? "localEdit" : "server",
                     contentSourceUpdatedAt: local?.updatedAt,
                     contentConflict: local

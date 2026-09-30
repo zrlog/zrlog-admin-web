@@ -180,7 +180,7 @@ public class AIChatService extends AIService {
         AIApprovalStore store = new AIApprovalStore();
         AIConversationService conversations = new AIConversationService().captureAccount();
         Runnable reauthorize = () -> {
-            authorizeArticle(token, run.articleId);
+            authorizeArticle(token, editorArticleId(run));
             if (run.authVersion != token.getAuthVersion()
                     || !run.preferences.equals(gson.toJson(new UserPreferenceService().assistant(token)))) throw new PermissionErrorException();
         };
@@ -202,7 +202,7 @@ public class AIChatService extends AIService {
                         reply.setReasoningContent(answer.reasoningContent); reply.setSources(answer.sources);
                         reply.setProvider(info.getAi_provider().name()); reply.setModel(info.getAi_model());
                         List<AIResponseEntry.AIContentEntry> entries = List.of(question, reply);
-                        if (!conversations.appendAIMessageEntries(entries, conversationId(token, run.articleId))) throw new AIMessageSaveException();
+                        if (!conversations.appendAIMessageEntries(entries, conversationId(token, editorArticleId(run)))) throw new AIMessageSaveException();
                         answer.messages = entries;
                     });
                 } catch (AIApprovalStore.Changed e) {
@@ -369,6 +369,7 @@ public class AIChatService extends AIService {
                     if (result instanceof SavedArticle) {
                         SavedArticle saved = (SavedArticle) result;
                         updated = new Event("article-updated"); updated.articleId = saved.id; updated.version = saved.version;
+                        if ("create_article".equals(call.function.name)) updated.created = true;
                         run.articleUpdates.add(updated);
                     }
                     if (result instanceof SearchResult) for (SearchHit hit : ((SearchResult) result).articles) addSource(run, sourceOnly(hit));
@@ -377,6 +378,10 @@ public class AIChatService extends AIService {
                     tool.toolCallId = call.id; messages.add(tool); run.nextTool++;
                     if (write) run.approval = null;
                     store.save(run, "running");
+                    if (updated != null && Boolean.TRUE.equals(updated.created) && run.articleId == 0
+                            && editorArticleId(run) == updated.articleId) {
+                        new AIConversationService().migrateDraftAIMessageToArticle(updated.articleId, -(long) run.userId);
+                    }
                     if (updated != null) emit(out, updated);
                 }
                 run.toolCalls = new ArrayList<>(); run.nextTool = 0; run.round++;
@@ -385,7 +390,7 @@ public class AIChatService extends AIService {
             }
             emit(out, new Event("thinking"));
             messages.set(run.metadataIndex, new AIProviderRequests.Message("user",
-                    "Current editor article metadata (server snapshot; excludes unsaved local edits):\n" + gson.toJson(currentArticleContext(run.articleId))));
+                    "Current editor article metadata (server snapshot; excludes unsaved local edits):\n" + gson.toJson(currentArticleContext(editorArticleId(run)))));
             List<Tool> supplied = new ArrayList<>();
             if (run.round < 4 && run.calls < 8) for (Tool tool : definitions) if (availableNames.contains(tool.name)) supplied.add(tool);
             AIProviderResponses.Choice choice = completeTurn(info, messages, supplied, reauthorize, (type, text) -> {
@@ -426,6 +431,12 @@ public class AIChatService extends AIService {
             run.calls += calls.size(); run.toolCalls = calls; run.nextTool = 0;
         }
         throw new AIResponseException("Tool limit exceeded");
+    }
+
+    private static long editorArticleId(Run run) {
+        if (run.articleId > 0) return run.articleId;
+        return run.articleUpdates.stream().filter(event -> Boolean.TRUE.equals(event.created))
+                .map(event -> event.articleId).findFirst().orElse(run.articleId);
     }
 
     private void addSource(Run run, Source source) {

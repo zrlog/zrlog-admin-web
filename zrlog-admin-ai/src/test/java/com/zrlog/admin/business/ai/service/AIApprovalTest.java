@@ -1,6 +1,7 @@
 package com.zrlog.admin.business.ai.service;
 
 import com.google.gson.*;
+import com.hibegin.http.server.api.HttpRequest;
 import com.zrlog.admin.business.ai.model.AIChatModels.*;
 import com.zrlog.admin.business.ai.model.AIProviderResponses;
 import com.zrlog.admin.business.rest.base.AIWebSiteInfo;
@@ -12,6 +13,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.IOException;
+import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.*;
@@ -38,9 +40,23 @@ public class AIApprovalTest {
     private static class Model extends AIChatService {
         final List<String> replies;
         final List<JsonObject> requests = new ArrayList<>();
-        Model(String... replies) { this.replies = List.of(replies); }
+        Model(String... replies) {
+            super((HttpRequest) Proxy.newProxyInstance(AIApprovalTest.class.getClassLoader(), new Class[]{HttpRequest.class}, (proxy, method, args) -> {
+                switch (method.getName()) {
+                    case "getUri": return "/api/admin/article/ai";
+                    case "getContextPath": return "";
+                    case "getRemoteHost": return "127.0.0.1";
+                    case "getHeaderMap": case "getParamMap": return Map.of();
+                    default: return null;
+                }
+            }));
+            this.replies = List.of(replies);
+        }
         String start() throws Exception {
-            ChatRequest input = new ChatRequest(); input.input = "Update the title"; input.articleId = 7;
+            return start(7);
+        }
+        String start(long articleId) throws Exception {
+            ChatRequest input = new ChatRequest(); input.input = "Update the title"; input.articleId = articleId;
             return new String(start(input).getInputStream().readAllBytes(), StandardCharsets.UTF_8);
         }
         String decide(ApprovalRequest input) throws Exception {
@@ -59,10 +75,49 @@ public class AIApprovalTest {
         return new AIChatService().getRun(7);
     }
     private ApprovalRequest decision(RunView view, String decision) {
-        ApprovalRequest request = new ApprovalRequest(); request.articleId = 7; request.runId = view.runId;
+        ApprovalRequest request = new ApprovalRequest(); request.articleId = view.articleId; request.runId = view.runId;
         request.approvalId = view.approval.id; request.decision = decision; return request;
     }
     private Model update() { return new Model(call("update_article", "{\"id\":7,\"version\":2,\"title\":\"After\"}")); }
+
+    @Test public void creatingFromTheDraftEditorBindsMetadataAndConversationWithoutLosingApprovalState() throws Exception {
+        try (InMemoryZrLogDatabase db = open()) {
+            AIConversationService conversations = new AIConversationService();
+            conversations.appendAIMessageEntries(List.of(new com.zrlog.admin.business.rest.response.AIResponseEntry.AIContentEntry(
+                    "user", "Earlier draft discussion")), -1L);
+            String first = new Model(call("create_article", "{\"title\":\"AI draft\",\"typeId\":1,\"status\":\"draft\",\"markdown\":\"Draft body\",\"content\":\"<p>Draft body</p>\"}")).start(0);
+            assertTrue(first, first.contains("approval-required"));
+            RunView approval = new AIChatService().getRun(0);
+            Model created = new Model(call("update_article", "{\"id\":8,\"version\":0,\"digest\":\"Summary\"}"));
+            String wire = created.decide(decision(approval, "approve"));
+            RunView next = new AIChatService().getRun(0);
+            assertEquals("awaiting_approval", next.status);
+            Event update = next.articleUpdates.get(0);
+            long id = update.articleId;
+            assertEquals(Boolean.TRUE, update.created);
+            assertEquals(Integer.valueOf(0), update.version);
+            assertEquals("AI draft", db.scalar("select title from log where logId=?", id));
+            assertEquals("Draft body", db.scalar("select markdown from log where logId=?", id));
+            assertTrue(wire, wire.contains("\"created\":true"));
+            assertEquals(0, next.articleId);
+            JsonArray messages = created.requests.get(0).getAsJsonArray("messages");
+            String metadata = "";
+            for (JsonElement element : messages) {
+                JsonElement content = element.getAsJsonObject().get("content");
+                if (content != null && !content.isJsonNull() && content.getAsString().startsWith("Current editor article metadata")) metadata = content.getAsString();
+            }
+            assertTrue(metadata, metadata.contains("\"articleId\":" + id));
+            assertTrue(metadata, metadata.contains("\"version\":0"));
+            assertTrue(conversations.exportAIMessage(-1L).getMessages().isEmpty());
+            assertTrue(conversations.exportAIMessage(id).getMessages().stream().anyMatch(message -> "Earlier draft discussion".equals(message.getContent())));
+            assertTrue(new Model(ANSWER).decide(decision(next, "approve")).contains("\"type\":\"done\""));
+            assertEquals("Summary", db.scalar("select digest from log where logId=?", id));
+            assertEquals(2, conversations.exportAIMessage(id).getMessages().stream().filter(message -> "knowledge".equals(message.getMessageType())).count());
+            assertTrue(conversations.exportAIMessage(-1L).getMessages().isEmpty());
+            assertTrue(new Model().decide(decision(approval, "approve")).contains("completed"));
+            assertEquals(1, ((Number) db.scalar("select count(*) from log where title=?", "AI draft")).intValue());
+        }
+    }
 
     @Test public void resumesOnANewInstanceWithoutRepeatingTheModelCallAndReplaysDuplicateConfirmation() throws Exception {
         try (InMemoryZrLogDatabase db = open()) {

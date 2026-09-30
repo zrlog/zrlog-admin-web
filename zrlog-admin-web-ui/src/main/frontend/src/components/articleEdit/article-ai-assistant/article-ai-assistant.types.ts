@@ -208,4 +208,4 @@ export const assistantTools: AssistantTool[] = [
 ];
 
 export const isAssistantTool = (tool: unknown): tool is AssistantTool => assistantTools.includes(tool as AssistantTool);
-export type ArticleUpdatedEvent = { articleId: number; version: number };
+export type ArticleUpdatedEvent = { articleId: number; version: number; created?: boolean };

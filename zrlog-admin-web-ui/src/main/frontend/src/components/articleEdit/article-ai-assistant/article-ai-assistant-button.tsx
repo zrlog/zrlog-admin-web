@@ -126,6 +126,12 @@ export const useArticleAiAssistantConfig = ({
     );
 
     useEffect(() => {
+        // A paused tool run may already have created the draft. Keep ordinary creation blocked
+        // until its remaining approvals finish and the editor adopts the persisted article ID.
+        if (!data.article.logId && activeRun) return draftAiSaveGate.tryBeginAiRequest(0);
+    }, [data.article.logId, activeRun, draftAiSaveGate]);
+
+    useEffect(() => {
         latestDataRef.current = data;
     }, [data]);
 

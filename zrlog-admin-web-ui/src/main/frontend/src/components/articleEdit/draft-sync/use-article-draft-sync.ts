@@ -375,20 +375,28 @@ const useArticleDraftSync = ({
         onSyncedRef.current();
     }, [transition]);
 
-    const receiveServerArticle = useCallback((serverArticle: ArticleEntry): ArticleDraftChange | undefined => {
-        const currentState = syncStateRef.current;
-        if (currentState.document === "clean") {
-            articleRef.current = serverArticle;
-            return undefined;
-        }
-        const local = {
-            article: articleRef.current,
-            revision: currentState.revision,
-            updatedAt: updatedAtRef.current,
-        };
-        persistCurrent(transition({ type: "serverUpdated" }));
-        return local;
-    }, [persistCurrent, transition]);
+    const receiveServerArticle = useCallback(
+        (serverArticle: ArticleEntry): ArticleDraftChange | undefined => {
+            const currentState = syncStateRef.current;
+            if (currentState.document === "clean") {
+                articleRef.current = serverArticle;
+                return undefined;
+            }
+            const local = {
+                article: articleRef.current,
+                revision: currentState.revision,
+                updatedAt: updatedAtRef.current,
+            };
+            if (!local.article.logId && serverArticle.logId) {
+                onRemoveRef.current(local.article);
+                articleRef.current = mergeArticleSynchronizationMetadata(local.article, serverArticle, true);
+                local.article = articleRef.current;
+            }
+            persistCurrent(transition({ type: "serverUpdated" }));
+            return local;
+        },
+        [persistCurrent, transition]
+    );
 
     return {
         applyPatch,
