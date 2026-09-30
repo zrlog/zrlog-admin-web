@@ -157,6 +157,31 @@ public class AIApprovalTest {
             assertEquals(4, ((Number)db.scalar("select version from log where logId=7")).intValue());
         }
     }
+
+    @Test public void responsesReasoningSurvivesDurableApprovalWithoutLeakingToTheBrowserOrExport() throws Exception {
+        try (InMemoryZrLogDatabase db = open()) {
+            String args = "{\"id\":7,\"version\":2,\"title\":\"After\"}";
+            String function = OpenAIResponsesAdapterTest.CALL.replace("read_article", "update_article")
+                    .replace(new Gson().toJson("{\"id\":7}"), new Gson().toJson(args));
+            var reply = new OpenAIResponsesAdapter().read(new java.io.ByteArrayInputStream(
+                    OpenAIResponsesAdapterTest.completed(OpenAIResponsesAdapterTest.REASONING + "," + function).getBytes(StandardCharsets.UTF_8)),
+                    false, true, (type, text) -> {});
+            RunView view = pause(new Model(new Gson().toJson(reply)));
+            assertFalse(new Gson().toJson(view).contains("opaque-state"));
+            var checkpoint = new AIApprovalStore().read(1, 7);
+            assertTrue(new Gson().toJson(checkpoint.messages).contains("opaque-state"));
+            Model resumed = new Model(ANSWER);
+            String wire = resumed.decide(decision(view, "approve"));
+            assertTrue(wire, wire.contains("\"type\":\"done\""));
+            assertEquals("After", db.scalar("select title from log where logId=7"));
+            var normalized = new Gson().fromJson(resumed.requests.get(0), com.zrlog.admin.business.ai.model.AIProviderRequests.CompletionRequest.class);
+            var input = new OpenAIResponsesAdapter().request(normalized, true).input;
+            assertTrue(input.stream().anyMatch(item -> "opaque-state".equals(item.encrypted_content)));
+            assertTrue(input.stream().anyMatch(item -> "function_call_output".equals(item.type) && "call_1".equals(item.call_id)));
+            assertFalse(wire.contains("opaque-state"));
+            assertFalse(new Gson().toJson(new AIConversationService().exportAIMessage(7L)).contains("opaque-state"));
+        }
+    }
     @Test public void concurrentInstancesCanClaimOnlyOnce() throws Exception {
         try (InMemoryZrLogDatabase db = open()) {
             pause(update());

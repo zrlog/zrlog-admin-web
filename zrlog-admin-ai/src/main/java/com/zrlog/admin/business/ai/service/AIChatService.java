@@ -5,6 +5,8 @@ import com.zrlog.admin.business.ai.dto.AIStreamResponse;
 import com.zrlog.admin.business.ai.exception.*;
 import com.zrlog.admin.business.ai.model.AIProviderRequests;
 import com.zrlog.admin.business.ai.model.AIProviderResponses;
+import com.zrlog.admin.business.ai.model.AIProviderType;
+import com.zrlog.admin.business.ai.model.OpenAIResponses;
 import com.zrlog.admin.business.knowledge.KnowledgeModels.*;
 import com.zrlog.admin.business.ai.model.AIChatModels.*;
 import com.zrlog.admin.business.rest.request.GenerateArticleFieldRequest;
@@ -427,7 +429,8 @@ public class AIChatService extends AIService {
                         || call.function.arguments.length() > ContentToolCatalog.MAX_ARGUMENT_LENGTH) throw new AIResponseException("Invalid tool call");
             }
             AIProviderRequests.Message assistant = new AIProviderRequests.Message("assistant", reply.getContent());
-            assistant.toolCalls = calls; assistant.reasoningContent = reasoning; messages.add(assistant);
+            assistant.toolCalls = calls; assistant.reasoningContent = reasoning;
+            assistant.responsesOutput = reply.responsesOutput; messages.add(assistant);
             run.calls += calls.size(); run.toolCalls = calls; run.nextTool = 0;
         }
         throw new AIResponseException("Tool limit exceeded");
@@ -507,6 +510,7 @@ public class AIChatService extends AIService {
             List<Tool> definitions, Runnable reauthorize, AIChatStreamReader.Progress progress) throws IOException, InterruptedException {
         List<AIProviderRequests.Message> currentMessages = messages;
         StringBuilder content = new StringBuilder(), reasoning = new StringBuilder();
+        List<OpenAIResponses.Item> responsesOutput = new ArrayList<>();
         for (int continuation = 0; ; continuation++) {
             AIProviderResponses.Choice choice = null;
             for (int attempt = 0; ; attempt++) {
@@ -523,11 +527,13 @@ public class AIChatService extends AIService {
             if (reply == null) throw new AIResponseException("Missing message");
             if (reply.getContent() != null) content.append(reply.getContent());
             if (reply.getReasoningText() != null) reasoning.append(reply.getReasoningText());
+            if (reply.responsesOutput != null) responsesOutput.addAll(reply.responsesOutput);
             String finish = Objects.toString(choice.getFinishReason(), "").trim().toLowerCase(Locale.ROOT);
             choice.setFinishReason(finish);
             if (!CONTINUABLE_FINISH_REASONS.contains(finish)) {
                 reply.setContent(content.toString());
                 reply.reasoningContent = reasoning.toString();
+                if (!responsesOutput.isEmpty()) reply.responsesOutput = responsesOutput;
                 return choice;
             }
             // Partial tool arguments cannot safely be executed or continued as prose.
@@ -537,6 +543,7 @@ public class AIChatService extends AIService {
             currentMessages = new ArrayList<>(messages);
             AIProviderRequests.Message partial = new AIProviderRequests.Message("assistant", content.toString());
             if (reasoning.length() > 0) partial.reasoningContent = reasoning.toString();
+            if (!responsesOutput.isEmpty()) partial.responsesOutput = new ArrayList<>(responsesOutput);
             currentMessages.add(partial);
             currentMessages.add(new AIProviderRequests.Message("user",
                     "Continue exactly from where the previous response stopped. Do not repeat earlier content. Do not add a preface or summary."));
@@ -565,11 +572,15 @@ public class AIChatService extends AIService {
     }
     protected AIProviderResponses.Choice complete(AIWebSiteInfo info, String body, AIChatStreamReader.Progress progress)
             throws IOException, InterruptedException {
-        HttpResponse<InputStream> response = client().send(buildRequest(info, body), HttpResponse.BodyHandlers.ofInputStream());
+        boolean responses = info.getAi_provider() == AIProviderType.OPEN_AI;
+        OpenAIResponsesAdapter adapter = new OpenAIResponsesAdapter();
+        if (responses) body = gson.toJson(adapter.request(gson.fromJson(body, AIProviderRequests.CompletionRequest.class), info.isReasoningEnabled()));
+        HttpResponse<InputStream> response = client().send(buildRequest(info, body, responses ? "/responses" : "/chat/completions"), HttpResponse.BodyHandlers.ofInputStream());
         try (InputStream input = response.body()) {
             if (response.statusCode() != 200) throw new AIRequestException("AI request failed", response.statusCode());
             boolean sse = response.headers().firstValue("Content-Type").orElse("").toLowerCase(Locale.ROOT).contains("text/event-stream");
-            return new AIChatStreamReader().read(input, sse, progress);
+            return responses ? adapter.read(input, sse, info.isReasoningEnabled(), progress)
+                    : new AIChatStreamReader().read(input, sse, progress);
         }
     }
     private void emit(OutputStream out, Event event) throws IOException {

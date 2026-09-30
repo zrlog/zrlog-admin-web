@@ -6,6 +6,20 @@
 
 目录仅提供候选模型和能力校验，不写数据库，不切换用户已经选择的模型，不修改 Base URL 或 API Key。自定义文本模型及自定义图像服务继续使用现有规则。此次范围是已有的 DeepSeek、OpenAI、通义千问、Gemini，不新增提供商协议适配。
 
+## OpenAI 助手对话与推理摘要
+
+文章编辑器的普通助手对话在选择 OpenAI 时使用 `POST /responses`，包括对话内的内容工具调用。DeepSeek、通义千问、Gemini 继续使用 Chat Completions；独立写作技能、评论分析和图像生成接口不在此次迁移范围内。自定义 OpenAI 网关也需要支持 Responses；不支持时会显示请求失败，不会自动重放到另一种协议。
+
+开启“推理过程”后，GPT-5、GPT-6、o3、o4 推理系列请求 `reasoning: {"summary":"auto"}`（排除 `-chat-latest`）；旧的非推理模型不附带此参数。模型的 reasoning effort 沿用服务默认值。OpenAI 返回的是可展示的推理摘要，不是完整的内部推理；摘要可能晚于“思考中”状态到达，也可能为空。关闭开关后不请求、展示或保存可见摘要，但不会关闭模型完成任务所需的推理计算。
+
+后端将 `response.reasoning_summary_text.delta` 转换为既有的 `reasoning_delta`，将正文及拒答事件转换为 `delta`。浏览器沿用同一套思考区、停止和排队输入流程，不解析提供商协议。响应输出上限从既有配置映射到 `max_output_tokens`，它包含推理与正文 token；达到上限只对无工具调用的输出执行有限续写，截断的工具参数不会执行。
+
+请求使用 `store:false`，并请求 `reasoning.encrypted_content`。工具调用和审批续接所需的完整输出项（含 `call_id`、加密推理上下文、消息 `phase`）保存在后端运行检查点，续接时连同工具结果发送给 OpenAI；加密内容不进入浏览器事件、可见对话历史或导出。升级前的工具审批检查点仍可转换并续接。
+
+Base URL 可以使用 API 根地址或完整 `/responses` 地址。已有完整 `/chat/completions` 地址会在发送助手请求时替换为 `/responses`，保留查询参数，数据库中的配置不变。
+
+协议依据：[OpenAI 推理指南](https://developers.openai.com/api/docs/guides/reasoning)、[Responses 迁移指南](https://developers.openai.com/api/docs/guides/migrate-to-responses)、[函数调用指南](https://developers.openai.com/api/docs/guides/function-calling)。
+
 ## GitHub Actions 定时同步
 
 `.github/workflows/sync-ai-models.yml` 每天北京时间 04:23（UTC 20:23）在 GitHub 执行，也支持在 Actions 页面选择 **Sync AI model catalog → Run workflow** 手动运行。工作流进入默认分支后，GitHub 才会启用定时触发；计划时间可能因 GitHub 队列而延迟。

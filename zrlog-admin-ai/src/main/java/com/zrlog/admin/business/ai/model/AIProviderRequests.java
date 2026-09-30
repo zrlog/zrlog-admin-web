@@ -82,6 +82,8 @@ public final class AIProviderRequests {
         public String toolCallId;
         @SerializedName("reasoning_content")
         public String reasoningContent;
+        // Private checkpoint data, converted to Responses input before sending to OpenAI.
+        public List<OpenAIResponses.Item> responsesOutput;
 
         public Message() {
         }

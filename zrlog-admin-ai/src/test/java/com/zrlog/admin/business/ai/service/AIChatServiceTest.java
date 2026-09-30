@@ -1,6 +1,7 @@
 package com.zrlog.admin.business.ai.service;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 import com.zrlog.admin.business.ai.dto.AIStreamResponse;
 import com.zrlog.admin.business.ai.model.AIProviderType;
 import com.zrlog.admin.business.rest.base.AIWebSiteInfoWithAIMessages;
@@ -37,6 +38,54 @@ import static org.junit.Assert.assertTrue;
 public class AIChatServiceTest {
 
     private static final Gson GSON = new Gson();
+
+    @Test
+    public void shouldStreamAndPersistOpenAiSummariesThroughTheExistingBrowserProtocol() throws Exception {
+        for (boolean enabled : List.of(true, false)) try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            seedAiConfig(db);
+            db.putWebsite("ai_provider", "OPEN_AI"); db.putWebsite("ai_model", "gpt-6-astra");
+            db.putWebsite("ai_base_url", "https://gateway.example/v1/chat/completions?route=test");
+            db.putWebsite("ai_max_completion_tokens", 8192); db.putWebsite("ai_reasoning_enabled", enabled);
+            FakeHttpClient client = new FakeHttpClient(streamResponse(
+                    OpenAIResponsesAdapterTest.frame("{\"type\":\"response.reasoning_summary_text.delta\",\"item_id\":\"rs_1\",\"summary_index\":0,\"delta\":\"检查文章🙂\"}")
+                    + OpenAIResponsesAdapterTest.frame("{\"type\":\"response.output_text.delta\",\"delta\":\"Answer\"}")
+                    + OpenAIResponsesAdapterTest.terminal(OpenAIResponsesAdapterTest.REASONING + "," + OpenAIResponsesAdapterTest.MESSAGE)));
+            String payload = new String(new NoSleepAIChatService(client).startStreamResponse("Question", 36L)
+                    .getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+            String stored = String.valueOf(db.queryOne("select value from website where name=?", "ai_chat_message_u1_36").get("value"));
+            assertEquals("https://gateway.example/v1/responses?route=test", client.requests.get(0).uri().toString());
+            JsonObject request = client.requestBodies.get(0);
+            assertEquals(enabled, request.has("reasoning"));
+            assertEquals("gpt-6-astra", request.get("model").getAsString());
+            assertEquals(8192, request.get("max_output_tokens").getAsInt());
+            assertTrue(request.has("input")); assertFalse(request.has("messages"));
+            assertTrue(payload, payload.contains("\"type\":\"delta\""));
+            assertTrue(payload, payload.contains("\"type\":\"answer\""));
+            assertTrue(payload, payload.contains("\"type\":\"done\""));
+            assertEquals(enabled, payload.contains("\"type\":\"reasoning_delta\""));
+            assertEquals(enabled, stored.contains("检查文章🙂"));
+            assertTrue(stored.contains("Answer"));
+            assertFalse(payload.contains("opaque-state")); assertFalse(stored.contains("opaque-state"));
+        }
+    }
+
+    @Test
+    public void shouldReplayResponsesContextAcrossBoundedContinuation() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            seedAiConfig(db); db.putWebsite("ai_provider", "OPEN_AI"); db.putWebsite("ai_model", "gpt-6-astra");
+            String partial = OpenAIResponsesAdapterTest.completed(OpenAIResponsesAdapterTest.REASONING + "," + OpenAIResponsesAdapterTest.MESSAGE)
+                    .replace("\"status\":\"completed\",\"output\"", "\"status\":\"incomplete\",\"incomplete_details\":{\"reason\":\"max_output_tokens\"},\"output\"");
+            FakeHttpClient client = new FakeHttpClient(streamResponse(OpenAIResponsesAdapterTest.frame("{\"type\":\"response.incomplete\",\"response\":" + partial + "}")),
+                    streamResponse(OpenAIResponsesAdapterTest.terminal(OpenAIResponsesAdapterTest.MESSAGE.replace("Answer", " continued"))));
+            String payload = new String(new NoSleepAIChatService(client).startStreamResponse("Question", 36L)
+                    .getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+            assertTrue(payload, payload.contains("\"content\":\"Answer continued\""));
+            assertTrue(client.requestBodies.get(1).toString().contains("opaque-state"));
+            assertTrue(client.requestBodies.get(1).toString().contains("final_answer"));
+            assertFalse(client.requestBodies.get(1).has("tools"));
+            assertFalse(payload.contains("opaque-state"));
+        }
+    }
 
     @Test
     public void shouldStartStreamResponseThroughPublicOverloadsUsingRealWebsiteTable() throws Exception {
@@ -272,6 +321,7 @@ public class AIChatServiceTest {
 
         private final List<HttpResponse<InputStream>> responses;
         private final List<HttpRequest> requests = new ArrayList<>();
+        private final List<JsonObject> requestBodies = new ArrayList<>();
         private int index;
 
         private FakeHttpClient(HttpResponse<InputStream>... responses) {
@@ -327,6 +377,14 @@ public class AIChatServiceTest {
         @SuppressWarnings("unchecked")
         public <T> HttpResponse<T> send(HttpRequest request, HttpResponse.BodyHandler<T> responseBodyHandler) {
             requests.add(request);
+            java.io.ByteArrayOutputStream body = new java.io.ByteArrayOutputStream();
+            request.bodyPublisher().orElseThrow().subscribe(new java.util.concurrent.Flow.Subscriber<java.nio.ByteBuffer>() {
+                public void onSubscribe(java.util.concurrent.Flow.Subscription subscription) { subscription.request(Long.MAX_VALUE); }
+                public void onNext(java.nio.ByteBuffer buffer) { byte[] bytes = new byte[buffer.remaining()]; buffer.get(bytes); body.writeBytes(bytes); }
+                public void onError(Throwable error) { throw new AssertionError(error); }
+                public void onComplete() { }
+            });
+            requestBodies.add(GSON.fromJson(body.toString(StandardCharsets.UTF_8), JsonObject.class));
             return (HttpResponse<T>) responses.get(index++);
         }
 
