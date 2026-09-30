@@ -1,9 +1,11 @@
 package com.zrlog.admin.business.ai.service;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.zrlog.admin.business.ai.dto.AIStreamResponse;
 import com.zrlog.admin.business.ai.model.AIProviderType;
+import com.zrlog.admin.business.ai.model.AIChatModels.ChatRequest;
 import com.zrlog.admin.business.rest.base.AIWebSiteInfoWithAIMessages;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import org.junit.Test;
@@ -38,6 +40,55 @@ import static org.junit.Assert.assertTrue;
 public class AIChatServiceTest {
 
     private static final Gson GSON = new Gson();
+
+    @Test
+    public void shouldReplayPersistedOpenAiHistoryAcrossConsecutiveUserTurns() throws Exception {
+        for (boolean enabled : List.of(true, false)) try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            seedAiConfig(db);
+            db.putWebsite("ai_provider", "OPEN_AI");
+            db.putWebsite("ai_model", "gpt-6-astra");
+            db.putWebsite("ai_reasoning_enabled", enabled);
+            FakeHttpClient client = new FakeHttpClient(
+                    streamResponse(OpenAIResponsesAdapterTest.terminal(OpenAIResponsesAdapterTest.MESSAGE.replace("Answer", "Answer 1"))),
+                    streamResponse(OpenAIResponsesAdapterTest.terminal(OpenAIResponsesAdapterTest.MESSAGE.replace("Answer", "Answer 2"))),
+                    streamResponse(OpenAIResponsesAdapterTest.terminal(OpenAIResponsesAdapterTest.MESSAGE.replace("Answer", "Answer 3"))));
+            for (int turn = 1; turn <= 3; turn++) {
+                ChatRequest input = new ChatRequest(); input.articleId = 36; input.input = "Question " + turn;
+                // Each browser request creates a new service and restores history from storage.
+                String payload = new String(new NoSleepAIChatService(client).start(input)
+                        .getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+                assertTrue(payload, payload.contains("\"type\":\"done\""));
+                assertFalse(payload, payload.contains("\"type\":\"error\""));
+                assertTrue(payload, payload.contains("Answer " + turn));
+                JsonArray items = client.requestBodies.get(turn - 1).getAsJsonArray("input");
+                int assistants = 0;
+                for (int index = 0; index < items.size(); index++) {
+                    JsonObject item = items.get(index).getAsJsonObject();
+                    JsonObject content = item.getAsJsonArray("content").get(0).getAsJsonObject();
+                    if ("assistant".equals(item.get("role").getAsString())) {
+                        assistants++;
+                        assertEquals("output_text", content.get("type").getAsString());
+                        assertEquals("Answer " + assistants, content.get("text").getAsString());
+                        JsonObject question = items.get(index - 1).getAsJsonObject();
+                        assertEquals("user", question.get("role").getAsString());
+                        assertEquals("Question " + assistants, question.getAsJsonArray("content").get(0)
+                                .getAsJsonObject().get("text").getAsString());
+                    } else {
+                        assertEquals("input_text", content.get("type").getAsString());
+                    }
+                }
+                assertEquals(turn - 1, assistants);
+                assertEquals(input.input, items.get(items.size() - 1).getAsJsonObject()
+                        .getAsJsonArray("content").get(0).getAsJsonObject().get("text").getAsString());
+            }
+            assertEquals(3, client.requests.size());
+            String stored = String.valueOf(db.queryOne("select value from website where name=?", "ai_chat_message_u1_36").get("value"));
+            for (int turn = 1; turn <= 3; turn++) {
+                assertTrue(stored.contains("Question " + turn));
+                assertTrue(stored.contains("Answer " + turn));
+            }
+        }
+    }
 
     @Test
     public void shouldStreamAndPersistOpenAiSummariesThroughTheExistingBrowserProtocol() throws Exception {

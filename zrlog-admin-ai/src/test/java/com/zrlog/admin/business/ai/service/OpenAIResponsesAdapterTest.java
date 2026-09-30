@@ -107,6 +107,11 @@ public class OpenAIResponsesAdapterTest {
         assistant.responsesOutput = null;
         input = adapter.request(completion, true).input;
         assertEquals(5, input.size()); assertEquals("call_1", input.get(3).call_id);
+        assertEquals("assistant", input.get(2).role);
+        assertEquals("output_text", input.get(2).content.get(0).type);
+        assertEquals("Answer", input.get(2).content.get(0).text);
+        assertEquals("function_call_output", input.get(4).type);
+        assertEquals("call_1", input.get(4).call_id);
     }
 
     @Test public void disablingSummariesDropsVisibleContentButKeepsOpaqueContinuationAndJsonFallback() throws Exception {

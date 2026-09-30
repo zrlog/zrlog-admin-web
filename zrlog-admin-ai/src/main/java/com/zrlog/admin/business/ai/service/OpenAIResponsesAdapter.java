@@ -1,6 +1,7 @@
 package com.zrlog.admin.business.ai.service;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonParseException;
 import com.zrlog.admin.business.ai.exception.AIIncompleteResponseException;
 import com.zrlog.admin.business.ai.exception.AIResponseException;
@@ -34,7 +35,12 @@ final class OpenAIResponsesAdapter {
             } else {
                 if (message.getContent() != null && !message.getContent().isEmpty()) {
                     Item input = new Item(); input.type = "message"; input.role = message.getRole();
-                    Content text = new Content(); text.type = "input_text"; text.text = message.getContent();
+                    Content text = new Content(); text.text = message.getContent();
+                    // Persisted conversation history has no raw Responses output to replay.
+                    // Assistant text must still use the output content type on later turns.
+                    boolean assistant = "assistant".equals(message.getRole());
+                    text.type = assistant ? "output_text" : "input_text";
+                    if (assistant) text.annotations = new JsonArray();
                     input.content = List.of(text); request.input.add(input);
                 }
                 // Also accepts checkpoints created before Responses was enabled.

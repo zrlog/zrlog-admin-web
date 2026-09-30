@@ -58,8 +58,9 @@ public class AdminArticleService {
     private static final Logger LOGGER = LoggerUtil.getLogger(AdminArticleService.class);
     private final ArticleVersionService articleVersionService = new ArticleVersionService(this);
 
-    private Lock getWriteLock(AdminTokenVO adminTokenVO, Integer logId) {
-        return new DistributedLock("write_article_" + adminTokenVO.getSessionId() + "_" + ObjectUtil.requireNonNullElse(logId, Integer.MAX_VALUE));
+    private Lock getWriteLock(Integer logId) {
+        // Existing articles share a lock across accounts; creation shares the max-id allocation lock.
+        return new DistributedLock("write_article_" + (logId == null ? "create" : logId));
     }
 
     public CreateOrUpdateArticleResponse create(AdminTokenVO adminTokenVO, CreateArticleRequest createArticleRequest) throws SQLException {
@@ -85,12 +86,13 @@ public class AdminArticleService {
         if ("contributor".equals(access.getRole()) && !createArticleRequest.isRubbish()) throw new com.zrlog.admin.business.exception.PermissionErrorException();
         if (!createArticleRequest.isRubbish() && !createArticleRequest.isPrivacy() && !access.canPublish()) throw new com.zrlog.admin.business.exception.PermissionErrorException();
         Integer logId = (createArticleRequest instanceof UpdateArticleRequest ? ((UpdateArticleRequest) createArticleRequest).getLogId() : null);
-        Lock lock = getWriteLock(adminTokenVO, logId);
+        Lock lock = getWriteLock(logId);
         try {
             if (!lock.tryLock(20, TimeUnit.SECONDS)) {
                 throw new ResourceLockedException();
             }
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             throw new UnknownException(e);
         }
         try {
@@ -135,11 +137,12 @@ public class AdminArticleService {
                                                          CreateArticleRequest createArticleRequest,
                                                          Map<String, Object> oldLog,
                                                          boolean normalizePinning) throws SQLException {
-        Map<String, Object> log = getLog(adminTokenVO, createArticleRequest);
+        Map<String, Object> log = getLog(adminTokenVO, createArticleRequest, oldLog);
         if (createArticleRequest instanceof UpdateArticleRequest) {
             UpdateArticleRequest updateRequest = (UpdateArticleRequest) createArticleRequest;
             Number dbVersion = (Number) log.get("version");
-            if (dbVersion.longValue() > updateRequest.getVersion()) {
+            if (updateRequest.getVersion() == null || dbVersion.longValue() != updateRequest.getVersion()
+                    || updateRequest.getVersion() < 0 || updateRequest.getVersion() == Integer.MAX_VALUE) {
                 throw new UpdateArticleExpireException();
             }
             log.put("version", updateRequest.getVersion() + 1);
@@ -151,7 +154,10 @@ public class AdminArticleService {
                 }
                 logDao.set(key, value);
             });
-            logDao.updateById(updateRequest.getLogId());
+            // The predicate remains authoritative even if another process bypasses the lock.
+            if (!logDao.update(Map.of("logId", updateRequest.getLogId(), "version", updateRequest.getVersion()))) {
+                throw new UpdateArticleExpireException();
+            }
             articleVersionService.recordReversePatch(oldLog, log, adminTokenVO.getUserId());
             if (normalizePinning) {
                 new ArticlePinningService().normalizeOrderLocked();
@@ -178,11 +184,13 @@ public class AdminArticleService {
     }
 
 
-    private Map<String, Object> getLog(AdminTokenVO adminTokenVO, CreateArticleRequest createArticleRequest) throws SQLException {
+    private Map<String, Object> getLog(AdminTokenVO adminTokenVO, CreateArticleRequest createArticleRequest,
+                                       Map<String, Object> oldLog) throws SQLException {
         Map<String, Object> log;
         long articleId;
         if (createArticleRequest instanceof UpdateArticleRequest) {
-            log = new Log().loadById(((UpdateArticleRequest) createArticleRequest).getLogId());
+            // Authorization, version checking and reverse patches must use the same snapshot.
+            log = new HashMap<>(oldLog);
             articleId = Objects.requireNonNull(((UpdateArticleRequest) createArticleRequest).getLogId());
         } else {
             log = new HashMap<>();

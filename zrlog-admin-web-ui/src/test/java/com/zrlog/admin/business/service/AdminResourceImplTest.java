@@ -56,13 +56,19 @@ public class AdminResourceImplTest {
             assertFalse(normalServiceWorker.contains("/admin/website/members"));
             assertFalse(staticServiceWorker.contains("/admin/website/members"));
             assertFalse(staticServiceWorker.contains("/admin/user/permissions"));
-            assertTrue(staticServiceWorker.contains("/blog/admin/user/security.html?"));
+            assertFalse(staticServiceWorker.contains("/blog/admin/user/security.html?"));
             assertTrue(cacheUris.contains("/blog" + AdminConstants.ADMIN_PWA_MANIFEST_JSON));
             assertTrue(cacheUris.contains("/blog" + AdminConstants.ADMIN_SERVICE_WORKER_JS));
             assertTrue(apiUris.contains("/api/admin/website"));
             assertTrue(normalServiceWorker.contains("const urlsToCache = ["));
-            assertTrue(normalServiceWorker.contains("https://cdn.example.com/blog/admin/index?"));
-            assertTrue(staticServiceWorker.contains("/blog/admin/index.html?"));
+            assertFalse(normalServiceWorker.contains("https://cdn.example.com/blog/admin/index?"));
+            assertFalse(staticServiceWorker.contains("/blog/admin/index.html?"));
+            for (String page : pageUris) {
+                assertFalse("Page must not be precached: " + page, normalServiceWorker.contains(page + "?"));
+                assertFalse("Static page must not be precached: " + page, staticServiceWorker.contains(page + ".html?"));
+            }
+            assertTrue(normalServiceWorker.contains("https://cdn.example.com/blog/admin/static/"));
+            assertTrue(staticServiceWorker.contains("/blog/admin/static/"));
             assertNotEquals("", resource.getStaticResourceBuildId());
         }
     }

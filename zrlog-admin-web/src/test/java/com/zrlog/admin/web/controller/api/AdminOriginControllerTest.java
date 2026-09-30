@@ -121,6 +121,7 @@ public class AdminOriginControllerTest {
                 new Class<?>[]{HttpRequest.class}, (proxy, method, args) -> {
                     switch (method.getName()) {
                         case "getMethod": return HttpMethod.POST;
+                        case "getScheme": return "https";
                         case "getInputStream": return new ByteArrayInputStream(json);
                         case "getHeader": return "Origin".equals(args[0]) ? origin : null;
                         case "getHeaderMap": return Map.of("Origin", origin, "X-Real-IP", "127.0.0.1");
