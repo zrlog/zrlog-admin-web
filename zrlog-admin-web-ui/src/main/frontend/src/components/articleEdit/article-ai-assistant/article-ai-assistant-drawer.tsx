@@ -80,7 +80,10 @@ export default function ArticleAiAssistantDrawer({
                     <Dropdown
                         trigger={["click"]}
                         placement="bottomLeft"
-                        getPopupContainer={getContainer}
+                        // Escape the editor card's clipping while staying in the fullscreen top layer.
+                        getPopupContainer={(trigger) =>
+                            (trigger.ownerDocument.fullscreenElement as HTMLElement) || trigger.ownerDocument.body
+                        }
                         menu={{
                             items: [
                                 {

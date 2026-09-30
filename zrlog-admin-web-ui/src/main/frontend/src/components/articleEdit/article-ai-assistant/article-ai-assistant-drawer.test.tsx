@@ -34,6 +34,7 @@ jest.mock("../../../utils/constants", () => ({
 
 let root: Root;
 let container: HTMLDivElement;
+const fullscreenElementDescriptor = Object.getOwnPropertyDescriptor(document, "fullscreenElement");
 const onExport = jest.fn(async () => undefined);
 const onClear = jest.fn(async () => undefined);
 const onClose = jest.fn();
@@ -50,12 +51,19 @@ beforeEach(() => {
     onClear.mockClear();
     onClose.mockClear();
     container = document.createElement("div");
+    container.style.overflow = "hidden";
     document.body.appendChild(container);
+    Object.defineProperty(document, "fullscreenElement", { configurable: true, value: null });
     root = createRoot(container);
 });
 afterEach(() => {
     act(() => root.unmount());
     container.remove();
+    if (fullscreenElementDescriptor) {
+        Object.defineProperty(document, "fullscreenElement", fullscreenElementDescriptor);
+    } else {
+        Reflect.deleteProperty(document, "fullscreenElement");
+    }
     delete (globalThis as any).IS_REACT_ACT_ENVIRONMENT;
 });
 
@@ -92,7 +100,10 @@ const click = async (element: Element | null) => {
 const byText = (selector: string, text: string) =>
     Array.from(document.querySelectorAll(selector)).find((element) => element.textContent?.trim() === text) || null;
 
-it("opens conversation actions from the assistant title and confirms clearing", async () => {
+it.each([false, true])("opens conversation actions and confirms clearing (fullscreen: %s)", async (fullscreen) => {
+    if (fullscreen) {
+        Object.defineProperty(document, "fullscreenElement", { configurable: true, value: container });
+    }
     await render();
     const more = document.querySelector('button[aria-label="AI assistant"]');
     const close = document.querySelector(".ant-drawer-close");
@@ -101,7 +112,10 @@ it("opens conversation actions from the assistant title and confirms clearing", 
     expect(document.querySelector(".ant-drawer-extra")).toBeNull();
     await click(more);
     expect(document.querySelectorAll('[role="menuitem"]')).toHaveLength(2);
-    expect(container.querySelector('[role="menu"]')).not.toBeNull();
+    const menu = document.querySelector('[role="menu"]');
+    expect(menu).not.toBeNull();
+    expect(container.contains(menu)).toBe(fullscreen);
+    expect(container.querySelector(".ant-drawer")).not.toBeNull();
     await click(byText('[role="menuitem"]', "Export conversation"));
     expect(onExport).toHaveBeenCalledTimes(1);
     expect(onClose).not.toHaveBeenCalled();
