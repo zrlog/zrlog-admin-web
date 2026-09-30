@@ -15,8 +15,16 @@ public final class BackendServerUrl {
         String backend = new com.zrlog.model.WebSite().getStringValueByName(SETTING_KEY);
         if (backend == null || backend.isBlank()) backend = System.getenv("ZRLOG_BACKEND_URL");
         if (backend == null || backend.isBlank()) backend = System.getenv("DEFAULT_BACKEND_SERVER_URL");
-        return resolve(backend, com.zrlog.util.ZrLogUtil.getBlogHostByWebSite(),
-                com.zrlog.common.Constants.zrLogConfig.getServerConfig().getContextPath());
+        var server = com.zrlog.common.Constants.zrLogConfig.getServerConfig();
+        String host = com.zrlog.util.ZrLogUtil.getBlogHostByWebSite();
+        if (host == null || host.isBlank()) {
+            // A fresh local installation has no canonical host; use the configured listener, never request headers.
+            Integer port = server.getPort();
+            if (port != null && port > 0 && port <= 65535) {
+                host = "localhost" + (port == 80 ? "" : ":" + port);
+            }
+        }
+        return resolve(backend, host, server.getContextPath());
     }
 
     /** A full backend URL already includes its externally visible context path. */

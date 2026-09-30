@@ -5,6 +5,35 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class OAuthServerAddressTest {
+    @Test public void unconfiguredLocalSiteCanLoadApplicationPagesAndDiscovery() throws Exception {
+        try (var db = com.zrlog.admin.support.InMemoryZrLogDatabase.open()) {
+            var config = com.zrlog.common.Constants.zrLogConfig.getServerConfig();
+            for (String host : java.util.Arrays.asList(null, "", " ")) {
+                db.cacheService().getPublicWebSiteInfo().setHost(host);
+                for (String context : java.util.List.of("", "/sub")) {
+                    config.setContextPath(context);
+                    for (int port : new int[]{80, 8080, 18080}) {
+                        config.setPort(port);
+                        OAuthService service = new OAuthService();
+                        String origin = "http://localhost" + (port == 80 ? "" : ":" + port);
+                        String issuer = origin + context;
+                        var page = service.page();
+                        assertEquals(issuer, page.issuer);
+                        assertEquals(issuer + "/api/oauth", page.resource);
+                        assertEquals(issuer + "/mcp", page.mcpResource);
+                        assertEquals(issuer + WebhookService.MESSAGE_CENTER_NOTICE_ENDPOINT, page.notificationEndpoint);
+                        assertTrue(page.clients.isEmpty());
+                        assertTrue(page.grants.isEmpty());
+                        assertTrue(page.personalTokens.isEmpty());
+                        assertEquals(issuer + "/oauth/authorize", service.metadata().authorization_endpoint);
+                        service.requireAdminOrigin(origin);
+                        assertThrows(OAuthException.class, () -> service.requireAdminOrigin("https://evil.example"));
+                    }
+                }
+            }
+        }
+    }
+
     @Test public void splitDeploymentUsesBackendForDiscoveryAndDisplayedAddresses() throws Exception {
         OAuthService service = new OAuthService(() -> OAuthService.configuredIssuer(
                 "https://xiaochun-admin.zrlog.com/", "xiaochun.zrlog.com", ""));

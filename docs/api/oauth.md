@@ -26,7 +26,7 @@ MCP 使用自己的 resource，支持文章读取、写入、发布、分类标�
 OAuth 与 MCP 优先使用“设置 → 管理设置 → 后端服务地址”，保存到 `website.backend_server_url`，修改后立即生效，无需设置环境变量或重启。该配置属于整个站点的服务地址，管理设置仅提供编辑入口。
 填写实际提供 API 的对外入口，例如 `https://xiaochun-admin.zrlog.com`，博客域名保持 `xiaochun.zrlog.com`。完整后端地址可包含 context path，不会重复追加；仅配置 origin 时追加服务 context path。
 该字段通过已有 `SITE_CONFIGURE` 权限接口读取和修改，不加入 `PublicWebSiteInfo`、博客模板数据、未登录资源或静态后台页面；静态生成调用设置 API 时也不返回此字段。OAuth/MCP 发现协议仍需提供客户端可访问的 issuer/resource，因此应填写代理入口，而非内部源站地址。
-未填写时，依次兼容 `ZRLOG_BACKEND_URL`、`DEFAULT_BACKEND_SERVER_URL`，最后回退到博客 Host 与服务 context path；清空字段恢复此行为，旧客户端省略字段不会清除已保存配置。不使用请求 Host、浏览器本地 `backendServerUrl` 或客户端传来的 resource 推导 issuer。
+未填写时，依次兼容 `ZRLOG_BACKEND_URL`、`DEFAULT_BACKEND_SERVER_URL`，再回退到博客 Host 与服务 context path。如果博客 Host 也为空，本地安装使用 `http://localhost:<监听端口><context path>`（80 端口省略），使应用管理和协议发现可直接使用；对外部署仍需配置实际服务地址或博客 Host。清空字段恢复此行为，旧客户端省略字段不会清除已保存配置。不使用请求 Host、浏览器本地 `backendServerUrl` 或客户端传来的 resource 推导 issuer。
 更改 issuer 后，原地址上的 OAuth 授权和个人令牌需重新建立。校验只接受 HTTPS（本机调试允许 HTTP），拒绝凭据、查询、fragment、无效端口、路径穿越和编码路径分隔符。
 
 静态后台分域部署时，“设置 → 管理设置 → 管理页静态资源 URL”（`admin_static_resource_base_url`）也作为后台操作的可信来源配置。添加/禁用应用、创建/撤销令牌、确认/撤销授权及成员管理允许来自后端 origin 或该 URL 的 origin 的请求。例如配置 `https://admin.example/assets/` 后，允许 `Origin: https://admin.example`；资源路径不参与匹配，协议、域名和有效端口必须一致，不允许子域通配。配置须为有效 HTTPS URL（本机调试允许 HTTP），修改或清空后立即生效；未配置时仅允许后端同源。此配置代表对该 origin 的信任，同一 origin 下的其他路径不构成隔离边界。
