@@ -8,7 +8,7 @@
 
 不增加文章表或向量数据库。内置助手与外部 MCP 共用工具目录和执行服务，提供文章创建、更新、发布、分类标签读取及附件上传，完整参数、权限与验证范围见 [内容工具扩展契约](mcp-content-tools.md)。不提供删除、附件读取、任意 SQL、外部 URL 抓取或插件动作。
 
-内置助手统一使用 `POST /api/admin/article/ai`，普通对话在 JSON body 中提交 `input`、`articleId`、`includeArticleContext`；写作技能沿用同一入口的 `tool` 参数与文章上下文。普通对话只有一套模型流式处理流程，知识库按个人范围作为可选工具挂载，不单独提供知识库聊天 API。旧 `/api/admin/knowledge/chat` 已移除。聊天请求、事件 DTO 与流读取器归属 AI 模块；`KnowledgeService` 只负责文章检索、读取及权限范围，供助手与外部 MCP 共用。已有 `messageType=knowledge` 记录继续兼容读取。
+内置助手统一使用 `POST /api/admin/article/ai`，普通对话在 JSON body 中提交 `input`、`articleId`；写作技能沿用同一入口的 `tool` 参数与文章上下文。普通对话只有一套模型流式处理流程，知识库按个人范围作为可选工具挂载，不单独提供知识库聊天 API。旧 `/api/admin/knowledge/chat` 已移除。聊天请求、事件 DTO 与流读取器归属 AI 模块；`KnowledgeService` 只负责文章检索、读取及权限范围，供助手与外部 MCP 共用。已有 `messageType=knowledge` 记录继续兼容读取。
 
 ## 共用读取工具
 

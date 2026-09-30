@@ -13,7 +13,6 @@ public final class AiNativeImageUtils {
                 com.zrlog.admin.business.rest.request.OptimizeAiPromptRequest.class,
                 com.zrlog.admin.business.rest.request.GenerateArticleTitleRequest.class,
                 com.zrlog.admin.business.rest.request.ApplyArticleCoverRequest.class,
-                com.zrlog.admin.business.rest.request.AddArticleAIContextRequest.class,
                 com.zrlog.admin.business.rest.request.GenerateArticleFieldRequest.class,
                 com.zrlog.admin.business.rest.request.ScoreArticleRequest.class,
                 com.zrlog.admin.business.rest.response.AIArticleGlobalResponse.class,

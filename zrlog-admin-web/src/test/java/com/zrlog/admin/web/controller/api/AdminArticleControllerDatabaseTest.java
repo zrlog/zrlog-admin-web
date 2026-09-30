@@ -371,11 +371,10 @@ public class AdminArticleControllerDatabaseTest {
     public void shouldManageArticleAiMessagesThroughRealWebsiteTable() throws Exception {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
             setAdminToken();
-            AIArticleController append = aiController(Map.of("id", "9"),
-                    "{\"title\":\"Article\",\"markdown\":\"Markdown\",\"articleVersion\":2}",
-                    new ResponseRecorder());
-            ApiStandardResponse<List<AIResponseEntry.AIContentEntry>> appended = append.appendAiContext();
-            AIResponseEntry.AIContentEntry message = appended.getData().get(0);
+            AIResponseEntry.AIContentEntry message = new AIResponseEntry.AIContentEntry("user", "Check this article");
+            message.setMessageType("knowledge");
+            assertTrue(new com.zrlog.admin.business.ai.service.AIConversationService()
+                    .appendAIMessageEntries(List.of(message), 9L));
 
             ApiStandardResponse<Boolean> updated = aiController(Map.of("id", "9"),
                     "{\"messageId\":\"" + message.getMessageId() + "\",\"tool\":\"publishCheck\","
@@ -389,7 +388,7 @@ public class AdminArticleControllerDatabaseTest {
                     aiController(Map.of("id", "9"), null, new ResponseRecorder()).exportAiMessages();
 
             assertEquals("user", message.getRole());
-            assertEquals("articleContext", message.getMessageType());
+            assertEquals("knowledge", message.getMessageType());
             assertFalse(message.getMessageId().isEmpty());
             assertTrue(updated.getData());
             assertEquals(2, exported.getData().getMessageCount());
@@ -402,10 +401,10 @@ public class AdminArticleControllerDatabaseTest {
     public void shouldApplyExternalCoverAndUpdateAiMessagePayloadThroughRealWebsiteTable() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             setAdminToken();
-            ApiStandardResponse<List<AIResponseEntry.AIContentEntry>> appended = aiController(Map.of("id", "9"),
-                    "{\"title\":\"Article\",\"markdown\":\"Markdown\",\"articleVersion\":2}",
-                    new ResponseRecorder()).appendAiContext();
-            String messageId = appended.getData().get(0).getMessageId();
+            AIResponseEntry.AIContentEntry message = new AIResponseEntry.AIContentEntry("assistant", "Cover");
+            assertTrue(new com.zrlog.admin.business.ai.service.AIConversationService()
+                    .appendAIMessageEntries(List.of(message), 9L));
+            String messageId = message.getMessageId();
 
             ApiStandardResponse<UploadFileResponse> applied = aiController(Map.of("id", "9"),
                     "{\"dataUrl\":\"/attached/cover.png\",\"extension\":\"png\",\"messageId\":\"" + messageId + "\"}",

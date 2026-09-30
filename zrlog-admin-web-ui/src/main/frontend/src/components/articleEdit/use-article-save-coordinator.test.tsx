@@ -21,6 +21,7 @@ let mockTransparentPublishOptions: {
     onAiMessagesChange: (action: SetStateAction<AIContent[]>, articleId?: number) => void;
 };
 const mockPageCache = new Map<string, ArticleEditInfo>();
+const mockArticleGet = jest.fn<Promise<any>, any[]>();
 const mockArticlePost = jest.fn(async (uri?: string, article?: unknown, config?: unknown): Promise<any> => {
     void uri;
     void article;
@@ -98,6 +99,7 @@ jest.mock("./draft-sync/use-article-draft-sync", () => {
         markSynced: require("@jest/globals").jest.fn(),
         markSyncing: require("@jest/globals").jest.fn(() => true),
         resolveConflict: require("@jest/globals").jest.fn(),
+        receiveServerArticle: require("@jest/globals").jest.fn(),
     });
     return {
         __esModule: true,
@@ -207,7 +209,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
         );
         coordinator = useArticleSaveCoordinator({
             aliasRef: { current: null },
-            axiosInstance: { post: mockArticlePost } as never,
+            axiosInstance: { post: mockArticlePost, get: mockArticleGet } as never,
             data: harnessData,
             draftAiPendingCount,
             draftAiSaveGate,
@@ -241,6 +243,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
         mockOffline = false;
         mockPostPublish.mockReset();
         mockArticlePost.mockReset();
+        mockArticleGet.mockReset();
         mockDraftSyncApi = undefined;
         mockPageCache.clear();
         jest.mocked(articleSaveToCache).mockReset();
@@ -274,6 +277,128 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
         container.remove();
         reactActEnvironment.IS_REACT_ACT_ENVIRONMENT = false;
         window.history.replaceState({}, "", "/");
+    });
+
+    it("reloads the assistant's saved article and preserves the streaming conversation", async () => {
+        const request = deferred<any>();
+        mockArticleGet.mockReturnValue(request.promise);
+        const updated = { ...initialArticle, title: "AI title", markdown: "AI body", version: 4, rubbish: false };
+        act(() => coordinator.onArticleUpdated({ articleId: 7, version: 4 }));
+        const conversation = [{ role: "assistant" as const, content: "Still writing", thinking: false }];
+        act(() => coordinator.updateAiMessageCache(conversation, 7));
+        await act(async () => {
+            request.resolve({ data: { error: 0, data: { ...data, article: updated } } });
+        });
+        expect(mockArticleGet).toHaveBeenCalledWith("/api/admin/article-edit", { params: { id: 7 } });
+        expect(coordinator.state.article).toEqual(updated);
+        expect(coordinator.state.editorVersion).toBe(4);
+        expect(coordinator.state.rubbish).toBe(false);
+        expect(coordinator.state.aiMessages).toEqual(conversation);
+        expect(coordinator.restoreInputRevision).toBe(1);
+        expect(mockPageCache.get("/article-edit?id=7")).toEqual({
+            ...data,
+            article: updated,
+            aiMessages: conversation,
+        });
+        act(() => {
+            coordinator.onArticleUpdated({ articleId: 7, version: 4 });
+            coordinator.onArticleUpdated({ articleId: 8, version: 5 });
+        });
+        expect(mockArticleGet).toHaveBeenCalledTimes(1);
+    });
+
+    it("preserves edits made during the read as a conflict instead of autosaving over the AI update", async () => {
+        const request = deferred<any>();
+        mockArticleGet.mockReturnValue(request.promise);
+        act(() => coordinator.onArticleUpdated({ articleId: 7, version: 4 }));
+        const localArticle = { ...initialArticle, title: "Local edit" };
+        mockDraftSyncApi!.receiveServerArticle.mockReturnValue({ article: localArticle, revision: 1, updatedAt: 123 });
+        const updated = { ...initialArticle, title: "AI title", version: 4 };
+        await act(async () => {
+            request.resolve({ data: { error: 0, data: { ...data, article: updated } } });
+        });
+        expect(coordinator.state.article).toEqual(updated);
+        expect(coordinator.state.contentConflict).toEqual({
+            source: "localEdit",
+            localArticle,
+            localVersion: 3,
+            localUpdatedAt: 123,
+            serverVersion: 4,
+        });
+        expect(mockArticlePost).not.toHaveBeenCalled();
+    });
+
+    it("ignores an older refresh response when a newer tool update arrives", async () => {
+        const first = deferred<any>();
+        const second = deferred<any>();
+        mockArticleGet.mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
+        act(() => coordinator.onArticleUpdated({ articleId: 7, version: 4 }));
+        act(() => coordinator.onArticleUpdated({ articleId: 7, version: 5 }));
+        await act(async () => {
+            second.resolve({
+                data: {
+                    error: 0,
+                    data: {
+                        ...data,
+                        article: { ...initialArticle, title: "Latest", version: 5 },
+                    },
+                },
+            });
+        });
+        await act(async () => {
+            first.resolve({
+                data: {
+                    error: 0,
+                    data: {
+                        ...data,
+                        article: { ...initialArticle, title: "Old", version: 4 },
+                    },
+                },
+            });
+        });
+        expect(coordinator.state.article.title).toBe("Latest");
+        expect(coordinator.state.article.version).toBe(5);
+        expect(coordinator.restoreInputRevision).toBe(1);
+    });
+
+    it("ignores refresh responses after leaving the article", async () => {
+        const request = deferred<any>();
+        mockArticleGet.mockReturnValue(request.promise);
+        act(() => coordinator.onArticleUpdated({ articleId: 7, version: 4 }));
+        remountWith({ ...data, article: { ...initialArticle, logId: 8 } }, "?id=8");
+        await act(async () => {
+            request.resolve({
+                data: {
+                    error: 0,
+                    data: {
+                        ...data,
+                        article: { ...initialArticle, title: "AI title", version: 4 },
+                    },
+                },
+            });
+        });
+        expect(coordinator.state.article.logId).toBe(8);
+        expect(coordinator.restoreInputRevision).toBe(0);
+    });
+
+    it("waits for a pending save before applying the tool update and reports read errors separately", async () => {
+        const saving = deferred<any>();
+        mockArticlePost.mockReturnValue(saving.promise);
+        let pending!: Promise<boolean>;
+        act(() => {
+            pending = coordinator.onSubmit(coordinator.state.article, false, false, false);
+        });
+        act(() => coordinator.onArticleUpdated({ articleId: 7, version: 5 }));
+        expect(mockArticleGet).not.toHaveBeenCalled();
+        mockArticleGet.mockResolvedValue({ data: { error: 1, message: "Read failed" } });
+        await act(async () => {
+            saving.resolve({ data: { error: 0, data: { ...data, article: { ...initialArticle, version: 4 } } } });
+            await pending;
+        });
+        expect(mockArticleGet).toHaveBeenCalledTimes(1);
+        expect(coordinator.state.article.version).toBe(4);
+        expect(messageApi.error).toHaveBeenCalledWith("Read failed");
+        expect(modal.error).not.toHaveBeenCalled();
     });
 
     it("preserves the draft state when publishing returns a business error", async () => {

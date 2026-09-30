@@ -2,7 +2,6 @@ package com.zrlog.admin.business.ai.service;
 
 
 import com.zrlog.admin.business.rest.base.AIWebSiteInfoWithAIMessages;
-import com.zrlog.admin.business.rest.request.AddArticleAIContextRequest;
 import com.zrlog.admin.business.rest.response.AIResponseEntry;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import org.junit.Test;
@@ -116,27 +115,6 @@ public class AIConversationServiceDatabaseTest {
             assertEquals("initial", stored.get(1).getContent());
             assertEquals("newer", stored.get(2).getContent());
             assertEquals("late response", stored.get(3).getContent());
-        }
-    }
-
-    @Test
-    public void shouldAppendArticleContextToPersistedAiMessages() throws Exception {
-        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-            db.putWebsite("ai_prompt", "system prompt");
-            AIConversationService service = new AIConversationService();
-            AddArticleAIContextRequest context = new AddArticleAIContextRequest();
-            context.setTitle("Article");
-            context.setMarkdown("Markdown");
-            context.setArticleVersion(2);
-
-            List<AIResponseEntry.AIContentEntry> messages = service.appendArticleContextMessage(9L, context);
-            Map<String, Object> row = db.queryOne("select value from website where name=?", "ai_chat_message_u1_9");
-
-            assertEquals(2, messages.size());
-            assertEquals("system", messages.get(0).getRole());
-            assertEquals("user", messages.get(1).getRole());
-            assertEquals("articleContext", messages.get(1).getMessageType());
-            assertTrue(String.valueOf(row.get("value")).contains("Article context snapshot."));
         }
     }
 

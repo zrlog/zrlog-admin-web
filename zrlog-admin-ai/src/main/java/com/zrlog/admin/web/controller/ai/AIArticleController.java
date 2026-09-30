@@ -48,9 +48,8 @@ public class AIArticleController extends BaseController {
             if (Objects.equals(tool, "publishCheck")) {
                 publishingService.fillPublishCheckContext(articleContext);
             }
-            boolean includeArticleContext = !Objects.equals(request.getParaToStr("includeArticleContext", "true"), "false");
             streamResponse = new AIChatService(request).startStreamResponse(getParamWithEmptyCheck("input"),
-                    aiContextId(), tool, articleContext, includeArticleContext);
+                    aiContextId(), tool, articleContext);
         }
         AdminSseEmitter.setHeaders(response);
         response.addHeader("Cache-Control", "no-store, no-transform");
@@ -67,18 +66,6 @@ public class AIArticleController extends BaseController {
     private long aiContextId() {
         long id = Long.parseLong(request.getParaToStr("id", "0"));
         return id == 0 ? -(long) AccountPermissionService.current().getUserId() : id;
-    }
-
-    @ResponseBody
-    @RequiresAction(value = AccountAction.ARTICLE_ASSIST, articleQuery = true, descriptionKey = "article.aiContext")
-    public ApiStandardResponse<List<AIResponseEntry.AIContentEntry>> appendAiContext()
-            throws SQLException {
-        AddArticleAIContextRequest contextRequest = getRequestBodyWithNullCheck(AddArticleAIContextRequest.class);
-        List<AIResponseEntry.AIContentEntry> messages = new AIConversationService().appendArticleContextMessage(
-                aiContextId(), contextRequest);
-        return new ApiStandardResponse<>(messages.stream()
-                .filter(e -> !Objects.equals(e.getRole(), "system"))
-                .collect(java.util.stream.Collectors.toList()));
     }
 
     @ResponseBody

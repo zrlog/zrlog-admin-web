@@ -1,3 +1,4 @@
+import { ArticleUpdatedEvent } from "./article-ai-assistant/article-ai-assistant.types";
 import { isModuleEnabled } from "../../utils/module-capabilities";
 import { hasAction } from "../../utils/account-access";
 import { Button } from "antd";
@@ -30,6 +31,7 @@ type ArticleEditActionBarProps = {
     onOpenVersionHistory?: () => void;
     canOpenVersionHistory?: boolean;
     getContainer?: () => HTMLElement;
+    onArticleUpdated?: (event: ArticleUpdatedEvent) => void;
     onAiMessagesChange?: (messages: AIContent[], articleId?: number) => void;
     onAiDrawerSizeChange?: (newSize: number) => void;
     aiDrawerOpen?: boolean;
@@ -54,6 +56,7 @@ const ArticleEditActionBar: FunctionComponent<ArticleEditActionBarProps> = ({
     canOpenVersionHistory,
     getContainer,
     onAiMessagesChange,
+    onArticleUpdated,
     onAiDrawerSizeChange,
     aiDrawerOpen,
     onAiDrawerOpenChange,
@@ -177,6 +180,7 @@ const ArticleEditActionBar: FunctionComponent<ArticleEditActionBarProps> = ({
                     axiosInstance={axiosInstance}
                     getContainer={getContainer}
                     onAiMessagesChange={onAiMessagesChange}
+                    onArticleUpdated={onArticleUpdated}
                     onAiDrawerSizeChange={onAiDrawerSizeChange}
                     open={aiDrawerOpen}
                     onOpenChange={onAiDrawerOpenChange}

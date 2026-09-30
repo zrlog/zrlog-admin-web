@@ -15,6 +15,47 @@ import java.util.*;
 import static org.junit.Assert.*;
 
 public class AIChatConversationTest {
+    @Test public void injectsAuthorizedArticleMetadataAndExcludesLegacySnapshotsAndBody() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            configure(db);
+            db.execute("insert into log(logId,userId,typeId,title,markdown,rubbish,privacy,version) values(?,?,?,?,?,?,?,?)",
+                    7,1,1,"Current title","BODY_NOT_AUTOMATICALLY_SENT",true,false,3);
+            db.putWebsite("ai_chat_message_u1_7", "[{\"role\":\"user\",\"messageType\":\"articleContext\",\"content\":\"OBSOLETE_SNAPSHOT\"},"
+                    + "{\"role\":\"user\",\"messageType\":\"knowledge\",\"content\":\"Earlier question\"}]");
+            scope("off");
+            Model model = new Model(ANSWER);
+            ChatRequest request = input(); request.articleId = 7;
+            model.start(request).getInputStream().readAllBytes();
+            String providerMessages = model.requests.get(0).getAsJsonArray("messages").toString();
+            assertFalse(providerMessages.contains("OBSOLETE_SNAPSHOT"));
+            assertFalse(providerMessages.contains("BODY_NOT_AUTOMATICALLY_SENT"));
+            assertTrue(providerMessages.contains("Earlier question"));
+            assertFalse(model.requests.get(0).has("tools"));
+            JsonObject metadata = currentArticle(model);
+            assertEquals(7, metadata.get("articleId").getAsInt());
+            assertEquals("Current title", metadata.get("title").getAsString());
+            assertEquals("draft", metadata.get("status").getAsString());
+            assertEquals(3, metadata.get("version").getAsInt());
+            assertEquals(1, metadata.get("typeId").getAsInt());
+            String stored = Objects.toString(db.scalar("select value from website where name='ai_chat_message_u1_7'"));
+            assertTrue(stored.contains("OBSOLETE_SNAPSHOT"));
+            assertFalse(stored.contains("Current editor article metadata"));
+            Model draft = new Model(ANSWER);
+            draft.start(input()).getInputStream().readAllBytes();
+            assertEquals("unsaved", currentArticle(draft).get("status").getAsString());
+            assertEquals(0, currentArticle(draft).get("articleId").getAsInt());
+            assertFalse(currentArticle(draft).has("version"));
+        }
+    }
+
+    private JsonObject currentArticle(Model model) {
+        return model.requests.get(0).getAsJsonArray("messages").asList().stream()
+                .map(JsonElement::getAsJsonObject).map(message -> message.get("content").getAsString())
+                .filter(content -> content.startsWith("Current editor article metadata"))
+                .map(content -> JsonParser.parseString(content.substring(content.indexOf('\n') + 1)).getAsJsonObject())
+                .findFirst().orElseThrow();
+    }
+
     @Test public void asynchronousToolsFollowAccountLanguageWithoutLeakingTheBrowserLocale() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open();
              var ignored = com.zrlog.admin.util.AdminLanguageContext.open("zh_CN")) {

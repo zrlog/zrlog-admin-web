@@ -60,6 +60,9 @@ export type ArticleDraftSyncEvent =
           type: "commit";
       }
     | {
+          type: "serverUpdated";
+      }
+    | {
           type: "resolveConflict";
           revision: number;
           syncable: boolean;
@@ -244,6 +247,9 @@ export const reduceArticleDraftSyncState = (
                 revision: state.revision,
                 retryCount: 0,
             };
+        case "serverUpdated":
+            if (state.document === "clean") return state;
+            return { ...state, sync: "conflict", nextRetryAt: undefined };
         case "commit":
             return {
                 connectivity: state.connectivity,

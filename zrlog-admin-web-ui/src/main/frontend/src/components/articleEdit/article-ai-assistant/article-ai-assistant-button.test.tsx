@@ -112,12 +112,12 @@ jest.mock("../shortcut-utils", () => ({
     isTouchLikeDevice: () => false,
 }));
 jest.mock("./article-ai-assistant-skill-content", () => ({ __esModule: true, default: () => null }));
+jest.mock("./article-ai-assistant-drawer", () => ({ __esModule: true, default: () => null }));
 jest.mock("./tool/article-ai-assistant-tool-content", () => ({ __esModule: true, default: () => null }));
 jest.mock("./tool/article-ai-assistant-tools", () => ({ getAssistantToolLabel: (tool: string) => tool }));
 
 type AssistantConfig = ReturnType<typeof useArticleAiAssistantConfig>;
 type FooterActions = {
-    onAddArticleContext: () => void;
     onClearAiMessages: () => void;
     onSubmit: (message: string, tool?: AssistantTool) => void;
 };
@@ -231,7 +231,12 @@ describe("useArticleAiAssistantConfig draft request gate", () => {
 
         return {
             getConfig: () => config,
-            getFooter: () => (config.renderFooter() as ReactElement<FooterActions>).props,
+            getFooter: () => ({
+                ...(config.renderFooter() as ReactElement<FooterActions>).props,
+                onClearAiMessages: () => {
+                    void config.conversationActions.onClear();
+                },
+            }),
             getToolContent: (content: AIContent, index = 0) =>
                 (
                     config.renderMessage({
@@ -241,8 +246,8 @@ describe("useArticleAiAssistantConfig draft request gate", () => {
                     } as never) as ReactElement<ToolContentActions>
                 ).props,
             getCropper: () => {
-                const overlay = config.overlays as ReactElement<{ children: ReactElement<CropperActions>[] }>;
-                return overlay.props.children[0].props;
+                const overlay = config.overlays as ReactElement<{ children: ReactElement<CropperActions> }>;
+                return overlay.props.children.props;
             },
             onAiMessagesChange,
             rerender: (logId?: number, aiMessages = data.aiMessages) => {
@@ -298,7 +303,7 @@ describe("useArticleAiAssistantConfig draft request gate", () => {
         });
         expect(post).toHaveBeenCalledWith(
             "/api/admin/article/ai",
-            { input: "Find a related article", articleId: 0, includeArticleContext: true },
+            { input: "Find a related article", articleId: 0 },
             expect.anything()
         );
         expect(mounted.onAiMessagesChange).toHaveBeenLastCalledWith(
@@ -352,44 +357,6 @@ describe("useArticleAiAssistantConfig draft request gate", () => {
         });
         expect(gate.getPendingAiCount()).toBe(0);
         expect(mockMessageError).toHaveBeenCalledWith("Second request failed");
-    });
-
-    it("holds append-context leases through both success and failure", async () => {
-        const gate = createDraftAiSaveGate();
-        const successfulRequest = deferred<any>();
-        const failedRequest = deferred<any>();
-        const successfulPost = jest.fn(async (): Promise<any> => successfulRequest.promise);
-        const failedPost = jest.fn(async (): Promise<any> => failedRequest.promise);
-        const successful = mountHook(gate, successfulPost);
-        const failed = mountHook(gate, failedPost);
-
-        act(() => {
-            successful.getFooter().onAddArticleContext();
-            failed.getFooter().onAddArticleContext();
-        });
-        expect(gate.getPendingAiCount()).toBe(2);
-
-        const contextMessage = {
-            role: "assistant",
-            content: "Article context",
-            thinking: false,
-            messageType: "articleContext",
-            messageId: "context-message",
-        } as ToolAwareAIContent;
-        successful.rerender(42);
-        await act(async () => {
-            successfulRequest.resolve({ data: { error: 0, data: [contextMessage] } });
-            await flushRequest();
-        });
-        expect(gate.getPendingAiCount()).toBe(1);
-        expect(successful.onAiMessagesChange).toHaveBeenCalledWith([contextMessage], 0);
-
-        await act(async () => {
-            failedRequest.reject(new Error("Context request failed"));
-            await flushRequest();
-        });
-        expect(gate.getPendingAiCount()).toBe(0);
-        expect(mockMessageError).toHaveBeenCalledWith("Context request failed");
     });
 
     it("does not start a draft request while first create owns the gate", () => {

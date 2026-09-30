@@ -4,7 +4,6 @@ import com.google.gson.Gson;
 import com.hibegin.common.dao.ResultBeanUtils;
 import com.hibegin.common.util.StringUtils;
 import com.zrlog.admin.business.rest.base.*;
-import com.zrlog.admin.business.rest.request.AddArticleAIContextRequest;
 import com.zrlog.admin.business.rest.response.AIResponseEntry;
 import com.zrlog.admin.business.rest.response.ArticleAIMessageExportResponse;
 import com.zrlog.business.service.WebsiteKvService;
@@ -204,54 +203,11 @@ public class AIConversationService {
         }
     }
 
-    public List<AIResponseEntry.AIContentEntry> appendArticleContextMessage(Long articleId,
-                                                                            AddArticleAIContextRequest contextRequest)
-            throws SQLException {
-        synchronized (aiMessageLock(articleId)) {
-            AIWebSiteInfoWithAIMessages info = getAiMessageInfoByArticleId(articleId);
-            List<AIResponseEntry.AIContentEntry> messages = info.getAiMessages();
-            ensureSystemMessage(messages, info.getAi_prompt());
-            AIResponseEntry.AIContentEntry contextMessage =
-                    new AIResponseEntry.AIContentEntry("user", buildArticleContextContent(contextRequest));
-            contextMessage.setMessageType("articleContext");
-            contextMessage.setContextMeta(buildArticleContextMeta(contextRequest));
-            messages.add(contextMessage);
-            if (!saveAIMessageUnlocked(messages, articleId)) {
-                throw new SQLException("save article AI context message failed");
-            }
-            return messages;
-        }
-    }
-
     public void ensureSystemMessage(List<AIResponseEntry.AIContentEntry> messages, String aiPrompt) {
         boolean hasSystemMessage = messages.stream().anyMatch(message -> Objects.equals(message.getRole(), "system"));
         if (!hasSystemMessage) {
             messages.add(0, new AIResponseEntry.AIContentEntry("system", emptyToBlank(aiPrompt)));
         }
-    }
-
-    AIResponseEntry.AIContentEntry.ArticleContextMeta buildArticleContextMeta(
-            AddArticleAIContextRequest contextRequest) {
-        AIResponseEntry.AIContentEntry.ArticleContextMeta meta =
-                new AIResponseEntry.AIContentEntry.ArticleContextMeta();
-        meta.setTitle(contextRequest.getTitle());
-        meta.setArticleVersion(contextRequest.getArticleVersion());
-        meta.setMarkdownLength(emptyToBlank(contextRequest.getMarkdown()).length());
-        meta.setCreatedAt(System.currentTimeMillis());
-        return meta;
-    }
-
-    String buildArticleContextContent(AddArticleAIContextRequest contextRequest) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("Article context snapshot.\n");
-        if (contextRequest.getArticleVersion() != null) {
-            sb.append("Article version: ").append(contextRequest.getArticleVersion()).append("\n");
-        }
-        sb.append("Title: ").append(emptyToBlank(contextRequest.getTitle())).append("\n");
-        sb.append("Digest: ").append(emptyToBlank(contextRequest.getDigest())).append("\n");
-        sb.append("Keywords: ").append(emptyToBlank(contextRequest.getKeywords())).append("\n");
-        sb.append("Markdown:\n").append(emptyToBlank(contextRequest.getMarkdown()));
-        return sb.toString();
     }
 
     String emptyToBlank(String value) {

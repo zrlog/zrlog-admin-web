@@ -20,6 +20,7 @@ type HookResult = {
     markSynced: (task: ArticleDraftSyncTask, savedArticle?: ArticleEntry) => boolean;
     markSyncing: (task: ArticleDraftSyncTask) => boolean;
     resolveConflict: (article: ArticleEntry) => ArticleDraftChange | undefined;
+    receiveServerArticle: (article: ArticleEntry) => ArticleDraftChange | undefined;
     state: ArticleDraftSyncState;
 };
 
@@ -74,6 +75,35 @@ describe("useArticleDraftSync", () => {
             root.render(<Harness {...props} />);
         });
     };
+
+    it("pauses queued local edits when a tool changes the server and resumes from the chosen version", () => {
+        const article = { ...baseArticle, logId: 7, version: 3 };
+        const props = createProps({ article });
+        render(props);
+        let local!: ArticleDraftChange;
+        act(() => {
+            local = current.applyPatch({ title: "Local title" })!;
+        });
+        const serverArticle = { ...article, title: "AI title", version: 4 };
+        act(() => {
+            expect(current.receiveServerArticle(serverArticle)?.article.title).toBe("Local title");
+        });
+        render({ ...props, article: serverArticle });
+        expect(current.state.sync).toBe("conflict");
+        expect(current.markSyncing(local)).toBe(false);
+        expect(props.onPersist).toHaveBeenLastCalledWith(
+            local.article,
+            123,
+            expect.objectContaining({ sync: "conflict" })
+        );
+        act(() => current.discard());
+        let next!: ArticleDraftChange;
+        act(() => {
+            next = current.applyPatch({ digest: "Next edit" })!;
+        });
+        expect(next.article).toEqual({ ...serverArticle, digest: "Next edit" });
+        expect(current.state.sync).toBe("queued");
+    });
 
     beforeEach(() => {
         reactActEnvironment.IS_REACT_ACT_ENVIRONMENT = true;

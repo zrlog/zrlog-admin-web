@@ -1,7 +1,6 @@
 package com.zrlog.admin.business.ai.service;
 
 import com.zrlog.admin.business.rest.base.AIWebSiteInfoWithAIMessages;
-import com.zrlog.admin.business.rest.request.AddArticleAIContextRequest;
 import com.zrlog.admin.business.rest.response.AIResponseEntry;
 import org.junit.Test;
 
@@ -46,32 +45,6 @@ public class AIConversationServiceTest {
         assertEquals("system", messages.get(0).getRole());
         assertEquals("system prompt", messages.get(0).getContent());
         assertEquals("user", messages.get(1).getRole());
-    }
-
-    @Test
-    public void shouldBuildArticleContextContentAndMeta() throws Exception {
-        AIConversationService service = new AIConversationService();
-        AddArticleAIContextRequest request = new AddArticleAIContextRequest();
-        request.setTitle("Title");
-        request.setDigest("Digest");
-        request.setKeywords("java,zrlog");
-        request.setMarkdown("Markdown");
-        request.setArticleVersion(3);
-
-        String content = service.buildArticleContextContent(request);
-        AIResponseEntry.AIContentEntry.ArticleContextMeta meta =
-                service.buildArticleContextMeta(request);
-
-        assertTrue(content.startsWith("Article context snapshot."));
-        assertTrue(content.contains("Article version: 3"));
-        assertTrue(content.contains("Title: Title"));
-        assertTrue(content.contains("Digest: Digest"));
-        assertTrue(content.contains("Keywords: java,zrlog"));
-        assertTrue(content.endsWith("Markdown:\nMarkdown"));
-        assertEquals("Title", meta.getTitle());
-        assertEquals(Integer.valueOf(3), meta.getArticleVersion());
-        assertEquals(Integer.valueOf(8), meta.getMarkdownLength());
-        assertNotNull(meta.getCreatedAt());
     }
 
     @Test

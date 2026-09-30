@@ -4,7 +4,6 @@
     "methods": [
       {"name": "<init>", "parameterTypes": []},
       {"name": "ai", "parameterTypes": []},
-      {"name": "appendAiContext", "parameterTypes": []},
       {"name": "applyCover", "parameterTypes": []},
       {"name": "clearAiMessages", "parameterTypes": []},
       {"name": "exportAiMessages", "parameterTypes": []},

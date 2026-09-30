@@ -1,3 +1,4 @@
+import { ArticleUpdatedEvent } from "./article-ai-assistant/article-ai-assistant.types";
 import { InputRef, Tag } from "antd";
 import Select from "antd/es/select";
 import { LockOutlined, StarFilled } from "@ant-design/icons";
@@ -51,6 +52,7 @@ type ArticleEditHeaderProps = {
     onSubmit: (article: ArticleEntry, release: boolean, preview: boolean, autoSave: boolean) => Promise<boolean>;
     onRequestPublish: () => void;
     onPreview?: () => Promise<void>;
+    onArticleUpdated?: (event: ArticleUpdatedEvent) => void;
     onAiMessagesChange: (messages: AIContent[], articleId?: number) => void;
     onAiDrawerSizeChange: (newSize: number) => void;
     onInsertMarkdownFromAsset: (path: string) => void;
@@ -100,6 +102,7 @@ const ArticleEditHeader: FunctionComponent<ArticleEditHeaderProps> = ({
     onRequestPublish,
     onPreview,
     onAiMessagesChange,
+    onArticleUpdated,
     onAiDrawerSizeChange,
     onInsertMarkdownFromAsset,
     getCurrentMarkdown,
@@ -263,6 +266,7 @@ const ArticleEditHeader: FunctionComponent<ArticleEditHeaderProps> = ({
                         onOpenVersionHistory={() => onVersionOpenChange(true)}
                         canOpenVersionHistory={Boolean(state.article.logId)}
                         onAiMessagesChange={onAiMessagesChange}
+                        onArticleUpdated={onArticleUpdated}
                         onSubmit={onSubmit}
                         onRequestPublish={onRequestPublish}
                         aiDrawerOpen={articleAssistantOpen}

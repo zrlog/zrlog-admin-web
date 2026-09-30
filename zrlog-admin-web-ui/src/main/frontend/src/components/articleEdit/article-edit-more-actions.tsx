@@ -17,7 +17,7 @@ import screenfull from "screenfull";
 import { getEnterFullscreen, getExitFullscreen, getRes } from "../../utils/constants";
 import ArticleVersionDrawer from "./article-version-drawer";
 import { getShortcutTitle, isTouchLikeDevice } from "./shortcut-utils";
-import { getAiDrawerOpen } from "@zrlog/editor/dist/ai/AIDrawer";
+import { getArticleAiAssistantDrawerOpen } from "./article-ai-assistant/article-ai-assistant-button";
 import FileManagerPicker from "../file-manager/picker";
 import ArticleSocialPreviewDrawer from "./article-social-preview-drawer";
 import { ArticleEntry, SocialPreview } from "./index.types";
@@ -214,7 +214,7 @@ const ArticleEditMoreActions: FunctionComponent<ArticleEditMoreActionsProps> = (
 
     useEffect(() => {
         const handleKeyPress = (event: KeyboardEvent) => {
-            if (getAiDrawerOpen() || isTouchLikeDevice()) {
+            if (getArticleAiAssistantDrawerOpen() || isTouchLikeDevice()) {
                 return;
             }
             if (event.altKey && event.shiftKey && event.key.toLowerCase() === "f") {

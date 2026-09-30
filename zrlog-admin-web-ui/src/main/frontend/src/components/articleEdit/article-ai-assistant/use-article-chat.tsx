@@ -5,6 +5,7 @@ import { AIContent } from "@zrlog/editor/dist/ai/AIContentItem";
 import { AIButtonRenderMessageOptions } from "@zrlog/editor/dist/ai/AIButton";
 import ArticleAiReasoning from "./article-ai-reasoning";
 import { getRes } from "../../../utils/constants";
+import { ArticleUpdatedEvent } from "./article-ai-assistant.types";
 
 type Source = { id: number; title: string; url: string; draft: boolean; privateArticle: boolean };
 export type ChatMessage = AIContent & {
@@ -22,6 +23,8 @@ type Event = {
     sources?: Source[];
     error?: string;
     messages?: ChatMessage[];
+    articleId?: number;
+    version?: number;
 };
 
 export const parseChatEvents = (text: string): Event[] =>
@@ -76,7 +79,8 @@ export const useArticleChat = (
     api: AxiosInstance,
     disabled: boolean,
     scope: string,
-    onMessagesChange?: (messages: AIContent[], articleId?: number) => void
+    onMessagesChange?: (messages: AIContent[], articleId?: number) => void,
+    onArticleUpdated?: (event: ArticleUpdatedEvent) => void
 ) => {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [busy, setBusy] = useState(false);
@@ -84,6 +88,8 @@ export const useArticleChat = (
     const pending = useRef<AbortController>();
     const generation = useRef(0);
     const restorePending = useRef<() => void>();
+    const onArticleUpdatedRef = useRef(onArticleUpdated);
+    onArticleUpdatedRef.current = onArticleUpdated;
     const stop = () => {
         generation.current++;
         pending.current?.abort();
@@ -110,7 +116,7 @@ export const useArticleChat = (
         };
     }, [scope]);
 
-    const send = async (input: string, context: AIContent[], articleId: number, includeArticleContext = true) => {
+    const send = async (input: string, context: AIContent[], articleId: number) => {
         const prompt = input.trim();
         if (!prompt || disabled || pending.current) return;
         const res = getRes().articleEdit.knowledge;
@@ -138,9 +144,26 @@ export const useArticleChat = (
         publish([...base, { role: "assistant", content: "", thinking: true, messageType: "knowledge" }]);
         let lastReasoning = "";
         let lastContent = "";
+        const updatedVersions = new Set<string>();
         const consume = (text: string, final: boolean) => {
             if (run !== generation.current) return;
             const events = parseChatEvents(text);
+            // XHR supplies the entire response again on each progress callback and at completion.
+            // A committed write still needs refreshing if a later model/conversation step fails.
+            for (const event of events) {
+                if (
+                    event.type !== "article-updated" ||
+                    event.articleId !== articleId ||
+                    articleId <= 0 ||
+                    !Number.isInteger(event.version) ||
+                    event.version! < 0
+                )
+                    continue;
+                const key = `${event.articleId}/${event.version}`;
+                if (updatedVersions.has(key)) continue;
+                updatedVersions.add(key);
+                onArticleUpdatedRef.current?.({ articleId, version: event.version! });
+            }
             const error = events.find((e) => e.type === "error");
             if (error) throw new Error(errors[error.error || ""] || res.requestFailed);
             const progress = [...events].reverse().find((e) => e.type === "tool" || e.type === "thinking");
@@ -207,11 +230,7 @@ export const useArticleChat = (
                     }
                 },
             };
-            const response = await api.post(
-                "/api/admin/article/ai",
-                { input: prompt, articleId, includeArticleContext },
-                requestConfig
-            );
+            const response = await api.post("/api/admin/article/ai", { input: prompt, articleId }, requestConfig);
             consume(typeof response.data === "string" ? response.data : "", true);
         } catch (error) {
             if (run === generation.current)

@@ -109,7 +109,7 @@ public class AIChatServiceTest {
                             + "data: [DONE]\n\n"));
             AIChatService service = new NoSleepAIChatService(client);
 
-            AIStreamResponse response = service.startStreamResponse("Question", 33L, null, null, false);
+            AIStreamResponse response = service.startStreamResponse("Question", 33L, null, null);
             String payload = new String(response.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
             String stored = String.valueOf(db.queryOne(
                     "select value from website where name=?", "ai_chat_message_u1_33").get("value"));
@@ -142,7 +142,7 @@ public class AIChatServiceTest {
                             + "data: {\"choices\":[{\"finish_reason\":\"length\"}]}\n\n"));
             AIChatService service = new NoSleepAIChatService(client);
 
-            AIStreamResponse response = service.startStreamResponse("Question", 38L, null, null, true);
+            AIStreamResponse response = service.startStreamResponse("Question", 38L, null, null);
             String payload = new String(response.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
 
             assertEquals(200, response.getStatusCode());
@@ -166,7 +166,7 @@ public class AIChatServiceTest {
                             + "data: [DONE]\n\n"));
             AIChatService service = new NoSleepAIChatService(client);
 
-            AIStreamResponse response = service.startStreamResponse("Retry", 34L, null, null, true);
+            AIStreamResponse response = service.startStreamResponse("Retry", 34L, null, null);
             String payload = new String(response.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
 
             assertEquals(200, response.getStatusCode());
@@ -182,7 +182,7 @@ public class AIChatServiceTest {
             FakeHttpClient client = new FakeHttpClient(streamResponse(429, "{\"error\":{\"message\":\"quota\"}}"));
             AIChatService service = new NoSleepAIChatService(client);
 
-            AIStreamResponse response = service.startStreamResponse("Retry", 35L, null, null, true);
+            AIStreamResponse response = service.startStreamResponse("Retry", 35L, null, null);
 
             assertEquals(200, response.getStatusCode());
             String payload = new String(response.getInputStream().readAllBytes(), StandardCharsets.UTF_8);

@@ -192,42 +192,6 @@ export type AssistantToolGroup = {
     label: string;
 };
 
-export type ArticleAiRequestPreview = {
-    provider?: string;
-    model?: string;
-    titleLength: number;
-    titleSnippet: string;
-    aliasLength: number;
-    aliasSnippet: string;
-    digestLength: number;
-    digestSnippet: string;
-    keywordsLength: number;
-    keywordsSnippet: string;
-    coverLength: number;
-    coverSnippet: string;
-    selectedTextLength: number;
-    selectedTextSnippet: string;
-    markdownLength: number;
-    markdownSnippet: string;
-    imageReferenceCount: number;
-    imageReferences: string[];
-    linkReferenceCount: number;
-    linkReferences: string[];
-    externalLinkCount: number;
-    externalLinks: string[];
-    articleContextAdded: boolean;
-    conversationMessageCount: number;
-    chatMessageCount: number;
-    toolMessageCount: number;
-    articleContextMessageCount: number;
-    systemMessageCount: number;
-    errorMessageCount: number;
-};
-
-export type ArticleAiRequestField = "title" | "digest" | "keywords" | "markdown";
-
-export type ArticleAiRequestFieldSelection = Record<ArticleAiRequestField, boolean>;
-
 export const assistantTools: AssistantTool[] = [
     "rewrite",
     "title",
@@ -244,3 +208,4 @@ export const assistantTools: AssistantTool[] = [
 ];
 
 export const isAssistantTool = (tool: unknown): tool is AssistantTool => assistantTools.includes(tool as AssistantTool);
+export type ArticleUpdatedEvent = { articleId: number; version: number };

@@ -104,6 +104,8 @@ const useArticleDraftSync = ({
         articleRef.current =
             syncStateRef.current.document === "clean"
                 ? article
+                : syncStateRef.current.sync === "conflict"
+                ? articleRef.current
                 : mergeArticleSynchronizationMetadata(articleRef.current, article);
     }
 
@@ -369,8 +371,24 @@ const useArticleDraftSync = ({
     const discard = useCallback(() => {
         transition({ type: "commit" });
         onRemoveRef.current(articleRef.current);
+        articleRef.current = renderedArticleRef.current;
         onSyncedRef.current();
     }, [transition]);
+
+    const receiveServerArticle = useCallback((serverArticle: ArticleEntry): ArticleDraftChange | undefined => {
+        const currentState = syncStateRef.current;
+        if (currentState.document === "clean") {
+            articleRef.current = serverArticle;
+            return undefined;
+        }
+        const local = {
+            article: articleRef.current,
+            revision: currentState.revision,
+            updatedAt: updatedAtRef.current,
+        };
+        persistCurrent(transition({ type: "serverUpdated" }));
+        return local;
+    }, [persistCurrent, transition]);
 
     return {
         applyPatch,
@@ -382,6 +400,7 @@ const useArticleDraftSync = ({
         markFailed,
         markSynced,
         markSyncing,
+        receiveServerArticle,
         resolveConflict,
         state: syncState,
     };

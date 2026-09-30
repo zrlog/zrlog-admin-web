@@ -96,6 +96,7 @@ const Index: FunctionComponent<ArticleEditProps> = ({
         keepServerConflictContent,
         onRollback,
         onSubmit,
+        onArticleUpdated,
         restoreInputRevision,
         state,
         updateAiMessageCache,
@@ -300,6 +301,7 @@ const Index: FunctionComponent<ArticleEditProps> = ({
         offline,
         axiosInstance,
         onAiMessagesChange: updateAiMessageCache,
+        onArticleUpdated,
         onApplyValues: fieldAi.applyGeneratedValues,
         onApplyGeneratedCover: applyGeneratedCover,
     });
@@ -436,6 +438,7 @@ const Index: FunctionComponent<ArticleEditProps> = ({
                         onRequestPublish={openPublishReview}
                         onPreview={openContentPreview}
                         onAiMessagesChange={updateAiMessageCache}
+                        onArticleUpdated={onArticleUpdated}
                         onAiDrawerSizeChange={updateAiDrawerWidth}
                         onInsertMarkdownFromAsset={insertAssetToMarkdown}
                         getCurrentMarkdown={getCurrentMarkdown}

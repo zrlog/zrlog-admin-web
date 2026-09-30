@@ -12,6 +12,7 @@ describe("knowledge assistant", () => {
     const post = jest.fn<Promise<{ data: string }>, any[]>();
     const api = { post } as unknown as AxiosInstance;
     const onMessagesChange = jest.fn();
+    const onArticleUpdated = jest.fn();
     const completed = (
         content: string,
         question = "Find deployment articles",
@@ -36,7 +37,7 @@ describe("knowledge assistant", () => {
         })}\n\ndata: {"type":"done"}\n\n`;
     let chat: ReturnType<typeof useArticleChat>;
     function Harness({ scope = "1" }: { scope?: string }) {
-        chat = useArticleChat(api, false, scope, onMessagesChange);
+        chat = useArticleChat(api, false, scope, onMessagesChange, onArticleUpdated);
         return (
             <>
                 {chat.messages.map((m, index) => (
@@ -91,6 +92,7 @@ describe("knowledge assistant", () => {
         root = createRoot(container);
         post.mockReset();
         onMessagesChange.mockClear();
+        onArticleUpdated.mockClear();
         act(() => root.render(<Harness />));
     });
     afterEach(() => {
@@ -112,7 +114,6 @@ describe("knowledge assistant", () => {
         expect(post.mock.calls[0][1]).toEqual({
             input: "Find deployment articles",
             articleId: 0,
-            includeArticleContext: true,
         });
         expect(container.textContent).toContain("Deployment answer");
         expect(container.querySelector("a")?.getAttribute("href")).toBe("https://example.com/1");
@@ -128,9 +129,9 @@ describe("knowledge assistant", () => {
         const saved = [{ role: "assistant" as const, content: "Saved answer", thinking: false }];
         post.mockReturnValue(new Promise(() => undefined));
         act(() => {
-            void chat.send("Next question", saved, 7, false);
+            void chat.send("Next question", saved, 7);
         });
-        expect(post.mock.calls[0][1]).toEqual({ input: "Next question", articleId: 7, includeArticleContext: false });
+        expect(post.mock.calls[0][1]).toEqual({ input: "Next question", articleId: 7 });
         act(() => chat.stop());
         expect(chat.messages).toEqual(saved);
         expect(onMessagesChange).toHaveBeenLastCalledWith(saved, 7);
@@ -171,6 +172,45 @@ describe("knowledge assistant", () => {
         expect(chat.messages[1].reasoningContent).toBe("Think first");
         expect(chat.busy).toBe(false);
     });
+    it("refreshes each saved version once during streaming, even if the answer later fails", async () => {
+        let resolve!: (value: { data: string }) => void;
+        post.mockReturnValue(
+            new Promise((done) => {
+                resolve = done;
+            })
+        );
+        let pending!: Promise<void>;
+        act(() => {
+            pending = chat.send("Update this article", [], 7);
+        });
+        const first = 'data: {"type":"article-updated","articleId":7,"version":4}\n\n';
+        const progress = (text: string) =>
+            act(() =>
+                post.mock.calls[0][2].onDownloadProgress({
+                    event: { target: { responseText: text } },
+                })
+            );
+        progress(first.slice(0, -1));
+        expect(onArticleUpdated).not.toHaveBeenCalled();
+        progress(first);
+        progress(first);
+        expect(onArticleUpdated.mock.calls).toEqual([[{ articleId: 7, version: 4 }]]);
+        expect(chat.busy).toBe(true);
+        const final =
+            first +
+            'data: {"type":"article-updated","articleId":8,"version":2}\n\n' +
+            'data: {"type":"article-updated","articleId":7,"version":5}\n\n' +
+            'data: {"type":"article-updated","articleId":7,"version":-1}\n\n' +
+            'data: {"type":"article-updated","articleId":7}\n\n' +
+            'data: {"type":"error","error":"saveFailed"}\n\n';
+        await act(async () => {
+            resolve({ data: final });
+            await pending;
+        });
+        expect(onArticleUpdated.mock.calls).toEqual([[{ articleId: 7, version: 4 }], [{ articleId: 7, version: 5 }]]);
+        expect(chat.messages[1].failed).toBe(true);
+    });
+
     it("discards partial streamed text when saving fails", async () => {
         let resolve!: (value: { data: string }) => void;
         post.mockReturnValue(
@@ -210,14 +250,19 @@ describe("knowledge assistant", () => {
         );
         let pending!: Promise<void>;
         act(() => {
-            pending = chat.send("Private question", [], 0);
+            pending = chat.send("Private question", [], 7);
         });
         act(() => root.render(<Harness scope="2" />));
         await act(async () => {
-            resolve({ data: completed("Old private answer", "Private question") });
+            resolve({
+                data:
+                    'data: {"type":"article-updated","articleId":7,"version":4}\n\n' +
+                    completed("Old private answer", "Private question"),
+            });
             await pending;
         });
         expect(chat.messages).toEqual([]);
+        expect(onArticleUpdated).not.toHaveBeenCalled();
     });
     it("keeps ordinary waiting neutral and shows retrieval status only for actual tool events", async () => {
         let resolve!: (value: { data: string }) => void;

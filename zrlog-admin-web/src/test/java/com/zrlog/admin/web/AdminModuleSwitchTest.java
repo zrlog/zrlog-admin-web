@@ -80,8 +80,8 @@ public class AdminModuleSwitchTest {
             assertEquals(admin, config.getServerConfig().getInterceptors().contains(AdminLoginInterceptor.class));
             assertEquals(access, router.getMethod("/api/admin/oauth", HttpMethod.GET) != null);
             assertEquals(access, router.getMethod("/api/webhook/message-center/notice", HttpMethod.POST) != null);
-            for (String path : new String[]{"/api/admin/article/ai", "/api/admin/article/ai/context",
-                    "/api/admin/article/appendAiContext", "/api/admin/article/clearAiMessages",
+            for (String path : new String[]{"/api/admin/article/ai",
+                    "/api/admin/article/clearAiMessages",
                     "/api/admin/article/cover/apply", "/api/admin/website/ai", "/api/admin/website/optimizeAiPrompt"}) {
                 var method = router.getMethod(path, HttpMethod.POST);
                 if (ai) assertNotNull(path, method);

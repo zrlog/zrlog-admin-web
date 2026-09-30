@@ -10,7 +10,6 @@ public final class AIChatModels {
     public static class ChatRequest implements Validator {
         public String input;
         public long articleId;
-        public boolean includeArticleContext = true;
         public List<ChatMessage> history = new ArrayList<>();
         public void doValid() {
             if (articleId < 0 || input == null || input.trim().isEmpty() || input.length() > 8000
@@ -24,12 +23,21 @@ public final class AIChatModels {
         }
     }
     public static class ChatMessage { public String role; public String content; }
+    public static class CurrentArticleContext {
+        public long articleId;
+        public String title;
+        public String status;
+        public Integer version;
+        public Long typeId;
+    }
     public static class Event {
         public String type;
         public String tool;
         public String content;
         public String reasoningContent;
         public String error;
+        public Long articleId;
+        public Integer version;
         public List<com.zrlog.admin.business.rest.response.AIResponseEntry.AIContentEntry> messages;
         public List<Source> sources;
         public Event(String type) { this.type = type; }

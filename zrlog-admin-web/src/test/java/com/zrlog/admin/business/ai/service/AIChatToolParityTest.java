@@ -86,6 +86,10 @@ public class AIChatToolParityTest {
             assertTrue(wire, wire.contains("\"type\":\"done\""));
             assertTrue(wire.contains("\"tool\":\"create_article\""));
             assertTrue(wire.contains("\"tool\":\"publish_article\""));
+            assertEquals(List.of(0, 1, 2), articleUpdates(wire).stream()
+                    .map(event -> event.get("version").getAsInt()).collect(java.util.stream.Collectors.toList()));
+            assertTrue(articleUpdates(wire).stream().allMatch(event -> event.get("articleId").getAsInt() == 1));
+            assertTrue(wire.indexOf("\"type\":\"article-updated\"") < wire.indexOf("\"type\":\"answer\""));
             assertFalse(model.requests.get(4).has("tools"));
             Map<String, Object> row = db.queryOne("select * from log where logId=1");
             assertEquals("Revised", row.get("title"));
@@ -107,7 +111,9 @@ public class AIChatToolParityTest {
         try (InMemoryZrLogDatabase db = open()) {
             db.execute("insert into log(logId,userId,typeId,title,rubbish,privacy,version) values(?,?,?,?,?,?,?)", 1,1,1,"Current",true,false,2);
             Model model = new Model(tool("update_article", "{\"id\":1,\"version\":0,\"title\":\"Stale\"}"), ANSWER);
-            assertTrue(model.chat().contains("\"type\":\"done\""));
+            String wire = model.chat();
+            assertTrue(wire.contains("\"type\":\"done\""));
+            assertTrue(articleUpdates(wire).isEmpty());
             assertTrue(model.requests.get(1).toString().contains("ADMIN_ARTICLE_UPDATE_EXPIRED"));
             assertEquals("Current", db.scalar("select title from log where logId=1"));
         }
@@ -125,6 +131,37 @@ public class AIChatToolParityTest {
             assertEquals(0, ((Number) db.scalar("select count(*) from log")).intValue());
             assertFalse(DelegatedAccess.active());
         }
+    }
+
+    @Test public void savedUpdateIsEmittedEvenWhenTheNextModelTurnFails() throws Exception {
+        try (InMemoryZrLogDatabase db = open()) {
+            db.execute("insert into log(logId,userId,typeId,title,rubbish,privacy,version) values(?,?,?,?,?,?,?)", 1,1,1,"Current",true,false,2);
+            Model model = new Model(tool("get_article", "{\"id\":1}"),
+                    tool("update_article", "{\"id\":1,\"version\":2,\"title\":\"Revised\"}"),
+                    "{\"finish_reason\":\"stop\",\"message\":{\"content\":\"\"}}");
+            String wire = model.chat(1);
+            assertEquals("Revised", db.scalar("select title from log where logId=1"));
+            assertEquals(1, articleUpdates(wire).size());
+            assertEquals(3, articleUpdates(wire).get(0).get("version").getAsInt());
+            assertTrue(wire.contains("\"type\":\"error\""));
+            assertFalse(wire.contains("\"type\":\"done\""));
+            JsonObject context = model.requests.get(2).getAsJsonArray("messages").asList().stream()
+                    .map(JsonElement::getAsJsonObject)
+                    .filter(message -> message.has("content") && !message.get("content").isJsonNull()
+                            && message.get("content").getAsString().startsWith("Current editor article metadata"))
+                    .findFirst().orElseThrow();
+            String content = context.get("content").getAsString();
+            JsonObject metadata = JsonParser.parseString(content.substring(content.indexOf('\n') + 1)).getAsJsonObject();
+            assertEquals(1, metadata.get("articleId").getAsInt());
+            assertEquals(3, metadata.get("version").getAsInt());
+            assertEquals("Revised", metadata.get("title").getAsString());
+        }
+    }
+
+    private static List<JsonObject> articleUpdates(String wire) {
+        return wire.lines().filter(line -> line.startsWith("data: "))
+                .map(line -> JsonParser.parseString(line.substring(6)).getAsJsonObject())
+                .filter(event -> event.get("type").getAsString().equals("article-updated")).collect(java.util.stream.Collectors.toList());
     }
 
     @Test public void revokingTheAccountAfterModelCompletionPreventsWrites() throws Exception {
@@ -201,7 +238,11 @@ public class AIChatToolParityTest {
         Runnable afterRequest = () -> {};
         Model(String... responses) { super(AIChatToolParityTest.request()); this.responses = List.of(responses); }
         String chat() throws Exception {
+            return chat(0);
+        }
+        String chat(long articleId) throws Exception {
             ChatRequest input = new ChatRequest(); input.input = "Save and publish the article as requested";
+            input.articleId = articleId;
             return new String(start(input).getInputStream().readAllBytes(), StandardCharsets.UTF_8);
         }
         @Override protected AIProviderResponses.Choice complete(AIWebSiteInfo info, String body, AIChatStreamReader.Progress progress) throws IOException {

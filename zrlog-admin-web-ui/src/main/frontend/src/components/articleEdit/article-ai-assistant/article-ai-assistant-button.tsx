@@ -1,7 +1,7 @@
-import { Alert, App, Button, Drawer, Grid, Space, Tag, Typography } from "antd";
+import { Alert, App, Button, Space, Tag, Typography } from "antd";
 import { isChatMessage, renderChatMessage, useArticleChat } from "./use-article-chat";
 import ArticleAiReasoning from "./article-ai-reasoning";
-import { EyeOutlined, RobotOutlined } from "@ant-design/icons";
+import { RobotOutlined } from "@ant-design/icons";
 import { FunctionComponent, useEffect, useMemo, useRef, useState } from "react";
 import { AIContent } from "@zrlog/editor/dist/ai/AIContentItem";
 import AIButton, {
@@ -11,7 +11,7 @@ import AIButton, {
 } from "@zrlog/editor/dist/ai/AIButton";
 import AIIcon from "@zrlog/editor/dist/ai/AIIcon";
 import useArticleEditorScreens from "../use-article-editor-screens";
-import { resolveDrawerWidth } from "@zrlog/editor/dist/ai/AIDrawer";
+import ArticleAiAssistantDrawer from "./article-ai-assistant-drawer";
 import { AxiosInstance } from "axios";
 import {
     formatLabelValue,
@@ -22,7 +22,6 @@ import {
 } from "../../../utils/constants";
 import { getSsDate } from "../../../base/SsData";
 import { getAppState } from "../../../base/ConfigProviderApp";
-import { getEditorUser } from "../../../utils/helpers";
 import { ArticleChangeableValue, ArticleEditState } from "../index.types";
 import { useTheme } from "antd-style";
 import { addToCache, getCacheByKey } from "../../../utils/cache";
@@ -32,9 +31,7 @@ import { resolveBackendCropImageUrl } from "../../../utils/crop-image-url";
 import {
     ArticleAiErrorMeta,
     ArticleAiMessageExportResponse,
-    ArticleAiRequestField,
-    ArticleAiRequestFieldSelection,
-    ArticleAiRequestPreview,
+    ArticleUpdatedEvent,
     AssistantTool,
     AssistantToolPayload,
     isAssistantTool,
@@ -46,9 +43,6 @@ import ArticleAiAssistantToolContent from "./tool/article-ai-assistant-tool-cont
 import ArticleAiAssistantSkillContent from "./article-ai-assistant-skill-content";
 import { getShortcutTitle, isTouchLikeDevice } from "../shortcut-utils";
 import { ApiResponse } from "../../../type";
-import { markdownToHtmlSyncWithCallback } from "@zrlog/editor/dist/editor/utils/marked-utils";
-import ArticlePreviewSnapshot from "../../article/article-preview-snapshot";
-import { collectMarkdownReferenceSummary } from "../markdown-reference-utils";
 import { DraftAiSaveGate } from "../draft-ai-save-gate";
 
 type ArticleAiAssistantConfigProps = {
@@ -57,6 +51,7 @@ type ArticleAiAssistantConfigProps = {
     offline: boolean;
     axiosInstance: AxiosInstance;
     onAiMessagesChange?: (messages: AIContent[], articleId?: number) => void;
+    onArticleUpdated?: (event: ArticleUpdatedEvent) => void;
     onApplyValues: (cv: ArticleChangeableValue) => void;
 
     onApplyGeneratedCover?: (cover: {
@@ -76,13 +71,6 @@ type ArticleAiAssistantButtonProps = ArticleAiAssistantConfigProps & {
 };
 
 const CHAT_CONTENT_MAX_WIDTH = 768;
-const DEFAULT_TOOL_FIELD_SELECTION: ArticleAiRequestFieldSelection = {
-    title: true,
-    digest: true,
-    keywords: true,
-    markdown: true,
-};
-
 const AI_ASSISTANT_SHORTCUT = {
     alt: true,
     shift: true,
@@ -90,57 +78,9 @@ const AI_ASSISTANT_SHORTCUT = {
 };
 
 const AI_ASSISTANT_STATE_CACHE_KEY_PREFIX = "ai/chat/state";
-const REQUEST_PREVIEW_SNIPPET_LIMIT = 180;
-
 let articleAiAssistantDrawerOpen = false;
 
 export const getArticleAiAssistantDrawerOpen = () => articleAiAssistantDrawerOpen || getAIButtonDrawerOpen();
-
-type ArticleContextSnapshot = {
-    title: string;
-    version?: number;
-    digest: string;
-    keywords: string;
-    markdown: string;
-};
-
-const extractBetween = (source: string, startMarker: string, endMarker: string) => {
-    const start = source.indexOf(startMarker);
-    if (start < 0) {
-        return "";
-    }
-    const valueStart = start + startMarker.length;
-    const end = source.indexOf(endMarker, valueStart);
-    return (end < 0 ? source.substring(valueStart) : source.substring(valueStart, end)).trim();
-};
-
-const parseArticleContextSnapshot = (content: ToolAwareAIContent): ArticleContextSnapshot => {
-    const rawContent = content.content || "";
-    const markdownMarker = "\nMarkdown:\n";
-    const markdownIndex = rawContent.indexOf(markdownMarker);
-    const metaVersion = content.contextMeta?.articleVersion;
-    const parsedVersion = extractBetween(rawContent, "Article version: ", "\nTitle: ");
-    const version = metaVersion ?? (parsedVersion ? Number(parsedVersion) : undefined);
-    const title =
-        content.contextMeta?.title ||
-        extractBetween(rawContent, "\nTitle: ", "\nDigest: ") ||
-        getRes().articleEdit.assistant.articleContextUntitled;
-    return {
-        title,
-        version: Number.isFinite(version) ? version : undefined,
-        digest: extractBetween(rawContent, "\nDigest: ", "\nKeywords: "),
-        keywords: extractBetween(rawContent, "\nKeywords: ", markdownMarker),
-        markdown: markdownIndex >= 0 ? rawContent.substring(markdownIndex + markdownMarker.length) : rawContent,
-    };
-};
-
-const buildRequestPreviewSnippet = (value: string) => {
-    const normalizedValue = value.trim().replace(/\s+/g, " ");
-    if (normalizedValue.length <= REQUEST_PREVIEW_SNIPPET_LIMIT) {
-        return normalizedValue;
-    }
-    return `${normalizedValue.substring(0, REQUEST_PREVIEW_SNIPPET_LIMIT)}...`;
-};
 
 export const useArticleAiAssistantConfig = ({
     data,
@@ -148,6 +88,7 @@ export const useArticleAiAssistantConfig = ({
     offline,
     axiosInstance,
     onAiMessagesChange,
+    onArticleUpdated,
     onApplyValues,
     onApplyGeneratedCover,
 }: ArticleAiAssistantConfigProps) => {
@@ -155,19 +96,12 @@ export const useArticleAiAssistantConfig = ({
     const [cropModalOpen, setCropModalOpen] = useState<boolean>(false);
     const [croppingImageUrl, setCroppingImageUrl] = useState<string>("");
     const [applyingCoverMessageId, setApplyingCoverMessageId] = useState<string>();
-    const [contextAppending, setContextAppending] = useState(false);
-    const [contextPreview, setContextPreview] = useState<ArticleContextSnapshot>();
-    const [contextPreviewHtml, setContextPreviewHtml] = useState("");
     const [toolPayloads, setToolPayloads] = useState<Record<number, AssistantToolPayload>>({});
     const [selectedTitles, setSelectedTitles] = useState<Record<number, string>>({});
     const [aiMessagesExporting, setAiMessagesExporting] = useState(false);
     const [aiMessagesClearing, setAiMessagesClearing] = useState(false);
-    const [includeArticleContextInChat, setIncludeArticleContextInChat] = useState(true);
-    const [toolFieldSelection, setToolFieldSelection] =
-        useState<ArticleAiRequestFieldSelection>(DEFAULT_TOOL_FIELD_SELECTION);
     const { message } = App.useApp();
     const theme = useTheme();
-    const screens = Grid.useBreakpoint();
     const latestDataRef = useRef(data);
 
     const aiMessages = data.aiMessages ? data.aiMessages : [];
@@ -175,7 +109,8 @@ export const useArticleAiAssistantConfig = ({
         axiosInstance,
         offline || data.aiConfigured !== true,
         `${getSsDate().key}/${data.article.logId || "draft"}`,
-        onAiMessagesChange
+        onAiMessagesChange,
+        onArticleUpdated
     );
     const visibleMessages = aiMessages;
 
@@ -186,10 +121,9 @@ export const useArticleAiAssistantConfig = ({
     useEffect(() => {
         setToolPayloads({});
         setSelectedTitles({});
-        setToolFieldSelection(DEFAULT_TOOL_FIELD_SELECTION);
     }, [data.article.logId]);
 
-    const getArticleAiRequestBody = (fieldSelection?: ArticleAiRequestFieldSelection, selectedText?: string) => {
+    const getArticleAiRequestBody = (selectedText?: string) => {
         const requestBody = {
             title: latestDataRef.current.article.title || "",
             alias: latestDataRef.current.article.alias || "",
@@ -199,79 +133,8 @@ export const useArticleAiAssistantConfig = ({
             thumbnail: latestDataRef.current.article.thumbnail || "",
             selectedText: selectedText?.trim() || "",
         };
-        if (!fieldSelection) {
-            return requestBody;
-        }
-        return {
-            title: fieldSelection.title ? requestBody.title : "",
-            alias: requestBody.alias,
-            markdown: fieldSelection.markdown ? requestBody.markdown : "",
-            digest: fieldSelection.digest ? requestBody.digest : "",
-            keywords: fieldSelection.keywords ? requestBody.keywords : "",
-            thumbnail: requestBody.thumbnail,
-            selectedText: requestBody.selectedText,
-        };
+        return requestBody;
     };
-
-    const getArticleAiContextRequestBody = () => {
-        const requestBody = getArticleAiRequestBody();
-        return {
-            title: requestBody.title,
-            markdown: requestBody.markdown,
-            digest: requestBody.digest,
-            keywords: requestBody.keywords,
-            articleVersion: latestDataRef.current.article.version,
-        };
-    };
-
-    const hasArticleContextSource = () => {
-        const requestBody = getArticleAiRequestBody();
-        return Boolean(
-            requestBody.title.trim() ||
-                requestBody.markdown.trim() ||
-                requestBody.digest.trim() ||
-                requestBody.keywords.trim()
-        );
-    };
-
-    const hasArticleContextMessage = () =>
-        aiMessages.some((content) => (content as ToolAwareAIContent).messageType === "articleContext");
-
-    const getConversationMessageStats = () =>
-        aiMessages.reduce(
-            (stats, content) => {
-                const toolAwareContent = content as ToolAwareAIContent;
-                if (`${toolAwareContent.role}` === "system") {
-                    stats.systemMessageCount++;
-                    return stats;
-                }
-                if (toolAwareContent.messageType === "articleContext") {
-                    stats.articleContextMessageCount++;
-                    return stats;
-                }
-                if (toolAwareContent.messageType === "error") {
-                    stats.errorMessageCount++;
-                    return stats;
-                }
-                if ((toolAwareContent.content || "").trim()) {
-                    if (isAssistantTool(toolAwareContent.tool)) {
-                        stats.toolMessageCount++;
-                    } else {
-                        stats.chatMessageCount++;
-                    }
-                    stats.conversationMessageCount++;
-                }
-                return stats;
-            },
-            {
-                conversationMessageCount: 0,
-                chatMessageCount: 0,
-                toolMessageCount: 0,
-                articleContextMessageCount: 0,
-                systemMessageCount: 0,
-                errorMessageCount: 0,
-            }
-        );
 
     const getArticleIdParam = () => `${latestDataRef.current.article.logId ? latestDataRef.current.article.logId : 0}`;
 
@@ -341,49 +204,6 @@ export const useArticleAiAssistantConfig = ({
             setAiMessagesClearing(false);
             releaseRequest();
         }
-    };
-
-    const buildRequestPreview = (selectedText?: string): ArticleAiRequestPreview => {
-        const requestBody = getArticleAiRequestBody(toolFieldSelection, selectedText);
-        const title = requestBody.title.trim();
-        const alias = requestBody.alias.trim();
-        const digest = requestBody.digest.trim();
-        const keywords = requestBody.keywords.trim();
-        const cover = requestBody.thumbnail.trim();
-        const selectedTextValue = requestBody.selectedText.trim();
-        const markdown = requestBody.markdown.trim();
-        const referenceSummary = collectMarkdownReferenceSummary(markdown);
-        const conversationStats = getConversationMessageStats();
-        return {
-            provider: data.aiProvider,
-            model: data.aiModel,
-            titleLength: title.length,
-            titleSnippet: buildRequestPreviewSnippet(title),
-            aliasLength: alias.length,
-            aliasSnippet: buildRequestPreviewSnippet(alias),
-            digestLength: digest.length,
-            digestSnippet: buildRequestPreviewSnippet(digest),
-            keywordsLength: keywords.length,
-            keywordsSnippet: buildRequestPreviewSnippet(keywords),
-            coverLength: cover.length,
-            coverSnippet: buildRequestPreviewSnippet(cover),
-            selectedTextLength: selectedTextValue.length,
-            selectedTextSnippet: buildRequestPreviewSnippet(selectedTextValue),
-            markdownLength: markdown.length,
-            markdownSnippet: buildRequestPreviewSnippet(markdown),
-            imageReferenceCount: referenceSummary.imageReferenceCount,
-            imageReferences: referenceSummary.imageReferences,
-            linkReferenceCount: referenceSummary.linkReferenceCount,
-            linkReferences: referenceSummary.linkReferences,
-            externalLinkCount: referenceSummary.externalLinkCount,
-            externalLinks: referenceSummary.externalLinks,
-            articleContextAdded: hasArticleContextMessage(),
-            ...conversationStats,
-        };
-    };
-
-    const updateToolFieldSelection = (field: ArticleAiRequestField, selected: boolean) => {
-        setToolFieldSelection((prevState) => ({ ...prevState, [field]: selected }));
     };
 
     const cacheToolPayload = (messageIndex: number, toolPayload?: AssistantToolPayload) => {
@@ -510,44 +330,6 @@ export const useArticleAiAssistantConfig = ({
         return undefined;
     };
 
-    const appendArticleContext = async () => {
-        if (contextAppending || loadingKey || !hasArticleContextSource()) {
-            return;
-        }
-        const articleId = latestDataRef.current.article.logId || 0;
-        const releaseRequest = draftAiSaveGate.tryBeginAiRequest(articleId);
-        if (!releaseRequest) {
-            void message.warning(getRes().articleEdit.assistant.saveInProgress);
-            return;
-        }
-        setContextAppending(true);
-        try {
-            const { data: response } = await axiosInstance.post<ApiResponse<ToolAwareAIContent[]>>(
-                `/api/admin/article/ai/context?id=${articleId}`,
-                getArticleAiContextRequestBody()
-            );
-            if (response.error) {
-                await message.error(response.message || getRes().error.unknown);
-                return;
-            }
-            onAiMessagesChange?.(response.data || [], articleId);
-        } catch (e) {
-            await message.error(e instanceof Error ? e.message : getRes().error.unknown);
-        } finally {
-            setContextAppending(false);
-            releaseRequest();
-        }
-    };
-
-    const openArticleContextPreview = (content: ToolAwareAIContent) => {
-        const snapshot = parseArticleContextSnapshot(content);
-        const initialHtml = markdownToHtmlSyncWithCallback(snapshot.markdown, (html) => {
-            setContextPreviewHtml(html);
-        });
-        setContextPreview(snapshot);
-        setContextPreviewHtml(initialHtml);
-    };
-
     const sendMessage = async (messageInput: string, tool?: AssistantTool, selectedText?: string) => {
         const normalizedInput = messageInput.trim();
         if (!normalizedInput || loadingKey) {
@@ -562,7 +344,7 @@ export const useArticleAiAssistantConfig = ({
         if (!tool) {
             setLoadingKey("chat");
             try {
-                await chat.send(normalizedInput, aiMessages, articleId, includeArticleContextInChat);
+                await chat.send(normalizedInput, aiMessages, articleId);
             } finally {
                 setLoadingKey(undefined);
                 releaseRequest();
@@ -602,13 +384,10 @@ export const useArticleAiAssistantConfig = ({
             if (tool) {
                 query.set("tool", tool);
             }
-            if (!tool && !includeArticleContextInChat) {
-                query.set("includeArticleContext", "false");
-            }
             let currentContent = "";
             const { data: responseData, status } = await axiosInstance.post(
                 `/api/admin/article/ai?${query.toString()}`,
-                tool ? getArticleAiRequestBody(toolFieldSelection, selectedText) : null,
+                tool ? getArticleAiRequestBody(selectedText) : null,
                 {
                     adapter: "xhr",
                     headers: {
@@ -682,54 +461,6 @@ export const useArticleAiAssistantConfig = ({
         }
     };
 
-    const renderArticleContextMessage = (content: ToolAwareAIContent) => {
-        const contextMeta = content.contextMeta;
-        const markdownLength = contextMeta?.markdownLength ?? content.content.length;
-        const title = contextMeta?.title || getRes().articleEdit.assistant.articleContextUntitled;
-        const versionText =
-            contextMeta?.articleVersion !== undefined
-                ? `${getRes().articleEdit.assistant.articleContextVersionPrefix}${contextMeta.articleVersion}`
-                : "";
-        const lengthText = `${getRes().articleEdit.assistant.articleContextLengthPrefix}${markdownLength}${
-            getRes().articleEdit.assistant.articleContextLengthSuffix
-        }`;
-        const borderSecondary = `${theme.lineWidth}px ${theme.lineType} ${theme.colorBorderSecondary}`;
-        return (
-            <div style={{ display: "flex", justifyContent: "center" }}>
-                <div
-                    style={{
-                        background: theme.colorFillQuaternary,
-                        border: borderSecondary,
-                        borderRadius: theme.borderRadiusLG,
-                        padding: "10px 12px",
-                        maxWidth: "90%",
-                    }}
-                >
-                    <Space direction="vertical" size={4}>
-                        <Space wrap>
-                            <Tag color="processing">{getRes().articleEdit.assistant.articleContextTag}</Tag>
-                            <Typography.Text strong ellipsis style={{ maxWidth: 360 }}>
-                                {title}
-                            </Typography.Text>
-                        </Space>
-                        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                            {[versionText, lengthText].filter(Boolean).join(" · ")}
-                        </Typography.Text>
-                        <Button
-                            type="link"
-                            size="small"
-                            icon={<EyeOutlined />}
-                            style={{ paddingInline: 0, alignSelf: "flex-start" }}
-                            onClick={() => openArticleContextPreview(content)}
-                        >
-                            {getRes().articleEdit.assistant.viewArticleContext}
-                        </Button>
-                    </Space>
-                </div>
-            </div>
-        );
-    };
-
     const renderAiErrorMessage = (content: ToolAwareAIContent) => {
         const errorMeta = content.errorMeta;
         const assistantRes = getRes().articleEdit.assistant;
@@ -786,14 +517,14 @@ export const useArticleAiAssistantConfig = ({
                             <Typography.Text type="secondary">{errorSuggestion}</Typography.Text>
                             <Space wrap size={6}>
                                 <Tag>
-                                    {assistantRes.requestPreviewProvider}
+                                    {assistantRes.requestFailedProvider}
                                     {getLabelValueSeparator()}
-                                    {errorMeta?.provider || assistantRes.requestPreviewNotConfigured}
+                                    {errorMeta?.provider || assistantRes.requestFailedNotConfigured}
                                 </Tag>
                                 <Tag>
-                                    {assistantRes.requestPreviewModel}
+                                    {assistantRes.requestFailedModel}
                                     {getLabelValueSeparator()}
-                                    {errorMeta?.model || assistantRes.requestPreviewNotConfigured}
+                                    {errorMeta?.model || assistantRes.requestFailedNotConfigured}
                                 </Tag>
                                 {errorMeta?.status ? (
                                     <Tag>
@@ -832,49 +563,11 @@ export const useArticleAiAssistantConfig = ({
         );
     };
 
-    const renderArticleContextPreviewDrawer = () => {
-        const drawerWidth = screens.lg ? 800 : screens.md ? 640 : "100%";
-        const versionText =
-            contextPreview?.version !== undefined
-                ? `${getRes().articleEdit.assistant.articleContextVersionPrefix}${contextPreview.version}`
-                : "";
-        return (
-            <Drawer
-                title={contextPreview?.title || getRes().articleEdit.assistant.articleContextPreviewTitle}
-                width={drawerWidth}
-                open={Boolean(contextPreview)}
-                onClose={() => {
-                    setContextPreview(undefined);
-                    setContextPreviewHtml("");
-                }}
-                styles={{
-                    body: {
-                        padding: 0,
-                    },
-                }}
-            >
-                {contextPreview && (
-                    <ArticlePreviewSnapshot
-                        htmlContent={contextPreviewHtml}
-                        dark={getAppState().dark}
-                        tagText={getRes().articleEdit.assistant.articleContextTag}
-                        versionText={versionText}
-                        digest={contextPreview.digest}
-                        digestLabel={getRes().articleEdit.assistant.articleContextDigest}
-                        keywords={contextPreview.keywords}
-                        keywordsLabel={getRes().articleEdit.assistant.articleContextKeywords}
-                        emptyDescription={getRes().articleEdit.assistant.articleContextEmpty}
-                    />
-                )}
-            </Drawer>
-        );
-    };
-
     const renderMessage = ({ content, index, defaultNode }: AIButtonRenderMessageOptions) => {
         if (isChatMessage(content)) return renderChatMessage({ content, index, defaultNode });
         const toolAwareContent = content as ToolAwareAIContent;
         if (toolAwareContent.messageType === "articleContext") {
-            return renderArticleContextMessage(toolAwareContent);
+            return null;
         }
         if (toolAwareContent.messageType === "error") {
             return renderAiErrorMessage(toolAwareContent);
@@ -931,24 +624,11 @@ export const useArticleAiAssistantConfig = ({
             aiProvider={data.aiProvider}
             disabled={offline || Boolean(loadingKey)}
             loadingKey={loadingKey}
-            aiMessageCount={visibleMessages.length}
             chatStatus={chat.status}
             onStopChat={chat.busy ? chat.stop : undefined}
-            aiMessagesExporting={aiMessagesExporting}
-            aiMessagesClearing={aiMessagesClearing}
-            includeArticleContextInChat={includeArticleContextInChat}
-            toolFieldSelection={toolFieldSelection}
             theme={theme}
             selectedText={selectedText}
-            requestPreview={buildRequestPreview(selectedText)}
-            articleContextAvailable={hasArticleContextSource()}
-            articleContextAdded={hasArticleContextMessage()}
-            articleContextAppending={contextAppending}
-            onAddArticleContext={() => void appendArticleContext()}
-            onExportAiMessages={() => void exportAiMessages()}
-            onClearAiMessages={() => void clearAiMessages()}
-            onIncludeArticleContextInChatChange={setIncludeArticleContextInChat}
-            onToolFieldSelectionChange={updateToolFieldSelection}
+            markdownLength={(data.article.markdown || "").trim().length}
             onSubmit={(messageInput, tool) => void sendMessage(messageInput, tool, selectedText)}
         />
     );
@@ -1001,11 +681,17 @@ export const useArticleAiAssistantConfig = ({
                     }
                 }}
             />
-            {renderArticleContextPreviewDrawer()}
         </>
     );
 
     return {
+        conversationActions: {
+            disabled: offline || Boolean(loadingKey) || chat.busy || aiMessages.length === 0,
+            exporting: aiMessagesExporting,
+            clearing: aiMessagesClearing,
+            onExport: exportAiMessages,
+            onClear: clearAiMessages,
+        },
         messages: visibleMessages,
         contentMaxWidth: CHAT_CONTENT_MAX_WIDTH,
         renderMessage,
@@ -1019,15 +705,16 @@ const ArticleAiAssistantButton: FunctionComponent<ArticleAiAssistantButtonProps>
     draftAiSaveGate,
     offline,
     axiosInstance,
+    onAiMessagesChange,
+    onArticleUpdated,
+    onApplyValues,
+    onApplyGeneratedCover,
     getContainer,
     aiDrawerWidth,
     stateCache,
     open,
     onOpenChange,
-    onAiMessagesChange,
     onAiDrawerSizeChange,
-    onApplyValues,
-    onApplyGeneratedCover,
 }) => {
     const [innerOpen, setInnerOpen] = useState(false);
     const screens = useArticleEditorScreens();
@@ -1043,6 +730,7 @@ const ArticleAiAssistantButton: FunctionComponent<ArticleAiAssistantButtonProps>
         offline,
         axiosInstance,
         onAiMessagesChange,
+        onArticleUpdated,
         onApplyValues,
         onApplyGeneratedCover,
     });
@@ -1083,42 +771,45 @@ const ArticleAiAssistantButton: FunctionComponent<ArticleAiAssistantButtonProps>
         };
     }, [aiConfigured, mergedOpen, onOpenChange]);
 
-    return (
-        <AIButton
-            aiProvider={aiConfigured ? data.aiProvider : undefined}
-            dark={getAppState().dark}
-            messages={assistantConfig.messages}
-            user={getEditorUser()}
-            subject={data.article.title}
-            open={mergedOpen}
-            drawerWidth={resolveDrawerWidth(aiDrawerWidth)}
-            stateCache={stateCache ?? aiStateCache}
-            configUrl={getRealRouteUrl("/website/ai")}
-            getContainer={getContainer}
-            contentMaxWidth={assistantConfig.contentMaxWidth}
-            onOpenChange={updateOpen}
-            onSizeChange={(nextWidth: number) => {
-                onAiDrawerSizeChange?.(nextWidth);
+    const trigger = (
+        <Button
+            type="primary"
+            className="btn"
+            style={{
+                width: screens.sm ? 120 : undefined,
+                background: `linear-gradient(135deg, ${theme.colorInfo}, ${theme.colorPrimary})`,
+                border: "none",
             }}
-            renderMessage={assistantConfig.renderMessage}
-            footer={assistantConfig.renderFooter()}
-            overlays={assistantConfig.overlays}
+            onClick={aiConfigured ? () => updateOpen(true) : undefined}
+            icon={aiConfigured ? <AIIcon name={data.aiProvider} /> : <RobotOutlined />}
+            title={getShortcutTitle(getRes().websiteAi.label, AI_ASSISTANT_SHORTCUT)}
+            aria-label={getRes().websiteAi.label}
         >
-            <Button
-                type="primary"
-                className="btn"
-                style={{
-                    width: screens.sm ? 120 : undefined,
-                    background: `linear-gradient(135deg, ${theme.colorInfo}, ${theme.colorPrimary})`,
-                    border: "none",
-                }}
-                icon={aiConfigured ? <AIIcon name={data.aiProvider} /> : <RobotOutlined />}
-                title={getShortcutTitle(getRes().websiteAi.label, AI_ASSISTANT_SHORTCUT)}
-                aria-label={getRes().websiteAi.label}
-            >
-                {screens.sm && <span>{getRes().websiteAi.label}</span>}
-            </Button>
-        </AIButton>
+            {screens.sm && <span>{getRes().websiteAi.label}</span>}
+        </Button>
+    );
+
+    if (!aiConfigured) {
+        return (
+            <AIButton dark={getAppState().dark} configUrl={getRealRouteUrl("/website/ai")}>
+                {trigger}
+            </AIButton>
+        );
+    }
+    return (
+        <>
+            {trigger}
+            <ArticleAiAssistantDrawer
+                data={data}
+                config={assistantConfig}
+                open={mergedOpen}
+                onClose={() => updateOpen(false)}
+                getContainer={getContainer}
+                width={aiDrawerWidth}
+                onSizeChange={onAiDrawerSizeChange}
+                stateCache={stateCache ?? aiStateCache}
+            />
+        </>
     );
 };
 

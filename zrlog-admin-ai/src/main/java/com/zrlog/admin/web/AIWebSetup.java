@@ -134,7 +134,6 @@ public class AIWebSetup implements ArticleAssistant {
     private void registerRoutes(Router router) {
         router.addMapper("/api/admin/internal/ai/comment/analyze", com.zrlog.admin.web.controller.ai.AICommentController.class, "analyze");
         router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/article/cover/apply", AIArticleController.class, "applyCover");
-        router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/article/ai/context", AIArticleController.class, "appendAiContext");
         router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/article/ai/message", AIArticleController.class, "updateAiMessage");
         router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/article/ai/messages/clear", AIArticleController.class, "clearAiMessages");
         router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/article/ai/messages/export", AIArticleController.class, "exportAiMessages");
@@ -142,7 +141,6 @@ public class AIWebSetup implements ArticleAssistant {
         router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/website/ai/prompt/optimize", AIWebSiteController.class, "optimizeAiPrompt");
         router.addMapper("/api/admin/article/ai", AIArticleController.class, "ai");
         router.addMapper("/api/admin/article/applyCover", AIArticleController.class, "applyCover");
-        router.addMapper("/api/admin/article/appendAiContext", AIArticleController.class, "appendAiContext");
         router.addMapper("/api/admin/article/updateAiMessage", AIArticleController.class, "updateAiMessage");
         router.addMapper("/api/admin/article/clearAiMessages", AIArticleController.class, "clearAiMessages");
         router.addMapper("/api/admin/article/exportAiMessages", AIArticleController.class, "exportAiMessages");
