@@ -1,9 +1,9 @@
 import { formatDateTime } from "../utils/date-time";
 import { useState } from "react";
+import SettingsSection from "./common/SettingsSection";
 import {
     Alert,
     Button,
-    Card,
     Checkbox,
     Drawer,
     Empty,
@@ -105,8 +105,8 @@ export default function PersonalAccessTokens({
         }
     };
     return (
-        <Card
-            title={res.personalTokens.title}
+        <SettingsSection
+            divided
             extra={
                 <Button
                     type="primary"
@@ -324,6 +324,6 @@ export default function PersonalAccessTokens({
                     </Form>
                 )}
             </Drawer>
-        </Card>
+        </SettingsSection>
     );
 }

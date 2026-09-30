@@ -1,12 +1,11 @@
 import UserSettingsLayout from "./common/UserSettingsLayout";
 import SettingsSubmitBar from "./common/SettingsSubmitBar";
 import { useEffect, useRef, useState } from "react";
-import Card from "antd/es/card";
+import SettingsSection from "./common/SettingsSection";
 
 import Form from "antd/es/form";
-import { Input, message, Modal, QRCode, Row, Space, Typography } from "antd";
+import { Input, message, Modal, QRCode, Space, Typography } from "antd";
 import Button from "antd/es/button";
-import Col from "antd/es/grid/col";
 import { useTheme } from "antd-style";
 import { getRes } from "../utils/constants";
 import { useAxiosBaseInstance } from "../base/AppBase";
@@ -22,7 +21,6 @@ const layout = {
 };
 
 const accountSecurityApiBase = "/api/admin/account-security";
-const panelMaxWidth = 800;
 const passwordInputStyle = {
     maxWidth: 320,
 };
@@ -48,12 +46,6 @@ const AccountSecurity = ({ offline, data, updateCache }: AdminCommonProps<Accoun
     const { formLayout, narrow } = useResponsiveFormLayout(layout);
     const passwordStyle = narrow ? { width: "100%" } : passwordInputStyle;
     const securitySurface = {
-        card: {
-            borderRadius: theme.borderRadiusLG,
-            height: "100%",
-            maxWidth: panelMaxWidth,
-            width: "100%",
-        },
         contentSpace: {
             width: "100%",
             marginBottom: theme.marginSM,
@@ -153,56 +145,49 @@ const AccountSecurity = ({ offline, data, updateCache }: AdminCommonProps<Accoun
     return (
         <UserSettingsLayout activeKey="security">
             {contextHolder}
-            <Row gutter={[24, 24]}>
-                <Col xs={24}>
-                    <Card title={getRes().accountSecurity.passwordTitle} style={securitySurface.card}>
-                        <Form {...formLayout} onFinish={(value) => onFinish(value)}>
-                            <Form.Item
-                                name="oldPassword"
-                                label={getRes().accountSecurity.oldPassword}
-                                rules={[{ required: true }]}
-                            >
-                                <Input.Password style={passwordStyle} />
-                            </Form.Item>
-                            <Form.Item
-                                name="newPassword"
-                                label={getRes().accountSecurity.newPassword}
-                                rules={[{ required: true }]}
-                            >
-                                <Input.Password style={passwordStyle} />
-                            </Form.Item>
+            <div style={{ display: "flex", flexDirection: "column", gap: theme.marginLG }}>
+                <SettingsSection title={getRes().accountSecurity.passwordTitle}>
+                    <Form {...formLayout} onFinish={(value) => onFinish(value)}>
+                        <Form.Item
+                            name="oldPassword"
+                            label={getRes().accountSecurity.oldPassword}
+                            rules={[{ required: true }]}
+                        >
+                            <Input.Password style={passwordStyle} />
+                        </Form.Item>
+                        <Form.Item
+                            name="newPassword"
+                            label={getRes().accountSecurity.newPassword}
+                            rules={[{ required: true }]}
+                        >
+                            <Input.Password style={passwordStyle} />
+                        </Form.Item>
 
-                            <SettingsSubmitBar disabled={offline} />
-                        </Form>
-                    </Card>
-                </Col>
-                <Col xs={24}>
-                    <Card title={getRes().accountSecurity.mfaTitle} style={securitySurface.card}>
-                        <Typography.Paragraph>
-                            {mfaStatus?.enabled
-                                ? getRes().accountSecurity.mfaEnabled
-                                : getRes().accountSecurity.mfaDisabled}
-                        </Typography.Paragraph>
-                        {!mfaStatus?.enabled ? (
-                            <Button disabled={offline} type="primary" onClick={() => void openMfaDialog("enable")}>
-                                {getRes().accountSecurity.enableMfa}
-                            </Button>
-                        ) : (
-                            <Button disabled={offline} danger onClick={() => void openMfaDialog("disable")}>
-                                {getRes().accountSecurity.disableMfa}
-                            </Button>
-                        )}
-                    </Card>
-                </Col>
-                <Col xs={24}>
-                    <PasskeyManagement
-                        offline={offline}
-                        mfaEnabled={mfaStatus?.enabled ?? data?.mfaEnabled === true}
-                        cardStyle={securitySurface.card}
-                        modalWidth={securitySurface.modalWidth}
-                    />
-                </Col>
-            </Row>
+                        <SettingsSubmitBar disabled={offline} />
+                    </Form>
+                </SettingsSection>
+                <SettingsSection title={getRes().accountSecurity.mfaTitle} divided>
+                    <Typography.Paragraph>
+                        {mfaStatus?.enabled
+                            ? getRes().accountSecurity.mfaEnabled
+                            : getRes().accountSecurity.mfaDisabled}
+                    </Typography.Paragraph>
+                    {!mfaStatus?.enabled ? (
+                        <Button disabled={offline} type="primary" onClick={() => void openMfaDialog("enable")}>
+                            {getRes().accountSecurity.enableMfa}
+                        </Button>
+                    ) : (
+                        <Button disabled={offline} danger onClick={() => void openMfaDialog("disable")}>
+                            {getRes().accountSecurity.disableMfa}
+                        </Button>
+                    )}
+                </SettingsSection>
+                <PasskeyManagement
+                    offline={offline}
+                    mfaEnabled={mfaStatus?.enabled ?? data?.mfaEnabled === true}
+                    modalWidth={securitySurface.modalWidth}
+                />
+            </div>
             <Modal
                 title={
                     mfaDialogAction === "disable"

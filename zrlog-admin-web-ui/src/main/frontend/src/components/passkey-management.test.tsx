@@ -143,17 +143,9 @@ jest.mock("antd", () => {
         React.createElement("p", { style }, children);
 
     return {
+        theme: { useToken: () => ({ token: {} }) },
         Button: ({ children, disabled, onClick }: React.ButtonHTMLAttributes<HTMLButtonElement>) =>
             React.createElement("button", { disabled, onClick }, children),
-        Card: ({
-            children,
-            extra,
-            title,
-        }: {
-            children?: React.ReactNode;
-            extra?: React.ReactNode;
-            title?: React.ReactNode;
-        }) => React.createElement("section", null, React.createElement("header", null, title, extra), children),
         Empty,
         Form,
         Input,
@@ -289,7 +281,7 @@ describe("PasskeyManagement", () => {
 
     const render = async (offline: boolean) => {
         await act(async () => {
-            root.render(<PasskeyManagement offline={offline} mfaEnabled={false} cardStyle={{}} />);
+            root.render(<PasskeyManagement offline={offline} mfaEnabled={false} />);
             await Promise.resolve();
         });
     };

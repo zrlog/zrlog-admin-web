@@ -1,9 +1,9 @@
 import { formatDateTime } from "../utils/date-time";
 import { DeleteOutlined, KeyOutlined, PlusOutlined } from "@ant-design/icons";
-import { Button, Card, Empty, Form, Input, List, message, Modal, Space, Tooltip, Typography } from "antd";
+import { Button, Empty, Form, Input, List, message, Modal, Space, Tooltip, Typography } from "antd";
 import { useTheme } from "antd-style";
-import type { CSSProperties } from "react";
 import { useEffect, useRef, useState } from "react";
+import SettingsSection from "./common/SettingsSection";
 import { useAxiosBaseInstance } from "../base/AppBase";
 import type {
     ApiResponse,
@@ -26,7 +26,6 @@ const md5 = require("md5");
 type PasskeyManagementProps = {
     offline: boolean;
     mfaEnabled: boolean;
-    cardStyle: CSSProperties;
     modalWidth?: string;
 };
 
@@ -63,7 +62,7 @@ const ReauthenticationFields = ({ mfaEnabled }: { mfaEnabled: boolean }) => {
     );
 };
 
-const PasskeyManagement = ({ offline, mfaEnabled, cardStyle, modalWidth }: PasskeyManagementProps) => {
+const PasskeyManagement = ({ offline, mfaEnabled, modalWidth }: PasskeyManagementProps) => {
     const axiosInstance = useAxiosBaseInstance();
     const theme = useTheme();
     const [messageApi, contextHolder] = message.useMessage({ maxCount: 3 });
@@ -264,9 +263,9 @@ const PasskeyManagement = ({ offline, mfaEnabled, cardStyle, modalWidth }: Passk
     return (
         <>
             {contextHolder}
-            <Card
+            <SettingsSection
                 title={getRes().accountSecurity.passkeyTitle}
-                style={cardStyle}
+                divided
                 extra={
                     <Tooltip title={readOnlyPreview ? getRes().accountSecurity.passkeyPreviewModeDisabled : undefined}>
                         <Button
@@ -345,7 +344,7 @@ const PasskeyManagement = ({ offline, mfaEnabled, cardStyle, modalWidth }: Passk
                         </List.Item>
                     )}
                 />
-            </Card>
+            </SettingsSection>
 
             <Modal
                 title={getRes().accountSecurity.passkeyAddTitle}

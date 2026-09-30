@@ -1,23 +1,10 @@
 import { formatDateTime } from "../utils/date-time";
 import { isModuleEnabled } from "../utils/module-capabilities";
 import { useEffect, useState } from "react";
+import SettingsSection from "./common/SettingsSection";
 import { useLocation } from "react-router-dom";
 import PersonalAccessTokens, { PersonalAccessToken } from "./personal-access-tokens";
-import {
-    Alert,
-    Button,
-    Card,
-    Drawer,
-    Empty,
-    Form,
-    Input,
-    List,
-    Popconfirm,
-    Space,
-    Tag,
-    Typography,
-    message,
-} from "antd";
+import { Alert, Button, Drawer, Empty, Form, Input, List, Popconfirm, Space, Tag, Typography, message } from "antd";
 import { useAxiosBaseInstance } from "../base/AppBase";
 import { getRes } from "../utils/constants";
 import { resolveApplicationServerUrl } from "../utils/application-server-url";
@@ -152,7 +139,7 @@ function OAuthConnections({
                         children: (
                             <Space orientation="vertical" size="large" style={{ width: "100%" }}>
                                 {oauthEndpoints}
-                                <Card title={res.grants}>
+                                <SettingsSection divided>
                                     <List
                                         locale={{ emptyText: <Empty description={res.empty} /> }}
                                         dataSource={page.grants}
@@ -208,7 +195,7 @@ function OAuthConnections({
                                             </List.Item>
                                         )}
                                     />
-                                </Card>
+                                </SettingsSection>
                             </Space>
                         ),
                     },
@@ -220,8 +207,8 @@ function OAuthConnections({
                                   children: (
                                       <Space orientation="vertical" size="large" style={{ width: "100%" }}>
                                           {oauthEndpoints}
-                                          <Card
-                                              title={res.applications}
+                                          <SettingsSection
+                                              divided
                                               extra={
                                                   <Button
                                                       type="primary"
@@ -278,7 +265,7 @@ function OAuthConnections({
                                                       </List.Item>
                                                   )}
                                               />
-                                          </Card>
+                                          </SettingsSection>
                                       </Space>
                                   ),
                               },
