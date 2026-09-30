@@ -6,8 +6,8 @@ const zhCN = {
         "title": "权限说明",
         "rolePermissions": "角色权限",
         "applicationScopes": "应用授权范围",
-        "scopesDescription": "应用只能在你授权的范围内操作，且不能超出你的账号权限",
-        "scopeRangeHelp": "默认只能读取你的公开文章。访问其他成员的文章、草稿或私密文章，需要你有相应权限并单独授权",
+        "scopesDescription": "应用只能在已授权的范围内操作，且不能超出当前账号的权限",
+        "scopeRangeHelp": "默认只能读取当前账号的公开文章。访问其他成员的文章、草稿或私密文章，需要当前账号具备相应权限并单独授权",
         "mcpAccess": "MCP 可按授权查询、编辑和发布文章、读取分类标签及上传附件；个人令牌使用账号权限",
         "loadFailed": "权限说明加载失败",
         "retry": "重新加载",
@@ -220,7 +220,7 @@ const zhCN = {
         "saved": "已保存",
         "transfer": "转移所有权",
         "target": "新所有者",
-        "currentPassword": "你的当前密码",
+        "currentPassword": "当前账号密码",
         "mfa": "验证码（已开启多重验证时填写）",
         "transferHelp": "新所有者接管站点，当前所有者变为管理员，双方需要重新登录",
         "transferConfirm": "确认转移",
@@ -270,7 +270,7 @@ const zhCN = {
             "expiresAt": "到期时间"
         },
         "title": "外部应用",
-        "grantsDescription": "查看你已授权的应用，撤销不再使用的授权",
+        "grantsDescription": "查看已授权的应用，撤销不再使用的授权",
         "clientsDescription": "添加站点允许连接的应用。成员分别授权后，应用才能调用获准的接口",
         "applications": "站点应用",
         "grants": "我的授权",
@@ -283,7 +283,7 @@ const zhCN = {
         "issuer": "授权服务地址",
         "resource": "资源地址",
         "mcpUrl": "MCP 连接地址",
-        "mcpHelp": "在 AI 工具中填写此地址，并使用你创建的令牌连接",
+        "mcpHelp": "在 AI 工具中填写此地址，并使用已创建的令牌连接",
         "registerHelp": "填写应用提供的回调地址。添加后，将应用标识和授权服务地址填入该应用",
         "disable": "停用应用",
         "revoke": "撤销授权",
@@ -314,7 +314,7 @@ const zhCN = {
             "offline_access": "保持连接"
         },
         "scopeHint": "草稿和私密内容需单独授权。写入、发布和删除均受上述文章范围限制",
-        "grantUnavailable": "应用请求的部分权限超出了你的账号权限，无法授权",
+        "grantUnavailable": "应用请求的部分权限超出了当前账号的权限，无法授权",
         "createdAt": "授权时间"
     }
 ,
@@ -502,7 +502,7 @@ const zhCN = {
             "localDraft": "未完成草稿",
             "localDraftTag": "本地缓存",
             "localDraftUntitled": "未命名草稿",
-            "localDraftTip": "检测到你上次未完成的本地内容，可以直接回到编辑器继续写作",
+            "localDraftTip": "检测到上次未完成的本地内容，可返回编辑器继续写作",
             "localEdit": "未同步编辑",
             "localEditTag": "未同步",
             "localEditUntitled": "未命名文章",
@@ -671,7 +671,7 @@ const zhCN = {
             "requestFailed": "助手请求未完成，请重试。如果持续失败，请检查服务端日志"
         },
         "approval": {
-            "waiting": "等待你确认操作",
+            "waiting": "等待确认操作",
             "approve": "允许本次",
             "reject": "拒绝",
             "publicImpact": "这次操作会影响公开文章，请核对后确认",
@@ -933,7 +933,7 @@ const zhCN = {
             "publishedCreatesDraft": "已发布文章不能被导入内容替换，将另建一个草稿。",
             "conflictCreatesDraft": "当前文章存在未解决的内容冲突，不能直接替换，将另建一个草稿。",
             "blankImportsCurrent": "当前编辑器为空，导入内容会直接写入这里。",
-            "replaceWarning": "这会替换当前正文，并覆盖你勾选的元数据。当前本地缓存不会自动恢复。",
+            "replaceWarning": "这会替换当前正文，并覆盖已勾选的元数据。当前本地缓存不会自动恢复。",
             "offlineCreateUnavailable": "离线时不能另建服务器草稿，请恢复连接后重试。",
             "metadata": "元数据",
             "fieldTitle": "标题",
@@ -1289,7 +1289,7 @@ const zhCN = {
         "upload": {
             "title": "上传本地主题",
             "riskTitle": "了解第三方主题风险",
-            "riskDescription": "主题可包含服务端模板、样式和前端脚本。请仅上传来源可信且你已自行了解其行为与风险的主题包，覆盖前请备份现有主题文件。",
+            "riskDescription": "主题可包含服务端模板、样式和前端脚本。上传前请确认来源可信，并了解其行为与风险；覆盖前请备份现有主题文件。",
             "dropHere": "选择或拖拽 ZIP 主题包",
             "fileNameHint": "ZIP 文件名将作为主题标识",
             "uploading": "正在安装主题...",
@@ -1505,19 +1505,19 @@ const zhCN = {
     "user": {
         "settings": {
             "navigation": "个人账号",
-            "profileSummary": "设置你的名称、邮箱和头像",
+            "profileSummary": "设置名称、邮箱和头像",
             "securitySummary": "管理登录密码、多重验证和 Passkey"
         },
         "preferences": {
             "title": "偏好设置",
-            "appearanceDescription": "设置你的后台语言和外观",
-            "writingDescription": "设置你的文章列表和编辑习惯",
+            "appearanceDescription": "设置后台语言和外观",
+            "writingDescription": "设置每页文章数和自动保存间隔",
             "assistantDescription": "选择 AI 助手可以检索的文章",
             "appearanceTitle": "界面显示",
             "writingTitle": "文章编辑",
             "assistantTitle": "AI 助手",
             "knowledge": "文章检索范围",
-            "knowledgeHelp": "仅影响后台 AI 助手，不能超出你的账号权限。外部应用的访问范围需在授权时另行选择",
+            "knowledgeHelp": "仅影响后台 AI 助手，不能超出当前账号的权限。外部应用的访问范围需在授权时另行选择",
             "scopeOff": "不检索文章",
             "scopeOwnPublic": "我的公开文章",
             "scopeOwnAll": "我的全部文章（含草稿和私密文章）",
@@ -1911,8 +1911,8 @@ const enUS: AdminI18nResource = {
         "title": "Permissions",
         "rolePermissions": "Role permissions",
         "applicationScopes": "Application scopes",
-        "scopesDescription": "Applications can only perform actions you authorize, within your account permissions",
-        "scopeRangeHelp": "Access starts with your public articles. Other members' articles, drafts and private articles require your permission to access them and a separate authorization",
+        "scopesDescription": "Applications can only perform authorized actions, within the current account's permissions",
+        "scopeRangeHelp": "Access starts with the current account's public articles. Access to other members' articles, drafts and private articles requires the corresponding account permissions and separate authorization",
         "mcpAccess": "MCP can query, edit and publish articles, read categories and tags, and upload attachments as authorized; personal tokens use account permissions",
         "loadFailed": "Could not load permission details",
         "retry": "Reload",
@@ -2125,7 +2125,7 @@ const enUS: AdminI18nResource = {
         "saved": "Saved",
         "transfer": "Transfer ownership",
         "target": "New owner",
-        "currentPassword": "Your current password",
+        "currentPassword": "Current account password",
         "mfa": "Verification code (if multi-factor authentication is enabled)",
         "transferHelp": "The new owner takes control, the current owner becomes an administrator, and both accounts must sign in again",
         "transferConfirm": "Confirm transfer",
@@ -2175,7 +2175,7 @@ const enUS: AdminI18nResource = {
             "expiresAt": "Expires"
         },
         "title": "External applications",
-        "grantsDescription": "Review your authorized applications and revoke access you no longer need",
+        "grantsDescription": "Review authorized applications and revoke access that is no longer needed",
         "clientsDescription": "Add applications that can connect to this site. Members must authorize each application before it can access permitted APIs",
         "applications": "Site applications",
         "grants": "My authorizations",
@@ -2188,7 +2188,7 @@ const enUS: AdminI18nResource = {
         "issuer": "Authorization server",
         "resource": "Resource URI",
         "mcpUrl": "MCP connection URL",
-        "mcpHelp": "Enter this URL in your AI tool and connect using a token you create",
+        "mcpHelp": "Enter this URL in the AI tool and connect using a previously created token",
         "registerHelp": "Enter the redirect URI provided by the application. Once added, enter its client ID and authorization server in the application",
         "disable": "Disable application",
         "revoke": "Revoke authorization",
@@ -2219,7 +2219,7 @@ const enUS: AdminI18nResource = {
             "offline_access": "Stay connected"
         },
         "scopeHint": "Draft and private access require separate authorization. Writing, publishing and deletion also respect the selected article access",
-        "grantUnavailable": "Some requested permissions exceed your account permissions and cannot be granted",
+        "grantUnavailable": "Some requested permissions exceed the current account's permissions and cannot be granted",
         "createdAt": "Authorized at"
     }
 ,
@@ -2407,7 +2407,7 @@ const enUS: AdminI18nResource = {
             "localDraft": "Unfinished Draft",
             "localDraftTag": "Local Cache",
             "localDraftUntitled": "Untitled Draft",
-            "localDraftTip": "An unfinished local draft was found. You can jump back into the editor and continue",
+            "localDraftTip": "Unfinished local content was found. Return to the editor to continue writing",
             "localEdit": "Unsynced Edit",
             "localEditTag": "Unsynced",
             "localEditUntitled": "Untitled Article",
@@ -2576,7 +2576,7 @@ const enUS: AdminI18nResource = {
             "requestFailed": "The assistant request did not complete. Retry, and check the server logs if it keeps failing"
         },
         "approval": {
-            "waiting": "Review this operation",
+            "waiting": "Awaiting operation confirmation",
             "approve": "Allow once",
             "reject": "Reject",
             "publicImpact": "This operation affects a public article. Review it before allowing it",
@@ -3195,7 +3195,7 @@ const enUS: AdminI18nResource = {
         "upload": {
             "title": "Upload Local Theme",
             "riskTitle": "Understand Third-Party Theme Risks",
-            "riskDescription": "Themes may contain server-side templates, styles, and frontend scripts. Upload only packages from sources you trust and whose behavior and risks you understand. Back up existing theme files before overwriting them.",
+            "riskDescription": "Themes may contain server-side templates, styles, and frontend scripts. Before uploading, verify that the source is trusted and review the package's behavior and risks. Back up existing theme files before overwriting them.",
             "dropHere": "Choose or drag a ZIP theme package",
             "fileNameHint": "The ZIP filename becomes the theme identifier",
             "uploading": "Installing theme...",
@@ -3410,20 +3410,20 @@ const enUS: AdminI18nResource = {
     },
     "user": {
         "settings": {
-            "navigation": "Your account",
-            "profileSummary": "Manage your name, email address and avatar",
-            "securitySummary": "Manage your password, multi-factor authentication and passkeys"
+            "navigation": "Personal account",
+            "profileSummary": "Manage name, email address and avatar",
+            "securitySummary": "Manage password, multi-factor authentication and passkeys"
         },
         "preferences": {
             "title": "Preferences",
-            "appearanceDescription": "Choose your admin language and appearance",
-            "writingDescription": "Set your article list and writing preferences",
+            "appearanceDescription": "Choose the admin language and appearance",
+            "writingDescription": "Set articles per page and the auto-save interval",
             "assistantDescription": "Choose which articles the AI assistant can search",
             "appearanceTitle": "Appearance",
             "writingTitle": "Writing",
             "assistantTitle": "AI assistant",
             "knowledge": "Article search range",
-            "knowledgeHelp": "Applies to the admin AI assistant, within your account permissions. Choose access for external applications separately when authorizing them",
+            "knowledgeHelp": "Applies to the admin AI assistant, within the current account's permissions. Choose access for external applications separately when authorizing them",
             "scopeOff": "No article search",
             "scopeOwnPublic": "My public articles",
             "scopeOwnAll": "All my articles (including drafts and private articles)",
