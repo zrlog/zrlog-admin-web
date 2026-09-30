@@ -1,6 +1,6 @@
 import { FunctionComponent, useEffect, useState } from "react";
 import { Button, Input, Space, Tag, Typography } from "antd";
-import { ArrowUpOutlined, InfoCircleOutlined } from "@ant-design/icons";
+import { ArrowUpOutlined, CloseOutlined, InfoCircleOutlined } from "@ant-design/icons";
 import AIIcon from "@zrlog/editor/dist/ai/AIIcon";
 import { getEditorRes } from "@zrlog/editor/dist/editor/lang/editor-lang";
 import { getRes } from "../../../utils/constants";
@@ -11,6 +11,7 @@ import {
     getAssistantToolLabel,
 } from "./tool/article-ai-assistant-tools";
 import ArticleAiAssistantSkillPanel from "./article-ai-assistant-skill-panel";
+import { QueuedAiMessage } from "./use-article-ai-queue";
 
 const { TextArea } = Input;
 const REWRITE_MIN_MARKDOWN_LENGTH = 120;
@@ -18,21 +19,29 @@ const REWRITE_MIN_MARKDOWN_LENGTH = 120;
 type ArticleAiAssistantSkillContentProps = {
     aiProvider: any;
     disabled: boolean;
-    loadingKey?: string;
-    chatStatus?: string;
-    onStopChat?: () => void;
+    busy: boolean;
+    waiting: boolean;
+    onStop?: () => void;
+    queuedMessages: QueuedAiMessage[];
+    queuePaused: boolean;
+    onRemoveQueued: (id: number) => void;
+    onResumeQueue: () => void;
     theme: any;
     selectedText?: string;
     markdownLength: number;
-    onSubmit: (message: string, tool?: AssistantTool) => void;
+    onSubmit: (message: string, tool?: AssistantTool) => boolean;
 };
 
 const ArticleAiAssistantSkillContent: FunctionComponent<ArticleAiAssistantSkillContentProps> = ({
     aiProvider,
     disabled,
-    loadingKey,
-    chatStatus,
-    onStopChat,
+    busy,
+    waiting,
+    onStop,
+    queuedMessages,
+    queuePaused,
+    onRemoveQueued,
+    onResumeQueue,
     theme,
     selectedText,
     markdownLength,
@@ -111,13 +120,14 @@ const ArticleAiAssistantSkillContent: FunctionComponent<ArticleAiAssistantSkillC
     };
 
     const submitInput = () => {
+        if (disabled) return;
         const parsedSkillCommand = parseSkillCommand(input);
         setSkillPanelOpen(false);
         if (parsedSkillCommand) {
             if (parsedSkillCommand.disabled) {
                 return;
             }
-            onSubmit(parsedSkillCommand.prompt, parsedSkillCommand.tool);
+            if (!onSubmit(parsedSkillCommand.prompt, parsedSkillCommand.tool)) return;
             setInput("");
             setSelectedTool(undefined);
             return;
@@ -127,12 +137,12 @@ const ArticleAiAssistantSkillContent: FunctionComponent<ArticleAiAssistantSkillC
             if (matchedTool?.disabled) {
                 return;
             }
-            onSubmit(getEffectiveInput(), selectedTool);
+            if (!onSubmit(getEffectiveInput(), selectedTool)) return;
             setInput("");
             setSelectedTool(undefined);
             return;
         }
-        onSubmit(input);
+        if (!input.trim() || !onSubmit(input)) return;
         setInput("");
     };
 
@@ -190,6 +200,13 @@ const ArticleAiAssistantSkillContent: FunctionComponent<ArticleAiAssistantSkillC
     const parsedSkillCommand = parseSkillCommand(input);
     const selectedToolButton = selectedTool ? toolButtons.find((tool) => tool.key === selectedTool) : undefined;
     const activeToolDisabledReason = selectedToolButton?.disabledReason || parsedSkillCommand?.disabledReason;
+    const cannotSubmit = disabled || Boolean(activeToolDisabledReason) || (!selectedTool && !input.trim());
+    const willQueue = busy || waiting || queuedMessages.length > 0;
+    const actionLabel = busy
+        ? getRes().articleEdit.knowledge.stop
+        : willQueue
+        ? assistantRes.addToQueue
+        : assistantRes.send;
 
     return (
         <>
@@ -227,17 +244,42 @@ const ArticleAiAssistantSkillContent: FunctionComponent<ArticleAiAssistantSkillC
                     />
                 </div>
             )}
-            {chatStatus && (
-                <Space style={{ marginBottom: theme.marginXS }}>
-                    <Typography.Text role="status" type="secondary">
-                        {chatStatus}
-                    </Typography.Text>
-                    {onStopChat && (
-                        <Button size="small" onClick={onStopChat}>
-                            {getRes().articleEdit.knowledge.stop}
-                        </Button>
-                    )}
-                </Space>
+            {queuedMessages.length > 0 && (
+                <div style={{ marginBottom: theme.marginSM }}>
+                    <Space wrap>
+                        <Typography.Text type="secondary" role="status">
+                            {queuePaused
+                                ? assistantRes.queuePaused
+                                : waiting
+                                ? assistantRes.queueWaiting
+                                : assistantRes.queuedMessages}
+                        </Typography.Text>
+                        {queuePaused && (
+                            <Button size="small" disabled={disabled || busy || waiting} onClick={onResumeQueue}>
+                                {assistantRes.resumeQueue}
+                            </Button>
+                        )}
+                    </Space>
+                    <div style={{ maxHeight: 144, overflowY: "auto" }}>
+                        {queuedMessages.map((message) => (
+                            <div key={message.id} style={{ display: "flex", gap: theme.marginXS, alignItems: "start" }}>
+                                <Typography.Text
+                                    style={{ flex: 1, minWidth: 0, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}
+                                >
+                                    {message.tool && <Tag>{getAssistantToolLabel(message.tool)}</Tag>}
+                                    {message.input}
+                                </Typography.Text>
+                                <Button
+                                    type="text"
+                                    icon={<CloseOutlined />}
+                                    aria-label={assistantRes.removeQueued}
+                                    title={assistantRes.removeQueued}
+                                    onClick={() => onRemoveQueued(message.id)}
+                                />
+                            </div>
+                        ))}
+                    </div>
+                </div>
             )}
             <div style={{ position: "relative" }}>
                 {selectedTool && (
@@ -255,11 +297,12 @@ const ArticleAiAssistantSkillContent: FunctionComponent<ArticleAiAssistantSkillC
                 <TextArea
                     autoSize={{ minRows: 2, maxRows: 5 }}
                     disabled={disabled}
+                    aria-label={assistantRes.messageInput}
                     value={input}
                     placeholder={getRes().articleEdit.assistant.inputPlaceholder}
                     onChange={(e) => updateInput(e.target.value)}
                     onPressEnter={(e) => {
-                        if (e.shiftKey) {
+                        if (e.shiftKey || e.nativeEvent.isComposing || e.keyCode === 229) {
                             return;
                         }
                         e.preventDefault();
@@ -274,20 +317,45 @@ const ArticleAiAssistantSkillContent: FunctionComponent<ArticleAiAssistantSkillC
                 <Button
                     type="primary"
                     shape="circle"
-                    icon={<ArrowUpOutlined />}
-                    disabled={
-                        disabled || Boolean(activeToolDisabledReason) || (!selectedTool && input.trim().length === 0)
+                    icon={
+                        busy ? (
+                            <span
+                                aria-hidden="true"
+                                style={{
+                                    display: "block",
+                                    width: theme.fontSizeSM,
+                                    height: theme.fontSizeSM,
+                                    background: "currentColor",
+                                    borderRadius: theme.borderRadiusXS,
+                                }}
+                            />
+                        ) : (
+                            <ArrowUpOutlined />
+                        )
                     }
-                    loading={loadingKey === "chat"}
-                    onClick={submitInput}
+                    disabled={busy ? !onStop : cannotSubmit}
+                    onClick={busy ? onStop : submitInput}
                     style={{
                         position: "absolute",
                         right: 8,
                         bottom: 8,
                     }}
-                    title={getRes().articleEdit.assistant.send}
+                    title={actionLabel}
+                    aria-label={actionLabel}
                 />
             </div>
+            {willQueue && (
+                <Space wrap style={{ marginTop: theme.marginXS, width: "100%", justifyContent: "space-between" }}>
+                    <Typography.Text type="secondary" style={{ fontSize: theme.fontSizeSM }}>
+                        {assistantRes.queueHint}
+                    </Typography.Text>
+                    {busy && (
+                        <Button size="small" disabled={cannotSubmit} onClick={submitInput}>
+                            {assistantRes.addToQueue}
+                        </Button>
+                    )}
+                </Space>
+            )}
             <Typography.Paragraph
                 type="secondary"
                 style={{ fontSize: theme.fontSizeSM, marginTop: theme.marginXS, marginBottom: 0 }}

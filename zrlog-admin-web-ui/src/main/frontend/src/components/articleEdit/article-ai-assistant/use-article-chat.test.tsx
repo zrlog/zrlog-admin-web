@@ -528,14 +528,14 @@ describe("knowledge assistant", () => {
         act(() => {
             pending = chat.send("Hello", [], 0);
         });
-        expect(chat.status).toBe(getRes().articleEdit.knowledge.thinking);
+        expect(chat.status).toBe(getRes().articleEdit.knowledge.waitingForResponse);
         expect(chat.status).not.toBe(getRes().articleEdit.knowledge.searching);
         act(() =>
             post.mock.calls[0][2].onDownloadProgress({
                 event: { target: { responseText: 'data: {"type":"thinking"}\n\n' } },
             })
         );
-        expect(chat.status).toBe(getRes().articleEdit.knowledge.thinking);
+        expect(chat.status).toBe(getRes().articleEdit.knowledge.waitingForResponse);
         await act(async () => {
             resolve({ data: completed("Hello", "Hello") });
             await pending;
