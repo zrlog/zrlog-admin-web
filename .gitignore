@@ -2,6 +2,7 @@
 *.war
 *.ear
 /target
+/.frontend-tools/
 
 *~
 .classpath

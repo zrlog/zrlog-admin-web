@@ -30,11 +30,10 @@ jobs:
         path: |
           zrlog-admin-web-ui/src/main/frontend/node_modules
           ~/.cache/yarn
-          target/node
-          target/yarn
-        key: ${{ runner.os }}-frontend-${{ hashFiles('zrlog-admin-web-ui/src/main/frontend/yarn.lock', 'pom.xml') }}
+          .frontend-tools
+        key: ${{ runner.os }}-frontend-v2-${{ hashFiles('zrlog-admin-web-ui/src/main/frontend/yarn.lock', 'zrlog-admin-web-ui/pom.xml') }}
         restore-keys: |
-          ${{ runner.os }}-frontend-
+          ${{ runner.os }}-frontend-v2-
 
     - name: Generate settings.xml
       run: |
@@ -52,17 +51,26 @@ jobs:
         </settings>
         EOF
     - name: Import GPG key
+      if: startsWith(github.ref, 'refs/tags/')
       run: |
         echo "$GPG_PRIVATE_KEY" | gpg --batch --yes --import
       env:
         GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
 
-    - name: Build and Deploy to Maven Central
+    - name: Build and deploy development snapshots
+      if: github.ref == 'refs/heads/main'
       run: |
-         bash -e shell/admin-compile-frontend.sh
-         ./mvnw -U clean deploy -s $GITHUB_WORKSPACE/settings.xml -Dmaven.test.skip=false -DskipTests=false -Dgpg.passphrase=${{ secrets.GPG_PASSPHRASE }}
+        ./mvnw -B -ntp -U -PnodeBuild,snapshot clean deploy \
+          -s "$GITHUB_WORKSPACE/settings.xml" -Dmaven.test.skip=false -DskipTests=false
+
+    - name: Build and deploy release bundle
+      if: startsWith(github.ref, 'refs/tags/')
+      run: |
+        ./mvnw -B -ntp -U -PnodeBuild clean deploy \
+          -s "$GITHUB_WORKSPACE/settings.xml" -Dmaven.test.skip=false -DskipTests=false \
+          -Dgpg.passphrase="$MAVEN_GPG_PASSPHRASE"
       env:
-        GPG_TTY: $(tty)
+        MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
 
     - name: Notify zrlog preview build
       if: github.ref == 'refs/heads/main'

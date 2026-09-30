@@ -71,7 +71,7 @@ yarn start
 ./mvnw -PnodeBuild package
 ```
 
-`nodeBuild` profile 只在 UI 模块执行：在 `zrlog-admin-web-ui/src/main/frontend` 下运行 `yarn install --frozen-lockfile` 和构建，输出到其 `build` 目录，并打入 UI JAR。Node/Yarn 工具缓存保留在根 `target`。
+`nodeBuild` profile 只在 UI 模块执行：在 `zrlog-admin-web-ui/src/main/frontend` 下运行 `yarn install --frozen-lockfile` 和构建，输出到其 `build` 目录，并打入 UI JAR。Node/Yarn 工具缓存保留在根 `.frontend-tools`，不会被 `mvn clean` 删除。`shell/admin-compile-frontend.sh` 只运行到 `generate-resources`，不重复执行后端编译和测试。
 
 只需要直接构建前端时：
 
@@ -86,6 +86,22 @@ yarn build
 ```shell
 sh shell/admin-static-page.sh
 ```
+
+### Maven 开发快照
+
+main 的 CI 使用一次 `./mvnw -U -PnodeBuild,snapshot clean deploy` 完成前端、后端、测试与上传。`snapshot` profile 使用 Maven Deploy 3.1.4，在所有模块成功后统一部署，按模块合并附件和元数据；保留 JAR、POM、sources 和 common 的 tests classifier，省略开发快照的 Javadoc 和 GPG 签名。
+
+正式 tag 使用 `./mvnw -U -PnodeBuild clean deploy`，保留 Central Publishing bundle、源码、Javadoc、签名与发布完成等待。`snapshot` profile 只部署 SNAPSHOT，正式版本会被 Maven Deploy 跳过。
+
+[Sonatype SNAPSHOT 仓库](https://central.sonatype.org/publish/publish-portal-snapshots/)使用标准 Maven 部署协议，不能用正式版的 ZIP bundle 接口发布开发快照；JAR 本身已压缩，优化重点是减少重复构建和元数据请求。
+
+上传行为的本地回归验证使用临时文件仓库，不访问远端发布接口、不需要发布凭证：
+
+```shell
+python3 scripts/test-snapshot-deploy.py
+```
+
+已有依赖缓存时可传 `--offline`；`--maven-repo /tmp/m2` 可指定独立 Maven 缓存。验证覆盖附件和元数据、全部测试完成后再部署、中途测试失败不上传，以及普通发布配置仍启用签名和 Javadoc。
 
 ## 开发规则
 

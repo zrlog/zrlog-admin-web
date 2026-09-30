@@ -1,1 +1,1 @@
-./mvnw -U -PnodeBuild package
+./mvnw -U -PnodeBuild generate-resources
