@@ -52,7 +52,7 @@
           ]
         },
         {
-          "name": "gpt-6-sol",
+          "name": "gpt-6.1-sol",
           "capabilities": [
             "TEXT"
           ]
@@ -73,6 +73,12 @@
           "name": "gpt-image-2.5-flare",
           "capabilities": [
             "IMAGE_GENERATION"
+          ]
+        },
+        {
+          "name": "gpt-6-sol",
+          "capabilities": [
+            "TEXT"
           ]
         },
         {
