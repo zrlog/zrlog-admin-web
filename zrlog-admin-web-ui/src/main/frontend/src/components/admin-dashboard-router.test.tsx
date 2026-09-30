@@ -1,6 +1,6 @@
 import { act, Suspense } from "react";
 import { createRoot, Root } from "react-dom/client";
-import { MemoryRouter, NavigateFunction, useNavigate } from "react-router-dom";
+import { Location, MemoryRouter, NavigateFunction, useLocation, useNavigate } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { BasicUserInfo } from "../type";
 import AdminDashboardRouter from "./admin-dashboard-router";
@@ -12,6 +12,10 @@ let mockCache: Record<string, any>;
 let mockSsData: Record<string, any>;
 let mockDeserializeCache = false;
 const mockPageDataChanged = jest.fn();
+const mockEditorMounted = jest.fn();
+const mockEditorUnmounted = jest.fn();
+const mockLayoutRender = jest.fn<void, [{ loading: boolean; fullScreen: boolean }]>();
+let mockFullScreenCache: Record<string, boolean>;
 
 jest.mock("../api", () => ({
     getCsrData: (uri: string, time: number, axios: unknown) => mockGetCsrData(uri, time, axios),
@@ -40,13 +44,25 @@ jest.mock("../utils/cache", () => ({
     getPageBuildId: () => "400",
     getPageDataCacheKey: (location: { pathname: string; search: string }) => location.pathname + location.search,
     getPageDataCacheKeyByPath: (pathname: string, search: string) => pathname + search,
-    getPageFullState: () => false,
-    savePageFullState: require("@jest/globals").jest.fn(),
+    getPageFullState: (path: string) => mockFullScreenCache[path] === true,
+    savePageFullState: (path: string, fullScreen: boolean) => {
+        mockFullScreenCache[path] = fullScreen;
+    },
 }));
 jest.mock("layout", () => ({
     __esModule: true,
-    default: ({ children, loading }: { children?: import("react").ReactNode; loading: boolean }) =>
-        require("react").createElement("div", { "data-loading": String(loading) }, children),
+    default: ({
+        children,
+        loading,
+        fullScreen,
+    }: {
+        children?: import("react").ReactNode;
+        loading: boolean;
+        fullScreen: boolean;
+    }) => {
+        mockLayoutRender({ loading, fullScreen });
+        return require("react").createElement("div", { "data-loading": String(loading) }, children);
+    },
 }));
 jest.mock("./my-loading-component", () => () => null);
 jest.mock("components/not-found-page", () => () => null);
@@ -57,8 +73,21 @@ jest.mock("./admin-dashboard-routes", () => {
         }, [data]);
         return require("react").createElement("p", null, data.label);
     };
+    const ArticleEditor = ({ data, onFullScreen }: { data: { label: string }; onFullScreen: () => void }) => {
+        require("react").useEffect(() => {
+            mockEditorMounted();
+            return () => mockEditorUnmounted();
+        }, []);
+        return require("react").createElement(
+            "div",
+            null,
+            require("react").createElement("p", null, data.label),
+            require("react").createElement("textarea"),
+            require("react").createElement("button", { onClick: onFullScreen }, "Fullscreen")
+        );
+    };
     return {
-        createAdminDashboardRoutes: () => [
+        createAdminDashboardRoutes: (articleEditProps: { onFullScreen: () => void }) => [
             {
                 paths: [
                     "/index",
@@ -73,6 +102,12 @@ jest.mock("./admin-dashboard-routes", () => {
                 ],
                 lazy: Page,
                 fallback: Page,
+            },
+            {
+                paths: ["/article-edit", "/article-edit.html"],
+                lazy: ArticleEditor,
+                fallback: ArticleEditor,
+                props: articleEditProps,
             },
         ],
     };
@@ -96,16 +131,19 @@ describe("dashboard route request lifecycle", () => {
     let container: HTMLDivElement;
     let root: Root;
     let navigate: NavigateFunction;
+    let location: Location;
+    let initialEntry: Partial<Location>;
 
     const Navigation = () => {
         navigate = useNavigate();
+        location = useLocation();
         return null;
     };
     const render = async (offline = false, mounted = true) => {
         await act(async () => {
             root.render(
                 <MemoryRouter
-                    initialEntries={["/index"]}
+                    initialEntries={[initialEntry]}
                     future={{ v7_relativeSplatPath: true, v7_startTransition: true }}
                 >
                     <Navigation />
@@ -125,6 +163,11 @@ describe("dashboard route request lifecycle", () => {
         mockCache = {};
         mockDeserializeCache = false;
         mockPageDataChanged.mockClear();
+        mockEditorMounted.mockClear();
+        mockEditorUnmounted.mockClear();
+        mockLayoutRender.mockClear();
+        mockFullScreenCache = {};
+        initialEntry = { pathname: "/index" };
         mockSsData = { pageBuildId: "400" };
         container = document.createElement("div");
         document.body.appendChild(container);
@@ -155,6 +198,133 @@ describe("dashboard route request lifecycle", () => {
             navigate("/user/preferences/writing");
         });
         expect(mockGetCsrData).toHaveBeenCalled();
+    });
+
+    it.each(["/article-edit", "/article-edit.html"])(
+        "keeps the editor, focus, and fullscreen when a created draft acquires its URL on %s",
+        async (path) => {
+            initialEntry = { pathname: path, search: "?typeId=3" };
+            mockSsData.data = { label: "New draft", article: { version: -1 } };
+            await render();
+            const editor = container.querySelector("textarea")!;
+            editor.value = "Unsent assistant prompt";
+            editor.focus();
+            act(() => container.querySelector("button")!.click());
+            mockLayoutRender.mockClear();
+            const saved = { label: "AI draft", article: { logId: 18, version: 0 } };
+            const target = `${path}?typeId=3&id=18`;
+            mockCache[target] = saved;
+            delete mockCache[`${path}?typeId=3`];
+
+            await act(async () => navigate(target, { replace: true, state: { articleCreatedFrom: location.key } }));
+
+            expect(mockGetCsrData).not.toHaveBeenCalled();
+            expect(container.textContent).toContain("AI draft");
+            expect(container.querySelector("textarea")).toBe(editor);
+            expect(editor.value).toBe("Unsent assistant prompt");
+            expect(document.activeElement).toBe(editor);
+            expect(mockEditorMounted).toHaveBeenCalledTimes(1);
+            expect(mockEditorUnmounted).not.toHaveBeenCalled();
+            expect(mockSsData.data).toEqual(saved);
+            expect(mockLayoutRender.mock.calls.every(([props]) => !props.loading && props.fullScreen)).toBe(true);
+            expect(mockFullScreenCache[target]).toBe(true);
+
+            mockCache[target] = { label: "Updated draft", article: { logId: 18, version: 1 } };
+            await render();
+            expect(container.textContent).toContain("Updated draft");
+            expect(container.querySelector("textarea")).toBe(editor);
+            expect(mockGetCsrData).not.toHaveBeenCalled();
+
+            await render(true);
+            mockGetCsrData.mockResolvedValue({ data: mockCache[target] });
+            await render();
+            expect(mockGetCsrData).toHaveBeenCalledTimes(1);
+            expect(container.querySelector("textarea")).toBe(editor);
+        }
+    );
+
+    it("ignores an in-flight draft response after adopting a created article", async () => {
+        initialEntry = { pathname: "/article-edit" };
+        mockCache["/article-edit"] = { label: "New draft", article: { version: -1 } };
+        const request = deferred();
+        mockGetCsrData.mockReturnValue(request.promise);
+        await render();
+        const saved = { label: "Created draft", article: { logId: 18, version: 0 } };
+        mockCache["/article-edit?id=18"] = saved;
+        delete mockCache["/article-edit"];
+        await act(async () =>
+            navigate("/article-edit?id=18", { replace: true, state: { articleCreatedFrom: location.key } })
+        );
+        await act(async () => request.resolve({ data: { label: "Stale empty draft" } }));
+        expect(mockGetCsrData).toHaveBeenCalledTimes(1);
+        expect(mockSsData.data).toEqual(saved);
+        expect(container.textContent).toContain("Created draft");
+        expect(loading()).toBe("false");
+        expect(mockEditorMounted).toHaveBeenCalledTimes(1);
+    });
+
+    it("remounts and requests data when switching articles or opening a new draft", async () => {
+        initialEntry = { pathname: "/article-edit", search: "?id=7" };
+        mockSsData.data = { label: "Article 7", article: { logId: 7, version: 1 } };
+        await render();
+        for (const [target, article] of [
+            ["/article-edit?id=8", { logId: 8, version: 0 }],
+            ["/article-edit", { version: -1 }],
+        ] as const) {
+            const editor = container.querySelector("textarea");
+            mockGetCsrData.mockResolvedValue({ data: { label: target, article } });
+            await act(async () => navigate(target));
+            expect(container.querySelector("textarea")).not.toBe(editor);
+            expect(container.textContent).toContain(target);
+        }
+        expect(mockGetCsrData).toHaveBeenCalledTimes(2);
+        expect(mockEditorMounted).toHaveBeenCalledTimes(3);
+    });
+
+    it.each(["missing-cache", "different-id", "different-session", "stale-marker"])(
+        "does not bypass loading on a creation navigation with %s",
+        async (boundary) => {
+            initialEntry = { pathname: "/article-edit" };
+            mockSsData.data = { label: "New draft", article: { version: -1 } };
+            await render();
+            if (boundary !== "missing-cache") {
+                mockCache["/article-edit?id=18"] = {
+                    label: "Cached",
+                    article: { logId: boundary === "different-id" ? 19 : 18 },
+                };
+            }
+            if (boundary === "different-session") mockSsData.key = "new-session";
+            mockGetCsrData.mockResolvedValue({ data: { label: "Fresh", article: { logId: 18, version: 1 } } });
+            await act(async () =>
+                navigate("/article-edit?id=18", {
+                    replace: true,
+                    state: { articleCreatedFrom: boundary === "stale-marker" ? "old-location" : location.key },
+                })
+            );
+            expect(mockGetCsrData).toHaveBeenCalledTimes(1);
+            expect(container.textContent).toContain("Fresh");
+            expect(mockEditorUnmounted).toHaveBeenCalled();
+        }
+    );
+
+    it("loads a created article again on history navigation or a fresh router mount", async () => {
+        initialEntry = { pathname: "/article-edit" };
+        mockSsData.data = { label: "New draft", article: { version: -1 } };
+        await render();
+        const saved = { label: "Created draft", article: { logId: 18, version: 0 } };
+        mockCache["/article-edit?id=18"] = saved;
+        await act(async () =>
+            navigate("/article-edit?id=18", { replace: true, state: { articleCreatedFrom: location.key } })
+        );
+        mockGetCsrData.mockResolvedValueOnce({ data: { label: "Home" } }).mockResolvedValue({ data: saved });
+        await act(async () => navigate("/index"));
+        await act(async () => navigate(-1));
+        expect(mockGetCsrData).toHaveBeenCalledTimes(2);
+        expect(container.textContent).toContain("Created draft");
+        await render(false, false);
+        delete mockSsData.data;
+        await render();
+        expect(mockGetCsrData).toHaveBeenCalledTimes(3);
     });
 
     it("applies the current response to the visible page, cache, title, and shared data", async () => {

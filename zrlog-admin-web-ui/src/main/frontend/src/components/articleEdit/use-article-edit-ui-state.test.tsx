@@ -63,11 +63,20 @@ describe("useArticleEditUiState scope migration", () => {
     it("moves the publish result to a created article and keeps later stale-callback updates in the new scope", () => {
         render({ search: "" });
         const updateFromStartedPublish = state.updatePublishStatus;
-        act(() => updateFromStartedPublish(publishedStatus));
+        act(() => {
+            updateFromStartedPublish(publishedStatus);
+            state.updateArticleAssistantOpen(true);
+            state.updateSettingsOpen(true);
+        });
 
         act(() => state.migrateToArticle(42));
+        expect(state.articleAssistantOpen).toBe(true);
+        expect(state.settingsOpen).toBe(true);
+        expect(state.publishStatus).toMatchObject(publishedStatus);
         render({ logId: 42, search: "?id=42" });
 
+        expect(state.articleAssistantOpen).toBe(true);
+        expect(state.settingsOpen).toBe(true);
         expect(state.publishStatus).toMatchObject(publishedStatus);
         expect(getCacheByKey("articleEdit/ui/article/42")).toMatchObject({ publishStatus: publishedStatus });
 

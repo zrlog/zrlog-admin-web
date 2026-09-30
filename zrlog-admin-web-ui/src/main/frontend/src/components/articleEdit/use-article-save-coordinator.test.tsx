@@ -197,7 +197,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
     let migrateUiStateToArticle: ReturnType<typeof jest.fn>;
     let navigate: ReturnType<typeof jest.fn>;
     let harnessData: ArticleEditInfo;
-    let harnessLocation: { pathname: string; search: string };
+    let harnessLocation: { pathname: string; search: string; key: string };
     let updateCache: (cache: ArticleEditInfo, cacheKey: string) => void;
     let draftAiSaveGate: DraftAiSaveGate;
 
@@ -231,7 +231,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
     const remountWith = (nextData: ArticleEditInfo, search = "") => {
         act(() => root.unmount());
         harnessData = nextData;
-        harnessLocation = { pathname: "/article-edit", search };
+        harnessLocation = { pathname: "/article-edit", search, key: "draft-location" };
         mockDraftSyncApi = undefined;
         window.history.replaceState({}, "", `/article-edit${search}`);
         root = createRoot(container);
@@ -254,7 +254,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
             mockPageCache.delete(cacheKey);
         });
         harnessData = data;
-        harnessLocation = { pathname: "/article-edit", search: "?id=7" };
+        harnessLocation = { pathname: "/article-edit", search: "?id=7", key: "article-location" };
         updateCache = jest.fn((cache, cacheKey) => {
             mockPageCache.set(cacheKey, cache);
         });
@@ -317,13 +317,19 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
         act(() => coordinator.onArticleUpdated({ articleId: 18, version: 0, created: true }));
         expect(coordinator.state.article.logId).toBe(18);
         const created = { ...initialArticle, logId: 18, title: "AI draft", markdown: "AI body", version: 0 };
+        navigate.mockImplementation(() => {
+            expect(mockPageCache.get("/article-edit?id=18")?.article).toEqual(created);
+        });
         await act(async () => request.resolve({ data: { error: 0, data: { ...data, article: created } } }));
         expect(mockArticleGet).toHaveBeenCalledWith("/api/admin/article-edit", { params: { id: 18 } });
         expect(coordinator.state.article).toEqual(created);
         expect(coordinator.state.aiMessages).toEqual(conversation);
         expect(coordinator.restoreInputRevision).toBe(1);
         expect(migrateUiStateToArticle).toHaveBeenCalledWith(18);
-        expect(navigate).toHaveBeenCalledWith("/article-edit?id=18", { replace: true });
+        expect(navigate).toHaveBeenCalledWith("/article-edit?id=18", {
+            replace: true,
+            state: { articleCreatedFrom: "draft-location" },
+        });
         expect(mockPageCache.get("/article-edit?id=18")?.aiMessages).toEqual(conversation);
         expect(mockPageCache.has("/article-edit")).toBe(false);
         mockArticlePost.mockResolvedValue({
@@ -495,6 +501,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
     });
 
     it("migrates the editor UI scope before navigating a newly published article", async () => {
+        remountWith({ ...data, article: { ...initialArticle, logId: undefined, version: -1 } });
         const publishCheckMessage = {
             role: "assistant",
             content: "Publish check result",
@@ -517,13 +524,19 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
                 },
             };
         });
+        navigate.mockImplementation(() => {
+            expect(mockPageCache.get("/article-edit?id=42")?.article.logId).toBe(42);
+        });
 
         await act(async () => {
             await coordinator.onSubmit({ ...coordinator.state.article, logId: undefined }, true, false, false);
         });
 
         expect(migrateUiStateToArticle).toHaveBeenCalledWith(42);
-        expect(navigate).toHaveBeenCalledWith("/article-edit?id=42", { replace: true });
+        expect(navigate).toHaveBeenCalledWith("/article-edit?id=42", {
+            replace: true,
+            state: { articleCreatedFrom: "draft-location" },
+        });
         expect(migrateUiStateToArticle.mock.invocationCallOrder[0]).toBeLessThan(navigate.mock.invocationCallOrder[0]);
         expect(
             mockPageCache
@@ -556,7 +569,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
             article: { ...data.article, logId: 42 },
             aiMessages: [existingMessage],
         };
-        harnessLocation = { pathname: "/article-edit", search: "?id=42" };
+        harnessLocation = { pathname: "/article-edit", search: "?id=42", key: "saved-location" };
         mockPageCache.set("/article-edit?id=42", harnessData);
         window.history.replaceState({}, "", "/article-edit?id=42");
         root = createRoot(container);

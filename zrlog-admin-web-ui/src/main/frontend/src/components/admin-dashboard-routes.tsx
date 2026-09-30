@@ -522,13 +522,6 @@ export const createAdminDashboardRoutes = (
         lazy: AsyncArticleEdit,
         fallback: LightweightFallback,
         props: articleEditProps as ArticleEditProps,
-        getComponentKey: (data, cacheKey) => {
-            const article = (data as ArticleEditProps["data"] | undefined)?.article;
-            if (!article) {
-                return cacheKey;
-            }
-            return `${cacheKey}:${article.logId || "draft"}:${article.version}:${article.lastUpdateDate || 0}`;
-        },
         search: [
             {
                 id: "write",

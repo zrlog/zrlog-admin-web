@@ -252,6 +252,12 @@ const useArticleSaveCoordinator = ({
 
     const getArticleRouteUrl = () => new URL(`${location.pathname}${location.search}`, window.location.origin);
 
+    const replaceCreatedArticleRoute = (url: URL) =>
+        navigate(location.pathname + url.search, {
+            replace: true,
+            state: { articleCreatedFrom: location.key },
+        });
+
     const getLocalContentSource = (article: ArticleEntry): ArticleEditState["contentSource"] =>
         article.logId && article.logId > 0 ? "localEdit" : "localDraft";
 
@@ -497,7 +503,6 @@ const useArticleSaveCoordinator = ({
                 removeLocalArticleCache();
             }
             migrateUiStateToArticle(responseArticle.logId);
-            navigate(location.pathname + url.search, { replace: true });
         } else {
             nextArticle = {
                 ...baseArticle,
@@ -524,6 +529,7 @@ const useArticleSaveCoordinator = ({
             },
             cacheKey
         );
+        if (create) replaceCreatedArticleRoute(url);
         return nextArticle;
     };
 
@@ -893,7 +899,7 @@ const useArticleSaveCoordinator = ({
                     createdArticleRef.current = undefined;
                     removeLocalArticleCache();
                     migrateUiStateToArticle(serverArticle.logId!);
-                    navigate(location.pathname + url.search, { replace: true });
+                    replaceCreatedArticleRoute(url);
                 }
                 setState((previous) => ({
                     ...previous,

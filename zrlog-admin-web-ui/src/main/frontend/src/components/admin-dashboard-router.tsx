@@ -8,6 +8,7 @@ import {
     Suspense,
     useCallback,
     useEffect,
+    useLayoutEffect,
     useMemo,
     useRef,
     useState,
@@ -39,9 +40,9 @@ import IntrinsicAttributes = JSX.IntrinsicAttributes;
 const AsyncNotFoundPage = lazy(() => import("components/not-found-page"));
 const AdminManageLayout = lazy(() => import("layout"));
 
-const isLivePageDataPath = (pathname: string) => {
-    return pathname.replace(/\.html$/, "") === "/article-edit" || getAccountPage(pathname)?.sensitive === true;
-};
+const isArticleEditPath = (pathname: string) => pathname.replace(/\.html$/, "") === "/article-edit";
+const isLivePageDataPath = (pathname: string) =>
+    isArticleEditPath(pathname) || getAccountPage(pathname)?.sensitive === true;
 
 type AdminDashboardRouterState = {
     axiosRequesting: boolean;
@@ -117,6 +118,27 @@ const AdminDashboardRouter: FunctionComponent<AdminDashboardRouterProps> = ({ of
     const latestRequestSeqRef = useRef(0);
     const locationRef = useRef(location);
     locationRef.current = location;
+    const sessionKey = getSsDate().key;
+    const previousRouteRef = useRef({ location, sessionKey });
+    const previousRoute = previousRouteRef.current;
+    const createdArticleFrom = (location.state as { articleCreatedFrom?: string } | null)?.articleCreatedFrom;
+    const createdArticleData =
+        createdArticleFrom &&
+        createdArticleFrom === previousRoute.location.key &&
+        location.key !== previousRoute.location.key &&
+        sessionKey === previousRoute.sessionKey &&
+        isArticleEditPath(location.pathname) &&
+        location.pathname === previousRoute.location.pathname &&
+        !new URLSearchParams(previousRoute.location.search).get("id")
+            ? getCacheByKey(initCurrentPageDataKey)
+            : undefined;
+    const adoptCreatedArticle = Boolean(
+        createdArticleData?.article?.logId > 0 &&
+            createdArticleData.article.logId === Number(new URLSearchParams(location.search).get("id"))
+    );
+    useLayoutEffect(() => {
+        previousRouteRef.current = { location, sessionKey };
+    }, [location, sessionKey]);
 
     const [state, setState] = useState<AdminDashboardRouterState>({
         axiosRequesting: false,
@@ -128,6 +150,7 @@ const AdminDashboardRouter: FunctionComponent<AdminDashboardRouterProps> = ({ of
     });
 
     const getDataFromCache = () => {
+        if (adoptCreatedArticle) return createdArticleData;
         if (serverSideData.current) {
             return getSsDate().data;
         }
@@ -198,6 +221,19 @@ const AdminDashboardRouter: FunctionComponent<AdminDashboardRouterProps> = ({ of
         if (serverSideData.current) {
             addToCache(currentPageDataKey, getSsDate().data);
             serverSideData.current = false;
+            return;
+        }
+        if (adoptCreatedArticle) {
+            // The editor already received this server snapshot. Replacing its URL is not a page load.
+            getSsDate().data = createdArticleData;
+            savePageFullState(getFullPath(location), state.fullScreen);
+            setState((previous) => ({
+                ...previous,
+                axiosRequesting: false,
+                lastAxiosRequestedCacheKey: currentPageDataKey,
+                visiblePageDataCacheKey: currentPageDataKey,
+                visiblePathname: location.pathname,
+            }));
             return;
         }
         // 先使用缓存数据显示。
@@ -276,6 +312,7 @@ const AdminDashboardRouter: FunctionComponent<AdminDashboardRouterProps> = ({ of
     );
 
     const isOfflineData = () => {
+        if (adoptCreatedArticle) return false;
         if (serverSideData.current) {
             return false;
         }
@@ -286,6 +323,7 @@ const AdminDashboardRouter: FunctionComponent<AdminDashboardRouterProps> = ({ of
     };
 
     const getVisiblePageDataCacheKey = () => {
+        if (adoptCreatedArticle) return initCurrentPageDataKey;
         if (state.visiblePathname !== location.pathname) {
             return getPageDataCacheKey(location);
         }
@@ -294,7 +332,17 @@ const AdminDashboardRouter: FunctionComponent<AdminDashboardRouterProps> = ({ of
 
     const visiblePageDataCacheKey = getVisiblePageDataCacheKey();
     const nextRouteData = getDataFromCache();
-    const sessionKey = getSsDate().key;
+    const editorInstanceRef = useRef({ sessionKey, key: visiblePageDataCacheKey, revision: 0 });
+    if (
+        editorInstanceRef.current.sessionKey !== sessionKey ||
+        editorInstanceRef.current.key !== visiblePageDataCacheKey
+    ) {
+        editorInstanceRef.current = {
+            sessionKey,
+            key: visiblePageDataCacheKey,
+            revision: editorInstanceRef.current.revision + (adoptCreatedArticle ? 0 : 1),
+        };
+    }
     const routeSnapshot = useRef({ sessionKey, key: visiblePageDataCacheKey, data: nextRouteData });
     // localStorage deserializes a fresh object on every render. A theme/language
     // render is not new server data: keep its identity so forms retain drafts.
@@ -335,7 +383,11 @@ const AdminDashboardRouter: FunctionComponent<AdminDashboardRouterProps> = ({ of
                                 <AdminPage
                                     LazyComponent={lazy}
                                     FallbackComponent={fallback}
-                                    componentKey={getComponentKey?.(visibleRouteData, visiblePageDataCacheKey)}
+                                    componentKey={
+                                        isArticleEditPath(location.pathname)
+                                            ? `article-editor-${editorInstanceRef.current.revision}`
+                                            : getComponentKey?.(visibleRouteData, visiblePageDataCacheKey)
+                                    }
                                     props={
                                         {
                                             ...props,

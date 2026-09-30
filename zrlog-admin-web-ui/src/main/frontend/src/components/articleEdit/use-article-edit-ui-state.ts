@@ -125,7 +125,9 @@ const useArticleEditUiState = (logId: number | undefined, search: string) => {
 
     useEffect(() => {
         activeCacheKeyRef.current = cacheKey;
-        const unsubscribe = subscribeArticleEditUiState(cacheKey, applyState);
+        const unsubscribe = subscribeArticleEditUiState(cacheKey, (nextState) => {
+            if (activeCacheKeyRef.current === cacheKey) applyState(nextState);
+        });
         restore();
         return unsubscribe;
     }, [applyState, cacheKey, restore]);
@@ -143,11 +145,11 @@ const useArticleEditUiState = (logId: number | undefined, search: string) => {
             ...getCachedArticleEditUiState(nextCacheKey),
             ...getCachedArticleEditUiState(currentCacheKey),
         });
+        activeCacheKeyRef.current = nextCacheKey;
         if (currentCacheKey === draftCacheKey) {
             removeCacheDataByKey(currentCacheKey);
             notifyArticleEditUiState(currentCacheKey, {});
         }
-        activeCacheKeyRef.current = nextCacheKey;
     }, []);
 
     const updateSettingsOpen = useCallback(
