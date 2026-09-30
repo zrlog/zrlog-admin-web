@@ -96,15 +96,19 @@ export const parseChatEvents = (text: string): Event[] =>
 export const isChatMessage = (message: AIContent): message is ChatMessage =>
     (message as ChatMessage).messageType === "knowledge";
 
-export const renderChatMessage = ({ content, defaultNode }: AIButtonRenderMessageOptions) => {
+export const renderChatMessage = ({ content, defaultNode }: AIButtonRenderMessageOptions, status?: string) => {
     const message = content as ChatMessage;
     const res = getRes().articleEdit.knowledge;
     return (
         <>
             {!message.failed && message.role === "assistant" && (
-                <ArticleAiReasoning content={message.reasoningContent} thinking={message.thinking} />
+                <ArticleAiReasoning content={message.reasoningContent} thinking={message.thinking} status={status} />
             )}
-            {message.failed ? <Alert type="error" title={content.content} /> : defaultNode}
+            {message.failed ? (
+                <Alert type="error" title={content.content} />
+            ) : content.content || !status ? (
+                defaultNode
+            ) : null}
             {!!message.sources?.length && (
                 <Space orientation="vertical" style={{ width: "100%" }}>
                     <Typography.Text type="secondary">{res.sources}</Typography.Text>
@@ -138,6 +142,7 @@ export const useArticleChat = (
     const pending = useRef<AbortController>();
     const generation = useRef(0);
     const restorePending = useRef<() => void>();
+    const outcome = useRef<boolean | undefined>(false);
     const onArticleUpdatedRef = useRef(onArticleUpdated);
     onArticleUpdatedRef.current = onArticleUpdated;
     const contextRef = useRef({ api, session, onMessagesChange });
@@ -237,6 +242,7 @@ export const useArticleChat = (
     );
 
     const stop = () => {
+        outcome.current = false;
         generation.current++;
         pending.current?.abort();
         pending.current = undefined;
@@ -281,6 +287,7 @@ export const useArticleChat = (
             );
         const prompt = input.trim();
         if (!prompt || disabled || pending.current) return;
+        outcome.current = false;
         const res = getRes().articleEdit.knowledge;
         const errors: Readonly<Record<string, string>> = {
             permission: res.permission,
@@ -295,7 +302,7 @@ export const useArticleChat = (
         pending.current = controller;
         const run = ++generation.current;
         setBusy(true);
-        setStatus(res.thinking);
+        setStatus(res.waitingForResponse);
         const publish = (next: ChatMessage[]) => {
             setMessages(next);
             onMessagesChange?.(next, articleId);
@@ -350,6 +357,12 @@ export const useArticleChat = (
             if (checkpoint?.run && checkpoint.run.articleId === articleId) {
                 const view = checkpoint.run;
                 latestCheckpoint = view;
+                // A server-side run may still be active after a client disconnect. Its state
+                // response did not accept this new prompt; keep that prompt in the local queue.
+                outcome.current =
+                    !approval && !events.some((event) => event.type === "run-start")
+                        ? undefined
+                        : activeRun(view) || view.status === "completed";
                 for (const updated of view.articleUpdates || []) receiveUpdate(updated);
                 mergeRun(view, context);
                 restorePending.current = () => mergeRun(view, context);
@@ -357,7 +370,9 @@ export const useArticleChat = (
             }
             const error = events.find((e) => e.type === "error");
             if (error) throw new Error(errors[error.error || ""] || res.requestFailed);
-            const progress = [...events].reverse().find((e) => e.type === "tool" || e.type === "thinking");
+            const progress = [...events]
+                .reverse()
+                .find((e) => ["tool", "thinking", "delta", "reasoning_delta", "reasoning"].includes(e.type));
             if (progress) {
                 const toolStatus: Record<string, string> = {
                     search_articles: res.searching,
@@ -370,7 +385,13 @@ export const useArticleChat = (
                     publish_article: res.publishing,
                     upload_attachment: res.uploading,
                 };
-                setStatus(toolStatus[progress.tool || ""] || res.thinking);
+                setStatus(
+                    progress.type === "delta"
+                        ? res.generating
+                        : progress.type === "reasoning_delta" || progress.type === "reasoning"
+                        ? res.thinking
+                        : toolStatus[progress.tool || ""] || res.waitingForResponse
+                );
             }
             const completedReasoning: string[] = [];
             let partialReasoning = "";
@@ -410,6 +431,7 @@ export const useArticleChat = (
                 )
                     throw new Error(res.saveFailed);
                 publish([...context, ...answer.messages.map((entry) => ({ ...entry, thinking: false }))]);
+                outcome.current = true;
             }
         };
         try {
@@ -442,6 +464,7 @@ export const useArticleChat = (
             );
             consume(typeof response.data === "string" ? response.data : "", true);
         } catch (error) {
+            if (run === generation.current) outcome.current = false;
             if (approval && run === generation.current && (restoredRun = await refreshRun(articleId))) return;
             if (latestCheckpoint && run === generation.current) {
                 mergeRun(latestCheckpoint, context);
@@ -478,5 +501,5 @@ export const useArticleChat = (
     };
     const decide = (view: ChatRun, decision: "approve" | "reject", context: AIContent[]) =>
         send(view.input, context, view.articleId, { run: view, decision });
-    return { messages, busy, status, send, clear, stop, decide, refreshRun };
+    return { messages, busy, status, send, clear, stop, decide, refreshRun, outcome };
 };

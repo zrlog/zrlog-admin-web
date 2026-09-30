@@ -1,4 +1,4 @@
-import { act, ReactElement } from "react";
+import { act, ReactElement, useState } from "react";
 import { createRoot, Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { AIContent } from "@zrlog/editor/dist/ai/AIContentItem";
@@ -119,6 +119,12 @@ jest.mock("./tool/article-ai-assistant-tools", () => ({ getAssistantToolLabel: (
 type AssistantConfig = ReturnType<typeof useArticleAiAssistantConfig>;
 type FooterActions = {
     disabled: boolean;
+    busy: boolean;
+    onStop: () => void;
+    queuedMessages: { id: number; input: string }[];
+    queuePaused: boolean;
+    onResumeQueue: () => void;
+    onRemoveQueued: (id: number) => void;
     onClearAiMessages: () => void;
     onSubmit: (message: string, tool?: AssistantTool) => void;
 };
@@ -144,6 +150,7 @@ type Deferred<T> = {
 
 type AxiosPostConfig = {
     onDownloadProgress?: (event: unknown) => void;
+    signal?: AbortSignal;
 };
 
 type AxiosPost = (url?: string, body?: unknown, config?: AxiosPostConfig) => Promise<any>;
@@ -204,7 +211,8 @@ describe("useArticleAiAssistantConfig draft request gate", () => {
             void articleId;
         }),
         initialLogId?: number,
-        initialMessages: AIContent[] = []
+        initialMessages: AIContent[] = [],
+        followMessages = false
     ) => {
         let data = createState(initialLogId, initialMessages);
         let config!: AssistantConfig;
@@ -214,12 +222,19 @@ describe("useArticleAiAssistantConfig draft request gate", () => {
         mountedRoots.push({ root, container });
 
         const Harness = () => {
+            const [, redraw] = useState(0);
             config = useArticleAiAssistantConfig({
                 data,
                 draftAiSaveGate: gate,
                 offline: false,
                 axiosInstance: { get: jest.fn(), post } as never,
-                onAiMessagesChange,
+                onAiMessagesChange: (messages, articleId) => {
+                    onAiMessagesChange(messages, articleId);
+                    if (followMessages && articleId === (data.article.logId || 0)) {
+                        data = { ...data, aiMessages: messages };
+                        redraw((revision) => revision + 1);
+                    }
+                },
                 onApplyValues: jest.fn(),
             });
             return null;
@@ -282,7 +297,7 @@ describe("useArticleAiAssistantConfig draft request gate", () => {
         reactActEnvironment.IS_REACT_ACT_ENVIRONMENT = false;
     });
 
-    it("blocks new chat and skills while awaiting confirmation but keeps clear available", async () => {
+    it("queues chat and skills while awaiting confirmation and keeps input and clear available", async () => {
         const gate = createDraftAiSaveGate();
         const post = jest.fn(async () => ({ data: "" }));
         const pending = {
@@ -293,7 +308,7 @@ describe("useArticleAiAssistantConfig draft request gate", () => {
             run: { runId: "run", articleId: 7, input: "Update", status: "awaiting_approval" },
         };
         const mounted = mountHook(gate, post, undefined, 7, [pending]);
-        expect(mounted.getFooter().disabled).toBe(true);
+        expect(mounted.getFooter().disabled).toBe(false);
         expect(mounted.getConfig().conversationActions.disabled).toBe(false);
         await act(async () => {
             mounted.getFooter().onSubmit("Another question");
@@ -301,6 +316,7 @@ describe("useArticleAiAssistantConfig draft request gate", () => {
             await flushRequest();
         });
         expect(post).not.toHaveBeenCalled();
+        expect(mounted.getFooter().queuedMessages.map((entry) => entry.input)).toEqual(["Another question", "Rewrite"]);
         const executing = { ...pending, run: { ...pending.run, status: "executing" } };
         mounted.rerender(7, [executing]);
         expect(mounted.getConfig().conversationActions.disabled).toBe(true);
@@ -373,6 +389,142 @@ describe("useArticleAiAssistantConfig draft request gate", () => {
         expect(gate.getPendingAiCount()).toBe(0);
     });
 
+    const answer = (question: string, reply: string) => ({
+        data: `data: ${JSON.stringify({
+            type: "answer",
+            messages: [
+                { role: "user", content: question, messageType: "knowledge", messageId: `${question}:user` },
+                { role: "assistant", content: reply, messageType: "knowledge", messageId: `${question}:assistant` },
+            ],
+        })}\n\ndata: {"type":"done"}\n\n`,
+    });
+
+    it("serializes rapid submissions and uses completed history for each queued turn", async () => {
+        const first = deferred<any>(),
+            second = deferred<any>();
+        const post = jest
+            .fn<ReturnType<AxiosPost>, Parameters<AxiosPost>>()
+            .mockReturnValueOnce(first.promise)
+            .mockReturnValueOnce(second.promise);
+        const mounted = mountHook(createDraftAiSaveGate(), post, undefined, 7, [], true);
+        act(() => {
+            mounted.getFooter().onSubmit("First");
+            mounted.getFooter().onSubmit("Second");
+            mounted.getFooter().onSubmit("Remove me");
+        });
+        expect(post).toHaveBeenCalledTimes(1);
+        expect(mounted.getFooter().disabled).toBe(false);
+        expect(mounted.getFooter().busy).toBe(true);
+        act(() => mounted.getFooter().onRemoveQueued(mounted.getFooter().queuedMessages[1].id));
+        await act(async () => {
+            first.resolve(answer("First", "First answer"));
+            await flushRequest();
+        });
+        expect(post).toHaveBeenCalledTimes(2);
+        expect(post.mock.calls[1][1]).toEqual({ input: "Second", articleId: 7 });
+        expect(mounted.getConfig().messages.map((m) => m.content)).toEqual(["First", "First answer", "Second", ""]);
+        await act(async () => {
+            second.resolve(answer("Second", "Second answer"));
+            await flushRequest();
+        });
+        expect(mounted.getConfig().messages.map((m) => m.content)).toEqual([
+            "First",
+            "First answer",
+            "Second",
+            "Second answer",
+        ]);
+        expect(mounted.getFooter().queuedMessages).toHaveLength(0);
+    });
+
+    it("stops the stream, preserves queued input, and requires an explicit resume", async () => {
+        const request = deferred<any>();
+        const post = jest
+            .fn<ReturnType<AxiosPost>, Parameters<AxiosPost>>()
+            .mockImplementationOnce((_url, _body, config) => {
+                config?.signal?.addEventListener("abort", () => request.reject(new Error("cancelled")));
+                return request.promise;
+            })
+            .mockResolvedValueOnce(answer("Next", "Next answer"));
+        const mounted = mountHook(createDraftAiSaveGate(), post, undefined, 7, [], true);
+        act(() => {
+            mounted.getFooter().onSubmit("First");
+            mounted.getFooter().onSubmit("Next");
+        });
+        await act(async () => {
+            mounted.getFooter().onStop();
+            await flushRequest();
+        });
+        expect(post.mock.calls[0][2]?.signal?.aborted).toBe(true);
+        expect(post).toHaveBeenCalledTimes(1);
+        expect(mounted.getFooter().queuePaused).toBe(true);
+        expect(mounted.getFooter().queuedMessages[0].input).toBe("Next");
+        expect(mounted.getConfig().messages).toHaveLength(0);
+        await act(async () => {
+            mounted.getFooter().onResumeQueue();
+            await flushRequest();
+        });
+        expect(post).toHaveBeenCalledTimes(2);
+        expect(mounted.getConfig().messages.map((m) => m.content)).toEqual(["Next", "Next answer"]);
+    });
+
+    it("preserves new input when the server returns an existing run instead of accepting it", async () => {
+        const run = { runId: "old-run", articleId: 7, input: "Earlier question", status: "running" };
+        const post = jest
+            .fn<ReturnType<AxiosPost>, Parameters<AxiosPost>>()
+            .mockResolvedValueOnce({ data: `data: ${JSON.stringify({ type: "run-state", run })}\n\n` });
+        const mounted = mountHook(createDraftAiSaveGate(), post, undefined, 7, [], true);
+        await act(async () => {
+            mounted.getFooter().onSubmit("New question");
+            await flushRequest();
+        });
+        expect(mounted.getFooter().queuedMessages[0].input).toBe("New question");
+        expect(post).toHaveBeenCalledTimes(1);
+    });
+
+    it("aborts writing skills without showing a request error or consuming the next prompt", async () => {
+        const request = deferred<any>();
+        const post = jest
+            .fn<ReturnType<AxiosPost>, Parameters<AxiosPost>>()
+            .mockImplementationOnce((_url, _body, config) => {
+                config?.signal?.addEventListener("abort", () => request.reject(new Error("cancelled")));
+                return request.promise;
+            });
+        const mounted = mountHook(createDraftAiSaveGate(), post, undefined, 7, [], true);
+        act(() => {
+            mounted.getFooter().onSubmit("Title", "title");
+            mounted.getFooter().onSubmit("Next", "digest");
+        });
+        await act(async () => {
+            mounted.getFooter().onStop();
+            await flushRequest();
+        });
+        expect(post.mock.calls[0][2]?.signal?.aborted).toBe(true);
+        expect(mounted.getFooter().queuedMessages[0].input).toBe("Next");
+        expect(mounted.getFooter().queuePaused).toBe(true);
+        expect(mounted.getConfig().messages).toHaveLength(0);
+        expect(mockMessageError).not.toHaveBeenCalled();
+    });
+
+    it("pauses queued skills on failure and discards them when changing articles", async () => {
+        const request = deferred<any>();
+        const post = jest.fn<ReturnType<AxiosPost>, Parameters<AxiosPost>>().mockReturnValueOnce(request.promise);
+        const mounted = mountHook(createDraftAiSaveGate(), post, undefined, 7, [], true);
+        act(() => {
+            mounted.getFooter().onSubmit("First", "title");
+            mounted.getFooter().onSubmit("Next", "digest");
+        });
+        await act(async () => {
+            request.reject(new Error("Unavailable"));
+            await flushRequest();
+        });
+        expect(mounted.getFooter().queuePaused).toBe(true);
+        expect(mounted.getFooter().queuedMessages).toHaveLength(1);
+        expect(post).toHaveBeenCalledTimes(1);
+        mounted.rerender(8, []);
+        expect(mounted.getFooter().queuedMessages).toHaveLength(0);
+        expect(post).toHaveBeenCalledTimes(1);
+    });
+
     it("holds one shared lease per overlapping send until success or failure settles", async () => {
         const gate = createDraftAiSaveGate();
         const firstRequest = deferred<any>();
@@ -408,13 +560,16 @@ describe("useArticleAiAssistantConfig draft request gate", () => {
         expect(mockMessageError).toHaveBeenCalledWith("Second request failed");
     });
 
-    it("does not start a draft request while first create owns the gate", () => {
+    it("does not start a draft request while first create owns the gate", async () => {
         const gate = createDraftAiSaveGate();
         const releaseCreate = gate.tryBeginCreate(0);
         const post = jest.fn(async (): Promise<any> => undefined);
         const mounted = mountHook(gate, post);
 
-        act(() => mounted.getFooter().onSubmit("Blocked request"));
+        await act(async () => {
+            mounted.getFooter().onSubmit("Blocked request");
+            await flushRequest();
+        });
 
         expect(post).not.toHaveBeenCalled();
         expect(gate.getPendingAiCount()).toBe(0);
@@ -644,7 +799,7 @@ describe("useArticleAiAssistantConfig draft request gate", () => {
         }
     });
 
-    it("keeps initial, streaming, and final send callbacks on the starting article id", async () => {
+    it("aborts skills and ignores late progress and results after changing articles", async () => {
         const gate = createDraftAiSaveGate();
         const request = deferred<any>();
         const post = jest.fn(async (_url?: string, _body?: unknown, _config?: AxiosPostConfig): Promise<any> => {
@@ -661,6 +816,7 @@ describe("useArticleAiAssistantConfig draft request gate", () => {
 
         const requestConfig = post.mock.calls[0][2];
         expect(requestConfig).toBeDefined();
+        expect(requestConfig?.signal?.aborted).toBe(true);
         act(() => {
             requestConfig?.onDownloadProgress?.({
                 event: {
@@ -678,11 +834,11 @@ describe("useArticleAiAssistantConfig draft request gate", () => {
             await flushRequest();
         });
 
-        expect(mounted.onAiMessagesChange.mock.calls.map(([, articleId]) => articleId)).toEqual([0, 0, 0]);
+        expect(mounted.onAiMessagesChange.mock.calls.map(([, articleId]) => articleId)).toEqual([0]);
         expect(gate.getPendingAiCount()).toBe(0);
     });
 
-    it("keeps a failed send callback on the starting article id", async () => {
+    it("ignores a late skill failure after changing articles", async () => {
         const gate = createDraftAiSaveGate();
         const request = deferred<any>();
         const post = jest.fn(async (): Promise<any> => request.promise);
@@ -698,8 +854,8 @@ describe("useArticleAiAssistantConfig draft request gate", () => {
             await flushRequest();
         });
 
-        expect(mounted.onAiMessagesChange.mock.calls.map(([, articleId]) => articleId)).toEqual([0, 0]);
-        expect(mockMessageError).toHaveBeenCalledWith("Provider unavailable");
+        expect(mounted.onAiMessagesChange.mock.calls.map(([, articleId]) => articleId)).toEqual([0]);
+        expect(mockMessageError).not.toHaveBeenCalled();
         expect(gate.getPendingAiCount()).toBe(0);
     });
 });

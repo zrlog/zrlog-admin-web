@@ -3,7 +3,7 @@ import { isChatMessage, renderChatMessage, useArticleChat } from "./use-article-
 import ArticleAiApproval from "./article-ai-approval";
 import ArticleAiReasoning from "./article-ai-reasoning";
 import { RobotOutlined } from "@ant-design/icons";
-import { FunctionComponent, useEffect, useMemo, useRef, useState } from "react";
+import { cloneElement, FunctionComponent, isValidElement, useEffect, useMemo, useRef, useState } from "react";
 import { AIContent } from "@zrlog/editor/dist/ai/AIContentItem";
 import AIButton, {
     AIButtonRenderMessageOptions,
@@ -45,6 +45,7 @@ import ArticleAiAssistantSkillContent from "./article-ai-assistant-skill-content
 import { getShortcutTitle, isTouchLikeDevice } from "../shortcut-utils";
 import { ApiResponse } from "../../../type";
 import { DraftAiSaveGate } from "../draft-ai-save-gate";
+import { useArticleAiQueue } from "./use-article-ai-queue";
 
 type ArticleAiAssistantConfigProps = {
     data: ArticleEditState;
@@ -104,14 +105,23 @@ export const useArticleAiAssistantConfig = ({
     const { message } = App.useApp();
     const theme = useTheme();
     const latestDataRef = useRef(data);
+    latestDataRef.current = data;
+    const skillRequest = useRef<AbortController>();
+    const scope = `${getSsDate().key}/${data.article.logId || "draft"}`;
+    const scopeRef = useRef(scope);
+    scopeRef.current = scope;
+    const migrateQueue = useRef<(scope: string) => void>();
 
     const aiMessages = data.aiMessages ? data.aiMessages : [];
     const chat = useArticleChat(
         axiosInstance,
         offline || data.aiConfigured !== true,
-        `${getSsDate().key}/${data.article.logId || "draft"}`,
+        scope,
         onAiMessagesChange,
-        onArticleUpdated,
+        (event) => {
+            if (!data.article.logId && event.created) migrateQueue.current?.(`${getSsDate().key}/${event.articleId}`);
+            onArticleUpdated?.(event);
+        },
         { articleId: data.article.logId || 0, messages: aiMessages }
     );
     const visibleMessages = aiMessages;
@@ -124,16 +134,39 @@ export const useArticleAiAssistantConfig = ({
     const runningElsewhere = aiMessages.some(
         (content) => isChatMessage(content) && content.run && ["running", "executing"].includes(content.run.status)
     );
+    const busy = Boolean(loadingKey) || chat.busy;
+    const queue = useArticleAiQueue(
+        scope,
+        offline || data.aiConfigured !== true || busy || activeRun || aiMessagesClearing,
+        ({ input, tool, selectedText }) => sendMessage(input, tool, selectedText)
+    );
+    migrateQueue.current = queue.migrate;
+
+    useEffect(() => {
+        setLoadingKey(undefined);
+        return () => {
+            skillRequest.current?.abort();
+            skillRequest.current = undefined;
+        };
+    }, [scope]);
+
+    const submitMessage = (input: string, tool?: AssistantTool, selectedText?: string) => {
+        if (!input.trim() || offline || data.aiConfigured !== true || aiMessagesClearing) return false;
+        queue.add(input.trim(), tool, selectedText);
+        return true;
+    };
+
+    const stopGeneration = () => {
+        queue.pause();
+        if (chat.busy) chat.stop();
+        skillRequest.current?.abort();
+    };
 
     useEffect(() => {
         // A paused tool run may already have created the draft. Keep ordinary creation blocked
         // until its remaining approvals finish and the editor adopts the persisted article ID.
         if (!data.article.logId && activeRun) return draftAiSaveGate.tryBeginAiRequest(0);
     }, [data.article.logId, activeRun, draftAiSaveGate]);
-
-    useEffect(() => {
-        latestDataRef.current = data;
-    }, [data]);
 
     useEffect(() => {
         setToolPayloads({});
@@ -213,6 +246,7 @@ export const useArticleAiAssistantConfig = ({
             setToolPayloads({});
             setSelectedTitles({});
             chat.clear();
+            queue.clear();
             onAiMessagesChange?.([], articleId);
             await message.success(getRes().articleEdit.assistant.clearAiMessagesSuccess);
         } catch (e) {
@@ -347,27 +381,33 @@ export const useArticleAiAssistantConfig = ({
         return undefined;
     };
 
-    const sendMessage = async (messageInput: string, tool?: AssistantTool, selectedText?: string) => {
+    const sendMessage = async (
+        messageInput: string,
+        tool?: AssistantTool,
+        selectedText?: string
+    ): Promise<boolean | undefined> => {
         const normalizedInput = messageInput.trim();
         if (!normalizedInput || loadingKey || chat.busy || activeRun) {
-            return;
+            return undefined;
         }
         const articleId = latestDataRef.current.article.logId || 0;
         const releaseRequest = draftAiSaveGate.tryBeginAiRequest(articleId);
         if (!releaseRequest) {
             void message.warning(getRes().articleEdit.assistant.saveInProgress);
-            return;
+            return undefined;
         }
         if (!tool) {
             setLoadingKey("chat");
             try {
                 await chat.send(normalizedInput, aiMessages, articleId);
+                return chat.outcome.current;
             } finally {
-                setLoadingKey(undefined);
+                if (scopeRef.current === scope) setLoadingKey(undefined);
                 releaseRequest();
             }
-            return;
         }
+        const controller = new AbortController();
+        skillRequest.current = controller;
         const baseContents = [...aiMessages];
         const userContent: ToolAwareAIContent = {
             role: "user",
@@ -406,6 +446,7 @@ export const useArticleAiAssistantConfig = ({
                 `/api/admin/article/ai?${query.toString()}`,
                 tool ? getArticleAiRequestBody(selectedText) : null,
                 {
+                    signal: controller.signal,
                     adapter: "xhr",
                     headers: {
                         accept: "text/event-stream",
@@ -413,6 +454,7 @@ export const useArticleAiAssistantConfig = ({
                     validateStatus: () => true,
                     responseType: "text",
                     onDownloadProgress: (progressEvent) => {
+                        if (controller.signal.aborted) return;
                         const target = progressEvent.event?.target as XMLHttpRequest | undefined;
                         const currentTarget = progressEvent.event?.currentTarget as XMLHttpRequest | undefined;
                         const responseText = target?.responseText || currentTarget?.responseText || "";
@@ -440,6 +482,7 @@ export const useArticleAiAssistantConfig = ({
                     },
                 }
             );
+            if (controller.signal.aborted) return false;
             const parsed = parseSseResponse(responseData || "");
             if (status < 200 || status >= 300) {
                 await showRequestError(
@@ -447,11 +490,11 @@ export const useArticleAiAssistantConfig = ({
                     status,
                     parsed.errorMeta
                 );
-                return;
+                return false;
             }
             if (parsed.errorMessage) {
                 await showRequestError(parsed.errorMessage, undefined, parsed.errorMeta);
-                return;
+                return false;
             }
             currentContent = parsed.content || currentContent;
             cacheToolPayload(assistantIndex, parsed.toolPayload);
@@ -470,10 +513,28 @@ export const useArticleAiAssistantConfig = ({
                 ],
                 articleId
             );
+            return true;
         } catch (e) {
+            if (controller.signal.aborted) {
+                // Discard only this unfinished turn, matching ordinary chat cancellation.
+                if (skillRequest.current === controller) onAiMessagesChange?.(baseContents, articleId);
+                return false;
+            }
             await showRequestError(e instanceof Error ? e.message : getRes().error.unknown);
+            return false;
         } finally {
-            setLoadingKey(undefined);
+            if (controller.signal.aborted && skillRequest.current === controller) {
+                setToolPayloads((previous) =>
+                    Object.fromEntries(Object.entries(previous).filter(([index]) => Number(index) < assistantIndex))
+                );
+                setSelectedTitles((previous) =>
+                    Object.fromEntries(Object.entries(previous).filter(([index]) => Number(index) < assistantIndex))
+                );
+            }
+            if (skillRequest.current === controller) {
+                skillRequest.current = undefined;
+                setLoadingKey(undefined);
+            }
             releaseRequest();
         }
     };
@@ -581,6 +642,21 @@ export const useArticleAiAssistantConfig = ({
     };
 
     const renderMessage = ({ content, index, defaultNode }: AIButtonRenderMessageOptions) => {
+        const status =
+            busy && index === aiMessages.length - 1 && content.role === "assistant"
+                ? chat.status ||
+                  (content.content
+                      ? getRes().articleEdit.knowledge.generating
+                      : (content as ToolAwareAIContent).reasoningContent
+                      ? getRes().articleEdit.knowledge.thinking
+                      : getRes().articleEdit.knowledge.waitingForResponse)
+                : undefined;
+        // The host owns progress; avoid the editor's second spinner/empty thinking label.
+        if (status && isValidElement<{ content: AIContent }>(defaultNode)) {
+            defaultNode = content.content
+                ? cloneElement(defaultNode, { content: { ...content, thinking: false } })
+                : null;
+        }
         if (isChatMessage(content) && content.run) {
             const run = content.run;
             return (
@@ -594,12 +670,17 @@ export const useArticleAiAssistantConfig = ({
                             void message.warning(getRes().articleEdit.assistant.saveInProgress);
                             return;
                         }
-                        void chat.decide(run, decision, aiMessages).finally(release);
+                        void chat
+                            .decide(run, decision, aiMessages)
+                            .then(() => {
+                                if (!chat.outcome.current) queue.pause();
+                            })
+                            .finally(release);
                     }}
                 />
             );
         }
-        if (isChatMessage(content)) return renderChatMessage({ content, index, defaultNode });
+        if (isChatMessage(content)) return renderChatMessage({ content, index, defaultNode }, status);
         const toolAwareContent = content as ToolAwareAIContent;
         if (toolAwareContent.messageType === "articleContext") {
             return null;
@@ -610,7 +691,7 @@ export const useArticleAiAssistantConfig = ({
         const toolPayload = content.role === "assistant" ? getToolPayload(content, index) : undefined;
         const messageTool = content.role === "user" ? getMessageTool(content) : undefined;
         if (toolPayload) {
-            return (
+            const toolContent = (
                 <ArticleAiAssistantToolContent
                     aiProvider={data.aiProvider}
                     messageIndex={index}
@@ -628,7 +709,7 @@ export const useArticleAiAssistantConfig = ({
                             [messageIndex]: title,
                         }))
                     }
-                    onRefine={(prompt, tool) => void sendMessage(prompt, tool)}
+                    onRefine={(prompt, tool) => void submitMessage(prompt, tool)}
                     onUpdateToolPayload={updateToolPayload}
                     onApplyGeneratedCover={onApplyGeneratedCover}
                     onCoverApplyingChange={setApplyingCoverMessageId}
@@ -638,11 +719,27 @@ export const useArticleAiAssistantConfig = ({
                     }}
                 />
             );
+            return status || toolAwareContent.reasoningContent ? (
+                <>
+                    <ArticleAiReasoning
+                        content={toolAwareContent.reasoningContent}
+                        thinking={content.thinking}
+                        status={status}
+                    />
+                    {toolContent}
+                </>
+            ) : (
+                toolContent
+            );
         }
         return (
             <>
                 {content.role === "assistant" && (
-                    <ArticleAiReasoning content={toolAwareContent.reasoningContent} thinking={content.thinking} />
+                    <ArticleAiReasoning
+                        content={toolAwareContent.reasoningContent}
+                        thinking={content.thinking}
+                        status={status}
+                    />
                 )}
                 {messageTool && (
                     <Space style={{ display: "flex", justifyContent: "flex-end" }}>
@@ -656,15 +753,20 @@ export const useArticleAiAssistantConfig = ({
 
     const renderFooter = (selectedText?: string) => (
         <ArticleAiAssistantSkillContent
+            key={queue.key}
             aiProvider={data.aiProvider}
-            disabled={offline || Boolean(loadingKey) || chat.busy || activeRun}
-            loadingKey={loadingKey}
-            chatStatus={chat.status}
-            onStopChat={chat.busy ? chat.stop : undefined}
+            disabled={offline || data.aiConfigured !== true || aiMessagesClearing}
+            busy={busy}
+            waiting={activeRun}
+            onStop={busy ? stopGeneration : undefined}
+            queuedMessages={queue.messages}
+            queuePaused={queue.paused}
+            onRemoveQueued={queue.remove}
+            onResumeQueue={queue.resume}
             theme={theme}
             selectedText={selectedText}
             markdownLength={(data.article.markdown || "").trim().length}
-            onSubmit={(messageInput, tool) => void sendMessage(messageInput, tool, selectedText)}
+            onSubmit={(messageInput, tool) => submitMessage(messageInput, tool, selectedText)}
         />
     );
 
