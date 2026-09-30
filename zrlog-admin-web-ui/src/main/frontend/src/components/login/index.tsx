@@ -65,7 +65,7 @@ interface StyledLoginPageProps {
 export const StyledLoginPage = styled(Layout)<StyledLoginPageProps>(
     ({ mainColor, dark, desk, colorBgContainer, colorBgLayout, theme }) => {
         return {
-            height: "100vh",
+            minHeight: "100vh",
             background: colorBgLayout,
             backgroundImage: desk
                 ? `
@@ -93,7 +93,7 @@ export const StyledLoginPage = styled(Layout)<StyledLoginPageProps>(
             [`& .${classes.container}`]: {
                 display: "flex",
                 width: "1000px",
-                height: "600px",
+                minHeight: "600px",
                 background: colorBgContainer,
                 borderRadius: theme.borderRadiusLG,
                 boxShadow: desk
@@ -498,6 +498,7 @@ const Index = ({ offline }: { offline: boolean }) => {
                                             icon={<KeyOutlined />}
                                             loading={passkeyLogging}
                                             size="large"
+                                            style={{ flexShrink: 0 }}
                                             onClick={() => void submitPasskeyLogin()}
                                         >
                                             {getRes().login.passkeySubmit}
