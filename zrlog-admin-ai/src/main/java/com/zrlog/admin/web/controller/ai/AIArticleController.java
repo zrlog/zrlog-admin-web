@@ -38,7 +38,7 @@ public class AIArticleController extends BaseController {
         AIStreamResponse streamResponse;
         if (StringUtils.isEmpty(tool) && StringUtils.isEmpty(request.getParaToStr("input", ""))) {
             java.nio.ByteBuffer body = request.getRequestBodyByteBuffer();
-            if (body == null || body.remaining() > 256 * 1024) throw new ArgsException();
+            if (body == null || body.remaining() > 1024 * 1024) throw new ArgsException();
             streamResponse = new AIChatService(request).start(getRequestBodyWithNullCheck(
                     com.zrlog.admin.business.ai.model.AIChatModels.ChatRequest.class));
         } else {
@@ -61,6 +61,15 @@ public class AIArticleController extends BaseController {
         if (body == null || body.remaining() > 4096) throw new ArgsException();
         writeStream(new AIChatService(request).resume(getRequestBodyWithNullCheck(
                 com.zrlog.admin.business.ai.model.AIChatModels.ApprovalRequest.class)));
+    }
+
+    @RequiresAction(value = AccountAction.ARTICLE_ASSIST, descriptionKey = "article.assist")
+    @RequestMethod(method = HttpMethod.POST)
+    public void submitAiInput() throws IOException, SQLException {
+        java.nio.ByteBuffer body = request.getRequestBodyByteBuffer();
+        if (body == null || body.remaining() > 64 * 1024) throw new ArgsException();
+        writeStream(new AIChatService(request).resumeInput(getRequestBodyWithNullCheck(
+                com.zrlog.admin.business.ai.model.AIChatModels.InputRequest.class)));
     }
 
     @ResponseBody

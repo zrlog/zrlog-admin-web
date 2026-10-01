@@ -5,10 +5,10 @@ import { AIContent } from "@zrlog/editor/dist/ai/AIContentItem";
 import { AIButtonRenderMessageOptions } from "@zrlog/editor/dist/ai/AIButton";
 import ArticleAiReasoning from "./article-ai-reasoning";
 import { getRes } from "../../../utils/constants";
-import { ArticleUpdatedEvent } from "./article-ai-assistant.types";
+import { ArticleUpdatedEvent, EditorSnapshot, ToolAwareAIContent } from "./article-ai-assistant.types";
 
 type Source = { id: number; title: string; url: string; draft: boolean; privateArticle: boolean };
-export type ChatMessage = AIContent & {
+export type ChatMessage = ToolAwareAIContent & {
     messageType?: string;
     messageId?: string;
     sources?: Source[];
@@ -23,6 +23,7 @@ export type ChatRun = {
     input: string;
     status:
         | "awaiting_approval"
+        | "awaiting_input"
         | "running"
         | "executing"
         | "completed"
@@ -31,6 +32,16 @@ export type ChatRun = {
         | "expired"
         | "cancelled";
     error?: string;
+    interaction?: {
+        id: string;
+        kind: "select" | "text";
+        question: string;
+        options: string[];
+        resultId?: string;
+        contextRevision: string;
+        expiresAt: number;
+    };
+    skillMessages?: ChatMessage[];
     approval?: {
         id: string;
         tool: string;
@@ -60,7 +71,8 @@ type Event = {
     created?: boolean;
 };
 
-const activeRun = (view: ChatRun) => ["awaiting_approval", "running", "executing"].includes(view.status);
+const activeRun = (view: ChatRun) =>
+    ["awaiting_approval", "awaiting_input", "running", "executing"].includes(view.status);
 const createdArticleUpdate = (updates: ArticleUpdatedEvent[]) => {
     const valid = updates.filter(
         (update) =>
@@ -190,6 +202,7 @@ export const useArticleChat = (
                           runId: view.runId,
                           thinking: false,
                       },
+                      ...(view.skillMessages || []),
                       {
                           role: "assistant",
                           content: "",
@@ -278,7 +291,12 @@ export const useArticleChat = (
         input: string,
         context: AIContent[],
         articleId: number,
-        approval?: { run: ChatRun; decision: "approve" | "reject" }
+        approval?: {
+            run: ChatRun;
+            decision: "approve" | "reject" | "submit" | "cancel";
+            interaction?: { value?: string; contextRevision: string };
+        },
+        snapshot?: EditorSnapshot
     ) => {
         if (approval)
             context = (context as ChatMessage[]).filter(
@@ -297,6 +315,7 @@ export const useArticleChat = (
             providerRequestFailed: res.providerRequestFailed,
             providerResponseInvalid: res.providerResponseInvalid,
             requestFailed: res.requestFailed,
+            contextChanged: res.contextChanged,
         };
         const controller = new AbortController();
         pending.current = controller;
@@ -319,6 +338,7 @@ export const useArticleChat = (
         publish([...base, { role: "assistant", content: "", thinking: true, messageType: "knowledge" }]);
         let lastReasoning = "";
         let lastContent = "";
+        let lastSkillCount = 0;
         let latestCheckpoint: ChatRun | undefined;
         let restoredRun = false;
         const updatedVersions = new Set<string>();
@@ -353,7 +373,7 @@ export const useArticleChat = (
             }
             const checkpoint = [...events]
                 .reverse()
-                .find((event) => event.type === "approval-required" || event.type === "run-state");
+                .find((event) => ["approval-required", "interaction-required", "run-state"].includes(event.type));
             if (checkpoint?.run && checkpoint.run.articleId === articleId) {
                 const view = checkpoint.run;
                 latestCheckpoint = view;
@@ -406,11 +426,22 @@ export const useArticleChat = (
                 }
             }
             const reasoningContent = [...completedReasoning, partialReasoning].filter(Boolean).join("\n\n");
-            if (!final && (reasoningContent !== lastReasoning || content !== lastContent)) {
+            const skillMessages = [
+                ...(approval?.run.skillMessages || []),
+                ...events.filter((event) => event.type === "skill-result").flatMap((event) => event.messages || []),
+            ].filter((entry, index, all) => all.findIndex((other) => other.messageId === entry.messageId) === index);
+            if (
+                !final &&
+                (reasoningContent !== lastReasoning ||
+                    content !== lastContent ||
+                    skillMessages.length !== lastSkillCount)
+            ) {
                 lastReasoning = reasoningContent;
                 lastContent = content;
+                lastSkillCount = skillMessages.length;
                 publish([
                     ...base,
+                    ...skillMessages,
                     {
                         role: "assistant",
                         content,
@@ -424,11 +455,7 @@ export const useArticleChat = (
             const answer = events.find((e) => e.type === "answer");
             if (final && (!answer || !events.some((e) => e.type === "done"))) throw new Error(res.responseIncomplete);
             if (answer && final) {
-                if (
-                    !answer.messages ||
-                    answer.messages.length !== 2 ||
-                    answer.messages.some((entry) => !entry.messageId)
-                )
+                if (!answer.messages || answer.messages.length < 2 || answer.messages.some((entry) => !entry.messageId))
                     throw new Error(res.saveFailed);
                 publish([...context, ...answer.messages.map((entry) => ({ ...entry, thinking: false }))]);
                 outcome.current = true;
@@ -451,15 +478,21 @@ export const useArticleChat = (
                 },
             };
             const response = await api.post(
-                approval ? "/api/admin/article/ai/approval" : "/api/admin/article/ai",
+                approval?.interaction
+                    ? "/api/admin/article/ai/input"
+                    : approval
+                    ? "/api/admin/article/ai/approval"
+                    : "/api/admin/article/ai",
                 approval
                     ? {
                           articleId,
                           runId: approval.run.runId,
-                          approvalId: approval.run.approval?.id,
                           decision: approval.decision,
+                          ...(approval.interaction
+                              ? { interactionId: approval.run.interaction?.id, ...approval.interaction }
+                              : { approvalId: approval.run.approval?.id }),
                       }
-                    : { input: prompt, articleId },
+                    : { input: prompt, articleId, ...snapshot },
                 requestConfig
             );
             consume(typeof response.data === "string" ? response.data : "", true);
@@ -501,5 +534,12 @@ export const useArticleChat = (
     };
     const decide = (view: ChatRun, decision: "approve" | "reject", context: AIContent[]) =>
         send(view.input, context, view.articleId, { run: view, decision });
-    return { messages, busy, status, send, clear, stop, decide, refreshRun, outcome };
+    const respond = (
+        view: ChatRun,
+        decision: "submit" | "cancel",
+        value: string | undefined,
+        contextRevision: string,
+        context: AIContent[]
+    ) => send(view.input, context, view.articleId, { run: view, decision, interaction: { value, contextRevision } });
+    return { messages, busy, status, send, clear, stop, decide, respond, refreshRun, outcome };
 };

@@ -1,5 +1,5 @@
-import {AIContent} from "@zrlog/editor/dist/ai/AIContentItem";
-import {ReactNode} from "react";
+import { AIContent } from "@zrlog/editor/dist/ai/AIContentItem";
+import { ReactNode } from "react";
 
 export type AssistantTool =
     | "rewrite"
@@ -79,7 +79,7 @@ export type AssistantToolPayload =
       }
     | {
           tool: "title";
-          payload: { titles?: string[] };
+          payload: { titles?: string[]; selectedTitle?: string };
       }
     | {
           tool: "alias";
@@ -132,6 +132,7 @@ export type ParsedSseResponse = {
 };
 
 export type ToolAwareAIContent = AIContent & {
+    skillContract?: { version: number; contextRevision: string; applicableFields: string[] };
     reasoningContent?: string;
     messageId?: string;
     messageType?: "articleContext" | "error" | string;
@@ -139,6 +140,19 @@ export type ToolAwareAIContent = AIContent & {
     errorMeta?: ArticleAiErrorMeta;
     tool?: AssistantTool;
     payload?: AssistantToolPayload["payload"];
+};
+
+export type EditorSnapshot = {
+    editorContext: {
+        title: string;
+        alias: string;
+        markdown: string;
+        digest: string;
+        keywords: string;
+        thumbnail: string;
+        selectedText: string;
+    };
+    contextRevision: string;
 };
 
 export type ArticleContextMeta = {

@@ -35,14 +35,15 @@ final class AIApprovalStore {
     static boolean active(Run run) {
         if (run == null) return false;
         String status = view(run).status;
-        return "awaiting_approval".equals(status) || "running".equals(status) || "executing".equals(status);
+        return "awaiting_approval".equals(status) || "awaiting_input".equals(status) || "running".equals(status) || "executing".equals(status);
     }
 
     void pause(Run run) throws SQLException {
-        if (run.revision != null) { save(run, "awaiting_approval"); return; }
+        String waiting = run.interaction == null ? "awaiting_approval" : "awaiting_input";
+        if (run.revision != null) { save(run, waiting); return; }
         Run old = read(run.userId, run.articleId);
         if (active(old)) throw new Changed();
-        run.status = "awaiting_approval";
+        run.status = waiting;
         run.updatedAt = System.currentTimeMillis();
         run.revision = UUID.randomUUID().toString();
         String value;
@@ -109,8 +110,10 @@ final class AIApprovalStore {
         RunView view = new RunView();
         view.runId = run.id; view.articleId = run.articleId; view.input = run.input;
         view.status = run.status; view.approval = run.approval; view.error = run.error;
+        view.interaction = run.interaction; view.skillMessages = run.skillMessages;
         view.answer = run.answer; view.articleUpdates = run.articleUpdates;
         if ("awaiting_approval".equals(view.status) && run.approval.expiresAt <= System.currentTimeMillis()) view.status = "expired";
+        if ("awaiting_input".equals(view.status) && run.interaction.expiresAt <= System.currentTimeMillis()) view.status = "expired";
         if (("running".equals(view.status) || "executing".equals(view.status))
                 && run.updatedAt + RUN_TIMEOUT <= System.currentTimeMillis()) view.status = "uncertain";
         return view;

@@ -82,6 +82,26 @@ public class AIWritingSkillService extends AIService {
 
     private ToolResult runTool(String tool, GenerateArticleFieldRequest articleContext, String conversationContext)
             throws IOException, InterruptedException, SQLException {
+        AIWritingSkillCatalog.validateSnapshot(articleContext);
+        articleContext.doValid();
+        AIWritingSkillCatalog.instructions(tool);
+        // SKILL.md guides the orchestrating model. Each generator keeps its existing task/output prompt.
+        ToolResult result = executeTool(tool, articleContext, conversationContext);
+        AIWritingSkillCatalog.validateResult(tool, result.payload);
+        return result;
+    }
+
+    /** Shared generator; chat owns its own message/checkpoint persistence. */
+    AIResponseEntry.AIContentEntry generate(String tool, GenerateArticleFieldRequest context, String instruction)
+            throws IOException, InterruptedException, SQLException {
+        ToolResult result = runTool(tool, context, instruction);
+        AIResponseEntry.AIContentEntry entry = new AIResponseEntry.AIContentEntry("assistant", result.content);
+        entry.setTool(tool); entry.setPayload(result.payload);
+        return entry;
+    }
+
+    private ToolResult executeTool(String tool, GenerateArticleFieldRequest articleContext, String conversationContext)
+            throws IOException, InterruptedException, SQLException {
         AIToolService toolService = new AIToolService();
         switch (tool) {
             case "title": {
@@ -135,7 +155,7 @@ public class AIWritingSkillService extends AIService {
             }
             case "cover": {
                 com.zrlog.admin.business.rest.response.GenerateArticleCoverResponse response =
-                        new AIImageService().generateArticleCover(articleContext);
+                        new AIImageService().generateArticleCover(articleContext, conversationContext);
                 return new ToolResult(I18nUtil.getAdminBackendStringFromRes("admin.ai.cover.success"),
                         new AIStreamPayloads.CoverPayload(response.getUrl()));
             }

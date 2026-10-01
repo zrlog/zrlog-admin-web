@@ -20,6 +20,7 @@ const CoverToolContent: FunctionComponent<SpecificToolContentProps<CoverToolPayl
     applyingCoverMessageId,
     toolPayload,
     onApplyValues,
+    applyDisabled,
     onUpdateToolPayload,
     onApplyGeneratedCover,
     onCoverApplyingChange,
@@ -49,6 +50,7 @@ const CoverToolContent: FunctionComponent<SpecificToolContentProps<CoverToolPayl
                     <Button
                         size="small"
                         type="primary"
+                        disabled={applyDisabled}
                         loading={applyingCoverMessageId === coverApplyKey}
                         onClick={async () => {
                             try {
@@ -82,6 +84,7 @@ const CoverToolContent: FunctionComponent<SpecificToolContentProps<CoverToolPayl
                     <Button
                         size="small"
                         icon={<ScissorOutlined />}
+                        disabled={applyDisabled}
                         onClick={() => onCropCover(tryAppendBackendServerUrl(url))}
                     >
                         {getRes().articleEdit.assistant.crop}

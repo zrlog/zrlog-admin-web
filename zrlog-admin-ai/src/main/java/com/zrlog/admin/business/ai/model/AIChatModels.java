@@ -10,8 +10,12 @@ public final class AIChatModels {
     public static class ChatRequest implements Validator {
         public String input;
         public long articleId;
+        public com.zrlog.admin.business.rest.request.GenerateArticleFieldRequest editorContext;
+        public String contextRevision;
         public List<ChatMessage> history = new ArrayList<>();
         public void doValid() {
+            com.zrlog.admin.business.ai.service.AIWritingSkillCatalog.validateSnapshot(editorContext);
+            if (editorContext != null && (contextRevision == null || !contextRevision.matches("[a-f0-9]{32}"))) throw new ArgsException();
             if (articleId < 0 || input == null || input.trim().isEmpty() || input.length() > 8000
                     || history == null || history.size() > 12) throw new ArgsException();
             int size = 0;
@@ -52,6 +56,34 @@ public final class AIChatModels {
         public String after;
         public boolean truncated;
     }
+    public static class SkillContract {
+        public int version = 1;
+        public String contextRevision;
+        public List<String> applicableFields = new ArrayList<>();
+    }
+    public static class Interaction {
+        public String id = UUID.randomUUID().toString();
+        public String question;
+        public String kind;
+        public List<String> options = new ArrayList<>();
+        public String resultId;
+        public String contextRevision;
+        public long expiresAt;
+    }
+    public static class InputRequest implements Validator {
+        public long articleId;
+        public String runId;
+        public String interactionId;
+        public String decision;
+        public String value;
+        public String contextRevision;
+        public void doValid() {
+            if (articleId < 0 || !ApprovalRequest.uuid(runId) || !ApprovalRequest.uuid(interactionId)
+                    || !Set.of("submit", "cancel").contains(Objects.toString(decision, ""))
+                    || value != null && value.length() > 8000
+                    || contextRevision == null || !contextRevision.matches("[a-f0-9]{32}")) throw new ArgsException();
+        }
+    }
     /** Durable execution checkpoint. Never sent to the browser or stored in public settings. */
     public static class Run {
         public String id = UUID.randomUUID().toString();
@@ -76,6 +108,10 @@ public final class AIChatModels {
         public List<Source> sources = new ArrayList<>();
         public String reasoning = "";
         public Approval approval;
+        public Interaction interaction;
+        public com.zrlog.admin.business.rest.request.GenerateArticleFieldRequest editorContext;
+        public String contextRevision;
+        public List<com.zrlog.admin.business.rest.response.AIResponseEntry.AIContentEntry> skillMessages = new ArrayList<>();
         public List<Event> articleUpdates = new ArrayList<>();
         public Event answer;
         public String error;
@@ -86,6 +122,8 @@ public final class AIChatModels {
         public String input;
         public String status;
         public Approval approval;
+        public Interaction interaction;
+        public List<com.zrlog.admin.business.rest.response.AIResponseEntry.AIContentEntry> skillMessages;
         public String error;
         public Event answer;
         public List<Event> articleUpdates;

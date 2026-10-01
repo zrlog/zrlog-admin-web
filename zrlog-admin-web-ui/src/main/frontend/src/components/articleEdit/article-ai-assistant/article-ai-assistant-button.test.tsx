@@ -368,7 +368,12 @@ describe("useArticleAiAssistantConfig draft request gate", () => {
         });
         expect(post).toHaveBeenCalledWith(
             "/api/admin/article/ai",
-            { input: "Find a related article", articleId: 0 },
+            expect.objectContaining({
+                input: "Find a related article",
+                articleId: 0,
+                editorContext: expect.objectContaining({ markdown: "Draft body" }),
+                contextRevision: expect.any(String),
+            }),
             expect.anything()
         );
         expect(mounted.onAiMessagesChange).toHaveBeenLastCalledWith(
@@ -421,7 +426,11 @@ describe("useArticleAiAssistantConfig draft request gate", () => {
             await flushRequest();
         });
         expect(post).toHaveBeenCalledTimes(2);
-        expect(post.mock.calls[1][1]).toEqual({ input: "Second", articleId: 7 });
+        expect(post.mock.calls[1][1]).toMatchObject({
+            input: "Second",
+            articleId: 7,
+            editorContext: { markdown: "Draft body" },
+        });
         expect(mounted.getConfig().messages.map((m) => m.content)).toEqual(["First", "First answer", "Second", ""]);
         await act(async () => {
             second.resolve(answer("Second", "Second answer"));

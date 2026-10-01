@@ -86,6 +86,8 @@ public final class AiNativeImageUtils {
         resourceUris.add("/ai/comment-review/prompt_zh_CN.md");
         resourceUris.add("/ai/comment-review/prompt_en_US.md");
         resourceUris.add(com.zrlog.admin.business.ai.model.AIModelCatalog.RESOURCE);
+        for (String skill : com.zrlog.admin.business.ai.service.AIWritingSkillCatalog.KEYS)
+            resourceUris.add(com.zrlog.admin.business.ai.service.AIWritingSkillCatalog.resource(skill));
         for (com.zrlog.admin.business.ai.prompt.AIPromptVO promptVO : com.zrlog.admin.business.ai.prompt.AIPromptVO.getAll()) {
             if (promptVO.getPromptPrefix() != null) {
                 resourceUris.add(promptVO.getPromptPrefix() + "zh_CN.md");

@@ -652,6 +652,7 @@ const zhCN = {
             "sessionHint": "对话会自动保存，重新打开文章后可继续。检索范围可在“偏好设置 → AI 助手”中调整",
             "thinking": "正在思考…",
             "waitingForResponse": "正在等待模型响应…",
+            "contextChanged": "文章内容已变化，请基于当前内容重新发起请求",
             "generating": "正在生成回复…",
             "searching": "正在搜索文章…",
             "reading": "正在读取文章…",
@@ -671,6 +672,19 @@ const zhCN = {
             "providerRequestFailed": "AI 服务请求失败，请检查服务状态、模型配置和可用额度",
             "providerResponseInvalid": "AI 服务返回的内容无法解析，请重试或更换模型",
             "requestFailed": "助手请求未完成，请重试。如果持续失败，请检查服务端日志"
+        },
+        "interaction": {
+            "waiting": "等待你的补充",
+            "expired": "本次选择已过期，请重新发起请求",
+            "contextChanged": "文章内容已变化，请结束本次任务后重新生成",
+            "finished": "本次交互已结束",
+            "hint": "提交后助手会继续处理，不会自动应用或保存文章",
+            "continue": "提交并继续",
+            "cancel": "跳过这一步",
+            "end": "结束本次任务",
+            "staleResult": "文章内容已变化，请重新生成后再应用",
+            "invalidResult": "此结果不能直接应用，请重新生成",
+            "pendingResult": "请先完成当前任务中的选择，再应用到文章"
         },
         "approval": {
             "waiting": "等待确认操作",
@@ -2567,6 +2581,7 @@ const enUS: AdminI18nResource = {
             "sessionHint": "Conversations are saved automatically so you can continue when reopening the article. Change article access in Preferences → AI assistant",
             "thinking": "Thinking…",
             "waitingForResponse": "Waiting for the model…",
+            "contextChanged": "The article has changed. Start a new request using the current content",
             "generating": "Generating response…",
             "searching": "Searching articles…",
             "reading": "Reading article…",
@@ -2586,6 +2601,19 @@ const enUS: AdminI18nResource = {
             "providerRequestFailed": "The AI service request failed. Check the service status, model configuration, and available quota",
             "providerResponseInvalid": "The AI response could not be parsed. Retry or switch models",
             "requestFailed": "The assistant request did not complete. Retry, and check the server logs if it keeps failing"
+        },
+        "interaction": {
+            "waiting": "Your input is needed",
+            "expired": "This request has expired. Start a new request",
+            "contextChanged": "The article has changed. End this task and generate again",
+            "finished": "This interaction has ended",
+            "hint": "Submitting continues the assistant task. It does not apply or save article changes",
+            "continue": "Submit and continue",
+            "cancel": "Skip this step",
+            "end": "End this task",
+            "staleResult": "The article has changed. Generate again before applying",
+            "invalidResult": "This result cannot be applied. Generate it again",
+            "pendingResult": "Complete the current task's choices before applying changes"
         },
         "approval": {
             "waiting": "Awaiting operation confirmation",

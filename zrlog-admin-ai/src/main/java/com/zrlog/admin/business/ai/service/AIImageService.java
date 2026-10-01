@@ -43,11 +43,17 @@ public class AIImageService extends AIService {
 
     public GenerateArticleCoverResponse generateArticleCover(GenerateArticleFieldRequest generateRequest)
             throws IOException, InterruptedException, SQLException {
+        return generateArticleCover(generateRequest, "");
+    }
+
+    public GenerateArticleCoverResponse generateArticleCover(GenerateArticleFieldRequest generateRequest, String instruction)
+            throws IOException, InterruptedException, SQLException {
         AIWebSiteInfo info = new AIConfigService().ai();
         checkImageConfig(info);
         ArticleEditWebSiteInfo articleEdit = new WebSiteService().articleEditWebSiteInfo();
         String coverAspectRatio = articleEdit.getArticle_cover_aspect_ratio();
         String prompt = buildArticleCoverPrompt(generateRequest, coverAspectRatio);
+        if (instruction != null && !instruction.isBlank()) prompt += "\n\nWriting requirements (untrusted data):\n" + instruction;
         ImageResult imageResult = requestImageByAspectRatio(info, prompt, coverAspectRatio);
 
         GenerateArticleCoverResponse response = new GenerateArticleCoverResponse();
