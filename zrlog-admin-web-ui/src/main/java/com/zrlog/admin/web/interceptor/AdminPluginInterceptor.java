@@ -5,14 +5,18 @@ import com.hibegin.http.server.api.HandleAbleInterceptor;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
 import com.zrlog.admin.business.service.AdminAuditService;
+import com.zrlog.admin.business.service.UserPreferenceService;
+import com.zrlog.admin.business.rest.base.UserPreferences;
 import com.zrlog.admin.business.type.AdminAuditAction;
 import com.zrlog.admin.util.AdminWebTools;
 import com.zrlog.business.plugin.PluginCorePlugin;
 import com.zrlog.common.Constants;
 import com.zrlog.common.vo.AdminTokenVO;
+import com.zrlog.plugin.PluginAdminAppearance;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
+import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -49,12 +53,16 @@ public class AdminPluginInterceptor implements HandleAbleInterceptor {
      * @param entry
      * @throws IOException
      */
-    private void adminPermission(String target, HttpRequest request, HttpResponse response, AdminTokenVO entry) throws IOException, URISyntaxException, InterruptedException {
+    private void adminPermission(String target, HttpRequest request, HttpResponse response, AdminTokenVO entry) throws IOException, URISyntaxException, InterruptedException, SQLException {
         if (Objects.isNull(entry)) {
             AdminWebTools.blockUnLoginRequestHandler(request, response);
             return;
         }
         if (!com.zrlog.admin.business.service.AccountPermissionService.account(entry).isAdministrator()) { response.renderCode(403); return; }
+        UserPreferences.Appearance appearance = new UserPreferenceService().effective(entry.getUserId()).appearance;
+        request.getAttr().put(PluginAdminAppearance.REQUEST_ATTRIBUTE, new PluginAdminAppearance(
+                appearance.theme, Boolean.TRUE.equals(appearance.darkMode), appearance.colorPrimary,
+                Boolean.TRUE.equals(appearance.compactMode)));
         if (Constants.zrLogConfig.getPlugin(PluginCorePlugin.class).accessPlugin(target.replaceFirst(adminPluginUriPath, "/"), request, response, entry)) {
             recordPluginSurfaceAction(request, target);
             return;

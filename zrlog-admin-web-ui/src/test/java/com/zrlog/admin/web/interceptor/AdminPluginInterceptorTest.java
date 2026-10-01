@@ -13,6 +13,7 @@ import com.zrlog.common.ZrLogConfig;
 import com.zrlog.common.vo.AdminFullTokenVO;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.plugin.IPlugin;
+import com.zrlog.plugin.PluginAdminAppearance;
 import com.zrlog.plugin.Plugins;
 import org.junit.Test;
 
@@ -71,6 +72,7 @@ public class AdminPluginInterceptorTest {
 
         assertEquals("/reminder/manifest.json", plugin.lastUri);
         assertNull(plugin.lastToken);
+        assertNull(plugin.lastAppearance);
     }
 
     @Test
@@ -125,6 +127,37 @@ public class AdminPluginInterceptorTest {
         }
     }
 
+    @Test
+    public void shouldResolvePersonalAppearanceForTheAuthenticatedAdministrator() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            db.putWebsite("admin_theme", "desk");
+            db.putWebsite("admin_darkMode", false);
+            db.putWebsite("admin_color_primary", "#1677ff");
+            db.putWebsite("admin_compactMode", true);
+            db.execute("update user set preferences=? where userId=1",
+                    "{\"appearance\":{\"theme\":\"antd\",\"darkMode\":true,\"colorPrimary\":\"#00875a\",\"compactMode\":false}}");
+            FakePluginCorePlugin plugin = new FakePluginCorePlugin(true);
+            withConfig(new TestZrLogConfig(tokenService(token()), plugin), () ->
+                    new AdminPluginInterceptor().doInterceptor(
+                            request(HttpMethod.GET, "/admin/plugins/"), new ResponseRecorder().response()));
+
+            assertEquals("antd", plugin.lastAppearance.getTheme());
+            assertTrue(plugin.lastAppearance.isDarkMode());
+            assertEquals("#00875a", plugin.lastAppearance.getColorPrimary());
+            assertFalse(plugin.lastAppearance.isCompactMode());
+
+            // Missing overrides inherit the site's values on the next request.
+            db.execute("update user set preferences=? where userId=1", "{\"appearance\":{\"theme\":\"geek\"}}");
+            withConfig(new TestZrLogConfig(tokenService(token()), plugin), () ->
+                    new AdminPluginInterceptor().doInterceptor(
+                            request(HttpMethod.GET, "/admin/plugins/api/plugins"), new ResponseRecorder().response()));
+            assertEquals("geek", plugin.lastAppearance.getTheme());
+            assertFalse(plugin.lastAppearance.isDarkMode());
+            assertEquals("#1677ff", plugin.lastAppearance.getColorPrimary());
+            assertTrue(plugin.lastAppearance.isCompactMode());
+        }
+    }
+
     private static void withConfig(ZrLogConfig config, ThrowingRunnable runnable) throws Exception {
         ZrLogConfig previous = Constants.zrLogConfig;
         try {
@@ -136,11 +169,14 @@ public class AdminPluginInterceptorTest {
     }
 
     private static HttpRequest request(HttpMethod method, String uri) {
+        Map<String, Object> attributes = new java.util.HashMap<>();
         return (HttpRequest) Proxy.newProxyInstance(
                 AdminPluginInterceptorTest.class.getClassLoader(),
                 new Class[]{HttpRequest.class},
                 (proxy, calledMethod, args) -> {
                     switch (calledMethod.getName()) {
+                        case "getAttr":
+                            return attributes;
                         case "getMethod":
                             return method;
                         case "getUri":
@@ -260,6 +296,7 @@ public class AdminPluginInterceptorTest {
         private final boolean accessResult;
         private String lastUri;
         private AdminTokenVO lastToken;
+        private PluginAdminAppearance lastAppearance;
 
         FakePluginCorePlugin(boolean accessResult) {
             this.accessResult = accessResult;
@@ -287,6 +324,7 @@ public class AdminPluginInterceptorTest {
                 throws IOException, URISyntaxException, InterruptedException {
             this.lastUri = uri;
             this.lastToken = adminTokenVO;
+            this.lastAppearance = (PluginAdminAppearance) request.getAttr().get(PluginAdminAppearance.REQUEST_ATTRIBUTE);
             return accessResult;
         }
 

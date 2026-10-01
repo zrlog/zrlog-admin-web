@@ -24,6 +24,7 @@
 - 全局 `ConfigProviderApp` 为普通密度显式传 `componentSize="medium"`，紧凑密度传 `small`。不要改回普通密度 `undefined`，否则 Ant Design 会插入/移除 SizeContext，重建整个页面并触发未保存预览的回滚。
 - `AdminDashboardRouter` 为同一会话、同一路由且内容未变的数据保留引用，避免外观重绘时缓存反序列化产生新对象，触发表单重新填值。路由、会话或实际数据变化仍更新快照。
 - `applyUserPreferences` 是有效外观与语言的统一应用入口，负责资源、React 状态、文档语言和偏好请求版本。`useAppearancePreview` 供站点后台设置和审查页临时预览、按会话恢复；个人设置保留自己的保存与请求生命周期。站点表单始终保存站点字段，不把个人偏好混入提交。
+- 插件外观沿服务端代理传递：`AdminPluginInterceptor` 在鉴权后用 `UserPreferenceService.effective(userId)` 合并当前管理员已保存的个人偏好与站点默认值，通过请求内的 `PluginAdminAppearance` 交给 base。`PluginCorePluginImpl` 生成 `Admin-Theme`、`Dark-Mode`、`Admin-Color-Primary`、`Admin-Compact-Mode` 请求头；不信任浏览器传入的同名头。plugin-core 从页面初始化数据/API 消费这些值并复用 `@zrlog/ui`，下次页面或 API 请求取得更新后的外观。未保存的前端预览不跨服务传递。
 
 ## 开发 UI 审查页
 
