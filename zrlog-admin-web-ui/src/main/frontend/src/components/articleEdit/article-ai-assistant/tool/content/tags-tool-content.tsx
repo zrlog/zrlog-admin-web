@@ -16,6 +16,7 @@ const TagsToolContent: FunctionComponent<SpecificToolContentProps<TagsToolPayloa
     loadingKey,
     toolPayload,
     onApplyValues,
+    applyDisabled,
     onUpdateToolPayload,
     onRefine,
 }) => {
@@ -39,7 +40,7 @@ const TagsToolContent: FunctionComponent<SpecificToolContentProps<TagsToolPayloa
                 <Button
                     size="small"
                     type="primary"
-                    disabled={tags.length === 0}
+                    disabled={applyDisabled || tags.length === 0}
                     onClick={() => onApplyValues({ keywords: tags.join(",") })}
                 >
                     {getRes().articleEdit.assistant.apply}

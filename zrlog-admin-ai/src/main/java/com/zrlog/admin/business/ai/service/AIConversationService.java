@@ -96,7 +96,7 @@ public class AIConversationService {
             if (run != null) {
                 String status = AIApprovalStore.view(run).status;
                 if ("running".equals(status) || "executing".equals(status)) return false;
-                run.answer = null; run.approval = null; checkpoints.save(run, "cancelled");
+                run.answer = null; run.approval = null; run.interaction = null; run.skillMessages.clear(); checkpoints.save(run, "cancelled");
             }
             return mutateMessages(articleId, messages -> new ArrayList<>());
         } catch (SQLException | AIApprovalStore.Changed e) { return false; }

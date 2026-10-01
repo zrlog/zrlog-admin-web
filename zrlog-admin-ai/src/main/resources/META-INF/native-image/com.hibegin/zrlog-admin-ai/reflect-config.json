@@ -5,6 +5,7 @@
       {"name": "<init>", "parameterTypes": []},
       {"name": "ai", "parameterTypes": []},
       {"name": "approveAiOperation", "parameterTypes": []},
+      {"name": "submitAiInput", "parameterTypes": []},
       {"name": "aiRun", "parameterTypes": []},
       {"name": "applyCover", "parameterTypes": []},
       {"name": "clearAiMessages", "parameterTypes": []},

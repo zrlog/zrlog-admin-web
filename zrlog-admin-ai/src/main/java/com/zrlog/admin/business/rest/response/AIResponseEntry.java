@@ -55,6 +55,10 @@ public class AIResponseEntry {
         private ArticleContextMeta contextMeta;
         private String tool;
         private Object payload;
+        private com.zrlog.admin.business.ai.model.AIChatModels.SkillContract skillContract;
+
+        public com.zrlog.admin.business.ai.model.AIChatModels.SkillContract getSkillContract() { return skillContract; }
+        public void setSkillContract(com.zrlog.admin.business.ai.model.AIChatModels.SkillContract value) { skillContract = value; }
         private String provider;
         private String model;
 

@@ -14,6 +14,7 @@ const AliasToolContent: FunctionComponent<SpecificToolContentProps<AliasToolPayl
     loadingKey,
     toolPayload,
     onApplyValues,
+    applyDisabled,
     onRefine,
 }) => {
     const alias = toolPayload.payload.alias || "";
@@ -21,7 +22,12 @@ const AliasToolContent: FunctionComponent<SpecificToolContentProps<AliasToolPayl
         <ArticleAiAssistantToolResultCard aiProvider={aiProvider} tool={toolPayload.tool}>
             <Space direction="vertical" style={{ width: "100%" }}>
                 <Typography.Text copyable>{alias}</Typography.Text>
-                <Button size="small" type="primary" disabled={!alias} onClick={() => onApplyValues({ alias })}>
+                <Button
+                    size="small"
+                    type="primary"
+                    disabled={applyDisabled || !alias}
+                    onClick={() => onApplyValues({ alias })}
+                >
                     {getRes().articleEdit.assistant.apply}
                 </Button>
                 <ArticleAiAssistantToolRefineActions

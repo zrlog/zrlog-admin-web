@@ -64,6 +64,94 @@ describe("knowledge assistant", () => {
             </>
         );
     }
+    it("streams validated skill cards, restores title selection, and resumes the same task", async () => {
+        const frame = (event: object) => `data: ${JSON.stringify(event)}\n\n`;
+        const revision = "0123456789abcdef0123456789abcdef";
+        const skill: ChatMessage = {
+            role: "assistant",
+            thinking: false,
+            content: "Title candidates",
+            messageId: "run:skill:1",
+            messageType: "writingSkill",
+            tool: "title",
+            payload: { titles: ["First", "Second"] },
+            skillContract: { version: 1, contextRevision: revision, applicableFields: ["title"] },
+        };
+        const view: ChatRun = {
+            runId: "run",
+            articleId: 7,
+            input: "Titles then summary",
+            status: "awaiting_input",
+            skillMessages: [skill],
+            interaction: {
+                id: "input",
+                kind: "select",
+                question: "Choose a title",
+                options: ["First", "Second"],
+                contextRevision: revision,
+                expiresAt: Date.now() + 60000,
+            },
+        };
+        const progress =
+            frame({ type: "run-start", runId: "run" }) + frame({ type: "skill-result", messages: [skill] });
+        post.mockImplementationOnce(async (_url: unknown, _body: unknown, config: any) => {
+            config.onDownloadProgress({ event: { target: { responseText: progress } } });
+            config.onDownloadProgress({ event: { target: { responseText: progress } } });
+            return { data: progress + frame({ type: "interaction-required", run: view }) };
+        });
+        await act(async () => root.render(<Harness />));
+        await act(async () =>
+            chat.send(view.input, [], 7, undefined, {
+                editorContext: {
+                    title: "Local title",
+                    alias: "",
+                    markdown: "Unsaved body",
+                    digest: "",
+                    keywords: "",
+                    thumbnail: "",
+                    selectedText: "",
+                },
+                contextRevision: revision,
+            })
+        );
+        expect(chat.messages.filter((entry) => entry.messageType === "writingSkill")).toHaveLength(1);
+        expect(chat.messages[chat.messages.length - 1].run?.status).toBe("awaiting_input");
+        expect(post.mock.calls[0][1]).toMatchObject({
+            editorContext: { markdown: "Unsaved body" },
+            contextRevision: revision,
+        });
+        const digest: ChatMessage = {
+            ...skill,
+            messageId: "run:skill:2",
+            tool: "digest",
+            payload: { digest: "Summary" },
+            skillContract: { version: 1, contextRevision: revision, applicableFields: ["digest"] },
+        };
+        post.mockResolvedValueOnce({
+            data:
+                frame({
+                    type: "answer",
+                    messages: [
+                        { role: "user", content: view.input, messageId: "run:user", messageType: "knowledge" },
+                        skill,
+                        digest,
+                        { role: "assistant", content: "Done", messageId: "run:assistant", messageType: "knowledge" },
+                    ],
+                }) + frame({ type: "done" }),
+        });
+        await act(async () => chat.respond(view, "submit", "Second", revision, chat.messages));
+        expect(post.mock.calls[1][0]).toBe("/api/admin/article/ai/input");
+        expect(post.mock.calls[1][1]).toMatchObject({
+            runId: "run",
+            interactionId: "input",
+            value: "Second",
+            decision: "submit",
+            contextRevision: revision,
+        });
+        expect(chat.messages).toHaveLength(4);
+        expect(chat.outcome.current).toBe(true);
+    });
+
     beforeEach(() => {
         (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
         global.ResizeObserver = class {

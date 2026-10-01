@@ -1,11 +1,12 @@
-import {ArticleChangeableValue} from "../../index.types";
-import {AssistantTool, AssistantToolPayload} from "../article-ai-assistant.types";
+import { ArticleChangeableValue } from "../../index.types";
+import { AssistantTool, AssistantToolPayload } from "../article-ai-assistant.types";
 
 export type ArticleAiAssistantToolContentCommonProps = {
     aiProvider: any;
     messageIndex: number;
     messageId?: string;
     offline: boolean;
+    applyDisabled?: boolean;
     loadingKey?: string;
     applyingCoverMessageId?: string;
     selectedTitle?: string;

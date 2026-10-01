@@ -14,6 +14,7 @@ const DigestToolContent: FunctionComponent<SpecificToolContentProps<DigestToolPa
     loadingKey,
     toolPayload,
     onApplyValues,
+    applyDisabled,
     onRefine,
 }) => {
     const digest = toolPayload.payload.digest || "";
@@ -21,7 +22,12 @@ const DigestToolContent: FunctionComponent<SpecificToolContentProps<DigestToolPa
         <ArticleAiAssistantToolResultCard aiProvider={aiProvider} tool={toolPayload.tool}>
             <Space direction="vertical" style={{ width: "100%" }}>
                 <Typography.Paragraph style={{ marginBottom: 0 }}>{digest}</Typography.Paragraph>
-                <Button size="small" type="primary" disabled={!digest} onClick={() => onApplyValues({ digest })}>
+                <Button
+                    size="small"
+                    type="primary"
+                    disabled={applyDisabled || !digest}
+                    onClick={() => onApplyValues({ digest })}
+                >
                     {getRes().articleEdit.assistant.apply}
                 </Button>
                 <ArticleAiAssistantToolRefineActions

@@ -17,6 +17,7 @@ const RewriteToolContent: FunctionComponent<SpecificToolContentProps<RewriteTool
     loadingKey,
     toolPayload,
     onApplyValues,
+    applyDisabled,
     onRefine,
     onUpdateToolPayload,
 }) => {
@@ -49,7 +50,7 @@ const RewriteToolContent: FunctionComponent<SpecificToolContentProps<RewriteTool
                             <Button
                                 size="small"
                                 type="primary"
-                                disabled={!markdown || unchanged}
+                                disabled={applyDisabled || !markdown || unchanged}
                                 onClick={() => onApplyValues({ markdown })}
                             >
                                 {assistantRes.apply}

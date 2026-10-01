@@ -1,6 +1,8 @@
 import { Alert, App, Button, Space, Tag, Typography } from "antd";
 import { isChatMessage, renderChatMessage, useArticleChat } from "./use-article-chat";
 import ArticleAiApproval from "./article-ai-approval";
+import ArticleAiInput from "./article-ai-input";
+import { canApplySkillValues, editorContextRevision } from "./article-ai-skill-contract";
 import ArticleAiReasoning from "./article-ai-reasoning";
 import { RobotOutlined } from "@ant-design/icons";
 import { cloneElement, FunctionComponent, isValidElement, useEffect, useMemo, useRef, useState } from "react";
@@ -129,7 +131,7 @@ export const useArticleAiAssistantConfig = ({
         (content) =>
             isChatMessage(content) &&
             content.run &&
-            ["awaiting_approval", "running", "executing"].includes(content.run.status)
+            ["awaiting_approval", "awaiting_input", "running", "executing"].includes(content.run.status)
     );
     const runningElsewhere = aiMessages.some(
         (content) => isChatMessage(content) && content.run && ["running", "executing"].includes(content.run.status)
@@ -399,7 +401,11 @@ export const useArticleAiAssistantConfig = ({
         if (!tool) {
             setLoadingKey("chat");
             try {
-                await chat.send(normalizedInput, aiMessages, articleId);
+                const editorContext = getArticleAiRequestBody(selectedText);
+                await chat.send(normalizedInput, aiMessages, articleId, undefined, {
+                    editorContext,
+                    contextRevision: editorContextRevision(editorContext),
+                });
                 return chat.outcome.current;
             } finally {
                 if (scopeRef.current === scope) setLoadingKey(undefined);
@@ -659,6 +665,35 @@ export const useArticleAiAssistantConfig = ({
         }
         if (isChatMessage(content) && content.run) {
             const run = content.run;
+            if (run.interaction)
+                return (
+                    <ArticleAiInput
+                        key={run.interaction.id}
+                        run={run}
+                        disabled={offline || chat.busy || Boolean(loadingKey)}
+                        contextRevision={editorContextRevision(getArticleAiRequestBody())}
+                        onExpired={() => void chat.refreshRun(run.articleId)}
+                        onRespond={(decision, value) => {
+                            const release = draftAiSaveGate.tryBeginAiRequest(run.articleId);
+                            if (!release) {
+                                void message.warning(getRes().articleEdit.assistant.saveInProgress);
+                                return;
+                            }
+                            void chat
+                                .respond(
+                                    run,
+                                    decision,
+                                    value,
+                                    editorContextRevision(getArticleAiRequestBody()),
+                                    aiMessages
+                                )
+                                .then(() => {
+                                    if (!chat.outcome.current) queue.pause();
+                                })
+                                .finally(release);
+                        }}
+                    />
+                );
             return (
                 <ArticleAiApproval
                     run={run}
@@ -682,6 +717,18 @@ export const useArticleAiAssistantConfig = ({
         }
         if (isChatMessage(content)) return renderChatMessage({ content, index, defaultNode }, status);
         const toolAwareContent = content as ToolAwareAIContent;
+        if (
+            toolAwareContent.messageId &&
+            aiMessages.some(
+                (entry) =>
+                    isChatMessage(entry) &&
+                    entry.run?.status === "awaiting_input" &&
+                    entry.run.interaction?.resultId === toolAwareContent.messageId
+            )
+        ) {
+            // The input card owns the options while a choice is pending. Restore the normal result card afterwards.
+            return null;
+        }
         if (toolAwareContent.messageType === "articleContext") {
             return null;
         }
@@ -691,7 +738,28 @@ export const useArticleAiAssistantConfig = ({
         const toolPayload = content.role === "assistant" ? getToolPayload(content, index) : undefined;
         const messageTool = content.role === "user" ? getMessageTool(content) : undefined;
         if (toolPayload) {
-            const toolContent = (
+            const contract = toolAwareContent.skillContract;
+            if (
+                toolAwareContent.messageType === "writingSkill" &&
+                (!contract ||
+                    contract.version !== 1 ||
+                    !Array.isArray(contract.applicableFields) ||
+                    !/^[a-f0-9]{32}$/.test(contract.contextRevision))
+            )
+                return <Alert type="warning" title={getRes().articleEdit.interaction.invalidResult} />;
+            const stale = contract && contract.contextRevision !== editorContextRevision(getArticleAiRequestBody());
+            const applyDisabled = Boolean(contract && (stale || activeRun || busy));
+            const applyValues = (values: ArticleChangeableValue) => {
+                if (
+                    (contract && (activeRun || busy)) ||
+                    !canApplySkillValues(toolAwareContent, editorContextRevision(getArticleAiRequestBody()), values)
+                ) {
+                    void message.warning(getRes().articleEdit.interaction.staleResult);
+                    return;
+                }
+                onApplyValues(values);
+            };
+            let toolContent = (
                 <ArticleAiAssistantToolContent
                     aiProvider={data.aiProvider}
                     messageIndex={index}
@@ -702,7 +770,8 @@ export const useArticleAiAssistantConfig = ({
                     selectedTitle={selectedTitles[index]}
                     currentMarkdown={data.article.markdown || ""}
                     toolPayload={toolPayload}
-                    onApplyValues={onApplyValues}
+                    applyDisabled={applyDisabled}
+                    onApplyValues={applyValues}
                     onSelectTitle={(messageIndex, title) =>
                         setSelectedTitles((prevState) => ({
                             ...prevState,
@@ -711,14 +780,35 @@ export const useArticleAiAssistantConfig = ({
                     }
                     onRefine={(prompt, tool) => void submitMessage(prompt, tool)}
                     onUpdateToolPayload={updateToolPayload}
-                    onApplyGeneratedCover={onApplyGeneratedCover}
+                    onApplyGeneratedCover={async (cover) => {
+                        if (
+                            applyDisabled ||
+                            !canApplySkillValues(toolAwareContent, editorContextRevision(getArticleAiRequestBody()), {
+                                thumbnail: cover.dataUrl,
+                            })
+                        )
+                            return;
+                        return onApplyGeneratedCover?.(cover);
+                    }}
                     onCoverApplyingChange={setApplyingCoverMessageId}
                     onCropCover={(url) => {
+                        if (applyDisabled) return;
                         setCroppingImageUrl(url);
                         setCropModalOpen(true);
                     }}
                 />
             );
+            if (contract && contract.applicableFields.length > 0 && (stale || activeRun || busy))
+                toolContent = (
+                    <>
+                        <Typography.Paragraph type="secondary">
+                            {stale
+                                ? getRes().articleEdit.interaction.staleResult
+                                : getRes().articleEdit.interaction.pendingResult}
+                        </Typography.Paragraph>
+                        {toolContent}
+                    </>
+                );
             return status || toolAwareContent.reasoningContent ? (
                 <>
                     <ArticleAiReasoning

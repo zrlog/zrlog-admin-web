@@ -16,11 +16,12 @@ const TitleToolContent: FunctionComponent<SpecificToolContentProps<TitleToolPayl
     selectedTitle,
     toolPayload,
     onApplyValues,
+    applyDisabled,
     onSelectTitle,
     onRefine,
 }) => {
     const titles = toolPayload.payload.titles || [];
-    const currentSelectedTitle = selectedTitle || titles[0] || "";
+    const currentSelectedTitle = selectedTitle || toolPayload.payload.selectedTitle || titles[0] || "";
     if (titles.length === 0) {
         return null;
     }
@@ -28,6 +29,7 @@ const TitleToolContent: FunctionComponent<SpecificToolContentProps<TitleToolPayl
         <ArticleAiAssistantToolResultCard aiProvider={aiProvider} tool={toolPayload.tool}>
             <Space direction="vertical" style={{ width: "100%" }}>
                 <Radio.Group
+                    disabled={applyDisabled}
                     value={currentSelectedTitle}
                     onChange={(e) => onSelectTitle(messageIndex, e.target.value)}
                     style={{ width: "100%" }}
@@ -43,7 +45,7 @@ const TitleToolContent: FunctionComponent<SpecificToolContentProps<TitleToolPayl
                 <Button
                     size="small"
                     type="primary"
-                    disabled={!currentSelectedTitle}
+                    disabled={applyDisabled || !currentSelectedTitle}
                     onClick={() => onApplyValues({ title: currentSelectedTitle })}
                 >
                     {getRes().articleEdit.assistant.apply}
