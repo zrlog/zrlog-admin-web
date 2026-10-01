@@ -1,4 +1,4 @@
-import { FunctionComponent, useEffect, useState } from "react";
+import { FunctionComponent, useEffect, useId, useState } from "react";
 import { Button, Input, Space, Tag, Typography } from "antd";
 import { ArrowUpOutlined, CloseOutlined, InfoCircleOutlined } from "@ant-design/icons";
 import AIIcon from "@zrlog/editor/dist/ai/AIIcon";
@@ -50,6 +50,7 @@ const ArticleAiAssistantSkillContent: FunctionComponent<ArticleAiAssistantSkillC
     const [input, setInput] = useState("");
     const [selectedTool, setSelectedTool] = useState<AssistantTool>();
     const [skillPanelOpen, setSkillPanelOpen] = useState(false);
+    const skillPanelId = useId();
 
     const assistantRes = getRes().articleEdit.assistant;
     const selectedTextValue = selectedText?.trim() || "";
@@ -216,6 +217,8 @@ const ArticleAiAssistantSkillContent: FunctionComponent<ArticleAiAssistantSkillC
                         size="small"
                         icon={<AIIcon name={aiProvider} />}
                         disabled={disabled}
+                        aria-expanded={showSkillPanel}
+                        aria-controls={showSkillPanel ? skillPanelId : undefined}
                         onClick={() => setSkillPanelOpen((prevState) => !prevState)}
                     >
                         {getRes().articleEdit.assistant.skill}
@@ -227,11 +230,11 @@ const ArticleAiAssistantSkillContent: FunctionComponent<ArticleAiAssistantSkillC
             </Space>
             {showSkillPanel && (
                 <div
+                    id={skillPanelId}
                     style={{
-                        background: theme.colorFillQuaternary,
-                        borderRadius: theme.borderRadius,
-                        marginBottom: 8,
-                        padding: 8,
+                        marginBottom: theme.marginXS,
+                        paddingBottom: theme.paddingXS,
+                        borderBottom: `${theme.lineWidth}px ${theme.lineType} ${theme.colorBorderSecondary}`,
                     }}
                 >
                     <ArticleAiAssistantSkillPanel

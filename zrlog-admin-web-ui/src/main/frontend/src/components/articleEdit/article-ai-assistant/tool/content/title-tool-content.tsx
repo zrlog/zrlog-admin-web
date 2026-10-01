@@ -1,5 +1,6 @@
 import { Button, Radio, Space } from "antd";
 import { FunctionComponent } from "react";
+import { useTheme } from "antd-style";
 import { getRes } from "../../../../../utils/constants";
 import { AssistantToolPayload } from "../../article-ai-assistant.types";
 import ArticleAiAssistantToolRefineActions from "../article-ai-assistant-tool-refine-actions";
@@ -20,6 +21,7 @@ const TitleToolContent: FunctionComponent<SpecificToolContentProps<TitleToolPayl
     onSelectTitle,
     onRefine,
 }) => {
+    const theme = useTheme();
     const titles = toolPayload.payload.titles || [];
     const currentSelectedTitle = selectedTitle || toolPayload.payload.selectedTitle || titles[0] || "";
     if (titles.length === 0) {
@@ -29,14 +31,27 @@ const TitleToolContent: FunctionComponent<SpecificToolContentProps<TitleToolPayl
         <ArticleAiAssistantToolResultCard aiProvider={aiProvider} tool={toolPayload.tool}>
             <Space direction="vertical" style={{ width: "100%" }}>
                 <Radio.Group
+                    aria-label={getRes().articleEdit.assistant.titleSuggestion}
                     disabled={applyDisabled}
                     value={currentSelectedTitle}
                     onChange={(e) => onSelectTitle(messageIndex, e.target.value)}
                     style={{ width: "100%" }}
                 >
-                    <Space direction="vertical" style={{ width: "100%" }}>
+                    <Space direction="vertical" size={theme.marginXXS} style={{ width: "100%" }}>
                         {titles.map((title) => (
-                            <Radio key={title} value={title}>
+                            <Radio
+                                key={title}
+                                value={title}
+                                style={{
+                                    width: "100%",
+                                    marginInlineEnd: 0,
+                                    padding: theme.paddingXS,
+                                    borderRadius: theme.borderRadiusSM,
+                                    background:
+                                        title === currentSelectedTitle ? theme.colorFillSecondary : "transparent",
+                                    overflowWrap: "anywhere",
+                                }}
+                            >
                                 {title}
                             </Radio>
                         ))}

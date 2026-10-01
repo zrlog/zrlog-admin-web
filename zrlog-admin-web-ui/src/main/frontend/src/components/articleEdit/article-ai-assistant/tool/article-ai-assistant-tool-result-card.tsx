@@ -18,20 +18,12 @@ const ArticleAiAssistantToolResultCard: FunctionComponent<ArticleAiAssistantTool
 }) => {
     const theme = useTheme();
     return (
-        <div>
-            <Space size={8} style={{ paddingBottom: 8 }}>
+        <div style={{ minWidth: 0, overflowWrap: "anywhere" }}>
+            <Space size={theme.marginXS} style={{ display: "flex", marginBottom: theme.marginSM }}>
                 <Avatar icon={<AIIcon name={aiProvider} />} size={32} />
                 <Typography.Text type="secondary">{getAssistantToolLabel(tool)}</Typography.Text>
             </Space>
-            <div
-                style={{
-                    background: theme.colorFillQuaternary,
-                    borderRadius: theme.borderRadius,
-                    padding: 12,
-                }}
-            >
-                {children}
-            </div>
+            {children}
         </div>
     );
 };

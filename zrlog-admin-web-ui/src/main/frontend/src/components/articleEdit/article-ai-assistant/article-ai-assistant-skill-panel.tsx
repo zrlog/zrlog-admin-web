@@ -1,5 +1,5 @@
 import { FunctionComponent } from "react";
-import { Empty, List, Space, Typography } from "antd";
+import { Button, Empty, List, Space, Typography } from "antd";
 import { AssistantTool, AssistantToolButton, AssistantToolGroup } from "./article-ai-assistant.types";
 
 type SkillPanelProps = {
@@ -55,54 +55,52 @@ const ArticleAiAssistantSkillPanel: FunctionComponent<SkillPanelProps> = ({
                             renderItem={(tool) => {
                                 const active = selectedTool === tool.key;
                                 return (
-                                    <List.Item
-                                        key={tool.key}
-                                        title={tool.disabledReason || `/${tool.command}`}
-                                        style={{
-                                            cursor: tool.disabled ? "not-allowed" : "pointer",
-                                            minHeight: 36,
-                                            padding: "4px 6px",
-                                            borderRadius: theme.borderRadius,
-                                            display: "flex",
-                                            alignItems: "center",
-                                            gap: 8,
-                                            opacity: tool.disabled ? 0.58 : 1,
-                                            background: active ? theme.colorFillSecondary : "transparent",
-                                        }}
-                                        onClick={() => {
-                                            if (!tool.disabled) {
-                                                onSelect(tool);
-                                            }
-                                        }}
-                                    >
-                                        <span
+                                    <List.Item key={tool.key} style={{ padding: 0 }}>
+                                        <Button
+                                            type="text"
+                                            block
+                                            title={tool.disabledReason || `/${tool.command}`}
+                                            disabled={tool.disabled}
+                                            aria-pressed={active}
                                             style={{
-                                                display: "inline-flex",
-                                                color: theme.colorTextSecondary,
+                                                height: "auto",
+                                                minHeight: theme.controlHeight,
+                                                padding: `${theme.paddingXXS}px ${theme.paddingXS}px`,
+                                                justifyContent: "flex-start",
+                                                textAlign: "start",
+                                                background: active ? theme.colorFillSecondary : undefined,
                                             }}
+                                            onClick={() => onSelect(tool)}
                                         >
-                                            {tool.icon}
-                                        </span>
-                                        <Space
-                                            size={4}
-                                            style={{
-                                                flex: 1,
-                                                minWidth: 0,
-                                            }}
-                                        >
-                                            <Typography.Text ellipsis style={{ fontSize: 13 }}>
-                                                {tool.label}
-                                            </Typography.Text>
-                                            <Typography.Text
-                                                type="secondary"
+                                            <span
                                                 style={{
-                                                    fontSize: 12,
-                                                    whiteSpace: "nowrap",
+                                                    display: "inline-flex",
+                                                    color: theme.colorTextSecondary,
                                                 }}
                                             >
-                                                /{tool.command}
-                                            </Typography.Text>
-                                        </Space>
+                                                {tool.icon}
+                                            </span>
+                                            <Space
+                                                size={4}
+                                                style={{
+                                                    flex: 1,
+                                                    minWidth: 0,
+                                                }}
+                                            >
+                                                <Typography.Text ellipsis style={{ fontSize: 13 }}>
+                                                    {tool.label}
+                                                </Typography.Text>
+                                                <Typography.Text
+                                                    type="secondary"
+                                                    style={{
+                                                        fontSize: 12,
+                                                        whiteSpace: "nowrap",
+                                                    }}
+                                                >
+                                                    /{tool.command}
+                                                </Typography.Text>
+                                            </Space>
+                                        </Button>
                                     </List.Item>
                                 );
                             }}
