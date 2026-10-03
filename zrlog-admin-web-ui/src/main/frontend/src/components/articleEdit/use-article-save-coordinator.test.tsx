@@ -2,7 +2,7 @@ import { act, SetStateAction, useSyncExternalStore } from "react";
 import { createRoot, Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { AIContent } from "@zrlog/editor/dist/ai/AIContentItem";
-import { articleDataToState, articleSaveToCache } from "../../utils/article-cache";
+import { articleDataToState, articleSaveToCache, removeArticleCache } from "../../utils/article-cache";
 import { getCacheByKey, removeCacheDataByKey } from "../../utils/cache";
 import { disableExitTips } from "../../utils/helpers";
 import { AIProviderType } from "../../type";
@@ -13,6 +13,7 @@ import { createDraftAiSaveGate, DraftAiSaveGate } from "./draft-ai-save-gate";
 import { ArticleDraftSyncTask } from "./draft-sync/use-article-draft-sync";
 
 let mockOffline = false;
+let mockUseRealDraftSync = false;
 const mockPostPublish = jest.fn(async (uri?: string, article?: unknown): Promise<any> => {
     void uri;
     void article;
@@ -74,7 +75,10 @@ jest.mock("../../utils/article-cache", () => ({
     removeLocalArticleCache: require("@jest/globals").jest.fn(),
 }));
 jest.mock("../../utils/helpers", () => ({
-    deepEqualWithSpecialJSON: () => true,
+    deepEqualWithSpecialJSON: (left: unknown, right: unknown) =>
+        mockUseRealDraftSync
+            ? require("@jest/globals").jest.requireActual("../../utils/helpers").deepEqualWithSpecialJSON(left, right)
+            : true,
     disableExitTips: require("@jest/globals").jest.fn(),
     enableExitTips: require("@jest/globals").jest.fn(),
     updateDocumentTitle: require("@jest/globals").jest.fn(),
@@ -115,6 +119,11 @@ jest.mock("./draft-sync/use-article-draft-sync", () => {
     return {
         __esModule: true,
         default: (options: { onRequestSync: (task: ArticleDraftSyncTask) => void }) => {
+            if (mockUseRealDraftSync) {
+                return require("@jest/globals")
+                    .jest.requireActual("./draft-sync/use-article-draft-sync")
+                    .default(options);
+            }
             mockDraftSyncOptions = options;
             mockDraftSyncApi ||= createApi();
             return mockDraftSyncApi;
@@ -252,12 +261,14 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
     beforeEach(() => {
         jest.mocked(hasAction).mockReturnValue(true);
         mockOffline = false;
+        mockUseRealDraftSync = false;
         mockPostPublish.mockReset();
         mockArticlePost.mockReset();
         mockArticleGet.mockReset();
         mockDraftSyncApi = undefined;
         mockPageCache.clear();
         jest.mocked(articleSaveToCache).mockReset();
+        jest.mocked(removeArticleCache).mockReset();
         jest.mocked(disableExitTips).mockReset();
         jest.mocked(articleDataToState).mockImplementation((articleEditInfo) => createState(articleEditInfo));
         jest.mocked(getCacheByKey).mockImplementation((cacheKey) => mockPageCache.get(cacheKey));
@@ -316,6 +327,42 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
             coordinator.onArticleUpdated({ articleId: 8, version: 5 });
         });
         expect(mockArticleGet).toHaveBeenCalledTimes(1);
+    });
+
+    it("clears the unsynced label when AI saved the local content and uses its version for the next edit", async () => {
+        mockUseRealDraftSync = true;
+        remountWith(data, "?id=7");
+        const request = deferred<any>();
+        mockArticleGet.mockReturnValue(request.promise);
+        act(() => coordinator.handleValuesChange({ title: "AI title" }));
+        expect(coordinator.state.contentSource).toBe("localEdit");
+        const local = coordinator.state.article;
+        const updated = { ...local, version: 4, lastUpdateDate: 456 };
+        act(() => coordinator.onArticleUpdated({ articleId: 7, version: 4 }));
+        await act(async () => {
+            request.resolve({ data: { error: 0, data: { ...data, article: updated } } });
+        });
+        expect(coordinator.state.article).toEqual(updated);
+        expect(coordinator.state.editorVersion).toBe(4);
+        expect(coordinator.state.contentSource).toBe("server");
+        expect(coordinator.state.contentSourceUpdatedAt).toBeUndefined();
+        expect(coordinator.state.contentConflict).toBeUndefined();
+        expect(removeArticleCache).toHaveBeenCalledWith(local);
+        expect(mockArticlePost).not.toHaveBeenCalled();
+        act(() => coordinator.handleValuesChange({ digest: "New local edit" }));
+        expect(coordinator.state.article).toEqual({ ...updated, digest: "New local edit" });
+        expect(coordinator.state.contentSource).toBe("localEdit");
+        mockArticlePost.mockResolvedValue({
+            data: { error: 0, data: { ...data, article: { ...coordinator.state.article, version: 5 } } },
+        });
+        await act(async () => {
+            await coordinator.onSubmit(coordinator.state.article, false, false, false);
+        });
+        expect(mockArticlePost).toHaveBeenCalledWith(
+            "/api/admin/article/update",
+            expect.objectContaining({ logId: 7, version: 4, digest: "New local edit" }),
+            undefined
+        );
     });
 
     it("loads an AI-created draft, migrates the editor session, and updates it on the next save", async () => {

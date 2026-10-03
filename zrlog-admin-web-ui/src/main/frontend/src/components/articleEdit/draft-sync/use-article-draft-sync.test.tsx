@@ -135,6 +135,53 @@ describe("useArticleDraftSync", () => {
         expect(next.article).toEqual({ ...serverArticle, digest: "Next edit" });
     });
 
+    it.each([false, true])(
+        "acknowledges matching AI-saved content and clears its local draft (created: %s)",
+        (created) => {
+            const article = {
+                ...baseArticle,
+                logId: created ? undefined : 7,
+                version: created ? -1 : 3,
+                markdown: "Body",
+                content: "<p>Body</p>",
+            };
+            const props = createProps({ article });
+            render(props);
+            let local!: ArticleDraftChange;
+            act(() => {
+                local = current.applyPatch({
+                    title: "AI title",
+                    markdown: "Updated body",
+                    content: "<p>Updated body</p>",
+                })!;
+            });
+            const serverArticle = {
+                ...local.article,
+                logId: 7,
+                version: created ? 0 : 4,
+                content: "<p>Updated body</p>\n",
+                lastUpdateDate: 456,
+                previewUrl: "/preview/7",
+                digest: "",
+                recommended: false,
+            };
+            act(() => {
+                expect(current.receiveServerArticle(serverArticle)).toBeUndefined();
+            });
+            expect(current.state).toMatchObject({ document: "clean", sync: "idle" });
+            expect(props.onRemove).toHaveBeenCalledWith(local.article);
+            expect(props.onSynced).toHaveBeenCalledTimes(1);
+            expect(current.markSyncing(local)).toBe(false);
+            render({ ...props, article: serverArticle });
+            let next!: ArticleDraftChange;
+            act(() => {
+                next = current.applyPatch({ digest: "Next edit" })!;
+            });
+            expect(next.article).toEqual({ ...serverArticle, digest: "Next edit" });
+            expect(current.state.sync).toBe("queued");
+        }
+    );
+
     beforeEach(() => {
         reactActEnvironment.IS_REACT_ACT_ENVIRONMENT = true;
         container = document.createElement("div");

@@ -8,6 +8,7 @@ import {
     restoreArticleDraftSyncState,
 } from "./article-draft-sync-state-machine";
 import { mergeArticleSynchronizationMetadata } from "./article-draft-sync-helpers";
+import { buildArticleMerge } from "../version-sync/article-merge";
 
 export type ArticleDraftSyncTask = {
     article: ArticleEntry;
@@ -378,8 +379,17 @@ const useArticleDraftSync = ({
     const receiveServerArticle = useCallback(
         (serverArticle: ArticleEntry): ArticleDraftChange | undefined => {
             const currentState = syncStateRef.current;
-            if (currentState.document === "clean") {
+            // A tool may have saved the same edits already held locally. Compare editable
+            // content, excluding server metadata and the HTML derived from Markdown.
+            if (
+                currentState.document === "clean" ||
+                buildArticleMerge(undefined, articleRef.current, serverArticle).conflicts.length === 0
+            ) {
+                transition({ type: "commit" });
+                onRemoveRef.current(articleRef.current);
                 articleRef.current = serverArticle;
+                onRemoveRef.current(serverArticle);
+                onSyncedRef.current();
                 return undefined;
             }
             const local = {
