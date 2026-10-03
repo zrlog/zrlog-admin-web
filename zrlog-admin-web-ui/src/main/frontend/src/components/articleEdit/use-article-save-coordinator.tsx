@@ -224,6 +224,8 @@ const useArticleSaveCoordinator = ({
     const [state, setState] = useState<ArticleEditState>(defaultState);
     const [restoreInputRevision, setRestoreInputRevision] = useState(0);
     const [articleUpdate, setArticleUpdate] = useState<ArticleUpdatedEvent>();
+    // A notification is a refresh target; versionRef advances only after accepting server data.
+    const latestArticleUpdateRef = useRef<ArticleUpdatedEvent>();
     const createdArticleRef = useRef<number>();
     const articleRefreshContextRef = useRef({ axiosInstance, data, updateCache, messageApi });
     articleRefreshContextRef.current = { axiosInstance, data, updateCache, messageApi };
@@ -337,6 +339,7 @@ const useArticleSaveCoordinator = ({
     }, [articlePageCacheKey, data.aiMessages]);
 
     useEffect(() => {
+        if (data.article.logId === logIdRef.current && data.article.version < versionRef.current) return;
         const newState = articleDataToState(data, preferredTypeId);
         const aiMessages = readArticleAiMessages(articlePageCacheKey, newState.aiMessages);
         const serverArticle = data.article.logId && data.article.logId > 0;
@@ -815,6 +818,11 @@ const useArticleSaveCoordinator = ({
             const serverArticle = response.data.article;
             if (serverArticle.logId !== logId) throw new Error("Unexpected article identity");
             if (logIdRef.current !== logId || conflictRef.current !== conflict) return;
+            if (
+                !Number.isSafeInteger(serverArticle.version) ||
+                serverArticle.version < Math.max(versionRef.current, submittedArticle.version)
+            )
+                throw new Error("Stale article version");
             versionRef.current = serverArticle.version;
             loadedArticleRef.current = serverArticle;
             conflictRef.current = { ...conflict, serverVersion: serverArticle.version, loading: false };
@@ -954,6 +962,13 @@ const useArticleSaveCoordinator = ({
     markDraftCommittedRef.current = draftSync.markCommitted;
 
     const onArticleUpdated = useCallback((event: ArticleUpdatedEvent) => {
+        if (
+            !Number.isSafeInteger(event.articleId) ||
+            event.articleId <= 0 ||
+            !Number.isSafeInteger(event.version) ||
+            event.version < 0
+        )
+            return;
         if (event.created && logIdRef.current <= 0 && event.articleId > 0) {
             // Reserve the saved identity before any deferred draft autosave can create a duplicate.
             createdArticleRef.current = event.articleId;
@@ -962,8 +977,11 @@ const useArticleSaveCoordinator = ({
             setState((previous) => ({ ...previous, article: { ...previous.article, logId: event.articleId } }));
         }
         if (event.articleId !== logIdRef.current || event.version <= versionRef.current) return;
+        const latest = latestArticleUpdateRef.current;
+        if (latest?.articleId === event.articleId && latest.version > event.version) return;
+        latestArticleUpdateRef.current = event;
         setArticleUpdate((previous) =>
-            previous?.articleId === event.articleId && previous.version > event.version ? previous : event
+            previous?.articleId === event.articleId && previous.version >= event.version ? previous : event
         );
     }, []);
 
@@ -971,23 +989,32 @@ const useArticleSaveCoordinator = ({
     const saving = Object.values(state.saving).some(Boolean);
     useEffect(() => {
         if (!articleUpdate || saving || articleUpdate.articleId !== state.article.logId) return;
+        if (articleUpdate.version <= versionRef.current) {
+            setArticleUpdate((current) => (current === articleUpdate ? undefined : current));
+            return;
+        }
         let cancelled = false;
         const refresh = async () => {
             try {
                 const { data: response } = await articleRefreshContextRef.current.axiosInstance.get<
                     ApiResponse<ArticleEditInfo>
                 >("/api/admin/article-edit", { params: { id: articleUpdate.articleId } });
+                // A write can start after this read, before React runs its effect cleanup.
+                if (articleWriteRef.current) await articleWriteRef.current;
                 if (cancelled || articleUpdate.articleId !== logIdRef.current) return;
                 if (response.error) {
                     void articleRefreshContextRef.current.messageApi.error(response.message || getRes().error.unknown);
                     return;
                 }
                 const serverArticle = response.data?.article;
+                const latest = latestArticleUpdateRef.current;
                 if (
                     !serverArticle ||
                     serverArticle.logId !== articleUpdate.articleId ||
+                    !Number.isSafeInteger(serverArticle.version) ||
                     serverArticle.version < articleUpdate.version ||
-                    serverArticle.version < versionRef.current
+                    serverArticle.version <= versionRef.current ||
+                    (latest?.articleId === serverArticle.logId && serverArticle.version < latest.version)
                 )
                     return;
                 const local = receiveServerArticle(serverArticle);

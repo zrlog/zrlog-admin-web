@@ -352,6 +352,10 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
         act(() => coordinator.handleValuesChange({ digest: "New local edit" }));
         expect(coordinator.state.article).toEqual({ ...updated, digest: "New local edit" });
         expect(coordinator.state.contentSource).toBe("localEdit");
+        act(() => coordinator.onArticleUpdated({ articleId: 7, version: 4 }));
+        expect(mockArticleGet).toHaveBeenCalledTimes(1);
+        expect(coordinator.state.contentSource).toBe("localEdit");
+        expect(coordinator.state.article.digest).toBe("New local edit");
         mockArticlePost.mockResolvedValue({
             data: { error: 0, data: { ...data, article: { ...coordinator.state.article, version: 5 } } },
         });
@@ -363,6 +367,123 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
             expect.objectContaining({ logId: 7, version: 4, digest: "New local edit" }),
             undefined
         );
+    });
+
+    it("coalesces duplicate and older notifications while a newer refresh is pending", async () => {
+        const request = deferred<any>();
+        mockArticleGet.mockReturnValue(request.promise);
+        act(() => coordinator.onArticleUpdated({ articleId: 7, version: 5 }));
+        act(() => coordinator.onArticleUpdated({ articleId: 7, version: 5 }));
+        act(() => coordinator.onArticleUpdated({ articleId: 7, version: 4 }));
+        expect(mockArticleGet).toHaveBeenCalledTimes(1);
+        const updated = { ...initialArticle, title: "Latest saved title", version: 5 };
+        await act(async () => {
+            request.resolve({ data: { error: 0, data: { ...data, article: updated } } });
+        });
+        expect(coordinator.state.article).toEqual(updated);
+        expect(coordinator.restoreInputRevision).toBe(1);
+        expect(mockDraftSyncApi!.receiveServerArticle).toHaveBeenCalledTimes(1);
+        act(() => coordinator.onArticleUpdated({ articleId: 7, version: 5 }));
+        expect(mockArticleGet).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([-1, 1.5, NaN, undefined])(
+        "ignores invalid notification version %s before reserving a created article",
+        (version) => {
+            remountWith({ ...data, article: { title: "", version: -1, rubbish: true } });
+            act(() => coordinator.onArticleUpdated({ articleId: 18, version: version as number, created: true }));
+            expect(mockArticleGet).not.toHaveBeenCalled();
+            expect(coordinator.state.article.logId).toBeUndefined();
+        }
+    );
+
+    it.each([2, 3, 4, NaN, undefined, 5.5])(
+        "does not acknowledge response version %s for a version 5 notification",
+        async (version) => {
+            mockArticleGet.mockResolvedValueOnce({
+                data: { error: 0, data: { ...data, article: { ...initialArticle, title: "Stale response", version } } },
+            });
+            await act(async () => coordinator.onArticleUpdated({ articleId: 7, version: 5 }));
+            expect(coordinator.state.article).toEqual(initialArticle);
+            expect(mockDraftSyncApi!.receiveServerArticle).not.toHaveBeenCalled();
+            expect(coordinator.restoreInputRevision).toBe(0);
+            const updated = { ...initialArticle, title: "Fresh response", version: 5 };
+            mockArticleGet.mockResolvedValueOnce({ data: { error: 0, data: { ...data, article: updated } } });
+            await act(async () => coordinator.onArticleUpdated({ articleId: 7, version: 5 }));
+            expect(coordinator.state.article).toEqual(updated);
+            expect(mockDraftSyncApi!.receiveServerArticle).toHaveBeenCalledTimes(1);
+        }
+    );
+
+    it("retains the newest notified version after a read failure and retries without repeating the write", async () => {
+        mockArticleGet.mockResolvedValueOnce({ data: { error: 1, message: "Read failed" } });
+        await act(async () => coordinator.onArticleUpdated({ articleId: 7, version: 5 }));
+        act(() => coordinator.onArticleUpdated({ articleId: 7, version: 4 }));
+        expect(mockArticleGet).toHaveBeenCalledTimes(1);
+        const updated = { ...initialArticle, version: 6 };
+        mockArticleGet.mockResolvedValueOnce({ data: { error: 0, data: { ...data, article: updated } } });
+        await act(async () => coordinator.onArticleUpdated({ articleId: 7, version: 5 }));
+        expect(coordinator.state.article.version).toBe(6);
+        expect(mockDraftSyncApi!.receiveServerArticle).toHaveBeenCalledTimes(1);
+        act(() => coordinator.onArticleUpdated({ articleId: 7, version: 6 }));
+        expect(mockArticleGet).toHaveBeenCalledTimes(2);
+        expect(mockArticlePost).not.toHaveBeenCalled();
+    });
+
+    it("does not refresh an AI notification already superseded by an in-flight save", async () => {
+        const saving = deferred<any>();
+        mockArticlePost.mockReturnValueOnce(saving.promise);
+        let pending!: Promise<boolean>;
+        act(() => {
+            pending = coordinator.onSubmit(initialArticle, false, false, false);
+        });
+        act(() => coordinator.onArticleUpdated({ articleId: 7, version: 4 }));
+        const updated = { ...initialArticle, title: "Saved locally", version: 5 };
+        await act(async () => {
+            saving.resolve({ data: { error: 0, data: { ...data, article: updated } } });
+            await pending;
+        });
+        expect(mockArticleGet).not.toHaveBeenCalled();
+        expect(coordinator.state.article).toMatchObject(updated);
+        expect(mockDraftSyncApi!.receiveServerArticle).not.toHaveBeenCalled();
+    });
+
+    it.each([4, 5])("ignores a pending AI read after a manual save acknowledges version %s", async (version) => {
+        const reading = deferred<any>();
+        const saving = deferred<any>();
+        mockArticleGet.mockReturnValue(reading.promise);
+        mockArticlePost.mockReturnValue(saving.promise);
+        act(() => coordinator.onArticleUpdated({ articleId: 7, version: 4 }));
+        let pending!: Promise<boolean>;
+        act(() => {
+            pending = coordinator.onSubmit(initialArticle, false, false, false);
+        });
+        const updated = { ...initialArticle, title: "Manual save", version };
+        await act(async () => {
+            saving.resolve({ data: { error: 0, data: { ...data, article: updated } } });
+            await pending;
+            reading.resolve({ data: { error: 0, data: { ...data, article: { ...initialArticle, version: 4 } } } });
+        });
+        expect(coordinator.state.article).toMatchObject(updated);
+        expect(mockArticleGet).toHaveBeenCalledTimes(1);
+        expect(mockDraftSyncApi!.receiveServerArticle).not.toHaveBeenCalled();
+        expect(coordinator.restoreInputRevision).toBe(0);
+    });
+
+    it("does not restore an older page snapshot after applying an AI update", async () => {
+        mockUseRealDraftSync = true;
+        remountWith(data, "?id=7");
+        const updated = { ...initialArticle, title: "AI saved title", version: 5 };
+        mockArticleGet.mockResolvedValue({ data: { error: 0, data: { ...data, article: updated } } });
+        await act(async () => coordinator.onArticleUpdated({ articleId: 7, version: 5 }));
+        act(() => {
+            harnessData = { ...data, article: { ...initialArticle } };
+            root.render(<Harness />);
+        });
+        expect(coordinator.state.article).toEqual(updated);
+        expect(coordinator.state.editorVersion).toBe(5);
+        act(() => coordinator.onArticleUpdated({ articleId: 7, version: 4 }));
+        expect(mockArticleGet).toHaveBeenCalledTimes(1);
     });
 
     it("loads an AI-created draft, migrates the editor session, and updates it on the next save", async () => {
@@ -1410,6 +1531,26 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
             baseArticle: remote,
         });
     });
+
+    it.each([2, NaN])(
+        "rejects conflict snapshot version %s without rolling back the local version",
+        async (version) => {
+            mockArticlePost.mockResolvedValue({ data: { error: 9094 } });
+            mockArticleGet.mockResolvedValue({
+                data: { error: 0, data: { ...data, article: { ...initialArticle, version } } },
+            });
+            const local = { ...initialArticle, title: "Keep local edits" };
+            await act(async () => {
+                await coordinator.onSubmit(local, false, false, false);
+            });
+            expect(coordinator.state.article.version).toBe(3);
+            expect(coordinator.state.contentConflict).toMatchObject({
+                loadError: true,
+                localArticle: { title: local.title },
+                localVersion: 3,
+            });
+        }
+    );
 
     it("keeps local input when reading the conflict fails and retries without writing", async () => {
         mockArticlePost.mockResolvedValue({ data: { error: 9094 } });

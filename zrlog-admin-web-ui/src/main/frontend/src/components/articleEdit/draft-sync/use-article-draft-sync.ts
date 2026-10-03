@@ -378,6 +378,8 @@ const useArticleDraftSync = ({
 
     const receiveServerArticle = useCallback(
         (serverArticle: ArticleEntry): ArticleDraftChange | undefined => {
+            // The save coordinator validates identity and monotonic server versions before calling this.
+            // This hook's revision tracks local edits, not the server's article version.
             const currentState = syncStateRef.current;
             // A tool may have saved the same edits already held locally. Compare editable
             // content, excluding server metadata and the HTML derived from Markdown.
