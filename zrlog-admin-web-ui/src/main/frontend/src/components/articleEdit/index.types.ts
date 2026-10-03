@@ -132,6 +132,9 @@ export type ArticleEditState = {
         localVersion: number;
         localUpdatedAt?: number;
         serverVersion: number;
+        baseArticle?: ArticleEntry;
+        loading?: boolean;
+        loadError?: boolean;
     };
     article: ArticleEntry;
     saving: ArticleSavingState;

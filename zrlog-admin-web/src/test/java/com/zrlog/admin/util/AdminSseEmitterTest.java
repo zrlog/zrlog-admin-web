@@ -45,6 +45,19 @@ public class AdminSseEmitterTest {
         assertTrue(body.contains("\"message\":\"boom\""));
     }
 
+    @Test
+    public void shouldPreserveBusinessErrorCodeBeforeArticleIsSaved() throws Exception {
+        CapturedResponse response = new CapturedResponse();
+        AdminSseEmitter.write(response.response(), "publish-conflict", "publish-error", emitter -> {
+            throw new com.zrlog.admin.business.exception.UpdateArticleExpireException();
+        });
+        String body = response.body();
+        assertTrue(body.contains("event: publish-error"));
+        assertTrue(body.contains("\"error\":9094"));
+        org.junit.Assert.assertFalse(body.contains("event: article"));
+        org.junit.Assert.assertFalse(body.contains("event: publish-complete"));
+    }
+
     @Test public void sseWorkerCannotLoseDelegatedPublicationRestrictions() throws Exception {
         try (var db = com.zrlog.admin.support.InMemoryZrLogDatabase.open()) {
             CapturedResponse response = new CapturedResponse();

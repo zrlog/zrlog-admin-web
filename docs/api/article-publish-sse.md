@@ -15,7 +15,9 @@ SSE 响应为 `text/event-stream;charset=UTF-8`，每个事件由 `event:` 和 J
 | `publish-check-start`、`publish-check-complete` | 可选的发布检查进度，完成数据可包含检查结果及 AI 消息 |
 | `publish-check-error` | `{ "message": "..." }`，发布检查失败提示，允许继续到发布完成 |
 | `publish-complete` | `{ "message": "..." }`，发布流程的成功终止事件 |
-| `publish-error`、`static-error`、`sse-error` | `{ "message": "..." }`，发布流程失败；不得继续报告成功 |
+| `publish-error`、`static-error`、`sse-error` | `{ "message": "...", "error"?: number }`，发布流程失败；业务错误保留与 JSON 相同的数字错误码，不得继续报告成功 |
+
+`article` 之前收到 `publish-error` 且 `error=9094` 表示版本校验拒绝了写入。客户端应保留本地修改，读取最新文章，与编辑基线作三方比较；不冲突的改动可以合并后按最新 version 提交，重叠改动须由用户解决。不能只替换 version 后重发旧正文。旧服务端若未返回 error 字段，应按普通发布失败处理，不通过本地化 message 猜测错误码。
 
 成功路径先收到 `article`，再收到 `publish-complete`。`article`、`static-sync-complete` 和流关闭都不能单独作为发布完成依据。客户端收到完整的 `publish-complete` 事件后可以关闭连接，无需等待服务器关闭 HTTP 响应；需要内容校验时再回读文章。
 

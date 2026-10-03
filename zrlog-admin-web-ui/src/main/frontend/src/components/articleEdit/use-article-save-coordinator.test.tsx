@@ -6,7 +6,7 @@ import { articleDataToState, articleSaveToCache } from "../../utils/article-cach
 import { getCacheByKey, removeCacheDataByKey } from "../../utils/cache";
 import { disableExitTips } from "../../utils/helpers";
 import { AIProviderType } from "../../type";
-import { ArticleEditInfo, ArticleEditState } from "./index.types";
+import { ArticleEditInfo, ArticleEditState, ArticleEntry } from "./index.types";
 import { ToolAwareAIContent } from "./article-ai-assistant/article-ai-assistant.types";
 import useArticleSaveCoordinator from "./use-article-save-coordinator";
 import { createDraftAiSaveGate, DraftAiSaveGate } from "./draft-ai-save-gate";
@@ -32,6 +32,8 @@ let mockDraftSyncApi: Record<string, ReturnType<typeof jest.fn>> | undefined;
 
 import { hasAction } from "../../utils/account-access";
 jest.mock("../../utils/account-access", () => ({ hasAction: require("@jest/globals").jest.fn(() => true) }));
+
+jest.mock("./version-sync/use-article-version-sync", () => ({ __esModule: true, default: () => ({}) }));
 
 jest.mock("antd", () => ({
     Space: ({ children }: { children?: unknown }) => children,
@@ -65,6 +67,8 @@ jest.mock("../../utils/env-utils", () => ({ isOffline: () => mockOffline }));
 jest.mock("../../utils/article-cache", () => ({
     articleDataToState: require("@jest/globals").jest.fn(),
     articleSaveToCache: require("@jest/globals").jest.fn(),
+    restoreLocalArticleCache: require("@jest/globals").jest.fn(),
+    getArticleDraftBase: require("@jest/globals").jest.fn(),
     getArticleDraftSyncState: require("@jest/globals").jest.fn(),
     removeArticleCache: require("@jest/globals").jest.fn(),
     removeLocalArticleCache: require("@jest/globals").jest.fn(),
@@ -99,6 +103,11 @@ jest.mock("./draft-sync/use-article-draft-sync", () => {
         markDeferred: require("@jest/globals").jest.fn(),
         markFailed: require("@jest/globals").jest.fn(),
         markSynced: require("@jest/globals").jest.fn(),
+        pauseForConflict: require("@jest/globals").jest.fn((article: ArticleEntry) => ({
+            article,
+            revision: 1,
+            updatedAt: 100,
+        })),
         markSyncing: require("@jest/globals").jest.fn(() => true),
         resolveConflict: require("@jest/globals").jest.fn(),
         receiveServerArticle: require("@jest/globals").jest.fn(),
@@ -1291,5 +1300,105 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
         ]);
         expect(migratedMessages.map(({ messageId }) => messageId)).toEqual(["server-question-1", "server-question-2"]);
         expect(mockPageCache.has(sourceCacheKey)).toBe(false);
+    });
+    it.each(["manual", "automatic", "publish"])(
+        "pauses %s save conflicts and prevents queued stale writes",
+        async (mode) => {
+            const latest = { ...initialArticle, title: "Newest local input" };
+            mockDraftSyncApi!.pauseForConflict.mockReturnValue({ article: latest, revision: 2, updatedAt: 200 });
+            mockArticlePost.mockResolvedValue({ data: { error: 9094 } });
+            mockPostPublish.mockResolvedValue({ error: 9094 });
+            const read = deferred<any>();
+            mockArticleGet.mockReturnValue(read.promise);
+            let save!: Promise<boolean>;
+            let queued!: Promise<boolean>;
+            await act(async () => {
+                save = coordinator.onSubmit(initialArticle, mode === "publish", false, mode === "automatic");
+                queued = coordinator.onSubmit(initialArticle, false, false, false);
+            });
+            expect(coordinator.state.contentConflict).toMatchObject({
+                loading: true,
+                localArticle: { title: latest.title },
+                baseArticle: initialArticle,
+            });
+            const server = { ...initialArticle, version: 4, markdown: "Remote text" };
+            await act(async () => {
+                read.resolve({ data: { error: 0, data: { ...data, article: server } } });
+                expect(await save).toBe(false);
+                expect(await queued).toBe(false);
+            });
+            expect(mockArticlePost.mock.calls.length + mockPostPublish.mock.calls.length).toBe(1);
+            expect(coordinator.state.contentConflict).toMatchObject({
+                loading: false,
+                localVersion: 3,
+                serverVersion: 4,
+                localArticle: { title: latest.title, rubbish: mode !== "publish" },
+            });
+            expect(modal.error).not.toHaveBeenCalled();
+        }
+    );
+
+    it("retains the resolved candidate if another client writes during conflict resolution", async () => {
+        mockArticlePost.mockResolvedValue({ data: { error: 9094 } });
+        const remote = { ...initialArticle, title: "Other writer", version: 4 };
+        mockArticleGet.mockResolvedValue({ data: { error: 0, data: { ...data, article: remote } } });
+        await act(async () => {
+            await coordinator.onSubmit(initialArticle, false, false, false);
+        });
+        const merged = { ...remote, title: "My combined result" };
+        mockDraftSyncApi!.resolveConflict.mockReturnValue({ article: merged, revision: 2, updatedAt: 200 });
+        mockDraftSyncApi!.pauseForConflict.mockImplementation((article) => ({ article, revision: 2, updatedAt: 200 }));
+        mockArticleGet.mockResolvedValue({
+            data: { error: 0, data: { ...data, article: { ...remote, version: 5, title: "Third writer" } } },
+        });
+        await act(async () => {
+            expect(await coordinator.saveMergedConflict(merged)).toBe(false);
+        });
+        expect(mockDraftSyncApi!.resolveConflict).toHaveBeenCalledWith(merged, false);
+        expect(mockArticlePost.mock.calls[1][1]).toMatchObject({ version: 4, title: merged.title });
+        expect(coordinator.state.contentConflict).toMatchObject({
+            localArticle: { title: merged.title },
+            localVersion: 4,
+            serverVersion: 5,
+            baseArticle: remote,
+        });
+    });
+
+    it("keeps local input when reading the conflict fails and retries without writing", async () => {
+        mockArticlePost.mockResolvedValue({ data: { error: 9094 } });
+        mockArticleGet.mockRejectedValueOnce(new Error("offline"));
+        const local = { ...initialArticle, markdown: "Keep offline changes" };
+        await act(async () => {
+            await coordinator.onSubmit(local, false, false, false);
+        });
+        expect(coordinator.state.contentConflict).toMatchObject({
+            loadError: true,
+            localArticle: { markdown: local.markdown },
+        });
+        const remote = { ...initialArticle, version: 4 };
+        mockArticleGet.mockResolvedValue({ data: { error: 0, data: { ...data, article: remote } } });
+        await act(async () => coordinator.retryConflictRead());
+        expect(mockArticlePost).toHaveBeenCalledTimes(1);
+        expect(coordinator.state.contentConflict).toMatchObject({
+            loading: false,
+            localArticle: { markdown: local.markdown },
+            serverVersion: 4,
+        });
+    });
+    it("keeps the publication status during automatic synchronization", async () => {
+        jest.useFakeTimers();
+        try {
+            const published = { ...initialArticle, rubbish: false };
+            remountWith({ ...data, article: published }, "?id=7");
+            mockArticlePost.mockResolvedValue({
+                data: { error: 0, data: { ...data, article: { ...published, version: 4 } } },
+            });
+            act(() => mockDraftSyncOptions.onRequestSync({ article: published, revision: 1 }));
+            await act(async () => jest.advanceTimersByTime(5000));
+            expect(mockArticlePost.mock.calls[0][1]).toMatchObject({ rubbish: false, transparentPublish: false });
+            expect(coordinator.state.rubbish).toBe(false);
+        } finally {
+            jest.useRealTimers();
+        }
     });
 });

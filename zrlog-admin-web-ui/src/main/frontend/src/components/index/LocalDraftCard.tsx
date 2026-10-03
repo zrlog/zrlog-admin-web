@@ -31,8 +31,8 @@ const LocalDraftCard: FunctionComponent<LocalDraftCardProps> = ({ localDrafts, o
 
     const getEditPath = (entry: LocalArticleCacheEntry) => {
         return entry.article.logId && entry.article.logId > 0
-            ? `/article-edit?id=${entry.article.logId}`
-            : "/article-edit";
+            ? `/article-edit?id=${entry.article.logId}&localDraft=${encodeURIComponent(entry.key)}`
+            : `/article-edit?localDraft=${encodeURIComponent(entry.key)}`;
     };
 
     const getClearTitle = (entry: LocalArticleCacheEntry) => {

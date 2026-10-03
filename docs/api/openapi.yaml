@@ -568,6 +568,7 @@ components:
       description: |-
         UTF-8 SSE。article 事件的数据为 ArticleSaveResponse，表示文章已保存；
         publish-complete 是成功终止事件，static-error/publish-error/sse-error 表示失败。
+        业务错误事件保留数字 error 字段；article 之前的 error=9094 表示版本冲突，写入被拒绝。
         static-progress 等事件报告进度，publish-check-error 为非致命检查提示。
         缺少完成事件的断流或超时不能视为成功，不得自动重试写入。
         完整协议见 docs/api/article-publish-sse.md。

@@ -6,6 +6,27 @@ import type {
     ArticleSyncActivity,
 } from "../components/articleEdit/draft-sync/article-draft-sync-state-machine";
 import { getCachedData, putCache } from "./cache";
+import {
+    listTabArticleDrafts,
+    readTabArticleDraft,
+    writeTabArticleDraft,
+    removeTabArticleDraft,
+    readStoredArticleDraft,
+    removeStoredArticleDraft,
+    selectTabArticleDraft,
+} from "./article-draft-storage";
+
+const getArticleCachedData = () => {
+    const record = getCachedData();
+    for (const { articleKey } of listTabArticleDrafts()) {
+        const own = readTabArticleDraft(articleKey);
+        if (own) {
+            record[articleKey] = own.article;
+            record[`${articleKey}-meta`] = own.meta;
+        }
+    }
+    return record;
+};
 
 const LOCAL_ARTICLE_CACHE_DRAFT_KEY = "local-article-cache-draft";
 const LOCAL_ARTICLE_CACHE_PREFIX = "local-article-cache-";
@@ -22,6 +43,7 @@ export type LocalArticleCacheEntry = {
 type LocalArticleCacheMeta = {
     updatedAt?: unknown;
     syncState?: unknown;
+    baseArticle?: unknown;
 };
 
 const buildCacheKey = (logId: number | undefined | null) => {
@@ -117,8 +139,22 @@ const getArticleDraftSyncStateByKey = (record: Record<string, any>, key: string)
 
 const removeArticleCacheByKey = (key: string) => {
     const record = getCachedData();
-    delete record[key];
-    delete record[buildCacheMetaKey(key)];
+    const own = removeTabArticleDraft(key);
+    const otherDrafts = listTabArticleDrafts().filter((item) => item.articleKey === key);
+    if (!own || JSON.stringify(record[key]) === JSON.stringify(own.article)) {
+        const other = otherDrafts.sort(
+            (a, b) =>
+                Number((b.entry.meta as LocalArticleCacheMeta)?.updatedAt || 0) -
+                Number((a.entry.meta as LocalArticleCacheMeta)?.updatedAt || 0)
+        )[0];
+        if (other) {
+            record[key] = other.entry.article;
+            record[buildCacheMetaKey(key)] = other.entry.meta;
+        } else {
+            delete record[key];
+            delete record[buildCacheMetaKey(key)];
+        }
+    }
     putCache(record);
 };
 
@@ -134,7 +170,7 @@ export const articleDataToState = (data: ArticleEditInfo, preferredTypeId?: numb
               rubbish: true,
           };
     const cacheKey = buildCacheKey(article.logId);
-    const record = getCachedData();
+    const record = getArticleCachedData();
     if (removeLegacyEmptyLocalDraft(record)) {
         putCache(record);
     }
@@ -142,6 +178,7 @@ export const articleDataToState = (data: ArticleEditInfo, preferredTypeId?: numb
     const cachedArticle = isArticleEntry(cachedArticleValue) ? cachedArticleValue : undefined;
     const cachedSyncState = getArticleDraftSyncStateByKey(record, cacheKey);
     const cachedUpdatedAt = getArticleCacheUpdatedAt(record, cacheKey);
+    const baseArticle = cachedArticle ? getArticleDraftBase(cachedArticle) : undefined;
     const serverVersion = Number.isFinite(Number(article.version)) ? Number(article.version) : -1;
     let realArticle;
     let contentSource: ArticleEditState["contentSource"] = "server";
@@ -155,11 +192,12 @@ export const articleDataToState = (data: ArticleEditInfo, preferredTypeId?: numb
             localVersion: cachedArticle.version,
             localUpdatedAt: cachedUpdatedAt,
             serverVersion,
+            baseArticle,
         };
     } else if (cachedArticle && !serverArticle) {
         realArticle = cachedArticle;
         contentSource = "localDraft";
-    } else if (cachedArticle && cachedArticle.version >= serverVersion) {
+    } else if (cachedArticle && cachedArticle.version === serverVersion) {
         realArticle = cachedArticle;
         contentSource = "localEdit";
     } else {
@@ -170,6 +208,7 @@ export const articleDataToState = (data: ArticleEditInfo, preferredTypeId?: numb
                 localVersion: cachedArticle.version,
                 localUpdatedAt: cachedUpdatedAt,
                 serverVersion,
+                baseArticle,
             };
         }
         realArticle = article;
@@ -216,14 +255,24 @@ export const articleDataToState = (data: ArticleEditInfo, preferredTypeId?: numb
 export const articleSaveToCache = (
     article: ArticleEntry,
     updatedAt: number = Date.now(),
-    syncState?: ArticleDraftSyncState
+    syncState?: ArticleDraftSyncState,
+    baseArticle?: ArticleEntry
 ) => {
     const key = buildCacheKey(article.logId);
     const record = getCachedData();
-    const currentMeta = record[buildCacheMetaKey(key)] as LocalArticleCacheMeta | undefined;
+    const previous = readTabArticleDraft(key);
+    const currentMeta = (previous?.meta || record[buildCacheMetaKey(key)]) as LocalArticleCacheMeta | undefined;
     record[key] = article;
     record[buildCacheMetaKey(key)] = {
         updatedAt,
+        baseArticle:
+            baseArticle?.logId === article.logId && baseArticle?.version === article.version
+                ? baseArticle
+                : isArticleEntry(currentMeta?.baseArticle) &&
+                  currentMeta.baseArticle.logId === article.logId &&
+                  currentMeta.baseArticle.version === article.version
+                ? currentMeta.baseArticle
+                : undefined,
         ...(syncState
             ? {
                   syncState,
@@ -234,26 +283,49 @@ export const articleSaveToCache = (
               }
             : {}),
     };
+    writeTabArticleDraft(key, { article, meta: record[buildCacheMetaKey(key)], source: previous?.source });
     putCache(record);
 };
 
+export const getArticleDraftBase = (article: ArticleEntry): ArticleEntry | undefined => {
+    const meta = getArticleCachedData()[buildCacheMetaKey(buildCacheKey(article.logId))] as
+        | LocalArticleCacheMeta
+        | undefined;
+    const base = meta?.baseArticle;
+    return isArticleEntry(base) && base.logId === article.logId && base.version === article.version ? base : undefined;
+};
+
 export const getArticleDraftSyncState = (article: ArticleEntry) => {
-    return getArticleDraftSyncStateByKey(getCachedData(), buildCacheKey(article.logId));
+    return getArticleDraftSyncStateByKey(getArticleCachedData(), buildCacheKey(article.logId));
 };
 
 export const getLocalArticleCaches = (): LocalArticleCacheEntry[] => {
-    const record = getCachedData();
+    const record = getArticleCachedData();
     if (removeLegacyEmptyLocalDraft(record)) {
         putCache(record);
     }
+    const tabDrafts = listTabArticleDrafts();
+    tabDrafts.forEach(({ articleKey, entry }) => {
+        if (JSON.stringify(record[articleKey]) === JSON.stringify(entry.article)) {
+            delete record[articleKey];
+            delete record[buildCacheMetaKey(articleKey)];
+        }
+    });
+    tabDrafts.forEach(({ key, entry }) => {
+        record[key] = entry.article;
+        record[buildCacheMetaKey(key)] = entry.meta;
+    });
     return Object.entries(record)
-        .filter(([key, value]) => isArticleCacheKey(key) && isArticleEntry(value))
+        .filter(
+            ([key, value]) =>
+                (isArticleCacheKey(key) || tabDrafts.some((item) => item.key === key)) && isArticleEntry(value)
+        )
         .map(([key, article]) => {
             const syncState = getArticleDraftSyncStateByKey(record, key);
             return {
                 key,
                 article,
-                draft: key === LOCAL_ARTICLE_CACHE_DRAFT_KEY,
+                draft: !article.logId || article.logId <= 0,
                 updatedAt: getArticleCacheUpdatedAt(record, key),
                 ...(syncState ? { syncState } : {}),
             };
@@ -279,7 +351,21 @@ export const removeLocalArticleCache = () => {
 };
 
 export const removeLocalArticleCacheByKey = (key: string) => {
-    if (isArticleCacheKey(key)) {
-        removeArticleCacheByKey(key);
-    }
+    const entry = readStoredArticleDraft(key);
+    if (entry && isArticleEntry(entry.article)) {
+        removeStoredArticleDraft(key);
+        const record = getCachedData();
+        const articleKey = buildCacheKey(entry.article.logId);
+        if (JSON.stringify(record[articleKey]) === JSON.stringify(entry.article)) {
+            delete record[articleKey];
+            delete record[buildCacheMetaKey(articleKey)];
+            putCache(record);
+        }
+    } else if (isArticleCacheKey(key)) removeArticleCacheByKey(key);
+};
+
+export const restoreLocalArticleCache = (key: string | null) => {
+    if (!key) return;
+    const entry = readStoredArticleDraft(key);
+    if (entry && isArticleEntry(entry.article)) selectTabArticleDraft(key, buildCacheKey(entry.article.logId));
 };

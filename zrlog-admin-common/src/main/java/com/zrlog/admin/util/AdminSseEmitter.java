@@ -2,6 +2,7 @@ package com.zrlog.admin.util;
 
 import com.google.gson.Gson;
 import com.hibegin.http.server.api.HttpResponse;
+import com.zrlog.admin.business.exception.AbstractAdminBusinessException;
 import com.zrlog.admin.business.rest.response.AdminSsePayloads;
 
 import java.io.IOException;
@@ -61,7 +62,12 @@ public class AdminSseEmitter {
 
     public void sendError(String event, Exception e) {
         try {
-            send(event, AdminSsePayloads.message(Objects.requireNonNullElse(e.getMessage(), "")));
+            if (e instanceof AbstractAdminBusinessException) {
+                AbstractAdminBusinessException businessError = (AbstractAdminBusinessException) e;
+                send(event, AdminSsePayloads.error(businessError.getError(), businessError.getMessage()));
+            } else {
+                send(event, AdminSsePayloads.message(Objects.requireNonNullElse(e.getMessage(), "")));
+            }
         } catch (IOException ignored) {
             // Client connection may already be closed.
         }

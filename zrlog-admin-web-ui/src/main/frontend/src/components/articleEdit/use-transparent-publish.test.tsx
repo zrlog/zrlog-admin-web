@@ -292,4 +292,15 @@ describe("useTransparentPublish", () => {
             staticStatus: "idle",
         });
     });
+    it("returns a rejected publication's business code to the article synchronization layer", async () => {
+        const conflict = { error: 9094, message: "Version expired" };
+        postPublish.mockImplementationOnce(async (_uri, options: RefreshCacheSseOptions<unknown> = {}) => {
+            options.onEvent?.({ event: "publish-error", data: conflict });
+            throw new Error(conflict.message);
+        });
+        await act(async () => {
+            expect(await publish("/api/admin/article/update", article)).toEqual(conflict);
+        });
+        expect(publishStatus.publishState).toBe("failed");
+    });
 });

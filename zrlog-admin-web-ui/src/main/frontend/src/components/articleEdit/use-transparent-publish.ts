@@ -52,6 +52,7 @@ const useTransparentPublish = ({ messageApi, onAiMessagesChange, updatePublishSt
             });
             let refreshResponse: any;
             let articleResponse: any;
+            let businessFailure: { error: number; message: string } | undefined;
             const updatePostPublishFailure = (message: string) => {
                 updatePublishStatus((previousState) => {
                     const staticStatusKnown =
@@ -187,6 +188,7 @@ const useTransparentPublish = ({ messageApi, onAiMessagesChange, updatePublishSt
                             }));
                         }
                         if (event.event === "publish-error") {
+                            if (!articleResponse && typeof event.data?.error === "number") businessFailure = event.data;
                             const message = event.data?.message || getRes().articleEdit.saveFailed;
                             if (articleResponse) {
                                 updatePostPublishFailure(message);
@@ -236,6 +238,7 @@ const useTransparentPublish = ({ messageApi, onAiMessagesChange, updatePublishSt
                         publishError: error instanceof Error ? error.message : getRes().articleEdit.saveFailed,
                     }));
                 }
+                if (!articleResponse && businessFailure) return businessFailure;
                 throw error;
             }
         },

@@ -19,7 +19,8 @@ type HookResult = {
     markFailed: (task: ArticleDraftSyncTask, error: unknown) => boolean;
     markSynced: (task: ArticleDraftSyncTask, savedArticle?: ArticleEntry) => boolean;
     markSyncing: (task: ArticleDraftSyncTask) => boolean;
-    resolveConflict: (article: ArticleEntry) => ArticleDraftChange | undefined;
+    pauseForConflict: (article: ArticleEntry) => ArticleDraftChange;
+    resolveConflict: (article: ArticleEntry, requestSync?: boolean) => ArticleDraftChange | undefined;
     receiveServerArticle: (article: ArticleEntry) => ArticleDraftChange | undefined;
     state: ArticleDraftSyncState;
 };
@@ -409,5 +410,37 @@ describe("useArticleDraftSync", () => {
             article: change!.article,
             revision: change!.revision,
         });
+    });
+    it("pauses the newest input when an older manual save conflicts, without scheduling another write", () => {
+        const article = { ...baseArticle, logId: 7, version: 3 };
+        const props = createProps({ article });
+        render(props);
+        act(() => current.applyPatch({ title: "Newest input", markdown: "Keep this" }));
+        const requests = jest.mocked(props.onRequestSync).mock.calls.length;
+        act(() => {
+            const local = current.pauseForConflict({ ...article, title: "Submitted earlier", rubbish: false });
+            expect(local.article).toMatchObject({
+                title: "Newest input",
+                markdown: "Keep this",
+                rubbish: false,
+                version: 3,
+            });
+        });
+        expect(current.state.sync).toBe("conflict");
+        expect(props.onRequestSync).toHaveBeenCalledTimes(requests);
+        const merged = { ...article, title: "Merged", version: 4 };
+        act(() => current.resolveConflict(merged, false));
+        expect(props.onPersist).toHaveBeenLastCalledWith(merged, 123, expect.objectContaining({ document: "dirty" }));
+        expect(props.onRequestSync).toHaveBeenCalledTimes(requests);
+    });
+
+    it("persists a clean manual save candidate when it conflicts", () => {
+        const props = createProps({ article: { ...baseArticle, logId: 7, version: 3 } });
+        render(props);
+        const candidate = { ...props.article, title: "Publish candidate", rubbish: false };
+        act(() => current.pauseForConflict(candidate));
+        expect(current.state.sync).toBe("conflict");
+        expect(props.onPersist).toHaveBeenLastCalledWith(candidate, 123, expect.objectContaining({ sync: "conflict" }));
+        expect(props.onRequestSync).not.toHaveBeenCalled();
     });
 });

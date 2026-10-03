@@ -1,5 +1,5 @@
 import { isModuleEnabled } from "../../utils/module-capabilities";
-import { FunctionComponent, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { FunctionComponent, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { App, InputRef, message } from "antd";
 import Divider from "antd/es/divider";
 import Card from "antd/es/card";
@@ -22,7 +22,7 @@ import { useNavigate } from "react-router-dom";
 import PublishStatusBar from "./publish-status-bar";
 import { useArticleAiAssistantConfig } from "./article-ai-assistant/article-ai-assistant-button";
 import useArticleEditUiState from "./use-article-edit-ui-state";
-import ArticleContentConflictAlert from "./article-content-conflict-alert";
+import ArticleVersionConflict from "./version-sync/article-version-conflict";
 import useArticleSaveCoordinator from "./use-article-save-coordinator";
 import { markdownToHtml } from "@zrlog/editor/dist/editor/utils/marked-utils";
 import { buildMarkdownImportedArticle, buildMarkdownImportedPatch } from "./markdown-import";
@@ -92,14 +92,14 @@ const Index: FunctionComponent<ArticleEditProps> = ({
         createImportedDraft,
         handleValuesChange,
         isSaving,
-        keepServerConflictContent,
+        retryConflictRead,
+        versionSync,
         onRollback,
         onSubmit,
         onArticleUpdated,
         restoreInputRevision,
         state,
         updateAiMessageCache,
-        useLocalConflictContent,
     } = useArticleSaveCoordinator({
         aliasRef,
         axiosInstance,
@@ -119,6 +119,10 @@ const Index: FunctionComponent<ArticleEditProps> = ({
         updateCache,
         updatePublishStatus,
     });
+    useEffect(() => {
+        if (state.contentConflict) setPublishReviewOpen(false);
+    }, [state.contentConflict]);
+
     const editorDocument = useArticleEditorDocument(state.article.markdown, restoreInputRevision, handleValuesChange);
     const editorViewRef = editorDocument.viewRef;
     const draftAiPending = !state.article.logId && draftAiPendingCount > 0;
@@ -369,14 +373,6 @@ const Index: FunctionComponent<ArticleEditProps> = ({
     return (
         <>
             {messageContextHolder}
-            {state.contentConflict ? (
-                <ArticleContentConflictAlert
-                    conflict={state.contentConflict}
-                    serverArticle={state.article}
-                    onKeepServer={keepServerConflictContent}
-                    onUseLocal={useLocalConflictContent}
-                />
-            ) : null}
             <Card
                 title={""}
                 ref={editCardRef}
@@ -396,7 +392,17 @@ const Index: FunctionComponent<ArticleEditProps> = ({
                     },
                 }}
             >
-                <div style={{ flex: "none" }}>
+                {state.contentConflict && (
+                    <ArticleVersionConflict
+                        conflict={state.contentConflict}
+                        sync={versionSync}
+                        typeOptions={state.typeOptions}
+                        containerRef={editCardRef}
+                        offline={offline}
+                        onRetry={retryConflictRead}
+                    />
+                )}
+                <div {...(state.contentConflict ? { inert: "" } : {})} style={{ flex: "none" }}>
                     <ArticleEditHeader
                         articleVersion={state.article.version}
                         articleStatusText={articleStatusText}
@@ -451,7 +457,11 @@ const Index: FunctionComponent<ArticleEditProps> = ({
                     />
                 </div>
                 <Divider style={{ padding: 0, margin: 0, flex: "none" }} />
-                <div ref={editorLayout.slotRef} style={{ flex: "1 1 0", minHeight: 120 }}>
+                <div
+                    {...(state.contentConflict ? { inert: "" } : {})}
+                    ref={editorLayout.slotRef}
+                    style={{ flex: "1 1 0", minHeight: 120 }}
+                >
                     <div ref={editorLayout.contentRef}>
                         <Editor
                             config={

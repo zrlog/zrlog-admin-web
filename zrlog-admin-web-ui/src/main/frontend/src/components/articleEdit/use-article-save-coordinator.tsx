@@ -12,9 +12,11 @@ import { isOffline } from "../../utils/env-utils";
 import {
     articleDataToState,
     articleSaveToCache,
+    getArticleDraftBase,
     getArticleDraftSyncState,
     removeArticleCache,
     removeLocalArticleCache,
+    restoreLocalArticleCache,
 } from "../../utils/article-cache";
 import { deepEqualWithSpecialJSON, disableExitTips, enableExitTips, updateDocumentTitle } from "../../utils/helpers";
 import { getCacheByKey, getPageDataCacheKeyByPath, removeCacheDataByKey } from "../../utils/cache";
@@ -37,6 +39,8 @@ import { renderMissingMarkdownContent } from "./article-save-content";
 import { markdownToHtml } from "@zrlog/editor/dist/editor/utils/marked-utils";
 import { DraftAiSaveGate, DraftArticleOperationRelease } from "./draft-ai-save-gate";
 import { ArticleUpdatedEvent } from "./article-ai-assistant/article-ai-assistant.types";
+
+import useArticleVersionSync from "./version-sync/use-article-version-sync";
 
 const ARTICLE_UPDATE_EXPIRED_ERROR = 9094;
 
@@ -166,7 +170,7 @@ type ArticleAutoSaveOutcome =
           type: "aiPending" | "deferred";
       }
     | {
-          type: "blocked" | "conflict";
+          type: "blocked";
           message: string;
       };
 
@@ -211,7 +215,12 @@ const useArticleSaveCoordinator = ({
     updateCache,
     updatePublishStatus,
 }: UseArticleSaveCoordinatorOptions) => {
-    const defaultState = articleDataToState(data, preferredTypeId);
+    const initialStateRef = useRef<ArticleEditState>();
+    if (!initialStateRef.current) {
+        restoreLocalArticleCache(new URLSearchParams(location.search).get("localDraft"));
+        initialStateRef.current = articleDataToState(data, preferredTypeId);
+    }
+    const defaultState = initialStateRef.current;
     const [state, setState] = useState<ArticleEditState>(defaultState);
     const [restoreInputRevision, setRestoreInputRevision] = useState(0);
     const [articleUpdate, setArticleUpdate] = useState<ArticleUpdatedEvent>();
@@ -223,10 +232,15 @@ const useArticleSaveCoordinator = ({
     const contentSourceRef = useRef(state.contentSource);
     contentSourceRef.current = state.contentSource;
     const loadedArticleRef = useRef<ArticleEntry>(defaultState.article);
+    const acknowledgedArticleRef = useRef<ArticleEntry>(
+        getArticleDraftBase(defaultState.contentConflict?.localArticle || defaultState.article) || data.article
+    );
     const versionRef = useRef(defaultState.article.version);
     const logIdRef = useRef(defaultState.article.logId || -1);
     const articleWriteRef = useRef<Promise<void>>();
     const localEditRevisionRef = useRef(0);
+    const conflictRef = useRef(state.contentConflict);
+    conflictRef.current = state.contentConflict;
     const subjectRef = useRef<Subject<ArticleDraftSyncTask> | null>(null);
     const subRef = useRef<Subscription | null>(null);
     const pendingMessagesRef = useRef(0);
@@ -238,7 +252,6 @@ const useArticleSaveCoordinator = ({
     );
     const markDraftDeferredRef = useRef<(task: ArticleDraftSyncTask) => void>(() => undefined);
     const markDraftFailedRef = useRef<(task: ArticleDraftSyncTask, error: unknown) => boolean>(() => false);
-    const markDraftConflictRef = useRef<(task: ArticleDraftSyncTask, error: unknown) => boolean>(() => false);
     const markDraftBlockedRef = useRef<(task: ArticleDraftSyncTask, error: unknown) => boolean>(() => false);
     const markDraftCommittedRef = useRef<() => void>(() => undefined);
     const autoSaveOutcomeRef = useRef<ArticleAutoSaveOutcome>();
@@ -345,6 +358,8 @@ const useArticleSaveCoordinator = ({
         }
         if (!deepEqualWithSpecialJSON(loadedArticleRef.current, newState.article)) {
             loadedArticleRef.current = newState.article;
+            acknowledgedArticleRef.current =
+                getArticleDraftBase(newState.contentConflict?.localArticle || newState.article) || data.article;
             setState({ ...newState, aiMessages });
             restoreUiState();
             setRestoreInputRevision((revision) => revision + 1);
@@ -465,7 +480,7 @@ const useArticleSaveCoordinator = ({
     const finishAutoSave = (savedArticle?: ArticleEntry, create = false) => {
         setState((previousState) => ({
             ...previousState,
-            rubbish: true,
+            rubbish: savedArticle ? savedArticle.rubbish : previousState.rubbish,
             article: savedArticle
                 ? mergeArticleSynchronizationMetadata(previousState.article, savedArticle, create)
                 : previousState.article,
@@ -480,7 +495,7 @@ const useArticleSaveCoordinator = ({
 
     const persistToCache = (newArticle: ArticleEntry) => {
         const updatedAt = Date.now();
-        articleSaveToCache(newArticle, updatedAt);
+        articleSaveToCache(newArticle, updatedAt, undefined, acknowledgedArticleRef.current);
         setState((previousState) => ({
             ...previousState,
             article: newArticle,
@@ -517,6 +532,7 @@ const useArticleSaveCoordinator = ({
             messageApi.info(response.message);
         }
         const responseArticle = response.data.article;
+        acknowledgedArticleRef.current = responseArticle;
         versionRef.current = responseArticle.version;
         logIdRef.current = responseArticle.logId;
         const url = getArticleRouteUrl();
@@ -578,6 +594,10 @@ const useArticleSaveCoordinator = ({
         autoSave: boolean,
         acquiredCreateRelease?: DraftArticleOperationRelease
     ): Promise<boolean> => {
+        if (conflictRef.current) {
+            acquiredCreateRelease?.();
+            return false;
+        }
         // A preceding save may have turned this local draft into a persisted article.
         if (!article.logId || article.logId <= 0) {
             article = { ...article, logId: logIdRef.current > 0 ? logIdRef.current : article.logId };
@@ -662,9 +682,15 @@ const useArticleSaveCoordinator = ({
                           .data;
                 responseData = response;
                 if (response.error) {
+                    if (response.error === ARTICLE_UPDATE_EXPIRED_ERROR) {
+                        if (newArticle.transparentPublish)
+                            updatePublishStatus((previous) => ({ ...previous, open: false, visible: false }));
+                        await loadServerArticleForConflict(newArticle);
+                        return false;
+                    }
                     if (autoSave) {
                         autoSaveOutcomeRef.current = {
-                            type: response.error === ARTICLE_UPDATE_EXPIRED_ERROR ? "conflict" : "blocked",
+                            type: "blocked",
                             message: response.message || getRes().articleEdit.saveFailed,
                         };
                     } else {
@@ -690,6 +716,7 @@ const useArticleSaveCoordinator = ({
                 throw error;
             }
             if (responseData.error === 0) {
+                acknowledgedArticleRef.current = responseData.data.article;
                 preserveLocalEdits = !autoSave && localEditRevisionRef.current !== submittedRevision;
                 if (preserveLocalEdits) {
                     // Only acknowledge the submitted snapshot. Newer input remains dirty, with the new server version.
@@ -744,11 +771,36 @@ const useArticleSaveCoordinator = ({
         );
     };
 
-    const loadServerArticleForConflict = async (task: ArticleDraftSyncTask) => {
-        const logId = task.article.logId || logIdRef.current;
+    const loadServerArticleForConflict = async (submittedArticle: ArticleEntry) => {
+        const logId = submittedArticle.logId || logIdRef.current;
         if (!logId || logId <= 0) {
             return;
         }
+        if (conflictRef.current?.loading) return;
+        const existingConflict = conflictRef.current;
+        resetAutoSaveQueue();
+        const local = draftSync.pauseForConflict(submittedArticle);
+        const conflict: NonNullable<ArticleEditState["contentConflict"]> = {
+            source: "localEdit",
+            localArticle: {
+                ...local.article,
+                logId,
+                version: submittedArticle.version,
+                rubbish: submittedArticle.rubbish,
+            },
+            localVersion: submittedArticle.version,
+            localUpdatedAt: local.updatedAt,
+            serverVersion: submittedArticle.version,
+            baseArticle:
+                existingConflict?.baseArticle ||
+                getArticleDraftBase(submittedArticle) ||
+                (acknowledgedArticleRef.current.version === submittedArticle.version
+                    ? acknowledgedArticleRef.current
+                    : undefined),
+            loading: true,
+        };
+        conflictRef.current = conflict;
+        setState((previous) => ({ ...previous, contentConflict: conflict }));
         try {
             const { data: response } = await axiosInstance.get<ApiResponse<ArticleEditInfo>>(
                 "/api/admin/article-edit",
@@ -758,27 +810,26 @@ const useArticleSaveCoordinator = ({
                 } as any
             );
             if (response.error || !response.data?.article) {
-                return;
+                throw new Error(response.message);
             }
             const serverArticle = response.data.article;
+            if (serverArticle.logId !== logId) throw new Error("Unexpected article identity");
+            if (logIdRef.current !== logId || conflictRef.current !== conflict) return;
             versionRef.current = serverArticle.version;
             loadedArticleRef.current = serverArticle;
+            conflictRef.current = { ...conflict, serverVersion: serverArticle.version, loading: false };
             setState((previousState) => ({
                 ...previousState,
                 article: serverArticle,
                 rubbish: serverArticle.rubbish === true,
                 editorVersion: serverArticle.version,
-                contentConflict: {
-                    source: "localEdit",
-                    localArticle: task.article,
-                    localVersion: task.article.version,
-                    localUpdatedAt: previousState.contentSourceUpdatedAt,
-                    serverVersion: serverArticle.version,
-                },
+                contentConflict: conflictRef.current,
             }));
             setRestoreInputRevision((revision) => revision + 1);
         } catch (error) {
-            console.error(error);
+            if (logIdRef.current !== logId || conflictRef.current !== conflict) return;
+            conflictRef.current = { ...conflict, loading: false, loadError: true };
+            setState((previous) => ({ ...previous, contentConflict: conflictRef.current }));
         }
     };
 
@@ -812,7 +863,7 @@ const useArticleSaveCoordinator = ({
                         return;
                     }
                     try {
-                        const saved = await onSubmit(nextArticle, false, false, true, releaseCreate);
+                        const saved = await onSubmit(nextArticle, !nextArticle.rubbish, false, true, releaseCreate);
                         if (saved) {
                             markDraftSyncedRef.current(task, autoSaveAcknowledgedArticleRef.current);
                             if (latestAutoSaveTaskRef.current?.revision === task.revision) {
@@ -825,10 +876,6 @@ const useArticleSaveCoordinator = ({
                             return;
                         } else if (outcome?.type === "deferred") {
                             markDraftDeferredRef.current(task);
-                        } else if (outcome?.type === "conflict") {
-                            if (markDraftConflictRef.current(task, outcome.message)) {
-                                await loadServerArticleForConflict(task);
-                            }
                         } else if (outcome?.type === "blocked") {
                             if (markDraftBlockedRef.current(task, outcome.message)) {
                                 void messageApi.error(outcome.message);
@@ -873,14 +920,15 @@ const useArticleSaveCoordinator = ({
         Boolean(article.title) && article.typeId !== undefined && article.typeId !== null && article.typeId > 0;
 
     const draftSync = useArticleDraftSync({
-        article: state.article,
+        article: state.contentConflict?.localArticle || state.article,
         initialDirty: defaultState.contentSource !== "server" || Boolean(defaultState.contentConflict),
         initialConflict: Boolean(defaultState.contentConflict),
         initialState: getArticleDraftSyncState(defaultState.article),
         initialUpdatedAt: defaultState.contentSourceUpdatedAt,
         offline,
         isSyncable,
-        onPersist: articleSaveToCache,
+        onPersist: (article, updatedAt, syncState) =>
+            articleSaveToCache(article, updatedAt, syncState, acknowledgedArticleRef.current),
         onRemove: removeArticleCache,
         onRequestSync: (task) => {
             localEditRevisionRef.current = task.revision;
@@ -902,7 +950,6 @@ const useArticleSaveCoordinator = ({
     markDraftSyncedRef.current = draftSync.markSynced;
     markDraftDeferredRef.current = draftSync.markDeferred;
     markDraftFailedRef.current = draftSync.markFailed;
-    markDraftConflictRef.current = draftSync.markConflict;
     markDraftBlockedRef.current = draftSync.markBlocked;
     markDraftCommittedRef.current = draftSync.markCommitted;
 
@@ -944,6 +991,20 @@ const useArticleSaveCoordinator = ({
                 )
                     return;
                 const local = receiveServerArticle(serverArticle);
+                const previousConflict = conflictRef.current;
+                const nextConflict: ArticleEditState["contentConflict"] = local
+                    ? {
+                          source: "localEdit",
+                          localArticle: previousConflict?.localArticle || local.article,
+                          localVersion: previousConflict?.localVersion ?? local.article.version,
+                          localUpdatedAt: previousConflict?.localUpdatedAt ?? local.updatedAt,
+                          serverVersion: serverArticle.version,
+                          baseArticle: previousConflict?.baseArticle || getArticleDraftBase(local.article),
+                      }
+                    : undefined;
+                // Queued writes must see the decision before React renders the refreshed article.
+                conflictRef.current = nextConflict;
+                if (!local) acknowledgedArticleRef.current = serverArticle;
                 latestAutoSaveTaskRef.current = undefined;
                 versionRef.current = serverArticle.version;
                 loadedArticleRef.current = serverArticle;
@@ -970,15 +1031,7 @@ const useArticleSaveCoordinator = ({
                     aiMessages,
                     contentSource: local ? "localEdit" : "server",
                     contentSourceUpdatedAt: local?.updatedAt,
-                    contentConflict: local
-                        ? {
-                              source: "localEdit",
-                              localArticle: previous.contentConflict?.localArticle || local.article,
-                              localVersion: previous.contentConflict?.localVersion ?? local.article.version,
-                              localUpdatedAt: previous.contentConflict?.localUpdatedAt ?? local.updatedAt,
-                              serverVersion: serverArticle.version,
-                          }
-                        : undefined,
+                    contentConflict: nextConflict,
                 }));
                 setRestoreInputRevision((revision) => revision + 1);
             } catch (error) {
@@ -1148,7 +1201,7 @@ const useArticleSaveCoordinator = ({
 
     const onRollback = async (targetVersion: number) =>
         runArticleWrite(async () => {
-            if (logIdRef.current <= 0) {
+            if (logIdRef.current <= 0 || conflictRef.current) {
                 return;
             }
             resetAutoSaveQueue();
@@ -1186,39 +1239,47 @@ const useArticleSaveCoordinator = ({
             }
         });
 
-    const useLocalConflictContent = () => {
-        const conflict = state.contentConflict;
-        if (!conflict) {
-            return;
-        }
-        const localArticle = {
-            ...conflict.localArticle,
-            logId: state.article.logId,
-            lastUpdateDate: state.article.lastUpdateDate,
-            previewUrl: state.article.previewUrl,
-            version: conflict.serverVersion,
-        };
+    const saveMergedConflict = async (article: ArticleEntry): Promise<boolean> => {
+        const conflict = conflictRef.current;
+        if (
+            !conflict ||
+            conflict.loading ||
+            conflict.loadError ||
+            article.logId !== logIdRef.current ||
+            article.version !== conflict.serverVersion
+        )
+            return false;
+        resetAutoSaveQueue();
+        acknowledgedArticleRef.current = state.article;
+        const change = draftSync.resolveConflict(article, false);
+        if (!change) return false;
         versionRef.current = conflict.serverVersion;
+        localEditRevisionRef.current = change.revision;
+        conflictRef.current = undefined;
         enableExitTips(getRes().articleEdit.editExitWithoutSave);
-        draftSync.resolveConflict(localArticle);
         setState((previousState) => ({
             ...previousState,
-            article: localArticle,
-            rubbish: localArticle.rubbish === true,
-            editorVersion: localArticle.version,
+            article,
+            rubbish: article.rubbish === true,
+            editorVersion: article.version,
             contentSource: conflict.source,
-            contentSourceUpdatedAt: conflict.localUpdatedAt,
+            contentSourceUpdatedAt: change.updatedAt,
             contentConflict: undefined,
         }));
         setRestoreInputRevision((revision) => revision + 1);
+        return onSubmit(article, !article.rubbish, false, false);
     };
 
-    const keepServerConflictContent = () => {
-        draftSync.discard();
-        setState((previousState) => ({
-            ...previousState,
-            contentConflict: undefined,
-        }));
+    const versionSync = useArticleVersionSync({
+        conflict: state.contentConflict,
+        serverArticle: state.article,
+        axiosInstance,
+        offline,
+        onResolve: saveMergedConflict,
+    });
+
+    const retryConflictRead = () => {
+        if (conflictRef.current) void loadServerArticleForConflict(conflictRef.current.localArticle);
     };
 
     return {
@@ -1228,14 +1289,15 @@ const useArticleSaveCoordinator = ({
         createImportedDraft,
         handleValuesChange,
         isSaving: state.saving.rubbishSaving || state.saving.releaseSaving || state.saving.previewIng,
-        keepServerConflictContent,
+        retryConflictRead,
+        saveMergedConflict,
+        versionSync,
         onRollback,
         onSubmit,
         onArticleUpdated,
         restoreInputRevision,
         state,
         updateAiMessageCache,
-        useLocalConflictContent,
     };
 };
 

@@ -339,7 +339,7 @@ const useArticleDraftSync = ({
     }, [transition]);
 
     const resolveConflict = useCallback(
-        (resolvedArticle: ArticleEntry) => {
+        (resolvedArticle: ArticleEntry, requestSync = true) => {
             const updatedAt = nowRef.current();
             const revision = syncStateRef.current.revision + 1;
             articleRef.current = resolvedArticle;
@@ -353,7 +353,7 @@ const useArticleDraftSync = ({
                 return undefined;
             }
             onPersistRef.current(resolvedArticle, updatedAt, nextState);
-            if (nextState.sync === "queued") {
+            if (requestSync && nextState.sync === "queued") {
                 onRequestSyncRef.current({
                     article: resolvedArticle,
                     revision,
@@ -398,6 +398,29 @@ const useArticleDraftSync = ({
         [persistCurrent, transition]
     );
 
+    const pauseForConflict = useCallback(
+        (submittedArticle: ArticleEntry): ArticleDraftChange => {
+            if (syncStateRef.current.document === "clean") {
+                articleRef.current = submittedArticle;
+                updatedAtRef.current = nowRef.current();
+                transition({ type: "edit", revision: syncStateRef.current.revision + 1, syncable: false });
+            }
+            articleRef.current = {
+                ...articleRef.current,
+                logId: submittedArticle.logId,
+                version: submittedArticle.version,
+                rubbish: submittedArticle.rubbish,
+            };
+            persistCurrent(transition({ type: "serverUpdated" }));
+            return {
+                article: articleRef.current,
+                revision: syncStateRef.current.revision,
+                updatedAt: updatedAtRef.current,
+            };
+        },
+        [persistCurrent, transition]
+    );
+
     return {
         applyPatch,
         discard,
@@ -408,6 +431,7 @@ const useArticleDraftSync = ({
         markFailed,
         markSynced,
         markSyncing,
+        pauseForConflict,
         receiveServerArticle,
         resolveConflict,
         state: syncState,
