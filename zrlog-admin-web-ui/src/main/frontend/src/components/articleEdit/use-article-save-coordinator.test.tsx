@@ -85,7 +85,9 @@ jest.mock("../../utils/cache", () => ({
 }));
 jest.mock("./draft-sync/article-draft-sync-helpers", () => ({
     isRetryableArticleSyncError: () => false,
-    mergeArticleSynchronizationMetadata: (article: unknown) => article,
+    mergeArticleSynchronizationMetadata: require("@jest/globals").jest.requireActual(
+        "./draft-sync/article-draft-sync-helpers"
+    ).mergeArticleSynchronizationMetadata,
 }));
 jest.mock("./draft-sync/use-article-draft-sync", () => {
     const createApi = () => ({
@@ -444,6 +446,194 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
         expect(coordinator.state.article.version).toBe(4);
         expect(messageApi.error).toHaveBeenCalledWith("Read failed");
         expect(modal.error).not.toHaveBeenCalled();
+    });
+
+    it("uses the acknowledged rollback version for the next save without waiting for page cache hydration", async () => {
+        mockArticlePost.mockResolvedValueOnce({
+            data: { error: 0, data: { ...data, article: { ...initialArticle, version: 4 } } },
+        });
+        await act(async () => {
+            await coordinator.onRollback(1);
+        });
+        expect(coordinator.state.article.version).toBe(4);
+        mockArticlePost.mockResolvedValueOnce({
+            data: { error: 0, data: { ...data, article: { ...initialArticle, version: 5 } } },
+        });
+        await act(async () => {
+            await coordinator.onSubmit(coordinator.state.article, false, false, false);
+        });
+        expect(mockArticlePost).toHaveBeenLastCalledWith(
+            "/api/admin/article/update",
+            expect.objectContaining({ version: 4 }),
+            undefined
+        );
+    });
+
+    it("waits for an in-flight autosave before submitting a manual save with the acknowledged version", async () => {
+        const saving = deferred<any>();
+        mockArticlePost.mockImplementationOnce(async () => saving.promise);
+        mockArticlePost.mockResolvedValueOnce({
+            data: { error: 0, data: { ...data, article: { ...initialArticle, title: "Manual", version: 5 } } },
+        });
+        let automatic!: Promise<boolean>;
+        let manual!: Promise<boolean>;
+        await act(async () => {
+            automatic = coordinator.onSubmit(initialArticle, false, false, true);
+        });
+        await act(async () => {
+            manual = coordinator.onSubmit({ ...initialArticle, title: "Manual" }, false, false, false);
+        });
+        expect(mockArticlePost).toHaveBeenCalledTimes(1);
+        await act(async () => {
+            saving.resolve({ data: { error: 0, data: { ...data, article: { ...initialArticle, version: 4 } } } });
+            await automatic;
+            await manual;
+        });
+        expect(mockArticlePost).toHaveBeenLastCalledWith(
+            "/api/admin/article/update",
+            expect.objectContaining({ title: "Manual", version: 4 }),
+            undefined
+        );
+        expect(coordinator.state.article.version).toBe(5);
+    });
+
+    it("uses the created identity for a save queued while the initial draft create is pending", async () => {
+        remountWith({ ...data, article: { ...initialArticle, logId: undefined, version: -1 } });
+        const creating = deferred<any>();
+        mockArticlePost.mockImplementationOnce(async () => creating.promise);
+        mockArticlePost.mockResolvedValueOnce({
+            data: {
+                error: 0,
+                data: { ...data, article: { ...initialArticle, title: "Latest", logId: 42, version: 1 } },
+            },
+        });
+        let first!: Promise<boolean>;
+        let second!: Promise<boolean>;
+        await act(async () => {
+            first = coordinator.onSubmit(coordinator.state.article, false, false, true);
+        });
+        await act(async () => {
+            second = coordinator.onSubmit({ ...coordinator.state.article, title: "Latest" }, false, false, false);
+        });
+        expect(mockArticlePost).toHaveBeenCalledTimes(1);
+        await act(async () => {
+            creating.resolve({
+                data: { error: 0, data: { ...data, article: { ...initialArticle, logId: 42, version: 0 } } },
+            });
+            await first;
+            await second;
+        });
+        expect(mockArticlePost).toHaveBeenLastCalledWith(
+            "/api/admin/article/update",
+            expect.objectContaining({ logId: 42, title: "Latest", version: 0 }),
+            undefined
+        );
+        expect(mockPageCache.get("/article-edit?id=42")?.article).toEqual(
+            expect.objectContaining({ title: "Latest", version: 1 })
+        );
+        expect(mockPageCache.has("/article-edit")).toBe(false);
+    });
+
+    it("serializes a rollback after save and keeps the next publish on its acknowledged version", async () => {
+        const saving = deferred<any>();
+        mockArticlePost.mockImplementationOnce(async () => saving.promise);
+        mockArticlePost.mockResolvedValueOnce({
+            data: { error: 0, data: { ...data, article: { ...initialArticle, version: 5 } } },
+        });
+        let first!: Promise<boolean>;
+        let rollback!: Promise<void>;
+        await act(async () => {
+            first = coordinator.onSubmit(initialArticle, false, false, false);
+        });
+        await act(async () => {
+            rollback = coordinator.onRollback(1);
+        });
+        expect(mockArticlePost).toHaveBeenCalledTimes(1);
+        await act(async () => {
+            saving.resolve({ data: { error: 0, data: { ...data, article: { ...initialArticle, version: 4 } } } });
+            await first;
+            await rollback;
+        });
+        expect(mockArticlePost).toHaveBeenLastCalledWith("/api/admin/article-version/rollback", {
+            logId: 7,
+            version: 4,
+            targetVersion: 1,
+        });
+        mockPostPublish.mockResolvedValueOnce({
+            error: 0,
+            data: { ...data, article: { ...initialArticle, rubbish: false, version: 6 } },
+        });
+        await act(async () => {
+            await coordinator.onSubmit(coordinator.state.article, true, false, false);
+        });
+        expect(mockPostPublish).toHaveBeenLastCalledWith(
+            "/api/admin/article/update",
+            expect.objectContaining({ version: 5, rubbish: false })
+        );
+    });
+
+    it("releases the write queue after a failed request without inventing a newer version", async () => {
+        mockArticlePost.mockRejectedValueOnce(new Error("Connection closed"));
+        await act(async () => {
+            await expect(coordinator.onSubmit(initialArticle, false, false, false)).rejects.toThrow(
+                "Connection closed"
+            );
+        });
+        mockArticlePost.mockResolvedValueOnce({
+            data: { error: 0, data: { ...data, article: { ...initialArticle, version: 4 } } },
+        });
+        await act(async () => {
+            await coordinator.onSubmit(coordinator.state.article, false, false, false);
+        });
+        expect(mockArticlePost).toHaveBeenLastCalledWith(
+            "/api/admin/article/update",
+            expect.objectContaining({ version: 3 }),
+            undefined
+        );
+    });
+
+    it.each([false, true])("preserves edits made while a manual save is pending (publish=%s)", async (publish) => {
+        const saving = deferred<any>();
+        const acknowledged = { ...initialArticle, version: 4, rubbish: !publish };
+        if (publish) {
+            mockPostPublish.mockReturnValueOnce(saving.promise);
+        } else {
+            mockArticlePost.mockReturnValueOnce(saving.promise);
+        }
+        let pending!: Promise<boolean>;
+        await act(async () => {
+            pending = coordinator.onSubmit(coordinator.state.article, publish, false, false);
+        });
+        const edited = {
+            ...initialArticle,
+            title: "Newer title",
+            markdown: "Newer body",
+            content: "<p>Newer body</p>",
+        };
+        mockDraftSyncApi!.applyPatch.mockReturnValueOnce({ article: edited, revision: 1, updatedAt: 100 });
+        act(() => {
+            coordinator.handleValuesChange({ title: edited.title, markdown: edited.markdown, content: edited.content });
+        });
+        await act(async () => {
+            const response = { error: 0, data: { ...data, article: acknowledged } };
+            saving.resolve(publish ? response : { data: response });
+            await pending;
+        });
+        expect(coordinator.state.article).toEqual(
+            expect.objectContaining({
+                title: edited.title,
+                markdown: edited.markdown,
+                content: edited.content,
+                version: 4,
+                rubbish: !publish,
+            })
+        );
+        expect(coordinator.state.contentSource).toBe("localEdit");
+        expect(mockDraftSyncApi!.markCommitted).not.toHaveBeenCalled();
+        expect(mockDraftSyncApi!.markSynced).toHaveBeenCalledWith(
+            { article: expect.objectContaining({ title: initialArticle.title }), revision: 0 },
+            acknowledged
+        );
     });
 
     it("preserves the draft state when publishing returns a business error", async () => {

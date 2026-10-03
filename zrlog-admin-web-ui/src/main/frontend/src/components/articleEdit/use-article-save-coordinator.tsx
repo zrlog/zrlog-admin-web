@@ -225,6 +225,8 @@ const useArticleSaveCoordinator = ({
     const loadedArticleRef = useRef<ArticleEntry>(defaultState.article);
     const versionRef = useRef(defaultState.article.version);
     const logIdRef = useRef(defaultState.article.logId || -1);
+    const articleWriteRef = useRef<Promise<void>>();
+    const localEditRevisionRef = useRef(0);
     const subjectRef = useRef<Subject<ArticleDraftSyncTask> | null>(null);
     const subRef = useRef<Subscription | null>(null);
     const pendingMessagesRef = useRef(0);
@@ -260,6 +262,24 @@ const useArticleSaveCoordinator = ({
 
     const getLocalContentSource = (article: ArticleEntry): ArticleEditState["contentSource"] =>
         article.logId && article.logId > 0 ? "localEdit" : "localDraft";
+
+    const runArticleWrite = async <T,>(write: () => Promise<T>): Promise<T> => {
+        const previous = articleWriteRef.current;
+        let release!: () => void;
+        const current = new Promise<void>((resolve) => {
+            release = resolve;
+        });
+        articleWriteRef.current = current;
+        try {
+            // Unsubscribing the autosave queue does not cancel an HTTP request already sent.
+            // Read the acknowledged version only after that request has settled.
+            if (previous) await previous;
+            return await write();
+        } finally {
+            if (articleWriteRef.current === current) articleWriteRef.current = undefined;
+            release();
+        }
+    };
 
     const updateAiMessageCache = useCallback(
         (action: SetStateAction<AIContent[]>, articleId?: number) => {
@@ -396,11 +416,13 @@ const useArticleSaveCoordinator = ({
         return mergedArticle;
     };
 
-    const updateRubbishState = (newArticle: ArticleEntry, create: boolean) => {
+    const updateRubbishState = (newArticle: ArticleEntry, create: boolean, preserveLocalEdits = false) => {
         setState((previousState) => ({
             ...previousState,
             rubbish: true,
-            article: mergeArticleResponse(previousState.article, newArticle, create),
+            article: preserveLocalEdits
+                ? { ...mergeArticleSynchronizationMetadata(previousState.article, newArticle, create), rubbish: true }
+                : mergeArticleResponse(previousState.article, newArticle, create),
             saving: {
                 ...previousState.saving,
                 rubbishSaving: false,
@@ -410,11 +432,13 @@ const useArticleSaveCoordinator = ({
         }));
     };
 
-    const updateReleaseState = (newArticle: ArticleEntry, create: boolean) => {
+    const updateReleaseState = (newArticle: ArticleEntry, create: boolean, preserveLocalEdits = false) => {
         setState((previousState) => ({
             ...previousState,
             rubbish: false,
-            article: mergeArticleResponse(previousState.article, newArticle, create),
+            article: preserveLocalEdits
+                ? { ...mergeArticleSynchronizationMetadata(previousState.article, newArticle, create), rubbish: false }
+                : mergeArticleResponse(previousState.article, newArticle, create),
             saving: {
                 ...previousState.saving,
                 releaseSaving: false,
@@ -480,26 +504,32 @@ const useArticleSaveCoordinator = ({
         baseArticle: ArticleEntry,
         create: boolean,
         autoSave: boolean,
-        showMessage = true
+        showMessage = true,
+        preserveLocalEdits = false
     ) => {
         if (response.documentTitle) {
             updateDocumentTitle(response.documentTitle);
         }
-        if (pendingMessagesRef.current === 0) {
+        if (pendingMessagesRef.current === 0 && !preserveLocalEdits) {
             disableExitTips();
         }
         if (!autoSave && showMessage) {
             messageApi.info(response.message);
         }
         const responseArticle = response.data.article;
+        versionRef.current = responseArticle.version;
+        logIdRef.current = responseArticle.logId;
         const url = getArticleRouteUrl();
         const sourceCacheKey = getLocalCacheKey(url);
+        // A save queued before creation still holds the draft route in its closure.
+        // Write its response to the persisted article cache after the create has completed.
+        if (create || Number(url.searchParams.get("id")) <= 0) {
+            url.searchParams.set("id", responseArticle.logId);
+        }
         let nextArticle: ArticleEntry;
         if (create) {
-            logIdRef.current = responseArticle.logId;
-            url.searchParams.set("id", responseArticle.logId);
             nextArticle = { ...baseArticle, ...responseArticle };
-            if (!autoSave) {
+            if (!autoSave && !preserveLocalEdits) {
                 removeLocalArticleCache();
             }
             migrateUiStateToArticle(responseArticle.logId);
@@ -511,12 +541,17 @@ const useArticleSaveCoordinator = ({
                 lastUpdateDate: responseArticle.lastUpdateDate,
                 version: responseArticle.version,
             };
-            if (!autoSave) {
+            if (!autoSave && !preserveLocalEdits) {
                 removeArticleCache(nextArticle);
             }
         }
-        if (!autoSave) {
+        if (!autoSave && !preserveLocalEdits) {
             markDraftCommittedRef.current();
+            setState((previousState) => ({
+                ...previousState,
+                contentSource: "server",
+                contentSourceUpdatedAt: undefined,
+            }));
         }
         const cacheKey = getLocalCacheKey(url);
         const aiMessages = create
@@ -535,13 +570,18 @@ const useArticleSaveCoordinator = ({
 
     let resetAutoSaveQueue = () => undefined;
 
-    const onSubmit = async (
+    const submitArticle = async (
+        submittedRevision: number,
         article: ArticleEntry,
         release: boolean,
         preview: boolean,
         autoSave: boolean,
         acquiredCreateRelease?: DraftArticleOperationRelease
     ): Promise<boolean> => {
+        // A preceding save may have turned this local draft into a persisted article.
+        if (!article.logId || article.logId <= 0) {
+            article = { ...article, logId: logIdRef.current > 0 ? logIdRef.current : article.logId };
+        }
         if (!hasAction("article.publish") && (release || (article.logId && !article.rubbish))) {
             acquiredCreateRelease?.();
             return false;
@@ -611,6 +651,7 @@ const useArticleSaveCoordinator = ({
         }));
         enableExitTips(getRes().articleEdit.editExitWithoutSave);
         let saveSucceeded = false;
+        let preserveLocalEdits = false;
         try {
             newArticle = await renderMissingMarkdownContent(newArticle, markdownToHtml);
             let responseData;
@@ -635,9 +676,6 @@ const useArticleSaveCoordinator = ({
                     }
                     return false;
                 }
-                if (response.data) {
-                    versionRef.current = response.data.article.version;
-                }
             } catch (error) {
                 if (newArticle.transparentPublish) {
                     updatePublishStatus((previousState) => ({
@@ -652,18 +690,27 @@ const useArticleSaveCoordinator = ({
                 throw error;
             }
             if (responseData.error === 0) {
+                preserveLocalEdits = !autoSave && localEditRevisionRef.current !== submittedRevision;
+                if (preserveLocalEdits) {
+                    // Only acknowledge the submitted snapshot. Newer input remains dirty, with the new server version.
+                    markDraftSyncedRef.current({ article, revision: submittedRevision }, responseData.data.article);
+                }
                 newArticle = handleArticleResponse(
                     responseData,
                     newArticle,
                     create,
                     autoSave,
-                    !newArticle.transparentPublish
+                    !newArticle.transparentPublish,
+                    preserveLocalEdits
                 );
                 saveSucceeded = true;
                 if (autoSave) {
                     autoSaveAcknowledgedArticleRef.current = newArticle;
-                } else {
+                } else if (!preserveLocalEdits) {
                     latestAutoSaveTaskRef.current = undefined;
+                } else if (latestAutoSaveTaskRef.current?.revision === localEditRevisionRef.current) {
+                    // The manual save may have reset the debounce queue while waiting for an earlier write.
+                    subjectRef.current?.next(latestAutoSaveTaskRef.current);
                 }
                 return true;
             }
@@ -673,15 +720,28 @@ const useArticleSaveCoordinator = ({
                 finishAutoSave(saveSucceeded ? newArticle : undefined, create);
             } else if (saveSucceeded) {
                 if (release) {
-                    updateReleaseState(newArticle, create);
+                    updateReleaseState(newArticle, create, preserveLocalEdits);
                 } else {
-                    updateRubbishState(newArticle, create);
+                    updateRubbishState(newArticle, create, preserveLocalEdits);
                 }
             } else {
                 finishFailedManualSave();
             }
             releaseCreate();
         }
+    };
+
+    const onSubmit = (
+        article: ArticleEntry,
+        release: boolean,
+        preview: boolean,
+        autoSave: boolean,
+        acquiredCreateRelease?: DraftArticleOperationRelease
+    ) => {
+        const submittedRevision = localEditRevisionRef.current;
+        return runArticleWrite(() =>
+            submitArticle(submittedRevision, article, release, preview, autoSave, acquiredCreateRelease)
+        );
     };
 
     const loadServerArticleForConflict = async (task: ArticleDraftSyncTask) => {
@@ -823,6 +883,7 @@ const useArticleSaveCoordinator = ({
         onPersist: articleSaveToCache,
         onRemove: removeArticleCache,
         onRequestSync: (task) => {
+            localEditRevisionRef.current = task.revision;
             latestAutoSaveTaskRef.current = task;
             if (!importedDraftCreatePendingRef.current) {
                 subjectRef.current?.next(task);
@@ -939,6 +1000,7 @@ const useArticleSaveCoordinator = ({
         if (!change) {
             return undefined;
         }
+        localEditRevisionRef.current = change.revision;
         setState((previousState) => ({
             ...previousState,
             article: change.article,
@@ -1084,38 +1146,45 @@ const useArticleSaveCoordinator = ({
         }
     };
 
-    const onRollback = async (targetVersion: number) => {
-        if (!state.article.logId) {
-            return;
-        }
-        const { data: response } = await axiosInstance.post("/api/admin/article-version/rollback", {
-            logId: state.article.logId,
-            version: versionRef.current,
-            targetVersion,
+    const onRollback = async (targetVersion: number) =>
+        runArticleWrite(async () => {
+            if (logIdRef.current <= 0) {
+                return;
+            }
+            resetAutoSaveQueue();
+            setState((previous) => ({ ...previous, saving: { ...previous.saving, rubbishSaving: true } }));
+            try {
+                const { data: response } = await axiosInstance.post("/api/admin/article-version/rollback", {
+                    logId: logIdRef.current,
+                    version: versionRef.current,
+                    targetVersion,
+                });
+                if (response.error) {
+                    modal.confirm({
+                        title: getRes().articleEdit.rollbackFailed,
+                        content: (
+                            <Space direction="vertical" size={8}>
+                                <span>{response.message}</span>
+                                <span>{getRes().articleEdit.rollbackConflictTip}</span>
+                            </Space>
+                        ),
+                        okText: getRes().articleEdit.rollbackRefresh,
+                        cancelText: getRes().cancel,
+                        getContainer: () => editCardRef.current as HTMLElement,
+                        onOk: () => window.location.reload(),
+                    });
+                    return;
+                }
+                const mergedArticle = handleArticleResponse(response, state.article, false, false);
+                if (mergedArticle.rubbish) {
+                    updateRubbishState(mergedArticle, false);
+                } else {
+                    updateReleaseState(mergedArticle, false);
+                }
+            } finally {
+                finishFailedManualSave();
+            }
         });
-        if (response.error) {
-            modal.confirm({
-                title: getRes().articleEdit.rollbackFailed,
-                content: (
-                    <Space direction="vertical" size={8}>
-                        <span>{response.message}</span>
-                        <span>{getRes().articleEdit.rollbackConflictTip}</span>
-                    </Space>
-                ),
-                okText: getRes().articleEdit.rollbackRefresh,
-                cancelText: getRes().cancel,
-                getContainer: () => editCardRef.current as HTMLElement,
-                onOk: () => window.location.reload(),
-            });
-            return;
-        }
-        const mergedArticle = handleArticleResponse(response, state.article, false, false);
-        if (mergedArticle.rubbish) {
-            updateRubbishState(mergedArticle, false);
-        } else {
-            updateReleaseState(mergedArticle, false);
-        }
-    };
 
     const useLocalConflictContent = () => {
         const conflict = state.contentConflict;
