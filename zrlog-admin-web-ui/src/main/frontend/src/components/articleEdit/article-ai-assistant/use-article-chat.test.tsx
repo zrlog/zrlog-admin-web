@@ -6,6 +6,15 @@ import { getRes } from "../../../utils/constants";
 import { BasicUserInfo } from "../../../type";
 import { ChatMessage, ChatRun, parseChatEvents, renderChatMessage, useArticleChat } from "./use-article-chat";
 
+jest.mock("@zrlog/editor/dist/editor/html-preview-panel", () => ({
+    __esModule: true,
+    default: ({ htmlContent }: { htmlContent: string }) => <div>{htmlContent}</div>,
+}));
+jest.mock("@zrlog/editor/dist/editor/utils/marked-utils", () => ({
+    markdownToHtmlSyncWithCallback: (markdown: string) => markdown,
+}));
+jest.mock("../../../base/ConfigProviderApp", () => ({ getAppState: () => ({ dark: false }) }));
+
 describe("knowledge assistant", () => {
     let root: Root;
     let container: HTMLDivElement;

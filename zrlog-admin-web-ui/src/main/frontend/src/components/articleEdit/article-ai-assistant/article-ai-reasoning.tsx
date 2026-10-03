@@ -1,5 +1,9 @@
+import { useEffect, useState } from "react";
 import { Collapse, Space, Typography, theme } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
+import HtmlPreviewPanel from "@zrlog/editor/dist/editor/html-preview-panel";
+import { markdownToHtmlSyncWithCallback } from "@zrlog/editor/dist/editor/utils/marked-utils";
+import { getAppState } from "../../../base/ConfigProviderApp";
 import { getRes } from "../../../utils/constants";
 
 const ArticleAiReasoning = ({
@@ -12,6 +16,27 @@ const ArticleAiReasoning = ({
     status?: string;
 }) => {
     const { token } = theme.useToken();
+    const [html, setHtml] = useState("");
+
+    useEffect(() => {
+        if (!content) {
+            setHtml("");
+            return;
+        }
+        let active = true;
+        const initialHtml = markdownToHtmlSyncWithCallback(
+            content,
+            (nextHtml) => {
+                if (active) setHtml(nextHtml);
+            },
+            { linkPreview: false }
+        );
+        setHtml(initialHtml);
+        return () => {
+            active = false;
+        };
+    }, [content]);
+
     if (!content && !status) return null;
     const progress = status ? (
         <Space role="status">
@@ -36,9 +61,11 @@ const ArticleAiReasoning = ({
                             </Space>
                         ),
                         children: (
-                            <Typography.Paragraph type="secondary" style={{ whiteSpace: "pre-wrap", marginBottom: 0 }}>
-                                {content}
-                            </Typography.Paragraph>
+                            <HtmlPreviewPanel
+                                htmlContent={html}
+                                dark={getAppState().dark}
+                                style={{ color: token.colorTextSecondary }}
+                            />
                         ),
                     },
                 ]}

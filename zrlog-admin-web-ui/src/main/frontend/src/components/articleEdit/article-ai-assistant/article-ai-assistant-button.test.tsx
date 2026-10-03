@@ -58,6 +58,7 @@ jest.mock("@zrlog/editor/dist/ai/AIButton", () => ({
     getAIButtonDrawerOpen: () => false,
 }));
 jest.mock("@zrlog/editor/dist/ai/AIIcon", () => ({ __esModule: true, default: () => null }));
+jest.mock("@zrlog/editor/dist/editor/html-preview-panel", () => ({ __esModule: true, default: () => null }));
 jest.mock("@zrlog/editor/dist/ai/AIDrawer", () => ({ resolveDrawerWidth: (width: unknown) => width }));
 jest.mock("@zrlog/editor/dist/editor/utils/marked-utils", () => ({
     markdownToHtmlSyncWithCallback: (markdown: string) => markdown,

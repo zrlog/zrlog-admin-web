@@ -8,6 +8,14 @@ import ArticleAiReasoning from "./article-ai-reasoning";
 import { getRes } from "../../../utils/constants";
 
 jest.mock("@zrlog/editor/dist/ai/AIIcon", () => ({ __esModule: true, default: () => null }));
+jest.mock("@zrlog/editor/dist/editor/html-preview-panel", () => ({
+    __esModule: true,
+    default: ({ htmlContent }: { htmlContent: string }) => <div>{htmlContent}</div>,
+}));
+jest.mock("@zrlog/editor/dist/editor/utils/marked-utils", () => ({
+    markdownToHtmlSyncWithCallback: (markdown: string) => markdown,
+}));
+jest.mock("../../../base/ConfigProviderApp", () => ({ getAppState: () => ({ dark: false }) }));
 jest.mock("@zrlog/editor/dist/editor/lang/editor-lang", () => ({
     getEditorRes: () => ({ contentTips: "Check AI output" }),
 }));
