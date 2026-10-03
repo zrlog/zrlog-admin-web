@@ -1,3 +1,5 @@
+import useArticleFieldAi from "./use-article-field-ai";
+import { articleContextRevision } from "./article-ai-assistant/article-ai-skill-contract";
 import { act, SetStateAction, useSyncExternalStore } from "react";
 import { createRoot, Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
@@ -220,6 +222,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
     let harnessLocation: { pathname: string; search: string; key: string };
     let updateCache: (cache: ArticleEditInfo, cacheKey: string) => void;
     let draftAiSaveGate: DraftAiSaveGate;
+    let fieldAi: ReturnType<typeof useArticleFieldAi>;
 
     const Harness = () => {
         const draftAiPendingCount = useSyncExternalStore(
@@ -244,6 +247,10 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
             restoreUiState: jest.fn(),
             updateCache,
             updatePublishStatus: jest.fn(),
+        });
+        fieldAi = useArticleFieldAi({
+            getCurrentArticle: coordinator.getCurrentArticle,
+            onValuesChange: coordinator.handleValuesChange,
         });
         return null;
     };
@@ -299,6 +306,153 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
         container.remove();
         reactActEnvironment.IS_REACT_ACT_ENVIRONMENT = false;
         window.history.replaceState({}, "", "/");
+        jest.useRealTimers();
+    });
+
+    it.each([false, true])(
+        "saves all accepted sibling fields with monotonic versions (save between applications: %s)",
+        async (saveBetween) => {
+            jest.useFakeTimers();
+            mockUseRealDraftSync = true;
+            remountWith(data, "?id=7");
+            mockArticlePost.mockImplementation(async (_uri, body) => {
+                const article = body as ArticleEntry;
+                return { data: { error: 0, data: { ...data, article: { ...article, version: article.version + 1 } } } };
+            });
+            const skill = (field: string, index: number): ToolAwareAIContent => ({
+                role: "assistant",
+                content: "",
+                thinking: false,
+                messageType: "writingSkill",
+                messageId: `run-1:skill:1:${index}`,
+                skillContract: {
+                    version: 1,
+                    contextRevision: articleContextRevision(initialArticle),
+                    applicableFields: [field],
+                },
+            });
+            act(() => fieldAi.applyGeneratedValues({ title: "AI title" }, skill("title", 1)));
+            if (saveBetween) {
+                await act(async () => {
+                    jest.advanceTimersByTime(5000);
+                });
+                expect(mockArticlePost).toHaveBeenCalledTimes(1);
+                expect(coordinator.state.article.version).toBe(4);
+            }
+            act(() => {
+                fieldAi.applyGeneratedValues({ digest: "AI digest" }, skill("digest", 2));
+                fieldAi.applyGeneratedValues({ keywords: "AI,writing" }, skill("keywords", 3));
+                fieldAi.applyGeneratedValues({ markdown: "AI body" }, skill("markdown", 4));
+            });
+            await act(async () => {
+                jest.advanceTimersByTime(5000);
+            });
+            expect(mockArticlePost).toHaveBeenLastCalledWith(
+                "/api/admin/article/update",
+                expect.objectContaining({
+                    title: "AI title",
+                    digest: "AI digest",
+                    keywords: "AI,writing",
+                    markdown: "AI body",
+                    version: saveBetween ? 4 : 3,
+                }),
+                { showError: false }
+            );
+            expect(coordinator.state.article.version).toBe(saveBetween ? 5 : 4);
+            expect(coordinator.state.contentSource).toBe("server");
+            const writes = mockArticlePost.mock.calls.length;
+            act(() => fieldAi.applyGeneratedValues({ keywords: "AI,writing" }, skill("keywords", 3)));
+            await act(async () => {
+                jest.advanceTimersByTime(5000);
+            });
+            expect(mockArticlePost).toHaveBeenCalledTimes(writes);
+        }
+    );
+
+    it("retains sibling applications made while an earlier autosave is in flight", async () => {
+        jest.useFakeTimers();
+        mockUseRealDraftSync = true;
+        remountWith(data, "?id=7");
+        const firstSave = deferred<any>();
+        mockArticlePost.mockImplementationOnce(async () => firstSave.promise);
+        mockArticlePost.mockImplementation(async (_uri, body) => {
+            const article = body as ArticleEntry;
+            return { data: { error: 0, data: { ...data, article: { ...article, version: article.version + 1 } } } };
+        });
+        const source: ToolAwareAIContent = {
+            role: "assistant",
+            content: "",
+            thinking: false,
+            messageType: "writingSkill",
+            messageId: "run-1:skill:1:1",
+            skillContract: {
+                version: 1,
+                contextRevision: articleContextRevision(initialArticle),
+                applicableFields: ["title", "digest", "keywords"],
+            },
+        };
+        act(() => fieldAi.applyGeneratedValues({ title: "AI title" }, source));
+        await act(async () => {
+            jest.advanceTimersByTime(5000);
+        });
+        expect(mockArticlePost).toHaveBeenCalledTimes(1);
+        act(() => {
+            fieldAi.applyGeneratedValues({ digest: "AI digest" }, { ...source, messageId: "run-1:skill:1:2" });
+            fieldAi.applyGeneratedValues({ keywords: "AI,writing" }, { ...source, messageId: "run-1:skill:1:3" });
+        });
+        await act(async () => {
+            firstSave.resolve({
+                data: { error: 0, data: { ...data, article: { ...initialArticle, title: "AI title", version: 4 } } },
+            });
+        });
+        expect(coordinator.getCurrentArticle()).toMatchObject({
+            title: "AI title",
+            digest: "AI digest",
+            keywords: "AI,writing",
+            version: 4,
+        });
+        await act(async () => {
+            jest.advanceTimersByTime(5000);
+        });
+        expect(mockArticlePost).toHaveBeenLastCalledWith(
+            "/api/admin/article/update",
+            expect.objectContaining({
+                title: "AI title",
+                digest: "AI digest",
+                keywords: "AI,writing",
+                version: 4,
+            }),
+            { showError: false }
+        );
+        expect(coordinator.state.article.version).toBe(5);
+        expect(coordinator.state.contentSource).toBe("server");
+    });
+
+    it("does not extend a run's application baseline when a conflict rejects the patch", async () => {
+        mockUseRealDraftSync = true;
+        remountWith(data, "?id=7");
+        const source: ToolAwareAIContent = {
+            role: "assistant",
+            content: "",
+            thinking: false,
+            messageType: "writingSkill",
+            messageId: "run-1:skill:1:1",
+            skillContract: {
+                version: 1,
+                contextRevision: articleContextRevision(initialArticle),
+                applicableFields: ["title"],
+            },
+        };
+        act(() => fieldAi.applyGeneratedValues({ title: "AI title" }, source));
+        mockArticleGet.mockResolvedValue({
+            data: { error: 0, data: { ...data, article: { ...initialArticle, title: "Server title", version: 4 } } },
+        });
+        await act(async () => coordinator.onArticleUpdated({ articleId: 7, version: 4 }));
+        expect(coordinator.state.contentConflict).toBeDefined();
+        const before = coordinator.getCurrentArticle();
+        act(() => fieldAi.applyGeneratedValues({ title: "Another AI title" }, source));
+        expect(coordinator.getCurrentArticle()).toBe(before);
+        expect(mockArticlePost).not.toHaveBeenCalled();
     });
 
     it("reloads the assistant's saved article and preserves the streaming conversation", async () => {
@@ -1195,6 +1349,8 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
             expect(await coverPromise!).toBe("/attached/cover.png");
         });
 
+        expect(mockDraftSyncApi?.applyPatch).not.toHaveBeenCalled();
+        expect(messageApi.success).not.toHaveBeenCalled();
         const releaseCreate = draftAiSaveGate.tryBeginCreate(0);
         expect(releaseCreate).toBeDefined();
         releaseCreate?.();

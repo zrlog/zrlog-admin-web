@@ -1,3 +1,4 @@
+import { ApplyAiValues, SkillContextRevision } from "../use-article-field-ai";
 import { Alert, App, Button, Space, Tag, Typography } from "antd";
 import { isChatMessage, renderChatMessage, useArticleChat } from "./use-article-chat";
 import ArticleAiApproval from "./article-ai-approval";
@@ -56,7 +57,8 @@ type ArticleAiAssistantConfigProps = {
     axiosInstance: AxiosInstance;
     onAiMessagesChange?: (messages: AIContent[], articleId?: number) => void;
     onArticleUpdated?: (event: ArticleUpdatedEvent) => void;
-    onApplyValues: (cv: ArticleChangeableValue) => void;
+    onApplyValues: ApplyAiValues;
+    getSkillContextRevision: SkillContextRevision;
 
     onApplyGeneratedCover?: (cover: {
         dataUrl: string;
@@ -94,6 +96,7 @@ export const useArticleAiAssistantConfig = ({
     onAiMessagesChange,
     onArticleUpdated,
     onApplyValues,
+    getSkillContextRevision,
     onApplyGeneratedCover,
 }: ArticleAiAssistantConfigProps) => {
     const [loadingKey, setLoadingKey] = useState<string>();
@@ -137,6 +140,8 @@ export const useArticleAiAssistantConfig = ({
         (content) => isChatMessage(content) && content.run && ["running", "executing"].includes(content.run.status)
     );
     const busy = Boolean(loadingKey) || chat.busy;
+    const applicationBlockedRef = useRef(false);
+    applicationBlockedRef.current = activeRun || busy;
     const queue = useArticleAiQueue(
         scope,
         offline || data.aiConfigured !== true || busy || activeRun || aiMessagesClearing,
@@ -747,17 +752,18 @@ export const useArticleAiAssistantConfig = ({
                     !/^[a-f0-9]{32}$/.test(contract.contextRevision))
             )
                 return <Alert type="warning" title={getRes().articleEdit.interaction.invalidResult} />;
-            const stale = contract && contract.contextRevision !== editorContextRevision(getArticleAiRequestBody());
+            const stale = contract && contract.contextRevision !== getSkillContextRevision(toolAwareContent);
             const applyDisabled = Boolean(contract && (stale || activeRun || busy));
             const applyValues = (values: ArticleChangeableValue) => {
                 if (
-                    (contract && (activeRun || busy)) ||
-                    !canApplySkillValues(toolAwareContent, editorContextRevision(getArticleAiRequestBody()), values)
+                    scopeRef.current !== scope ||
+                    (contract && applicationBlockedRef.current) ||
+                    !canApplySkillValues(toolAwareContent, getSkillContextRevision(toolAwareContent), values)
                 ) {
                     void message.warning(getRes().articleEdit.interaction.staleResult);
                     return;
                 }
-                onApplyValues(values);
+                onApplyValues(values, toolAwareContent);
             };
             let toolContent = (
                 <ArticleAiAssistantToolContent
@@ -782,13 +788,25 @@ export const useArticleAiAssistantConfig = ({
                     onUpdateToolPayload={updateToolPayload}
                     onApplyGeneratedCover={async (cover) => {
                         if (
+                            scopeRef.current !== scope ||
                             applyDisabled ||
-                            !canApplySkillValues(toolAwareContent, editorContextRevision(getArticleAiRequestBody()), {
+                            (contract && applicationBlockedRef.current) ||
+                            !canApplySkillValues(toolAwareContent, getSkillContextRevision(toolAwareContent), {
                                 thumbnail: cover.dataUrl,
                             })
                         )
                             return;
-                        return onApplyGeneratedCover?.(cover);
+                        const url = await onApplyGeneratedCover?.(cover);
+                        if (
+                            scopeRef.current !== scope ||
+                            (contract && applicationBlockedRef.current) ||
+                            !url ||
+                            !canApplySkillValues(toolAwareContent, getSkillContextRevision(toolAwareContent), {
+                                thumbnail: url,
+                            })
+                        )
+                            return;
+                        return url;
                     }}
                     onCoverApplyingChange={setApplyingCoverMessageId}
                     onCropCover={(url) => {
@@ -935,6 +953,7 @@ const ArticleAiAssistantButton: FunctionComponent<ArticleAiAssistantButtonProps>
     onAiMessagesChange,
     onArticleUpdated,
     onApplyValues,
+    getSkillContextRevision,
     onApplyGeneratedCover,
     getContainer,
     aiDrawerWidth,
@@ -959,6 +978,7 @@ const ArticleAiAssistantButton: FunctionComponent<ArticleAiAssistantButtonProps>
         onAiMessagesChange,
         onArticleUpdated,
         onApplyValues,
+        getSkillContextRevision,
         onApplyGeneratedCover,
     });
     const aiStateCacheKey = `${AI_ASSISTANT_STATE_CACHE_KEY_PREFIX}/${

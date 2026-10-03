@@ -1,10 +1,11 @@
+import { ApplyAiValues, SkillContextRevision } from "./use-article-field-ai";
 import { ArticleUpdatedEvent } from "./article-ai-assistant/article-ai-assistant.types";
 import { isModuleEnabled } from "../../utils/module-capabilities";
 import { hasAction } from "../../utils/account-access";
 import { Button } from "antd";
 import { SaveOutlined, SendOutlined } from "@ant-design/icons";
 import { getRes } from "../../utils/constants";
-import { ArticleChangeableValue, ArticleEditState, ArticleEntry } from "./index.types";
+import { ArticleEditState, ArticleEntry } from "./index.types";
 import { FunctionComponent, useEffect, useRef } from "react";
 import { AIContent } from "@zrlog/editor/dist/ai/AIContentItem";
 import { AIStateCache } from "@zrlog/editor/dist/ai/AIStateCache";
@@ -38,7 +39,8 @@ type ArticleEditActionBarProps = {
     onAiDrawerOpenChange?: (open: boolean) => void;
     aiDrawerWidth?: number | "default" | "large";
     aiStateCache?: AIStateCache;
-    onApplyAiValues: (cv: ArticleChangeableValue) => void;
+    onApplyAiValues: ApplyAiValues;
+    getSkillContextRevision: SkillContextRevision;
     onApplyGeneratedCover?: (cover: { dataUrl: string; extension?: string }) => Promise<string | undefined>;
 };
 
@@ -63,6 +65,7 @@ const ArticleEditActionBar: FunctionComponent<ArticleEditActionBarProps> = ({
     aiDrawerWidth,
     aiStateCache,
     onApplyAiValues,
+    getSkillContextRevision,
     onApplyGeneratedCover,
 }) => {
     const enterBtnRef = useRef<HTMLAnchorElement | HTMLButtonElement>(null);
@@ -187,6 +190,7 @@ const ArticleEditActionBar: FunctionComponent<ArticleEditActionBarProps> = ({
                     aiDrawerWidth={aiDrawerWidth}
                     stateCache={aiStateCache}
                     onApplyValues={onApplyAiValues}
+                    getSkillContextRevision={getSkillContextRevision}
                     onApplyGeneratedCover={onApplyGeneratedCover}
                 />
             )}

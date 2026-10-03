@@ -1,9 +1,11 @@
-import { act, ReactElement, useState } from "react";
+import useArticleFieldAi from "../use-article-field-ai";
+import { articleContextRevision } from "./article-ai-skill-contract";
+import { act, Children, isValidElement, ReactElement, ReactNode, useState } from "react";
 import { createRoot, Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { AIContent } from "@zrlog/editor/dist/ai/AIContentItem";
 import { AIProviderType } from "../../../type";
-import { ArticleEditState } from "../index.types";
+import { ArticleChangeableValue, ArticleEditState } from "../index.types";
 import { createDraftAiSaveGate, DraftAiSaveGate } from "../draft-ai-save-gate";
 import { AssistantTool, ToolAwareAIContent } from "./article-ai-assistant.types";
 import { useArticleAiAssistantConfig } from "./article-ai-assistant-button";
@@ -75,6 +77,11 @@ jest.mock("../../../utils/constants", () => ({
     getRealRouteUrl: (url: string) => url,
     getRes: () => ({
         articleEdit: {
+            interaction: {
+                staleResult: "Stale result",
+                invalidResult: "Invalid result",
+                pendingResult: "Pending result",
+            },
             knowledge: {
                 thinking: "Thinking",
                 permission: "Permissions changed",
@@ -131,6 +138,9 @@ type FooterActions = {
 };
 
 type ToolContentActions = {
+    applyDisabled: boolean;
+    onApplyValues: (values: ArticleChangeableValue) => void;
+    onApplyGeneratedCover: (cover: { dataUrl: string }) => Promise<string | undefined>;
     onCropCover: (url: string) => void;
     onUpdateToolPayload: (
         messageIndex: number,
@@ -213,10 +223,13 @@ describe("useArticleAiAssistantConfig draft request gate", () => {
         }),
         initialLogId?: number,
         initialMessages: AIContent[] = [],
-        followMessages = false
+        followMessages = false,
+        onApplyGeneratedCover?: (cover: { dataUrl: string }) => Promise<string | undefined>
     ) => {
         let data = createState(initialLogId, initialMessages);
         let config!: AssistantConfig;
+        let secondConfig!: AssistantConfig;
+        const onApplied = jest.fn();
         const container = document.createElement("div");
         document.body.appendChild(container);
         const root = createRoot(container);
@@ -224,20 +237,35 @@ describe("useArticleAiAssistantConfig draft request gate", () => {
 
         const Harness = () => {
             const [, redraw] = useState(0);
-            config = useArticleAiAssistantConfig({
+            const fieldAi = useArticleFieldAi({
+                getCurrentArticle: () => data.article,
+                onValuesChange: (values) => {
+                    const article = { ...data.article, ...values };
+                    if (JSON.stringify(article) === JSON.stringify(data.article)) return;
+                    data = { ...data, article };
+                    redraw((revision) => revision + 1);
+                    return { article };
+                },
+                onApplied,
+            });
+            const props = {
                 data,
                 draftAiSaveGate: gate,
                 offline: false,
                 axiosInstance: { get: jest.fn(), post } as never,
-                onAiMessagesChange: (messages, articleId) => {
+                onAiMessagesChange: (messages: AIContent[], articleId?: number) => {
                     onAiMessagesChange(messages, articleId);
                     if (followMessages && articleId === (data.article.logId || 0)) {
                         data = { ...data, aiMessages: messages };
                         redraw((revision) => revision + 1);
                     }
                 },
-                onApplyValues: jest.fn(),
-            });
+                onApplyValues: fieldAi.applyGeneratedValues,
+                getSkillContextRevision: fieldAi.getSkillContextRevision,
+                onApplyGeneratedCover,
+            };
+            config = useArticleAiAssistantConfig(props);
+            secondConfig = useArticleAiAssistantConfig(props);
             return null;
         };
 
@@ -254,14 +282,27 @@ describe("useArticleAiAssistantConfig draft request gate", () => {
                     void config.conversationActions.onClear();
                 },
             }),
-            getToolContent: (content: AIContent, index = 0) =>
-                (
-                    config.renderMessage({
+            getToolContent: (content: AIContent, index = 0, second = false) => {
+                const findTool = (node: ReactNode): ReactElement<ToolContentActions> | undefined => {
+                    if (!isValidElement(node)) return;
+                    const element = node as ReactElement<Partial<ToolContentActions> & { children?: ReactNode }>;
+                    if (element.props.onApplyValues) return element as ReactElement<ToolContentActions>;
+                    return Children.toArray(element.props.children).map(findTool).find(Boolean);
+                };
+                return findTool(
+                    (second ? secondConfig : config).renderMessage({
                         content,
                         index,
                         defaultNode: null,
-                    } as never) as ReactElement<ToolContentActions>
-                ).props,
+                    } as never) as ReactNode
+                )!.props;
+            },
+            getArticle: () => data.article,
+            onApplied,
+            edit: (values: ArticleChangeableValue) => {
+                data = { ...data, article: { ...data.article, ...values } };
+                render();
+            },
             getCropper: () => {
                 const overlay = config.overlays as ReactElement<{ children: ReactElement<CropperActions> }>;
                 return overlay.props.children.props;
@@ -273,6 +314,126 @@ describe("useArticleAiAssistantConfig draft request gate", () => {
             },
         };
     };
+
+    const skillMessage = (field: "title" | "digest" | "keywords" | "thumbnail", run = "run-1"): ToolAwareAIContent => ({
+        role: "assistant",
+        content: "",
+        thinking: false,
+        messageId: `${run}:skill:1:${field === "title" ? 1 : field === "digest" ? 2 : field === "keywords" ? 3 : 4}`,
+        messageType: "writingSkill",
+        skillContract: {
+            version: 1,
+            contextRevision: articleContextRevision(createState(7).article),
+            applicableFields: [field],
+        },
+        tool: field === "keywords" ? "tags" : field === "thumbnail" ? "cover" : field,
+        payload:
+            field === "title"
+                ? { titles: ["AI title"] }
+                : field === "digest"
+                ? { digest: "AI digest" }
+                : field === "keywords"
+                ? { tags: ["AI", "writing"] }
+                : { url: "data:image/png;base64,cover" },
+    });
+
+    it("keeps sibling results applicable across both assistant views and rapid clicks", () => {
+        const hook = mountHook(
+            createDraftAiSaveGate(),
+            jest.fn(async () => undefined),
+            undefined,
+            7
+        );
+        const title = skillMessage("title");
+        const digest = skillMessage("digest");
+        const tags = skillMessage("keywords");
+        const titleActions = hook.getToolContent(title);
+        const digestActions = hook.getToolContent(digest, 1, true);
+        act(() => {
+            titleActions.onApplyValues({ title: "AI title" });
+            digestActions.onApplyValues({ digest: "AI digest" });
+        });
+        expect(hook.getToolContent(tags).applyDisabled).toBe(false);
+        act(() => hook.getToolContent(tags).onApplyValues({ keywords: "AI,writing" }));
+        expect(hook.getArticle()).toMatchObject({ title: "AI title", digest: "AI digest", keywords: "AI,writing" });
+        expect(hook.onApplied).toHaveBeenCalledTimes(3);
+        act(() => hook.getToolContent(tags).onApplyValues({ keywords: "AI,writing" }));
+        expect(hook.onApplied).toHaveBeenCalledTimes(3);
+        expect(title.skillContract!.contextRevision).toBe(articleContextRevision(createState(7).article));
+    });
+
+    it("still rejects another run, forbidden fields, and manual edits after accepting a sibling", () => {
+        const hook = mountHook(
+            createDraftAiSaveGate(),
+            jest.fn(async () => undefined),
+            undefined,
+            7
+        );
+        const title = skillMessage("title");
+        const digest = skillMessage("digest");
+        const staleClick = hook.getToolContent(digest).onApplyValues;
+        act(() => hook.getToolContent(title).onApplyValues({ markdown: "Forbidden body" }));
+        expect(hook.getArticle().markdown).toBe("Draft body");
+        act(() => hook.getToolContent(title).onApplyValues({ title: "AI title" }));
+        expect(hook.getToolContent(skillMessage("digest", "other-run")).applyDisabled).toBe(true);
+        hook.edit({ markdown: "Manual body" });
+        expect(hook.getToolContent(digest).applyDisabled).toBe(true);
+        act(() => staleClick({ digest: "AI digest" }));
+        expect(hook.getArticle().digest).toBeUndefined();
+        expect(hook.onApplied).toHaveBeenCalledTimes(1);
+    });
+
+    it("allows a cover to join the same run but rechecks edits and article scope after upload", async () => {
+        const upload = deferred<string>();
+        const prepareCover = jest.fn(async () => upload.promise);
+        const hook = mountHook(
+            createDraftAiSaveGate(),
+            jest.fn(async () => undefined),
+            undefined,
+            7,
+            [],
+            false,
+            prepareCover
+        );
+        act(() => hook.getToolContent(skillMessage("title")).onApplyValues({ title: "AI title" }));
+        const cover = skillMessage("thumbnail");
+        let prepared!: Promise<string | undefined>;
+        act(() => {
+            prepared = hook.getToolContent(cover).onApplyGeneratedCover({ dataUrl: "cover" });
+        });
+        await act(async () => {
+            upload.resolve("/attached/cover.png");
+            expect(await prepared).toBe("/attached/cover.png");
+        });
+        act(() => hook.getToolContent(cover).onApplyValues({ thumbnail: "/attached/cover.png" }));
+        expect(hook.getToolContent(skillMessage("digest")).applyDisabled).toBe(false);
+        const nextUpload = deferred<string>();
+        prepareCover.mockImplementationOnce(async () => nextUpload.promise);
+        act(() => {
+            prepared = hook.getToolContent(cover).onApplyGeneratedCover({ dataUrl: "cover" });
+        });
+        hook.edit({ title: "Manual title" });
+        await act(async () => {
+            nextUpload.resolve("/attached/stale.png");
+            expect(await prepared).toBeUndefined();
+        });
+        expect(hook.getArticle().thumbnail).toBe("/attached/cover.png");
+
+        hook.rerender(7);
+        const switchedUpload = deferred<string>();
+        prepareCover.mockImplementationOnce(async () => switchedUpload.promise);
+        const oldActions = hook.getToolContent(cover);
+        act(() => {
+            prepared = oldActions.onApplyGeneratedCover({ dataUrl: "cover" });
+        });
+        hook.rerender(8);
+        await act(async () => {
+            switchedUpload.resolve("/attached/other.png");
+            expect(await prepared).toBeUndefined();
+        });
+        act(() => oldActions.onApplyValues({ thumbnail: "/attached/other.png" }));
+        expect(hook.getArticle().thumbnail).toBeUndefined();
+    });
 
     const flushRequest = async () => {
         await Promise.resolve();
@@ -338,7 +499,7 @@ describe("useArticleAiAssistantConfig draft request gate", () => {
             undefined,
             [pending]
         );
-        expect(gate.getPendingAiCount()).toBe(1);
+        expect(gate.getPendingAiCount()).toBe(2);
         expect(gate.tryBeginCreate()).toBeUndefined();
         mounted.rerender(18, []);
         expect(gate.getPendingAiCount()).toBe(0);

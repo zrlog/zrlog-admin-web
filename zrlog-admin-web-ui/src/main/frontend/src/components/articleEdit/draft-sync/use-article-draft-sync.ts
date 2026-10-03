@@ -434,6 +434,7 @@ const useArticleDraftSync = ({
     );
 
     return {
+        getCurrentArticle: () => articleRef.current,
         applyPatch,
         discard,
         markBlocked,

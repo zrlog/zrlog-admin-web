@@ -91,6 +91,7 @@ const Index: FunctionComponent<ArticleEditProps> = ({
         getLocalCacheKey,
         createImportedDraft,
         handleValuesChange,
+        getCurrentArticle,
         isSaving,
         retryConflictRead,
         versionSync,
@@ -205,6 +206,7 @@ const Index: FunctionComponent<ArticleEditProps> = ({
     };
 
     const fieldAi = useArticleFieldAi({
+        getCurrentArticle,
         onValuesChange: handleValuesChange,
         onApplied: () => {
             void messageApi.success(getRes().articleEdit.assistant.applySuccess);
@@ -308,6 +310,7 @@ const Index: FunctionComponent<ArticleEditProps> = ({
         onAiMessagesChange: updateAiMessageCache,
         onArticleUpdated,
         onApplyValues: fieldAi.applyGeneratedValues,
+        getSkillContextRevision: fieldAi.getSkillContextRevision,
         onApplyGeneratedCover: applyGeneratedCover,
     });
 
@@ -437,6 +440,7 @@ const Index: FunctionComponent<ArticleEditProps> = ({
                         saving={isSaving}
                         onValuesChange={handleValuesChange}
                         onApplyAiValues={fieldAi.applyGeneratedValues}
+                        getSkillContextRevision={fieldAi.getSkillContextRevision}
                         onApplyGeneratedCover={applyGeneratedCover}
                         onSettingsOpenChange={updateSettingsOpen}
                         onVersionOpenChange={updateVersionDrawerOpen}

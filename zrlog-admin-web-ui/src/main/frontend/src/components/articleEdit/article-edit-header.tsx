@@ -1,3 +1,4 @@
+import { ApplyAiValues, SkillContextRevision } from "./use-article-field-ai";
 import { ArticleUpdatedEvent } from "./article-ai-assistant/article-ai-assistant.types";
 import { InputRef, Tag } from "antd";
 import Select from "antd/es/select";
@@ -44,7 +45,8 @@ type ArticleEditHeaderProps = {
     stateCacheKey: string;
     saving: boolean;
     onValuesChange: (cv: ArticleChangeableValue) => void;
-    onApplyAiValues: (cv: ArticleChangeableValue) => void;
+    onApplyAiValues: ApplyAiValues;
+    getSkillContextRevision: SkillContextRevision;
     onApplyGeneratedCover: (cover: { dataUrl: string; extension?: string }) => Promise<string | undefined>;
     onSettingsOpenChange: (open: boolean) => void;
     onVersionOpenChange: (open: boolean) => void;
@@ -94,6 +96,7 @@ const ArticleEditHeader: FunctionComponent<ArticleEditHeaderProps> = ({
     saving,
     onValuesChange,
     onApplyAiValues,
+    getSkillContextRevision,
     onApplyGeneratedCover,
     onSettingsOpenChange,
     onVersionOpenChange,
@@ -275,6 +278,7 @@ const ArticleEditHeader: FunctionComponent<ArticleEditHeaderProps> = ({
                         aiStateCache={aiStateCache}
                         onAiDrawerSizeChange={onAiDrawerSizeChange}
                         onApplyAiValues={onApplyAiValues}
+                        getSkillContextRevision={getSkillContextRevision}
                         onApplyGeneratedCover={onApplyGeneratedCover}
                     />
                     <ArticleEditMoreActions

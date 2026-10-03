@@ -117,6 +117,7 @@ describe("ArticleEditActionBar", () => {
                     onSubmit={onSubmit}
                     onRequestPublish={onRequestPublish}
                     onPreview={onPreview}
+                    getSkillContextRevision={() => ""}
                     onApplyAiValues={jest.fn()}
                 />
             );

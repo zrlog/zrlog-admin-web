@@ -33,7 +33,12 @@ describe("AI field application and saved article content", () => {
         const [value, setValue] = useState(initialArticle);
         article = value;
         fieldAi = useArticleFieldAi({
-            onValuesChange: (patch) => setValue((current) => ({ ...current, ...patch })),
+            getCurrentArticle: () => article,
+            onValuesChange: (patch) => {
+                article = { ...article, ...patch };
+                setValue(article);
+                return { article };
+            },
             onApplied,
         });
         onEditorChange = (change, liveMarkdown) => {

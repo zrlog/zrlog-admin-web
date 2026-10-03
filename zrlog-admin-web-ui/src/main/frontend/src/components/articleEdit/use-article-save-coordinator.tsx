@@ -1215,8 +1215,7 @@ const useArticleSaveCoordinator = ({
                 await messageApi.error(data.message);
                 return undefined;
             }
-            handleValuesChange({ thumbnail: data.data.url });
-            await messageApi.success(getRes().articleEdit.coverApplySuccess);
+            // Upload only. The skill card revalidates its context before applying the returned URL.
             return data.data.url;
         } catch (error) {
             await messageApi.error(error instanceof Error ? error.message : getRes().error.unknown);
@@ -1310,6 +1309,7 @@ const useArticleSaveCoordinator = ({
     };
 
     return {
+        getCurrentArticle: draftSync.getCurrentArticle,
         applyGeneratedCover,
         applyImportedArticle,
         getLocalCacheKey,
