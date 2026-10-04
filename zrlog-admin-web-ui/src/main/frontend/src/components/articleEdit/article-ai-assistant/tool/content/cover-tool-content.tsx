@@ -36,12 +36,17 @@ const CoverToolContent: FunctionComponent<SpecificToolContentProps<CoverToolPayl
                 <BackendImage
                     alt={getRes().articleEdit.cover}
                     src={url}
-                    preview={false}
+                    width="100%"
+                    preview={{
+                        getContainer: () => (document.fullscreenElement as HTMLElement) || document.body,
+                    }}
+                    styles={{
+                        root: { display: "block", marginBottom: theme.marginSM },
+                        cover: { borderRadius: theme.borderRadius },
+                    }}
                     style={{
-                        width: "100%",
                         display: "block",
                         borderRadius: theme.borderRadius,
-                        marginBottom: 12,
                     }}
                 />
             )}
