@@ -198,6 +198,27 @@ public class AIChatServiceTest {
     }
 
     @Test
+    public void shouldPersistAnswerWhenProviderSendsAnEmptyUsageDeltaAfterFinishing() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            seedAiConfig(db);
+            FakeHttpClient client = new FakeHttpClient(streamResponse(
+                    "data: {\"choices\":[{\"delta\":{\"content\":\"Answer🙂\"},\"finish_reason\":\"stop\"}]}\n\n"
+                            + "data: {\"error\":null,\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}],"
+                            + "\"usage\":{\"completion_tokens\":3}}\n\n"
+                            + "data: [DONE]\n\n"));
+            String payload = new String(new NoSleepAIChatService(client).startStreamResponse("Question", 36L)
+                    .getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+            assertTrue(payload, payload.contains("\"type\":\"delta\""));
+            assertTrue(payload, payload.contains("\"type\":\"answer\""));
+            assertTrue(payload, payload.contains("\"type\":\"done\""));
+            assertFalse(payload, payload.contains("\"type\":\"error\""));
+            assertEquals(1, client.requests.size());
+            String stored = String.valueOf(db.queryOne("select value from website where name=?", "ai_chat_message_u1_36").get("value"));
+            assertTrue(stored, stored.contains("Answer🙂"));
+        }
+    }
+
+    @Test
     public void shouldStartStreamResponseContinueAndPersistMessagesThroughRealWebsiteTable() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             seedAiConfig(db);

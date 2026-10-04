@@ -67,10 +67,17 @@ final class AIChatStreamReader {
         if (response.getChoices().isEmpty()) return false; // Optional usage-only frame.
         AIProviderResponses.Choice choice = single(response);
         AIProviderResponses.Delta delta = choice.getDelta();
-        if (finish != null && delta != null) throw invalid();
+        String thought = delta == null ? null : delta.getReasoningContent();
+        if (thought == null && delta != null && delta.getReasoning() instanceof String) thought = (String) delta.getReasoning();
+        if (finish != null) {
+            // Some providers repeat the finished choice with an empty delta in their usage frame.
+            // Accept that metadata without allowing new output or a changed finish reason.
+            if (choice.getFinishReason() != null && !finish.equals(choice.getFinishReason())
+                    || delta != null && (hasText(delta.getContent()) || hasText(thought)
+                    || delta.toolCalls != null && !delta.toolCalls.isEmpty())) throw invalid();
+            return false;
+        }
         if (delta != null) {
-            String thought = delta.getReasoningContent();
-            if (thought == null && delta.getReasoning() instanceof String) thought = (String) delta.getReasoning();
             if (thought != null) { reasoning.append(thought); text(progress, "reasoning_delta", thought); }
             if (delta.getContent() != null) { content.append(delta.getContent()); text(progress, "delta", delta.getContent()); }
             if (delta.toolCalls != null) for (AIProviderResponses.ToolCallDelta fragment : delta.toolCalls) merge(fragment);
@@ -106,7 +113,8 @@ final class AIChatStreamReader {
     private AIProviderResponses.CompletionResponse parse(String data) {
         try {
             AIProviderResponses.CompletionResponse response = gson.fromJson(data, AIProviderResponses.CompletionResponse.class);
-            if (response == null || response.getError() != null || response.getChoices() == null) throw invalid();
+            if (response == null || response.getChoices() == null
+                    || response.getError() != null && !response.getError().isJsonNull()) throw invalid();
             return response;
         } catch (JsonParseException e) { throw invalid(); }
     }
@@ -117,8 +125,9 @@ final class AIChatStreamReader {
     }
 
     private static void text(Progress progress, String type, String text) throws IOException {
-        if (text != null && !text.isEmpty()) progress.emit(type, text);
+        if (hasText(text)) progress.emit(type, text);
     }
+    private static boolean hasText(String text) { return text != null && !text.isEmpty(); }
     private static AIResponseException invalid() { return new AIResponseException("Invalid AI stream"); }
 
     static final class LimitedInput extends FilterInputStream {

@@ -80,6 +80,48 @@ public class AIChatStreamReaderTest {
         assertEquals(arguments, response.getMessage().toolCalls.get(0).function.arguments);
     }
 
+    @Test public void acceptsEmptyTrailingDeltasWithoutDuplicatingOutput() throws Exception {
+        for (String delta : List.of("{}", "null", "{\"content\":\"\",\"reasoning_content\":\"\",\"tool_calls\":[]}",
+                "{\"content\":null,\"reasoning\":null,\"tool_calls\":null}")) {
+            for (String finish : Arrays.asList(null, "stop")) {
+                List<String> events = new ArrayList<>();
+                String wire = frame("{\"content\":\"Answer🙂\"}", "stop") + frame(delta, finish)
+                        + "data: {\"choices\":[],\"usage\":{\"completion_tokens\":3}}\n\ndata: [DONE]\n\n";
+                AIProviderResponses.Choice result = read(wire, (type, text) -> events.add(type + ":" + text));
+                assertEquals("stop", result.getFinishReason());
+                assertEquals("Answer🙂", result.getMessage().getContent());
+                assertEquals(List.of("delta:Answer🙂"), events);
+            }
+        }
+    }
+
+    @Test public void acceptsExplicitNullErrorsInStreamingAndJsonResponses() throws Exception {
+        for (boolean sse : List.of(true, false)) {
+            String response = "{\"error\":null,\"choices\":[{\"" + (sse ? "delta" : "message")
+                    + "\":{\"content\":\"Answer\"},\"finish_reason\":\"stop\"}]}";
+            String wire = sse ? "data: " + response + "\n\ndata: [DONE]\n\n" : response;
+            List<String> events = new ArrayList<>();
+            var result = new AIChatStreamReader().read(new ByteArrayInputStream(wire.getBytes(StandardCharsets.UTF_8)),
+                    sse, (type, text) -> events.add(text));
+            assertEquals("Answer", result.getMessage().getContent());
+            assertEquals(List.of("Answer"), events);
+        }
+    }
+
+    @Test public void rejectsContentToolsAndConflictingFinishReasonsAfterCompletion() {
+        for (String trailing : List.of(frame("{\"content\":\"unexpected\"}", null),
+                frame("{\"reasoning_content\":\"unexpected\"}", null),
+                frame("{\"reasoning\":\"unexpected\"}", null),
+                frame("{\"tool_calls\":[{\"index\":0}]}", null),
+                frame("{}", "length"), frame("null", "length"),
+                "data: {\"error\":{\"message\":\"failed\"},\"choices\":[]}\n\n")) {
+            List<String> events = new ArrayList<>();
+            assertThrows(AIResponseException.class, () -> read(frame("{\"content\":\"Answer\"}", "stop")
+                    + trailing + "data: [DONE]\n\n", (type, text) -> events.add(text)));
+            assertEquals(List.of("Answer"), events);
+        }
+    }
+
     @Test public void rejectsArgumentsBeyondTheSharedToolBoundary() {
         String delta = "{\"tool_calls\":[{\"index\":0,\"id\":\"a\",\"type\":\"function\",\"function\":{\"name\":\"upload_attachment\",\"arguments\":"
                 + new Gson().toJson("x".repeat(ContentToolCatalog.MAX_ARGUMENT_LENGTH + 1)) + "}}]}";
