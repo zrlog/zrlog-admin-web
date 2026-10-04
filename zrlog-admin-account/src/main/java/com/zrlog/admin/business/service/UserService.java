@@ -67,6 +67,7 @@ public class UserService {
         UserBasicInfoResponse userInfoByUser = getUserInfoByUser(BeanUtil.convert(byId, UserBasicDTO.class), sessionId);
         userInfoByUser.setEmail(ObjectHelpers.requireNonNullElse((String) byId.get("email"), ""));
         userInfoByUser.setMfaEnabled(mfaService.getMfaEnabled(byId));
+        userInfoByUser.setPasskeys(new PasskeyService().list(userId));
         return userInfoByUser;
     }
 

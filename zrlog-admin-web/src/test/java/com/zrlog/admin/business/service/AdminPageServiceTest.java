@@ -208,6 +208,44 @@ public class AdminPageServiceTest {
     }
 
     @Test
+    public void shouldHydrateAccountSecurityWithOnlyTheCurrentUsersPasskeySummaries() throws Throwable {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            AccountAuthorizationTest.login(db, 1, "owner");
+            db.loadAdminWebModules();
+            RequestConfig config = new RequestConfig();
+            config.setRouter(com.zrlog.common.Constants.zrLogConfig.getServerConfig().getRouter());
+            AdminPageService service = new AdminPageService();
+            String page = "/admin/user/security";
+            com.google.gson.Gson gson = new com.google.gson.Gson();
+
+            com.google.gson.JsonObject empty = gson.toJsonTree(service.serverSide(
+                    page, request(page, "/blog", config), response()).getData()).getAsJsonObject();
+            assertEquals(0, empty.getAsJsonArray("passkeys").size());
+
+            db.execute("insert into user(userId,userName,role) values(?,?,?)", 2, "writer", "author");
+            com.zrlog.model.UserPasskey passkeys = new com.zrlog.model.UserPasskey();
+            passkeys.save(1, "own-hash", "own-credential", "own-public-key", 0, "internal",
+                    "Work computer", "aaguid", true, false, "https://example.com", "example.com", 1L);
+            passkeys.save(2, "other-hash", "other-credential", "other-public-key", 0, "internal",
+                    "Other account", "aaguid", true, false, "https://example.com", "example.com", 2L);
+
+            com.google.gson.JsonObject data = gson.toJsonTree(service.serverSide(
+                    page, request(page, "/blog", config), response()).getData()).getAsJsonObject();
+            assertTrue(data.has("mfaEnabled"));
+            assertEquals(1, data.getAsJsonArray("passkeys").size());
+            com.google.gson.JsonObject summary = data.getAsJsonArray("passkeys").get(0).getAsJsonObject();
+            assertEquals("Work computer", summary.get("name").getAsString());
+            assertEquals(1L, summary.get("createdAt").getAsLong());
+            assertFalse(data.toString().contains("Other account"));
+            assertFalse(summary.has("credentialId"));
+            assertFalse(summary.has("publicKeyCose"));
+
+            AdminTokenThreadLocal.remove();
+            assertNull(service.serverSide(page, request(page, "/blog", config), response()).getData());
+        }
+    }
+
+    @Test
     public void shouldLoadNestedAccountPagesThroughExistingApisWithoutWeakeningPermissions() throws Throwable {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             AccountAuthorizationTest.login(db, 1, "owner");

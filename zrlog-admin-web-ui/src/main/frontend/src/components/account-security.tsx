@@ -9,7 +9,7 @@ import Button from "antd/es/button";
 import { useTheme } from "antd-style";
 import { getRes } from "../utils/constants";
 import { useAxiosBaseInstance } from "../base/AppBase";
-import { AdminCommonProps, MfaStatusResponse } from "../type";
+import { AdminCommonProps, MfaStatusResponse, PasskeySummary } from "../type";
 import { getPageDataCacheKeyByPath } from "../utils/cache";
 import { useLocation } from "react-router-dom";
 import { useResponsiveFormLayout } from "../utils/responsive-form";
@@ -27,6 +27,7 @@ const passwordInputStyle = {
 
 type AccountSecurityData = {
     mfaEnabled?: boolean;
+    passkeys?: PasskeySummary[];
 };
 
 const AccountSecurity = ({ offline, data, updateCache }: AdminCommonProps<AccountSecurityData>) => {
@@ -36,6 +37,7 @@ const AccountSecurity = ({ offline, data, updateCache }: AdminCommonProps<Accoun
     );
     const [mfaSubmitting, setMfaSubmitting] = useState(false);
     const [mfaDialogAction, setMfaDialogAction] = useState<"enable" | "disable" | null>(null);
+    const cachedSecurityDataRef = useRef(data);
     const theme = useTheme();
     const location = useLocation();
 
@@ -65,14 +67,19 @@ const AccountSecurity = ({ offline, data, updateCache }: AdminCommonProps<Accoun
         }
     };
 
-    const syncCachedMfaEnabled = (enabled: boolean) => {
+    const syncCachedSecurityData = (changes: Partial<AccountSecurityData>) => {
+        cachedSecurityDataRef.current = { ...cachedSecurityDataRef.current, ...changes };
         if (!updateCache) {
             return;
         }
         const url = new URL(window.location.href);
         const cacheKey = getPageDataCacheKeyByPath(location.pathname, "?" + url.searchParams.toString());
-        updateCache({ ...(data || {}), mfaEnabled: enabled }, cacheKey);
+        updateCache(cachedSecurityDataRef.current, cacheKey);
     };
+
+    useEffect(() => {
+        cachedSecurityDataRef.current = data;
+    }, [data]);
 
     useEffect(() => {
         if (data?.mfaEnabled) {
@@ -106,9 +113,9 @@ const AccountSecurity = ({ offline, data, updateCache }: AdminCommonProps<Accoun
             setMfaDialogAction(null);
             if (uri.endsWith("/enableMfa")) {
                 setMfaStatus({ enabled: true, secret: "", issuer: "", accountName: "", otpauthUrl: "" });
-                syncCachedMfaEnabled(true);
+                syncCachedSecurityData({ mfaEnabled: true });
             } else {
-                syncCachedMfaEnabled(false);
+                syncCachedSecurityData({ mfaEnabled: false });
                 await loadMfaStatus();
             }
         } finally {
@@ -186,6 +193,8 @@ const AccountSecurity = ({ offline, data, updateCache }: AdminCommonProps<Accoun
                     offline={offline}
                     mfaEnabled={mfaStatus?.enabled ?? data?.mfaEnabled === true}
                     modalWidth={securitySurface.modalWidth}
+                    initialPasskeys={data?.passkeys}
+                    onPasskeysChange={(passkeys) => syncCachedSecurityData({ passkeys })}
                 />
             </div>
             <Modal

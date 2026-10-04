@@ -17,6 +17,7 @@ let mockCanUsePasskeys = true;
 let mockPreviewMode = false;
 const mockMessageError = jest.fn<PromiseLike<boolean>, [string]>();
 const mockMessageSuccess = jest.fn<PromiseLike<boolean>, [string]>();
+const mockPasskeysChange = jest.fn<void, [PasskeySummary[]]>();
 
 jest.mock("antd", () => {
     const React = require("react") as typeof import("react");
@@ -279,9 +280,16 @@ describe("PasskeyManagement", () => {
     let container: HTMLDivElement;
     let root: Root;
 
-    const render = async (offline: boolean) => {
+    const render = async (offline: boolean, initialPasskeys?: PasskeySummary[]) => {
         await act(async () => {
-            root.render(<PasskeyManagement offline={offline} mfaEnabled={false} />);
+            root.render(
+                <PasskeyManagement
+                    offline={offline}
+                    mfaEnabled={false}
+                    initialPasskeys={initialPasskeys}
+                    onPasskeysChange={mockPasskeysChange}
+                />
+            );
             await Promise.resolve();
         });
     };
@@ -302,6 +310,37 @@ describe("PasskeyManagement", () => {
         });
         container.remove();
         reactActEnvironment.IS_REACT_ACT_ENVIRONMENT = false;
+    });
+
+    it.each([false, true])(
+        "renders server-provided passkeys without another request or spinner (offline: %s)",
+        async (offline) => {
+            await render(offline, [{ id: 1, name: "Work computer", createdAt: 1 }]);
+
+            expect(container.textContent).toContain("Work computer");
+            expect(container.querySelector(".ant-list-loading")).toBeNull();
+            expect(mockAxiosGet).not.toHaveBeenCalled();
+        }
+    );
+
+    it("treats an empty server-provided list as loaded", async () => {
+        await render(false, []);
+
+        expect(container.textContent).toContain("No passkeys added");
+        expect(container.querySelector(".ant-list-loading")).toBeNull();
+        expect(mockAxiosGet).not.toHaveBeenCalled();
+        expect(container.querySelector<HTMLButtonElement>("button")?.disabled).toBe(false);
+    });
+
+    it("uses updated page data without reloading the list", async () => {
+        await render(true);
+        await render(false, [{ id: 1, name: "Work computer", createdAt: 1 }]);
+        expect(container.textContent).toContain("Work computer");
+
+        await render(false, []);
+        expect(container.textContent).toContain("No passkeys added");
+        expect(container.querySelector(".ant-list-loading")).toBeNull();
+        expect(mockAxiosGet).not.toHaveBeenCalled();
     });
 
     it("skips offline loading and reloads with a stable loading state after reconnecting", async () => {
@@ -428,6 +467,7 @@ describe("PasskeyManagement", () => {
     });
 
     it("submits registration through the SSE API wrapper, closes the modal, and reloads the list", async () => {
+        const initialPasskeys: PasskeySummary[] = [];
         const addedPasskey: PasskeySummary = {
             id: 2,
             name: "Work computer",
@@ -443,9 +483,7 @@ describe("PasskeyManagement", () => {
             clientExtensionResults: {},
             type: "public-key" as const,
         };
-        mockAxiosGet
-            .mockResolvedValueOnce({ data: apiResponse<PasskeySummary[]>([]) })
-            .mockResolvedValueOnce({ data: apiResponse([addedPasskey]) });
+        mockAxiosGet.mockResolvedValueOnce({ data: apiResponse([addedPasskey]) });
         mockAxiosPost.mockResolvedValueOnce({
             data: apiResponse({
                 requestId: "registration-request",
@@ -455,7 +493,7 @@ describe("PasskeyManagement", () => {
         mockRegisterPasskey.mockResolvedValueOnce(credentialResponse);
         mockPostPasskeyRegistrationVerification.mockResolvedValueOnce(apiResponse(addedPasskey));
 
-        await render(false);
+        await render(false, initialPasskeys);
         const addButton = Array.from(container.querySelectorAll("button")).find(
             (button) => button.textContent === "Add Passkey"
         );
@@ -489,8 +527,15 @@ describe("PasskeyManagement", () => {
             content: "Passkey added",
         });
         expect(container.querySelector("[role='dialog']")).toBeNull();
-        expect(mockAxiosGet).toHaveBeenCalledTimes(2);
+        expect(mockAxiosGet).toHaveBeenCalledTimes(1);
+        expect(mockPasskeysChange).toHaveBeenCalledWith([addedPasskey]);
         expect(container.textContent).toContain("Work computer");
+
+        await render(true, initialPasskeys);
+        expect(container.textContent).toContain("Work computer");
+        await render(false, initialPasskeys);
+        expect(container.textContent).toContain("Work computer");
+        expect(mockAxiosGet).toHaveBeenCalledTimes(1);
     });
 
     it("submits removal through the SSE API wrapper, closes the modal, and reloads the list", async () => {
@@ -499,12 +544,10 @@ describe("PasskeyManagement", () => {
             name: "Old computer",
             createdAt: 3,
         };
-        mockAxiosGet
-            .mockResolvedValueOnce({ data: apiResponse([passkey]) })
-            .mockResolvedValueOnce({ data: apiResponse<PasskeySummary[]>([]) });
+        mockAxiosGet.mockResolvedValueOnce({ data: apiResponse<PasskeySummary[]>([]) });
         mockPostPasskeyRemoval.mockResolvedValueOnce(apiResponse(true));
 
-        await render(false);
+        await render(false, [passkey]);
         const removeButton = Array.from(container.querySelectorAll("button")).find(
             (button) => button.textContent === "Remove"
         );
@@ -537,7 +580,8 @@ describe("PasskeyManagement", () => {
             content: "Passkey removed",
         });
         expect(container.querySelector("[role='dialog']")).toBeNull();
-        expect(mockAxiosGet).toHaveBeenCalledTimes(2);
+        expect(mockAxiosGet).toHaveBeenCalledTimes(1);
+        expect(mockPasskeysChange).toHaveBeenCalledWith([]);
         expect(container.textContent).toContain("No passkeys added");
     });
 });

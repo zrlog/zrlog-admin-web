@@ -27,6 +27,8 @@ type PasskeyManagementProps = {
     offline: boolean;
     mfaEnabled: boolean;
     modalWidth?: string;
+    initialPasskeys?: PasskeySummary[];
+    onPasskeysChange?: (passkeys: PasskeySummary[]) => void;
 };
 
 type PasskeyRegistrationFormValues = {
@@ -62,13 +64,19 @@ const ReauthenticationFields = ({ mfaEnabled }: { mfaEnabled: boolean }) => {
     );
 };
 
-const PasskeyManagement = ({ offline, mfaEnabled, modalWidth }: PasskeyManagementProps) => {
+const PasskeyManagement = ({
+    offline,
+    mfaEnabled,
+    modalWidth,
+    initialPasskeys,
+    onPasskeysChange,
+}: PasskeyManagementProps) => {
     const axiosInstance = useAxiosBaseInstance();
     const theme = useTheme();
     const [messageApi, contextHolder] = message.useMessage({ maxCount: 3 });
-    const [passkeys, setPasskeys] = useState<PasskeySummary[]>([]);
-    const [loading, setLoading] = useState(!offline);
-    const [hasLoaded, setHasLoaded] = useState(false);
+    const [passkeys, setPasskeys] = useState<PasskeySummary[]>(initialPasskeys ?? []);
+    const [loading, setLoading] = useState(!offline && initialPasskeys === undefined);
+    const [hasLoaded, setHasLoaded] = useState(initialPasskeys !== undefined);
     const [submitting, setSubmitting] = useState(false);
     const [registrationOpen, setRegistrationOpen] = useState(false);
     const [removeTarget, setRemoveTarget] = useState<PasskeySummary | null>(null);
@@ -90,6 +98,7 @@ const PasskeyManagement = ({ offline, mfaEnabled, modalWidth }: PasskeyManagemen
                 return;
             }
             setPasskeys(data.data);
+            onPasskeysChange?.(data.data);
         } finally {
             setHasLoaded(true);
             setLoading(false);
@@ -97,13 +106,24 @@ const PasskeyManagement = ({ offline, mfaEnabled, modalWidth }: PasskeyManagemen
     };
 
     useEffect(() => {
+        if (initialPasskeys !== undefined) {
+            setPasskeys(initialPasskeys);
+            setHasLoaded(true);
+            setLoading(false);
+        }
+    }, [initialPasskeys]);
+
+    useEffect(() => {
+        if (initialPasskeys !== undefined) {
+            return;
+        }
         if (offline) {
             setLoading(false);
             setHasLoaded(false);
             return;
         }
         void loadPasskeys().catch(() => undefined);
-    }, [offline]);
+    }, [offline, initialPasskeys]);
 
     const beginSubmission = (): boolean => {
         if (submissionInFlightRef.current) {
