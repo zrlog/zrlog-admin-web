@@ -836,7 +836,7 @@ const DashboardConfigDrawer: FunctionComponent<DashboardConfigDrawerProps> = ({
                             <Button
                                 danger
                                 icon={<DeleteOutlined />}
-                                block={compactLayout}
+                                style={{ alignSelf: "flex-start", flexShrink: 0 }}
                                 onClick={removeSelectedPanel}
                             />
                             <Space
