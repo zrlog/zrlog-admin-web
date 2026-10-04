@@ -1,8 +1,13 @@
-import { Button, List, Progress, Space, Typography } from "antd";
+import { Button, Space, Typography } from "antd";
 import { CSSProperties, FunctionComponent } from "react";
 import { useTheme } from "antd-style";
 import { AssistantToolPayload } from "../../article-ai-assistant.types";
-import { getScoreStrokeColor } from "../article-ai-assistant-score-color";
+import {
+    ToolReportDetail,
+    ToolReportItem,
+    ToolReportList,
+    ToolReportSummary,
+} from "../article-ai-assistant-tool-report";
 import { PublishCheckTarget } from "../../../index.types";
 import { getRes } from "../../../../../utils/constants";
 
@@ -41,45 +46,24 @@ const PublishCheckResult: FunctionComponent<PublishCheckResultProps> = ({ toolPa
     const items = scoreResult.items || [];
 
     return (
-        <Space
-            direction="vertical"
-            size={8}
-            style={{
-                width: "100%",
-                minWidth: 0,
-                overflowWrap: "anywhere",
-                paddingInlineEnd: 4,
-                ...style,
-            }}
-        >
-            <Progress percent={score} strokeColor={getScoreStrokeColor(score, theme)} />
-            {scoreResult.summary && (
-                <Typography.Paragraph style={{ marginBottom: 0 }}>{scoreResult.summary}</Typography.Paragraph>
-            )}
-            <List
-                size="small"
-                dataSource={items}
-                renderItem={(item) => {
+        <div style={{ width: "100%", minWidth: 0, overflowWrap: "anywhere", ...style }}>
+            <ToolReportSummary score={score} summary={scoreResult.summary} />
+            <ToolReportList>
+                {items.map((item, index) => {
                     const target = onLocateTarget ? resolvePublishCheckTarget(item.name, item.suggestion) : undefined;
                     return (
-                        <List.Item>
-                            <Space direction="vertical" size={2} style={{ width: "100%" }}>
-                                <div
-                                    style={{
-                                        display: "flex",
-                                        flexWrap: "wrap",
-                                        gap: theme.marginXS,
-                                        width: "100%",
-                                        justifyContent: "space-between",
-                                        alignItems: "center",
-                                    }}
-                                >
-                                    <div style={{ display: "flex", flex: 1, minWidth: 0, gap: theme.marginXS }}>
-                                        <Typography.Text style={{ minWidth: 0 }}>{item.name}</Typography.Text>
-                                        <Typography.Text type="secondary" style={{ flexShrink: 0 }}>
-                                            {item.score}
+                        <ToolReportItem
+                            key={index}
+                            title={item.name}
+                            extra={
+                                <Space size={theme.marginSM}>
+                                    <span style={{ whiteSpace: "nowrap" }}>
+                                        <Typography.Text strong>{item.score}</Typography.Text>
+                                        <Typography.Text type="secondary" style={{ fontSize: theme.fontSizeSM }}>
+                                            {" "}
+                                            / 100
                                         </Typography.Text>
-                                    </div>
+                                    </span>
                                     {target && (
                                         <Button
                                             size="small"
@@ -90,20 +74,15 @@ const PublishCheckResult: FunctionComponent<PublishCheckResultProps> = ({ toolPa
                                             {getRes().articleEdit.publishCheck.locate}
                                         </Button>
                                     )}
-                                </div>
-                                <Progress
-                                    percent={item.score}
-                                    size="small"
-                                    showInfo={false}
-                                    strokeColor={getScoreStrokeColor(item.score, theme)}
-                                />
-                                <Typography.Text type="secondary">{item.suggestion}</Typography.Text>
-                            </Space>
-                        </List.Item>
+                                </Space>
+                            }
+                        >
+                            <ToolReportDetail>{item.suggestion}</ToolReportDetail>
+                        </ToolReportItem>
                     );
-                }}
-            />
-        </Space>
+                })}
+            </ToolReportList>
+        </div>
     );
 };
 

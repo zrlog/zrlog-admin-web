@@ -1,4 +1,3 @@
-import { Space } from "antd";
 import { FunctionComponent } from "react";
 import { AssistantToolPayload } from "../../article-ai-assistant.types";
 import ArticleAiAssistantToolRefineActions from "../article-ai-assistant-tool-refine-actions";
@@ -17,15 +16,13 @@ const ScoreToolContent: FunctionComponent<SpecificToolContentProps<ScoreToolPayl
 }) => {
     return (
         <ArticleAiAssistantToolResultCard aiProvider={aiProvider} tool={toolPayload.tool}>
-            <Space direction="vertical" size={8} style={{ width: "100%" }}>
-                <PublishCheckResult toolPayload={toolPayload} />
-                <ArticleAiAssistantToolRefineActions
-                    tool={toolPayload.tool}
-                    offline={offline}
-                    loadingKey={loadingKey}
-                    onRefine={onRefine}
-                />
-            </Space>
+            <PublishCheckResult toolPayload={toolPayload} />
+            <ArticleAiAssistantToolRefineActions
+                tool={toolPayload.tool}
+                offline={offline}
+                loadingKey={loadingKey}
+                onRefine={onRefine}
+            />
         </ArticleAiAssistantToolResultCard>
     );
 };

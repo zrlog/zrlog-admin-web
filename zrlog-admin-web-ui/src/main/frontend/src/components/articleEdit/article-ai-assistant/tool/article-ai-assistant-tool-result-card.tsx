@@ -1,5 +1,5 @@
 import { Avatar, Space, Typography } from "antd";
-import { FunctionComponent, ReactNode } from "react";
+import { FunctionComponent, ReactNode, useId } from "react";
 import AIIcon from "@zrlog/editor/dist/ai/AIIcon";
 import { useTheme } from "antd-style";
 import { AssistantTool } from "../article-ai-assistant.types";
@@ -17,14 +17,17 @@ const ArticleAiAssistantToolResultCard: FunctionComponent<ArticleAiAssistantTool
     children,
 }) => {
     const theme = useTheme();
+    const titleId = useId();
     return (
-        <div style={{ minWidth: 0, overflowWrap: "anywhere" }}>
+        <section aria-labelledby={titleId} style={{ minWidth: 0, overflowWrap: "anywhere" }}>
             <Space size={theme.marginXS} style={{ display: "flex", marginBottom: theme.marginSM }}>
                 <Avatar icon={<AIIcon name={aiProvider} />} size={32} />
-                <Typography.Text type="secondary">{getAssistantToolLabel(tool)}</Typography.Text>
+                <Typography.Title id={titleId} level={3} style={{ margin: 0, fontSize: theme.fontSizeHeading4 }}>
+                    {getAssistantToolLabel(tool)}
+                </Typography.Title>
             </Space>
             {children}
-        </div>
+        </section>
     );
 };
 
