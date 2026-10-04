@@ -1,3 +1,4 @@
+import { buildArticleMerge } from "../components/articleEdit/version-sync/article-merge";
 import { ArticleEditInfo, ArticleEditState, ArticleEntry } from "../components/articleEdit/index.types";
 import type {
     ArticleConnectivity,
@@ -184,7 +185,21 @@ export const articleDataToState = (data: ArticleEditInfo, preferredTypeId?: numb
     let contentSource: ArticleEditState["contentSource"] = "server";
     let contentConflict: ArticleEditState["contentConflict"];
     //本地缓存版本是没有被服务器再次修改的情况下才使用缓存数据
-    if (cachedArticle && serverArticle && cachedSyncState?.sync === "conflict") {
+    if (
+        cachedArticle &&
+        serverArticle &&
+        cachedArticle.logId === article.logId &&
+        Number.isSafeInteger(article.version) &&
+        article.version >= 0 &&
+        Number.isSafeInteger(cachedArticle.version) &&
+        serverVersion >= cachedArticle.version &&
+        buildArticleMerge(undefined, cachedArticle, article).conflicts.length === 0
+    ) {
+        // A save can succeed before this tab receives its acknowledgement (or before a reload).
+        // Only discard a draft whose editable content is already present at this or a newer version.
+        removeArticleCache(cachedArticle);
+        realArticle = article;
+    } else if (cachedArticle && serverArticle && cachedSyncState?.sync === "conflict") {
         realArticle = article;
         contentConflict = {
             source: "localEdit",

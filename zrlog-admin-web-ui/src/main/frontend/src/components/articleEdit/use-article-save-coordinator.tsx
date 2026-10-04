@@ -257,7 +257,6 @@ const useArticleSaveCoordinator = ({
     const markDraftBlockedRef = useRef<(task: ArticleDraftSyncTask, error: unknown) => boolean>(() => false);
     const markDraftCommittedRef = useRef<() => void>(() => undefined);
     const autoSaveOutcomeRef = useRef<ArticleAutoSaveOutcome>();
-    const autoSaveAcknowledgedArticleRef = useRef<ArticleEntry>();
     const previousDraftAiPendingCountRef = useRef(draftAiPendingCount);
 
     const articlePageCacheKey = useMemo(
@@ -611,7 +610,6 @@ const useArticleSaveCoordinator = ({
         }
         if (autoSave) {
             autoSaveOutcomeRef.current = undefined;
-            autoSaveAcknowledgedArticleRef.current = undefined;
         }
         let newArticle: ArticleEntry = {
             ...article,
@@ -721,8 +719,10 @@ const useArticleSaveCoordinator = ({
             if (responseData.error === 0) {
                 acknowledgedArticleRef.current = responseData.data.article;
                 preserveLocalEdits = !autoSave && localEditRevisionRef.current !== submittedRevision;
-                if (preserveLocalEdits) {
-                    // Only acknowledge the submitted snapshot. Newer input remains dirty, with the new server version.
+                if (autoSave || preserveLocalEdits) {
+                    // Acknowledge this revision before publishing the response to the page cache.
+                    // Otherwise a rerender can compare the new server version with the old local draft
+                    // and manufacture a conflict. Newer input stays dirty on the acknowledged version.
                     markDraftSyncedRef.current({ article, revision: submittedRevision }, responseData.data.article);
                 }
                 newArticle = handleArticleResponse(
@@ -734,11 +734,9 @@ const useArticleSaveCoordinator = ({
                     preserveLocalEdits
                 );
                 saveSucceeded = true;
-                if (autoSave) {
-                    autoSaveAcknowledgedArticleRef.current = newArticle;
-                } else if (!preserveLocalEdits) {
+                if (!autoSave && !preserveLocalEdits) {
                     latestAutoSaveTaskRef.current = undefined;
-                } else if (latestAutoSaveTaskRef.current?.revision === localEditRevisionRef.current) {
+                } else if (!autoSave && latestAutoSaveTaskRef.current?.revision === localEditRevisionRef.current) {
                     // The manual save may have reset the debounce queue while waiting for an earlier write.
                     subjectRef.current?.next(latestAutoSaveTaskRef.current);
                 }
@@ -873,7 +871,6 @@ const useArticleSaveCoordinator = ({
                     try {
                         const saved = await onSubmit(nextArticle, !nextArticle.rubbish, false, true, releaseCreate);
                         if (saved) {
-                            markDraftSyncedRef.current(task, autoSaveAcknowledgedArticleRef.current);
                             if (latestAutoSaveTaskRef.current?.revision === task.revision) {
                                 latestAutoSaveTaskRef.current = undefined;
                             }

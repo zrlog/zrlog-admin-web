@@ -4,7 +4,13 @@ import { act, SetStateAction, useSyncExternalStore } from "react";
 import { createRoot, Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { AIContent } from "@zrlog/editor/dist/ai/AIContentItem";
-import { articleDataToState, articleSaveToCache, removeArticleCache } from "../../utils/article-cache";
+import {
+    articleDataToState,
+    articleSaveToCache,
+    removeArticleCache,
+    getArticleDraftBase,
+    getArticleDraftSyncState,
+} from "../../utils/article-cache";
 import { getCacheByKey, removeCacheDataByKey } from "../../utils/cache";
 import { disableExitTips } from "../../utils/helpers";
 import { AIProviderType } from "../../type";
@@ -86,6 +92,8 @@ jest.mock("../../utils/helpers", () => ({
     updateDocumentTitle: require("@jest/globals").jest.fn(),
 }));
 jest.mock("../../utils/cache", () => ({
+    getCachedData: () => require("@jest/globals").jest.requireActual("../../utils/cache").getCachedData(),
+    putCache: (cache: unknown) => require("@jest/globals").jest.requireActual("../../utils/cache").putCache(cache),
     getCacheByKey: require("@jest/globals").jest.fn(),
     getPageDataCacheKeyByPath: (pathname: string, search: string) => {
         const normalizedSearch = new URLSearchParams(search.startsWith("?") ? search.substring(1) : search).toString();
@@ -274,6 +282,9 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
         mockArticleGet.mockReset();
         mockDraftSyncApi = undefined;
         mockPageCache.clear();
+        localStorage.clear();
+        jest.mocked(getArticleDraftBase).mockReset();
+        jest.mocked(getArticleDraftSyncState).mockReset();
         jest.mocked(articleSaveToCache).mockReset();
         jest.mocked(removeArticleCache).mockReset();
         jest.mocked(disableExitTips).mockReset();
@@ -307,6 +318,55 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
         reactActEnvironment.IS_REACT_ACT_ENVIRONMENT = false;
         window.history.replaceState({}, "", "/");
         jest.useRealTimers();
+    });
+
+    const enableRealCacheFeedback = () => {
+        const realCache = jest.requireActual("../../utils/article-cache") as typeof import("../../utils/article-cache");
+        jest.mocked(articleDataToState).mockImplementation(realCache.articleDataToState);
+        jest.mocked(articleSaveToCache).mockImplementation(realCache.articleSaveToCache);
+        jest.mocked(removeArticleCache).mockImplementation(realCache.removeArticleCache);
+        jest.mocked(getArticleDraftBase).mockImplementation(realCache.getArticleDraftBase);
+        jest.mocked(getArticleDraftSyncState).mockImplementation(realCache.getArticleDraftSyncState);
+        updateCache = (cache, key) => {
+            mockPageCache.set(key, cache);
+            harnessData = cache;
+        };
+        return realCache;
+    };
+
+    it("clears the unsynced label with real draft storage and page cache feedback", async () => {
+        jest.useFakeTimers();
+        mockUseRealDraftSync = true;
+        const realCache = enableRealCacheFeedback();
+        remountWith(data, "?id=7");
+        mockArticlePost.mockImplementation(async (_uri, body) => {
+            const article = body as ArticleEntry;
+            return { data: { error: 0, data: { ...data, article: { ...article, version: article.version + 1 } } } };
+        });
+        act(() => fieldAi.applyGeneratedValues({ title: "AI title" }));
+        expect(coordinator.state.contentSource).toBe("localEdit");
+        await act(async () => {
+            jest.advanceTimersByTime(5000);
+        });
+        expect(mockArticlePost).toHaveBeenCalledTimes(1);
+        expect(coordinator.state.contentSource).toBe("server");
+        expect(coordinator.state.contentConflict).toBeUndefined();
+        expect(realCache.getLocalArticleCaches()).toEqual([]);
+        act(() => coordinator.updateAiMessageCache([{ role: "assistant", content: "Done", thinking: false }], 7));
+        expect(coordinator.state.contentSource).toBe("server");
+        expect(coordinator.state.contentConflict).toBeUndefined();
+        act(() => coordinator.handleValuesChange({ markdown: "Manual body", content: "<p>Manual body</p>" }));
+        await act(async () => {
+            jest.advanceTimersByTime(5000);
+        });
+        expect(mockArticlePost).toHaveBeenCalledTimes(2);
+        expect(coordinator.state.article).toMatchObject({ title: "AI title", markdown: "Manual body", version: 5 });
+        expect(coordinator.state.contentSource).toBe("server");
+        expect(realCache.getLocalArticleCaches()).toEqual([]);
+        remountWith(harnessData, "?id=7");
+        expect(coordinator.state.contentSource).toBe("server");
+        expect(coordinator.state.contentConflict).toBeUndefined();
+        expect(coordinator.state.article).toMatchObject({ title: "AI title", markdown: "Manual body", version: 5 });
     });
 
     it.each([false, true])(
@@ -372,6 +432,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
     it("retains sibling applications made while an earlier autosave is in flight", async () => {
         jest.useFakeTimers();
         mockUseRealDraftSync = true;
+        const realCache = enableRealCacheFeedback();
         remountWith(data, "?id=7");
         const firstSave = deferred<any>();
         mockArticlePost.mockImplementationOnce(async () => firstSave.promise);
@@ -426,6 +487,16 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
         );
         expect(coordinator.state.article.version).toBe(5);
         expect(coordinator.state.contentSource).toBe("server");
+        expect(coordinator.state.contentConflict).toBeUndefined();
+        expect(realCache.getLocalArticleCaches()).toEqual([]);
+        remountWith(harnessData, "?id=7");
+        expect(coordinator.state.contentConflict).toBeUndefined();
+        expect(coordinator.state.article).toMatchObject({
+            title: "AI title",
+            digest: "AI digest",
+            keywords: "AI,writing",
+            version: 5,
+        });
     });
 
     it("does not extend a run's application baseline when a conflict rejects the patch", async () => {

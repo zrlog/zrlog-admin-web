@@ -174,6 +174,64 @@ describe("article cache", () => {
         expect(getArticleDraftBase({ ...local, version: 3 })).toBeUndefined();
     });
 
+    it.each(["queued", "conflict"] as const)("cleans up a %s draft already saved on the server", (sync) => {
+        const local = { logId: 8, version: 3, title: "AI title", markdown: "AI body", content: "", rubbish: true };
+        articleSaveToCache(local, 100, {
+            connectivity: "online",
+            document: "dirty",
+            sync,
+            revision: 2,
+            retryCount: 0,
+        });
+        const server = { ...local, version: 4, content: "<p>AI body</p>", lastUpdateDate: 200 };
+        const state = articleDataToState({
+            article: server,
+            types: [],
+            tags: [],
+            aiProvider: AIProviderType.OPEN_AI,
+            aiMessages: [],
+        });
+        expect(state.article).toEqual(server);
+        expect(state.contentSource).toBe("server");
+        expect(state.contentConflict).toBeUndefined();
+        expect(getLocalArticleCaches()).toEqual([]);
+    });
+
+    it("retains genuinely unsaved edits when recovering an old conflicting draft", () => {
+        const local = { logId: 8, version: 3, title: "AI title", markdown: "Later manual edit", rubbish: true };
+        articleSaveToCache(local, 100, {
+            connectivity: "online",
+            document: "dirty",
+            sync: "conflict",
+            revision: 3,
+            retryCount: 0,
+        });
+        const server = { ...local, version: 4, markdown: "AI body" };
+        const state = articleDataToState({
+            article: server,
+            types: [],
+            tags: [],
+            aiProvider: AIProviderType.OPEN_AI,
+            aiMessages: [],
+        });
+        expect(state.contentConflict?.localArticle).toEqual(local);
+        expect(getLocalArticleCaches()).toHaveLength(1);
+    });
+
+    it("does not acknowledge identical content from a lower server version", () => {
+        const local = { logId: 8, version: 5, title: "AI title", markdown: "AI body", rubbish: true };
+        articleSaveToCache(local, 100);
+        const state = articleDataToState({
+            article: { ...local, version: 4 },
+            aiMessages: [],
+            types: [],
+            tags: [],
+            aiProvider: AIProviderType.OPEN_AI,
+        });
+        expect(state.contentConflict?.localArticle).toEqual(local);
+        expect(getLocalArticleCaches()).toHaveLength(1);
+    });
+
     it("treats a local version ahead of the server as a conflict", () => {
         const local = { logId: 8, version: 8, title: "Local", rubbish: true };
         articleSaveToCache(local);
