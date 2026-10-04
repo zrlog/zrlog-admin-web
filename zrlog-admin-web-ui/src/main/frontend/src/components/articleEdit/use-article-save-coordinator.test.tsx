@@ -17,6 +17,7 @@ import { AIProviderType } from "../../type";
 import { ArticleEditInfo, ArticleEditState, ArticleEntry } from "./index.types";
 import { ToolAwareAIContent } from "./article-ai-assistant/article-ai-assistant.types";
 import useArticleSaveCoordinator from "./use-article-save-coordinator";
+import useArticleEditorDocument from "./use-article-editor-document";
 import { createDraftAiSaveGate, DraftAiSaveGate } from "./draft-ai-save-gate";
 import { ArticleDraftSyncTask } from "./draft-sync/use-article-draft-sync";
 
@@ -38,6 +39,9 @@ const mockArticlePost = jest.fn(async (uri?: string, article?: unknown, config?:
 });
 let mockDraftSyncOptions: { onRequestSync: (task: ArticleDraftSyncTask) => void };
 let mockDraftSyncApi: Record<string, ReturnType<typeof jest.fn>> | undefined;
+
+// Use the package's real CommonJS build with CRA's Jest resolver.
+jest.mock("@marijn/find-cluster-break", () => require("@marijn/find-cluster-break/dist/index.cjs"));
 
 import { hasAction } from "../../utils/account-access";
 jest.mock("../../utils/account-access", () => ({ hasAction: require("@jest/globals").jest.fn(() => true) }));
@@ -231,6 +235,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
     let updateCache: (cache: ArticleEditInfo, cacheKey: string) => void;
     let draftAiSaveGate: DraftAiSaveGate;
     let fieldAi: ReturnType<typeof useArticleFieldAi>;
+    let editorDocument: ReturnType<typeof useArticleEditorDocument>;
 
     const Harness = () => {
         const draftAiPendingCount = useSyncExternalStore(
@@ -260,6 +265,11 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
             getCurrentArticle: coordinator.getCurrentArticle,
             onValuesChange: coordinator.handleValuesChange,
         });
+        editorDocument = useArticleEditorDocument(
+            coordinator.state.article.markdown,
+            coordinator.restoreInputRevision,
+            coordinator.handleValuesChange
+        );
         return null;
     };
 
@@ -333,6 +343,82 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
         };
         return realCache;
     };
+
+    it.each([false, true])(
+        "autosaves ordinary body edits as drafts without AI (reload before save: %s)",
+        async (reloadBeforeSave) => {
+            jest.useFakeTimers();
+            mockUseRealDraftSync = true;
+            const realCache = enableRealCacheFeedback();
+            const publishedData = { ...data, article: { ...initialArticle, rubbish: false } };
+            remountWith(publishedData, "?id=7");
+            mockArticlePost.mockImplementation(async (_uri, body) => {
+                const article = body as ArticleEntry;
+                return { data: { error: 0, data: { ...data, article: { ...article, version: article.version + 1 } } } };
+            });
+            expect(coordinator.state.aiConfigured).toBe(false);
+            expect(coordinator.state.rubbish).toBe(false);
+            act(() => coordinator.handleValuesChange({ title: publishedData.article.title }));
+            await act(async () => jest.advanceTimersByTime(5000));
+            expect(mockArticlePost).not.toHaveBeenCalled();
+            expect(coordinator.state.rubbish).toBe(false);
+            act(() => editorDocument.onChange({ value: "Manual body", previewContent: "<p>Manual body</p>" }));
+            expect(coordinator.state.contentSource).toBe("localEdit");
+            expect(coordinator.state.rubbish).toBe(true);
+            expect(realCache.getLocalArticleCaches()[0].article.rubbish).toBe(true);
+            if (reloadBeforeSave) remountWith(publishedData, "?id=7");
+            await act(async () => jest.advanceTimersByTime(5000));
+            expect(mockArticlePost).toHaveBeenCalledTimes(1);
+            expect(mockArticlePost.mock.calls[0][1]).toMatchObject({
+                markdown: "Manual body",
+                content: "<p>Manual body</p>",
+                rubbish: true,
+                transparentPublish: false,
+            });
+            expect(coordinator.state.contentSource).toBe("server");
+            expect(coordinator.isSaving).toBe(false);
+            expect(realCache.getLocalArticleCaches()).toEqual([]);
+            act(() => editorDocument.onChange({ value: "Second edit", previewContent: "<p>Second edit</p>" }));
+            await act(async () => jest.advanceTimersByTime(5000));
+            expect(mockArticlePost).toHaveBeenCalledTimes(2);
+            expect(mockArticlePost.mock.calls[1][1]).toMatchObject({
+                markdown: "Second edit",
+                rubbish: true,
+                version: 4,
+            });
+            expect(coordinator.state.contentSource).toBe("server");
+            remountWith(harnessData, "?id=7");
+            await act(async () => jest.advanceTimersByTime(5000));
+            expect(mockArticlePost).toHaveBeenCalledTimes(2);
+            expect(mockPostPublish).not.toHaveBeenCalled();
+            expect(coordinator.state.article).toMatchObject({ markdown: "Second edit", rubbish: true, version: 5 });
+        }
+    );
+
+    it("restores old unsynced published-article edits as a draft without publishing them", async () => {
+        jest.useFakeTimers();
+        mockUseRealDraftSync = true;
+        const realCache = enableRealCacheFeedback();
+        const published = { ...initialArticle, rubbish: false };
+        realCache.articleSaveToCache({ ...published, markdown: "Previously unsynced body" });
+        remountWith({ ...data, article: published }, "?id=7");
+        mockArticlePost.mockImplementation(async (_uri, body) => {
+            const article = body as ArticleEntry;
+            return { data: { error: 0, data: { ...data, article: { ...article, version: article.version + 1 } } } };
+        });
+        expect(coordinator.state.rubbish).toBe(true);
+        await act(async () => jest.advanceTimersByTime(5000));
+        expect(mockArticlePost).toHaveBeenCalledTimes(1);
+        expect(mockArticlePost.mock.calls[0][1]).toMatchObject({
+            markdown: "Previously unsynced body",
+            rubbish: true,
+            transparentPublish: false,
+        });
+        expect(coordinator.state.contentSource).toBe("server");
+        expect(coordinator.state.article.rubbish).toBe(true);
+        expect(realCache.getLocalArticleCaches()).toEqual([]);
+        expect(mockPostPublish).not.toHaveBeenCalled();
+    });
 
     it.each([false, true])(
         "saves AI applications to a published article as drafts and keeps autosaving after reload (reload before save: %s)",
@@ -420,7 +506,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
         expect(coordinator.isSaving).toBe(false);
     });
 
-    it("preserves the AI draft while an earlier published-article autosave finishes", async () => {
+    it("preserves newer edits while an earlier autosave finishes", async () => {
         jest.useFakeTimers();
         mockUseRealDraftSync = true;
         const realCache = enableRealCacheFeedback();
@@ -442,7 +528,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
                     error: 0,
                     data: {
                         ...publishedData,
-                        article: { ...publishedData.article, title: "Earlier edit", version: 4 },
+                        article: { ...publishedData.article, title: "Earlier edit", rubbish: true, version: 4 },
                     },
                 },
             })
@@ -1933,18 +2019,19 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
             serverVersion: 4,
         });
     });
-    it("keeps the publication status during automatic synchronization", async () => {
+    it("never publishes an automatic synchronization even if its snapshot is published", async () => {
         jest.useFakeTimers();
         try {
             const published = { ...initialArticle, rubbish: false };
             remountWith({ ...data, article: published }, "?id=7");
             mockArticlePost.mockResolvedValue({
-                data: { error: 0, data: { ...data, article: { ...published, version: 4 } } },
+                data: { error: 0, data: { ...data, article: { ...published, rubbish: true, version: 4 } } },
             });
             act(() => mockDraftSyncOptions.onRequestSync({ article: published, revision: 1 }));
             await act(async () => jest.advanceTimersByTime(5000));
-            expect(mockArticlePost.mock.calls[0][1]).toMatchObject({ rubbish: false, transparentPublish: false });
-            expect(coordinator.state.rubbish).toBe(false);
+            expect(mockArticlePost.mock.calls[0][1]).toMatchObject({ rubbish: true, transparentPublish: false });
+            expect(coordinator.state.rubbish).toBe(true);
+            expect(coordinator.state.article.rubbish).toBe(true);
             expect(coordinator.isSaving).toBe(false);
         } finally {
             jest.useRealTimers();

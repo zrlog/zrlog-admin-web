@@ -30,6 +30,8 @@ import com.zrlog.admin.util.AdminSseEmitter;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.common.vo.AdminTokenVO;
+import com.zrlog.common.Constants;
+import com.zrlog.business.plugin.PluginCorePlugin;
 import com.zrlog.util.I18nUtil;
 import org.junit.After;
 import org.junit.Test;
@@ -47,6 +49,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -211,6 +214,76 @@ public class AdminArticleControllerDatabaseTest {
 
             assertEquals(refreshCountBeforeDraft + 1, db.cacheService().getRefreshCount());
             assertEquals(0, ((Number) db.scalar("select sticky from log where logId=?", logId)).intValue());
+        }
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void shouldAcknowledgeDraftSaveBeforeSlowBlogRefreshAndAllowFurtherEdits() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            setAdminToken();
+            ResponseRecorder createdResponse = new ResponseRecorder();
+            controller(Map.of(), articleBody("Published", "published", false), createdResponse).create();
+            AdminPageDataResponse<ArticleGlobalResponse> created =
+                    (AdminPageDataResponse<ArticleGlobalResponse>) createdResponse.rendered;
+            int id = created.getData().getArticle().getLogId();
+            CountDownLatch refreshStarted = new CountDownLatch(1);
+            CountDownLatch releaseRefresh = new CountDownLatch(1);
+            AtomicReference<Thread> refreshThread = new AtomicReference<>();
+            PluginCorePlugin plugin = (PluginCorePlugin) Proxy.newProxyInstance(
+                    PluginCorePlugin.class.getClassLoader(), new Class<?>[]{PluginCorePlugin.class},
+                    (proxy, method, args) -> {
+                        if ("refreshCache".equals(method.getName())) {
+                            refreshThread.set(Thread.currentThread());
+                            refreshStarted.countDown();
+                            awaitIgnoringInterrupts(releaseRefresh);
+                            return true;
+                        }
+                        if (method.getReturnType() == boolean.class) return true;
+                        return null;
+                    });
+            Constants.zrLogConfig.getAllPlugins().add(plugin);
+            ResponseRecorder savedResponse = new ResponseRecorder();
+            CompletableFuture<Void> saved = new CompletableFuture<>();
+            Thread saveThread = new Thread(() -> {
+                try {
+                    setAdminToken();
+                    controller(Map.of(), updateBody(id, "Manual edit", "published", true), savedResponse).update();
+                    saved.complete(null);
+                } catch (Throwable error) {
+                    saved.completeExceptionally(error);
+                } finally {
+                    AdminTokenThreadLocal.remove();
+                }
+            });
+            int refreshCount = db.cacheService().getRefreshCount();
+            try {
+                saveThread.start();
+                assertTrue(refreshStarted.await(5, TimeUnit.SECONDS));
+                saved.get(2, TimeUnit.SECONDS);
+                AdminPageDataResponse<ArticleGlobalResponse> response =
+                        (AdminPageDataResponse<ArticleGlobalResponse>) savedResponse.rendered;
+                assertEquals("Manual edit", response.getData().getArticle().getTitle());
+                assertTrue(response.getData().getArticle().isRubbish());
+                assertEquals(1, response.getData().getArticle().getVersion().intValue());
+                assertEquals(refreshCount + 1, db.cacheService().getRefreshCount());
+                assertEquals(true, db.scalar("select rubbish from log where logId=?", id));
+
+                String nextBody = updateBody(id, "Second edit", "published", true)
+                        .replace("\"version\":0", "\"version\":1");
+                controller(Map.of(), nextBody, new ResponseRecorder()).update();
+                assertEquals("Second edit", db.scalar("select title from log where logId=?", id));
+                assertEquals(2, ((Number) db.scalar("select version from log where logId=?", id)).intValue());
+                assertEquals(refreshCount + 1, db.cacheService().getRefreshCount());
+            } finally {
+                releaseRefresh.countDown();
+                saveThread.join(5000);
+                Thread refresh = refreshThread.get();
+                if (refresh != null && refresh != saveThread) refresh.join(5000);
+                Constants.zrLogConfig.getAllPlugins().remove(plugin);
+                assertFalse(saveThread.isAlive());
+                if (refresh != null) assertFalse(refresh.isAlive());
+            }
         }
     }
 

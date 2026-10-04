@@ -199,6 +199,8 @@ const useArticleDraftSync = ({
             if (!force && deepEqualWithSpecialJSON(currentArticle, nextArticle)) {
                 return undefined;
             }
+            // Editing starts a draft. Only an explicit publish action may make it public.
+            nextArticle.rubbish = true;
             const updatedAt = nowRef.current();
             const revision = syncStateRef.current.revision + 1;
             articleRef.current = nextArticle;

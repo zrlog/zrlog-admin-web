@@ -108,7 +108,9 @@ public class ArticlePublishingService {
         AdminPageDataResponse<ArticleGlobalResponse> detail =
                 articleService.loadDetailById(saveResponse.getLogId() + "", request);
         if (refreshCache && saveResponse.isPublicCacheRefreshRequired()) {
-            CacheUtils.updateCache(false, request, List.of(StaticSiteType.BLOG));
+            // The article is already saved. Refresh public data now, but do not hold
+            // the editor's acknowledgement while plugins regenerate the static site.
+            CacheUtils.updateCache(true, request, List.of(StaticSiteType.BLOG));
         }
         boolean saved = Objects.equals(saveResponse.getRubbish(), true)
                 || Objects.equals(saveResponse.getPrivacy(), true);

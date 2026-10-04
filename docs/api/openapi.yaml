@@ -44,6 +44,7 @@ paths:
         `rubbish=true` 表示草稿并保持非公开；`rubbish=false, privacy=true` 表示私密文章；
         `rubbish=false, privacy=false` 表示公开发布。调用方必须显式传递这两个状态，避免意外发布。
         `transparentPublish=false` 返回普通 JSON；公开发布时设为 true 可接收 SSE。
+        JSON 成功响应确认文章已保存；涉及公开内容时，博客数据缓存立即刷新，插件与静态页面在后台同步，不阻塞保存响应。
         SSE 的 `article` 表示已保存，必须等待 `publish-complete` 才能确认发布完成，详见 docs/api/article-publish-sse.md。
 
         本操作不幂等。请求成功但响应丢失时，不应直接重试，否则可能创建重复文章。
@@ -145,6 +146,7 @@ paths:
         Java 17 及以上的服务端使用内置 marked 重新生成 HTML；Java 11 跳过渲染并记录警告，仍继续保存。
         调用方显式提供的 `content` 保持不变；Java 11 调用方应自行提供 HTML，否则正文可能被清空。状态组合与创建接口相同。
         `transparentPublish=false` 返回普通 JSON；公开发布或修订时设为 true 可接收 SSE。
+        JSON 成功响应确认文章已保存；撤回公开文章为草稿时同样先刷新博客数据缓存，再在后台同步插件与静态页面，不等待整站生成完成。
         必须等待 `publish-complete` 才能确认发布完成；中途失败时文章可能已保存，不能自动重放请求。
         事件说明见 docs/api/article-publish-sse.md。
 

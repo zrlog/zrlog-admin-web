@@ -482,11 +482,9 @@ const useArticleSaveCoordinator = ({
     const finishAutoSave = (savedArticle?: ArticleEntry, create = false) => {
         setState((previousState) => ({
             ...previousState,
-            // A newer AI application may have changed a published article into a draft
-            // while this request was in flight. Keep the current editing intent.
-            rubbish: previousState.article.rubbish,
+            rubbish: savedArticle ? true : previousState.article.rubbish,
             article: savedArticle
-                ? mergeArticleSynchronizationMetadata(previousState.article, savedArticle, create)
+                ? { ...mergeArticleSynchronizationMetadata(previousState.article, savedArticle, create), rubbish: true }
                 : previousState.article,
             saving: {
                 ...previousState.saving,
@@ -599,6 +597,8 @@ const useArticleSaveCoordinator = ({
         autoSave: boolean,
         acquiredCreateRelease?: DraftArticleOperationRelease
     ): Promise<boolean> => {
+        // Automatic synchronization must never publish, including restored legacy drafts.
+        release = release && !autoSave;
         if (conflictRef.current) {
             acquiredCreateRelease?.();
             return false;
@@ -872,7 +872,7 @@ const useArticleSaveCoordinator = ({
                         return;
                     }
                     try {
-                        const saved = await onSubmit(nextArticle, !nextArticle.rubbish, false, true, releaseCreate);
+                        const saved = await onSubmit(nextArticle, false, false, true, releaseCreate);
                         if (saved) {
                             if (latestAutoSaveTaskRef.current?.revision === task.revision) {
                                 latestAutoSaveTaskRef.current = undefined;

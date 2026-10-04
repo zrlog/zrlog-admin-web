@@ -2,7 +2,7 @@
 
 `POST /api/admin/article/create` 与 `POST /api/admin/article/update` 支持流式公开发布。请求体仍是原有 JSON，在 `rubbish=false`、`privacy=false` 时设置 `transparentPublish=true`，并发送 `Accept: text/event-stream, application/json`。权限、文章归属与版本校验沿用普通保存接口，OAuth/PAT 仍通过 `Authorization: Bearer` 传入。
 
-服务端通过请求体决定是否使用 SSE；草稿、私密文章和 `transparentPublish=false` 返回普通 JSON。调用方按实际响应 `Content-Type` 解析，鉴权或请求校验失败也可能返回 JSON 错误。旧版本返回 JSON 时，只能确认保存结果，不能据此确认静态同步完成。
+服务端通过请求体决定是否使用 SSE；草稿、私密文章和 `transparentPublish=false` 返回普通 JSON。调用方按实际响应 `Content-Type` 解析，鉴权或请求校验失败也可能返回 JSON 错误。JSON 成功响应只确认保存结果：涉及公开内容时先刷新博客数据缓存，插件与静态页面在后台同步，不阻塞编辑器继续保存。不能据此确认静态同步完成；需要确认公开发布完成时使用 SSE。
 
 SSE 响应为 `text/event-stream;charset=UTF-8`，每个事件由 `event:` 和 JSON `data:` 行组成，以空行结束。客户端应支持分块 UTF-8、LF/CRLF、多行 data 和注释心跳，并忽略未来新增的未知事件。
 

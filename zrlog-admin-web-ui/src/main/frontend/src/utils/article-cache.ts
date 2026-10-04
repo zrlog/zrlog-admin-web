@@ -229,6 +229,10 @@ export const articleDataToState = (data: ArticleEditInfo, preferredTypeId?: numb
         realArticle = article;
     }
 
+    // Older editors cached unsynced edits with the article's published status.
+    // Restoring those edits must not turn the automatic retry into a publication.
+    if (contentSource !== "server") realArticle = { ...realArticle, rubbish: true };
+
     const realArticleWithPreferredType =
         preferredTypeId && (!realArticle.logId || realArticle.logId <= 0)
             ? {
