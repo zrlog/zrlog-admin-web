@@ -14,7 +14,7 @@ const initialArticle: ArticleEntry = {
     title: "Original title",
     digest: "Original summary",
     typeId: 1,
-    rubbish: true,
+    rubbish: false,
     version: 3,
     editorType: "markdown",
     markdown: "Original body",
@@ -75,6 +75,7 @@ describe("AI field application and saved article content", () => {
         expect(renderMarkdown).toHaveBeenCalledWith("Accepted AI body", { linkPreview: false });
         expect(payload.markdown).toBe("Accepted AI body");
         expect(payload.content).toBe("<p>Accepted AI body</p>");
+        expect(payload.rubbish).toBe(true);
         expect(onApplied).toHaveBeenCalledTimes(1);
         expect(initialArticle.content).toBe("<p>Original body</p>");
     });
@@ -129,12 +130,14 @@ describe("AI field application and saved article content", () => {
         { digest: "AI summary" },
         { alias: "ai-title" },
         { keywords: "ai,writing" },
+        { thumbnail: "/attached/cover.png" },
     ] as ArticleChangeableValue[])("preserves body HTML when applying only metadata: %j", async (patch) => {
         act(() => fieldAi.applyGeneratedValues(patch));
         const renderMarkdown = jest.fn(async () => "<p>Unexpected replacement</p>");
         const payload = await renderMissingMarkdownContent(article, renderMarkdown);
 
         expect(payload).toMatchObject(patch);
+        expect(payload.rubbish).toBe(true);
         expect(payload.markdown).toBe(initialArticle.markdown);
         expect(payload.content).toBe(initialArticle.content);
         expect(renderMarkdown).not.toHaveBeenCalled();

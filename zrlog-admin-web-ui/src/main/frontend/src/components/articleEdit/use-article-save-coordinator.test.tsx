@@ -334,6 +334,139 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
         return realCache;
     };
 
+    it.each([false, true])(
+        "saves AI applications to a published article as drafts and keeps autosaving after reload (reload before save: %s)",
+        async (reloadBeforeSave) => {
+            jest.useFakeTimers();
+            mockUseRealDraftSync = true;
+            const realCache = enableRealCacheFeedback();
+            const publishedData = { ...data, article: { ...initialArticle, rubbish: false } };
+            mockPageCache.set("/article-edit?id=7", publishedData);
+            remountWith(publishedData, "?id=7");
+            mockArticlePost.mockImplementation(async (_uri, body) => {
+                const article = body as ArticleEntry;
+                return { data: { error: 0, data: { ...data, article: { ...article, version: article.version + 1 } } } };
+            });
+            const source: ToolAwareAIContent = {
+                role: "assistant",
+                content: "",
+                thinking: false,
+                messageType: "writingSkill",
+                messageId: "run-1:skill:1:1",
+                skillContract: {
+                    version: 1,
+                    contextRevision: articleContextRevision(publishedData.article),
+                    applicableFields: ["title"],
+                },
+            };
+            act(() => fieldAi.applyGeneratedValues({ title: "AI title" }, source));
+            expect(coordinator.state.rubbish).toBe(true);
+            expect(realCache.getLocalArticleCaches()[0].article.rubbish).toBe(true);
+            // The assistant continues updating its conversation after applying a result.
+            act(() => coordinator.updateAiMessageCache([{ role: "assistant", content: "Done", thinking: false }], 7));
+            if (reloadBeforeSave) remountWith(harnessData, "?id=7");
+            await act(async () => jest.advanceTimersByTime(5000));
+            expect(mockArticlePost).toHaveBeenCalledTimes(1);
+            expect(mockArticlePost.mock.calls[0][1]).toMatchObject({
+                title: "AI title",
+                rubbish: true,
+                transparentPublish: false,
+                version: 3,
+            });
+            expect(coordinator.state.contentSource).toBe("server");
+            expect(coordinator.state.contentConflict).toBeUndefined();
+            expect(coordinator.isSaving).toBe(false);
+            expect(realCache.getLocalArticleCaches()).toEqual([]);
+
+            act(() => coordinator.handleValuesChange({ markdown: "Manual body", content: "<p>Manual body</p>" }));
+            await act(async () => jest.advanceTimersByTime(5000));
+            expect(mockArticlePost).toHaveBeenCalledTimes(2);
+            expect(mockArticlePost.mock.calls[1][1]).toMatchObject({
+                title: "AI title",
+                markdown: "Manual body",
+                rubbish: true,
+                transparentPublish: false,
+                version: 4,
+            });
+            remountWith(harnessData, "?id=7");
+            await act(async () => jest.advanceTimersByTime(5000));
+            expect(mockArticlePost).toHaveBeenCalledTimes(2);
+            expect(mockPostPublish).not.toHaveBeenCalled();
+            expect(coordinator.state).toMatchObject({
+                contentSource: "server",
+                rubbish: true,
+                article: { title: "AI title", markdown: "Manual body", rubbish: true, version: 5 },
+            });
+        }
+    );
+
+    it("keeps a queued AI application when the auto-save interval changes", async () => {
+        jest.useFakeTimers();
+        mockUseRealDraftSync = true;
+        enableRealCacheFeedback();
+        remountWith(data, "?id=7");
+        mockArticlePost.mockImplementation(async (_uri, body) => {
+            const article = body as ArticleEntry;
+            return {
+                data: { error: 0, data: { ...harnessData, article: { ...article, version: article.version + 1 } } },
+            };
+        });
+        act(() => fieldAi.applyGeneratedValues({ title: "AI title" }));
+        harnessData = { ...harnessData, articleEditAutoSaveInterval: 2 };
+        act(() => root.render(<Harness />));
+        await act(async () => jest.advanceTimersByTime(5000));
+        expect(mockArticlePost).toHaveBeenCalledTimes(1);
+        expect(coordinator.state.contentSource).toBe("server");
+        expect(coordinator.isSaving).toBe(false);
+    });
+
+    it("preserves the AI draft while an earlier published-article autosave finishes", async () => {
+        jest.useFakeTimers();
+        mockUseRealDraftSync = true;
+        const realCache = enableRealCacheFeedback();
+        const publishedData = { ...data, article: { ...initialArticle, rubbish: false } };
+        remountWith(publishedData, "?id=7");
+        const earlierSave = deferred<any>();
+        mockArticlePost.mockImplementationOnce(async () => earlierSave.promise);
+        mockArticlePost.mockImplementation(async (_uri, body) => {
+            const article = body as ArticleEntry;
+            return { data: { error: 0, data: { ...data, article: { ...article, version: article.version + 1 } } } };
+        });
+        act(() => coordinator.handleValuesChange({ title: "Earlier edit" }));
+        await act(async () => jest.advanceTimersByTime(5000));
+        expect(mockArticlePost).toHaveBeenCalledTimes(1);
+        act(() => fieldAi.applyGeneratedValues({ title: "AI title" }));
+        await act(async () =>
+            earlierSave.resolve({
+                data: {
+                    error: 0,
+                    data: {
+                        ...publishedData,
+                        article: { ...publishedData.article, title: "Earlier edit", version: 4 },
+                    },
+                },
+            })
+        );
+        expect(coordinator.state).toMatchObject({
+            contentSource: "localEdit",
+            rubbish: true,
+            article: { title: "AI title", rubbish: true, version: 4 },
+        });
+        expect(coordinator.isSaving).toBe(false);
+        expect(coordinator.state.contentConflict).toBeUndefined();
+        expect(realCache.getLocalArticleCaches()[0].article.rubbish).toBe(true);
+        await act(async () => jest.advanceTimersByTime(5000));
+        expect(mockArticlePost).toHaveBeenCalledTimes(2);
+        expect(mockArticlePost.mock.calls[1][1]).toMatchObject({
+            title: "AI title",
+            rubbish: true,
+            transparentPublish: false,
+            version: 4,
+        });
+        expect(coordinator.state.contentSource).toBe("server");
+        expect(realCache.getLocalArticleCaches()).toEqual([]);
+    });
+
     it("clears the unsynced label with real draft storage and page cache feedback", async () => {
         jest.useFakeTimers();
         mockUseRealDraftSync = true;
@@ -1812,6 +1945,7 @@ describe("useArticleSaveCoordinator publish outcomes", () => {
             await act(async () => jest.advanceTimersByTime(5000));
             expect(mockArticlePost.mock.calls[0][1]).toMatchObject({ rubbish: false, transparentPublish: false });
             expect(coordinator.state.rubbish).toBe(false);
+            expect(coordinator.isSaving).toBe(false);
         } finally {
             jest.useRealTimers();
         }

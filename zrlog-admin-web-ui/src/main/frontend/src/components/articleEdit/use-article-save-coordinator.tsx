@@ -482,12 +482,15 @@ const useArticleSaveCoordinator = ({
     const finishAutoSave = (savedArticle?: ArticleEntry, create = false) => {
         setState((previousState) => ({
             ...previousState,
-            rubbish: savedArticle ? savedArticle.rubbish : previousState.rubbish,
+            // A newer AI application may have changed a published article into a draft
+            // while this request was in flight. Keep the current editing intent.
+            rubbish: previousState.article.rubbish,
             article: savedArticle
                 ? mergeArticleSynchronizationMetadata(previousState.article, savedArticle, create)
                 : previousState.article,
             saving: {
                 ...previousState.saving,
+                releaseSaving: false,
                 rubbishSaving: false,
                 previewIng: false,
                 autoSaving: false,
@@ -906,6 +909,8 @@ const useArticleSaveCoordinator = ({
 
     useEffect(() => {
         resetAutoSaveQueue();
+        // Recreating the subscription cancels its timer, not the unsaved edit.
+        if (latestAutoSaveTaskRef.current) subjectRef.current?.next(latestAutoSaveTaskRef.current);
         return () => subRef.current?.unsubscribe();
     }, [state.articleEditAutoSaveInterval]);
 
@@ -1081,6 +1086,7 @@ const useArticleSaveCoordinator = ({
         setState((previousState) => ({
             ...previousState,
             article: change.article,
+            rubbish: change.article.rubbish,
             contentSource: getLocalContentSource(change.article),
             contentSourceUpdatedAt: change.updatedAt,
         }));

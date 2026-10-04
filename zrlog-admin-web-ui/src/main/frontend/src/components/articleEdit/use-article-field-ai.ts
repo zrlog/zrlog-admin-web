@@ -23,7 +23,9 @@ const useArticleFieldAi = ({ getCurrentArticle, onValuesChange, onApplied }: Art
     const applyGeneratedValues: ApplyAiValues = (cv, source) => {
         if (source && !canApplySkillValues(source, getSkillContextRevision(source), cv)) return;
         const values = "markdown" in cv && cv.markdown !== undefined ? { ...cv, content: "" } : cv;
-        const change = onValuesChange(values);
+        // Applying a suggestion starts a draft, including when editing a published article.
+        // Persist that intent with the edit so automatic saves and reloads cannot publish it.
+        const change = onValuesChange({ ...values, rubbish: true });
         if (!change) return;
         application.current.record(source, change.article);
         if ("title" in cv && cv.title !== undefined) {
