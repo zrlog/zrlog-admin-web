@@ -1,6 +1,6 @@
 {
-  "short_name": "Admin frontend",
-  "name": "ZrLog admin",
+  "short_name": "ZrLog Admin",
+  "name": "ZrLog Admin",
   "start_url": "./index?pwa=true",
   "icons": [
     {

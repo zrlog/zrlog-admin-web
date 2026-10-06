@@ -3,6 +3,7 @@ import { createRoot, Root } from "react-dom/client";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { IndexData } from "../../type";
+import { getAdminI18n } from "../../i18n/admin";
 import Index from "./index";
 
 const mockAxios = {
@@ -90,7 +91,8 @@ describe("dashboard first-use dismissal", () => {
             );
         });
     };
-    const checklist = () => container.querySelector('section[aria-label="Complete Your First Publish"]');
+    const checklist = () =>
+        container.querySelector(`section[aria-label="${getAdminI18n("en_US").index.firstUse.title}"]`);
     const skip = async () => {
         const button = Array.from(container.querySelectorAll("button")).find((item) => item.textContent === "Skip");
         expect(button).toBeDefined();

@@ -434,7 +434,7 @@ const Index = ({ offline }: { offline: boolean }) => {
                     <div className={classes.sideImage}>
                         <div className="side-content">
                             <h2>{getRes().websiteTitle}</h2>
-                            <p>{getRes().login.copyrightCurrentYear}. All Rights Reserved.</p>
+                            <p>{getRes().login.copyrightCurrentYear}</p>
                         </div>
                     </div>
                     <div className={classes.formSection}>

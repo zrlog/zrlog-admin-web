@@ -25,8 +25,13 @@ public class AdminBusinessExceptionContractTest {
         assertEquals("创建个人访问令牌", messages.get("admin.audit.action.createPersonalToken"));
         assertTrue(messages.get("admin.accounts.storage.unsupported").toString().startsWith("当前数据库适配器"));
         // Properties.load(InputStream) interprets unescaped bytes as ISO-8859-1.
-        try (java.io.InputStream input = getClass().getResourceAsStream("/i18n/admin_backend_zh_CN.properties")) {
-            for (byte value : input.readAllBytes()) assertTrue("Chinese resource must use Unicode escapes", value >= 0);
+        for (String locale : java.util.List.of("zh_CN", "en_US")) {
+            try (java.io.InputStream input = getClass().getResourceAsStream("/i18n/admin_backend_" + locale + ".properties")) {
+                assertNotNull(input);
+                for (byte value : input.readAllBytes()) {
+                    assertTrue(locale + " resource must escape non-ASCII characters", value >= 0);
+                }
+            }
         }
     }
 

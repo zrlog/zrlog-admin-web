@@ -20,7 +20,7 @@ describe("article AI assistant tool stages", () => {
             englishAssistant.groupIdeation,
             englishAssistant.groupEditing,
             englishAssistant.groupPublishCheck,
-        ]).toEqual(["Ideation", "Editing", "Pre-publish Check"]);
+        ]).toEqual(["Ideation", "Editing", "Publish Check"]);
     });
 
     it("assigns every supported tool to exactly one frozen stage", () => {
