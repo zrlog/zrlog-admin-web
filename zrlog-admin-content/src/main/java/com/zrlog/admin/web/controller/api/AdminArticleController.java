@@ -3,6 +3,11 @@ package com.zrlog.admin.web.controller.api;
 import com.zrlog.admin.web.annotation.RequiresAction;
 import com.zrlog.data.security.AccountAction;
 
+import com.hibegin.common.dao.dto.Direction;
+import com.hibegin.common.dao.dto.OrderBy;
+import com.hibegin.common.dao.dto.PageRequest;
+import com.hibegin.common.dao.dto.PageRequestImpl;
+import com.zrlog.admin.business.rest.base.UserPreferences;
 import com.hibegin.common.util.StringUtils;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.RequestMethod;
@@ -158,10 +163,18 @@ public class AdminArticleController extends BaseController {
             throws SQLException, ExecutionException, InterruptedException {
         String key = request.getParaToStr("key", "");
         String types = request.getParaToStr("types", "");
-        String status = request.getParaToStr("status", "");
+        UserPreferences.ArticleList preferences = new UserPreferenceService().effective().articleList;
+        String status = request.decodeParamMap().containsKey("status") ? request.getParaToStr("status", "") : preferences.status;
         int pageSize = articleService.resolveAdminPageSize(request.getParaToInt("size", -1));
-        ArticlePageData pageData = articleService.adminPage(ControllerUtil.toPageRequest(this, pageSize), key, types,
-                status, request);
+        PageRequest requested = ControllerUtil.toPageRequest(this, pageSize);
+        PageRequestImpl page = new PageRequestImpl(requested.getPage(), requested.getSize());
+        page.setOrders(requested.getSorts());
+        if (!request.decodeParamMap().containsKey("sort") && !request.decodeParamMap().containsKey("sidx")) {
+            String[] sort = preferences.sort.split(",");
+            page.setOrders(java.util.List.of(new OrderBy(sort[0], Direction.valueOf(sort[1]))));
+        }
+        ArticlePageData pageData = articleService.adminPage(page, key, types, status, request);
+        pageData.setColumns(preferences.columns);
         return new AdminPageDataResponse<>(pageData, "", request.getUri());
     }
 

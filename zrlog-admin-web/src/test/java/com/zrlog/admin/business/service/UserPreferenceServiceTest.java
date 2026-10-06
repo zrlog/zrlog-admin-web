@@ -60,6 +60,63 @@ public class UserPreferenceServiceTest {
         }
     }
 
+    @Test public void extendedPreferencesAreIsolatedInheritedAndLegacySafe() throws Exception {
+        try (InMemoryZrLogDatabase db = database()) {
+            db.execute("insert into user(userId,userName,role) values(2,'writer','author')");
+            db.putWebsite("session_timeout", 90);
+            db.putWebsite("article_auto_digest_length", 250);
+            UserPreferenceService service = new UserPreferenceService();
+            service.updateBody("{\"session\":{\"timeoutMinutes\":60}}", "session");
+            service.updateBody("{\"editor\":{\"autoDigestLength\":0,\"linkPreviewEnabled\":true,\"publishCheckEnabled\":false,\"coverAspectRatio\":\"1:1\"},\"articleList\":{\"status\":\"draft\",\"sort\":\"click,ASC\",\"columns\":[]}}", "writing");
+            assertEquals(Long.valueOf(0), service.effective().editor.autoDigestLength);
+            assertFalse(service.effective().editor.publishCheckEnabled);
+            assertEquals("1:1", service.effective().editor.coverAspectRatio);
+            assertEquals("draft", service.effective().articleList.status);
+            assertTrue(service.effective().articleList.columns.isEmpty());
+            assertEquals(60, new com.zrlog.data.service.UserPreferenceStore().sessionTimeoutMinutes(1, 90));
+            // A stale appearance page must not write its stale session/editor snapshot.
+            service.updateBody("{\"appearance\":{\"darkMode\":true},\"session\":{\"timeoutMinutes\":10},\"editor\":{\"autoDigestLength\":99}}", "appearance");
+            assertEquals(Long.valueOf(60), service.effective().session.timeoutMinutes);
+            assertEquals(Long.valueOf(0), service.effective().editor.autoDigestLength);
+            // Old clients cannot erase fields introduced after their version.
+            service.updateBody("{\"editor\":{\"autoSaveInterval\":10}}");
+            assertEquals(Long.valueOf(0), service.effective().editor.autoDigestLength);
+            assertEquals(Long.valueOf(60), service.effective().session.timeoutMinutes);
+            assertEquals("draft", service.effective().articleList.status);
+            login(2);
+            assertEquals(Long.valueOf(90), service.effective().session.timeoutMinutes);
+            assertEquals(Long.valueOf(250), service.effective().editor.autoDigestLength);
+            assertEquals("", service.effective().articleList.status);
+            login(1);
+            service.updateBody("{}", "writing");
+            assertEquals(Long.valueOf(250), service.effective().editor.autoDigestLength);
+            assertEquals(Long.valueOf(60), service.effective().session.timeoutMinutes);
+            service.updateBody("{}", "session");
+            db.putWebsite("session_timeout", 120);
+            assertEquals(Long.valueOf(120), service.effective().session.timeoutMinutes);
+            assertEquals(0, ((Number) db.scalar("select authVersion from user where userId=1")).intValue());
+        }
+    }
+
+    @Test public void validatesExtendedFieldsAndKeepsValidPartitionsWhenAnotherIsCorrupt() throws Exception {
+        try (InMemoryZrLogDatabase db = database()) {
+            UserPreferenceService service = new UserPreferenceService();
+            for (String invalid : List.of(
+                    "{\"session\":{\"timeoutMinutes\":5}}", "{\"session\":{\"timeoutMinutes\":100000}}",
+                    "{\"session\":{\"timeoutMinutes\":1.5}}", "{\"session\":{\"timeoutMinutes\":\"60\"}}",
+                    "{\"editor\":{\"autoDigestLength\":-2}}", "{\"editor\":{\"autoDigestLength\":100000}}",
+                    "{\"editor\":{\"coverAspectRatio\":\"bad\"}}", "{\"editor\":{\"publishCheckEnabled\":1}}",
+                    "{\"articleList\":{\"sort\":\"secretKey,DESC\"}}", "{\"articleList\":{\"status\":\"all\"}}",
+                    "{\"articleList\":{\"columns\":[\"click\",\"click\"]}}", "{\"articleList\":{\"columns\":[\"secretKey\"]}}")) {
+                assertThrows(invalid, ArgsException.class, () -> service.updateBody(invalid));
+            }
+            assertThrows(ArgsException.class, () -> service.updateBody("{}", "unknown"));
+            db.execute("update user set preferences=? where userId=1", "{\"appearance\":{\"theme\":\"broken\"},\"session\":{\"timeoutMinutes\":60}}");
+            assertEquals(Long.valueOf(60), service.current().effective.session.timeoutMinutes);
+            assertNull(service.current().overrides.appearance);
+        }
+    }
+
     @Test public void assistantDefaultsAndSingleScopeAreAccountSpecific() throws Exception {
         try (InMemoryZrLogDatabase db = database()) {
             db.execute("insert into user(userId,userName,role) values(2,'writer','author')");

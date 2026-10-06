@@ -10,7 +10,7 @@ import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.exception.ArticleMissingTitleException;
 import com.zrlog.admin.business.exception.ArticleMissingTypeException;
 import com.zrlog.admin.business.exception.UpdateArticleExpireException;
-import com.zrlog.admin.business.rest.base.ArticleEditWebSiteInfo;
+import com.zrlog.admin.business.rest.base.UserPreferences;
 import com.zrlog.admin.business.rest.request.CreateArticleRequest;
 import com.zrlog.admin.business.rest.request.UpdateArticleRequest;
 import com.zrlog.admin.business.rest.response.*;
@@ -229,7 +229,7 @@ public class AdminArticleService {
         String parseInputDigest = Jsoup.clean(ObjectHelpers.requireNonNullElse(createArticleRequest.getDigest(), ""), Safelist.basicWithImages());
         // 自动摘要
         if (StringUtils.isEmpty(parseInputDigest) && Objects.equals(createArticleRequest.isRubbish(), false)) {
-            long autoSize = AdminConstants.getAutoDigestLength();
+            long autoSize = new UserPreferenceService().effective(adminTokenVO.getUserId()).editor.autoDigestLength;
             if (autoSize < 0) {
                 log.put("digest", log.get("content"));
             } else if (autoSize == 0) {
@@ -409,11 +409,11 @@ public class AdminArticleService {
         response.setArticle(StringUtils.isNotEmpty(id) ? loadDetail(id, request) : new LoadEditArticleResponse());
         response.setTags(Constants.zrLogConfig.getCacheService().getTags());
         response.setTypes(Constants.zrLogConfig.getCacheService().getArticleTypes());
-        ArticleEditWebSiteInfo articleEdit = new WebSiteService().articleEditWebSiteInfo();
-        response.setLinkPreviewEnabled(articleEdit.getArticle_editor_link_preview_enabled());
-        response.setPublishCheckEnabled(articleEdit.getArticle_publish_check_enabled());
-        response.setArticleCoverAspectRatio(articleEdit.getArticle_cover_aspect_ratio());
-        response.setArticleEditAutoSaveInterval(new UserPreferenceService().effective().editor.autoSaveInterval);
+        UserPreferences.Editor editor = new UserPreferenceService().effective().editor;
+        response.setLinkPreviewEnabled(editor.linkPreviewEnabled);
+        response.setPublishCheckEnabled(editor.publishCheckEnabled);
+        response.setArticleCoverAspectRatio(editor.coverAspectRatio);
+        response.setArticleEditAutoSaveInterval(editor.autoSaveInterval);
         Integer articleId = response.getArticle().getId();
         response = ArticleAssistant.current().enrichEditor(response, articleId == null ? draftContextId : articleId);
         AdminPageDataResponse<ArticleGlobalResponse> standardResponse = new AdminPageDataResponse<>(response);

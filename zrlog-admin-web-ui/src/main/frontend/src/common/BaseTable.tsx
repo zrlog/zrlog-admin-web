@@ -38,6 +38,7 @@ export type ArticlePageDataSource = PageDataSource & {
     types: Record<string, any>[];
     article_thumbnail_status: boolean;
     status?: string;
+    columns?: string[];
     statusCounts?: {
         total: number;
         draft: number;
@@ -107,7 +108,7 @@ const BaseTable: FunctionComponent<BaseTableProps> = ({
         }
         // 保留当前 URL 中的 status 参数
         const currentStatus = new URLSearchParams(location.search).get("status");
-        if (currentStatus) {
+        if (currentStatus !== null) {
             queryParam["status"] = currentStatus;
         }
         const queryStr = mapToQueryString(queryParam);

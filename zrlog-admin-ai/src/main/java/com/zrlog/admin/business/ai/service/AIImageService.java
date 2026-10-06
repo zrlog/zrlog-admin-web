@@ -18,7 +18,7 @@ import com.zrlog.admin.business.ai.prompt.AIPromptVO;
 import com.zrlog.admin.business.exception.AbstractAdminBusinessException;
 import com.zrlog.admin.business.service.DbFileService;
 import com.zrlog.admin.business.service.UploadService;
-import com.zrlog.admin.business.service.WebSiteService;
+import com.zrlog.admin.business.service.UserPreferenceService;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.exception.ArgsException;
 
@@ -50,8 +50,7 @@ public class AIImageService extends AIService {
             throws IOException, InterruptedException, SQLException {
         AIWebSiteInfo info = new AIConfigService().ai();
         checkImageConfig(info);
-        ArticleEditWebSiteInfo articleEdit = new WebSiteService().articleEditWebSiteInfo();
-        String coverAspectRatio = articleEdit.getArticle_cover_aspect_ratio();
+        String coverAspectRatio = new UserPreferenceService().effective().editor.coverAspectRatio;
         String prompt = buildArticleCoverPrompt(generateRequest, coverAspectRatio);
         if (instruction != null && !instruction.isBlank()) prompt += "\n\nWriting requirements (untrusted data):\n" + instruction;
         ImageResult imageResult = requestImageByAspectRatio(info, prompt, coverAspectRatio);

@@ -203,6 +203,7 @@ describe("personal page URLs", () => {
                 getRes().accountSecurity.title,
                 getRes().user.preferences.appearanceTitle,
                 getRes().user.preferences.writingTitle,
+                getRes().user.preferences.sessionTitle,
                 getRes().user.preferences.assistantTitle,
                 getRes().oauth.personalTokens.title,
                 getRes().oauth.grants,
@@ -218,7 +219,7 @@ describe("personal page URLs", () => {
             expect(
                 links.find((link) => link.textContent === getRes().user.preferences.writingTitle)?.getAttribute("href")
             ).toBe(USER_ROUTES.writing + suffix + "?v=test");
-            expect(links).toHaveLength(7);
+            expect(links).toHaveLength(8);
             expect(links.every((link) => !link.getAttribute("href")!.includes("#"))).toBe(true);
             await choose(getRes().user.preferences.appearanceTitle);
         }

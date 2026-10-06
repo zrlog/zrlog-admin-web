@@ -12,7 +12,15 @@ export type UserPreferences = {
         colorPrimary?: string | null;
     } | null;
     articlePageSize?: number | null;
-    editor?: { autoSaveInterval?: number | null } | null;
+    editor?: {
+        autoSaveInterval?: number | null;
+        linkPreviewEnabled?: boolean | null;
+        publishCheckEnabled?: boolean | null;
+        autoDigestLength?: number | null;
+        coverAspectRatio?: string | null;
+    } | null;
+    session?: { timeoutMinutes?: number | null } | null;
+    articleList?: { sort?: string | null; status?: string | null; columns?: string[] | null } | null;
     assistant?: {
         knowledgeScope?: "off" | "own_public" | "own_all" | "accessible_public" | "accessible_all" | null;
     } | null;
@@ -58,7 +66,19 @@ export const resolveUserPreferences = (defaults: UserPreferences, overrides: Use
         compactMode: overrides.appearance?.compactMode ?? defaults.appearance?.compactMode,
         colorPrimary: overrides.appearance?.colorPrimary ?? defaults.appearance?.colorPrimary,
     },
-    editor: { autoSaveInterval: overrides.editor?.autoSaveInterval ?? defaults.editor?.autoSaveInterval },
+    editor: {
+        autoSaveInterval: overrides.editor?.autoSaveInterval ?? defaults.editor?.autoSaveInterval,
+        linkPreviewEnabled: overrides.editor?.linkPreviewEnabled ?? defaults.editor?.linkPreviewEnabled,
+        publishCheckEnabled: overrides.editor?.publishCheckEnabled ?? defaults.editor?.publishCheckEnabled,
+        autoDigestLength: overrides.editor?.autoDigestLength ?? defaults.editor?.autoDigestLength,
+        coverAspectRatio: overrides.editor?.coverAspectRatio ?? defaults.editor?.coverAspectRatio,
+    },
+    articleList: {
+        sort: overrides.articleList?.sort ?? defaults.articleList?.sort,
+        status: overrides.articleList?.status ?? defaults.articleList?.status,
+        columns: overrides.articleList?.columns ?? defaults.articleList?.columns,
+    },
+    session: { timeoutMinutes: overrides.session?.timeoutMinutes ?? defaults.session?.timeoutMinutes },
     assistant: { knowledgeScope: overrides.assistant?.knowledgeScope ?? defaults.assistant?.knowledgeScope },
 });
 
@@ -67,6 +87,8 @@ export const mergeUserPreferenceChanges = (current: UserPreferences, changes: Us
     ...changes,
     ...(changes.appearance ? { appearance: { ...current.appearance, ...changes.appearance } } : {}),
     ...(changes.assistant ? { assistant: { ...current.assistant, ...changes.assistant } } : {}),
+    ...(changes.articleList ? { articleList: { ...current.articleList, ...changes.articleList } } : {}),
+    ...(changes.session ? { session: { ...current.session, ...changes.session } } : {}),
     ...(changes.editor ? { editor: { ...current.editor, ...changes.editor } } : {}),
 });
 
@@ -78,8 +100,9 @@ export const replaceUserPreferencePage = (
 ): UserPreferences => {
     const fields: Record<UserPreferencePage, Array<keyof UserPreferences>> = {
         appearance: ["language", "appearance"],
-        writing: ["articlePageSize", "editor"],
+        writing: ["articlePageSize", "editor", "articleList"],
         assistant: ["assistant"],
+        session: ["session"],
     };
     const result = { ...current };
     fields[page].forEach((key) => {

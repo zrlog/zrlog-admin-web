@@ -76,7 +76,7 @@ public class WebSiteService {
     }
 
     static ArticleEditWebSiteInfo normalizeArticleEditWebSiteInfo(ArticleEditWebSiteInfo articleEdit) {
-        if (Objects.isNull(articleEdit.getArticle_auto_digest_length()) || articleEdit.getArticle_auto_digest_length() <= 0) {
+        if (Objects.isNull(articleEdit.getArticle_auto_digest_length()) || articleEdit.getArticle_auto_digest_length() < -1 || articleEdit.getArticle_auto_digest_length() > 99999) {
             articleEdit.setArticle_auto_digest_length(WebSiteUtils.DEFAULT_ARTICLE_DIGEST_LENGTH);
         }
         articleEdit.setArticle_edit_auto_save_interval(ArticleEditWebSiteInfo.normalizeArticleEditAutoSaveInterval(articleEdit.getArticle_edit_auto_save_interval()));

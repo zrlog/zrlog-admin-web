@@ -40,7 +40,15 @@ describe("personal preferences", () => {
         language: "zh_CN",
         appearance: { theme: "default", darkMode: true, compactMode: false, colorPrimary: "#1677ff" },
         articlePageSize: 20,
-        editor: { autoSaveInterval: 5 },
+        editor: {
+            autoSaveInterval: 5,
+            linkPreviewEnabled: true,
+            publishCheckEnabled: true,
+            autoDigestLength: 200,
+            coverAspectRatio: "16:9",
+        },
+        session: { timeoutMinutes: 1440 },
+        articleList: { sort: "id,DESC", status: "", columns: ["typeName", "click", "lastUpdateDate"] },
         assistant: { knowledgeScope: "own_public" },
     };
     const response = {
@@ -189,7 +197,7 @@ describe("personal preferences", () => {
         expect(mockPost).not.toHaveBeenCalled();
         mockPost.mockResolvedValue({ data: { error: 9012, message: "Invalid" } });
         await submit();
-        expect(mockPost).toHaveBeenCalledWith("/api/admin/user/updatePreferences", {
+        expect(mockPost).toHaveBeenCalledWith("/api/admin/user/updatePreferences?section=appearance", {
             appearance: { darkMode: false, colorPrimary: "#123456", compactMode: true },
         });
         expect(container.querySelector("#appearance_compactMode")?.getAttribute("aria-checked")).toBe("true");
@@ -224,7 +232,7 @@ describe("personal preferences", () => {
         expect(mockPost).not.toHaveBeenCalled();
         mockPost.mockResolvedValue({ data: { error: 0, data: { overrides: {}, defaults, effective: defaults } } });
         await submit();
-        expect(mockPost).toHaveBeenCalledWith("/api/admin/user/updatePreferences", {});
+        expect(mockPost).toHaveBeenCalledWith("/api/admin/user/updatePreferences?section=appearance", {});
         expect(updateCache).toHaveBeenCalledWith(
             { overrides: {}, defaults, effective: defaults },
             USER_ROUTES.appearance
@@ -258,7 +266,7 @@ describe("personal preferences", () => {
         });
         mockPost.mockResolvedValue({ data: { error: 9012, message: "Invalid" } });
         await submit();
-        expect(mockPost).toHaveBeenCalledWith("/api/admin/user/updatePreferences", {
+        expect(mockPost).toHaveBeenCalledWith("/api/admin/user/updatePreferences?section=writing", {
             appearance: { darkMode: true },
             assistant: { knowledgeScope: "own_all" },
         });
@@ -295,10 +303,45 @@ describe("personal preferences", () => {
         });
         mockPost.mockResolvedValue({ data: { error: 9012, message: "Invalid" } });
         await submit();
-        expect(mockPost).toHaveBeenCalledWith("/api/admin/user/updatePreferences", {
+        expect(mockPost).toHaveBeenCalledWith("/api/admin/user/updatePreferences?section=assistant", {
             appearance: response.overrides.appearance,
             assistant: { knowledgeScope: "own_all" },
         });
+    });
+
+    it("edits writing switches without copying inherited fields and keeps the session partition", async () => {
+        const overrides: UserPreferences = { session: { timeoutMinutes: 60 } };
+        await render(false, USER_ROUTES.writing, {
+            overrides,
+            defaults,
+            effective: resolveUserPreferences(defaults, overrides),
+        });
+        toggle("editor_linkPreviewEnabled");
+        mockPost.mockResolvedValue({ data: { error: 9012, message: "Invalid" } });
+        await submit();
+        expect(mockPost).toHaveBeenCalledWith("/api/admin/user/updatePreferences?section=writing", {
+            session: { timeoutMinutes: 60 },
+            editor: { linkPreviewEnabled: false },
+        });
+        expect(container.querySelector("#editor_linkPreviewEnabled")?.getAttribute("aria-checked")).toBe("false");
+    });
+
+    it("resets only session settings and displays the inherited duration", async () => {
+        const overrides: UserPreferences = { session: { timeoutMinutes: 60 }, editor: { autoDigestLength: 0 } };
+        await render(false, USER_ROUTES.session, {
+            overrides,
+            defaults,
+            effective: resolveUserPreferences(defaults, overrides),
+        });
+        expect((container.querySelector("#session_timeoutMinutes") as HTMLInputElement).value).toBe("60");
+        act(() => button(getRes().user.preferences.reset).click());
+        expect((container.querySelector("#session_timeoutMinutes") as HTMLInputElement).value).toBe("1440");
+        mockPost.mockResolvedValue({ data: { error: 9012, message: "Invalid" } });
+        await submit();
+        expect(mockPost).toHaveBeenCalledWith("/api/admin/user/updatePreferences?section=session", {
+            editor: { autoDigestLength: 0 },
+        });
+        expect(container.querySelector("#editor_autoDigestLength")).toBeNull();
     });
 
     it("supports English and prevents offline writes", async () => {

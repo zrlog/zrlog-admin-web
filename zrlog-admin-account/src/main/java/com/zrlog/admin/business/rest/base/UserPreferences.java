@@ -7,6 +7,8 @@ public class UserPreferences {
     public Integer articlePageSize;
     public Editor editor;
     public Assistant assistant;
+    public Session session;
+    public ArticleList articleList;
 
     public static class Appearance {
         public String theme;
@@ -19,7 +21,21 @@ public class UserPreferences {
         public String knowledgeScope;
     }
 
+    public static class ArticleList {
+        public String sort;
+        public String status;
+        public java.util.List<String> columns;
+    }
+
+    public static class Session {
+        public Long timeoutMinutes;
+    }
+
     public static class Editor {
+        public Boolean linkPreviewEnabled;
+        public Boolean publishCheckEnabled;
+        public Long autoDigestLength;
+        public String coverAspectRatio;
         public Long autoSaveInterval;
     }
 }

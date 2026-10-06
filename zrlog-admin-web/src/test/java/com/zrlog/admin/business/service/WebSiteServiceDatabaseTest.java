@@ -63,7 +63,7 @@ public class WebSiteServiceDatabaseTest {
             assertEquals(WebSiteUtils.DEFAULT_COLOR_PRIMARY_COLOR, admin.getAdmin_color_primary());
             assertEquals(Long.valueOf(10L), admin.getAdmin_article_page_size());
             assertEquals(Long.valueOf(WebSiteUtils.DEFAULT_SESSION_TIMEOUT / 60 / 1000), admin.getSession_timeout());
-            assertEquals(Long.valueOf(WebSiteUtils.DEFAULT_ARTICLE_DIGEST_LENGTH), articleEdit.getArticle_auto_digest_length());
+            assertEquals(Long.valueOf(0), articleEdit.getArticle_auto_digest_length());
             assertEquals(ArticleEditWebSiteInfo.DEFAULT_ARTICLE_EDIT_AUTO_SAVE_INTERVAL, articleEdit.getArticle_edit_auto_save_interval());
             assertEquals(Boolean.FALSE, articleEdit.getArticle_editor_link_preview_enabled());
             assertEquals(Boolean.FALSE, articleEdit.getArticle_publish_check_enabled());

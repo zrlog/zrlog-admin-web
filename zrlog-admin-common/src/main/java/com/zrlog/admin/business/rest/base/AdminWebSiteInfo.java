@@ -64,7 +64,7 @@ public class AdminWebSiteInfo implements Validator {
             throw new ArgsException(com.zrlog.admin.util.BackendServerUrl.SETTING_KEY);
         }
         if (Objects.isNull(session_timeout)) {
-            session_timeout = WebSiteUtils.DEFAULT_SESSION_TIMEOUT;
+            session_timeout = WebSiteUtils.DEFAULT_SESSION_TIMEOUT / 60000;
         }
         if (session_timeout <= 5) {
             throw new ArgsException("session_timeout need to be greater than 5");

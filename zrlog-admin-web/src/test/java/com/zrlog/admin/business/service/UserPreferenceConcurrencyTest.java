@@ -21,6 +21,21 @@ public class UserPreferenceConcurrencyTest {
         savesAfterCompetingWrites(false);
     }
 
+    @Test public void pageSavePreservesConcurrentSessionAndAppearanceUpdates() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.openWebApi()) {
+            AtomicInteger competing = new AtomicInteger();
+            db.beforeWebApiUpdate((sql, args) -> {
+                if (!sql.startsWith("update user set preferences=") || competing.getAndIncrement() != 0) return;
+                db.execute("update user set preferences=? where userId=1", "{\"session\":{\"timeoutMinutes\":60},\"appearance\":{\"darkMode\":true}}");
+            });
+            new UserPreferenceService().updateBody("{\"session\":{\"timeoutMinutes\":30},\"editor\":{\"autoDigestLength\":0}}", "writing");
+            JsonObject saved = stored(db);
+            assertEquals(60, saved.getAsJsonObject("session").get("timeoutMinutes").getAsInt());
+            assertTrue(saved.getAsJsonObject("appearance").get("darkMode").getAsBoolean());
+            assertEquals(0, saved.getAsJsonObject("editor").get("autoDigestLength").getAsInt());
+        }
+    }
+
     private void savesAfterCompetingWrites(boolean personal) throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.openWebApi()) {
             AtomicInteger competingWrites = new AtomicInteger();

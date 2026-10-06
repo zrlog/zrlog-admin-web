@@ -5,6 +5,7 @@ export const USER_ROUTES = {
     appearance: "/user/preferences/appearance",
     writing: "/user/preferences/writing",
     assistant: "/user/preferences/assistant",
+    session: "/user/preferences/session",
     security: "/user/security",
     tokens: "/user/applications/tokens",
     grants: "/user/applications/grants",
@@ -12,9 +13,9 @@ export const USER_ROUTES = {
     authorize: "/user/applications/authorize",
 } as const;
 
-export type UserPreferencePage = "appearance" | "writing" | "assistant";
+export type UserPreferencePage = "appearance" | "writing" | "assistant" | "session";
 export type UserApplicationPage = "tokens" | "grants" | "clients";
-export const USER_PREFERENCE_PAGES: UserPreferencePage[] = ["appearance", "writing", "assistant"];
+export const USER_PREFERENCE_PAGES: UserPreferencePage[] = ["appearance", "writing", "assistant", "session"];
 export const USER_APPLICATION_PAGES: UserApplicationPage[] = ["tokens", "grants", "clients"];
 
 export const WEBSITE_ROUTES = { members: "/website/members" } as const;
@@ -39,6 +40,7 @@ const pages: Record<string, AccountPage> = {
                         appearance: res.user.preferences.appearanceTitle,
                         writing: res.user.preferences.writingTitle,
                         assistant: res.user.preferences.assistantTitle,
+                        session: res.user.preferences.sessionTitle,
                     }[page]),
             },
         ])

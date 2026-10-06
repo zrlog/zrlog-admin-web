@@ -15,7 +15,7 @@ public class WebSiteServiceTest {
     public void shouldNormalizeArticleEditWebsiteInfo() throws Exception {
         WebSiteService service = new WebSiteService();
         ArticleEditWebSiteInfo invalid = new ArticleEditWebSiteInfo();
-        invalid.setArticle_auto_digest_length(0L);
+        invalid.setArticle_auto_digest_length(-2L);
         invalid.setArticle_edit_auto_save_interval(99L);
         invalid.setArticle_editor_link_preview_enabled(null);
         invalid.setArticle_publish_check_enabled(null);
@@ -43,6 +43,11 @@ public class WebSiteServiceTest {
         assertEquals(true, normalizedExplicit.getArticle_editor_link_preview_enabled());
         assertEquals(false, normalizedExplicit.getArticle_publish_check_enabled());
         assertEquals("1:1", normalizedExplicit.getArticle_cover_aspect_ratio());
+        for (long length : new long[]{-1, 0}) {
+            ArticleEditWebSiteInfo special = new ArticleEditWebSiteInfo();
+            special.setArticle_auto_digest_length(length);
+            assertEquals(Long.valueOf(length), WebSiteService.normalizeArticleEditWebSiteInfo(special).getArticle_auto_digest_length());
+        }
     }
 
 }

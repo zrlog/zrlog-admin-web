@@ -45,6 +45,18 @@ public class AIImageServiceTest {
     private static final Gson GSON = new Gson();
 
     @Test
+    public void personalCoverRatioOverridesSiteConfiguration() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            seedImageConfig(db, "16:9");
+            new com.zrlog.admin.business.service.UserPreferenceService().updateBody("{\"editor\":{\"coverAspectRatio\":\"1:1\"}}", "writing");
+            FakeHttpClient client = new FakeHttpClient(imageB64Response("cover".getBytes(StandardCharsets.UTF_8)));
+            new AIImageService(client).generateArticleCover(articleRequest());
+            assertTrue(client.requestBodies.get(0).contains("\"size\":\"1024x1024\""));
+            assertEquals("16:9", db.scalar("select value from website where name='article_cover_aspect_ratio'"));
+        }
+    }
+
+    @Test
     public void shouldFallbackImageSizeAndPersistB64CoverFromRealWebsiteConfig() throws Exception {
         byte[] coverBytes = "cover-bytes".getBytes(StandardCharsets.UTF_8);
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {

@@ -36,6 +36,29 @@ public class AdminArticleServiceDatabaseTest {
     private static final Executor DIRECT_EXECUTOR = Runnable::run;
 
     @Test
+    public void personalEditorSettingsReachEditingPublishingAndDigestGeneration() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            UserPreferenceService preferences = new UserPreferenceService();
+            preferences.updateBody("{\"editor\":{\"autoDigestLength\":0,\"linkPreviewEnabled\":true,\"publishCheckEnabled\":false,\"coverAspectRatio\":\"1:1\",\"autoSaveInterval\":10}}", "writing");
+            AdminArticleService service = new AdminArticleService();
+            com.zrlog.admin.business.rest.response.ArticleGlobalResponse editor = service.loadDetailById("", request()).getData();
+            assertEquals(Boolean.TRUE, editor.getLinkPreviewEnabled());
+            assertEquals(Boolean.FALSE, editor.getPublishCheckEnabled());
+            assertEquals("1:1", editor.getArticleCoverAspectRatio());
+            assertEquals(Long.valueOf(10), editor.getArticleEditAutoSaveInterval());
+            CreateOrUpdateArticleResponse emptyDigest = service.create(token(), article("No summary", "no-summary"));
+            assertEquals("", db.scalar("select digest from log where logId=?", emptyDigest.getLogId()));
+            preferences.updateBody("{\"editor\":{\"autoDigestLength\":-1}}", "writing");
+            CreateOrUpdateArticleResponse fullDigest = service.create(token(), article("Full summary", "full-summary"));
+            assertEquals("<p>Full summary content</p>", db.scalar("select digest from log where logId=?", fullDigest.getLogId()));
+            preferences.updateBody("{\"editor\":{\"autoDigestLength\":0}}", "writing");
+            CreateArticleRequest custom = article("Custom summary", "custom-summary"); custom.setDigest("Keep my summary");
+            CreateOrUpdateArticleResponse customDigest = service.create(token(), custom);
+            assertEquals("Keep my summary", db.scalar("select digest from log where logId=?", customDigest.getLogId()));
+        }
+    }
+
+    @Test
     public void shouldCreateAndLoadArticleThroughRealDao() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             AdminArticleService service = new AdminArticleService();

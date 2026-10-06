@@ -22,6 +22,7 @@ admin/user
 admin/user/preferences/appearance
 admin/user/preferences/writing
 admin/user/preferences/assistant
+admin/user/preferences/session
 admin/user/security
 admin/user/applications/tokens
 admin/user/applications/grants

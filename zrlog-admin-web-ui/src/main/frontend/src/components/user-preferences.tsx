@@ -1,6 +1,7 @@
+import { isModuleEnabled } from "../utils/module-capabilities";
 import SettingsSubmitBar from "./common/SettingsSubmitBar";
 import { useEffect, useRef, useState } from "react";
-import { Alert, Button, Form, Select, Typography, message, theme } from "antd";
+import { Alert, Button, Form, InputNumber, Select, Switch, Typography, message, theme } from "antd";
 import { useLocation } from "react-router-dom";
 import { useAxiosBaseInstance } from "../base/AppBase";
 import { getSsDate } from "../base/SsData";
@@ -119,7 +120,7 @@ const UserPreferencesForm = ({
         setSaving(true);
         try {
             const { data: response } = await axios.post<ApiResponse<UserPreferencesResponse>>(
-                "/api/admin/user/updatePreferences",
+                `/api/admin/user/updatePreferences?section=${activePage}`,
                 draftRef.current
             );
             if (response.error !== 0) {
@@ -187,6 +188,55 @@ const UserPreferencesForm = ({
                                 label: res.writingTitle,
                                 children: (
                                     <>
+                                        <Form.Item name={["articleList", "sort"]} label={res.listSort}>
+                                            <Select
+                                                style={{ width: 300, maxWidth: "100%" }}
+                                                options={[
+                                                    ["id", res.listCreated],
+                                                    ["lastUpdateDate", getRes().article.lastUpdateDate],
+                                                    ["releaseTime", getRes().article.createTime],
+                                                    ["click", getRes().article.viewCount],
+                                                    ["commentSize", getRes().article.commentSize],
+                                                ].flatMap(([field, label]) =>
+                                                    ["DESC", "ASC"].map((order) => ({
+                                                        value: `${field},${order}`,
+                                                        label: `${label} · ${
+                                                            order === "DESC" ? res.descending : res.ascending
+                                                        }`,
+                                                    }))
+                                                )}
+                                            />
+                                        </Form.Item>
+                                        <Form.Item name={["articleList", "status"]} label={res.listStatus}>
+                                            <Select
+                                                style={{ width: 200, maxWidth: "100%" }}
+                                                options={[
+                                                    { value: "", label: getRes().article.tag.all },
+                                                    { value: "draft", label: getRes().article.status.draft },
+                                                    { value: "published", label: getRes().article.status.published },
+                                                    { value: "private", label: getRes().article.status.private },
+                                                ]}
+                                            />
+                                        </Form.Item>
+                                        <Form.Item
+                                            name={["articleList", "columns"]}
+                                            label={res.listColumns}
+                                            extra={res.listHelp}
+                                        >
+                                            <Select
+                                                mode="multiple"
+                                                style={{ width: "100%" }}
+                                                options={[
+                                                    ["thumbnail", getRes().article.cover],
+                                                    ["typeName", getRes().type],
+                                                    ["click", getRes().article.viewCount],
+                                                    ["canComment", getRes().article.commentStatus],
+                                                    ["commentSize", getRes().article.commentSize],
+                                                    ["releaseTime", getRes().article.createTime],
+                                                    ["lastUpdateDate", getRes().article.lastUpdateDate],
+                                                ].map(([value, label]) => ({ value, label }))}
+                                            />
+                                        </Form.Item>
                                         <Form.Item name="articlePageSize" label={res.articlePageSize}>
                                             <Select
                                                 style={{ width: 200, maxWidth: "100%" }}
@@ -196,6 +246,47 @@ const UserPreferencesForm = ({
                                                 }))}
                                             />
                                         </Form.Item>
+                                        <Form.Item
+                                            name={["editor", "autoDigestLength"]}
+                                            label={getRes().websiteArticleEdit.autoDigestLength}
+                                            extra={getRes().websiteArticleEdit.autoDigestLengthTip}
+                                        >
+                                            <InputNumber
+                                                min={-1}
+                                                max={99999}
+                                                precision={0}
+                                                style={{ width: 200, maxWidth: "100%" }}
+                                            />
+                                        </Form.Item>
+                                        <Form.Item
+                                            name={["editor", "coverAspectRatio"]}
+                                            label={getRes().websiteArticleEdit.coverAspectRatio}
+                                        >
+                                            <Select
+                                                style={{ width: 200, maxWidth: "100%" }}
+                                                options={["16:9", "4:3", "3:2", "1:1", "21:9"].map((value) => ({
+                                                    value,
+                                                    label: value,
+                                                }))}
+                                            />
+                                        </Form.Item>
+                                        <Form.Item
+                                            name={["editor", "linkPreviewEnabled"]}
+                                            valuePropName="checked"
+                                            label={getRes().websiteArticleEdit.linkPreview}
+                                        >
+                                            <Switch />
+                                        </Form.Item>
+                                        {isModuleEnabled("ai") && (
+                                            <Form.Item
+                                                name={["editor", "publishCheckEnabled"]}
+                                                valuePropName="checked"
+                                                label={getRes().websiteArticleEdit.publishCheck}
+                                                extra={getRes().websiteArticleEdit.publishCheckTip}
+                                            >
+                                                <Switch />
+                                            </Form.Item>
+                                        )}
                                         <Form.Item name={["editor", "autoSaveInterval"]} label={res.autoSaveInterval}>
                                             <Select
                                                 style={{ width: 200, maxWidth: "100%" }}
@@ -206,6 +297,25 @@ const UserPreferencesForm = ({
                                             />
                                         </Form.Item>
                                     </>
+                                ),
+                            },
+                            {
+                                key: "session",
+                                label: res.sessionTitle,
+                                children: (
+                                    <Form.Item
+                                        name={["session", "timeoutMinutes"]}
+                                        label={res.sessionTimeout}
+                                        extra={res.sessionHelp}
+                                    >
+                                        <InputNumber
+                                            min={6}
+                                            max={99999}
+                                            precision={0}
+                                            suffix={getRes().websiteAdmin.session.timeoutUnit}
+                                            style={{ width: 200, maxWidth: "100%" }}
+                                        />
+                                    </Form.Item>
                                 ),
                             },
                             {

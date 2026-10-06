@@ -75,8 +75,7 @@ public class AdminInterceptor implements HandleAbleInterceptor {
                     AdminWebTools.blockUnLoginRequestHandler(request, response);
                     return false;
                 }
-                Constants.zrLogConfig.getTokenService().setAdminToken(adminTokenVO.getUserId(), adminTokenVO.getSecretKey(),
-                        adminTokenVO.getSessionId(), adminTokenVO.getProtocol(), request, response);
+                Constants.zrLogConfig.getTokenService().refreshAdminToken(adminTokenVO, request, response);
             }
 
             if (!BaseStaticSitePlugin.isStaticPluginRequest(request)) {

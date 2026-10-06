@@ -74,7 +74,7 @@ public class AdminUserController extends BaseController {
             throw new com.zrlog.common.exception.ArgsException("preferences");
         }
         return new ApiStandardResponse<>(new com.zrlog.admin.business.service.UserPreferenceService()
-                .updateBody(com.hibegin.common.util.IOUtil.getStringInputStream(request.getInputStream())));
+                .updateBody(com.hibegin.common.util.IOUtil.getStringInputStream(request.getInputStream()), request.getParaToStr("section")));
     }
 
     /**

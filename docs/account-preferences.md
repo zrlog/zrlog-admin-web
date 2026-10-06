@@ -4,17 +4,17 @@
 
 `user.preferences` 是可空 TEXT，保存 JSON 个人覆盖值。SQL 28 增加字段，新安装同步建列；旧账号为空时继续使用站点默认值，不复制全局配置到每个账号。
 
-首期支持 `language`（zh_CN/en_US）、`appearance`（theme/darkMode/compactMode/colorPrimary）、`articlePageSize`（1–100）、`editor.autoSaveInterval`（2/5/10 秒）。控制台布局保存为独立的 `dashboard` 分区，继续使用现有控制台配置界面和权限。
+支持 `language`（zh_CN/en_US）、`appearance`（theme/darkMode/compactMode/colorPrimary）、`articlePageSize`（1–100）、`editor`（自动保存、链接预览、自动发布检查、摘要长度、封面比例）、`session.timeoutMinutes` 和 `articleList`（默认排序、状态筛选、显示列）。控制台布局保存为独立的 `dashboard` 分区，继续使用现有控制台配置界面和权限。
 
-身份、角色、enabled、authVersion、OAuth 凭据仍归原字段/表。偏好写入不改变认证版本，不刷新公共静态页面，不修改站点配置。AI 密钥、AI 对话记录、发布检查、站点首次配置清单不属于本次个人设置迁移；内置助手的知识范围归 assistant 分区。
+身份、角色、enabled、authVersion、OAuth 凭据仍归原字段/表。偏好写入不改变认证版本，不刷新公共静态页面，不修改站点配置。AI 密钥、AI 对话记录、站点首次配置清单不属于个人偏好；内置助手的知识范围归 assistant 分区。
 
 ## 接口契约（后台内部接口）
 
 - GET `/api/admin/user/preferences`：使用 `AdminPageDataResponse` 页面响应，`data` 为 `{overrides, defaults, effective}`，供公共页面加载及 SSR 使用；仅含本期可编辑偏好，不返回原始 user 行和 dashboard 插件运行数据。
-- POST `/api/admin/user/updatePreferences`：JSON 对象，整体替换本期可编辑的个人覆盖值。缺失/null 表示跟随站点；空对象恢复这些字段的全部默认值。未知字段、类型错误、越界值拒绝。dashboard 只能通过现有配置接口更新。
+- POST `/api/admin/user/updatePreferences`：JSON 对象，前端传 `?section=appearance|writing|assistant|session`，服务端仅替换选中页的覆盖值；缺失/null 表示继承，空对象恢复该页默认值。不带 section 的旧客户端继续替换旧字段，但保留请求未包含的新增 session/articleList 和 editor 字段。未知字段、类型错误、越界值拒绝。dashboard 只能通过现有配置接口更新。
 - 两个接口都绑定 `account.self`，身份只来自已验证会话，不接受 userId。底层按 userId 参数化写入，并以旧 JSON 值做条件更新重试，避免不同分区并发写入互相覆盖；同一分区最后写入生效。
 - 条件更新冲突时采用带随机抖动的指数退避，每次重读最新 JSON 后合并，重试时间预算为 5 秒，兼容 JDBC 与 D1/Web API 多实例写入。持续冲突仍报错；数据库错误直接上抛，线程中断停止重试并保留中断状态。预算限制冲突重试，单次数据库调用仍由数据库超时控制。
-- 读取损坏的个人 JSON 时回退默认值；写入恢复有效 JSON。未知的持久化分区保留，便于后续扩展。
+- 读取损坏的个人 JSON 时回退默认值；单个分区不合法时仅该分区回退；写入恢复有效 JSON。未知的持久化分区保留，便于后续扩展。
 
 ### 并发更新修复验证（2026-09-26）
 
@@ -93,3 +93,41 @@
 
 
 持久化修复验证：后端完整回归（排除会重置现有预览数据的 MemoryApplicationTest）516 项、前端 40 组 / 263 项通过；TypeScript、改动文件 ESLint、生产构建、native DTO/i18n 工程护栏与 diff 检查通过。真实 HTTP + 本地模拟供应商覆盖重新登录恢复、草稿首次保存迁移、服务端历史上下文、来源和多轮思考保存、导出、跨账号/文章隔离、清空后重载与未授权文章拒绝。预览独立使用 18085，已有 18080–18084 数据未改动；未提交代码。
+
+## 账号设置扩展与会话兼容
+
+本次继续使用 `user.preferences` JSON 与 `website` 站点默认值，不新增表、列或批量回填。新增 `session.timeoutMinutes`（6–99999 分钟）、`editor.linkPreviewEnabled`、`editor.publishCheckEnabled`、`editor.autoDigestLength`（-1–99999，-1 全文、0 不生成）、`editor.coverAspectRatio`（沿用站点枚举）。`articleList` 支持 sort（id/click/commentSize/releaseTime/lastUpdateDate + ASC/DESC）、status（全部/草稿/私密/已发布）、columns（可选显示列，标题和操作始终显示）。URL 中显式的排序和状态筛选优先于个人默认；清除状态筛选保留空参数，避免再次应用个人默认。列表没有旧站点设置的项目沿用内置默认。账号有效值覆盖站点默认，未设置/null 继承；权限和 AI 可用性仍由原服务控制。
+
+实现范围：共享 JSON 存储与会话签发；个人设置契约与分区并发保存；编辑器、摘要生成、发布检查和 AI 封面消费；前端表单、继承/重置及回归。已有外观、分页、自动保存、布局、助手范围继续复用原字段。站点公共配置与共享 AI 凭据保留站点归属。
+
+保存继续使用原 POST 接口，新增可选 `section` 查询参数（appearance/writing/assistant/session），仅替换该页分区，其他分区从数据库最新值保留；未带 section 的旧客户端保持原有可编辑字段替换语义，但省略新增字段时保留其值，避免旧客户端清除新增个人设置。分区重置删除该页覆盖值。存储采用原条件更新与重试策略，共享于账号偏好和登录模块。
+
+登录有效期沿用现有请求续期行为。新登录读取个人时长并写入令牌到期时间，Cookie 与服务端使用同一到期时间；续期沿用该会话的时长快照。修改账号/站点时长从下次登录生效。无到期时间的旧令牌继续以旧站点时长验证，首次续期转换为带到期时间的令牌。OAuth/PAT 生命周期不变，普通偏好保存不修改 authVersion。
+
+统一存储由 base 的 `UserPreferenceStore` 提供：按 userId 读取 `user.preferences`，读取→分区合并→带旧 JSON 条件的 UPDATE，冲突重读后重试。后台页面、默认值合并与校验继续归 `UserPreferenceService`，登录模块通过同一个存储读取会话分区，不引入 admin 反向依赖。账号标识来自验证后的登录态，前端不能指定 userId。
+
+```json
+{
+  "session": {"timeoutMinutes": 60},
+  "editor": {"autoSaveInterval": 5, "linkPreviewEnabled": true, "publishCheckEnabled": false, "autoDigestLength": 200, "coverAspectRatio": "1:1"},
+  "articleList": {"sort": "lastUpdateDate,DESC", "status": "draft", "columns": ["typeName", "lastUpdateDate"]}
+}
+```
+
+摘要长度的站点默认与个人覆盖均保留 -1/0 的既有生成语义，避免设置页把它们归一化成 200。后台登录时长缺省值统一按分钟处理（1440），修复 DTO 将毫秒默认值直接当分钟的问题。
+
+### 扩展验证（2026-10-05）
+
+- base：`JAVA_HOME=/tmp/zrlog-test-support-jdk/jdk-21.0.12.1+1 ./mvnw -q -o -Dmaven.repo.local=/tmp/zrlog-accounts-m2 test install`，475 项通过；存储读取边界调整后另跑 token 及依赖模块测试与 install。覆盖账号 JSON 读取、非法值回退、新旧令牌过期及续期时长快照。
+- admin：相同 JDK/本地 Maven 仓库运行 `./mvnw -q -o -Dmaven.repo.local=/tmp/zrlog-accounts-m2 test`，753 项通过（含在临时目录运行的 MemoryApplicationTest）。新增 H2/SQLite 账号隔离、旧客户端兼容、分区重置、并发更新、摘要生成、编辑器设置、AI 封面比例和列表显式查询覆盖测试。
+- 前端：`CI=true yarn test --watchAll=false --runInBand`，57 组 / 505 项通过；`yarn type-check`、改动文件 ESLint、`yarn build` 通过。覆盖独立登录设置页面、站点继承值、false/0 覆盖、重置、失败保留输入及桌面/移动导航。
+- `scripts/check-admin-guardrails.sh`、后端 `-DskipTests compile` 和两个仓库的 `git diff --check` 通过。新增嵌套 DTO 已注册 Native/Gson，现有 token 类型注册自动覆盖新增字段；未运行 Native Image 构建。
+- 浏览器工具返回空浏览器列表，本次未取得桌面/移动截图，也未执行人工浏览器交互验收。没有发布或提交代码。
+
+### 真实 HTTP 补充验证（2026-10-05）
+
+从当前测试 classpath 启动独立 MemoryApplication，运行目录为 `/tmp/zrlog-account-preferences-preview-18186`，入口为 `http://localhost:18186/sub/admin/login`。通过真实安装链路创建临时 H2 数据库及两个测试账号，不使用仓库的 `.zrlog-memory`。
+
+`python3 /tmp/zrlog-account-preferences-preview-18186/verify_http.py` 的 25 项检查全部通过：空账号继承站点值、账号隔离、跨会话恢复、旧页面保存保留其他页新值、不同分区并发写入、旧客户端兼容、非法参数拒绝、单页重置、站点默认不变，以及编辑器、列表显式查询和摘要 0/-1 的实际消费。四个个人设置 HTML 路由均返回成功。
+
+Cookie 验证覆盖 1440→60→90 分钟的设置变化：已有会话继续按各自登录时的时长续期，新登录读取最新个人值；清除个人会话设置后，新登录重新使用站点的 1440 分钟。结果保存在临时目录的 `http-results.json` 和 `http-verification.log`。此轮未发现需要修改业务代码的问题；HTML 路由检查不代替浏览器视觉验收，浏览器截图与 Native Image 构建仍未执行。

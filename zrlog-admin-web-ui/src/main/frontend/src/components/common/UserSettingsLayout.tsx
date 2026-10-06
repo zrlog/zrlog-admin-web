@@ -69,6 +69,11 @@ const UserSettingsLayout = ({
                     icon: activeKey === "writing" ? <EditFilled /> : <EditOutlined />,
                 },
                 {
+                    key: "session",
+                    label: res.user.preferences.sessionTitle,
+                    icon: activeKey === "session" ? <LockFilled /> : <LockOutlined />,
+                },
+                {
                     key: "assistant",
                     label: res.user.preferences.assistantTitle,
                     icon: activeKey === "assistant" ? <RobotFilled /> : <RobotOutlined />,
@@ -108,6 +113,7 @@ const UserSettingsLayout = ({
         appearance: res.user.preferences.appearanceDescription,
         writing: res.user.preferences.writingDescription,
         assistant: res.user.preferences.assistantDescription,
+        session: res.user.preferences.sessionHelp,
         tokens: res.oauth.personalTokens.description,
         grants: res.oauth.grantsDescription,
         clients: res.oauth.clientsDescription,

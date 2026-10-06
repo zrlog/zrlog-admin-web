@@ -230,7 +230,7 @@ public class AdminDtoContractTest {
 
         AdminWebSiteInfo admin = new AdminWebSiteInfo();
         admin.doValid();
-        assertEquals(Long.valueOf(WebSiteUtils.DEFAULT_SESSION_TIMEOUT), admin.getSession_timeout());
+        assertEquals(Long.valueOf(WebSiteUtils.DEFAULT_SESSION_TIMEOUT / 60000), admin.getSession_timeout());
         admin.setSession_timeout(5L);
         assertThrows(ArgsException.class, admin::doValid);
         admin.setSession_timeout(30L);

@@ -68,6 +68,20 @@ public class AdminArticleControllerDatabaseTest {
     }
 
     @Test
+    public void listDefaultsRespectAccountAndExplicitQueryOverrides() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            new com.zrlog.admin.business.service.UserPreferenceService().updateBody("{\"articleList\":{\"sort\":\"click,ASC\",\"status\":\"draft\",\"columns\":[\"click\"]}}", "writing");
+            ArticlePageData defaults = controller(Map.of(), null, new ResponseRecorder()).index().getData();
+            assertEquals("draft", defaults.getStatus());
+            assertEquals(List.of("click,ASC"), defaults.getSort());
+            assertEquals(List.of("click"), defaults.getColumns());
+            ArticlePageData explicit = controller(Map.of("status", "", "sort", "releaseTime,DESC"), null, new ResponseRecorder()).index().getData();
+            assertEquals("", explicit.getStatus());
+            assertEquals(List.of("releaseTime,DESC"), explicit.getSort());
+        }
+    }
+
+    @Test
     @SuppressWarnings("unchecked")
     public void shouldCreateUpdateListAndLoadDraftArticleThroughRealDao() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
@@ -941,7 +955,9 @@ public class AdminArticleControllerDatabaseTest {
                         case "getParaToInt":
                             return Integer.parseInt(params.getOrDefault(args[0].toString(), args[1].toString()));
                         case "decodeParamMap":
-                            return Map.of();
+                            Map<String, String[]> decoded = new HashMap<>();
+                            params.forEach((key, value) -> decoded.put(key, new String[]{value}));
+                            return decoded;
                         case "getInputStream":
                             return body == null ? null : new ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8));
                         case "getRequestBodyByteBuffer":

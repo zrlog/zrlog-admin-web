@@ -245,7 +245,7 @@ const Index = ({ data, offline, updateCache }: AdminCommonProps<ArticlePageDataS
         if (value) {
             params.set("status", value as string);
         } else {
-            params.delete("status");
+            params.set("status", "");
         }
         navigate(getRealRouteUrl(location.pathname + "?" + params.toString()));
     };
@@ -395,7 +395,7 @@ const Index = ({ data, offline, updateCache }: AdminCommonProps<ArticlePageDataS
 
     const getColumns = (): TableColumnsType<any> => {
         const queryParams = new URLSearchParams(location.search);
-        const sortParam = queryParams.get("sort");
+        const sortParam = queryParams.get("sort") ?? data.sort?.[0];
         const sorterMap: Record<string, "descend" | "ascend" | undefined> = {};
         if (sortParam) {
             const [field, order] = sortParam.split(",");
@@ -507,7 +507,9 @@ const Index = ({ data, offline, updateCache }: AdminCommonProps<ArticlePageDataS
                 },
             });
         }
-        return columns;
+        return columns.filter(
+            (column) => column.key === "title" || !data.columns || data.columns.includes(String(column.key))
+        );
     };
 
     const onSearch = (key: string) => {

@@ -6,21 +6,21 @@ import com.zrlog.admin.business.rest.response.*;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.vo.AdminTokenVO;
-import com.zrlog.model.User;
+import com.zrlog.data.service.UserPreferenceStore;
 
-import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.util.*;
-import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
 
 /** Personal configuration only. Never use this JSON for authorization or public resources. */
 public class UserPreferenceService {
     private static final Gson GSON = new Gson();
-    private static final Set<String> KEYS = Set.of("language", "appearance", "articlePageSize", "editor", "assistant");
+    private static final Set<String> KEYS = Set.of("language", "appearance", "articlePageSize", "editor", "assistant", "session", "articleList");
     private static final Set<String> THEMES = Set.of("default", "antd", "geek", "shadcn", "cartoon", "illustration", "bootstrap", "desk", "glass");
-    private static final long UPDATE_RETRY_TIMEOUT_NANOS = TimeUnit.SECONDS.toNanos(5);
+    private final UserPreferenceStore store = new UserPreferenceStore();
+    private static final Map<String, Set<String>> SECTIONS = Map.of(
+            "appearance", Set.of("language", "appearance"),
+            "writing", Set.of("articlePageSize", "editor", "articleList"),
+            "assistant", Set.of("assistant"), "session", Set.of("session"));
 
     public UserPreferencesResponse current() throws SQLException {
         UserPreferencesResponse response = new UserPreferencesResponse();
@@ -45,82 +45,64 @@ public class UserPreferenceService {
         return merge(defaults(), read(userId));
     }
 
-    public UserPreferencesResponse updateBody(String body) throws SQLException {
+    public UserPreferencesResponse updateBody(String body) throws SQLException { return updateBody(body, null); }
+
+    public UserPreferencesResponse updateBody(String body, String section) throws SQLException {
         try {
             JsonElement parsed = JsonParser.parseString(body);
             if (!parsed.isJsonObject()) throw new ArgsException("preferences");
-            return update(parsed.getAsJsonObject());
+            return update(parsed.getAsJsonObject(), section);
         } catch (JsonParseException e) { throw new ArgsException("preferences"); }
     }
 
-    public UserPreferencesResponse update(JsonObject body) throws SQLException {
+    public UserPreferencesResponse update(JsonObject body) throws SQLException { return update(body, null); }
+
+    public UserPreferencesResponse update(JsonObject body, String section) throws SQLException {
+        Set<String> keys = section == null ? KEYS : SECTIONS.get(section);
+        if (keys == null) throw new ArgsException("section");
         UserPreferences preferences = validate(body);
         int userId = AccountPermissionService.current().getUserId();
         JsonObject values = GSON.toJsonTree(preferences).getAsJsonObject();
-        mutate(userId, root -> {
-            for (String key : KEYS) {
+        store.mutate(userId, root -> {
+            // Old clients know only autoSaveInterval; preserve newly introduced editor fields.
+            JsonObject previousEditor = root.has("editor") && root.get("editor").isJsonObject()
+                    ? root.getAsJsonObject("editor").deepCopy() : new JsonObject();
+            for (String key : keys) {
+                if (section == null && ("session".equals(key) || "articleList".equals(key)) && !body.has(key)) continue;
                 root.remove(key);
-                if (values.has(key)) root.add(key, values.get(key));
+                if (values.has(key)) root.add(key, values.get(key).deepCopy());
+            }
+            if (section == null) {
+                JsonObject supplied = object(body, "editor");
+                for (String key : List.of("linkPreviewEnabled", "publishCheckEnabled", "autoDigestLength", "coverAspectRatio")) {
+                    if (previousEditor.has(key) && (supplied == null || !supplied.has(key))) {
+                        if (!root.has("editor")) root.add("editor", new JsonObject());
+                        root.getAsJsonObject("editor").add(key, previousEditor.get(key));
+                    }
+                }
             }
         });
         return current();
     }
 
     private UserPreferences read(int userId) throws SQLException {
-        JsonObject root = parseStored(raw(userId));
+        JsonObject root = store.read(userId);
         JsonObject known = new JsonObject();
-        for (String key : KEYS) if (root.has(key)) known.add(key, root.get(key));
-        try { return validate(known); }
-        catch (ArgsException e) { return new UserPreferences(); }
-    }
-
-    private String raw(int userId) throws SQLException {
-        Object value = new User().queryFirstObj("select preferences from user where userId=?", userId);
-        return value == null ? null : value.toString();
-    }
-
-    private JsonObject parseStored(String raw) {
-        if (raw == null || raw.isBlank()) return new JsonObject();
-        try {
-            JsonElement parsed = JsonParser.parseString(raw);
-            return parsed.isJsonObject() ? parsed.getAsJsonObject() : new JsonObject();
-        } catch (JsonParseException e) { return new JsonObject(); }
-    }
-
-    private void mutate(int userId, Consumer<JsonObject> change) throws SQLException {
-        long deadline = System.nanoTime() + UPDATE_RETRY_TIMEOUT_NANOS;
-        long backoffMillis = 1;
-        do {
-            String previous = raw(userId);
-            JsonObject root = parseStored(previous);
-            change.accept(root);
-            String updated = GSON.toJson(root);
-            if (updated.getBytes(StandardCharsets.UTF_8).length > 60000) throw new ArgsException("preferences");
-            if (updated.equals(previous)) return;
-            boolean saved = previous == null
-                    ? new User().execute("update user set preferences=? where userId=? and preferences is null", updated, userId)
-                    : new User().execute("update user set preferences=? where userId=? and preferences=?", updated, userId, previous);
-            if (saved) return;
-            // A burst of writes can exhaust a small attempt count before the other writer finishes.
-            // Back off, then read and merge again; the conditional write also protects other instances.
-            long remaining = deadline - System.nanoTime();
-            if (remaining <= 0) break;
-            long delay = TimeUnit.MILLISECONDS.toNanos(ThreadLocalRandom.current().nextLong(backoffMillis, backoffMillis * 2 + 1));
-            try { TimeUnit.NANOSECONDS.sleep(Math.min(delay, remaining)); }
-            catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new SQLException("Interrupted while updating account preferences", e);
-            }
-            backoffMillis = Math.min(backoffMillis * 2, 32);
-        } while (System.nanoTime() - deadline < 0);
-        throw new SQLException("Concurrent account preference update; please retry");
+        for (String key : KEYS) {
+            if (!root.has(key)) continue;
+            JsonObject section = new JsonObject();
+            section.add(key, root.get(key));
+            try { validate(section); known.add(key, root.get(key)); }
+            catch (ArgsException ignored) { /* A corrupt partition inherits its defaults. */ }
+        }
+        return validate(known);
     }
 
     public AdminDashboardConfigResponse dashboard(AdminTokenVO token) {
         if (token == null) return null; // Public static rendering uses the site default only.
         int userId = AccountPermissionService.account(token).getUserId();
         try {
-            JsonElement value = parseStored(raw(userId)).get("dashboard");
+            JsonElement value = store.read(userId).get("dashboard");
             return value == null || !value.isJsonObject() ? null : GSON.fromJson(value, AdminDashboardConfigResponse.class);
         } catch (JsonParseException e) { return null; }
         catch (SQLException e) { throw new IllegalStateException("Unable to read dashboard preferences", e); }
@@ -128,7 +110,7 @@ public class UserPreferenceService {
 
     public void saveDashboard(AdminTokenVO token, AdminDashboardConfigResponse config) {
         int userId = AccountPermissionService.account(token).getUserId();
-        try { mutate(userId, root -> root.add("dashboard", GSON.toJsonTree(config))); }
+        try { store.mutate(userId, root -> root.add("dashboard", GSON.toJsonTree(config))); }
         catch (SQLException e) { throw new IllegalStateException("Unable to save dashboard preferences", e); }
     }
 
@@ -152,7 +134,18 @@ public class UserPreferenceService {
         result.appearance.colorPrimary = admin.getAdmin_color_primary();
         result.articlePageSize = admin.getAdmin_article_page_size().intValue();
         result.editor = new UserPreferences.Editor();
-        result.editor.autoSaveInterval = site.articleEditWebSiteInfo().getArticle_edit_auto_save_interval();
+        ArticleEditWebSiteInfo editor = site.articleEditWebSiteInfo();
+        result.editor.autoSaveInterval = editor.getArticle_edit_auto_save_interval();
+        result.editor.linkPreviewEnabled = editor.getArticle_editor_link_preview_enabled();
+        result.editor.publishCheckEnabled = editor.getArticle_publish_check_enabled();
+        result.editor.autoDigestLength = editor.getArticle_auto_digest_length();
+        result.editor.coverAspectRatio = editor.getArticle_cover_aspect_ratio();
+        result.session = new UserPreferences.Session();
+        result.session.timeoutMinutes = admin.getSession_timeout();
+        result.articleList = new UserPreferences.ArticleList();
+        result.articleList.sort = "id,DESC";
+        result.articleList.status = "";
+        result.articleList.columns = List.of("thumbnail", "typeName", "click", "canComment", "commentSize", "releaseTime", "lastUpdateDate");
         result.assistant = assistantDefaults();
         return result;
     }
@@ -203,8 +196,37 @@ public class UserPreferenceService {
         }
         JsonObject editor = object(body, "editor");
         if (editor != null) {
-            only(editor, Set.of("autoSaveInterval"));
+            only(editor, Set.of("autoSaveInterval", "linkPreviewEnabled", "publishCheckEnabled", "autoDigestLength", "coverAspectRatio"));
+            bool(editor, "linkPreviewEnabled");
+            bool(editor, "publishCheckEnabled");
+            number(editor, "autoDigestLength", -1, 99999, null);
+            string(editor, "coverAspectRatio", Set.of("16:9", "4:3", "3:2", "1:1", "21:9"));
             number(editor, "autoSaveInterval", 2, 10, Set.of(2L, 5L, 10L));
+        }
+        JsonObject articleList = object(body, "articleList");
+        if (articleList != null) {
+            only(articleList, Set.of("sort", "status", "columns"));
+            string(articleList, "status", Set.of("", "draft", "private", "published"));
+            Set<String> sorts = new HashSet<>();
+            for (String field : List.of("id", "click", "commentSize", "releaseTime", "lastUpdateDate")) {
+                sorts.add(field + ",ASC"); sorts.add(field + ",DESC");
+            }
+            string(articleList, "sort", sorts);
+            if (present(articleList, "columns")) {
+                JsonElement columns = articleList.get("columns");
+                Set<String> allowed = Set.of("thumbnail", "typeName", "click", "canComment", "commentSize", "releaseTime", "lastUpdateDate");
+                if (!columns.isJsonArray() || columns.getAsJsonArray().size() > allowed.size()) throw new ArgsException("columns");
+                Set<String> selected = new HashSet<>();
+                for (JsonElement value : columns.getAsJsonArray()) {
+                    if (!value.isJsonPrimitive() || !value.getAsJsonPrimitive().isString()
+                            || !allowed.contains(value.getAsString()) || !selected.add(value.getAsString())) throw new ArgsException("columns");
+                }
+            }
+        }
+        JsonObject session = object(body, "session");
+        if (session != null) {
+            only(session, Set.of("timeoutMinutes"));
+            number(session, "timeoutMinutes", UserPreferenceStore.MIN_SESSION_MINUTES, UserPreferenceStore.MAX_SESSION_MINUTES, null);
         }
         JsonObject assistant = object(body, "assistant");
         if (assistant != null) {

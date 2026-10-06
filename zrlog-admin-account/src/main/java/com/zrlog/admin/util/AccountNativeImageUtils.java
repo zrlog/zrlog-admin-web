@@ -11,6 +11,8 @@ public final class AccountNativeImageUtils {
                 com.zrlog.admin.business.rest.base.UserPreferences.Appearance.class,
                 com.zrlog.admin.business.rest.base.UserPreferences.Assistant.class,
                 com.zrlog.admin.business.rest.base.UserPreferences.Editor.class,
+                com.zrlog.admin.business.rest.base.UserPreferences.Session.class,
+                com.zrlog.admin.business.rest.base.UserPreferences.ArticleList.class,
                 com.zrlog.admin.business.rest.request.LoginRequest.class,
                 com.zrlog.admin.business.rest.request.UpdateAdminRequest.class,
                 com.zrlog.admin.business.rest.request.UpdatePasswordRequest.class,

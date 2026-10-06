@@ -69,6 +69,7 @@ public class AdminConstants {
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/user/security", "admin.user.security.manage");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/user/preferences/appearance", "admin.user.preferences.appearance.manage");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/user/preferences/writing", "admin.user.preferences.writing.manage");
+        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/user/preferences/session", "admin.user.preferences.session.manage");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/user/preferences/assistant", "admin.user.preferences.assistant.manage");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/upgrade", "admin.upgrade.wizard.manage");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/template-config", "admin.template.config.manage");

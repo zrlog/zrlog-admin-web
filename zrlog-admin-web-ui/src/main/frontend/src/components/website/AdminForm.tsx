@@ -161,7 +161,7 @@ const BlogForm = ({
                     style={{ minWidth: 120 }}
                     max={99999}
                     type={"number"}
-                    min={5}
+                    min={6}
                     placeholder=""
                 />
             </Form.Item>

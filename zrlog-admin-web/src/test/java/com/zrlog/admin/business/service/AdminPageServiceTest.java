@@ -278,6 +278,7 @@ public class AdminPageServiceTest {
             assertNotNull(service.serverSide("/admin/user/applications/tokens", request("/admin/user/applications/tokens", "/blog", config), response()).getData());
             org.junit.Assert.assertThrows(com.zrlog.admin.business.exception.PermissionErrorException.class,
                     () -> service.serverSide("/admin/website/members", request("/admin/website/members", "/blog", config), response()));
+            assertNotNull(service.serverSide("/admin/user/preferences/session", request("/admin/user/preferences/session", "/blog", config), response()).getData());
             assertNotNull(service.serverSide("/admin/user/preferences/writing", request("/admin/user/preferences/writing", "/blog", config), response()).getData());
             assertNotNull(service.serverSide("/admin/user/preferences/assistant", request("/admin/user/preferences/assistant", "/blog", config), response()).getData());
             assertNotNull(service.serverSide("/admin/user/applications/grants", request("/admin/user/applications/grants", "/blog", config), response()).getData());
