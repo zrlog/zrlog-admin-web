@@ -1182,7 +1182,7 @@ const zhCN = {
             "placeholder": "https://admin.example.com",
             "invalid": "请输入完整的 HTTPS 地址，不含查询参数、片段或账号信息；本机调试可使用 HTTP"
         },
-        "summary": "设置站点后端地址，以及后台的默认语言、外观、每页文章数和登录有效时长。成员可在偏好设置中调整自己的语言、外观和每页文章数",
+        "summary": "设置站点后端地址，以及后台的默认语言、外观、每页文章数和登录有效时长。成员可在偏好设置中调整自己的语言、外观、每页文章数和登录有效时长",
         "theme": {
             "label": "主题",
             "option": {
@@ -3143,7 +3143,7 @@ const enUS: AdminI18nResource = {
             "placeholder": "https://admin.example.com",
             "invalid": "Enter a full HTTPS URL without a query, fragment or credentials; HTTP is allowed for local development"
         },
-        "summary": "Set the backend service URL and the default admin language, appearance, articles per page and session duration. Members can choose their own language, appearance and articles per page in Preferences",
+        "summary": "Set the backend service URL and the default admin language, appearance, articles per page and session duration. Members can choose their own language, appearance, articles per page and session duration in Preferences",
         "theme": {
             "label": "Theme",
             "option": {
