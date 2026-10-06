@@ -159,6 +159,7 @@ public class AdminArticleController extends BaseController {
 
     @ResponseBody
     @RequiresAction(value = AccountAction.ARTICLE_READ, descriptionKey = "article.list")
+    @RequestMethod(method = HttpMethod.GET)
     public AdminPageDataResponse<ArticlePageData> index()
             throws SQLException, ExecutionException, InterruptedException {
         String key = request.getParaToStr("key", "");
@@ -180,6 +181,7 @@ public class AdminArticleController extends BaseController {
 
     @ResponseBody
     @RequiresAction(value = AccountAction.ARTICLE_READ, articleQuery = true, descriptionKey = "article.editor")
+    @RequestMethod(method = HttpMethod.GET)
     public AdminPageDataResponse<ArticleGlobalResponse> articleEdit() throws SQLException {
         String id = request.getParaToStr("id", "");
         return articleService.loadDetailById(id, request);

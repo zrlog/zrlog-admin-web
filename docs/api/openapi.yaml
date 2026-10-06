@@ -22,7 +22,9 @@ servers:
         default: http://localhost:17080/sub
 tags:
   - name: Article
-    description: 文章创建与全量更新
+    description: 文章查询、创建与全量更新
+  - name: Category
+    description: 文章分类查询与维护
   - name: Upload
     description: 通用附件上传
   - name: Template
@@ -30,6 +32,227 @@ tags:
   - name: Notification
     description: 外部消息中心通知
 paths:
+  /api/admin/article:
+    get:
+      tags: [Article]
+      summary: 分页查询后台文章
+      description: |-
+        需要 `article.read`。只返回当前账号有权读取的文章：author/contributor 仅能查询自己的文章，
+        editor 不可读取他人的私密文章。这里包含草稿和私密文章，与博客公开文章列表不同。
+
+        `status`、`size`、`sort` 省略时分别使用当前账号的文章列表状态、每页条数和排序偏好。
+        自动化遍历应显式传 `status=`、`page=1`、`size=100`、`sort=id,desc`，
+        然后按相同条件逐页读取，直到达到 `data.totalElements`。空 status 表示全部可见状态。
+        分页期间没有一致性快照；文章增删可能改变总数或造成重复/遗漏，调用方应校验分页结果。
+
+        `data.rows` 只提供列表字段，不包含用于更新的完整正文快照与 version；更新前必须调用 getArticle。
+        响应中的 columns、types、statusCounts 等页面辅助字段不属于此操作的稳定数据契约。
+      operationId: listArticles
+      x-zrlog-controller: com.zrlog.admin.web.controller.api.AdminArticleController#index
+      x-zrlog-response-kind: page-hydration
+      security:
+        - AccessTokenBearer: []
+        - AdminTokenHeader: []
+        - AdminTokenCookie: []
+      parameters:
+        - name: page
+          in: query
+          description: 页码，从 1 开始
+          schema: {type: integer, format: int32, minimum: 1, default: 1}
+        - name: size
+          in: query
+          description: 每页条数；省略时使用账号偏好，自动化调用应显式设置
+          schema: {type: integer, format: int32, minimum: 1}
+          example: 100
+        - name: sort
+          in: query
+          description: 单个排序字段与可选方向；方向不区分大小写，省略方向时为 DESC，省略整个参数时使用账号偏好
+          schema:
+            type: string
+            pattern: '^(id|typeName|releaseTime|commentSize|privacy|click|lastUpdateDate)(,([aA][sS][cC]|[dD][eE][sS][cC]))?$'
+          example: id,desc
+        - name: status
+          in: query
+          description: |-
+            空字符串查询全部可见状态；published 为非草稿且非私密，draft 为 rubbish=true，
+            private 为 privacy=true（包括私密草稿）。省略时使用账号偏好。
+          schema: {type: string, enum: ["", published, draft, private]}
+          example: ""
+        - name: key
+          in: query
+          description: 在标题、纯文本正文、关键词和别名中执行包含查询；空字符串不筛选，保留 SQL LIKE 的 % 和 _ 通配语义
+          schema: {type: string}
+        - name: types
+          in: query
+          description: 单个分类 alias，精确匹配；不是分类 ID 或数组，空字符串不筛选
+          schema: {type: string}
+      responses:
+        "200":
+          description: 分页结果位于 data；业务失败仍可能使用 HTTP 200，必须检查 error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ArticleListResponse"
+              example:
+                error: 0
+                message: ""
+                data:
+                  page: 1
+                  size: 100
+                  totalElements: 1
+                  rows:
+                    - {id: 42, title: Hello ZrLog, alias: hello-zrlog, typeAlias: guides, rubbish: true, privacy: false}
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        default:
+          $ref: "#/components/responses/ApiError"
+  /api/admin/article-edit:
+    get:
+      tags: [Article]
+      summary: 读取完整文章快照
+      description: |-
+        需要 `article.read`，并检查文章归属与私密状态。通过正整数 id 读取 `data.article`，
+        包括下一次全量更新所需的 logId、version 和可写字段。不存在或无权读取时返回业务错误，不能当作空文章。
+        本契约只支持读取已有文章；省略 id 的后台新建编辑器初始化行为不属于此契约。
+
+        响应还包含编辑器、分类、标签、AI 上下文和页面元数据，调用方不应依赖这些 UI 字段。
+        提交 updateArticle 前只提取可写字段与 logId、version，不要直接回传整个响应，
+        previewUrl、lastUpdateDate、socialPreview 等只读字段不属于更新请求。
+      operationId: getArticle
+      x-zrlog-controller: com.zrlog.admin.web.controller.api.AdminArticleController#articleEdit
+      x-zrlog-response-kind: page-hydration
+      security:
+        - AccessTokenBearer: []
+        - AdminTokenHeader: []
+        - AdminTokenCookie: []
+      parameters:
+        - name: id
+          in: query
+          required: true
+          description: 已存在的文章 ID
+          schema: {type: integer, format: int32, minimum: 1}
+          example: 42
+      responses:
+        "200":
+          description: 完整文章位于 data.article；必须检查 error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ArticleSaveResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        default:
+          $ref: "#/components/responses/ApiError"
+  /api/admin/article-type:
+    get:
+      tags: [Category]
+      summary: 查询全部文章分类
+      description: |-
+        需要 `taxonomy.read`。分类位于 `data.rows`，一次返回全部分类，无分页或筛选参数。
+        分类主键字段是 id，可作为文章写入请求的 typeId。amount/typeamount 是分类下全部文章数量，包含草稿和私密文章。
+        页面元数据不属于稳定数据契约。
+      operationId: listCategories
+      x-zrlog-controller: com.zrlog.admin.web.controller.api.TypeController#index
+      x-zrlog-response-kind: page-hydration
+      security:
+        - AccessTokenBearer: []
+        - AdminTokenHeader: []
+        - AdminTokenCookie: []
+      responses:
+        "200":
+          description: 全部分类位于 data.rows；必须检查 error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CategoryListResponse"
+              example:
+                error: 0
+                message: ""
+                data:
+                  rows:
+                    - {id: 1, typeName: 指南, alias: guides, remark: 使用指南, amount: 3, typeamount: 3}
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        default:
+          $ref: "#/components/responses/ApiError"
+  /api/admin/type/add:
+    post:
+      tags: [Category]
+      summary: 创建文章分类
+      description: |-
+        需要 `taxonomy.manage`。创建后仅返回 error/message，不返回新分类 ID；需要 ID 时重新调用 listCategories。
+        本操作不幂等，不能依赖 alias 唯一性去重；响应丢失时应先读取分类核对，不得自动重放写入。
+        默认返回 JSON，表示分类写入结果；`Accept: text/event-stream` 可等待缓存与静态页面刷新。
+        SSE 的 response 表示业务方法已返回（仍需检查其中 error），refresh-complete 表示刷新完成；
+        静态刷新失败或断流时分类可能已写入，不能据此重试创建。
+      operationId: createCategory
+      x-zrlog-controller: com.zrlog.admin.web.controller.api.TypeController#add
+      x-zrlog-response-kind: action
+      x-zrlog-side-effects:
+        - 创建分类数据库记录
+        - 刷新博客缓存并触发博客静态页面更新；普通 JSON 模式通常异步执行
+      security:
+        - AccessTokenBearer: []
+        - AdminTokenHeader: []
+        - AdminTokenCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CategoryCreateRequest"
+            example: {typeName: 指南, alias: guides, remark: 使用指南}
+      responses:
+        "200":
+          $ref: "#/components/responses/CategoryWriteResult"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        default:
+          $ref: "#/components/responses/ApiError"
+  /api/admin/type/update:
+    post:
+      tags: [Category]
+      summary: 全量更新文章分类
+      description: |-
+        需要 `taxonomy.manage`。按 id 更新 typeName、alias 和 remark；remark 省略或为 null 时清空。
+        没有 version 并发检查，后一次成功写入覆盖前一次。仅返回 error/message，不返回分类对象。
+        默认返回 JSON；`Accept: text/event-stream` 的 response 表示业务方法已返回，
+        refresh-complete 表示缓存与静态页面刷新完成。业务失败仍需检查 error。
+        刷新失败或断流时分类可能已写入，应先重新读取判断实际结果，不得自动重放。
+      operationId: updateCategory
+      x-zrlog-controller: com.zrlog.admin.web.controller.api.TypeController#update
+      x-zrlog-response-kind: action
+      x-zrlog-side-effects:
+        - 覆盖指定分类的名称、别名和说明
+        - 刷新博客缓存并触发博客静态页面更新；普通 JSON 模式通常异步执行
+      security:
+        - AccessTokenBearer: []
+        - AdminTokenHeader: []
+        - AdminTokenCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CategoryUpdateRequest"
+            example: {id: 1, typeName: 新指南, alias: guides, remark: 更新后的使用指南}
+      responses:
+        "200":
+          $ref: "#/components/responses/CategoryWriteResult"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        default:
+          $ref: "#/components/responses/ApiError"
   /api/admin/article/create:
     post:
       tags:
@@ -88,6 +311,9 @@ paths:
             请求已处理。成功时核心结果位于 `data.article`；失败仍可能使用 HTTP 200，调用方必须检查 `error`。
           content:
             text/event-stream:
+              x-zrlog-stream:
+                completionEvent: publish-complete
+                errorEvents: [publish-error, static-error, sse-error]
               schema:
                 $ref: "#/components/schemas/ArticlePublishStream"
             application/json:
@@ -139,7 +365,7 @@ paths:
         成功后返回的 `data.article.version` 是下一次更新必须使用的新版本。提交版本与服务器版本不一致（包括超前版本）时返回业务错误 `9094`。
         版本检查与文章更新在同一条数据库语句中完成；同一版本的并发保存最多一份成功，失败请求不写入版本历史。
 
-        当前文档未记录文章读取接口；本操作只适用于已经从受信任后台上下文取得当前完整快照的调用者。
+        通过 getArticle（GET /api/admin/article-edit?id=...）读取当前完整快照；列表行不包含完整正文与 version，不能直接用于更新。
 
         调用方应先取得完整文章快照，只修改目标字段后再提交。省略可写字符串字段可能导致清空、重算或把别名重置为数字 ID；
         省略布尔字段会按 false 处理。`editorType=markdown`、`markdown` 非空且 `content` 为空或省略时，
@@ -193,6 +419,9 @@ paths:
             请求已处理。成功时核心结果位于 `data.article`；失败仍可能使用 HTTP 200，调用方必须检查 `error`。
           content:
             text/event-stream:
+              x-zrlog-stream:
+                completionEvent: publish-complete
+                errorEvents: [publish-error, static-error, sse-error]
               schema:
                 $ref: "#/components/schemas/ArticlePublishStream"
             application/json:
@@ -464,6 +693,42 @@ paths:
         "403":
           description: 缺少发送通知权限
 components:
+  responses:
+    Unauthorized:
+      description: 管理员凭证缺失、无效或已失效
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiErrorResponse"
+    Forbidden:
+      description: 缺少操作权限，或文章不存在/不属于当前账号可访问范围
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiErrorResponse"
+    ApiError:
+      description: 参数错误、权限错误或未处理异常；必须检查 error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiErrorResponse"
+    CategoryWriteResult:
+      description: 分类写入结果；error=0 表示业务成功，非零表示失败，无新分类 ID
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/CategoryWriteResponse"
+          example: {error: 0, message: 更新成功}
+        text/event-stream:
+          x-zrlog-stream:
+            completionEvent: refresh-complete
+            errorEvents: [static-error, sse-error]
+          schema:
+            type: string
+            description: |-
+              UTF-8 SSE。response 和 refresh-complete 的 data 为 CategoryWriteResponse，均需检查 error。
+              response 仅确认业务方法已返回，refresh-complete 才确认刷新完成。
+              static-error/sse-error 或缺少完成事件的断流表示刷新未确认完成，但写入可能已经成功；不得自动重试写入。
   securitySchemes:
     AccessTokenBearer:
       type: http
@@ -480,6 +745,119 @@ components:
       name: admin-token
       description: 后台登录建立的管理员会话 Cookie
   schemas:
+    ArticleListResponse:
+      oneOf:
+        - type: object
+          required: [error, message, data]
+          properties:
+            error: {type: integer, const: 0}
+            message: {type: string}
+            data:
+              type: object
+              required: [page, size, totalElements, rows]
+              properties:
+                page: {type: integer, minimum: 1}
+                size: {type: integer, minimum: 1}
+                totalElements: {type: integer, minimum: 0}
+                rows:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/ArticleListItem"
+                sort: {type: array, items: {type: string}}
+                key: {type: string}
+                status: {type: string}
+              additionalProperties: true
+          additionalProperties: true
+        - $ref: "#/components/schemas/ApiErrorResponse"
+    ArticleListItem:
+      type: object
+      description: 列表投影；不提供 logId、version、typeId、content、editorType 等完整更新字段
+      required: [id, title, alias, rubbish, privacy]
+      properties:
+        id: {type: integer, format: int64, minimum: 1}
+        title: {type: string}
+        alias: {type: string}
+        typeAlias: {type: [string, "null"]}
+        typeName: {type: [string, "null"]}
+        markdown: {type: [string, "null"]}
+        digest: {type: [string, "null"]}
+        keywords: {type: [string, "null"]}
+        thumbnail: {type: [string, "null"]}
+        canComment: {type: boolean}
+        recommended: {type: boolean}
+        rubbish: {type: boolean}
+        privacy: {type: boolean}
+        url: {type: string, format: uri-reference, description: 草稿或私密文章为后台预览路径；公开文章为博客 URL}
+        releaseTime: {type: string, description: yyyy-MM-dd 日期文本}
+        lastUpdateDate: {type: string, description: yyyy-MM-dd 日期文本，不是详情中的毫秒时间戳}
+      additionalProperties: true
+    CategoryListResponse:
+      oneOf:
+        - type: object
+          required: [error, message, data]
+          properties:
+            error: {type: integer, const: 0}
+            message: {type: string}
+            data:
+              type: object
+              required: [rows]
+              properties:
+                rows:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/Category"
+              additionalProperties: true
+          additionalProperties: true
+        - $ref: "#/components/schemas/ApiErrorResponse"
+    Category:
+      type: object
+      required: [id, typeName, alias]
+      properties:
+        id: {type: integer, format: int64, minimum: 1}
+        typeName: {type: string}
+        alias: {type: string}
+        remark: {type: [string, "null"]}
+        amount: {type: integer, minimum: 0, description: 分类下全部文章数量，包含草稿和私密文章}
+        typeamount: {type: integer, minimum: 0, description: 与 amount 相同的兼容字段}
+        url: {type: string, format: uri-reference}
+      additionalProperties: true
+    CategoryWriteFields:
+      type: object
+      required: [typeName, alias]
+      properties:
+        typeName:
+          type: string
+          minLength: 1
+          pattern: '\S'
+          description: 分类名称，不能仅含空白；服务端移除 HTML
+        alias:
+          type: string
+          minLength: 1
+          pattern: '\S'
+          description: 分类别名，不能仅含空白；服务端移除 HTML，不保证唯一
+        remark:
+          type: [string, "null"]
+          description: 分类说明；省略或为 null 时保存为空字符串，HTML 按 basicWithImages 安全规则清理
+    CategoryCreateRequest:
+      allOf:
+        - $ref: "#/components/schemas/CategoryWriteFields"
+      unevaluatedProperties: false
+    CategoryUpdateRequest:
+      allOf:
+        - $ref: "#/components/schemas/CategoryWriteFields"
+        - type: object
+          required: [id]
+          properties:
+            id: {type: integer, format: int64, minimum: 1, description: 已存在的分类 ID}
+      unevaluatedProperties: false
+    CategoryWriteResponse:
+      type: object
+      required: [error, message]
+      properties:
+        error: {type: integer, minimum: 0, description: 0 表示写入成功，非零为失败}
+        message: {type: string}
+        data: {type: "null", description: 不返回分类对象；可能省略}
+      additionalProperties: true
     ApiErrorResponse:
       type: object
       required:
@@ -649,7 +1027,7 @@ components:
               type: integer
               format: int32
               minimum: 0
-      description: 保存后的完整文章可写快照；下一次更新应保留全部字段并使用新的 version
+      description: 读取或保存后的完整文章快照；更新时提取全部可写字段与 logId、version，排除只读字段和 UI 元数据
       additionalProperties: true
     UploadAttachmentRequest:
       type: object

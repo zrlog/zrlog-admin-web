@@ -4,6 +4,8 @@ import com.zrlog.admin.web.annotation.RequiresAction;
 import com.zrlog.data.security.AccountAction;
 
 import com.hibegin.common.dao.dto.PageData;
+import com.hibegin.http.HttpMethod;
+import com.hibegin.http.annotation.RequestMethod;
 import com.hibegin.http.annotation.ResponseBody;
 import com.zrlog.admin.business.rest.request.CreateTypeRequest;
 import com.zrlog.admin.business.rest.request.UpdateTypeRequest;
@@ -38,6 +40,7 @@ public class TypeController extends BaseController {
 
     @ResponseBody
     @RequiresAction(value = AccountAction.TAXONOMY_READ, descriptionKey = "category.list")
+    @RequestMethod(method = HttpMethod.GET)
     public AdminPageDataResponse<PageData<TypeDTO>> index() throws SQLException {
         return new AdminPageDataResponse<>(articleTypeService.find(ZrLogUtil.getHomeUrlWithHost(request),
                 ControllerUtil.unPageRequest(), Constants.isStaticHtmlStatus()), "", request.getUri());
@@ -47,6 +50,7 @@ public class TypeController extends BaseController {
     @ResponseBody
     @RequestLock
     @RequiresAction(value = AccountAction.TAXONOMY_MANAGE, descriptionKey = "category.create")
+    @RequestMethod(method = HttpMethod.POST)
     public UpdateRecordResponse add() throws IOException, SQLException {
         CreateTypeRequest requestBody = getRequestBodyWithNullCheck(CreateTypeRequest.class);
         return new UpdateRecordResponse(articleTypeService.add(requestBody));
@@ -57,6 +61,7 @@ public class TypeController extends BaseController {
     @ResponseBody
     @RequestLock
     @RequiresAction(value = AccountAction.TAXONOMY_MANAGE, descriptionKey = "category.update")
+    @RequestMethod(method = HttpMethod.POST)
     public UpdateRecordResponse update() throws IOException, SQLException {
         UpdateTypeRequest requestBody = getRequestBodyWithNullCheck(UpdateTypeRequest.class);
         return new UpdateRecordResponse(articleTypeService.update(requestBody));
