@@ -11,6 +11,10 @@ const { parseDocument } = require("yaml");
 
 const openApiPath = path.join(rootDir, "docs/api/openapi.yaml");
 const source = fs.readFileSync(openApiPath, "utf8");
+const canonicalPath = path.resolve(rootDir, "../zrlog-api/admin-web.yaml");
+if (fs.existsSync(canonicalPath) && fs.readFileSync(canonicalPath, "utf8") !== source) {
+    throw new Error("Stale admin OpenAPI snapshot; synchronize from zrlog-api first");
+}
 const document = parseDocument(source, { prettyErrors: true, uniqueKeys: true });
 
 if (document.errors.length > 0) {

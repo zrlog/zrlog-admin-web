@@ -12,7 +12,7 @@
 
 ## 文档来源
 
-- [`openapi.yaml`](openapi.yaml)：机器可读的 OpenAPI 3.1 契约，是路径、方法、参数和响应结构的文档来源。
+- [`zrlog-api/admin-web.yaml`](https://github.com/zrlog/zrlog-api/blob/main/admin-web.yaml)：统一维护的 OpenAPI 3.1 契约。本文档中的 [`openapi.yaml`](openapi.yaml) 是生成快照，不独立修改。
 - [`conventions.md`](conventions.md)：鉴权、context path、响应包装、错误和副作用等跨接口约定。
 - [`oauth.md`](oauth.md)：外部应用授权协议、scope 和部署范围。
 - [`article-publish-sse.md`](article-publish-sse.md)：文章发布进度、完成事件与断流处理。
@@ -60,7 +60,7 @@ rg -n '/api/admin/template/upload|operationId: uploadTemplate' docs/api/openapi.
 
 1. 在所属功能的 `*WebSetup` 路由和 Controller 中确认真实路径与方法；变更接口必须显式声明 HTTP 方法。
 2. 使用 typed request/response DTO，不用临时 `Map` 代替稳定协议。
-3. 在 `openapi.yaml` 中维护参数、请求体、响应 Schema、鉴权、失败语义和示例。
+3. 在 `zrlog-api/admin-web.yaml` 中维护参数、请求体、响应 Schema、鉴权、失败语义和示例，生成索引并同步本仓库快照。
 4. 记录写库、覆盖文件、缓存刷新、静态站更新和审计等副作用。
 5. 为每个操作填写稳定且唯一的 `operationId`、`x-zrlog-controller` 和 `x-zrlog-response-kind`。
 6. DTO 有变化时同步维护 Native Image 注册和协议测试。
@@ -74,3 +74,5 @@ yarn api-docs:check
 ```
 
 OpenAPI 稳定并达到足够覆盖率之前，不从契约自动生成客户端、运行时 Swagger UI 或 MCP 工具。独立的内容工具契约见 [MCP](../mcp-knowledge-base.md) 与 [MCP 内容工具](../mcp-content-tools.md)，它复用业务服务和账号权限，不自动映射后台管理接口。
+
+同步：在 `zrlog-api` 运行 `python3 bin/contracts.py index`，再运行 `python3 bin/contracts.py sync --workspace .. --consumer zrlog-admin-web`。本地校验会检查快照与同级契约是否一致；独立检出使用已提交快照。
