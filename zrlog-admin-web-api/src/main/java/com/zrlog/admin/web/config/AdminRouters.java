@@ -15,6 +15,7 @@ public class AdminRouters {
         router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/500", AdminController.class, "error");
         router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/offline", AdminController.class, "error");
         router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/plugin", AdminController.class, "plugin");
+        router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/plugins/upload", PluginUploadController.class, "upload");
         router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/index", AdminController.class, "index");
         router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/index/config", AdminController.class, "indexConfig");
         router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/index/first-use/dismiss",
