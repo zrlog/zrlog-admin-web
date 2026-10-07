@@ -1,6 +1,8 @@
-import { Button, Form, Input, theme } from "antd";
+import Input from "@zrlog/ui/antd/Input";
+import LoginIcon from "@zrlog/ui/icons/login";
+import { Button, Form, theme } from "antd";
 import { getBackendServerUrl } from "../../utils/constants";
-import { LoginOutlined } from "@ant-design/icons";
+
 import { classes, StyledLoginPage } from "../login";
 import { FunctionComponent, useState } from "react";
 import zh_CN from "antd/es/locale/zh_CN";
@@ -78,7 +80,7 @@ const Init: FunctionComponent<InitProps> = ({ onSubmit, lang }) => {
                             <Input styles={{ input: { width: "100%" } }} />
                         </Form.Item>
                         <Button type="primary" style={{ maxWidth: 208 }} htmlType="submit">
-                            <LoginOutlined /> {getNextDesc()}
+                            <LoginIcon /> {getNextDesc()}
                         </Button>
                     </Form>
                 </div>

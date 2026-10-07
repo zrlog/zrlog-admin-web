@@ -1,9 +1,13 @@
-import { Button, Grid, message, PaginationProps, Space, Table, TableColumnsType } from "antd";
+import Popconfirm from "@zrlog/ui/antd/Popconfirm";
+import Table from "@zrlog/ui/antd/Table";
+import { useUiMessage } from "@zrlog/ui/feedback";
+import DeleteIcon from "@zrlog/ui/icons/delete";
+import { Button, Grid, PaginationProps, Space, TableColumnsType } from "antd";
 import { FunctionComponent, useEffect, useState } from "react";
 import { mapToQueryString } from "../utils/helpers";
-import Popconfirm from "antd/es/popconfirm";
+
 import { cacheIgnoreReloadTime, getRealRouteUrl, getRes } from "../utils/constants";
-import { DeleteOutlined } from "@ant-design/icons";
+
 import { Link, useNavigate } from "react-router-dom";
 import { useLocation } from "react-router";
 import { SorterResult } from "antd/es/table/interface";
@@ -146,7 +150,7 @@ const BaseTable: FunctionComponent<BaseTableProps> = ({
         },
     });
 
-    const [messageApi, contextHolder] = message.useMessage({ maxCount: 3 });
+    const [messageApi, contextHolder] = useUiMessage({ maxCount: 3 });
     const handleDelete = async (pagination: MyPagination, deleteApiUri: string, key: string): Promise<boolean> => {
         const data = await postRefreshCacheSse<any>(deleteApiUri + "?id=" + key, {
             messageApi,
@@ -249,7 +253,7 @@ const BaseTable: FunctionComponent<BaseTableProps> = ({
                                     type="text"
                                     size="small"
                                     title={disabledDeleteTip || getRes().deleteTips}
-                                    icon={<DeleteOutlined />}
+                                    icon={<DeleteIcon />}
                                 />
                             </Popconfirm>
                         )}

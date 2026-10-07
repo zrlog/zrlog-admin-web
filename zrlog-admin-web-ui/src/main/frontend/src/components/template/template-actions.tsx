@@ -1,5 +1,10 @@
-import { DeleteOutlined, EyeOutlined, LockOutlined, SettingOutlined } from "@ant-design/icons";
-import { Button, message, Popconfirm, Space, Tooltip } from "antd";
+import Popconfirm from "@zrlog/ui/antd/Popconfirm";
+import { useUiMessage } from "@zrlog/ui/feedback";
+import DeleteIcon from "@zrlog/ui/icons/delete";
+import EyeIcon from "@zrlog/ui/icons/eye";
+import LockIcon from "@zrlog/ui/icons/lock";
+import SettingsIcon from "@zrlog/ui/icons/settings";
+import { Button, Space, Tooltip } from "antd";
 import { useState } from "react";
 import { useAxiosBaseInstance } from "../../base/AppBase";
 import { getRes } from "../../utils/constants";
@@ -18,7 +23,7 @@ const TemplateActions = ({
 }) => {
     const axiosInstance = useAxiosBaseInstance();
     const [applying, setApplying] = useState(false);
-    const [messageApi, contextHolder] = message.useMessage({ maxCount: 3 });
+    const [messageApi, contextHolder] = useUiMessage({ maxCount: 3 });
     const res = getRes().websiteTemplate;
     const query = `shortTemplate=${encodeURIComponent(template.shortTemplate)}`;
     const preview = () => {
@@ -61,7 +66,7 @@ const TemplateActions = ({
             {contextHolder}
             {!template.use && (
                 <>
-                    <Button icon={<EyeOutlined />} onClick={preview}>
+                    <Button icon={<EyeIcon />} onClick={preview}>
                         {res.actions.preview}
                     </Button>
                     <Button type="primary" loading={applying} onClick={apply}>
@@ -72,7 +77,7 @@ const TemplateActions = ({
             <Tooltip title={!template.use ? res.actions.config : undefined}>
                 <Button
                     type={template.use ? "primary" : "text"}
-                    icon={<SettingOutlined />}
+                    icon={<SettingsIcon />}
                     aria-label={res.actions.config}
                     onClick={() => onConfigure(template)}
                 >
@@ -82,14 +87,14 @@ const TemplateActions = ({
             {template.builtIn ? (
                 <Tooltip title={res.builtInCannotDelete}>
                     <span>
-                        <Button type="text" disabled icon={<LockOutlined />} aria-label={res.builtInCannotDelete} />
+                        <Button type="text" disabled icon={<LockIcon />} aria-label={res.builtInCannotDelete} />
                     </span>
                 </Tooltip>
             ) : (
                 template.deleteAble &&
                 !template.use && (
                     <Popconfirm title={getRes().deleteTips} onConfirm={deleteTemplate} okButtonProps={{ danger: true }}>
-                        <Button type="text" danger icon={<DeleteOutlined />} aria-label={res.actions.delete} />
+                        <Button type="text" danger icon={<DeleteIcon />} aria-label={res.actions.delete} />
                     </Popconfirm>
                 )
             )}

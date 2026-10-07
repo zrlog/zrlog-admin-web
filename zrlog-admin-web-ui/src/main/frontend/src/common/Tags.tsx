@@ -1,6 +1,8 @@
+import Tag from "@zrlog/ui/antd/Tag";
+import TagIcon from "@zrlog/ui/icons/tag";
 import { CSSProperties, FunctionComponent, MouseEvent } from "react";
-import { Tag } from "antd";
-import { TagOutlined } from "@ant-design/icons";
+
+
 import { getAppState } from "../base/ConfigProviderApp";
 
 type TagsProps = {
@@ -18,7 +20,7 @@ const Tags: FunctionComponent<TagsProps> = ({ keywords, closeable, tagStyle, onC
         }
         return (
             <Tag
-                icon={<TagOutlined />}
+                icon={<TagIcon />}
                 closable={closeable}
                 onClick={onClick}
                 onClose={(e) => {

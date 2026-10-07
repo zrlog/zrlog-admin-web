@@ -1,4 +1,5 @@
-import { EditOutlined, EyeOutlined } from "@ant-design/icons";
+import EditIcon from "@zrlog/ui/icons/edit";
+import EyeIcon from "@zrlog/ui/icons/eye";
 import { Button, Drawer, Grid, Space, Tooltip } from "antd";
 import { useState } from "react";
 import { Link } from "react-router-dom";
@@ -40,7 +41,7 @@ export const ArticlePreviewAction = ({ article }: { article: ArticleListEntry })
                     type="text"
                     size="small"
                     title={getRes().preview}
-                    icon={<EyeOutlined style={{ color: getAppState().colorPrimary }} />}
+                    icon={<EyeIcon style={{ color: getAppState().colorPrimary }} />}
                     onClick={handlePreview}
                 />
             </Tooltip>
@@ -51,7 +52,7 @@ export const ArticlePreviewAction = ({ article }: { article: ArticleListEntry })
                     <Space size={4}>
                         <ArticlePdfAction article={article} buttonSize="middle" buttonType="link" showText />
                         <Link to={getRealRouteUrl("/article-edit?id=" + article.id)}>
-                            <Button style={{ height: "auto" }} type="link" icon={<EditOutlined />}>
+                            <Button style={{ height: "auto" }} type="link" icon={<EditIcon />}>
                                 {getRes().edit}
                             </Button>
                         </Link>

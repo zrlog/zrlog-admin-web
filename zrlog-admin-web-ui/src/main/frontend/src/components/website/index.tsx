@@ -1,4 +1,5 @@
-import { message } from "antd";
+import { useUiMessage } from "@zrlog/ui/feedback";
+
 
 import { getRealRouteUrl, getRes, setRes } from "../../utils/constants";
 import BlogForm from "./BlogForm";
@@ -160,7 +161,7 @@ const WebSite: FunctionComponent<WebSiteProps> = ({ data, offline, offlineData, 
     const layoutSurface = { formContainer: { maxWidth: 800 } };
 
     const [loading, setLoading] = useState<boolean>(false);
-    const [messageApi, contextHolder] = message.useMessage({ maxCount: 3 });
+    const [messageApi, contextHolder] = useUiMessage({ maxCount: 3 });
 
     const axiosInstance = useAxiosBaseInstance();
 

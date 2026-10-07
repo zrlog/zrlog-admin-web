@@ -1,4 +1,5 @@
-import { ColorPicker, Form, Select, Switch } from "antd";
+import Switch from "@zrlog/ui/antd/Switch";
+import { ColorPicker, Form, Select } from "antd";
 import type { FormItemProps } from "antd";
 import { getPreset, getRes } from "../../utils/constants";
 import { colorPickerBgColors } from "../../utils/helpers";

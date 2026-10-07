@@ -1,7 +1,9 @@
+import { useUiApp } from "@zrlog/ui/feedback";
+import PdfIcon from "@zrlog/ui/icons/pdf";
 import { formatDateTime } from "../../utils/date-time";
-import { FilePdfOutlined } from "@ant-design/icons";
+
 import { markdownToHtmlSyncWithCallback } from "@zrlog/editor/dist/editor/utils/marked-utils";
-import { App, Button, Tooltip } from "antd";
+import { Button, Tooltip } from "antd";
 import type { ButtonProps } from "antd";
 import { getAppState } from "../../base/ConfigProviderApp";
 import { getBackendServerUrl, getRes, tryAppendBackendServerUrl } from "../../utils/constants";
@@ -363,7 +365,7 @@ export const ArticlePdfAction = ({
     disabled,
     showText,
 }: ArticlePdfActionProps) => {
-    const { message } = App.useApp();
+    const { message } = useUiApp();
 
     const handleExportPdf = () => {
         exportArticlePdf(article, () => message.warning(getRes().article.exportPdfPopupBlocked));
@@ -377,7 +379,7 @@ export const ArticlePdfAction = ({
                 size={buttonSize}
                 title={getRes().article.exportPdf}
                 disabled={disabled}
-                icon={<FilePdfOutlined style={{ color: getAppState().colorPrimary }} />}
+                icon={<PdfIcon style={{ color: getAppState().colorPrimary }} />}
                 onClick={handleExportPdf}
             >
                 {showText && <span>{getRes().article.exportPdf}</span>}

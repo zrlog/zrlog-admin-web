@@ -1,22 +1,15 @@
+import UserIcon from "@zrlog/ui/icons/user";
+import LockIcon from "@zrlog/ui/icons/lock";
+import AppearanceIcon from "@zrlog/ui/icons/appearance";
+import EditIcon from "@zrlog/ui/icons/edit";
+import RobotIcon from "@zrlog/ui/icons/robot";
+import KeyIcon from "@zrlog/ui/icons/key";
+import SecurityIcon from "@zrlog/ui/icons/security";
+import ApiIcon from "@zrlog/ui/icons/api";
 import { isFeaturePathEnabled } from "../../utils/module-capabilities";
 import { ReactNode } from "react";
 import { theme } from "antd";
-import {
-    UserOutlined,
-    LockFilled,
-    LockOutlined,
-    SkinFilled,
-    SkinOutlined,
-    EditFilled,
-    EditOutlined,
-    RobotFilled,
-    RobotOutlined,
-    KeyOutlined,
-    SafetyCertificateFilled,
-    SafetyCertificateOutlined,
-    ApiFilled,
-    ApiOutlined,
-} from "@ant-design/icons";
+
 import { getRes } from "../../utils/constants";
 import { USER_ROUTES, UserPreferencePage, UserApplicationPage } from "../../utils/account-page-routes";
 import { hasAction } from "../../utils/account-access";
@@ -45,13 +38,13 @@ const UserSettingsLayout = ({
                     key: "profile",
                     label: res.user.title,
                     path: USER_ROUTES.profile,
-                    icon: <UserOutlined style={activeKey === "profile" ? { color: token.colorPrimary } : undefined} />,
+                    icon: <UserIcon style={activeKey === "profile" ? { color: token.colorPrimary } : undefined} />,
                 },
                 {
                     key: "security",
                     label: res.accountSecurity.title,
                     path: USER_ROUTES.security,
-                    icon: activeKey === "security" ? <LockFilled /> : <LockOutlined />,
+                    icon: activeKey === "security" ? <LockIcon selected /> : <LockIcon />,
                 },
             ],
         },
@@ -61,22 +54,22 @@ const UserSettingsLayout = ({
                 {
                     key: "appearance",
                     label: res.user.preferences.appearanceTitle,
-                    icon: activeKey === "appearance" ? <SkinFilled /> : <SkinOutlined />,
+                    icon: activeKey === "appearance" ? <AppearanceIcon selected /> : <AppearanceIcon />,
                 },
                 {
                     key: "writing",
                     label: res.user.preferences.writingTitle,
-                    icon: activeKey === "writing" ? <EditFilled /> : <EditOutlined />,
+                    icon: activeKey === "writing" ? <EditIcon selected /> : <EditIcon />,
                 },
                 {
                     key: "session",
                     label: res.user.preferences.sessionTitle,
-                    icon: activeKey === "session" ? <LockFilled /> : <LockOutlined />,
+                    icon: activeKey === "session" ? <LockIcon selected /> : <LockIcon />,
                 },
                 {
                     key: "assistant",
                     label: res.user.preferences.assistantTitle,
-                    icon: activeKey === "assistant" ? <RobotFilled /> : <RobotOutlined />,
+                    icon: activeKey === "assistant" ? <RobotIcon selected /> : <RobotIcon />,
                 },
             ].map((item) => ({ ...item, path: USER_ROUTES[item.key as UserPreferencePage] })),
         },
@@ -86,19 +79,19 @@ const UserSettingsLayout = ({
                 {
                     key: "tokens",
                     label: res.oauth.personalTokens.title,
-                    icon: <KeyOutlined style={activeKey === "tokens" ? { color: token.colorPrimary } : undefined} />,
+                    icon: <KeyIcon style={activeKey === "tokens" ? { color: token.colorPrimary } : undefined} />,
                 },
                 {
                     key: "grants",
                     label: res.oauth.grants,
-                    icon: activeKey === "grants" ? <SafetyCertificateFilled /> : <SafetyCertificateOutlined />,
+                    icon: activeKey === "grants" ? <SecurityIcon selected /> : <SecurityIcon />,
                 },
                 ...(canManageClients
                     ? [
                           {
                               key: "clients",
                               label: res.oauth.applications,
-                              icon: activeKey === "clients" ? <ApiFilled /> : <ApiOutlined />,
+                              icon: activeKey === "clients" ? <ApiIcon selected /> : <ApiIcon />,
                           },
                       ]
                     : []),

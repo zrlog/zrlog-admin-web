@@ -1,13 +1,13 @@
-import { Badge, Button, Card, Drawer, Empty, Grid, Popover, Skeleton, Space, Tag, Typography } from "antd";
-import {
-    BellOutlined,
-    CheckCircleOutlined,
-    ClockCircleOutlined,
-    CloseCircleOutlined,
-    ExclamationCircleOutlined,
-    LoadingOutlined,
-    StopOutlined,
-} from "@ant-design/icons";
+import Tag from "@zrlog/ui/antd/Tag";
+import NotificationsIcon from "@zrlog/ui/icons/notifications";
+import SuccessIcon from "@zrlog/ui/icons/success";
+import TimeIcon from "@zrlog/ui/icons/time";
+import ErrorIcon from "@zrlog/ui/icons/error";
+import AlertIcon from "@zrlog/ui/icons/alert";
+import LoadingIcon from "@zrlog/ui/icons/loading";
+import StopIcon from "@zrlog/ui/icons/stop";
+import { Badge, Button, Card, Drawer, Empty, Grid, Popover, Skeleton, Space, Typography } from "antd";
+
 import { useEffect, useMemo, useState } from "react";
 import { useTheme } from "antd-style";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -66,53 +66,53 @@ const MessageCenter = ({
             return {
                 color: "success",
                 label: getRes().backgroundTask.status.success,
-                icon: <CheckCircleOutlined />,
+                icon: <SuccessIcon />,
             };
         }
         if (status === "error") {
             return {
                 color: "error",
                 label: getRes().backgroundTask.status.error,
-                icon: <CloseCircleOutlined />,
+                icon: <ErrorIcon />,
             };
         }
         if (status === "warning") {
             return {
                 color: "warning",
                 label: getRes().backgroundTask.status.warning,
-                icon: <ExclamationCircleOutlined />,
+                icon: <AlertIcon />,
             };
         }
         if (status === "cancelled") {
             return {
                 color: "default",
                 label: getRes().backgroundTask.status.cancelled,
-                icon: <StopOutlined />,
+                icon: <StopIcon />,
             };
         }
         if (status === "notice") {
             return {
                 color: "gold",
                 label: getRes().backgroundTask.status.notice,
-                icon: <BellOutlined />,
+                icon: <NotificationsIcon />,
             };
         }
         if (status === "pending") {
             return {
                 color: "default",
                 label: getRes().backgroundTask.status.pending,
-                icon: <ClockCircleOutlined />,
+                icon: <TimeIcon />,
             };
         }
         return {
             color: "processing",
             label: getRes().backgroundTask.status.running,
-            icon: <LoadingOutlined />,
+            icon: <LoadingIcon />,
         };
     };
 
     const triggerIcon =
-        runningCount > 0 ? <LoadingOutlined style={{ fontSize: 18 }} /> : <BellOutlined style={{ fontSize: 18 }} />;
+        runningCount > 0 ? <LoadingIcon style={{ fontSize: 18 }} /> : <NotificationsIcon style={{ fontSize: 18 }} />;
 
     const handleRemoveTask = async (taskId: string, dismissPath?: string, dismissPayload?: Record<string, unknown>) => {
         if (dismissPath) {

@@ -8,6 +8,12 @@ const mockSave = jest.fn<Promise<{ error: number; message: string }>, any[]>();
 const mockError = jest.fn();
 const mockSuccess = jest.fn();
 const mockMessages = { error: mockError, success: mockSuccess };
+// Business tests keep feedback mocked at the shared UI boundary.
+jest.mock("@zrlog/ui/feedback", () => ({
+    useUiMessage: (...args: unknown[]) => require("antd").message.useMessage(...args),
+    useUiApp: () => require("antd").App.useApp(),
+}));
+
 jest.mock("antd", () => ({ message: { useMessage: () => [mockMessages, null] } }));
 jest.mock("../../utils/sse-utils", () => ({ postRefreshCacheSse: (...args: any[]) => mockSave(...args) }));
 

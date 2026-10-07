@@ -1,3 +1,4 @@
+import AdminEditorIconProvider from "../components/editor/AdminEditorIconProvider";
 import { App, ConfigProvider, theme as antdTheme } from "antd";
 import { useEffect, useState } from "react";
 import { isOffline } from "../utils/env-utils";
@@ -24,6 +25,7 @@ import {
 import { useThemeConfig } from "../utils/theme-utils";
 import ThemeGlobalStyle from "./theme/ThemeGlobalStyle";
 import { getAdminThemeDefinition } from "../utils/admin-themes";
+import { UiIconProvider } from "@zrlog/ui/icons";
 
 type ChangeAbleState = AppCompactModeState | AppColorPrimaryState | AppDarkState | AppLangState | AppThemeState;
 
@@ -136,40 +138,44 @@ const ConfigProviderApp = () => {
     const configProviderProps = useThemeConfig(appState);
 
     return (
-        <ConfigProvider
-            table={{
-                style: {
-                    whiteSpace: "nowrap",
-                },
-            }}
-            drawer={{
-                closable: {
-                    placement: "end",
-                },
-            }}
-            divider={{
-                style: {
-                    margin: "16px 0",
-                },
-            }}
-            {...configProviderProps}
-            locale={appState.lang.startsWith("en") ? en_US : zh_CN}
-            // Keep SizeContext mounted when density changes so local page state survives.
-            componentSize={appState.compactMode ? "small" : "medium"}
-        >
-            <ConfiguredAppContent
-                appState={appState}
-                basePath={basePath}
-                onInit={(newState) => {
-                    setState((prevState) => {
-                        return {
-                            ...prevState,
-                            ...newState,
-                        };
-                    });
+        <UiIconProvider theme={appState.theme}>
+            <ConfigProvider
+                table={{
+                    style: {
+                        whiteSpace: "nowrap",
+                    },
                 }}
-            />
-        </ConfigProvider>
+                drawer={{
+                    closable: {
+                        placement: "end",
+                    },
+                }}
+                divider={{
+                    style: {
+                        margin: "16px 0",
+                    },
+                }}
+                {...configProviderProps}
+                locale={appState.lang.startsWith("en") ? en_US : zh_CN}
+                // Keep SizeContext mounted when density changes so local page state survives.
+                componentSize={appState.compactMode ? "small" : "medium"}
+            >
+                <AdminEditorIconProvider>
+                    <ConfiguredAppContent
+                        appState={appState}
+                        basePath={basePath}
+                        onInit={(newState) => {
+                            setState((prevState) => {
+                                return {
+                                    ...prevState,
+                                    ...newState,
+                                };
+                            });
+                        }}
+                    />
+                </AdminEditorIconProvider>
+            </ConfigProvider>
+        </UiIconProvider>
     );
 };
 

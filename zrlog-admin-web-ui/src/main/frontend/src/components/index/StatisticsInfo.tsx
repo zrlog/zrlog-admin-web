@@ -1,15 +1,14 @@
+import ServerIcon from "@zrlog/ui/icons/server";
+import CommentIcon from "@zrlog/ui/icons/comment";
+import ContainerIcon from "@zrlog/ui/icons/container";
+import FileTextIcon from "@zrlog/ui/icons/file-text";
+import ChartIcon from "@zrlog/ui/icons/chart";
+import DiskIcon from "@zrlog/ui/icons/disk";
 import { Typography } from "antd";
 import { getRealRouteUrl, getRes } from "../../utils/constants";
 import Row from "antd/es/grid/row";
 import Col from "antd/es/grid/col";
-import {
-    CloudServerOutlined,
-    CommentOutlined,
-    ContainerOutlined,
-    FileTextOutlined,
-    FundOutlined,
-    HddOutlined,
-} from "@ant-design/icons";
+
 import { Link } from "react-router-dom";
 import { StatisticsInfoState } from "../../type";
 import { ReactElement } from "react";
@@ -184,7 +183,7 @@ const StatisticsInfo = ({ data }: { data: StatisticsInfoState }) => {
             styles={{ body: { padding: theme.paddingLG } }}
             title={
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <FundOutlined />
+                    <ChartIcon />
                     <span>{getRes().index.statistics}</span>
                 </div>
             }
@@ -193,27 +192,27 @@ const StatisticsInfo = ({ data }: { data: StatisticsInfoState }) => {
                 <Col xs={12} sm={12} md={6}>
                     <StatCard
                         title={getRes().index.statisticsCard.todayComment}
-                        valueRender={() => value(<CommentOutlined />, data.toDayCommCount)}
+                        valueRender={() => value(<CommentIcon />, data.toDayCommCount)}
                     />
                 </Col>
                 <Col xs={12} sm={12} md={6}>
                     <StatCard
                         title={getRes().index.statisticsCard.totalComment}
                         link="/comment"
-                        valueRender={() => value(<CommentOutlined />, data.commCount)}
+                        valueRender={() => value(<CommentIcon />, data.commCount)}
                     />
                 </Col>
                 <Col xs={12} sm={12} md={6}>
                     <StatCard
                         title={getRes().index.statisticsCard.totalArticle}
                         link="/article"
-                        valueRender={() => value(<ContainerOutlined />, data.articleCount)}
+                        valueRender={() => value(<ContainerIcon />, data.articleCount)}
                     />
                 </Col>
                 <Col xs={12} sm={12} md={6}>
                     <StatCard
                         title={getRes().index.statisticsCard.totalArticleView}
-                        valueRender={() => value(<ContainerOutlined />, data.clickCount)}
+                        valueRender={() => value(<ContainerIcon />, data.clickCount)}
                     />
                 </Col>
             </Row>
@@ -228,7 +227,7 @@ const StatisticsInfo = ({ data }: { data: StatisticsInfoState }) => {
                     >
                         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
                             <span style={{ color: accentColor }}>
-                                <FileTextOutlined />
+                                <FileTextIcon />
                             </span>
                             <Typography.Text type="secondary">{getRes().index.status}</Typography.Text>
                         </div>
@@ -279,14 +278,14 @@ const StatisticsInfo = ({ data }: { data: StatisticsInfoState }) => {
                 </Col>
                 <Col xs={24} md={6}>
                     {summaryCard({
-                        icon: <HddOutlined />,
+                        icon: <DiskIcon />,
                         title: getRes().index.storage.disk,
                         value: formatBytes(data.usedDiskSpace),
                     })}
                 </Col>
                 <Col xs={24} md={6}>
                     {summaryCard({
-                        icon: <CloudServerOutlined />,
+                        icon: <ServerIcon />,
                         title: getRes().index.storage.cache,
                         value: formatBytes(data.usedCacheSpace),
                     })}

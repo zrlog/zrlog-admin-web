@@ -1,7 +1,8 @@
+import EditIcon from "@zrlog/ui/icons/edit";
 import BaseTable, { PageDataSource } from "../../common/BaseTable";
 import { getLabelValueSeparator, getRes } from "../../utils/constants";
 import { Button, Grid, Space, Typography, theme } from "antd";
-import { EditOutlined } from "@ant-design/icons";
+
 import CreateOrEditLink from "./create_or_edit_link";
 
 const { Text } = Typography;
@@ -158,7 +159,7 @@ const BLink = ({ data, offline }: { data: PageDataSource; offline: boolean }) =>
                             type="text"
                             size="small"
                             title={getRes().edit}
-                            icon={<EditOutlined style={surface.editIcon} />}
+                            icon={<EditIcon style={surface.editIcon} />}
                         />
                     </CreateOrEditLink>
                 )}

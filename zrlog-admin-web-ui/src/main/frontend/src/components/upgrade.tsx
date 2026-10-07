@@ -1,6 +1,13 @@
+import { Alert, Button, Card, Checkbox, Col, Grid, Row, theme } from "antd";
+import Steps from "@zrlog/ui/antd/Steps";
+import { useUiMessage, useUiApp } from "@zrlog/ui/feedback";
+import SuccessIcon from "@zrlog/ui/icons/success";
+import ErrorIcon from "@zrlog/ui/icons/error";
+import InfoIcon from "@zrlog/ui/icons/info";
+import LoadingIcon from "@zrlog/ui/icons/loading";
 import { FunctionComponent, useEffect, useRef, useState } from "react";
-import { Alert, App, Button, Card, Checkbox, Col, Grid, message, Row, Steps, theme } from "antd";
-import { CheckCircleOutlined, CloseCircleOutlined, InfoCircleOutlined, LoadingOutlined } from "@ant-design/icons";
+
+
 import Title from "antd/es/typography/Title";
 import { getRealRouteUrl, getRes } from "../utils/constants";
 import { getContextPath } from "../utils/helpers";
@@ -9,7 +16,7 @@ import { API_ADMIN_STATIC_SITE_SYNC_PATH, API_DO_UPGRADE_PATH, getVersion } from
 import { ApiResponse, UpgradeData } from "../type";
 import UpgradeContent from "./upgrade-content";
 import { markdownToHtml } from "@zrlog/editor/dist/editor/utils/marked-utils";
-import HtmlPreviewPanel from "@zrlog/editor/dist/editor/html-preview-panel";
+import HtmlPreviewPanel from "@zrlog/editor/core/editor/html-preview-panel";
 import { getAppState } from "../base/ConfigProviderApp";
 import { postRefreshCacheSse, SseEvent } from "../utils/sse-utils";
 import { createBackgroundTask, finishBackgroundTask, updateBackgroundTask } from "../utils/background-task-store";
@@ -92,9 +99,9 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
     const [refreshing, setRefreshing] = useState(false);
     const [refreshError, setRefreshError] = useState<string>();
     const [checkedAt, setCheckedAt] = useState<number>();
-    const { modal } = App.useApp();
+    const { modal } = useUiApp();
 
-    const [messageApi, contextHolder] = message.useMessage({ maxCount: 3 });
+    const [messageApi, contextHolder] = useUiMessage({ maxCount: 3 });
     const axiosInstance = useAxiosBaseInstance();
 
     useEffect(() => {
@@ -415,15 +422,15 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
 
     const renderProgressIcon = (item: UpgradeProgressItem) => {
         if (item.status === "error") {
-            return <CloseCircleOutlined style={{ color: token.colorError }} />;
+            return <ErrorIcon style={{ color: token.colorError }} />;
         }
         if (item.status === "complete") {
-            return <CheckCircleOutlined style={{ color: token.colorSuccess }} />;
+            return <SuccessIcon style={{ color: token.colorSuccess }} />;
         }
         if (item.status === "manual") {
-            return <InfoCircleOutlined style={{ color: token.colorInfo }} />;
+            return <InfoIcon style={{ color: token.colorInfo }} />;
         }
-        return <LoadingOutlined style={{ color: token.colorPrimary }} />;
+        return <LoadingIcon style={{ color: token.colorPrimary }} />;
     };
 
     const renderProgressItem = (item: UpgradeProgressItem) => {

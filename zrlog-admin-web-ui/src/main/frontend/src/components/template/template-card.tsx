@@ -1,5 +1,9 @@
-import { Card, Col, Space, Tag, Typography } from "antd";
-import { CheckCircleOutlined, EyeOutlined, SkinOutlined } from "@ant-design/icons";
+import Tag from "@zrlog/ui/antd/Tag";
+import SuccessIcon from "@zrlog/ui/icons/success";
+import EyeIcon from "@zrlog/ui/icons/eye";
+import AppearanceIcon from "@zrlog/ui/icons/appearance";
+import { Card, Col, Space, Typography } from "antd";
+
 import { useState } from "react";
 import { useTheme } from "antd-style";
 import { getBackendServerUrl, getRes } from "../../utils/constants";
@@ -55,7 +59,7 @@ const TemplateCard = ({
                                     color: theme.colorTextSecondary,
                                 }}
                             >
-                                <SkinOutlined style={{ fontSize: theme.fontSizeHeading1 }} />
+                                <AppearanceIcon style={{ fontSize: theme.fontSizeHeading1 }} />
                                 <Typography.Text type="secondary">{template.name}</Typography.Text>
                             </div>
                         ) : (
@@ -69,7 +73,7 @@ const TemplateCard = ({
                         {(template.use || template.preview) && (
                             <Tag
                                 color={template.use ? "success" : "processing"}
-                                icon={template.use ? <CheckCircleOutlined /> : <EyeOutlined />}
+                                icon={template.use ? <SuccessIcon /> : <EyeIcon />}
                                 style={{ position: "absolute", top: theme.paddingSM, left: theme.paddingSM }}
                             >
                                 {template.use ? getRes().templateConfig.inUse : getRes().templateConfig.inPreview}

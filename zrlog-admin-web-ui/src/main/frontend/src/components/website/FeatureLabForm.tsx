@@ -1,9 +1,11 @@
+import { Alert, Space, theme } from "antd";
+import Switch from "@zrlog/ui/antd/Switch";
 import { isModuleEnabled } from "../../utils/module-capabilities";
 import { Link } from "react-router-dom";
 import { USER_ROUTES } from "../../utils/account-page-routes";
 import Form from "antd/es/form";
-import Switch from "antd/es/switch";
-import { Alert, Space, theme } from "antd";
+
+
 import { useEffect } from "react";
 import { getRealRouteUrl, getRes } from "../../utils/constants";
 import { FeatureLab } from "./index";

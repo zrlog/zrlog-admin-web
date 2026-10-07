@@ -1,17 +1,17 @@
+import { useUiApp } from "@zrlog/ui/feedback";
+import MoreIcon from "@zrlog/ui/icons/more";
+import EyeIcon from "@zrlog/ui/icons/eye";
+import MarkdownIcon from "@zrlog/ui/icons/markdown";
+import PdfIcon from "@zrlog/ui/icons/pdf";
+import FolderIcon from "@zrlog/ui/icons/folder";
+import FullscreenExitIcon from "@zrlog/ui/icons/fullscreen-exit";
+import FullscreenIcon from "@zrlog/ui/icons/fullscreen";
+import HistoryIcon from "@zrlog/ui/icons/history";
+import ShareIcon from "@zrlog/ui/icons/share";
 import { hasAction } from "../../utils/account-access";
-import { App, Button, Dropdown, Modal } from "antd";
+import { Button, Dropdown, Modal } from "antd";
 import useArticleEditorScreens from "./use-article-editor-screens";
-import {
-    EllipsisOutlined,
-    EyeOutlined,
-    FileMarkdownOutlined,
-    FilePdfOutlined,
-    FolderOpenOutlined,
-    FullscreenExitOutlined,
-    FullscreenOutlined,
-    HistoryOutlined,
-    ShareAltOutlined,
-} from "@ant-design/icons";
+
 import { ChangeEvent, FunctionComponent, RefObject, useCallback, useEffect, useRef, useState } from "react";
 import screenfull from "screenfull";
 import { getEnterFullscreen, getExitFullscreen, getRes } from "../../utils/constants";
@@ -81,7 +81,7 @@ const ArticleEditMoreActions: FunctionComponent<ArticleEditMoreActionsProps> = (
     onExitFullScreen,
     onFullScreen,
 }) => {
-    const { message } = App.useApp();
+    const { message } = useUiApp();
     const assetPickerOpenCacheKey = `${stateCacheKey}/assetPickerOpen`;
     const socialPreviewOpenCacheKey = `${stateCacheKey}/socialPreviewOpen`;
     const [assetPickerOpen, setAssetPickerOpenState] = useState(
@@ -231,47 +231,47 @@ const ArticleEditMoreActions: FunctionComponent<ArticleEditMoreActionsProps> = (
     const items = [
         {
             key: "preview",
-            icon: <EyeOutlined />,
+            icon: <EyeIcon />,
             label: getRes().preview,
             disabled: offline || !onPreview,
             onClick: () => void onPreview?.(),
         },
         {
             key: "version",
-            icon: <HistoryOutlined />,
+            icon: <HistoryIcon />,
             label: getRes().articleEdit.version.label,
             disabled: !logId,
             onClick: () => onVersionOpenChange(true),
         },
         {
             key: "social-preview",
-            icon: <ShareAltOutlined />,
+            icon: <ShareIcon />,
             label: getRes().articleEdit.socialPreview.title,
             disabled: !logId || !socialPreview,
             onClick: () => setSocialPreviewOpen(true),
         },
         {
             key: "export-pdf",
-            icon: <FilePdfOutlined />,
+            icon: <PdfIcon />,
             label: getRes().article.exportPdf,
             onClick: () => exportArticlePdf(article, () => message.warning(getRes().article.exportPdfPopupBlocked)),
         },
         {
             key: "import-markdown",
-            icon: <FileMarkdownOutlined />,
+            icon: <MarkdownIcon />,
             label: getRes().articleEdit.markdownImport.menu,
             onClick: selectMarkdownFile,
         },
         {
             key: "asset",
             disabled: !hasAction("file.manage"),
-            icon: <FolderOpenOutlined />,
+            icon: <FolderIcon />,
             label: getRes().articleEdit.actions.chooseFromAssets,
             onClick: () => setAssetPickerOpen(true),
         },
         {
             key: "fullscreen",
-            icon: fullScreen ? <FullscreenExitOutlined /> : <FullscreenOutlined />,
+            icon: fullScreen ? <FullscreenExitIcon /> : <FullscreenIcon />,
             label: fullScreen ? getExitFullscreen() : getEnterFullscreen(),
             title: getShortcutTitle(fullScreen ? getExitFullscreen() : getEnterFullscreen(), {
                 alt: true,
@@ -307,7 +307,7 @@ const ArticleEditMoreActions: FunctionComponent<ArticleEditMoreActionsProps> = (
                     type="default"
                     aria-label={getRes().articleEdit.actions.more}
                     title={getRes().articleEdit.actions.more}
-                    icon={<EllipsisOutlined />}
+                    icon={<MoreIcon />}
                 />
             </Dropdown>
             <ArticleVersionDrawer

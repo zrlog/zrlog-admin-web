@@ -1,10 +1,12 @@
+import Input from "@zrlog/ui/antd/Input";
+import { useUiMessage } from "@zrlog/ui/feedback";
 import UserSettingsLayout from "./common/UserSettingsLayout";
 import SettingsSubmitBar from "./common/SettingsSubmitBar";
 import { useEffect, useRef, useState } from "react";
 import SettingsSection from "./common/SettingsSection";
 
 import Form from "antd/es/form";
-import { Input, message, Modal, QRCode, Space, Typography } from "antd";
+import { Modal, QRCode, Space, Typography } from "antd";
 import Button from "antd/es/button";
 import { useTheme } from "antd-style";
 import { getRes } from "../utils/constants";
@@ -31,7 +33,7 @@ type AccountSecurityData = {
 };
 
 const AccountSecurity = ({ offline, data, updateCache }: AdminCommonProps<AccountSecurityData>) => {
-    const [messageApi, contextHolder] = message.useMessage({ maxCount: 3 });
+    const [messageApi, contextHolder] = useUiMessage({ maxCount: 3 });
     const [mfaStatus, setMfaStatus] = useState<MfaStatusResponse | null>(
         data?.mfaEnabled ? { enabled: true, secret: "", issuer: "", accountName: "", otpauthUrl: "" } : null
     );

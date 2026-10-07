@@ -1,4 +1,4 @@
-import { CloseOutlined } from "@ant-design/icons";
+import CloseIcon from "@zrlog/ui/icons/close";
 import { Button, Drawer } from "antd";
 import { FunctionComponent, ReactNode } from "react";
 import { useTheme } from "antd-style";
@@ -40,7 +40,7 @@ const AdminNavigationDrawer: FunctionComponent<AdminNavigationDrawerProps> = ({
                         className="sidebar-drawer-close"
                         aria-label={closeLabel}
                         onClick={onClose}
-                        icon={<CloseOutlined style={{ fontSize: 18 }} />}
+                        icon={<CloseIcon style={{ fontSize: 18 }} />}
                     />
                 </div>
             }

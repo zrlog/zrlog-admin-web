@@ -1,38 +1,21 @@
+import { Alert, Button, Card, Checkbox, ColorPicker, Drawer, Dropdown, Empty, Flex, Form, Modal, Radio, Segmented, Select, Slider, Spin, Tabs, Typography, Upload, theme } from "antd";
+import Tag from "@zrlog/ui/antd/Tag";
+import DatePicker from "@zrlog/ui/antd/DatePicker";
+import Progress from "@zrlog/ui/antd/Progress";
+import Switch from "@zrlog/ui/antd/Switch";
+import Tree from "@zrlog/ui/antd/Tree";
+import Input from "@zrlog/ui/antd/Input";
+import InputNumber from "@zrlog/ui/antd/InputNumber";
+import Pagination from "@zrlog/ui/antd/Pagination";
+import Table from "@zrlog/ui/antd/Table";
+import { useUiApp } from "@zrlog/ui/feedback";
+import EditIcon from "@zrlog/ui/icons/edit";
+import AddIcon from "@zrlog/ui/icons/add";
+import UploadIcon from "@zrlog/ui/icons/upload";
 import { useRef, useState } from "react";
 import type { ReactNode } from "react";
-import {
-    App,
-    Alert,
-    Button,
-    Card,
-    Checkbox,
-    ColorPicker,
-    DatePicker,
-    Drawer,
-    Dropdown,
-    Empty,
-    Flex,
-    Form,
-    Input,
-    InputNumber,
-    Modal,
-    Pagination,
-    Progress,
-    Radio,
-    Segmented,
-    Select,
-    Slider,
-    Spin,
-    Switch,
-    Table,
-    Tabs,
-    Tag,
-    Tree,
-    Typography,
-    Upload,
-    theme,
-} from "antd";
-import { EditOutlined, PlusOutlined, UploadOutlined } from "@ant-design/icons";
+
+
 import { getAppState } from "../base/ConfigProviderApp";
 import { getColorByTheme, isDarkByTheme } from "../base/AppInit";
 import { getRes } from "../utils/constants";
@@ -176,7 +159,7 @@ const AppearancePreview = () => {
 const Fixtures = () => {
     const r = getRes().dev.ui;
     const { token } = theme.useToken();
-    const { message, notification } = App.useApp();
+    const { message, notification } = useUiApp();
     const [dialog, setDialog] = useState(false);
     const [drawer, setDrawer] = useState(false);
     const [added, setAdded] = useState(false);
@@ -268,7 +251,7 @@ const Fixtures = () => {
                         <Tag color="warning">{r.warning}</Tag>
                         <Tag color="error">{r.error}</Tag>
                         <Tag closable>{r.removable}</Tag>
-                        <Tag icon={<PlusOutlined />} onClick={() => setAdded(!added)}>
+                        <Tag icon={<AddIcon />} onClick={() => setAdded(!added)}>
                             {added ? r.added : r.addTag}
                         </Tag>
                         <Tag disabled onClick={() => setAdded(!added)}>
@@ -292,8 +275,8 @@ const Fixtures = () => {
                         <Button type="primary" disabled>
                             {r.selectedDisabled}
                         </Button>
-                        <Button icon={<EditOutlined />} aria-label={r.edit} />
-                        <Button type="text" icon={<EditOutlined />} aria-label={r.edit} />
+                        <Button icon={<EditIcon />} aria-label={r.edit} />
+                        <Button type="text" icon={<EditIcon />} aria-label={r.edit} />
                         <Button loading>{r.loading}</Button>
                     </Flex>
                 </ReviewSection>
@@ -446,7 +429,7 @@ const Fixtures = () => {
                         </Button>
                     </Flex>
                     <Upload disabled beforeUpload={() => false}>
-                        <Button disabled icon={<UploadOutlined />}>
+                        <Button disabled icon={<UploadIcon />}>
                             {r.upload}
                         </Button>
                     </Upload>

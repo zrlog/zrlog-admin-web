@@ -1,6 +1,11 @@
+import Typography from "@zrlog/ui/antd/Typography";
+import Tag from "@zrlog/ui/antd/Tag";
+import { useUiApp } from "@zrlog/ui/feedback";
+import HistoryIcon from "@zrlog/ui/icons/history";
+import UndoIcon from "@zrlog/ui/icons/undo";
 import React, { RefObject, useEffect, useState } from "react";
-import { App, Button, Drawer, Empty, Grid, List, Select, Space, Tag, Typography } from "antd";
-import { HistoryOutlined, RollbackOutlined } from "@ant-design/icons";
+import { Button, Drawer, Empty, Grid, List, Select, Space } from "antd";
+
 import TimeAgo from "@zrlog/editor/dist/editor/TimeAgo";
 import { getRes } from "../../utils/constants";
 import { getAppState } from "../../base/ConfigProviderApp";
@@ -166,7 +171,7 @@ const ArticleVersionDrawer: React.FC<ArticleVersionDrawerProps> = ({
     const [compareLoading, setCompareLoading] = useState(false);
     const [selectedVersion, setSelectedVersion] = useState<number | undefined>(undefined);
     const [compareData, setCompareData] = useState<CompareResponse | null>(null);
-    const { modal } = App.useApp();
+    const { modal } = useUiApp();
     const drawerOpen = open ?? innerOpen;
     const mobileMode = screens.sm !== true;
     const drawerWidth = screens.lg ? 960 : screens.md ? 720 : "100%";
@@ -345,7 +350,7 @@ const ArticleVersionDrawer: React.FC<ArticleVersionDrawerProps> = ({
                         color: theme.colorTextTertiary,
                     }}
                     icon={
-                        <HistoryOutlined style={{ fontSize: getAppState().compactMode ? 18 : 24, display: "flex" }} />
+                        <HistoryIcon style={{ fontSize: getAppState().compactMode ? 18 : 24, display: "flex" }} />
                     }
                     onClick={(e) => {
                         e.stopPropagation();
@@ -379,7 +384,7 @@ const ArticleVersionDrawer: React.FC<ArticleVersionDrawerProps> = ({
                             />
                             {selectedVersion !== undefined && (
                                 <Button
-                                    icon={<RollbackOutlined />}
+                                    icon={<UndoIcon />}
                                     onClick={() => openRollbackConfirm(selectedVersion)}
                                 >
                                     {getRes().articleEdit.version.rollback.label}

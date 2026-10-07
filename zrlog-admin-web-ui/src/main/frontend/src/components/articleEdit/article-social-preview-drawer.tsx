@@ -1,4 +1,5 @@
-import { Drawer, Empty, Grid, Space, Tag, theme, Typography } from "antd";
+import Tag from "@zrlog/ui/antd/Tag";
+import { Drawer, Empty, Grid, Space, theme, Typography } from "antd";
 import { FunctionComponent, RefObject } from "react";
 import { getRes } from "../../utils/constants";
 import { SocialPreview } from "./index.types";

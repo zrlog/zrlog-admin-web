@@ -1,5 +1,7 @@
-import { FileImageOutlined, FileOutlined, FolderOpenFilled, FolderOpenOutlined, LockOutlined } from "@ant-design/icons";
-
+import ImageFileIcon from "@zrlog/ui/icons/image-file";
+import FileIcon from "@zrlog/ui/icons/file";
+import FolderIcon from "@zrlog/ui/icons/folder";
+import LockIcon from "@zrlog/ui/icons/lock";
 export type FileEntryAccess = "PUBLIC_URL" | "ADMIN_ONLY" | "VIRTUAL";
 export type FileEntryAction =
     | "OPEN"
@@ -59,27 +61,27 @@ export const formatSize = (bytes?: number | null) => {
 
 export const getShortcutIcon = (entry: FileEntry, active: boolean) => {
     if (entry.iconType === "directory_locked") {
-        return <LockOutlined />;
+        return <LockIcon />;
     }
-    return active ? <FolderOpenFilled /> : <FolderOpenOutlined />;
+    return active ? <FolderIcon selected /> : <FolderIcon />;
 };
 
 export const getFileIcon = (entry: FileEntry, token: any, size?: number) => {
     const iconStyle = size ? { fontSize: size } : {};
     if (entry.iconType === "directory_locked") {
-        return <LockOutlined style={{ color: token.colorWarning, ...iconStyle }} />;
+        return <LockIcon style={{ color: token.colorWarning, ...iconStyle }} />;
     }
     if (entry.iconType === "library" || entry.iconType === "directory") {
-        return <FolderOpenOutlined style={{ color: token.colorPrimary, ...iconStyle }} />;
+        return <FolderIcon style={{ color: token.colorPrimary, ...iconStyle }} />;
     }
     if (entry.iconType === "image") {
-        return <FileImageOutlined style={{ color: token.colorInfo, ...iconStyle }} />;
+        return <ImageFileIcon style={{ color: token.colorInfo, ...iconStyle }} />;
     }
     if (entry.iconType === "code") {
-        return <FileOutlined style={{ color: token.colorSuccess, ...iconStyle }} />;
+        return <FileIcon style={{ color: token.colorSuccess, ...iconStyle }} />;
     }
     if (entry.iconType === "archive") {
-        return <FileOutlined style={{ color: token.colorWarning, ...iconStyle }} />;
+        return <FileIcon style={{ color: token.colorWarning, ...iconStyle }} />;
     }
-    return <FileOutlined style={{ color: token.colorTextSecondary, ...iconStyle }} />;
+    return <FileIcon style={{ color: token.colorTextSecondary, ...iconStyle }} />;
 };

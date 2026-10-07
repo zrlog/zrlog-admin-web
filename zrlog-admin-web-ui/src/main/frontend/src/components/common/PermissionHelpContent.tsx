@@ -1,4 +1,5 @@
-import { Grid, List, Select, Space, Table, Tabs, Typography } from "antd";
+import Table from "@zrlog/ui/antd/Table";
+import { Grid, List, Select, Space, Tabs, Typography } from "antd";
 import { useState } from "react";
 import { getRes } from "../../utils/constants";
 import type { AccountRole } from "../../utils/account-access";

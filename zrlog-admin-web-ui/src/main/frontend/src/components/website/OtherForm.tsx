@@ -1,11 +1,14 @@
+import { Alert } from "antd";
+import Tag from "@zrlog/ui/antd/Tag";
+import AddIcon from "@zrlog/ui/icons/add";
 import Form from "antd/es/form";
 import TextArea from "antd/es/input/TextArea";
 import Button from "antd/es/button";
-import Alert from "antd/es/alert";
+
 import Space from "antd/es/space";
 import Typography from "antd/es/typography";
-import Tag from "antd/es/tag";
-import { PlusOutlined } from "@ant-design/icons";
+
+
 import { getRes } from "../../utils/constants";
 import { useEffect, useState } from "react";
 
@@ -267,7 +270,7 @@ const OtherForm = ({
                     </Typography.Text>
                     <Button
                         size="small"
-                        icon={<PlusOutlined />}
+                        icon={<AddIcon />}
                         disabled={offline || offlineData || aiCrawlerPolicyAlreadyAdded}
                         onClick={appendAiCrawlerPolicySnippet}
                     >

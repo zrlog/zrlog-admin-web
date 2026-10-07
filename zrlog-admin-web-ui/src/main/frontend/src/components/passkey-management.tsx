@@ -1,6 +1,11 @@
+import Input from "@zrlog/ui/antd/Input";
+import { useUiMessage } from "@zrlog/ui/feedback";
+import DeleteIcon from "@zrlog/ui/icons/delete";
+import KeyIcon from "@zrlog/ui/icons/key";
+import AddIcon from "@zrlog/ui/icons/add";
 import { formatDateTime } from "../utils/date-time";
-import { DeleteOutlined, KeyOutlined, PlusOutlined } from "@ant-design/icons";
-import { Button, Empty, Form, Input, List, message, Modal, Space, Tooltip, Typography } from "antd";
+
+import { Button, Empty, Form, List, Modal, Space, Tooltip, Typography } from "antd";
 import { useTheme } from "antd-style";
 import { useEffect, useRef, useState } from "react";
 import SettingsSection from "./common/SettingsSection";
@@ -73,7 +78,7 @@ const PasskeyManagement = ({
 }: PasskeyManagementProps) => {
     const axiosInstance = useAxiosBaseInstance();
     const theme = useTheme();
-    const [messageApi, contextHolder] = message.useMessage({ maxCount: 3 });
+    const [messageApi, contextHolder] = useUiMessage({ maxCount: 3 });
     const [passkeys, setPasskeys] = useState<PasskeySummary[]>(initialPasskeys ?? []);
     const [loading, setLoading] = useState(!offline && initialPasskeys === undefined);
     const [hasLoaded, setHasLoaded] = useState(initialPasskeys !== undefined);
@@ -290,7 +295,7 @@ const PasskeyManagement = ({
                     <Tooltip title={readOnlyPreview ? getRes().accountSecurity.passkeyPreviewModeDisabled : undefined}>
                         <Button
                             disabled={offline || listLoading || submitting || !registrationSupported || readOnlyPreview}
-                            icon={<PlusOutlined />}
+                            icon={<AddIcon />}
                             type="primary"
                             onClick={() => setRegistrationOpen(true)}
                         >
@@ -327,7 +332,7 @@ const PasskeyManagement = ({
                                     <Button
                                         danger
                                         disabled={offline || listLoading || submitting || readOnlyPreview}
-                                        icon={<DeleteOutlined />}
+                                        icon={<DeleteIcon />}
                                         type="text"
                                         onClick={() => setRemoveTarget(passkey)}
                                     >
@@ -339,7 +344,7 @@ const PasskeyManagement = ({
                             <List.Item.Meta
                                 style={{ minWidth: 0 }}
                                 avatar={
-                                    <KeyOutlined style={{ color: theme.colorPrimary, fontSize: theme.fontSizeXL }} />
+                                    <KeyIcon style={{ color: theme.colorPrimary, fontSize: theme.fontSizeXL }} />
                                 }
                                 title={
                                     <Typography.Text

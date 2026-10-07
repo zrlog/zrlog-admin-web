@@ -19,6 +19,12 @@ const mockMessageError = jest.fn<PromiseLike<boolean>, [string]>();
 const mockMessageSuccess = jest.fn<PromiseLike<boolean>, [string]>();
 const mockPasskeysChange = jest.fn<void, [PasskeySummary[]]>();
 
+// Business tests keep feedback mocked at the shared UI boundary.
+jest.mock("@zrlog/ui/feedback", () => ({
+    useUiMessage: (...args: unknown[]) => require("antd").message.useMessage(...args),
+    useUiApp: () => require("antd").App.useApp(),
+}));
+
 jest.mock("antd", () => {
     const React = require("react") as typeof import("react");
     type MockFormController = {

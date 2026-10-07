@@ -1,5 +1,10 @@
-import { DownloadOutlined, SearchOutlined } from "@ant-design/icons";
-import { Alert, Button, Descriptions, Form, Input, Space, Typography, message, theme } from "antd";
+import Typography from "@zrlog/ui/antd/Typography";
+import { Alert, Button, Descriptions, Form, Space, theme } from "antd";
+import Input from "@zrlog/ui/antd/Input";
+import { useUiMessage } from "@zrlog/ui/feedback";
+import DownloadIcon from "@zrlog/ui/icons/download";
+import SearchIcon from "@zrlog/ui/icons/search";
+
 import { useEffect, useState } from "react";
 import { useAxiosBaseInstance } from "../../base/AppBase";
 import type { ApiResponse } from "../../type";
@@ -46,7 +51,7 @@ const PrivacyForm = ({
     const [preview, setPreview] = useState<PersonalDataPreview>(data);
     const [previewing, setPreviewing] = useState(false);
     const [exportingComments, setExportingComments] = useState(false);
-    const [messageApi, contextHolder] = message.useMessage({ maxCount: 3 });
+    const [messageApi, contextHolder] = useUiMessage({ maxCount: 3 });
     const axiosInstance = useAxiosBaseInstance();
     const { formLayout } = useResponsiveFormLayout(layout);
     const disabled = offline || offlineData;
@@ -158,7 +163,7 @@ const PrivacyForm = ({
                 <Form.Item>
                     <Button
                         enterKeyHint="enter"
-                        icon={<SearchOutlined />}
+                        icon={<SearchIcon />}
                         loading={previewing}
                         disabled={disabled}
                         type="primary"
@@ -173,7 +178,7 @@ const PrivacyForm = ({
                     <Space wrap align="center" style={{ justifyContent: "space-between", width: "100%" }}>
                         <Typography.Text strong>{getRes().websitePrivacy.result}</Typography.Text>
                         <Button
-                            icon={<DownloadOutlined />}
+                            icon={<DownloadIcon />}
                             loading={exportingComments}
                             disabled={disabled}
                             onClick={exportComments}

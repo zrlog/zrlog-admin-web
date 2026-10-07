@@ -1,5 +1,10 @@
-import { Button, Card, Popconfirm, Space, Tag, theme, Typography } from "antd";
-import { ClearOutlined, EditOutlined, HistoryOutlined } from "@ant-design/icons";
+import Tag from "@zrlog/ui/antd/Tag";
+import Popconfirm from "@zrlog/ui/antd/Popconfirm";
+import ClearIcon from "@zrlog/ui/icons/clear";
+import EditIcon from "@zrlog/ui/icons/edit";
+import HistoryIcon from "@zrlog/ui/icons/history";
+import { Button, Card, Space, theme, Typography } from "antd";
+
 import { Link } from "react-router-dom";
 import { FunctionComponent } from "react";
 import { getLabelValueSeparator, getRealRouteUrl, getRes } from "../../utils/constants";
@@ -55,7 +60,7 @@ const LocalDraftCard: FunctionComponent<LocalDraftCardProps> = ({ localDrafts, o
         <Card
             title={
                 <div style={{ display: "flex", alignItems: "center", gap: token.marginXS }}>
-                    <HistoryOutlined />
+                    <HistoryIcon />
                     <span>
                         {localEdit ? getRes().index.quickAction.localEdit : getRes().index.quickAction.localDraft}
                     </span>
@@ -106,7 +111,7 @@ const LocalDraftCard: FunctionComponent<LocalDraftCardProps> = ({ localDrafts, o
                             cancelText={getRes().cancel}
                             onConfirm={() => clearLocalDraft(localDraft)}
                         >
-                            <Button icon={<ClearOutlined />} size="small">
+                            <Button icon={<ClearIcon />} size="small">
                                 {getClearTitle(localDraft)}
                             </Button>
                         </Popconfirm>
@@ -142,7 +147,7 @@ const LocalDraftCard: FunctionComponent<LocalDraftCardProps> = ({ localDrafts, o
                                         cancelText={getRes().cancel}
                                         onConfirm={() => clearLocalDraft(entry)}
                                     >
-                                        <Button icon={<ClearOutlined />} size="small" title={getClearTitle(entry)} />
+                                        <Button icon={<ClearIcon />} size="small" title={getClearTitle(entry)} />
                                     </Popconfirm>
                                 </div>
                             ))}
@@ -156,7 +161,7 @@ const LocalDraftCard: FunctionComponent<LocalDraftCardProps> = ({ localDrafts, o
                         to={getRealRouteUrl("/article-edit")}
                         style={{ display: "inline-flex", width: "fit-content" }}
                     >
-                        <Button icon={<EditOutlined />} size="small">
+                        <Button icon={<EditIcon />} size="small">
                             {getRes().index.quickAction.writeArticle}
                         </Button>
                     </Link>

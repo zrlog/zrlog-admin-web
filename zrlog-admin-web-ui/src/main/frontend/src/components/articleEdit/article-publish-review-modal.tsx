@@ -1,12 +1,11 @@
-import {
-    CheckCircleOutlined,
-    CloseCircleOutlined,
-    DesktopOutlined,
-    EditOutlined,
-    ExclamationCircleOutlined,
-    MobileOutlined,
-} from "@ant-design/icons";
 import { Alert, Button, Grid, Modal, Segmented, Space, Tooltip, Typography } from "antd";
+import SuccessIcon from "@zrlog/ui/icons/success";
+import ErrorIcon from "@zrlog/ui/icons/error";
+import DesktopIcon from "@zrlog/ui/icons/desktop";
+import EditIcon from "@zrlog/ui/icons/edit";
+import AlertIcon from "@zrlog/ui/icons/alert";
+import MobileIcon from "@zrlog/ui/icons/mobile";
+
 import { useTheme } from "antd-style";
 import { FunctionComponent, useEffect, useMemo, useRef, useState } from "react";
 import { markdownToHtmlSyncWithCallback } from "@zrlog/editor/dist/editor/utils/marked-utils";
@@ -125,12 +124,12 @@ const ArticlePublishReviewModal: FunctionComponent<ArticlePublishReviewModalProp
 
     const statusIcon = (check: ArticlePublishReviewCheck) => {
         if (check.status === "blocker") {
-            return <CloseCircleOutlined style={{ color: theme.colorError }} />;
+            return <ErrorIcon style={{ color: theme.colorError }} />;
         }
         if (check.status === "warning") {
-            return <ExclamationCircleOutlined style={{ color: theme.colorWarning }} />;
+            return <AlertIcon style={{ color: theme.colorWarning }} />;
         }
-        return <CheckCircleOutlined style={{ color: theme.colorSuccess }} />;
+        return <SuccessIcon style={{ color: theme.colorSuccess }} />;
     };
 
     const handleCancel = () => {
@@ -259,7 +258,7 @@ const ArticlePublishReviewModal: FunctionComponent<ArticlePublishReviewModalProp
                                             <Button
                                                 type="text"
                                                 size="small"
-                                                icon={<EditOutlined />}
+                                                icon={<EditIcon />}
                                                 aria-label={`${getRes().edit} ${fieldLabel(check.field)}`}
                                                 onClick={() => handleLocate(check.target)}
                                             />
@@ -288,8 +287,8 @@ const ArticlePublishReviewModal: FunctionComponent<ArticlePublishReviewModalProp
                                 value={previewMode}
                                 onChange={setPreviewMode}
                                 options={[
-                                    { value: "desktop", label: res.desktop, icon: <DesktopOutlined /> },
-                                    { value: "mobile", label: res.mobile, icon: <MobileOutlined /> },
+                                    { value: "desktop", label: res.desktop, icon: <DesktopIcon /> },
+                                    { value: "mobile", label: res.mobile, icon: <MobileIcon /> },
                                 ]}
                             />
                         </div>

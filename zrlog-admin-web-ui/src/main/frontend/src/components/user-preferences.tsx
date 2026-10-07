@@ -1,7 +1,11 @@
+import { Alert, Button, Form, Select, Typography, theme } from "antd";
+import Switch from "@zrlog/ui/antd/Switch";
+import InputNumber from "@zrlog/ui/antd/InputNumber";
+import { useUiMessage } from "@zrlog/ui/feedback";
 import { isModuleEnabled } from "../utils/module-capabilities";
 import SettingsSubmitBar from "./common/SettingsSubmitBar";
 import { useEffect, useRef, useState } from "react";
-import { Alert, Button, Form, InputNumber, Select, Switch, Typography, message, theme } from "antd";
+
 import { useLocation } from "react-router-dom";
 import { useAxiosBaseInstance } from "../base/AppBase";
 import { getSsDate } from "../base/SsData";
@@ -41,7 +45,7 @@ const UserPreferencesForm = ({
     const session = useRef(getSsDate().key);
     const savingRef = useRef(false);
     const [saving, setSaving] = useState(false);
-    const [messageApi, contextHolder] = message.useMessage();
+    const [messageApi, contextHolder] = useUiMessage();
     const { formLayout } = useResponsiveFormLayout();
     const { token } = theme.useToken();
     const res = getRes().user.preferences;

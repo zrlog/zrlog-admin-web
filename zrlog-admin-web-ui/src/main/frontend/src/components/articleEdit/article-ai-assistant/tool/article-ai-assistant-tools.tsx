@@ -1,15 +1,13 @@
-import {
-    ApartmentOutlined,
-    BulbOutlined,
-    EditOutlined,
-    FileTextOutlined,
-    LinkOutlined,
-    MessageOutlined,
-    PictureOutlined,
-    SearchOutlined,
-    StarOutlined,
-    TagsOutlined,
-} from "@ant-design/icons";
+import ApartmentIcon from "@zrlog/ui/icons/apartment";
+import IdeaIcon from "@zrlog/ui/icons/idea";
+import EditIcon from "@zrlog/ui/icons/edit";
+import FileTextIcon from "@zrlog/ui/icons/file-text";
+import LinkIcon from "@zrlog/ui/icons/link";
+import MessageIcon from "@zrlog/ui/icons/message";
+import ImageIcon from "@zrlog/ui/icons/image";
+import SearchIcon from "@zrlog/ui/icons/search";
+import StarIcon from "@zrlog/ui/icons/star";
+import TagsIcon from "@zrlog/ui/icons/tags";
 import { getRes } from "../../../../utils/constants";
 import {
     AssistantTool,
@@ -34,7 +32,7 @@ export const buildAssistantToolButtons = (): AssistantToolButton[] => [
     {
         key: "rewrite",
         command: "rewrite",
-        icon: <EditOutlined />,
+        icon: <EditIcon />,
         label: getRes().articleEdit.assistant.rewriteSuggestion,
         prompt: getRes().articleEdit.assistant.rewriteSuggestionPrompt,
         group: "editing",
@@ -42,7 +40,7 @@ export const buildAssistantToolButtons = (): AssistantToolButton[] => [
     {
         key: "structure",
         command: "structure",
-        icon: <ApartmentOutlined />,
+        icon: <ApartmentIcon />,
         label: getRes().articleEdit.assistant.structure,
         prompt: getRes().articleEdit.assistant.structurePrompt,
         group: "ideation",
@@ -50,7 +48,7 @@ export const buildAssistantToolButtons = (): AssistantToolButton[] => [
     {
         key: "questions",
         command: "questions",
-        icon: <MessageOutlined />,
+        icon: <MessageIcon />,
         label: getRes().articleEdit.assistant.readerQuestions,
         prompt: getRes().articleEdit.assistant.readerQuestionsPrompt,
         group: "ideation",
@@ -58,7 +56,7 @@ export const buildAssistantToolButtons = (): AssistantToolButton[] => [
     {
         key: "title",
         command: "title",
-        icon: <BulbOutlined />,
+        icon: <IdeaIcon />,
         label: getRes().articleEdit.assistant.titleSuggestion,
         prompt: getRes().articleEdit.assistant.titleSuggestionPrompt,
         group: "ideation",
@@ -66,7 +64,7 @@ export const buildAssistantToolButtons = (): AssistantToolButton[] => [
     {
         key: "alias",
         command: "alias",
-        icon: <LinkOutlined />,
+        icon: <LinkIcon />,
         label: getRes().articleEdit.assistant.aliasSuggestion,
         prompt: getRes().articleEdit.assistant.aliasSuggestionPrompt,
         group: "editing",
@@ -74,7 +72,7 @@ export const buildAssistantToolButtons = (): AssistantToolButton[] => [
     {
         key: "digest",
         command: "digest",
-        icon: <FileTextOutlined />,
+        icon: <FileTextIcon />,
         label: getRes().articleEdit.assistant.digestSuggestion,
         prompt: getRes().articleEdit.assistant.digestSuggestionPrompt,
         group: "editing",
@@ -82,7 +80,7 @@ export const buildAssistantToolButtons = (): AssistantToolButton[] => [
     {
         key: "tags",
         command: "tags",
-        icon: <TagsOutlined />,
+        icon: <TagsIcon />,
         label: getRes().articleEdit.assistant.tagsSuggestion,
         prompt: getRes().articleEdit.assistant.tagsSuggestionPrompt,
         group: "editing",
@@ -90,7 +88,7 @@ export const buildAssistantToolButtons = (): AssistantToolButton[] => [
     {
         key: "cover",
         command: "cover",
-        icon: <PictureOutlined />,
+        icon: <ImageIcon />,
         label: getRes().articleEdit.assistant.coverSuggestion,
         prompt: getRes().articleEdit.assistant.coverSuggestionPrompt,
         group: "editing",
@@ -98,7 +96,7 @@ export const buildAssistantToolButtons = (): AssistantToolButton[] => [
     {
         key: "score",
         command: "score",
-        icon: <StarOutlined />,
+        icon: <StarIcon />,
         label: getRes().articleEdit.assistant.score,
         prompt: getRes().articleEdit.assistant.scorePrompt,
         group: "publishCheck",
@@ -106,7 +104,7 @@ export const buildAssistantToolButtons = (): AssistantToolButton[] => [
     {
         key: "publishCheck",
         command: "publish-check",
-        icon: <StarOutlined />,
+        icon: <StarIcon />,
         label: getRes().articleEdit.assistant.publishCheck,
         prompt: getRes().articleEdit.assistant.publishCheckPrompt,
         group: "publishCheck",
@@ -114,7 +112,7 @@ export const buildAssistantToolButtons = (): AssistantToolButton[] => [
     {
         key: "seo",
         command: "seo",
-        icon: <SearchOutlined />,
+        icon: <SearchIcon />,
         label: getRes().articleEdit.assistant.seo,
         prompt: getRes().articleEdit.assistant.seoPrompt,
         group: "publishCheck",
@@ -122,7 +120,7 @@ export const buildAssistantToolButtons = (): AssistantToolButton[] => [
     {
         key: "proofread",
         command: "proofread",
-        icon: <EditOutlined />,
+        icon: <EditIcon />,
         label: getRes().articleEdit.assistant.proofread,
         prompt: getRes().articleEdit.assistant.proofreadPrompt,
         group: "publishCheck",

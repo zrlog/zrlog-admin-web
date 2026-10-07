@@ -8,6 +8,12 @@ const mockAxiosPost = jest.fn();
 const mockAuthenticateWithPasskey = jest.fn();
 let mockPasskeyLoginEnabled = true;
 
+// Business tests keep feedback mocked at the shared UI boundary.
+jest.mock("@zrlog/ui/feedback", () => ({
+    useUiMessage: (...args: unknown[]) => require("antd").message.useMessage(...args),
+    useUiApp: () => require("antd").App.useApp(),
+}));
+
 jest.mock("antd", () => {
     const React = require("react") as typeof import("react");
     const mockJest = require("@jest/globals").jest;

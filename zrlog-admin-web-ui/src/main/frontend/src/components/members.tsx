@@ -1,6 +1,11 @@
+import { Alert, Button, Drawer, Form, List, Select, Space, Typography } from "antd";
+import Tag from "@zrlog/ui/antd/Tag";
+import Switch from "@zrlog/ui/antd/Switch";
+import Input from "@zrlog/ui/antd/Input";
+import { useUiMessage } from "@zrlog/ui/feedback";
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { Alert, Button, Drawer, Form, Input, List, Select, Space, Switch, Tag, Typography, message } from "antd";
+
 import { useAxiosBaseInstance } from "../base/AppBase";
 import { getRes } from "../utils/constants";
 import { getSsDate } from "../base/SsData";
@@ -22,7 +27,7 @@ export default function Members({ data, updateCache }: Pick<AdminCommonProps<Pag
     const [form] = Form.useForm();
     const [transferForm] = Form.useForm();
     const api = useAxiosBaseInstance();
-    const [notice, contextHolder] = message.useMessage();
+    const [notice, contextHolder] = useUiMessage();
     const res = getRes().members;
     const roles = getRes().access.roles;
     const allowedRoles: AccountRole[] = hasAction("member.appoint_admin")

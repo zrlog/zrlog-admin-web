@@ -1,8 +1,11 @@
+import Tag from "@zrlog/ui/antd/Tag";
+import LockIcon from "@zrlog/ui/icons/lock";
+import StarIcon from "@zrlog/ui/icons/star";
 import { ApplyAiValues, SkillContextRevision } from "./use-article-field-ai";
 import { ArticleUpdatedEvent } from "./article-ai-assistant/article-ai-assistant.types";
-import { InputRef, Tag } from "antd";
+import { InputRef } from "antd";
 import Select from "antd/es/select";
-import { LockOutlined, StarFilled } from "@ant-design/icons";
+
 import { FunctionComponent, RefObject } from "react";
 import BaseInput from "../../common/BaseInput";
 import { getRes } from "../../utils/constants";
@@ -10,7 +13,7 @@ import ArticleEditActionBar from "./article-edit-action-bar";
 import ArticleEditMoreActions from "./article-edit-more-actions";
 import ArticleEditSettingButton from "./article-edit-setting-button";
 import { ArticleChangeableValue, ArticleEditState, ArticleEntry } from "./index.types";
-import { AIContent } from "@zrlog/editor/dist/ai/AIContentItem";
+import { AIContent } from "@zrlog/editor/core/ai/AIContentItem";
 import { AIStateCache } from "@zrlog/editor/dist/ai/AIStateCache";
 import { useTheme } from "antd-style";
 import { MarkdownImportApplyOptions } from "./markdown-import-modal";
@@ -183,13 +186,13 @@ const ArticleEditHeader: FunctionComponent<ArticleEditHeaderProps> = ({
                                     {articleStatusText}
                                 </Tag>
                                 {state.article.privacy && (
-                                    <LockOutlined style={{ color: theme.colorTextTertiary, fontSize: 16 }} />
+                                    <LockIcon style={{ color: theme.colorTextTertiary, fontSize: 16 }} />
                                 )}
                                 {state.article.recommended && (
                                     <Tag
                                         color="gold"
                                         bordered={false}
-                                        icon={<StarFilled />}
+                                        icon={<StarIcon selected />}
                                         style={{ marginInlineEnd: 0 }}
                                     >
                                         {getRes().articleEdit.recommended}

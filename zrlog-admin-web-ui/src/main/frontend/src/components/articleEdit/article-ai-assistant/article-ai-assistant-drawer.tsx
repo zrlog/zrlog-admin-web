@@ -1,9 +1,13 @@
-import { App, Button, Drawer, Dropdown, Typography } from "antd";
-import { DeleteOutlined, DownloadOutlined, DownOutlined } from "@ant-design/icons";
+import { useUiApp } from "@zrlog/ui/feedback";
+import DeleteIcon from "@zrlog/ui/icons/delete";
+import DownloadIcon from "@zrlog/ui/icons/download";
+import ChevronDownIcon from "@zrlog/ui/icons/chevron-down";
+import { Button, Drawer, Dropdown, Typography } from "antd";
+
 import { useEffect, useRef, useState } from "react";
 import { useTheme } from "antd-style";
-import AIContentItem from "@zrlog/editor/dist/ai/AIContentItem";
-import AIIcon from "@zrlog/editor/dist/ai/AIIcon";
+import AIContentItem from "@zrlog/editor/core/ai/AIContentItem";
+import AIIcon from "../../../icons/AIProviderIcon";
 import { AIStateCache, getAIStateCacheKey } from "@zrlog/editor/dist/ai/AIStateCache";
 import { getAppState } from "../../../base/ConfigProviderApp";
 import { getRes } from "../../../utils/constants";
@@ -33,7 +37,7 @@ export default function ArticleAiAssistantDrawer({
     onSizeChange,
     stateCache,
 }: Props) {
-    const { modal } = App.useApp();
+    const { modal } = useUiApp();
     const theme = useTheme();
     const screens = useArticleEditorScreens();
     const scrollRef = useRef<HTMLDivElement>(null);
@@ -88,14 +92,14 @@ export default function ArticleAiAssistantDrawer({
                             items: [
                                 {
                                     key: "export",
-                                    icon: <DownloadOutlined />,
+                                    icon: <DownloadIcon />,
                                     label: res.exportAiMessages,
                                     disabled: actions.disabled || actions.exporting || actions.clearing,
                                     onClick: () => void actions.onExport(),
                                 },
                                 {
                                     key: "clear",
-                                    icon: <DeleteOutlined />,
+                                    icon: <DeleteIcon />,
                                     label: res.clearAiMessages,
                                     danger: true,
                                     disabled: actions.disabled || actions.exporting || actions.clearing,
@@ -122,7 +126,7 @@ export default function ArticleAiAssistantDrawer({
                             style={{ flexShrink: 0, paddingInline: theme.paddingXS }}
                         >
                             {getRes().websiteAi.label}
-                            <DownOutlined style={{ fontSize: theme.fontSizeSM }} />
+                            <ChevronDownIcon style={{ fontSize: theme.fontSizeSM }} />
                         </Button>
                     </Dropdown>
                     {data.article.title && (

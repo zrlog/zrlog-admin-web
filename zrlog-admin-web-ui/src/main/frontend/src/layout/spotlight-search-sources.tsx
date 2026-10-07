@@ -1,5 +1,10 @@
+import ApiIcon from "@zrlog/ui/icons/api";
+import EditIcon from "@zrlog/ui/icons/edit";
+import ImageFileIcon from "@zrlog/ui/icons/image-file";
+import FolderIcon from "@zrlog/ui/icons/folder";
+import AppearanceIcon from "@zrlog/ui/icons/appearance";
 import { hasAction } from "../utils/account-access";
-import { ApiOutlined, EditOutlined, FileImageOutlined, FolderOpenOutlined, SkinOutlined } from "@ant-design/icons";
+
 import { getAdminDashboardRouteSearchItems } from "../components/admin-dashboard-routes";
 import {
     cacheIgnoreReloadTime,
@@ -179,7 +184,7 @@ const loadArticleCreateItems = async (
                 title: getRes().articleEdit.new,
                 subTitle: getRes().pleaseChoose + getRes().articleType.title,
                 path: buildArticleCreatePath(),
-                icon: <EditOutlined />,
+                icon: <EditIcon />,
                 keywords: articleCreateCommandKeywords,
                 type: "action" as const,
                 persist: false,
@@ -204,7 +209,7 @@ const loadArticleCreateItems = async (
                 title: `${getRes().articleEdit.new} - ${typeName}`,
                 subTitle: formatLabelValue(getRes().type, typeName),
                 path: buildArticleCreatePath(typeId),
-                icon: <EditOutlined />,
+                icon: <EditIcon />,
                 keywords: [...articleCreateCommandKeywords, typeName, row.alias || ""],
                 type: "action" as const,
                 persist: false,
@@ -251,7 +256,7 @@ const templateToSpotlightItem = (row: TemplateSearchEntry): SpotlightItem => ({
     title: row.name || row.shortTemplate || getRes().websiteTemplate.title,
     subTitle: row.shortTemplate || row.digest,
     path: buildQueryPath("/template", { shortTemplate: row.shortTemplate || "" }),
-    icon: <SkinOutlined />,
+    icon: <AppearanceIcon />,
     keywords: [],
     type: "template",
 });
@@ -265,7 +270,7 @@ const pluginToSpotlightItem = (row: PluginSearchEntry, renderImageIcon: Spotligh
         title,
         subTitle: pluginDescription(row),
         path: buildQueryPath("/plugin", { page }),
-        icon: renderImageIcon(iconSrc, title, <ApiOutlined />),
+        icon: renderImageIcon(iconSrc, title, <ApiIcon />),
         iconSrc,
         keywords: [],
         type: "plugin",
@@ -362,7 +367,7 @@ const articleSource: SpotlightSource = {
             title: row.title,
             subTitle: row.typeName,
             path: `/article-edit?id=${row.id}`,
-            icon: <EditOutlined />,
+            icon: <EditIcon />,
             keywords: [],
             type: "article",
         }));
@@ -379,7 +384,7 @@ const fileSource: SpotlightSource = {
             title: row.name,
             subTitle: row.path,
             path: `/file-manager?path=${row.path}`,
-            icon: row.type === "directory" ? <FolderOpenOutlined /> : <FileImageOutlined />,
+            icon: row.type === "directory" ? <FolderIcon /> : <ImageFileIcon />,
             iconVariant: row.type === "directory" ? "directory" : "file",
             keywords: [],
             type: "file",

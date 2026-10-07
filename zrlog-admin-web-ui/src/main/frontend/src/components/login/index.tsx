@@ -1,5 +1,8 @@
+import Input from "@zrlog/ui/antd/Input";
+import { useUiMessage } from "@zrlog/ui/feedback";
+import KeyIcon from "@zrlog/ui/icons/key";
 import { useEffect, useRef, useState } from "react";
-import { Button, Divider, Form, Input, Layout, message, Space } from "antd";
+import { Button, Divider, Form, Layout, Space } from "antd";
 import {
     getBackendServerUrl,
     getDefaultLoginInfo,
@@ -30,7 +33,7 @@ import { getAppState } from "../../base/ConfigProviderApp";
 import { useTheme } from "antd-style";
 import { ADMIN_ERROR_CODE } from "../../common/admin-error-code";
 import loginPublishingWorkspace from "../../assets/login-publishing-workspace.webp";
-import { KeyOutlined } from "@ant-design/icons";
+
 import { authenticateWithPasskey, canUsePasskeys, isPasskeyCancellation } from "../../utils/passkey";
 
 const md5 = require("md5");
@@ -260,7 +263,7 @@ const Index = ({ offline }: { offline: boolean }) => {
     const lastAutoSubmittedMfaCodeRef = useRef("");
     const passkeyLoginInFlightRef = useRef(false);
 
-    const [messageApi, contextHolder] = message.useMessage({ maxCount: 3 });
+    const [messageApi, contextHolder] = useUiMessage({ maxCount: 3 });
 
     const navigate = useNavigate();
     const theme = useTheme();
@@ -495,7 +498,7 @@ const Index = ({ offline }: { offline: boolean }) => {
                                         <Button
                                             block
                                             disabled={offline || logging}
-                                            icon={<KeyOutlined />}
+                                            icon={<KeyIcon />}
                                             loading={passkeyLogging}
                                             size="large"
                                             style={{ flexShrink: 0 }}

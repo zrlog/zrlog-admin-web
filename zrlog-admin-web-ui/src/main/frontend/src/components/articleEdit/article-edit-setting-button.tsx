@@ -1,13 +1,15 @@
+import Switch from "@zrlog/ui/antd/Switch";
+import SettingsIcon from "@zrlog/ui/icons/settings";
 import { getRes } from "../../utils/constants";
 import Col from "antd/es/grid/col";
 import Row from "antd/es/grid/row";
 import Card from "antd/es/card";
 import ThumbnailUpload from "./thumbnail-upload";
 import Form from "antd/es/form";
-import Switch from "antd/es/switch";
+
 import ArticleEditTag from "./article-edit-tag";
 import { Drawer, InputRef } from "antd";
-import { SettingFilled, SettingOutlined } from "@ant-design/icons";
+
 import { RefObject, useEffect, useState } from "react";
 import { ArticleChangeableValue, ArticleEntry } from "./index.types";
 import Button from "antd/es/button";
@@ -83,7 +85,7 @@ const ArticleEditSettingButton = ({
                     shift: true,
                     key: "S",
                 })}
-                icon={settingsOpen ? <SettingFilled /> : <SettingOutlined />}
+                icon={<SettingsIcon selected={settingsOpen} />}
                 onClick={(e) => {
                     e.stopPropagation();
                     e.preventDefault();

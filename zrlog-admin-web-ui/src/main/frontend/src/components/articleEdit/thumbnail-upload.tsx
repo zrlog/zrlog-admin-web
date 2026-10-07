@@ -1,7 +1,10 @@
-import { CameraOutlined, DeleteFilled, LoadingOutlined } from "@ant-design/icons";
+import { useUiMessage } from "@zrlog/ui/feedback";
+import CameraIcon from "@zrlog/ui/icons/camera";
+import DeleteIcon from "@zrlog/ui/icons/delete";
+import LoadingIcon from "@zrlog/ui/icons/loading";
 import { FunctionComponent, ReactNode, useState } from "react";
 import { getRes } from "../../utils/constants";
-import { message, Typography } from "antd";
+import { Typography } from "antd";
 import ResourceDragger from "../../common/ResourceDragger";
 import { useAxiosBaseInstance } from "../../base/AppBase";
 import { useTheme } from "antd-style";
@@ -25,7 +28,7 @@ const ThumbnailUpload: FunctionComponent<ThumbnailUploadProps> = ({
 }) => {
     const [uploading, setUploading] = useState<boolean>(false);
 
-    const [messageApi, contextHolder] = message.useMessage({ maxCount: 3 });
+    const [messageApi, contextHolder] = useUiMessage({ maxCount: 3 });
 
     const axiosInstance = useAxiosBaseInstance(getContainer);
 
@@ -77,7 +80,7 @@ const ThumbnailUpload: FunctionComponent<ThumbnailUploadProps> = ({
                             alignItems: "center",
                         }}
                     >
-                        <CameraOutlined style={{ fontSize: 28, color: theme.colorTextSecondary }} />
+                        <CameraIcon style={{ fontSize: 28, color: theme.colorTextSecondary }} />
                     </p>
                     <Typography
                         style={{
@@ -85,7 +88,7 @@ const ThumbnailUpload: FunctionComponent<ThumbnailUploadProps> = ({
                             fontSize: "var(--ant-font-size-lg)",
                         }}
                     >
-                        {uploading && <LoadingOutlined />} {getRes().articleEdit.upload.tips}
+                        {uploading && <LoadingIcon />} {getRes().articleEdit.upload.tips}
                     </Typography>
                 </>
             )}
@@ -116,7 +119,7 @@ const ThumbnailUpload: FunctionComponent<ThumbnailUploadProps> = ({
                             e.stopPropagation();
                         }}
                     >
-                        <DeleteFilled />
+                        <DeleteIcon selected />
                     </div>
                 </div>
             )}

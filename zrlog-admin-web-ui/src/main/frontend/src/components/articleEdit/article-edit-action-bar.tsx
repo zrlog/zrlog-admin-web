@@ -1,16 +1,18 @@
+import SaveIcon from "@zrlog/ui/icons/save";
+import SendIcon from "@zrlog/ui/icons/send";
 import { ApplyAiValues, SkillContextRevision } from "./use-article-field-ai";
 import { ArticleUpdatedEvent } from "./article-ai-assistant/article-ai-assistant.types";
 import { isModuleEnabled } from "../../utils/module-capabilities";
 import { hasAction } from "../../utils/account-access";
 import { Button } from "antd";
-import { SaveOutlined, SendOutlined } from "@ant-design/icons";
+
 import { getRes } from "../../utils/constants";
 import { ArticleEditState, ArticleEntry } from "./index.types";
 import { FunctionComponent, useEffect, useRef } from "react";
-import { AIContent } from "@zrlog/editor/dist/ai/AIContentItem";
+import { AIContent } from "@zrlog/editor/core/ai/AIContentItem";
 import { AIStateCache } from "@zrlog/editor/dist/ai/AIStateCache";
 import { useAxiosBaseInstance } from "../../base/AppBase";
-import { getAiDrawerOpen } from "@zrlog/editor/dist/ai/AIDrawer";
+import { getAiDrawerOpen } from "@zrlog/editor/core/ai/AIDrawer";
 import { getShortcutTitle, isMacLikeDevice, isTouchLikeDevice } from "./shortcut-utils";
 import ArticleAiAssistantButton, {
     getArticleAiAssistantDrawerOpen,
@@ -165,7 +167,7 @@ const ArticleEditActionBar: FunctionComponent<ArticleEditActionBarProps> = ({
                     ctrlOrCmd: true,
                     key: "S",
                 })}
-                icon={<SaveOutlined />}
+                icon={<SaveIcon />}
                 loading={data.saving.rubbishSaving && !data.saving.autoSaving}
                 disabled={
                     offline ||
@@ -209,7 +211,7 @@ const ArticleEditActionBar: FunctionComponent<ArticleEditActionBarProps> = ({
                         }
                     )}
                     disabled={offline || draftAiPending || data.saving.releaseSaving}
-                    icon={<SendOutlined />}
+                    icon={<SendIcon />}
                     onClick={async () => {
                         if (data.article.privacy === true) {
                             await onSubmit(data.article, true, false, false);

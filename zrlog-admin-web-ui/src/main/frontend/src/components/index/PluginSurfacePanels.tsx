@@ -1,4 +1,5 @@
-import { App, Card, Empty } from "antd";
+import { useUiApp } from "@zrlog/ui/feedback";
+import { Card, Empty } from "antd";
 import { AxiosInstance } from "axios";
 import { FunctionComponent, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
@@ -49,7 +50,7 @@ const PluginSurfacePanels: FunctionComponent<{
     axiosInstance: AxiosInstance;
     panels: AdminDashboardPluginPanelConfig[];
 }> = ({ axiosInstance, panels }) => {
-    const { message } = App.useApp();
+    const { message } = useUiApp();
     const navigate = useNavigate();
     const res = getRes().index.pluginPanels;
 

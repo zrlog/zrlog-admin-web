@@ -1,5 +1,6 @@
-import { QuestionCircleOutlined } from "@ant-design/icons";
 import { Alert, Button, Drawer, Spin } from "antd";
+import HelpIcon from "@zrlog/ui/icons/help";
+
 import type { AxiosRequestConfig } from "axios";
 import { useEffect, useState } from "react";
 import { useAxiosBaseInstance } from "../../base/AppBase";
@@ -36,7 +37,7 @@ export default function PermissionHelp({ initialView = "roles" }: { initialView?
 
     return (
         <>
-            <Button icon={<QuestionCircleOutlined />} onClick={() => setOpen(true)}>
+            <Button icon={<HelpIcon />} onClick={() => setOpen(true)}>
                 {res.title}
             </Button>
             <Drawer

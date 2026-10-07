@@ -1,6 +1,7 @@
+import { useUiMessage, useUiApp } from "@zrlog/ui/feedback";
 import { isModuleEnabled } from "../../utils/module-capabilities";
 import { FunctionComponent, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { App, InputRef, message } from "antd";
+import { InputRef } from "antd";
 import Divider from "antd/es/divider";
 import Card from "antd/es/card";
 import { getRealRouteUrl, getRes, tryAppendBackendServerUrl } from "../../utils/constants";
@@ -12,7 +13,7 @@ import { getEditorUser } from "../../utils/helpers";
 import { useLocation } from "react-router";
 import { addToCache, getCacheByKey } from "../../utils/cache";
 import { getAppState } from "../../base/ConfigProviderApp";
-import Editor, { insertTextAtCursor } from "@zrlog/editor/dist/editor";
+import Editor, { insertTextAtCursor } from "../editor/AdminEditor";
 import EditorStatusBar from "@zrlog/editor/dist/editor/editor-statistics-info";
 import { toStatisticsByMarkdown } from "@zrlog/editor/dist/editor/utils/editor-utils";
 import { EditorView } from "@uiw/react-codemirror";
@@ -72,11 +73,11 @@ const Index: FunctionComponent<ArticleEditProps> = ({
     const titleRef = useRef<InputRef>(null);
     const aliasRef = useRef<InputRef>(null);
     const digestRef = useRef<InputRef>(null);
-    const [messageApi, messageContextHolder] = message.useMessage({
+    const [messageApi, messageContextHolder] = useUiMessage({
         maxCount: 3,
         getContainer: () => editCardRef.current as HTMLElement,
     });
-    const { modal } = App.useApp();
+    const { modal } = useUiApp();
     const axiosInstance = useAxiosBaseInstance(() => editCardRef.current as HTMLElement);
     const navigate = useNavigate();
     const draftAiSaveGate = useMemo(createDraftAiSaveGate, []);

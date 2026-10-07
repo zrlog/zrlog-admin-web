@@ -34,7 +34,7 @@ import {
     mergeArticleSynchronizationMetadata,
 } from "./draft-sync/article-draft-sync-helpers";
 import useTransparentPublish from "./use-transparent-publish";
-import { AIContent } from "@zrlog/editor/dist/ai/AIContentItem";
+import { AIContent } from "@zrlog/editor/core/ai/AIContentItem";
 import { renderMissingMarkdownContent } from "./article-save-content";
 import { markdownToHtml } from "@zrlog/editor/dist/editor/utils/marked-utils";
 import { DraftAiSaveGate, DraftArticleOperationRelease } from "./draft-ai-save-gate";

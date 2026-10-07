@@ -1,7 +1,9 @@
+import Switch from "@zrlog/ui/antd/Switch";
+import InputNumber from "@zrlog/ui/antd/InputNumber";
 import { isModuleEnabled } from "../../utils/module-capabilities";
 import Form from "antd/es/form";
-import Switch from "antd/es/switch";
-import { InputNumber, Select } from "antd";
+
+import { Select } from "antd";
 import { useEffect } from "react";
 import { getRes } from "../../utils/constants";
 import { ArticleEditSetting } from "./index";

@@ -1,6 +1,7 @@
+import PieChartIcon from "@zrlog/ui/icons/pie-chart";
 import { Card, Empty, Tooltip, Typography } from "antd";
 import { formatLabelValue, getRes } from "../../utils/constants";
-import { PieChartOutlined } from "@ant-design/icons";
+
 import { useTheme } from "antd-style";
 
 type DataInsightsProps = {
@@ -32,7 +33,7 @@ const DataInsights = ({ data }: DataInsightsProps) => {
         <Card
             title={
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <PieChartOutlined />
+                    <PieChartIcon />
                     <span>{getRes().index.insight.label}</span>
                 </div>
             }

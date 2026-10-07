@@ -31,7 +31,7 @@ jest.mock("../utils/background-task-store", () => ({
     finishBackgroundTask: require("@jest/globals").jest.fn(),
 }));
 jest.mock("@zrlog/editor/dist/editor/utils/marked-utils", () => ({ markdownToHtml: async (text: string) => text }));
-jest.mock("@zrlog/editor/dist/editor/html-preview-panel", () => () => null);
+jest.mock("@zrlog/editor/core/editor/html-preview-panel", () => () => null);
 jest.mock("./upgrade-content", () => ({
     __esModule: true,
     default: ({ data }: { data: UpgradeData }) =>

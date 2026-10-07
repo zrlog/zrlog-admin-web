@@ -21,6 +21,11 @@
 - 默认主题的 `Spin` 由公共包 `material-theme.ts` 的 `spin.indicator` 注入，动画由 `MaterialStyles` 挂载，不使用全局 `Spin.setDefaultIndicator`。顶部加载条和按钮 loading 图标保持各自实现。
 - 默认主题控件通过公共包 `material-component-config.ts` 的公开语义槽和 `MaterialControlsStyle` 适配。字段保持独立 label，Input / InputNumber / Select 只适配交互状态。
 - `icons/ZrLogOutlined.tsx` 适配公共 `ZrLogMark`。公共包不管理后台语言、偏好、路由或编辑器；`utils/sse-utils.ts` 只把事件解码委托给 `@zrlog/utils`，保留请求、任务进度及业务完成策略。
+- `ConfigProviderApp` 在配置根外挂载 `UiIconProvider`；页面从 `@zrlog/ui/icons/<语义名>` 逐个导入图标，导航通过 `selected` 传递选中态。默认主题使用 Material Symbols Rounded，其余主题使用原有图形；品牌标志保持自身身份。
+- 公共 ConfigProvider 图标槽随 M3 配置下发。只能在组件上配置的图标使用 `@zrlog/ui/antd/<Component>`，消息使用 `@zrlog/ui/feedback` 的 `useUiMessage` / `useUiApp`。禁止全量图标注册表和页面中的主题判断，详见 [公共图标契约](../../zrlog-frontend-common/docs/theme-icons.md)。
+- 编辑器用 `@zrlog/editor/core` 与 `core/ai/*`；`AdminEditorIconProvider` 注入通用/AI 图标和独立品牌，`AdminEditor` 随编辑器页面加载格式与插入图标。主题映射只在此适配层进行，默认主题用 Material Symbols，其他主题保留编辑器原有图形。禁止页面重新导入带默认图标的编辑器兼容入口。
+- 编辑器固定使用已发布的 `@zrlog/editor` 2.2.0；接入契约见 [编辑器图标文档](../../zrlog-editor/docs/theme-icons.md)。
+- 公共图标 API 固定使用已发布的 `@zrlog/ui` / `@zrlog/utils` 0.2.0；依赖从 npm registry 安装，yarn.lock 保留真实下载地址和完整性校验值。
 - 全局 `ConfigProviderApp` 为普通密度显式传 `componentSize="medium"`，紧凑密度传 `small`。不要改回普通密度 `undefined`，否则 Ant Design 会插入/移除 SizeContext，重建整个页面并触发未保存预览的回滚。
 - `AdminDashboardRouter` 为同一会话、同一路由且内容未变的数据保留引用，避免外观重绘时缓存反序列化产生新对象，触发表单重新填值。路由、会话或实际数据变化仍更新快照。
 - `applyUserPreferences` 是有效外观与语言的统一应用入口，负责资源、React 状态、文档语言和偏好请求版本。`useAppearancePreview` 供站点后台设置和审查页临时预览、按会话恢复；个人设置保留自己的保存与请求生命周期。站点表单始终保存站点字段，不把个人偏好混入提交。

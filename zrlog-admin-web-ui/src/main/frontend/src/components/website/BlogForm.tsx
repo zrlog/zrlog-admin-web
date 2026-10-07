@@ -1,6 +1,8 @@
+import Switch from "@zrlog/ui/antd/Switch";
+import Input from "@zrlog/ui/antd/Input";
 import Form from "antd/es/form";
-import Input from "antd/es/input";
-import Switch from "antd/es/switch";
+
+
 import { getRes } from "../../utils/constants";
 import { useEffect, useState } from "react";
 import { Blog } from "./index";

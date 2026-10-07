@@ -1,3 +1,24 @@
+import Typography from "@zrlog/ui/antd/Typography";
+import { Alert, Button, Checkbox, Divider, Drawer, Dropdown, Empty, Grid, Menu, Modal, Select, Space, theme, Tooltip } from "antd";
+import Tag from "@zrlog/ui/antd/Tag";
+import Input from "@zrlog/ui/antd/Input";
+import Popconfirm from "@zrlog/ui/antd/Popconfirm";
+import { useUiApp } from "@zrlog/ui/feedback";
+import AppsIcon from "@zrlog/ui/icons/apps";
+import CopyIcon from "@zrlog/ui/icons/copy";
+import DeleteIcon from "@zrlog/ui/icons/delete";
+import DownloadIcon from "@zrlog/ui/icons/download";
+import EditIcon from "@zrlog/ui/icons/edit";
+import ImageFileIcon from "@zrlog/ui/icons/image-file";
+import FileTextIcon from "@zrlog/ui/icons/file-text";
+import ArchiveIcon from "@zrlog/ui/icons/archive";
+import FolderAddIcon from "@zrlog/ui/icons/folder-add";
+import LinkIcon from "@zrlog/ui/icons/link";
+import HelpIcon from "@zrlog/ui/icons/help";
+import RefreshIcon from "@zrlog/ui/icons/refresh";
+import UploadIcon from "@zrlog/ui/icons/upload";
+import VideoIcon from "@zrlog/ui/icons/video";
+import WarningIcon from "@zrlog/ui/icons/warning";
 import {
     CSSProperties,
     FunctionComponent,
@@ -10,45 +31,9 @@ import {
     useState,
 } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import {
-    Alert,
-    App,
-    Button,
-    Checkbox,
-    Divider,
-    Drawer,
-    Dropdown,
-    Empty,
-    Grid,
-    Input,
-    Menu,
-    Modal,
-    Popconfirm,
-    Select,
-    Space,
-    Tag,
-    theme,
-    Tooltip,
-    Typography,
-} from "antd";
+
 import type { MenuProps } from "antd";
-import {
-    AppstoreOutlined,
-    CopyOutlined,
-    DeleteOutlined,
-    DownloadOutlined,
-    EditOutlined,
-    FileImageOutlined,
-    FileTextOutlined,
-    FileZipOutlined,
-    FolderAddOutlined,
-    LinkOutlined,
-    QuestionCircleOutlined,
-    ReloadOutlined,
-    UploadOutlined,
-    VideoCameraOutlined,
-    WarningOutlined,
-} from "@ant-design/icons";
+
 import { useTheme } from "antd-style";
 import { useAxiosBaseInstance } from "../../base/AppBase";
 import { addToCache, getCacheByKey } from "../../utils/cache";
@@ -111,7 +96,7 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
     const themeVars = useTheme();
     const screens = useBreakpoint();
     const axiosInstance = useAxiosBaseInstance();
-    const { message: msgApi } = App.useApp();
+    const { message: msgApi } = useUiApp();
     const borderSecondary = `${token.lineWidth}px ${token.lineType} ${token.colorBorderSecondary}`;
     const sidebarMenuItemStyle: CSSProperties = {
         height: token.controlHeight,
@@ -584,14 +569,14 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
             items.push({
                 key: "copy",
                 label: res.copyUrl,
-                icon: <CopyOutlined />,
+                icon: <CopyIcon />,
                 onClick: () => handleCopyUrl(entry),
             });
         }
         if (hasAction(entry, "DOWNLOAD")) {
             items.push({
                 key: "download",
-                icon: <DownloadOutlined />,
+                icon: <DownloadIcon />,
                 label: res.download,
                 onClick: () => {
                     const params = new URLSearchParams({ path: entry.path });
@@ -605,7 +590,7 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
         if (hasAction(entry, "PREVIEW")) {
             items.push({
                 key: "preview",
-                icon: <FileImageOutlined />,
+                icon: <ImageFileIcon />,
                 label: res.preview,
                 onClick: () => handlePreview(entry),
                 disabled: !(entry.image === true || entry.textPreviewable === true),
@@ -616,7 +601,7 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
             items.push({
                 key: "replaceArticleResourceUrl",
                 label: getReplaceArticleResourceUrlAction(entry),
-                icon: <EditOutlined />,
+                icon: <EditIcon />,
                 onClick: () => openRename(entry),
             });
         }
@@ -625,7 +610,7 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
             items.push({
                 key: "reuploadMissingResource",
                 label: res.reuploadMissingAction,
-                icon: <UploadOutlined />,
+                icon: <UploadIcon />,
                 onClick: () => openReupload(entry),
             });
         }
@@ -636,7 +621,7 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                 items.push({
                     key: "rename",
                     label: res.rename,
-                    icon: <EditOutlined />,
+                    icon: <EditIcon />,
                     onClick: () => {
                         openRename(entry);
                     },
@@ -650,7 +635,7 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                             <span style={{ color: token.colorError }}>{res.delete}</span>
                         </Popconfirm>
                     ),
-                    icon: <DeleteOutlined style={{ color: token.colorError }} />,
+                    icon: <DeleteIcon style={{ color: token.colorError }} />,
                 });
             }
         }
@@ -810,7 +795,7 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                                 <Button
                                     size="small"
                                     type="text"
-                                    icon={<FileImageOutlined />}
+                                    icon={<ImageFileIcon />}
                                     disabled={!(entry.image === true || entry.textPreviewable === true)}
                                     onClick={(e) => {
                                         e.stopPropagation();
@@ -824,7 +809,7 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                                 <Button
                                     size="small"
                                     type="text"
-                                    icon={<CopyOutlined />}
+                                    icon={<CopyIcon />}
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         handleCopyUrl(entry);
@@ -837,7 +822,7 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                                 <Button
                                     size="small"
                                     type="text"
-                                    icon={<UploadOutlined />}
+                                    icon={<UploadIcon />}
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         openReupload(entry);
@@ -852,7 +837,7 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                                         <Button
                                             size="small"
                                             type="text"
-                                            icon={<EditOutlined />}
+                                            icon={<EditIcon />}
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 openRename(entry);
@@ -870,7 +855,7 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                                             size="small"
                                             type="text"
                                             danger
-                                            icon={<DeleteOutlined />}
+                                            icon={<DeleteIcon />}
                                             onClick={(e) => e.stopPropagation()}
                                         />
                                     </Popconfirm>
@@ -907,16 +892,16 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
     }, []);
     const categoryItems = useMemo<ResourceTypeItem[]>(
         () => [
-            { key: "all", label: res.resourceType.all, icon: <AppstoreOutlined /> },
-            { key: "image", label: res.resourceType.image, icon: <FileImageOutlined /> },
-            { key: "document", label: res.resourceType.document, icon: <FileTextOutlined /> },
-            { key: "video", label: res.resourceType.video, icon: <VideoCameraOutlined /> },
-            { key: "archive", label: res.resourceType.archive, icon: <FileZipOutlined /> },
-            { key: "external", label: res.resourceType.external, icon: <LinkOutlined /> },
-            { key: "broken", label: res.resourceType.broken, icon: <WarningOutlined /> },
-            { key: "unused", label: res.resourceType.unused, icon: <DeleteOutlined /> },
+            { key: "all", label: res.resourceType.all, icon: <AppsIcon selected={resourceType === "all"} /> },
+            { key: "image", label: res.resourceType.image, icon: <ImageFileIcon selected={resourceType === "image"} /> },
+            { key: "document", label: res.resourceType.document, icon: <FileTextIcon selected={resourceType === "document"} /> },
+            { key: "video", label: res.resourceType.video, icon: <VideoIcon selected={resourceType === "video"} /> },
+            { key: "archive", label: res.resourceType.archive, icon: <ArchiveIcon selected={resourceType === "archive"} /> },
+            { key: "external", label: res.resourceType.external, icon: <LinkIcon selected={resourceType === "external"} /> },
+            { key: "broken", label: res.resourceType.broken, icon: <WarningIcon selected={resourceType === "broken"} /> },
+            { key: "unused", label: res.resourceType.unused, icon: <DeleteIcon selected={resourceType === "unused"} /> },
         ],
-        [res.resourceType]
+        [res.resourceType, resourceType]
     );
     const visibleEntries = useMemo(() => {
         const filtered = entries.filter((entry) => {
@@ -1185,14 +1170,14 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                                 tryAppendBackendServerUrl: tryAppendBackendServerUrl,
                             }}
                         >
-                            <Button icon={<UploadOutlined />} type="primary" disabled={!canUpload || isRootOverview}>
+                            <Button icon={<UploadIcon />} type="primary" disabled={!canUpload || isRootOverview}>
                                 {res.upload}
                             </Button>
                         </BaseDragger>
                     </Tooltip>
                     <Tooltip title={!canMkdir || isRootOverview ? directoryActionDisabledHint : undefined}>
                         <Button
-                            icon={<FolderAddOutlined />}
+                            icon={<FolderAddIcon />}
                             onClick={() => {
                                 setNewFolderName("");
                                 setNewFolderOpen(true);
@@ -1204,7 +1189,7 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                     </Tooltip>
                     {referenceResourceView && (
                         <Button
-                            icon={<ReloadOutlined />}
+                            icon={<RefreshIcon />}
                             loading={referenceRefreshing}
                             onClick={() => void refreshReferenceIndex()}
                         >
@@ -1223,7 +1208,7 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                     <Space align="center" size={6}>
                         <Text strong>{res.detailTitle}</Text>
                         <Tooltip title={res.keyboardTip}>
-                            <QuestionCircleOutlined style={{ color: token.colorTextTertiary }} />
+                            <HelpIcon style={{ color: token.colorTextTertiary }} />
                         </Tooltip>
                     </Space>
                     <div style={{ marginTop: token.marginSM }}>
@@ -1358,7 +1343,7 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                                 <Space wrap>
                                     {hasAction(selectedEntry, "PREVIEW") && (
                                         <Button
-                                            icon={<FileImageOutlined />}
+                                            icon={<ImageFileIcon />}
                                             disabled={
                                                 !(
                                                     selectedEntry.image === true ||
@@ -1373,13 +1358,13 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                                         </Button>
                                     )}
                                     {hasAction(selectedEntry, "COPY_URL") && (
-                                        <Button icon={<CopyOutlined />} onClick={() => handleCopyUrl(selectedEntry)}>
+                                        <Button icon={<CopyIcon />} onClick={() => handleCopyUrl(selectedEntry)}>
                                             {res.copyUrl}
                                         </Button>
                                     )}
                                     {hasAction(selectedEntry, "DOWNLOAD") && (
                                         <Button
-                                            icon={<DownloadOutlined />}
+                                            icon={<DownloadIcon />}
                                             onClick={() => {
                                                 const params = new URLSearchParams({ path: selectedEntry.path });
                                                 window.open(
@@ -1395,14 +1380,14 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                                     )}
                                     {(hasAction(selectedEntry, "RENAME") ||
                                         isReplaceArticleResourceUrlEntry(selectedEntry)) && (
-                                        <Button icon={<EditOutlined />} onClick={() => openRename(selectedEntry)}>
+                                        <Button icon={<EditIcon />} onClick={() => openRename(selectedEntry)}>
                                             {isReplaceArticleResourceUrlEntry(selectedEntry)
                                                 ? getReplaceArticleResourceUrlAction(selectedEntry)
                                                 : res.rename}
                                         </Button>
                                     )}
                                     {isReuploadMissingReferenceEntry(selectedEntry) && (
-                                        <Button icon={<UploadOutlined />} onClick={() => openReupload(selectedEntry)}>
+                                        <Button icon={<UploadIcon />} onClick={() => openReupload(selectedEntry)}>
                                             {res.reuploadMissingAction}
                                         </Button>
                                     )}
@@ -1412,7 +1397,7 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                                             onConfirm={() => handleDelete(selectedEntry)}
                                             okType="danger"
                                         >
-                                            <Button danger icon={<DeleteOutlined />}>
+                                            <Button danger icon={<DeleteIcon />}>
                                                 {res.delete}
                                             </Button>
                                         </Popconfirm>
@@ -1483,12 +1468,12 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                                 )}
                                 <Space wrap>
                                     {isReuploadMissingReferenceEntry(selectedEntry) && (
-                                        <Button icon={<UploadOutlined />} onClick={() => openReupload(selectedEntry)}>
+                                        <Button icon={<UploadIcon />} onClick={() => openReupload(selectedEntry)}>
                                             {res.reuploadMissingAction}
                                         </Button>
                                     )}
                                     {isReplaceArticleResourceUrlEntry(selectedEntry) && (
-                                        <Button icon={<EditOutlined />} onClick={() => openRename(selectedEntry)}>
+                                        <Button icon={<EditIcon />} onClick={() => openRename(selectedEntry)}>
                                             {getReplaceArticleResourceUrlAction(selectedEntry)}
                                         </Button>
                                     )}
@@ -1567,11 +1552,11 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                                         }}
                                     >
                                         <Space direction="vertical" align="center" style={{ width: "100%" }}>
-                                            <UploadOutlined />
+                                            <UploadIcon />
                                             <Text>{res.uploadDrop}</Text>
                                             <Button
                                                 type="primary"
-                                                icon={<UploadOutlined />}
+                                                icon={<UploadIcon />}
                                                 loading={reuploading}
                                                 disabled={reuploading}
                                             >

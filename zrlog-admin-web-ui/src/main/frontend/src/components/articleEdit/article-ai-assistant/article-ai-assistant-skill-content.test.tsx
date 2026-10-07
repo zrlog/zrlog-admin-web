@@ -7,8 +7,8 @@ import ArticleAiAssistantSkillContent from "./article-ai-assistant-skill-content
 import ArticleAiReasoning from "./article-ai-reasoning";
 import { getRes } from "../../../utils/constants";
 
-jest.mock("@zrlog/editor/dist/ai/AIIcon", () => ({ __esModule: true, default: () => null }));
-jest.mock("@zrlog/editor/dist/editor/html-preview-panel", () => ({
+jest.mock("@zrlog/editor/core/ai/AIIcon", () => ({ __esModule: true, default: () => null }));
+jest.mock("@zrlog/editor/core/editor/html-preview-panel", () => ({
     __esModule: true,
     default: ({ htmlContent }: { htmlContent: string }) => <div>{htmlContent}</div>,
 }));

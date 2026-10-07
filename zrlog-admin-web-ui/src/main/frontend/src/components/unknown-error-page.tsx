@@ -1,4 +1,5 @@
-import Result, { ExceptionStatusType } from "antd/es/result";
+import Result from "@zrlog/ui/antd/Result";
+import type { ExceptionStatusType } from "antd/es/result";
 import { CSSProperties, FunctionComponent, ReactNode } from "react";
 
 export type ErrorPageProps = {

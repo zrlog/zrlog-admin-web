@@ -1,23 +1,13 @@
+import Typography from "@zrlog/ui/antd/Typography";
+import { Alert, Button, Checkbox, Drawer, Empty, Form, List, Radio, Select, Space } from "antd";
+import Tag from "@zrlog/ui/antd/Tag";
+import Input from "@zrlog/ui/antd/Input";
+import Popconfirm from "@zrlog/ui/antd/Popconfirm";
+import { useUiMessage } from "@zrlog/ui/feedback";
 import { formatDateTime } from "../utils/date-time";
 import { useState } from "react";
 import SettingsSection from "./common/SettingsSection";
-import {
-    Alert,
-    Button,
-    Checkbox,
-    Drawer,
-    Empty,
-    Form,
-    Input,
-    List,
-    Popconfirm,
-    Radio,
-    Select,
-    Space,
-    Tag,
-    Typography,
-    message,
-} from "antd";
+
 import { useAxiosBaseInstance } from "../base/AppBase";
 import { getRes } from "../utils/constants";
 import { getSsDate } from "../base/SsData";
@@ -59,7 +49,7 @@ export default function PersonalAccessTokens({
     const [open, setOpen] = useState(false);
     const [created, setCreated] = useState<Created>();
     const [busy, setBusy] = useState(false);
-    const [notice, contextHolder] = message.useMessage();
+    const [notice, contextHolder] = useUiMessage();
     const close = () => {
         if (busy) return;
         setOpen(false);

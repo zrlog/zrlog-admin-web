@@ -1,4 +1,6 @@
-import { Empty, Progress, Typography } from "antd";
+import Typography from "@zrlog/ui/antd/Typography";
+import Progress from "@zrlog/ui/antd/Progress";
+import { Empty } from "antd";
 import { useTheme } from "antd-style";
 import { Children, ReactNode } from "react";
 import { getRes } from "../../../../utils/constants";

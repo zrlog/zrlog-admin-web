@@ -1,4 +1,5 @@
-import { Typography } from "antd";
+import Typography from "@zrlog/ui/antd/Typography";
+import { } from "antd";
 import { FunctionComponent } from "react";
 import { getRes } from "../../../../../utils/constants";
 import { AssistantToolPayload } from "../../article-ai-assistant.types";

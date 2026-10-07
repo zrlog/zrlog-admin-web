@@ -1,6 +1,9 @@
-import { CameraOutlined, DeleteFilled } from "@ant-design/icons";
-import { message } from "antd";
-import Image from "antd/es/image";
+import Image from "@zrlog/ui/antd/Image";
+import { useUiMessage } from "@zrlog/ui/feedback";
+import CameraIcon from "@zrlog/ui/icons/camera";
+import DeleteIcon from "@zrlog/ui/icons/delete";
+
+
 import { FunctionComponent, useState } from "react";
 import { RcFile } from "antd/es/upload";
 import ResourceDragger from "../../common/ResourceDragger";
@@ -17,7 +20,7 @@ type ThumbnailUploadProps = {
 const FaviconUpload: FunctionComponent<ThumbnailUploadProps> = ({ onChange, url }) => {
     const [cropOpen, setCropOpen] = useState(false);
     const [cropImageUrl, setCropImageUrl] = useState("");
-    const [messageApi, contextHolder] = message.useMessage({ maxCount: 3 });
+    const [messageApi, contextHolder] = useUiMessage({ maxCount: 3 });
 
     const changeToDataUrl = (dataUrl: string | null) => {
         onChange?.(dataUrl);
@@ -75,7 +78,7 @@ const FaviconUpload: FunctionComponent<ThumbnailUploadProps> = ({ onChange, url 
                             alignItems: "center",
                         }}
                     >
-                        <CameraOutlined style={{ color: theme.colorTextSecondary, fontSize: theme.fontSizeHeading3 }} />
+                        <CameraIcon style={{ color: theme.colorTextSecondary, fontSize: theme.fontSizeHeading3 }} />
                     </p>
                 )}
                 {url != null && url !== "" && (
@@ -102,7 +105,7 @@ const FaviconUpload: FunctionComponent<ThumbnailUploadProps> = ({ onChange, url 
                                 e.stopPropagation();
                             }}
                         >
-                            <DeleteFilled />
+                            <DeleteIcon selected />
                         </div>
                     </div>
                 )}

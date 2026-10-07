@@ -1,5 +1,7 @@
+import { Alert, Button, Radio, Space, Typography } from "antd";
+import Input from "@zrlog/ui/antd/Input";
 import { useEffect, useRef, useState } from "react";
-import { Alert, Button, Input, Radio, Space, Typography } from "antd";
+
 import { getRes } from "../../../utils/constants";
 import type { ChatRun } from "./use-article-chat";
 

@@ -1,12 +1,14 @@
+import Switch from "@zrlog/ui/antd/Switch";
+import { useUiMessage, useUiApp } from "@zrlog/ui/feedback";
 import Row from "antd/es/grid/row";
 import Col from "antd/es/grid/col";
 import Button from "antd/es/button";
 import { getRealRouteUrl, getRes } from "../../utils/constants";
 import Form from "antd/es/form";
 import Select from "antd/es/select";
-import Switch from "antd/es/switch";
 
-import { App, message, theme } from "antd";
+
+import { theme } from "antd";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Upgrade } from "./index";
@@ -36,8 +38,8 @@ const UpgradeSettingForm = ({
     onSubmit: (data: Upgrade) => void;
 }) => {
     const [checking, setChecking] = useState<boolean>(false);
-    const { modal } = App.useApp();
-    const [messageApi, contextHolder] = message.useMessage({ maxCount: 3 });
+    const { modal } = useUiApp();
+    const [messageApi, contextHolder] = useUiMessage({ maxCount: 3 });
     const { token } = theme.useToken();
 
     const [state, setState] = useState<Upgrade>(data);

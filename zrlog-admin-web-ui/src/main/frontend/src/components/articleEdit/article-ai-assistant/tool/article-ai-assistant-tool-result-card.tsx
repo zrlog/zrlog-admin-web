@@ -1,6 +1,6 @@
 import { Avatar, Space, Typography } from "antd";
 import { FunctionComponent, ReactNode, useId } from "react";
-import AIIcon from "@zrlog/editor/dist/ai/AIIcon";
+import AIIcon from "../../../../icons/AIProviderIcon";
 import { useTheme } from "antd-style";
 import { AssistantTool } from "../article-ai-assistant.types";
 import { getAssistantToolLabel } from "./article-ai-assistant-tools";

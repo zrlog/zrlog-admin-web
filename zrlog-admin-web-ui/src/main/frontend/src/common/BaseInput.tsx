@@ -1,4 +1,5 @@
-import { Input, InputRef } from "antd";
+import Input from "@zrlog/ui/antd/Input";
+import { InputRef } from "antd";
 import React, { forwardRef, ReactElement, ReactNode, RefObject, useState } from "react";
 import { InputStatus } from "antd/es/_util/statusUtils";
 import { Variant } from "antd/es/config-provider/context";

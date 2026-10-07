@@ -1,5 +1,6 @@
-import HtmlPreviewPanel from "@zrlog/editor/dist/editor/html-preview-panel";
-import { Empty, Space, Tag, Typography } from "antd";
+import Tag from "@zrlog/ui/antd/Tag";
+import HtmlPreviewPanel from "@zrlog/editor/core/editor/html-preview-panel";
+import { Empty, Space, Typography } from "antd";
 import { useTheme } from "antd-style";
 import type { CSSProperties, FunctionComponent, ReactNode } from "react";
 import Tags from "../../common/Tags";

@@ -1,5 +1,9 @@
+import ChevronDownIcon from "@zrlog/ui/icons/chevron-down";
+import KeyIcon from "@zrlog/ui/icons/key";
+import LogoutIcon from "@zrlog/ui/icons/logout";
+import UserIcon from "@zrlog/ui/icons/user";
 import { USER_ROUTES } from "../utils/account-page-routes";
-import { DownOutlined, KeyOutlined, LogoutOutlined, UserOutlined } from "@ant-design/icons";
+
 import { Avatar, MenuProps, Modal, Typography } from "antd";
 import { Link } from "react-router-dom";
 
@@ -20,7 +24,7 @@ const UserInfo = ({ data, offline }: { data: BasicUserInfo; offline: boolean }) 
         const base: NonNullable<MenuProps["items"]> = [
             {
                 key: "1",
-                icon: <UserOutlined />,
+                icon: <UserIcon />,
                 label: (
                     <Link
                         style={{ whiteSpace: "nowrap" }}
@@ -33,7 +37,7 @@ const UserInfo = ({ data, offline }: { data: BasicUserInfo; offline: boolean }) 
             },
             {
                 key: "2",
-                icon: <KeyOutlined />,
+                icon: <KeyIcon />,
                 label: (
                     <Link to={getRealRouteUrl(USER_ROUTES.security)} onClick={(e) => tryBlock(e, modal)}>
                         {res.accountSecurity.title}
@@ -50,7 +54,7 @@ const UserInfo = ({ data, offline }: { data: BasicUserInfo; offline: boolean }) 
                 ...base,
                 {
                     key: "3",
-                    icon: <LogoutOutlined />,
+                    icon: <LogoutIcon />,
                     label: (
                         <a
                             href={getBackendServerUrl() + "admin/logout" + (isStaticPage() ? "?sp=true" : "")}
@@ -85,7 +89,7 @@ const UserInfo = ({ data, offline }: { data: BasicUserInfo; offline: boolean }) 
                         className={"userAvatarImg"}
                         src={resolveBackendImageSrc(data.header)}
                         size={32}
-                        icon={<UserOutlined />}
+                        icon={<UserIcon />}
                     />
                     <Text
                         style={{
@@ -95,7 +99,7 @@ const UserInfo = ({ data, offline }: { data: BasicUserInfo; offline: boolean }) 
                     >
                         {data.userName}
                     </Text>
-                    <DownOutlined />
+                    <ChevronDownIcon />
                 </div>
             </Dropdown>
         </>

@@ -1,6 +1,7 @@
+import AlertIcon from "@zrlog/ui/icons/alert";
 import * as H from "history";
 import React from "react";
-import { ExclamationCircleOutlined } from "@ant-design/icons";
+
 import { HookAPI } from "antd/es/modal/useModal";
 import { EditorUser } from "@zrlog/editor/dist/type";
 import { getCacheByKey } from "./cache";
@@ -114,7 +115,7 @@ export const tryBlock = (e: React.MouseEvent, modal: HookAPI) => {
     if (window.onbeforeunload !== null) {
         modal.warning({
             title: getRes().common.tips,
-            icon: <ExclamationCircleOutlined />,
+            icon: <AlertIcon />,
             content: getExitTips(),
         });
         e.preventDefault();

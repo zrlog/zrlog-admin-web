@@ -1,7 +1,8 @@
+import EditIcon from "@zrlog/ui/icons/edit";
 import BaseTable, { PageDataSource } from "../../common/BaseTable";
 import { getLabelValueSeparator, getRes } from "../../utils/constants";
 import CreateOrEditNav from "./create_or_edit_nav";
-import { EditOutlined } from "@ant-design/icons";
+
 import { getAppState } from "../../base/ConfigProviderApp";
 import { Button, Grid, Space, Typography } from "antd";
 
@@ -122,7 +123,7 @@ const Nav = ({ data, offline }: { data: PageDataSource; offline: boolean }) => {
                             type="text"
                             size="small"
                             title={getRes().edit}
-                            icon={<EditOutlined style={{ color: getAppState().colorPrimary }} />}
+                            icon={<EditIcon style={{ color: getAppState().colorPrimary }} />}
                         />
                     </CreateOrEditNav>
                 )}

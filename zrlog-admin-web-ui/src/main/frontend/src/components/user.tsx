@@ -1,3 +1,5 @@
+import Input from "@zrlog/ui/antd/Input";
+import { useUiMessage } from "@zrlog/ui/feedback";
 import UserSettingsLayout from "./common/UserSettingsLayout";
 import SettingsSubmitBar from "./common/SettingsSubmitBar";
 import { UserApplications, UserApplicationsData } from "./oauth";
@@ -7,7 +9,7 @@ import type { AdminCommonProps } from "../type";
 import UserPreferencesForm from "./user-preferences";
 import { useState } from "react";
 import Form from "antd/es/form";
-import { Input, message, theme } from "antd";
+import { theme } from "antd";
 import Row from "antd/es/grid/row";
 import Col from "antd/es/grid/col";
 import Constants, { getRes } from "../utils/constants";
@@ -35,7 +37,7 @@ const UserProfile = ({ data, offline }: { data: BasicUserInfo; offline: boolean 
     const [cropOpen, setCropOpen] = useState(false);
     const [cropImageUrl, setCropImageUrl] = useState("");
     const [submitting, setSubmitting] = useState(false);
-    const [messageApi, contextHolder] = message.useMessage({ maxCount: 3 });
+    const [messageApi, contextHolder] = useUiMessage({ maxCount: 3 });
     const { formLayout } = useResponsiveFormLayout(layout);
     const { token } = theme.useToken();
 

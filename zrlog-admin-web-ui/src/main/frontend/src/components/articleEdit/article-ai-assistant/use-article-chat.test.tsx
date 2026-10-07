@@ -6,7 +6,7 @@ import { getRes } from "../../../utils/constants";
 import { BasicUserInfo } from "../../../type";
 import { ChatMessage, ChatRun, parseChatEvents, renderChatMessage, useArticleChat } from "./use-article-chat";
 
-jest.mock("@zrlog/editor/dist/editor/html-preview-panel", () => ({
+jest.mock("@zrlog/editor/core/editor/html-preview-panel", () => ({
     __esModule: true,
     default: ({ htmlContent }: { htmlContent: string }) => <div>{htmlContent}</div>,
 }));

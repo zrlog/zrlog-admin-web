@@ -1,18 +1,16 @@
-import {
-    AppleOutlined,
-    ArrowRightOutlined,
-    ClockCircleOutlined,
-    CloudServerOutlined,
-    CodeOutlined,
-    DashboardOutlined,
-    DatabaseOutlined,
-    DockerOutlined,
-    GlobalOutlined,
-    HddOutlined,
-    PartitionOutlined,
-    SettingOutlined,
-    WindowsOutlined,
-} from "@ant-design/icons";
+import AppleOutlined from "@ant-design/icons/lib/icons/AppleOutlined";
+import ArrowRightIcon from "@zrlog/ui/icons/arrow-right";
+import TimeIcon from "@zrlog/ui/icons/time";
+import ServerIcon from "@zrlog/ui/icons/server";
+import CodeIcon from "@zrlog/ui/icons/code";
+import DashboardIcon from "@zrlog/ui/icons/dashboard";
+import DatabaseIcon from "@zrlog/ui/icons/database";
+import DockerOutlined from "@ant-design/icons/lib/icons/DockerOutlined";
+import GlobeIcon from "@zrlog/ui/icons/globe";
+import DiskIcon from "@zrlog/ui/icons/disk";
+import PartitionIcon from "@zrlog/ui/icons/partition";
+import SettingsIcon from "@zrlog/ui/icons/settings";
+import WindowsOutlined from "@ant-design/icons/lib/icons/WindowsOutlined";
 import LinuxOutlined from "@ant-design/icons/lib/icons/LinuxOutlined";
 import { Card, Col, Row, Space, Typography } from "antd";
 import { useTheme } from "antd-style";
@@ -210,33 +208,33 @@ const ServerInfo = ({ data }: ServerInfoProps) => {
             return <WindowsOutlined />;
         }
         if (item.key === "usedCacheSpace" || item.key === "usedDiskSpace") {
-            return <HddOutlined />;
+            return <DiskIcon />;
         }
         if (item.key === "usedMemorySpace" || item.key === "totalMemorySpace") {
             return <MemoryIcon />;
         }
         if (item.key === "dbInfo" || item.key === "dbConnectSize") {
-            return <DatabaseOutlined />;
+            return <DatabaseIcon />;
         }
         if (item.key === "cpuInfo" || item.key === "cpuLoad" || item.key === "systemLoad") {
             return <CPUIcon />;
         }
         if (item.key === "webServer") {
-            return <CloudServerOutlined />;
+            return <ServerIcon />;
         }
         if (item.key === "runPath") {
-            return <PartitionOutlined />;
+            return <PartitionIcon />;
         }
         if (item.key === "timezone" || item.key === "uptime") {
-            return <ClockCircleOutlined />;
+            return <TimeIcon />;
         }
         if (item.key === "locale") {
-            return <GlobalOutlined />;
+            return <GlobeIcon />;
         }
         if (item.key === "encoding") {
-            return <CodeOutlined />;
+            return <CodeIcon />;
         }
-        return <GlobalOutlined />;
+        return <GlobeIcon />;
     };
 
     const renderIconBox = (item: ServerInfoEntry) => {
@@ -428,7 +426,7 @@ const ServerInfo = ({ data }: ServerInfoProps) => {
                             flexShrink: 0,
                         }}
                     >
-                        <ArrowRightOutlined />
+                        <ArrowRightIcon />
                     </span>
                 ) : null}
             </div>
@@ -528,7 +526,7 @@ const ServerInfo = ({ data }: ServerInfoProps) => {
         <Space direction="vertical" size={theme.marginMD} style={{ width: "100%" }}>
             {overviewItems.length > 0 ? (
                 <Card
-                    title={renderSectionTitle(<DashboardOutlined />, getRes().system.overview)}
+                    title={renderSectionTitle(<DashboardIcon />, getRes().system.overview)}
                     styles={{ body: { padding: theme.padding } }}
                 >
                     <Row gutter={[theme.marginSM, theme.marginSM]}>
@@ -542,21 +540,21 @@ const ServerInfo = ({ data }: ServerInfoProps) => {
             ) : null}
 
             <Card
-                title={renderSectionTitle(<CloudServerOutlined />, getRes().system.applicationRuntime)}
+                title={renderSectionTitle(<ServerIcon />, getRes().system.applicationRuntime)}
                 styles={{ body: { padding: theme.padding } }}
             >
                 {renderInfoGrid(applicationItems, getApplicationSpan)}
             </Card>
 
             <Card
-                title={renderSectionTitle(<SettingOutlined />, getRes().system.systemConfiguration)}
+                title={renderSectionTitle(<SettingsIcon />, getRes().system.systemConfiguration)}
                 styles={{ body: { padding: theme.padding } }}
             >
                 {renderInfoGrid(configurationItems, getConfigurationSpan)}
             </Card>
 
             <Card
-                title={renderSectionTitle(<HddOutlined />, getRes().system.resourceStatus)}
+                title={renderSectionTitle(<DiskIcon />, getRes().system.resourceStatus)}
                 styles={{ body: { padding: theme.padding } }}
             >
                 <Row gutter={[theme.marginSM, theme.marginSM]}>

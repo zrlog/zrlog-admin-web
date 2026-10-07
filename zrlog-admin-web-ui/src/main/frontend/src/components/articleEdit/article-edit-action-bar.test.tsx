@@ -27,7 +27,7 @@ jest.mock("@ant-design/icons", () => {
 
 jest.mock("../../base/AppBase", () => ({ useAxiosBaseInstance: () => ({}) }));
 jest.mock("antd-style", () => ({ useTheme: () => ({}) }));
-jest.mock("@zrlog/editor/dist/ai/AIDrawer", () => ({ getAiDrawerOpen: () => false }));
+jest.mock("@zrlog/editor/core/ai/AIDrawer", () => ({ getAiDrawerOpen: () => false }));
 jest.mock("./article-ai-assistant/article-ai-assistant-button", () => ({
     __esModule: true,
     default: () => null,

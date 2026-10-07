@@ -3,7 +3,7 @@ import { articleContextRevision } from "./article-ai-assistant/article-ai-skill-
 import { act, SetStateAction, useSyncExternalStore } from "react";
 import { createRoot, Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { AIContent } from "@zrlog/editor/dist/ai/AIContentItem";
+import { AIContent } from "@zrlog/editor/core/ai/AIContentItem";
 import {
     articleDataToState,
     articleSaveToCache,

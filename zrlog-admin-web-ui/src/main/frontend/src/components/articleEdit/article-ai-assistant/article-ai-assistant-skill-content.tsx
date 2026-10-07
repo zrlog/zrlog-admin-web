@@ -1,7 +1,12 @@
+import Tag from "@zrlog/ui/antd/Tag";
+import Input from "@zrlog/ui/antd/Input";
+import ArrowUpIcon from "@zrlog/ui/icons/arrow-up";
+import CloseIcon from "@zrlog/ui/icons/close";
+import InfoIcon from "@zrlog/ui/icons/info";
 import { FunctionComponent, useEffect, useId, useState } from "react";
-import { Button, Input, Space, Tag, Typography } from "antd";
-import { ArrowUpOutlined, CloseOutlined, InfoCircleOutlined } from "@ant-design/icons";
-import AIIcon from "@zrlog/editor/dist/ai/AIIcon";
+import { Button, Space, Typography } from "antd";
+
+import AIIcon from "../../../icons/AIProviderIcon";
 import { getEditorRes } from "@zrlog/editor/dist/editor/lang/editor-lang";
 import { getRes } from "../../../utils/constants";
 import { AssistantTool, AssistantToolButton } from "./article-ai-assistant.types";
@@ -274,7 +279,7 @@ const ArticleAiAssistantSkillContent: FunctionComponent<ArticleAiAssistantSkillC
                                 </Typography.Text>
                                 <Button
                                     type="text"
-                                    icon={<CloseOutlined />}
+                                    icon={<CloseIcon />}
                                     aria-label={assistantRes.removeQueued}
                                     title={assistantRes.removeQueued}
                                     onClick={() => onRemoveQueued(message.id)}
@@ -333,7 +338,7 @@ const ArticleAiAssistantSkillContent: FunctionComponent<ArticleAiAssistantSkillC
                                 }}
                             />
                         ) : (
-                            <ArrowUpOutlined />
+                            <ArrowUpIcon />
                         )
                     }
                     disabled={busy ? !onStop : cannotSubmit}
@@ -376,7 +381,7 @@ const ArticleAiAssistantSkillContent: FunctionComponent<ArticleAiAssistantSkillC
                     marginTop: 8,
                 }}
             >
-                <InfoCircleOutlined />
+                <InfoIcon />
                 {getEditorRes("ai").contentTips}
             </Typography.Text>
         </>

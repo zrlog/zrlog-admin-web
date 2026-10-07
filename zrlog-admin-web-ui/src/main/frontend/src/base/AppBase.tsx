@@ -1,6 +1,7 @@
+import { useUiApp } from "@zrlog/ui/feedback";
 import { Route, Routes, useNavigate } from "react-router-dom";
 import { lazy, Suspense, useMemo } from "react";
-import { App, Spin } from "antd";
+import { Spin } from "antd";
 import axios, { AxiosError, AxiosInstance } from "axios";
 import { API_DO_UPGRADE_PATH, API_VERSION_PATH } from "../api";
 import ErrorBoundary from "../common/ErrorBoundary";
@@ -42,7 +43,7 @@ export const jumpToLoginPage = (navigate: NavigateFunction): void => {
 };
 
 export const useAxiosBaseInstance = (getContainer?: () => HTMLElement): AxiosInstance => {
-    const { modal, message } = App.useApp();
+    const { modal, message } = useUiApp();
     const navigate = useNavigate();
 
     return useMemo(() => {

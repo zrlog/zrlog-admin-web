@@ -1,6 +1,9 @@
+import Input from "@zrlog/ui/antd/Input";
+import { useUiMessage } from "@zrlog/ui/feedback";
+import IdeaIcon from "@zrlog/ui/icons/idea";
 import { isModuleEnabled } from "../../utils/module-capabilities";
 import Form from "antd/es/form";
-import Input from "antd/es/input";
+
 import TextArea from "antd/es/input/TextArea";
 import Button from "antd/es/button";
 import { getRes } from "../../utils/constants";
@@ -8,8 +11,8 @@ import { useEffect, useState } from "react";
 import { Basic } from "./index";
 import FaviconUpload from "./FaviconUpload";
 import { useAxiosBaseInstance } from "../../base/AppBase";
-import { message } from "antd";
-import { BulbOutlined } from "@ant-design/icons";
+
+
 import { getAppState } from "../../base/ConfigProviderApp";
 import { useResponsiveFormLayout } from "../../utils/responsive-form";
 import WebsiteSubmitBar from "./WebsiteSubmitBar";
@@ -36,7 +39,7 @@ const BasicForm = ({
     const [optimizingDescription, setOptimizingDescription] = useState(false);
     const [form] = Form.useForm();
     const axiosInstance = useAxiosBaseInstance();
-    const [messageApi, contextHolder] = message.useMessage({ maxCount: 3 });
+    const [messageApi, contextHolder] = useUiMessage({ maxCount: 3 });
     const { formLayout } = useResponsiveFormLayout(layout);
 
     useEffect(() => {
@@ -101,7 +104,7 @@ const BasicForm = ({
                         <Button
                             type="link"
                             size="small"
-                            icon={<BulbOutlined />}
+                            icon={<IdeaIcon />}
                             style={{ padding: 0, height: "auto", marginTop: 4, color: getAppState().colorPrimary }}
                             disabled={offline || offlineData}
                             loading={optimizingDescription}

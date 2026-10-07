@@ -1,6 +1,10 @@
+import Switch from "@zrlog/ui/antd/Switch";
+import Input from "@zrlog/ui/antd/Input";
+import { useUiApp } from "@zrlog/ui/feedback";
+import CameraIcon from "@zrlog/ui/icons/camera";
 import { Fragment, lazy, Suspense, useEffect } from "react";
-import { App, Card, ColorPicker, Empty, Form, Input, Spin, Switch } from "antd";
-import { CameraOutlined } from "@ant-design/icons";
+import { Card, ColorPicker, Empty, Form, Spin } from "antd";
+
 import { useTheme } from "antd-style";
 import { getPreset, getRes } from "../../utils/constants";
 import { colorPickerBgColors } from "../../utils/helpers";
@@ -24,7 +28,7 @@ type TemplateConfigFormProps = {
 
 const TemplateConfigForm = ({ data, values, onChange, onSubmit, formId, disabled }: TemplateConfigFormProps) => {
     const [form] = Form.useForm();
-    const { message } = App.useApp();
+    const { message } = useUiApp();
     const theme = useTheme();
     const imagePreviewSize = 128 - theme.padding * 2;
     const axiosInstance = useAxiosBaseInstance();
@@ -65,7 +69,7 @@ const TemplateConfigForm = ({ data, values, onChange, onSubmit, formId, disabled
                                 margin: "0 auto",
                             }}
                         >
-                            <CameraOutlined
+                            <CameraIcon
                                 style={{ color: theme.colorTextSecondary, fontSize: theme.fontSizeHeading2 }}
                             />
                         </div>

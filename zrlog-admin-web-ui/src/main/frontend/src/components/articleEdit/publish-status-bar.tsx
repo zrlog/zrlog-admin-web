@@ -1,13 +1,13 @@
-import { Button, Drawer, Popover, Space, Tag, Typography } from "antd";
-import {
-    CheckCircleOutlined,
-    CloseOutlined,
-    ExclamationCircleOutlined,
-    ExportOutlined,
-    InfoCircleOutlined,
-    LoadingOutlined,
-    MessageOutlined,
-} from "@ant-design/icons";
+import Tag from "@zrlog/ui/antd/Tag";
+import SuccessIcon from "@zrlog/ui/icons/success";
+import CloseIcon from "@zrlog/ui/icons/close";
+import AlertIcon from "@zrlog/ui/icons/alert";
+import ExternalLinkIcon from "@zrlog/ui/icons/external-link";
+import InfoIcon from "@zrlog/ui/icons/info";
+import LoadingIcon from "@zrlog/ui/icons/loading";
+import MessageIcon from "@zrlog/ui/icons/message";
+import { Button, Drawer, Popover, Space, Typography } from "antd";
+
 import { CSSProperties, FunctionComponent } from "react";
 import { getLabelValueSeparator, getRes } from "../../utils/constants";
 import { ArticleEditState, PublishCheckTarget, PublishStatusPopoverState } from "./index.types";
@@ -80,7 +80,7 @@ const PublishStatusBar: FunctionComponent<PublishStatusBarProps> = ({
             publishStatus.staticStatus === "failed" ||
             publishStatus.checkStatus === "error"
         ) {
-            return <ExclamationCircleOutlined />;
+            return <AlertIcon />;
         }
         if (
             publishStatus.publishState === "running" ||
@@ -88,12 +88,12 @@ const PublishStatusBar: FunctionComponent<PublishStatusBarProps> = ({
             publishStatus.checkStatus === "running" ||
             saving.releaseSaving
         ) {
-            return <LoadingOutlined />;
+            return <LoadingIcon />;
         }
         if (publishStatus.publishState === "success" || publishStatus.checkStatus === "success") {
-            return <CheckCircleOutlined />;
+            return <SuccessIcon />;
         }
-        return <InfoCircleOutlined />;
+        return <InfoIcon />;
     };
 
     const getTriggerText = () => {
@@ -175,7 +175,7 @@ const PublishStatusBar: FunctionComponent<PublishStatusBarProps> = ({
                     }}
                 >
                     {title}
-                    <Button size="small" type="text" icon={<CloseOutlined />} onClick={onClose} />
+                    <Button size="small" type="text" icon={<CloseIcon />} onClick={onClose} />
                 </div>
             )}
             <Space direction="vertical" size={6} style={{ width: "100%" }}>
@@ -217,7 +217,7 @@ const PublishStatusBar: FunctionComponent<PublishStatusBarProps> = ({
                         rel="noopener noreferrer"
                         style={{ overflowWrap: "anywhere" }}
                     >
-                        <ExportOutlined style={{ marginInlineEnd: theme.marginXXS }} />
+                        <ExternalLinkIcon style={{ marginInlineEnd: theme.marginXXS }} />
                         {publishStatus.publicUrl}
                     </Typography.Link>
                 </Space>
@@ -236,7 +236,7 @@ const PublishStatusBar: FunctionComponent<PublishStatusBarProps> = ({
                         <Button
                             size="small"
                             type="link"
-                            icon={<MessageOutlined />}
+                            icon={<MessageIcon />}
                             style={{ paddingInline: 0, whiteSpace: "normal", height: "auto", textAlign: "start" }}
                             onClick={() => {
                                 onOpenAssistant();

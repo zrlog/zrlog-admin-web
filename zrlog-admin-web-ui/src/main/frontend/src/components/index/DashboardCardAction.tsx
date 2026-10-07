@@ -1,4 +1,4 @@
-import { RightOutlined } from "@ant-design/icons";
+import ChevronRightIcon from "@zrlog/ui/icons/chevron-right";
 import { Button } from "antd";
 import { useTheme } from "antd-style";
 import { CSSProperties, ReactNode } from "react";
@@ -27,7 +27,7 @@ const DashboardCardAction = (props: DashboardCardActionProps) => {
     const content = (
         <>
             <span>{props.children}</span>
-            <RightOutlined />
+            <ChevronRightIcon />
         </>
     );
 

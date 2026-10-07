@@ -1,4 +1,5 @@
-import { Image, ImageProps } from "antd";
+import Image from "@zrlog/ui/antd/Image";
+import { ImageProps } from "antd";
 import { tryAppendBackendServerUrl } from "../utils/constants";
 
 const shouldResolveBackendUrl = (src?: string) => {

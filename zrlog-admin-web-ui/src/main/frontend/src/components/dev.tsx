@@ -1,6 +1,10 @@
+import Tag from "@zrlog/ui/antd/Tag";
+import Switch from "@zrlog/ui/antd/Switch";
+import Table from "@zrlog/ui/antd/Table";
+import { useUiMessage } from "@zrlog/ui/feedback";
 import { FunctionComponent, useState } from "react";
 import { AdminCommonProps } from "../type";
-import { Button, Card, Empty, Grid, message, Space, Switch, Table, TableColumnsType, Tag, Typography } from "antd";
+import { Button, Card, Empty, Grid, Space, TableColumnsType, Typography } from "antd";
 import { useNavigate } from "react-router-dom";
 import { useAxiosBaseInstance } from "../base/AppBase";
 import { getLabelValueSeparator, getRes } from "../utils/constants";
@@ -33,7 +37,7 @@ const Dev: FunctionComponent<AdminCommonProps<DevResponse>> = ({ data }) => {
     const cacheEntries = data.cacheEntries ?? [];
     const renderEntryCount = (count: number) => res.entryCount.replace("{count}", `${count}`);
 
-    const [messageApi, messageContextHolder] = message.useMessage({
+    const [messageApi, messageContextHolder] = useUiMessage({
         maxCount: 3,
     });
 

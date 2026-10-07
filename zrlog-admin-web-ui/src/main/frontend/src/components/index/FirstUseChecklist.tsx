@@ -1,4 +1,8 @@
-import { CloseOutlined, EditOutlined, EyeOutlined, FileMarkdownOutlined, HomeOutlined } from "@ant-design/icons";
+import CloseIcon from "@zrlog/ui/icons/close";
+import EditIcon from "@zrlog/ui/icons/edit";
+import EyeIcon from "@zrlog/ui/icons/eye";
+import MarkdownIcon from "@zrlog/ui/icons/markdown";
+import HomeIcon from "@zrlog/ui/icons/home";
 import { Button, Typography } from "antd";
 import { useTheme } from "antd-style";
 import { Link } from "react-router-dom";
@@ -55,7 +59,7 @@ const FirstUseChecklist = ({ dismissing, onDismiss }: FirstUseChecklistProps) =>
                 }}
             >
                 <Typography.Text strong>{res.title}</Typography.Text>
-                <Button type="text" size="small" icon={<CloseOutlined />} loading={dismissing} onClick={onDismiss}>
+                <Button type="text" size="small" icon={<CloseIcon />} loading={dismissing} onClick={onDismiss}>
                     {res.dismiss}
                 </Button>
             </div>
@@ -69,7 +73,7 @@ const FirstUseChecklist = ({ dismissing, onDismiss }: FirstUseChecklistProps) =>
             >
                 <div role="listitem" style={itemStyle}>
                     <span style={iconStyle}>
-                        <HomeOutlined />
+                        <HomeIcon />
                     </span>
                     <div style={{ minWidth: 0 }}>
                         <Typography.Text strong style={{ display: "block" }}>
@@ -81,7 +85,7 @@ const FirstUseChecklist = ({ dismissing, onDismiss }: FirstUseChecklistProps) =>
                             href={homeUrl.toString()}
                             target="_blank"
                             rel="noopener noreferrer"
-                            icon={<EyeOutlined />}
+                            icon={<EyeIcon />}
                             style={{ height: "auto", padding: "4px 0" }}
                         >
                             {res.openSite}
@@ -90,7 +94,7 @@ const FirstUseChecklist = ({ dismissing, onDismiss }: FirstUseChecklistProps) =>
                 </div>
                 <div role="listitem" style={itemStyle}>
                     <span style={iconStyle}>
-                        <EditOutlined />
+                        <EditIcon />
                     </span>
                     <div style={{ minWidth: 0 }}>
                         <Typography.Text strong style={{ display: "block" }}>
@@ -99,14 +103,14 @@ const FirstUseChecklist = ({ dismissing, onDismiss }: FirstUseChecklistProps) =>
                         <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                             <Link to={getRealRouteUrl("/article-edit")}>{res.createArticle}</Link>
                             <Link to={getRealRouteUrl("/article-edit?intent=import-markdown")}>
-                                <FileMarkdownOutlined /> {res.importMarkdown}
+                                <MarkdownIcon /> {res.importMarkdown}
                             </Link>
                         </div>
                     </div>
                 </div>
                 <div role="listitem" style={itemStyle}>
                     <span style={iconStyle}>
-                        <EyeOutlined />
+                        <EyeIcon />
                     </span>
                     <div style={{ minWidth: 0 }}>
                         <Typography.Text strong style={{ display: "block" }}>

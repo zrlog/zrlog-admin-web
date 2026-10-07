@@ -4,8 +4,8 @@ import { afterEach, beforeEach, expect, it, jest } from "@jest/globals";
 import { App, ConfigProvider } from "antd";
 import ArticleAiAssistantDrawer from "./article-ai-assistant-drawer";
 
-jest.mock("@zrlog/editor/dist/ai/AIContentItem", () => ({ __esModule: true, default: () => null }));
-jest.mock("@zrlog/editor/dist/ai/AIIcon", () => ({ __esModule: true, default: () => null }));
+jest.mock("@zrlog/editor/core/ai/AIContentItem", () => ({ __esModule: true, default: () => null }));
+jest.mock("@zrlog/editor/core/ai/AIIcon", () => ({ __esModule: true, default: () => null }));
 jest.mock("@zrlog/editor/dist/ai/AIStateCache", () => ({
     getAIStateCacheKey: (cache: { key: string }, name: string) => `${cache.key}/${name}`,
 }));

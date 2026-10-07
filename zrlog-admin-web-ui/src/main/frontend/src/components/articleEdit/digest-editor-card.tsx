@@ -1,11 +1,14 @@
+import IdeaIcon from "@zrlog/ui/icons/idea";
+import CheckIcon from "@zrlog/ui/icons/check";
+import EditIcon from "@zrlog/ui/icons/edit";
 import { getRes } from "../../utils/constants";
-import { BulbOutlined, CheckOutlined, EditOutlined } from "@ant-design/icons";
+
 import Card from "antd/es/card";
 import { FunctionComponent, memo, RefObject, useEffect, useRef, useState } from "react";
 import { Button, InputRef, Space } from "antd";
 import { ArticleChangeableValue } from "./index.types";
 import { getAppState } from "../../base/ConfigProviderApp";
-import HtmlPreviewPanel from "@zrlog/editor/dist/editor/html-preview-panel";
+import HtmlPreviewPanel from "@zrlog/editor/core/editor/html-preview-panel";
 import BaseTextArea from "@zrlog/editor/dist/editor/common/BaseTextArea";
 
 type DigestEditorCardProps = {
@@ -79,7 +82,7 @@ const DigestEditorCard: FunctionComponent<DigestEditorCardProps> = memo(
                 <Button
                     type="text"
                     size="small"
-                    icon={<BulbOutlined />}
+                    icon={<IdeaIcon />}
                     loading={generatingDigest}
                     title={getRes().articleEdit.digest.generate}
                     onClick={onGenerateDigest}
@@ -93,7 +96,7 @@ const DigestEditorCard: FunctionComponent<DigestEditorCardProps> = memo(
                 return (
                     <Space size={4}>
                         {generateButton}
-                        <CheckOutlined
+                        <CheckIcon
                             onClick={() => {
                                 setEditDigest(false);
                             }}
@@ -105,7 +108,7 @@ const DigestEditorCard: FunctionComponent<DigestEditorCardProps> = memo(
             return (
                 <Space size={4}>
                     {generateButton}
-                    <EditOutlined
+                    <EditIcon
                         onClick={() => {
                             setEditDigest(true);
                         }}

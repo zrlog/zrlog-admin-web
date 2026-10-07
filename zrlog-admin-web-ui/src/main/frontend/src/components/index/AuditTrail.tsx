@@ -1,5 +1,11 @@
-import { Card, Drawer, Tag, Timeline, Typography } from "antd";
-import { EditOutlined, HistoryOutlined, LoginOutlined, SettingOutlined } from "@ant-design/icons";
+import Tag from "@zrlog/ui/antd/Tag";
+import EditIcon from "@zrlog/ui/icons/edit";
+import HistoryIcon from "@zrlog/ui/icons/history";
+import LoadingIcon from "@zrlog/ui/icons/loading";
+import LoginIcon from "@zrlog/ui/icons/login";
+import SettingsIcon from "@zrlog/ui/icons/settings";
+import { Card, Drawer, Timeline, Typography } from "antd";
+
 import TimeAgo from "@zrlog/editor/dist/editor/TimeAgo";
 import React, { useState } from "react";
 import { getRes } from "../../utils/constants";
@@ -28,20 +34,20 @@ const AuditTrail: React.FC<AuditTrailProps> = ({ data }) => {
         switch (type) {
             case "LOGIN":
             case "login":
-                return <LoginOutlined style={{ color: theme.colorInfo }} />;
+                return <LoginIcon style={{ color: theme.colorInfo }} />;
             case "ARTICLE":
             case "article":
-                return <EditOutlined style={{ color: theme.colorSuccess }} />;
+                return <EditIcon style={{ color: theme.colorSuccess }} />;
             case "SETTING":
             case "setting":
-                return <SettingOutlined style={{ color: theme.colorPrimary }} />;
+                return <SettingsIcon style={{ color: theme.colorPrimary }} />;
             default:
-                return <HistoryOutlined />;
+                return <HistoryIcon />;
         }
     };
 
     const renderTimeline = (data: AuditLog[]) => (
-        <Timeline pending={loading} reverse={false}>
+        <Timeline pending={loading} pendingDot={<LoadingIcon />} reverse={false}>
             {data.map((log, index) => (
                 <Timeline.Item key={index} dot={getIcon(log.type)}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
@@ -88,7 +94,7 @@ const AuditTrail: React.FC<AuditTrailProps> = ({ data }) => {
             <Card
                 title={
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <HistoryOutlined />
+                        <HistoryIcon />
                         <span>{getRes().index.audit.label}</span>
                     </div>
                 }
@@ -109,7 +115,7 @@ const AuditTrail: React.FC<AuditTrailProps> = ({ data }) => {
             <Drawer
                 title={
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <HistoryOutlined />
+                        <HistoryIcon />
                         <span>{getRes().index.audit.full}</span>
                     </div>
                 }

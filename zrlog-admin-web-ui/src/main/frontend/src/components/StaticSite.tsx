@@ -1,7 +1,10 @@
+import { useUiMessage } from "@zrlog/ui/feedback";
+import LoadingIcon from "@zrlog/ui/icons/loading";
+import SyncIcon from "@zrlog/ui/icons/sync";
 import { FunctionComponent, useState } from "react";
 import { AdminCommonProps } from "../type";
-import { FloatButton, message } from "antd";
-import { LoadingOutlined, SyncOutlined } from "@ant-design/icons";
+import { FloatButton } from "antd";
+
 import { getRes } from "../utils/constants";
 import { postRefreshCacheSse } from "../utils/sse-utils";
 import { refreshLocationForce } from "../utils/helpers";
@@ -22,7 +25,7 @@ const StaticSite: FunctionComponent<AdminCommonProps<StaticSiteData>> = ({ data 
         syncing: false,
     });
 
-    const [messageApi, messageContextHolder] = message.useMessage({
+    const [messageApi, messageContextHolder] = useUiMessage({
         maxCount: 3,
     });
 
@@ -96,7 +99,7 @@ const StaticSite: FunctionComponent<AdminCommonProps<StaticSiteData>> = ({ data 
                         });
                     }
                 }}
-                icon={state.syncing ? <LoadingOutlined /> : <SyncOutlined />}
+                icon={state.syncing ? <LoadingIcon /> : <SyncIcon />}
             />
         </>
     );

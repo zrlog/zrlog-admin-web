@@ -1,5 +1,7 @@
-import { SearchOutlined } from "@ant-design/icons";
-import { Avatar, Grid, Input, List, Modal, Space, Spin, Tag } from "antd";
+import Tag from "@zrlog/ui/antd/Tag";
+import Input from "@zrlog/ui/antd/Input";
+import SearchIcon from "@zrlog/ui/icons/search";
+import { Avatar, Grid, List, Modal, Space, Spin } from "antd";
 import { useTheme } from "antd-style";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -343,13 +345,13 @@ const SpotlightSearch = ({
                         color: theme.colorTextSecondary,
                     }}
                 >
-                    <SearchOutlined style={{ fontSize: 18 }} />
+                    <SearchIcon style={{ fontSize: 18 }} />
                 </div>
             ) : (
                 <Input
                     onClick={() => setOpen(true)}
                     onMouseDown={(e) => e.preventDefault()}
-                    prefix={<SearchOutlined style={{ color: theme.colorTextTertiary }} />}
+                    prefix={<SearchIcon style={{ color: theme.colorTextTertiary }} />}
                     suffix={
                         <div
                             style={{
@@ -413,7 +415,7 @@ const SpotlightSearch = ({
                             ref={inputRef}
                             variant="borderless"
                             prefix={
-                                <SearchOutlined style={{ fontSize: 20, color: theme.colorPrimary, marginRight: 8 }} />
+                                <SearchIcon style={{ fontSize: 20, color: theme.colorPrimary, marginRight: 8 }} />
                             }
                             placeholder={getRes().searchTip}
                             value={keyword}

@@ -1,19 +1,23 @@
+import { Alert, Button, Space, Typography } from "antd";
+import Tag from "@zrlog/ui/antd/Tag";
+import { useUiApp } from "@zrlog/ui/feedback";
+import RobotIcon from "@zrlog/ui/icons/robot";
 import { ApplyAiValues, SkillContextRevision } from "../use-article-field-ai";
-import { Alert, App, Button, Space, Tag, Typography } from "antd";
+
 import { isChatMessage, renderChatMessage, useArticleChat } from "./use-article-chat";
 import ArticleAiApproval from "./article-ai-approval";
 import ArticleAiInput from "./article-ai-input";
 import { canApplySkillValues, editorContextRevision } from "./article-ai-skill-contract";
 import ArticleAiReasoning from "./article-ai-reasoning";
-import { RobotOutlined } from "@ant-design/icons";
+
 import { cloneElement, FunctionComponent, isValidElement, useEffect, useMemo, useRef, useState } from "react";
-import { AIContent } from "@zrlog/editor/dist/ai/AIContentItem";
+import { AIContent } from "@zrlog/editor/core/ai/AIContentItem";
 import AIButton, {
     AIButtonRenderMessageOptions,
     AIStateCache,
     getAIButtonDrawerOpen,
-} from "@zrlog/editor/dist/ai/AIButton";
-import AIIcon from "@zrlog/editor/dist/ai/AIIcon";
+} from "@zrlog/editor/core/ai/AIButton";
+import AIIcon from "../../../icons/AIProviderIcon";
 import useArticleEditorScreens from "../use-article-editor-screens";
 import ArticleAiAssistantDrawer from "./article-ai-assistant-drawer";
 import { AxiosInstance } from "axios";
@@ -107,7 +111,7 @@ export const useArticleAiAssistantConfig = ({
     const [selectedTitles, setSelectedTitles] = useState<Record<number, string>>({});
     const [aiMessagesExporting, setAiMessagesExporting] = useState(false);
     const [aiMessagesClearing, setAiMessagesClearing] = useState(false);
-    const { message } = App.useApp();
+    const { message } = useUiApp();
     const theme = useTheme();
     const latestDataRef = useRef(data);
     latestDataRef.current = data;
@@ -1028,7 +1032,7 @@ const ArticleAiAssistantButton: FunctionComponent<ArticleAiAssistantButtonProps>
                 border: "none",
             }}
             onClick={aiConfigured ? () => updateOpen(true) : undefined}
-            icon={aiConfigured ? <AIIcon name={data.aiProvider} /> : <RobotOutlined />}
+            icon={aiConfigured ? <AIIcon name={data.aiProvider} /> : <RobotIcon />}
             title={getShortcutTitle(getRes().websiteAi.label, AI_ASSISTANT_SHORTCUT)}
             aria-label={getRes().websiteAi.label}
         >

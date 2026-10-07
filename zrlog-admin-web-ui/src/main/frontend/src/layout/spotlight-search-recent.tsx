@@ -1,12 +1,11 @@
+import ApiIcon from "@zrlog/ui/icons/api";
+import EditIcon from "@zrlog/ui/icons/edit";
+import ImageFileIcon from "@zrlog/ui/icons/image-file";
+import FolderIcon from "@zrlog/ui/icons/folder";
+import SearchIcon from "@zrlog/ui/icons/search";
+import AppearanceIcon from "@zrlog/ui/icons/appearance";
 import { getSsDate } from "../base/SsData";
-import {
-    ApiOutlined,
-    EditOutlined,
-    FileImageOutlined,
-    FolderOpenOutlined,
-    SearchOutlined,
-    SkinOutlined,
-} from "@ant-design/icons";
+
 import type { SpotlightItem, SpotlightRecentItem, SpotlightRenderImageIcon } from "./spotlight-search-types";
 
 const recentStorageKey = () => "zrlog_spotlight_recent_" + (getSsDate().key || "anonymous");
@@ -60,15 +59,15 @@ const recentIcon = (
     }
     switch (item.type) {
         case "article":
-            return <EditOutlined />;
+            return <EditIcon />;
         case "file":
-            return item.iconVariant === "directory" ? <FolderOpenOutlined /> : <FileImageOutlined />;
+            return item.iconVariant === "directory" ? <FolderIcon /> : <ImageFileIcon />;
         case "template":
-            return <SkinOutlined />;
+            return <AppearanceIcon />;
         case "plugin":
-            return renderImageIcon(item.iconSrc, item.title, <ApiOutlined />);
+            return renderImageIcon(item.iconSrc, item.title, <ApiIcon />);
         default:
-            return <SearchOutlined />;
+            return <SearchIcon />;
     }
 };
 

@@ -1,11 +1,12 @@
-import {
-    AppstoreOutlined,
-    CloudDownloadOutlined,
-    SearchOutlined,
-    UnorderedListOutlined,
-    UploadOutlined,
-} from "@ant-design/icons";
-import { Alert, Button, Empty, Input, Row, Segmented, Select, Space, Tag, Typography } from "antd";
+import { Alert, Button, Empty, Row, Segmented, Select, Space, Typography } from "antd";
+import Tag from "@zrlog/ui/antd/Tag";
+import Input from "@zrlog/ui/antd/Input";
+import AppsIcon from "@zrlog/ui/icons/apps";
+import CloudDownloadIcon from "@zrlog/ui/icons/cloud-download";
+import SearchIcon from "@zrlog/ui/icons/search";
+import UnorderedListIcon from "@zrlog/ui/icons/unordered-list";
+import UploadIcon from "@zrlog/ui/icons/upload";
+
 import { useEffect, useMemo, useState } from "react";
 import { useTheme } from "antd-style";
 import styled from "styled-components";
@@ -87,14 +88,14 @@ const Template = ({ data, offline = false }: { data: TemplateEntry[]; offline?: 
                 </Space>
                 <Space wrap>
                     <Button
-                        icon={<UploadOutlined />}
+                        icon={<UploadIcon />}
                         aria-expanded={uploadOpen}
                         onClick={() => setUploadOpen(!uploadOpen)}
                     >
                         {res.upload.title}
                     </Button>
                     <Link to={getRealRouteUrl(`/template-center?host=${host}`)}>
-                        <Button type="primary" icon={<CloudDownloadOutlined />}>
+                        <Button type="primary" icon={<CloudDownloadIcon />}>
                             {res.downloadMore}
                         </Button>
                     </Link>
@@ -119,7 +120,7 @@ const Template = ({ data, offline = false }: { data: TemplateEntry[]; offline?: 
                 <TemplateSearchInput
                     $screenMD={theme.screenMD}
                     allowClear
-                    prefix={<SearchOutlined />}
+                    prefix={<SearchIcon />}
                     value={search}
                     onChange={(event) => setSearch(event.target.value)}
                     placeholder={res.searchPlaceholder}
@@ -144,8 +145,8 @@ const Template = ({ data, offline = false }: { data: TemplateEntry[]; offline?: 
                     aria-label={res.viewLabel}
                     style={{ marginLeft: "auto" }}
                     options={[
-                        { label: res.listView, value: "list", icon: <UnorderedListOutlined /> },
-                        { label: res.gridView, value: "grid", icon: <AppstoreOutlined /> },
+                        { label: res.listView, value: "list", icon: <UnorderedListIcon selected={view === "list"} /> },
+                        { label: res.gridView, value: "grid", icon: <AppsIcon selected={view === "grid"} /> },
                     ]}
                 />
             </div>

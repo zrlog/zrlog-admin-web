@@ -1,14 +1,13 @@
+import AppsIcon from "@zrlog/ui/icons/apps";
+import DatabaseIcon from "@zrlog/ui/icons/database";
+import EditIcon from "@zrlog/ui/icons/edit";
+import AddCircleIcon from "@zrlog/ui/icons/add-circle";
+import BoltIcon from "@zrlog/ui/icons/bolt";
 import { Badge, Card, Col, Row, Typography } from "antd";
 
 import { Link } from "react-router-dom";
 import { getRealRouteUrl, getRes } from "utils/constants";
-import {
-    AppstoreOutlined,
-    DatabaseOutlined,
-    EditOutlined,
-    PlusCircleOutlined,
-    ThunderboltOutlined,
-} from "@ant-design/icons";
+
 import { useTheme } from "antd-style";
 
 type QuickActionCardData = {
@@ -89,19 +88,19 @@ const QuickActionCard = ({ data, embedded = false }: { data?: QuickActionCardDat
             <Row gutter={[8, 8]}>
                 <ActionItem
                     to="/article-edit"
-                    icon={<PlusCircleOutlined />}
+                    icon={<AddCircleIcon />}
                     label={getRes().index.quickAction.writeArticle}
                 />
                 <ActionItem
                     to="/article?status=draft"
-                    icon={<EditOutlined />}
+                    icon={<EditIcon />}
                     label={getRes().article.status.draft}
                     count={draftCount}
                 />
-                <ActionItem to="/article-type" icon={<AppstoreOutlined />} label={getRes().articleType.title} />
+                <ActionItem to="/article-type" icon={<AppsIcon />} label={getRes().articleType.title} />
                 <ActionItem
                     to="/plugin?page=backup-sql-file/files"
-                    icon={<DatabaseOutlined />}
+                    icon={<DatabaseIcon />}
                     label={getRes().index.quickAction.backupFiles}
                 />
             </Row>
@@ -120,7 +119,7 @@ const QuickActionCard = ({ data, embedded = false }: { data?: QuickActionCardDat
                 }}
             >
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                    <ThunderboltOutlined style={{ color: mutedTextColor, fontSize: 14 }} />
+                    <BoltIcon style={{ color: mutedTextColor, fontSize: 14 }} />
                     <Typography.Text
                         style={{
                             color: mutedTextColor,
@@ -140,7 +139,7 @@ const QuickActionCard = ({ data, embedded = false }: { data?: QuickActionCardDat
         <Card
             title={
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <ThunderboltOutlined />
+                    <BoltIcon />
                     <span>{getRes().index.quickAction.label}</span>
                 </div>
             }

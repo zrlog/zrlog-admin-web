@@ -1,6 +1,7 @@
+import CutIcon from "@zrlog/ui/icons/cut";
 import { Button, Space } from "antd";
 import { FunctionComponent } from "react";
-import { ScissorOutlined } from "@ant-design/icons";
+
 import { useTheme } from "antd-style";
 import { getRes, tryAppendBackendServerUrl } from "../../../../../utils/constants";
 import { AssistantToolPayload } from "../../article-ai-assistant.types";
@@ -88,7 +89,7 @@ const CoverToolContent: FunctionComponent<SpecificToolContentProps<CoverToolPayl
                 {url && (
                     <Button
                         size="small"
-                        icon={<ScissorOutlined />}
+                        icon={<CutIcon />}
                         disabled={applyDisabled}
                         onClick={() => onCropCover(tryAppendBackendServerUrl(url))}
                     >

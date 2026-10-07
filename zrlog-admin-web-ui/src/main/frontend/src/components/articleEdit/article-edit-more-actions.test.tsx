@@ -5,6 +5,12 @@ import ArticleEditMoreActions from "./article-edit-more-actions";
 
 let mockDropdownProps: any;
 
+// Business tests keep feedback mocked at the shared UI boundary.
+jest.mock("@zrlog/ui/feedback", () => ({
+    useUiMessage: (...args: unknown[]) => require("antd").message.useMessage(...args),
+    useUiApp: () => require("antd").App.useApp(),
+}));
+
 jest.mock("antd", () => {
     const React = require("react");
     const mockFn = require("@jest/globals").jest.fn;

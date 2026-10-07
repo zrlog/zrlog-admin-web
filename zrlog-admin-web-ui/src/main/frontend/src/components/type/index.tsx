@@ -1,7 +1,9 @@
+import Tag from "@zrlog/ui/antd/Tag";
+import EditIcon from "@zrlog/ui/icons/edit";
 import { getLabelValueSeparator, getRes } from "../../utils/constants";
 import BaseTable, { PageDataSource } from "../../common/BaseTable";
-import { EditOutlined } from "@ant-design/icons";
-import { Button, Grid, Space, Tag, Typography, theme } from "antd";
+
+import { Button, Grid, Space, Typography, theme } from "antd";
 import CreateOrEditType from "./create_or_edit_type";
 
 const { Text } = Typography;
@@ -148,7 +150,7 @@ const Type = ({ data, offline }: { data: PageDataSource; offline: boolean }) => 
                             type="text"
                             size="small"
                             title={getRes().edit}
-                            icon={<EditOutlined style={surface.editIcon} />}
+                            icon={<EditIcon style={surface.editIcon} />}
                         />
                     </CreateOrEditType>
                 )}

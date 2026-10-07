@@ -1,22 +1,30 @@
+import { Alert } from "antd";
+import Tag from "@zrlog/ui/antd/Tag";
+import Switch from "@zrlog/ui/antd/Switch";
+import Input from "@zrlog/ui/antd/Input";
+import InputNumber from "@zrlog/ui/antd/InputNumber";
+import { useUiMessage } from "@zrlog/ui/feedback";
+import IdeaIcon from "@zrlog/ui/icons/idea";
+import EditIcon from "@zrlog/ui/icons/edit";
 import Form from "antd/es/form";
 import Button from "antd/es/button";
-import Switch from "antd/es/switch";
+
 import { getRes, tryAppendBackendServerUrl } from "../../utils/constants";
 import { useEffect, useState } from "react";
 
 import { AI, AIProvider } from "./index";
 import Select, { DefaultOptionType } from "antd/es/select";
 import AutoComplete from "antd/es/auto-complete";
-import { Alert, Input, InputNumber, message, Tag } from "antd";
-import AIIcon from "@zrlog/editor/dist/ai/AIIcon";
-import Editor from "@zrlog/editor/dist/editor";
+
+import AIIcon from "../../icons/AIProviderIcon";
+import Editor from "@zrlog/editor/core";
 import { getAppState } from "../../base/ConfigProviderApp";
 import { Locale } from "@zrlog/editor/dist/editor/lang/editor-lang";
 import { useAxiosBaseInstance } from "../../base/AppBase";
 import Modal from "antd/es/modal";
-import { BulbOutlined, EditOutlined } from "@ant-design/icons";
+
 import { markdownToHtmlSyncWithCallback } from "@zrlog/editor/dist/editor/utils/marked-utils";
-import HtmlPreviewPanel from "@zrlog/editor/dist/editor/html-preview-panel";
+import HtmlPreviewPanel from "@zrlog/editor/core/editor/html-preview-panel";
 import { useTheme } from "antd-style";
 import { useResponsiveFormLayout } from "../../utils/responsive-form";
 import WebsiteSubmitBar from "./WebsiteSubmitBar";
@@ -69,7 +77,7 @@ const AIForm = ({
     const axiosInstance = useAxiosBaseInstance();
     const theme = useTheme();
     const border = `${theme.lineWidth}px ${theme.lineType} ${theme.colorBorder}`;
-    const [messageApi, contextHolder] = message.useMessage({ maxCount: 3 });
+    const [messageApi, contextHolder] = useUiMessage({ maxCount: 3 });
     const { formLayout, narrow } = useResponsiveFormLayout(layout);
     const endpointChanged =
         state.ai_provider !== data.ai_provider || (state.ai_base_url || "") !== (data.ai_base_url || "");
@@ -461,7 +469,7 @@ const AIForm = ({
                     </div>
                     <Button
                         type="link"
-                        icon={<EditOutlined />}
+                        icon={<EditIcon />}
                         style={{ padding: 0, height: "auto", marginTop: 4, color: getAppState().colorPrimary }}
                         disabled={offline || offlineData}
                         onClick={openPromptEditor}
@@ -490,7 +498,7 @@ const AIForm = ({
                     >
                         <Button
                             type="link"
-                            icon={<BulbOutlined />}
+                            icon={<IdeaIcon />}
                             loading={optimizingPrompt}
                             onClick={optimizePromptDraft}
                             style={{ paddingInline: 0, color: getAppState().colorPrimary }}

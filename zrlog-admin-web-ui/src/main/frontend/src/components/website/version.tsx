@@ -2,7 +2,7 @@ import { FunctionComponent, useState } from "react";
 import { Grid } from "antd";
 import Card from "antd/es/card";
 import { markdownToHtmlSyncWithCallback } from "@zrlog/editor/dist/editor/utils/marked-utils";
-import HtmlPreviewPanel from "@zrlog/editor/dist/editor/html-preview-panel";
+import HtmlPreviewPanel from "@zrlog/editor/core/editor/html-preview-panel";
 import { getAppState } from "../../base/ConfigProviderApp";
 import { useTheme } from "antd-style";
 

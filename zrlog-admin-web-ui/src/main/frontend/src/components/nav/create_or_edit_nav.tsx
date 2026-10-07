@@ -1,5 +1,8 @@
+import Input from "@zrlog/ui/antd/Input";
+import InputNumber from "@zrlog/ui/antd/InputNumber";
+import { useUiMessage } from "@zrlog/ui/feedback";
 import { FunctionComponent, PropsWithChildren, useEffect, useState } from "react";
-import { Col, Form, Input, InputNumber, message, Modal } from "antd";
+import { Col, Form, Modal } from "antd";
 import Row from "antd/es/grid/row";
 import { Link } from "react-router-dom";
 import { getRes } from "../../utils/constants";
@@ -28,7 +31,7 @@ type LogNav = {
 const CreateOrEditNav: FunctionComponent<EditNavProps> = ({ record, editSuccessCall, offline, children }) => {
     const [showModel, setShowModel] = useState<boolean>(false);
     const [updateForm, setUpdateForm] = useState<LogNav>(record);
-    const [messageApi, contextHolder] = message.useMessage({ maxCount: 3 });
+    const [messageApi, contextHolder] = useUiMessage({ maxCount: 3 });
     const [loading, setLoading] = useState<boolean>(false);
     const { formLayout, narrow } = useResponsiveFormLayout(layout);
     const isUpdate = () => {

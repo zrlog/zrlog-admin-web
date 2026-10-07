@@ -1,10 +1,12 @@
+import Input from "@zrlog/ui/antd/Input";
+import InputNumber from "@zrlog/ui/antd/InputNumber";
 import Form from "antd/es/form";
 import { useTheme } from "antd-style";
-import Input from "antd/es/input";
+
 import { getRes } from "../../utils/constants";
 import Select from "antd/es/select";
 import { useEffect, useState } from "react";
-import { InputNumber, Typography } from "antd";
+import { Typography } from "antd";
 import { Admin } from "./index";
 import FaviconUpload from "./FaviconUpload";
 import zh_CN from "antd/es/locale/zh_CN";

@@ -1,6 +1,6 @@
 import { SetStateAction, useCallback } from "react";
 import { MessageInstance } from "antd/es/message/interface";
-import { AIContent } from "@zrlog/editor/dist/ai/AIContentItem";
+import { AIContent } from "@zrlog/editor/core/ai/AIContentItem";
 import { getRes } from "../../utils/constants";
 import { getStaticProgressText, postRefreshCacheSse } from "../../utils/sse-utils";
 import { ArticleEntry, PublishStatusPopoverState } from "./index.types";

@@ -1,4 +1,5 @@
-import { FullscreenExitOutlined, FullscreenOutlined } from "@ant-design/icons";
+import FullscreenExitIcon from "@zrlog/ui/icons/fullscreen-exit";
+import FullscreenIcon from "@zrlog/ui/icons/fullscreen";
 import { isPWA } from "../../utils/env-utils";
 import { Button } from "antd";
 import screenfull from "screenfull";
@@ -82,12 +83,12 @@ const ArticleEditFullscreenButton: FunctionComponent<ArticleEditFullscreenButton
             href={fullScreen ? "#exitFullScreen" : "#enterFullScreen"}
             icon={
                 fullScreen ? (
-                    <FullscreenExitOutlined
+                    <FullscreenExitIcon
                         title={getExitFullscreen()}
                         style={{ fontSize: getAppState().compactMode ? 18 : 24, display: "flex" }}
                     />
                 ) : (
-                    <FullscreenOutlined
+                    <FullscreenIcon
                         title={getEnterFullscreen()}
                         style={{ fontSize: getAppState().compactMode ? 18 : 24, display: "flex" }}
                     />

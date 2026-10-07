@@ -1,5 +1,11 @@
-import { DeleteOutlined, EditOutlined, SwapOutlined } from "@ant-design/icons";
-import { Button, Descriptions, Empty, Grid, Input, Modal, Space, Table, Tag, Typography, message } from "antd";
+import Tag from "@zrlog/ui/antd/Tag";
+import Input from "@zrlog/ui/antd/Input";
+import Table from "@zrlog/ui/antd/Table";
+import { useUiMessage } from "@zrlog/ui/feedback";
+import DeleteIcon from "@zrlog/ui/icons/delete";
+import EditIcon from "@zrlog/ui/icons/edit";
+import SwapIcon from "@zrlog/ui/icons/swap";
+import { Button, Descriptions, Empty, Grid, Modal, Space, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
@@ -68,7 +74,7 @@ const TagManagement = ({ data, offline }: { data: PageDataSource; offline: boole
     const compactTable = screens.md !== true;
     const navigate = useNavigate();
     const axiosInstance = useAxiosBaseInstance();
-    const [messageApi, contextHolder] = message.useMessage({ maxCount: 3 });
+    const [messageApi, contextHolder] = useUiMessage({ maxCount: 3 });
     const [searchKey, setSearchKey] = useState(data?.key || "");
     const [actionState, setActionState] = useState<TagActionState>(initialActionState);
     const tagRes = getRes().tagManage;
@@ -229,7 +235,7 @@ const TagManagement = ({ data, offline }: { data: PageDataSource; offline: boole
                         size="small"
                         disabled={offline}
                         title={tagRes.rename}
-                        icon={<EditOutlined />}
+                        icon={<EditIcon />}
                         onClick={() => openAction(record, "rename")}
                     />
                     <Button
@@ -237,7 +243,7 @@ const TagManagement = ({ data, offline }: { data: PageDataSource; offline: boole
                         size="small"
                         disabled={offline}
                         title={tagRes.merge}
-                        icon={<SwapOutlined />}
+                        icon={<SwapIcon />}
                         onClick={() => openAction(record, "merge")}
                     />
                     <Button
@@ -246,7 +252,7 @@ const TagManagement = ({ data, offline }: { data: PageDataSource; offline: boole
                         danger
                         disabled={offline}
                         title={tagRes.delete}
-                        icon={<DeleteOutlined />}
+                        icon={<DeleteIcon />}
                         onClick={() => openAction(record, "delete")}
                     />
                 </Space>

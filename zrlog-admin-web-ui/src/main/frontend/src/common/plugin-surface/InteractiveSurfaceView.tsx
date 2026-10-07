@@ -1,5 +1,11 @@
-import { Alert, App, Button, Empty, Form, Input, Modal, Select, Space, Switch, Tag, theme, Tooltip } from "antd";
-import { ReloadOutlined } from "@ant-design/icons";
+import { Alert, Button, Empty, Form, Modal, Select, Space, theme, Tooltip } from "antd";
+import Tag from "@zrlog/ui/antd/Tag";
+import Switch from "@zrlog/ui/antd/Switch";
+import Input from "@zrlog/ui/antd/Input";
+import { useUiApp } from "@zrlog/ui/feedback";
+import RefreshIcon from "@zrlog/ui/icons/refresh";
+
+
 import { Column, Line, Pie } from "@ant-design/plots";
 import { AxiosInstance } from "axios";
 import { CSSProperties, FunctionComponent, ReactNode, useEffect, useMemo, useState } from "react";
@@ -246,7 +252,7 @@ const InteractiveSurfaceView: FunctionComponent<InteractiveSurfaceViewProps> = (
     onOpenView,
     onRefresh,
 }) => {
-    const { message } = App.useApp();
+    const { message } = useUiApp();
     const navigate = useNavigate();
     const { token } = theme.useToken();
     const res = getRes().pluginSurface;
@@ -562,7 +568,7 @@ const InteractiveSurfaceView: FunctionComponent<InteractiveSurfaceViewProps> = (
                             <Button
                                 type="text"
                                 size="small"
-                                icon={<ReloadOutlined />}
+                                icon={<RefreshIcon />}
                                 loading={loading}
                                 onClick={() => void loadSurface()}
                             />

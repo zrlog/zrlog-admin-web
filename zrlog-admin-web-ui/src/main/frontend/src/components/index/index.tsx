@@ -1,4 +1,8 @@
-import { App, Card, Col, Grid, Row } from "antd";
+import { useUiApp } from "@zrlog/ui/feedback";
+import BarChartIcon from "@zrlog/ui/icons/bar-chart";
+import InfoIcon from "@zrlog/ui/icons/info";
+import SmileIcon from "@zrlog/ui/icons/smile";
+import { Card, Col, Grid, Row } from "antd";
 import { getRealRouteUrl, getRes } from "../../utils/constants";
 
 import { FunctionComponent, ReactNode, useEffect, useRef, useState } from "react";
@@ -18,7 +22,7 @@ import StatisticsInfo from "./StatisticsInfo";
 import QuickActionCard from "./QuickAction";
 import DataInsights from "./DataInsights";
 import AuditTrail from "./AuditTrail";
-import { BarChartOutlined, InfoCircleOutlined, SmileOutlined } from "@ant-design/icons";
+
 import { useAxiosBaseInstance } from "../../base/AppBase";
 import PluginSurfacePanels from "./PluginSurfacePanels";
 import DashboardConfigDrawer from "./DashboardConfigDrawer";
@@ -49,7 +53,7 @@ const Index: FunctionComponent<IndexProps> = ({ data, updateCache }) => {
     const location = useLocation();
     const theme = useTheme();
     const screens = Grid.useBreakpoint();
-    const { message } = App.useApp();
+    const { message } = useUiApp();
     const twoColumnDashboard = screens.lg === true;
     const dashboardGap = twoColumnDashboard ? theme.marginMD : theme.marginSM;
 
@@ -256,7 +260,7 @@ const Index: FunctionComponent<IndexProps> = ({ data, updateCache }) => {
                 }}
                 title={
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        <SmileOutlined style={{ fontSize: 18 }} />
+                        <SmileIcon style={{ fontSize: 18 }} />
                         <span>{welcomeData?.welcomeTip || ""}</span>
                     </div>
                 }
@@ -328,7 +332,7 @@ const Index: FunctionComponent<IndexProps> = ({ data, updateCache }) => {
                                 color: theme.colorTextSecondary,
                             }}
                         >
-                            <InfoCircleOutlined style={{ fontSize: 14, opacity: 0.82 }} />
+                            <InfoIcon style={{ fontSize: 14, opacity: 0.82 }} />
                             <span style={{ fontSize: 12 }}>{getRes().index.welcome.currentVersion}</span>
                             <span
                                 style={{
@@ -360,7 +364,7 @@ const Index: FunctionComponent<IndexProps> = ({ data, updateCache }) => {
             <Card
                 title={
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <BarChartOutlined />
+                        <BarChartIcon />
                         <span>{getRes().index.activity}</span>
                     </div>
                 }

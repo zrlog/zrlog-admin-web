@@ -1,5 +1,7 @@
-import { Avatar, Grid, Space, Table, Typography } from "antd";
-import { SkinOutlined } from "@ant-design/icons";
+import Table from "@zrlog/ui/antd/Table";
+import AppearanceIcon from "@zrlog/ui/icons/appearance";
+import { Avatar, Grid, Space, Typography } from "antd";
+
 import { useTheme } from "antd-style";
 import { getBackendServerUrl, getRes } from "../../utils/constants";
 import { getTemplatePreviewUrl } from "./template-model";
@@ -41,7 +43,7 @@ const TemplateList = ({
                                 size="large"
                                 style={{ flexShrink: 0 }}
                                 src={getTemplatePreviewUrl(template.adminPreviewImage, getBackendServerUrl())}
-                                icon={<SkinOutlined />}
+                                icon={<AppearanceIcon />}
                             />
                             <Space direction="vertical" size="small" style={{ minWidth: 0, overflowWrap: "anywhere" }}>
                                 <Space wrap>

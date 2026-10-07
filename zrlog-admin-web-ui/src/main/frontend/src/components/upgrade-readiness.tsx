@@ -1,6 +1,11 @@
+import { Alert, Button, Descriptions, Space, Tooltip, Typography } from "antd";
+import Tag from "@zrlog/ui/antd/Tag";
+import DatabaseIcon from "@zrlog/ui/icons/database";
+import RefreshIcon from "@zrlog/ui/icons/refresh";
+import SecurityIcon from "@zrlog/ui/icons/security";
 import { formatDateTime } from "../utils/date-time";
-import { DatabaseOutlined, ReloadOutlined, SafetyCertificateOutlined } from "@ant-design/icons";
-import { Alert, Button, Descriptions, Space, Tag, Tooltip, Typography } from "antd";
+
+
 import { useTheme } from "antd-style";
 import { Link } from "react-router-dom";
 import { BackupProtectionStatus, UpgradeData } from "../type";
@@ -97,12 +102,12 @@ const UpgradeReadiness = ({
                         {offline ? (
                             <Tooltip title={res.offlineUnavailable}>
                                 <Typography.Text disabled role="link" aria-disabled="true" tabIndex={-1}>
-                                    <DatabaseOutlined /> {res.manageBackups}
+                                    <DatabaseIcon /> {res.manageBackups}
                                 </Typography.Text>
                             </Tooltip>
                         ) : (
                             <Link to={getRealRouteUrl("/plugin?page=backup-sql-file/files")}>
-                                <DatabaseOutlined /> {res.manageBackups}
+                                <DatabaseIcon /> {res.manageBackups}
                             </Link>
                         )}
                         <Descriptions size="small" column={1}>
@@ -136,14 +141,14 @@ const UpgradeReadiness = ({
                     marginBottom: theme.marginSM,
                 }}
             >
-                <SafetyCertificateOutlined />
+                <SecurityIcon />
                 <Typography.Text strong>{res.title}</Typography.Text>
                 <Tooltip title={offline ? res.offlineUnavailable : res.refresh}>
                     <span>
                         <Button
                             type="text"
                             size="small"
-                            icon={<ReloadOutlined />}
+                            icon={<RefreshIcon />}
                             aria-label={res.refresh}
                             loading={refreshing}
                             disabled={refreshUnavailable}

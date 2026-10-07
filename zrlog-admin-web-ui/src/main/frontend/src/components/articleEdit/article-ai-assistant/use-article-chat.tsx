@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, Space, Typography } from "antd";
+import { useCallback, useEffect, useRef, useState } from "react";
+
 import { AxiosInstance, AxiosRequestConfig } from "axios";
-import { AIContent } from "@zrlog/editor/dist/ai/AIContentItem";
-import { AIButtonRenderMessageOptions } from "@zrlog/editor/dist/ai/AIButton";
+import { AIContent } from "@zrlog/editor/core/ai/AIContentItem";
+import { AIButtonRenderMessageOptions } from "@zrlog/editor/core/ai/AIButton";
 import ArticleAiReasoning from "./article-ai-reasoning";
 import { getRes } from "../../../utils/constants";
 import { ArticleUpdatedEvent, EditorSnapshot, ToolAwareAIContent } from "./article-ai-assistant.types";

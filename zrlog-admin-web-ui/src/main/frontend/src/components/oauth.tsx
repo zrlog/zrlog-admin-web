@@ -1,10 +1,16 @@
+import Typography from "@zrlog/ui/antd/Typography";
+import { Alert, Button, Drawer, Empty, Form, List, Space } from "antd";
+import Tag from "@zrlog/ui/antd/Tag";
+import Input from "@zrlog/ui/antd/Input";
+import Popconfirm from "@zrlog/ui/antd/Popconfirm";
+import { useUiMessage } from "@zrlog/ui/feedback";
 import { formatDateTime } from "../utils/date-time";
 import { isModuleEnabled } from "../utils/module-capabilities";
 import { useEffect, useState } from "react";
 import SettingsSection from "./common/SettingsSection";
 import { useLocation } from "react-router-dom";
 import PersonalAccessTokens, { PersonalAccessToken } from "./personal-access-tokens";
-import { Alert, Button, Drawer, Empty, Form, Input, List, Popconfirm, Space, Tag, Typography, message } from "antd";
+
 import { useAxiosBaseInstance } from "../base/AppBase";
 import { getRes } from "../utils/constants";
 import { resolveApplicationServerUrl } from "../utils/application-server-url";
@@ -41,7 +47,7 @@ function OAuthConnections({
     const [open, setOpen] = useState(false);
     const [busy, setBusy] = useState(false);
     const [form] = Form.useForm();
-    const [notice, contextHolder] = message.useMessage();
+    const [notice, contextHolder] = useUiMessage();
     const api = useAxiosBaseInstance();
     const res = getRes().oauth;
     const labels: Record<string, string> = {

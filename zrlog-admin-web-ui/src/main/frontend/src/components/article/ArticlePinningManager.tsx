@@ -1,5 +1,9 @@
-import { ArrowDownOutlined, ArrowUpOutlined, PushpinOutlined, ReloadOutlined } from "@ant-design/icons";
-import { App, Button, Drawer, Empty, Grid, List, Space, Spin, Tooltip, Typography, theme } from "antd";
+import { useUiApp } from "@zrlog/ui/feedback";
+import ArrowDownIcon from "@zrlog/ui/icons/arrow-down";
+import ArrowUpIcon from "@zrlog/ui/icons/arrow-up";
+import PinIcon from "@zrlog/ui/icons/pin";
+import RefreshIcon from "@zrlog/ui/icons/refresh";
+import { Button, Drawer, Empty, Grid, List, Space, Spin, Tooltip, Typography, theme } from "antd";
 import { useEffect, useState } from "react";
 import { useAxiosBaseInstance } from "../../base/AppBase";
 import { getRes } from "../../utils/constants";
@@ -20,7 +24,7 @@ type ArticlePinningManagerProps = {
 
 const ArticlePinningManager = ({ offline, open, onOpenChange, onItemsChange }: ArticlePinningManagerProps) => {
     const axiosInstance = useAxiosBaseInstance();
-    const { message } = App.useApp();
+    const { message } = useUiApp();
     const screens = Grid.useBreakpoint();
     const { token } = theme.useToken();
     const res = getRes().article.pinning;
@@ -92,7 +96,7 @@ const ArticlePinningManager = ({ offline, open, onOpenChange, onItemsChange }: A
                 <Tooltip title={res.reload}>
                     <Button
                         type="text"
-                        icon={<ReloadOutlined />}
+                        icon={<RefreshIcon />}
                         aria-label={res.reload}
                         disabled={offline || loading || mutating}
                         onClick={() => void load()}
@@ -112,7 +116,7 @@ const ArticlePinningManager = ({ offline, open, onOpenChange, onItemsChange }: A
                                 <Tooltip title={res.moveUp} key="up">
                                     <Button
                                         type="text"
-                                        icon={<ArrowUpOutlined />}
+                                        icon={<ArrowUpIcon />}
                                         aria-label={res.moveUp}
                                         disabled={offline || mutating || index === 0}
                                         loading={actionKey === `${entry.logId}:UP`}
@@ -122,7 +126,7 @@ const ArticlePinningManager = ({ offline, open, onOpenChange, onItemsChange }: A
                                 <Tooltip title={res.moveDown} key="down">
                                     <Button
                                         type="text"
-                                        icon={<ArrowDownOutlined />}
+                                        icon={<ArrowDownIcon />}
                                         aria-label={res.moveDown}
                                         disabled={offline || mutating || index === items.length - 1}
                                         loading={actionKey === `${entry.logId}:DOWN`}
@@ -133,7 +137,7 @@ const ArticlePinningManager = ({ offline, open, onOpenChange, onItemsChange }: A
                                     <Button
                                         type="text"
                                         danger
-                                        icon={<PushpinOutlined />}
+                                        icon={<PinIcon />}
                                         aria-label={res.unpin}
                                         disabled={offline || mutating}
                                         loading={actionKey === `${entry.logId}:unpin`}

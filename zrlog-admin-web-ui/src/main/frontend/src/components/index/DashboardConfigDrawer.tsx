@@ -1,20 +1,13 @@
-import { DeleteOutlined, MenuOutlined, PlusOutlined, QuestionCircleOutlined, SettingOutlined } from "@ant-design/icons";
-import {
-    Button,
-    Collapse,
-    Drawer,
-    Grid,
-    Input,
-    InputNumber,
-    message,
-    Modal,
-    Select,
-    Space,
-    Switch,
-    theme,
-    Tooltip,
-    Typography,
-} from "antd";
+import Switch from "@zrlog/ui/antd/Switch";
+import Input from "@zrlog/ui/antd/Input";
+import InputNumber from "@zrlog/ui/antd/InputNumber";
+import { useUiMessage } from "@zrlog/ui/feedback";
+import DeleteIcon from "@zrlog/ui/icons/delete";
+import MenuIcon from "@zrlog/ui/icons/menu";
+import AddIcon from "@zrlog/ui/icons/add";
+import HelpIcon from "@zrlog/ui/icons/help";
+import SettingsIcon from "@zrlog/ui/icons/settings";
+import { Button, Collapse, Drawer, Grid, Modal, Select, Space, theme, Tooltip, Typography } from "antd";
 import { AxiosInstance } from "axios";
 import { FunctionComponent, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -181,7 +174,7 @@ const DashboardConfigDrawer: FunctionComponent<DashboardConfigDrawerProps> = ({
     const settingsGridColumns = compactLayout ? "minmax(0, 1fr)" : "repeat(2, minmax(0, 1fr))";
     const drawerWidth = compactLayout ? "100vw" : 760;
     const panelSettingsWidth = compactLayout ? "calc(100vw - 32px)" : 640;
-    const [messageApi, contextHolder] = message.useMessage({ maxCount: 1 });
+    const [messageApi, contextHolder] = useUiMessage({ maxCount: 1 });
     const res = getRes().index.dashboardConfig;
 
     useEffect(() => {
@@ -492,7 +485,7 @@ const DashboardConfigDrawer: FunctionComponent<DashboardConfigDrawerProps> = ({
     };
 
     const dragHandle = (
-        <MenuOutlined
+        <MenuIcon
             style={{
                 color: token.colorTextTertiary,
                 cursor: "grab",
@@ -535,13 +528,13 @@ const DashboardConfigDrawer: FunctionComponent<DashboardConfigDrawerProps> = ({
                 </Space>
                 <Space>
                     <Tooltip title={isCard ? cardDescription(item.card.id) : panelDescription(item.panel)}>
-                        <Button type="text" icon={<QuestionCircleOutlined />} />
+                        <Button type="text" icon={<HelpIcon />} />
                     </Tooltip>
                     {!isCard && (
                         <Tooltip title={res.pluginPanels}>
                             <Button
                                 type="text"
-                                icon={<SettingOutlined />}
+                                icon={<SettingsIcon />}
                                 onClick={() => openPanelSettings(item.panel)}
                             />
                         </Tooltip>
@@ -564,7 +557,7 @@ const DashboardConfigDrawer: FunctionComponent<DashboardConfigDrawerProps> = ({
             <Typography.Text>{cardName(welcomeCard.id)}</Typography.Text>
             <Space>
                 <Tooltip title={cardDescription(welcomeCard.id)}>
-                    <Button type="text" icon={<QuestionCircleOutlined />} />
+                    <Button type="text" icon={<HelpIcon />} />
                 </Tooltip>
             </Space>
         </div>
@@ -573,7 +566,7 @@ const DashboardConfigDrawer: FunctionComponent<DashboardConfigDrawerProps> = ({
     const renderAddPanelItem = () => (
         <Button
             type="dashed"
-            icon={<PlusOutlined />}
+            icon={<AddIcon />}
             onClick={addPanel}
             style={{
                 width: "100%",
@@ -623,10 +616,10 @@ const DashboardConfigDrawer: FunctionComponent<DashboardConfigDrawerProps> = ({
                 </Space>
                 <Space>
                     <Tooltip title={isCard ? cardDescription(item.card.id) : panelDescription(item.panel)}>
-                        <Button type="text" icon={<QuestionCircleOutlined />} />
+                        <Button type="text" icon={<HelpIcon />} />
                     </Tooltip>
                     {!isCard && (
-                        <Button type="text" icon={<SettingOutlined />} onClick={() => openPanelSettings(item.panel)} />
+                        <Button type="text" icon={<SettingsIcon />} onClick={() => openPanelSettings(item.panel)} />
                     )}
                 </Space>
             </div>
@@ -730,7 +723,7 @@ const DashboardConfigDrawer: FunctionComponent<DashboardConfigDrawerProps> = ({
             {contextHolder}
             <Tooltip title={res.entry}>
                 <Button
-                    icon={<SettingOutlined />}
+                    icon={<SettingsIcon />}
                     type={subtle ? "text" : "default"}
                     style={subtle ? { color: "inherit" } : undefined}
                     onClick={() => setOpen(true)}
@@ -835,7 +828,7 @@ const DashboardConfigDrawer: FunctionComponent<DashboardConfigDrawerProps> = ({
                         >
                             <Button
                                 danger
-                                icon={<DeleteOutlined />}
+                                icon={<DeleteIcon />}
                                 style={{ alignSelf: "flex-start", flexShrink: 0 }}
                                 onClick={removeSelectedPanel}
                             />

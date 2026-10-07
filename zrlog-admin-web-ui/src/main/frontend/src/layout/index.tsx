@@ -1,7 +1,10 @@
+import { Alert, Col, FloatButton, Layout, Row, Typography } from "antd";
+import Tag from "@zrlog/ui/antd/Tag";
+import HomeIcon from "@zrlog/ui/icons/home";
 import { getAccountPage } from "../utils/account-page-routes";
 import { hasAction } from "../utils/account-access";
-import { HomeOutlined } from "@ant-design/icons";
-import { Alert, Col, FloatButton, Layout, Row, Tag, Typography } from "antd";
+
+
 
 import { getRes } from "../utils/constants";
 import { CSSProperties, FunctionComponent, PropsWithChildren, useCallback, useEffect, useRef, useState } from "react";
@@ -261,7 +264,7 @@ const AdminManageLayout: FunctionComponent<AdminManageLayoutProps> = ({
                 rel="noopener noreferrer"
             >
                 <span className="sidebar-brand-mark">
-                    <HomeOutlined />
+                    <HomeIcon />
                 </span>
                 {showLabel && (
                     <span className="sidebar-brand-copy">

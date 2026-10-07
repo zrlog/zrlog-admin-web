@@ -1,5 +1,6 @@
+import { useUiMessage } from "@zrlog/ui/feedback";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { message } from "antd";
+
 import type { ApiResponse } from "../../type";
 import { getRes } from "../../utils/constants";
 import { postRefreshCacheSse } from "../../utils/sse-utils";
@@ -16,7 +17,7 @@ export const useTemplateConfig = (data?: TemplateConfigData, disabled = false) =
     const [savedValues, setSavedValues] = useState(() => getConfigValues(data));
     const [saving, setSaving] = useState(false);
     const savingRef = useRef(false);
-    const [messageApi, contextHolder] = message.useMessage({ maxCount: 3 });
+    const [messageApi, contextHolder] = useUiMessage({ maxCount: 3 });
     const dirty = hasConfigChanges(values, savedValues);
 
     useEffect(() => {

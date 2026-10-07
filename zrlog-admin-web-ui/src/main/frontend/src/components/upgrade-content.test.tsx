@@ -9,7 +9,7 @@ jest.mock("@zrlog/editor/dist/editor/utils/marked-utils", () => ({
     markdownToHtmlSyncWithCallback: require("@jest/globals").jest.fn(),
 }));
 
-jest.mock("@zrlog/editor/dist/editor/html-preview-panel", () => ({
+jest.mock("@zrlog/editor/core/editor/html-preview-panel", () => ({
     __esModule: true,
     default: () => null,
 }));

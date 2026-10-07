@@ -1,4 +1,4 @@
-import { FolderOpenOutlined } from "@ant-design/icons";
+import FolderIcon from "@zrlog/ui/icons/folder";
 import EditorBaseDragger, { DraggerUploadResponse } from "@zrlog/editor/dist/editor/common/BaseDragger";
 import type { UploadConfig } from "@zrlog/editor/dist/editor/editor.types";
 import type { AxiosInstance } from "axios";
@@ -81,7 +81,7 @@ const ResourceDragger: FunctionComponent<ResourceDraggerProps> = ({
                         <Button
                             disabled={pickerDisabled}
                             htmlType="button"
-                            icon={<FolderOpenOutlined />}
+                            icon={<FolderIcon />}
                             onClick={() => setPickerOpen(true)}
                             size="small"
                             type="text"

@@ -1,15 +1,16 @@
+import Tag from "@zrlog/ui/antd/Tag";
+import Input from "@zrlog/ui/antd/Input";
+import { useUiApp } from "@zrlog/ui/feedback";
+import AppsIcon from "@zrlog/ui/icons/apps";
+import EditIcon from "@zrlog/ui/icons/edit";
+import GlobeIcon from "@zrlog/ui/icons/globe";
+import LockIcon from "@zrlog/ui/icons/lock";
+import PinIcon from "@zrlog/ui/icons/pin";
+import StarIcon from "@zrlog/ui/icons/star";
 import { hasAction } from "../../utils/account-access";
-import {
-    AppstoreOutlined,
-    EditOutlined,
-    GlobalOutlined,
-    LockOutlined,
-    PushpinFilled,
-    PushpinOutlined,
-    StarFilled,
-} from "@ant-design/icons";
 
-import { App, Button, Grid, Input, Segmented, Space, TableColumnsType, Tag, Tooltip, Typography, theme } from "antd";
+
+import { Button, Grid, Segmented, Space, TableColumnsType, Tooltip, Typography, theme } from "antd";
 import Divider from "antd/es/divider";
 import { getLabelValueSeparator, getRealRouteUrl, getRes } from "../../utils/constants";
 import type * as React from "react";
@@ -141,7 +142,7 @@ const Index = ({ data, offline, updateCache }: AdminCommonProps<ArticlePageDataS
     const compactArticleTable = screens.md !== true;
     const location = useLocation();
     const navigate = useNavigate();
-    const { message } = App.useApp();
+    const { message } = useUiApp();
     const ds = genTypes(data, location.search);
     const { token } = theme.useToken();
     const pinningRes = getRes().article.pinning;
@@ -204,22 +205,22 @@ const Index = ({ data, offline, updateCache }: AdminCommonProps<ArticlePageDataS
         {
             label: `${getRes().article.tag.all} (${data.statusCounts?.total || 0})`,
             value: "",
-            icon: <AppstoreOutlined />,
+            icon: <AppsIcon />,
         },
         {
             label: `${getRes().article.status.published} (${data.statusCounts?.published || 0})`,
             value: "published",
-            icon: <GlobalOutlined />,
+            icon: <GlobeIcon />,
         },
         {
             label: `${getRes().article.status.private} (${data.statusCounts?.privateCount || 0})`,
             value: "private",
-            icon: <LockOutlined />,
+            icon: <LockIcon />,
         },
         {
             label: `${getRes().article.status.draft} (${data.statusCounts?.draft || 0})`,
             value: "draft",
-            icon: <EditOutlined />,
+            icon: <EditIcon />,
         },
     ];
 
@@ -321,14 +322,14 @@ const Index = ({ data, offline, updateCache }: AdminCommonProps<ArticlePageDataS
             <span style={surface.titleStateRow}>
                 {element}
                 {record.rubbish && <span style={surface.titleStateDraft}>{getRes().article.status.draft}</span>}
-                {record.privacy && <LockOutlined style={surface.titleStateIcon} />}
+                {record.privacy && <LockIcon style={surface.titleStateIcon} />}
                 {record.recommended && (
-                    <Tag color="gold" bordered={false} icon={<StarFilled />} style={{ marginInlineEnd: 0 }}>
+                    <Tag color="gold" bordered={false} icon={<StarIcon selected />} style={{ marginInlineEnd: 0 }}>
                         {getRes().article.recommended}
                     </Tag>
                 )}
                 {getSticky(record) > 0 && (
-                    <Tag color="blue" bordered={false} icon={<PushpinFilled />} style={{ marginInlineEnd: 0 }}>
+                    <Tag color="blue" bordered={false} icon={<PinIcon selected />} style={{ marginInlineEnd: 0 }}>
                         {pinningRes.label}
                     </Tag>
                 )}
@@ -538,7 +539,7 @@ const Index = ({ data, offline, updateCache }: AdminCommonProps<ArticlePageDataS
                         <Tooltip title={pinningRes.manage}>
                             <Button
                                 className="article-pinning-manager-button"
-                                icon={<PushpinOutlined />}
+                                icon={<PinIcon />}
                                 aria-label={pinningRes.manage}
                                 disabled={offline || pinningLogId !== undefined}
                                 onClick={() => setPinningManagerOpen(true)}
@@ -587,9 +588,9 @@ const Index = ({ data, offline, updateCache }: AdminCommonProps<ArticlePageDataS
                                     aria-label={getSticky(record) > 0 ? pinningRes.unpin : pinningRes.pin}
                                     icon={
                                         getSticky(record) > 0 ? (
-                                            <PushpinFilled style={surface.pinActionIcon} />
+                                            <PinIcon selected style={surface.pinActionIcon} />
                                         ) : (
-                                            <PushpinOutlined style={surface.pinActionIcon} />
+                                            <PinIcon style={surface.pinActionIcon} />
                                         )
                                     }
                                     onClick={() => void updatePinning(record)}
@@ -602,7 +603,7 @@ const Index = ({ data, offline, updateCache }: AdminCommonProps<ArticlePageDataS
                                     type="text"
                                     size="small"
                                     title={getRes().edit}
-                                    icon={<EditOutlined style={surface.editActionIcon} />}
+                                    icon={<EditIcon style={surface.editActionIcon} />}
                                 />
                             </Link>
                         </Tooltip>

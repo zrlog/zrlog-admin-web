@@ -1,6 +1,9 @@
+import Input from "@zrlog/ui/antd/Input";
+import AppsIcon from "@zrlog/ui/icons/apps";
+import ListIcon from "@zrlog/ui/icons/list";
 import { CSSProperties, FunctionComponent, HTMLAttributes, ReactNode, useEffect, useRef, useState } from "react";
-import { Breadcrumb, Button, Empty, Grid, Input, Menu, Space, Spin, Tooltip } from "antd";
-import { AppstoreOutlined, BarsOutlined } from "@ant-design/icons";
+import { Breadcrumb, Button, Empty, Grid, Menu, Space, Spin, Tooltip } from "antd";
+
 import { FileEntry, getShortcutIcon } from "./shared";
 import SidebarNavItem from "../common/SidebarNavItem";
 
@@ -266,7 +269,7 @@ const FileManagerView: FunctionComponent<FileManagerViewProps> = ({
                             {filterActions}
                             {toolbarActions}
                             <Button
-                                icon={viewMode === "grid" ? <BarsOutlined /> : <AppstoreOutlined />}
+                                icon={viewMode === "grid" ? <ListIcon /> : <AppsIcon />}
                                 onClick={() => setViewMode(viewMode === "grid" ? "list" : "grid")}
                             >
                                 {viewMode === "grid" ? res.view.list : res.view.grid}

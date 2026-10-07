@@ -1,5 +1,9 @@
-import { Button, Input, InputRef, Space, Tag } from "antd";
-import { BulbOutlined, PlusOutlined } from "@ant-design/icons";
+import Tag from "@zrlog/ui/antd/Tag";
+import Input from "@zrlog/ui/antd/Input";
+import IdeaIcon from "@zrlog/ui/icons/idea";
+import AddIcon from "@zrlog/ui/icons/add";
+import { Button, InputRef, Space } from "antd";
+
 import Title from "antd/es/typography/Title";
 import { FunctionComponent, useEffect, useRef, useState } from "react";
 import { getRes } from "../../utils/constants";
@@ -153,13 +157,13 @@ const ArticleEditTag: FunctionComponent<ArticleEditTagProps> = ({
                 <>
                     <Space size={[0, 8]} wrap>
                         <Tag color={getAppState().colorPrimary} onClick={showInput} style={{ userSelect: "none" }}>
-                            <PlusOutlined /> {getRes().articleEdit.tag.tips}
+                            <AddIcon /> {getRes().articleEdit.tag.tips}
                         </Tag>
                         {onGenerateTags && (
                             <Button
                                 type="link"
                                 size="small"
-                                icon={<BulbOutlined />}
+                                icon={<IdeaIcon />}
                                 loading={generatingTags}
                                 onClick={onGenerateTags}
                                 style={{ paddingInline: 0, color: getAppState().colorPrimary }}

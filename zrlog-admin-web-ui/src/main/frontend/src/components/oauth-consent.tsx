@@ -1,5 +1,7 @@
+import { Alert, Button, Card, Checkbox, Radio, Space, Typography } from "antd";
+import { useUiMessage } from "@zrlog/ui/feedback";
 import { useState } from "react";
-import { Alert, Button, Card, Checkbox, Radio, Space, Typography, message } from "antd";
+
 import { useAxiosBaseInstance } from "../base/AppBase";
 import { getRes } from "../utils/constants";
 type Consent = {
@@ -23,7 +25,7 @@ export default function OAuthConsent({ data }: { data: Consent }) {
     );
     const [inherit, setInherit] = useState(false);
     const [busy, setBusy] = useState(false);
-    const [notice, contextHolder] = message.useMessage();
+    const [notice, contextHolder] = useUiMessage();
     const api = useAxiosBaseInstance();
     const res = getRes().oauth;
     const labels: Record<string, string> = {

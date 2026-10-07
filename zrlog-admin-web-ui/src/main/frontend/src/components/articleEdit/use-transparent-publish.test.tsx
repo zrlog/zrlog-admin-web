@@ -1,7 +1,7 @@
 import { act, SetStateAction } from "react";
 import { createRoot, Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { AIContent } from "@zrlog/editor/dist/ai/AIContentItem";
+import { AIContent } from "@zrlog/editor/core/ai/AIContentItem";
 import { postRefreshCacheSse, RefreshCacheSseOptions, SseEvent } from "../../utils/sse-utils";
 import { ArticleEntry, PublishStatusPopoverState } from "./index.types";
 import { ToolAwareAIContent } from "./article-ai-assistant/article-ai-assistant.types";

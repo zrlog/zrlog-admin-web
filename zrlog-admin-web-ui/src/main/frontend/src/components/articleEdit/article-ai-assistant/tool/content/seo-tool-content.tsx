@@ -1,4 +1,4 @@
-import { Tag } from "antd";
+import Tag from "@zrlog/ui/antd/Tag";
 import { FunctionComponent } from "react";
 import { AssistantToolPayload } from "../../article-ai-assistant.types";
 import { getSeoStatusColor, getSeoStatusText } from "../article-ai-assistant-tool-status";

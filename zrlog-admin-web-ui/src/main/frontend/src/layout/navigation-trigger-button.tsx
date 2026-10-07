@@ -1,4 +1,4 @@
-import { MenuOutlined } from "@ant-design/icons";
+import MenuIcon from "@zrlog/ui/icons/menu";
 import { Button } from "antd";
 import { FunctionComponent } from "react";
 import { useTheme } from "antd-style";
@@ -41,7 +41,7 @@ const NavigationTriggerButton: FunctionComponent<NavigationTriggerButtonProps> =
                     boxShadow: "none",
                     paddingInline: 7,
                 }}
-                icon={<MenuOutlined style={{ fontSize: 18 }} />}
+                icon={<MenuIcon style={{ fontSize: 18 }} />}
             />
         </div>
     );

@@ -3,7 +3,7 @@ import { articleContextRevision } from "./article-ai-skill-contract";
 import { act, Children, isValidElement, ReactElement, ReactNode, useState } from "react";
 import { createRoot, Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { AIContent } from "@zrlog/editor/dist/ai/AIContentItem";
+import { AIContent } from "@zrlog/editor/core/ai/AIContentItem";
 import { AIProviderType } from "../../../type";
 import { ArticleChangeableValue, ArticleEditState } from "../index.types";
 import { createDraftAiSaveGate, DraftAiSaveGate } from "../draft-ai-save-gate";
@@ -19,6 +19,14 @@ const mockMessageSuccess = jest.fn(async (content?: unknown): Promise<void> => {
 const mockMessageWarning = jest.fn(async (content?: unknown): Promise<void> => {
     void content;
 });
+
+// Business tests keep feedback mocked at the shared UI boundary.
+jest.mock("@zrlog/ui/antd/Input", () => ({ __esModule: true, default: () => null }));
+
+jest.mock("@zrlog/ui/feedback", () => ({
+    useUiMessage: (...args: unknown[]) => require("antd").message.useMessage(...args),
+    useUiApp: () => require("antd").App.useApp(),
+}));
 
 jest.mock("antd", () => {
     const NullComponent = () => null;
@@ -54,14 +62,14 @@ jest.mock("antd-style", () => ({
         lineWidth: 1,
     }),
 }));
-jest.mock("@zrlog/editor/dist/ai/AIButton", () => ({
+jest.mock("@zrlog/editor/core/ai/AIButton", () => ({
     __esModule: true,
     default: () => null,
     getAIButtonDrawerOpen: () => false,
 }));
-jest.mock("@zrlog/editor/dist/ai/AIIcon", () => ({ __esModule: true, default: () => null }));
-jest.mock("@zrlog/editor/dist/editor/html-preview-panel", () => ({ __esModule: true, default: () => null }));
-jest.mock("@zrlog/editor/dist/ai/AIDrawer", () => ({ resolveDrawerWidth: (width: unknown) => width }));
+jest.mock("@zrlog/editor/core/ai/AIIcon", () => ({ __esModule: true, default: () => null }));
+jest.mock("@zrlog/editor/core/editor/html-preview-panel", () => ({ __esModule: true, default: () => null }));
+jest.mock("@zrlog/editor/core/ai/AIDrawer", () => ({ resolveDrawerWidth: (width: unknown) => width }));
 jest.mock("@zrlog/editor/dist/editor/utils/marked-utils", () => ({
     markdownToHtmlSyncWithCallback: (markdown: string) => markdown,
 }));

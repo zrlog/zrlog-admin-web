@@ -1,4 +1,8 @@
-import { Alert, Button, Form, Popconfirm, Space, Switch, Typography, message } from "antd";
+import { Alert, Button, Form, Space, Typography } from "antd";
+import Switch from "@zrlog/ui/antd/Switch";
+import Popconfirm from "@zrlog/ui/antd/Popconfirm";
+import { useUiMessage } from "@zrlog/ui/feedback";
+
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getRealRouteUrl, getRes } from "../../utils/constants";
@@ -28,7 +32,7 @@ export default function WebhookForm({
     const [form] = Form.useForm<WebhookConfig>();
     const [config, setConfig] = useState(data);
     const [revoking, setRevoking] = useState(false);
-    const [notice, contextHolder] = message.useMessage();
+    const [notice, contextHolder] = useUiMessage();
     const api = useAxiosBaseInstance();
     const disabled = offline || offlineData;
     const { formLayout } = useResponsiveFormLayout({ labelCol: { span: 8 }, wrapperCol: { span: 16 } });

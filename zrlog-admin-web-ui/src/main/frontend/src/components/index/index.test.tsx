@@ -12,6 +12,12 @@ const mockAxios = {
 };
 const mockMessageError = jest.fn();
 
+// Business tests keep feedback mocked at the shared UI boundary.
+jest.mock("@zrlog/ui/feedback", () => ({
+    useUiMessage: (...args: unknown[]) => require("antd").message.useMessage(...args),
+    useUiApp: () => require("antd").App.useApp(),
+}));
+
 jest.mock("../../base/AppBase", () => ({ useAxiosBaseInstance: () => mockAxios }));
 jest.mock("../../utils/article-cache", () => ({ getLocalArticleCaches: () => [] }));
 jest.mock("../../utils/cache", () => ({

@@ -2,7 +2,7 @@ import { FunctionComponent, useEffect, useState } from "react";
 import Divider from "antd/es/divider";
 import { UpgradeData } from "../type";
 import { markdownToHtmlSyncWithCallback } from "@zrlog/editor/dist/editor/utils/marked-utils";
-import HtmlPreviewPanel from "@zrlog/editor/dist/editor/html-preview-panel";
+import HtmlPreviewPanel from "@zrlog/editor/core/editor/html-preview-panel";
 import { getAppState } from "../base/ConfigProviderApp";
 
 export type UpgradeContentProps = {

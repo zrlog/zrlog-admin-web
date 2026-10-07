@@ -1,3 +1,30 @@
+import WebhookIcon from "@zrlog/ui/icons/webhook";
+import ApiIcon from "@zrlog/ui/icons/api";
+import AppsIcon from "@zrlog/ui/icons/apps";
+import ListIcon from "@zrlog/ui/icons/list";
+import ContainerIcon from "@zrlog/ui/icons/container";
+import CopyrightIcon from "@zrlog/ui/icons/copyright";
+import DashboardIcon from "@zrlog/ui/icons/dashboard";
+import DatabaseIcon from "@zrlog/ui/icons/database";
+import EditIcon from "@zrlog/ui/icons/edit";
+import ExperimentIcon from "@zrlog/ui/icons/experiment";
+import FileTextIcon from "@zrlog/ui/icons/file-text";
+import FolderIcon from "@zrlog/ui/icons/folder";
+import HomeIcon from "@zrlog/ui/icons/home";
+import InfoIcon from "@zrlog/ui/icons/info";
+import LinkIcon from "@zrlog/ui/icons/link";
+import LockIcon from "@zrlog/ui/icons/lock";
+import MessageIcon from "@zrlog/ui/icons/message";
+import ReadIcon from "@zrlog/ui/icons/read";
+import RobotIcon from "@zrlog/ui/icons/robot";
+import SecurityIcon from "@zrlog/ui/icons/security";
+import SearchIcon from "@zrlog/ui/icons/search";
+import SettingsIcon from "@zrlog/ui/icons/settings";
+import AppearanceIcon from "@zrlog/ui/icons/appearance";
+import SlidersIcon from "@zrlog/ui/icons/sliders";
+import SyncIcon from "@zrlog/ui/icons/sync";
+import TagsIcon from "@zrlog/ui/icons/tags";
+import UserIcon from "@zrlog/ui/icons/user";
 import { isFeaturePathEnabled } from "../utils/module-capabilities";
 import {
     USER_ROUTES,
@@ -9,63 +36,13 @@ import {
 import { actionForPath, hasAction } from "../utils/account-access";
 import { lazy } from "react";
 import type { ComponentType, ReactNode } from "react";
-import {
-    ApiFilled,
-    ApiOutlined,
-    AppstoreFilled,
-    AppstoreOutlined,
-    BarsOutlined,
-    ContainerFilled,
-    ContainerOutlined,
-    CopyrightCircleFilled,
-    CopyrightCircleOutlined,
-    DashboardFilled,
-    DashboardOutlined,
-    DatabaseFilled,
-    DatabaseOutlined,
-    EditFilled,
-    EditOutlined,
-    ExperimentFilled,
-    ExperimentOutlined,
-    FileTextFilled,
-    FileTextOutlined,
-    FolderOpenFilled,
-    FolderOpenOutlined,
-    HomeFilled,
-    HomeOutlined,
-    InfoCircleFilled,
-    InfoCircleOutlined,
-    LinkOutlined,
-    LockFilled,
-    LockOutlined,
-    MessageFilled,
-    MessageOutlined,
-    ReadFilled,
-    ReadOutlined,
-    RobotFilled,
-    RobotOutlined,
-    SafetyCertificateFilled,
-    SafetyCertificateOutlined,
-    SearchOutlined,
-    SettingFilled,
-    SettingOutlined,
-    SkinFilled,
-    SkinOutlined,
-    SlidersFilled,
-    SlidersOutlined,
-    SyncOutlined,
-    TagsFilled,
-    TagsOutlined,
-    UserOutlined,
-} from "@ant-design/icons";
+
 import { buildUriPaths } from "../base/AppBase";
 import { getRes } from "../utils/constants";
 import MyLoadingComponent from "./my-loading-component";
 import type { WebSiteProps } from "./website";
 import type { ArticleEditProps } from "./articleEdit/index.types";
 import type { ErrorPageProps } from "./unknown-error-page";
-import { RiWebhookFill } from "../icons/ri/RiWebhookFill";
-import { RiWebhookLine } from "../icons/ri/RiWebhookLine";
 
 const LightweightFallback = MyLoadingComponent as ComponentType<any>;
 
@@ -150,59 +127,59 @@ export const renderAdminDashboardRouteIcon = (
     const style = fontSize ? { fontSize } : undefined;
     switch (iconKey) {
         case "api":
-            return selected ? <ApiFilled style={style} /> : <ApiOutlined style={style} />;
+            return <ApiIcon selected={selected} style={style} />;
         case "appstore":
-            return selected ? <AppstoreFilled style={style} /> : <AppstoreOutlined style={style} />;
+            return <AppsIcon selected={selected} style={style} />;
         case "bars":
-            return <BarsOutlined style={style} />;
+            return <ListIcon selected={selected} style={style} />;
         case "comment":
-            return selected ? <MessageFilled style={style} /> : <MessageOutlined style={style} />;
+            return <MessageIcon selected={selected} style={style} />;
         case "container":
-            return selected ? <ContainerFilled style={style} /> : <ContainerOutlined style={style} />;
+            return <ContainerIcon selected={selected} style={style} />;
         case "copyright":
-            return selected ? <CopyrightCircleFilled style={style} /> : <CopyrightCircleOutlined style={style} />;
+            return <CopyrightIcon selected={selected} style={style} />;
         case "dashboard":
-            return selected ? <DashboardFilled style={style} /> : <DashboardOutlined style={style} />;
+            return <DashboardIcon selected={selected} style={style} />;
         case "database":
-            return selected ? <DatabaseFilled style={style} /> : <DatabaseOutlined style={style} />;
+            return <DatabaseIcon selected={selected} style={style} />;
         case "edit":
-            return selected ? <EditFilled style={style} /> : <EditOutlined style={style} />;
+            return <EditIcon selected={selected} style={style} />;
         case "experiment":
-            return selected ? <ExperimentFilled style={style} /> : <ExperimentOutlined style={style} />;
+            return <ExperimentIcon selected={selected} style={style} />;
         case "file-text":
-            return selected ? <FileTextFilled style={style} /> : <FileTextOutlined style={style} />;
+            return <FileTextIcon selected={selected} style={style} />;
         case "folder":
-            return selected ? <FolderOpenFilled style={style} /> : <FolderOpenOutlined style={style} />;
+            return <FolderIcon selected={selected} style={style} />;
         case "home":
-            return selected ? <HomeFilled style={style} /> : <HomeOutlined style={style} />;
+            return <HomeIcon selected={selected} style={style} />;
         case "info":
-            return selected ? <InfoCircleFilled style={style} /> : <InfoCircleOutlined style={style} />;
+            return <InfoIcon selected={selected} style={style} />;
         case "link":
-            return <LinkOutlined style={style} />;
+            return <LinkIcon selected={selected} style={style} />;
         case "lock":
-            return selected ? <LockFilled style={style} /> : <LockOutlined style={style} />;
+            return <LockIcon selected={selected} style={style} />;
         case "read":
-            return selected ? <ReadFilled style={style} /> : <ReadOutlined style={style} />;
+            return <ReadIcon selected={selected} style={style} />;
         case "robot":
-            return selected ? <RobotFilled style={style} /> : <RobotOutlined style={style} />;
+            return <RobotIcon selected={selected} style={style} />;
         case "safety-certificate":
-            return selected ? <SafetyCertificateFilled style={style} /> : <SafetyCertificateOutlined style={style} />;
+            return <SecurityIcon selected={selected} style={style} />;
         case "search":
-            return <SearchOutlined style={style} />;
+            return <SearchIcon selected={selected} style={style} />;
         case "setting":
-            return selected ? <SettingFilled style={style} /> : <SettingOutlined style={style} />;
+            return <SettingsIcon selected={selected} style={style} />;
         case "skin":
-            return selected ? <SkinFilled style={style} /> : <SkinOutlined style={style} />;
+            return <AppearanceIcon selected={selected} style={style} />;
         case "sliders":
-            return selected ? <SlidersFilled style={style} /> : <SlidersOutlined style={style} />;
+            return <SlidersIcon selected={selected} style={style} />;
         case "sync":
-            return <SyncOutlined style={style} />;
+            return <SyncIcon selected={selected} style={style} />;
         case "tags":
-            return selected ? <TagsFilled style={style} /> : <TagsOutlined style={style} />;
+            return <TagsIcon selected={selected} style={style} />;
         case "user":
-            return <UserOutlined style={style} />;
+            return <UserIcon selected={selected} style={style} />;
         case "webhook":
-            return selected ? <RiWebhookFill style={style} /> : <RiWebhookLine style={style} />;
+            return <WebhookIcon selected={selected} style={style} />;
     }
 };
 
