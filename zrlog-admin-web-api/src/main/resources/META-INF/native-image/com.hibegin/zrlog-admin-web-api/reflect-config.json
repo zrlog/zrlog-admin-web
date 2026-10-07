@@ -47,6 +47,13 @@
     ]
   },
   {
+    "name": "com.zrlog.admin.web.controller.api.PluginUploadController",
+    "methods": [
+      {"name": "<init>", "parameterTypes": []},
+      {"name": "upload", "parameterTypes": []}
+    ]
+  },
+  {
     "name": "com.zrlog.admin.web.controller.api.TemplateController",
     "methods": [
       {"name": "<init>", "parameterTypes": []},
