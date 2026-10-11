@@ -84,6 +84,7 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
     ];
 
     const mounted = useRef(true);
+    const dockerPollGeneration = useRef(0);
     const [dockerPending, setDockerPending] = useState(false);
     const [dockerRetry, setDockerRetry] = useState(false);
     const upgradeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -366,8 +367,13 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
             });
     };
 
-    const pollDockerUpgrade = async (task: DockerUpgradeRequest, startedAt = Date.now()) => {
-        if (!mounted.current) {
+    const pollDockerUpgrade = async (
+        task: DockerUpgradeRequest,
+        startedAt = Date.now(),
+        generation = dockerPollGeneration.current
+    ) => {
+        const isCurrent = () => mounted.current && generation === dockerPollGeneration.current;
+        if (!isCurrent()) {
             return;
         }
         clearUpgradeTimer();
@@ -382,7 +388,7 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
                 "/api/admin/upgrade/docker-status",
                 requestConfig
             );
-            if (!mounted.current) {
+            if (!isCurrent()) {
                 return;
             }
             const job = response.data.data;
@@ -410,7 +416,7 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
             }
             if (job.phase === "succeeded") {
                 const version = await getVersion(task.buildId, axiosInstance);
-                if (!mounted.current) {
+                if (!isCurrent()) {
                     return;
                 }
                 if (version.data?.buildId !== task.buildId) {
@@ -422,17 +428,19 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
                 return;
             }
         } catch {
-            if (!mounted.current) {
+            if (!isCurrent()) {
                 return;
             }
             upsertProgressItem({ stage: "docker", status: "running", message: getRes().upgrade.docker.waiting });
         }
-        if (mounted.current) {
-            upgradeTimer.current = setTimeout(() => void pollDockerUpgrade(task, startedAt), 3000);
+        if (isCurrent()) {
+            upgradeTimer.current = setTimeout(() => void pollDockerUpgrade(task, startedAt, generation), 3000);
         }
     };
 
     const startDockerUpgrade = async () => {
+        const generation = dockerPollGeneration.current;
+        const isCurrent = () => mounted.current && generation === dockerPollGeneration.current;
         const existing = readDockerUpgrade();
         if (!existing && (!data.version.artifactVersion || !data.version.channel)) {
             throw new Error(getRes().upgrade.maintenance.refreshFailed);
@@ -457,6 +465,9 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
                 { upgradeRiskAccepted: existing ? true : upgradeRiskAccepted, docker: task },
                 requestConfig
             );
+            if (!isCurrent()) {
+                return;
+            }
             if (response.data.error) {
                 // Only a completed rejection AND an absent durable job permit a new submission.
                 const statusConfig = { params: { requestId: task.requestId }, showError: false, timeout: 30000 };
@@ -464,6 +475,9 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
                     "/api/admin/upgrade/docker-status",
                     statusConfig
                 );
+                if (!isCurrent()) {
+                    return;
+                }
                 if (status.data.error === 0 && status.data.data == null) {
                     clearDockerUpgrade(task.requestId);
                     setDockerPending(false);
@@ -471,12 +485,15 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
                 throw new Error(response.data.message);
             }
         } catch (error) {
+            if (!isCurrent()) {
+                return;
+            }
             // A lost response may already have started a job. Never submit a second request automatically.
             if (!readDockerUpgrade()) {
                 throw error;
             }
         }
-        void pollDockerUpgrade(task);
+        void pollDockerUpgrade(task, Date.now(), generation);
     };
 
     const retryDockerSubmission = async () => {
@@ -703,7 +720,7 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
     };
 
     useEffect(() => {
-        mounted.current = true;
+        mounted.current = !offline;
         const pending = readDockerUpgrade();
         if (pending && !offline) {
             setDockerPending(true);
@@ -711,6 +728,7 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
         }
         return () => {
             mounted.current = false;
+            dockerPollGeneration.current += 1;
             clearUpgradeTimer();
         };
     }, [offline]);
