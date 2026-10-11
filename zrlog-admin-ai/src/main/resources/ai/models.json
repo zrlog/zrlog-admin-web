@@ -214,19 +214,7 @@
           ]
         },
         {
-          "name": "gemini-3.7-flash",
-          "capabilities": [
-            "TEXT"
-          ]
-        },
-        {
           "name": "gemini-3.6-flash",
-          "capabilities": [
-            "TEXT"
-          ]
-        },
-        {
-          "name": "gemini-3.5-flash",
           "capabilities": [
             "TEXT"
           ]
@@ -293,6 +281,18 @@
         },
         {
           "name": "gemini-2.5-pro",
+          "capabilities": [
+            "TEXT"
+          ]
+        },
+        {
+          "name": "gemini-3.7-flash",
+          "capabilities": [
+            "TEXT"
+          ]
+        },
+        {
+          "name": "gemini-3.5-flash",
           "capabilities": [
             "TEXT"
           ]
