@@ -5,6 +5,7 @@ const scalarFields = [
     "digest",
     "keywords",
     "alias",
+    "arrange_plugin",
     "thumbnail",
     "typeId",
     "canComment",

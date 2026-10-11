@@ -16,6 +16,10 @@ import com.zrlog.admin.business.rest.response.CreateOrUpdateArticleResponse;
 import com.zrlog.admin.business.rest.response.LoadEditArticleResponse;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.common.vo.AdminTokenVO;
+import com.zrlog.common.exception.ArgsException;
+import com.zrlog.admin.business.rest.request.ArticleVersionRollbackRequest;
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 import org.junit.Test;
 
 import java.lang.reflect.Proxy;
@@ -243,6 +247,89 @@ public class AdminArticleServiceDatabaseTest {
             assertEquals(1, activityData.size());
             assertEquals(Long.valueOf(2L), activityData.get(0).getCount());
             assertNotNull(activityData.get(0).getDate());
+        }
+    }
+
+    @Test
+    public void arrangementCanBeCreatedLoadedPreservedChangedAndCleared() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            AdminArticleService service = new AdminArticleService();
+            CreateArticleRequest create = article("Toolbox", "toolbox");
+            create.setArrange_plugin("retro-runtime");
+            int id = service.create(token(), create).getLogId().intValue();
+            assertEquals("retro-runtime", service.loadDetail("toolbox", request()).getArrange_plugin());
+            assertEquals("retro-runtime", db.scalar("select arrange_plugin from log where logId=?", id));
+            Gson gson = new Gson();
+            for (boolean explicitNull : new boolean[]{false, true}) {
+                JsonObject body = gson.toJsonTree(service.loadDetail("toolbox", request())).getAsJsonObject();
+                body.remove("arrange_plugin");
+                if (explicitNull) body.add("arrange_plugin", com.google.gson.JsonNull.INSTANCE);
+                body.addProperty("title", explicitNull ? "Explicit null" : "Legacy client");
+                service.update(token(), gson.fromJson(body, UpdateArticleRequest.class));
+                assertEquals("retro-runtime", service.loadDetail("toolbox", request()).getArrange_plugin());
+            }
+            UpdateArticleRequest update = service.loadDetail("toolbox", request());
+            update.setArrange_plugin("article-arranger");
+            service.update(token(), update);
+            assertEquals("article-arranger", service.loadDetail("toolbox", request()).getArrange_plugin());
+            update.setArrange_plugin("");
+            assertThrows(UpdateArticleExpireException.class, () -> service.update(token(), update));
+            assertEquals("article-arranger", service.loadDetail("toolbox", request()).getArrange_plugin());
+            update.setVersion(service.loadDetail("toolbox", request()).getVersion());
+            service.update(token(), update);
+            assertEquals("", service.loadDetail("toolbox", request()).getArrange_plugin());
+            assertEquals("", db.scalar("select arrange_plugin from log where logId=?", id));
+        }
+    }
+
+    @Test
+    public void arrangementHistoryRestoresPluginAndLegacyDefault() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            AdminArticleService service = new AdminArticleService();
+            int id = service.create(token(), article("Layout", "layout")).getLogId().intValue();
+            assertNull(db.scalar("select arrange_plugin from log where logId=?", id));
+            assertEquals("", service.loadDetail("layout", request()).getArrange_plugin());
+            UpdateArticleRequest update = service.loadDetail("layout", request());
+            update.setEditorType("markdown");
+            update.setArrange_plugin("retro-runtime");
+            service.update(token(), update);
+            ArticleVersionService versions = new ArticleVersionService(service);
+            assertEquals(List.of("arrange_plugin"), versions.compare(id, 0, 1, request()).getChangedFields());
+            assertEquals("", versions.loadVersion(id, 0, request()).getArrange_plugin());
+            ArticleVersionRollbackRequest rollback = new ArticleVersionRollbackRequest();
+            rollback.setLogId(id);
+            rollback.setVersion(1);
+            rollback.setTargetVersion(0);
+            versions.rollback(token(), rollback, request());
+            assertEquals("", service.loadDetail("layout", request()).getArrange_plugin());
+            rollback.setVersion(2);
+            rollback.setTargetVersion(1);
+            versions.rollback(token(), rollback, request());
+            assertEquals("retro-runtime", service.loadDetail("layout", request()).getArrange_plugin());
+            assertEquals(Integer.valueOf(3), service.loadDetail("layout", request()).getVersion());
+        }
+    }
+
+    @Test
+    public void invalidArrangementIsRejectedBeforePersisting() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            AdminArticleService service = new AdminArticleService();
+            int id = service.create(token(), article("Valid", "valid")).getLogId().intValue();
+            for (String invalid : List.of("../widget", "<plugin>", "a/b", "a\\b", "a b", " a", "a\n", "a".repeat(65))) {
+                CreateArticleRequest create = article("Invalid", "invalid");
+                create.setArrange_plugin(invalid);
+                assertThrows(ArgsException.class, create::doValid);
+                assertThrows(ArgsException.class, () -> service.create(token(), create));
+                UpdateArticleRequest update = service.loadDetail("valid", request());
+                update.setArrange_plugin(invalid);
+                assertThrows(ArgsException.class, () -> service.update(token(), update));
+            }
+            assertEquals(1, ((Number) db.scalar("select count(*) from log")).intValue());
+            assertEquals(Integer.valueOf(0), service.loadDetail("valid", request()).getVersion());
+            UpdateArticleRequest update = service.loadDetail("valid", request());
+            update.setArrange_plugin("a_1.-" + "z".repeat(59));
+            service.update(token(), update);
+            assertEquals(update.getArrange_plugin(), db.scalar("select arrange_plugin from log where logId=?", id));
         }
     }
 

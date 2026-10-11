@@ -644,6 +644,13 @@ const zhCN = {
         "inputTitle": "输入文章标题，最多 100 个字符",
         "inputAlias": "请输入别名",
         "articleLink": "文章链接",
+        "arrangement": {
+            "title": "页面排版",
+            "plugin": "重排插件",
+            "placeholder": "例如 article-arranger",
+            "help": "留空使用主题默认排版。填写支持重排的已安装插件标识，由插件呈现内容",
+            "invalid": "最多 64 个字符，以英文字母或数字开头，仅支持字母、数字、点、下划线和连字符"
+        },
         "cover": "文章封面",
         "coverGenerate": "生成封面",
         "coverApply": "应用封面",
@@ -1039,6 +1046,7 @@ const zhCN = {
                 "title": "标题",
                 "content": "HTML 内容",
                 "markdown": "正文",
+                "arrange_plugin": "重排插件",
                 "digest": "摘要",
                 "keywords": "标签",
                 "alias": "别名",
@@ -2606,6 +2614,13 @@ const enUS: AdminI18nResource = {
         "inputTitle": "Enter an article title, up to 100 characters",
         "inputAlias": "Enter an alias",
         "articleLink": "Article link",
+        "arrangement": {
+            "title": "Page layout",
+            "plugin": "Arrangement plugin",
+            "placeholder": "For example, article-arranger",
+            "help": "Leave blank for the theme's default layout. Enter the ID of an installed plugin that supports page arrangement to let it render the content",
+            "invalid": "Use up to 64 characters, starting with an ASCII letter or digit. Only letters, digits, dots, underscores, and hyphens are allowed"
+        },
         "cover": "Article Cover",
         "coverGenerate": "Generate Cover",
         "coverApply": "Apply Cover",
@@ -3002,6 +3017,7 @@ const enUS: AdminI18nResource = {
                 "title": "Title",
                 "content": "HTML Content",
                 "markdown": "Body",
+                "arrange_plugin": "Arrangement plugin",
                 "digest": "Summary",
                 "keywords": "Tags",
                 "alias": "Alias",

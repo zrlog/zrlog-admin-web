@@ -77,6 +77,27 @@ describe("useArticleDraftSync", () => {
         });
     };
 
+    it("queues arrangement changes and retains them when a server refresh has a different layout", () => {
+        const article = { ...baseArticle, logId: 7, version: 3, arrange_plugin: "retro-runtime" };
+        const props = createProps({ article });
+        render(props);
+        let local!: ArticleDraftChange;
+        act(() => {
+            local = current.applyPatch({ arrange_plugin: "" })!;
+        });
+        expect(local.article.arrange_plugin).toBe("");
+        expect(props.onRequestSync).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                article: expect.objectContaining({ arrange_plugin: "", rubbish: true }),
+            })
+        );
+        act(() => {
+            expect(current.receiveServerArticle({ ...article, version: 4 })?.article.arrange_plugin).toBe("");
+        });
+        expect(current.state.sync).toBe("conflict");
+        expect(current.markSyncing(local)).toBe(false);
+    });
+
     it("pauses queued local edits when a tool changes the server and resumes from the chosen version", () => {
         const article = { ...baseArticle, logId: 7, version: 3 };
         const props = createProps({ article });
