@@ -26,6 +26,26 @@ describe("three-way article merge", () => {
             logId: 7,
         });
     });
+    it("preserves a remote arrangement change alongside local body edits", () => {
+        const plan = merge({ markdown: "New body" }, { arrange_plugin: "retro-runtime" });
+        expect(plan.conflicts).toEqual([]);
+        expect(resolveArticleMerge(plan, {})).toMatchObject({ markdown: "New body", arrange_plugin: "retro-runtime" });
+    });
+    it("requires a choice when clearing an arrangement conflicts with a different plugin", () => {
+        const original = { ...base, arrange_plugin: "retro-runtime" };
+        const plan = buildArticleMerge(original, { ...original, arrange_plugin: "" }, {
+            ...original, version: 4, arrange_plugin: "article-arranger",
+        });
+        expect(plan.conflicts).toEqual([{
+            id: "arrange_plugin", field: "arrange_plugin", base: "retro-runtime", local: "", server: "article-arranger",
+        }]);
+        expect(resolveArticleMerge(plan, {})).toBeUndefined();
+        expect(resolveArticleMerge(plan, { arrange_plugin: "" })?.arrange_plugin).toBe("");
+    });
+    it("treats an omitted legacy field and an empty arrangement as the same default", () => {
+        const plan = buildArticleMerge(undefined, base, { ...base, arrange_plugin: "", version: 4 });
+        expect(plan.conflicts).toEqual([]);
+    });
     it("merges edits in separate paragraphs and rebuilds HTML from the merged markdown", () => {
         const plan = merge({ markdown: "My first\nMiddle\nLast\n" }, { markdown: "First\nMiddle\nRemote last\n" });
         expect(plan.conflicts).toEqual([]);

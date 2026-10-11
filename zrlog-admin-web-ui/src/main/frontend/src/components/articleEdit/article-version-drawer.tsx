@@ -277,6 +277,8 @@ const ArticleVersionDrawer: React.FC<ArticleVersionDrawerProps> = ({
                 return fields.keywords;
             case "alias":
                 return fields.alias;
+            case "arrange_plugin":
+                return fields.arrange_plugin;
             case "thumbnail":
                 return fields.thumbnail;
             case "typeId":
@@ -349,9 +351,7 @@ const ArticleVersionDrawer: React.FC<ArticleVersionDrawerProps> = ({
                         cursor: !logId ? "not-allowed" : "pointer",
                         color: theme.colorTextTertiary,
                     }}
-                    icon={
-                        <HistoryIcon style={{ fontSize: getAppState().compactMode ? 18 : 24, display: "flex" }} />
-                    }
+                    icon={<HistoryIcon style={{ fontSize: getAppState().compactMode ? 18 : 24, display: "flex" }} />}
                     onClick={(e) => {
                         e.stopPropagation();
                         e.preventDefault();
@@ -383,10 +383,7 @@ const ArticleVersionDrawer: React.FC<ArticleVersionDrawerProps> = ({
                                 placeholder="v0"
                             />
                             {selectedVersion !== undefined && (
-                                <Button
-                                    icon={<UndoIcon />}
-                                    onClick={() => openRollbackConfirm(selectedVersion)}
-                                >
+                                <Button icon={<UndoIcon />} onClick={() => openRollbackConfirm(selectedVersion)}>
                                     {getRes().articleEdit.version.rollback.label}
                                 </Button>
                             )}

@@ -29,7 +29,7 @@ public class ArticleVersionService {
     private static final Type PATCH_TYPE = new TypeToken<Map<String, Object>>() {
     }.getType();
     private static final List<String> SNAPSHOT_FIELDS = List.of(
-            "title", "content", "markdown", "digest", "keywords", "alias", "thumbnail",
+            "title", "content", "markdown", "digest", "keywords", "alias", "thumbnail", "arrange_plugin",
             "typeId", "canComment", "recommended", "privacy", "rubbish", "editorType"
     );
 
@@ -178,6 +178,7 @@ public class ArticleVersionService {
         map.put("digest", article.getDigest());
         map.put("keywords", article.getKeywords());
         map.put("alias", article.getAlias());
+        map.put("arrange_plugin", Objects.toString(article.getArrange_plugin(), ""));
         map.put("thumbnail", article.getThumbnail());
         map.put("typeId", article.getTypeId());
         map.put("canComment", article.isCanComment());
@@ -240,6 +241,10 @@ public class ArticleVersionService {
                 break;
             case "alias":
                 article.setAlias(toStringValue(value));
+                break;
+            case "arrange_plugin":
+                // Historical null values must clear the field, not mean "preserve" on rollback.
+                article.setArrange_plugin(Objects.toString(value, ""));
                 break;
             case "thumbnail":
                 article.setThumbnail(toStringValue(value));
@@ -323,6 +328,8 @@ public class ArticleVersionService {
                 return log.get("typeId");
             case "editorType":
                 return log.get("editor_type");
+            case "arrange_plugin":
+                return Objects.toString(log.get(field), "");
             default:
                 return log.get(field);
         }

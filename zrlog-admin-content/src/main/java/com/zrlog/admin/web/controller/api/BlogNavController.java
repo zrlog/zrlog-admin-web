@@ -5,6 +5,8 @@ import com.zrlog.data.security.AccountAction;
 
 import com.hibegin.common.dao.dto.PageData;
 import com.hibegin.http.annotation.ResponseBody;
+import com.hibegin.http.annotation.RequestMethod;
+import com.hibegin.http.HttpMethod;
 import com.zrlog.admin.business.rest.request.CreateNavRequest;
 import com.zrlog.admin.business.rest.request.UpdateNavRequest;
 import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
@@ -27,12 +29,14 @@ public class BlogNavController extends BaseController {
     @RefreshCache(async = true, updateStaticSites = StaticSiteType.BLOG)
     @ResponseBody
     @RequestLock
+    @RequestMethod(method = HttpMethod.POST)
     @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "navigation.delete")
     public DeleteResponse delete() throws SQLException {
         return new DeleteResponse(blogNavService.delete(getParamWithEmptyCheck("id")));
     }
 
     @ResponseBody
+    @RequestMethod(method = HttpMethod.GET)
     @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "navigation.list")
     public AdminPageDataResponse<PageData<LogNavDTO>> index() throws SQLException {
         return new AdminPageDataResponse<>(blogNavService.find(), "", request.getUri());
@@ -41,6 +45,7 @@ public class BlogNavController extends BaseController {
     @RefreshCache(async = true, updateStaticSites = StaticSiteType.BLOG)
     @ResponseBody
     @RequestLock
+    @RequestMethod(method = HttpMethod.POST)
     @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "navigation.create")
     public UpdateRecordResponse add() throws IOException, SQLException {
         return new UpdateRecordResponse(blogNavService.add(getRequestBodyWithNullCheck(CreateNavRequest.class)));
@@ -49,6 +54,7 @@ public class BlogNavController extends BaseController {
     @RefreshCache(async = true, updateStaticSites = StaticSiteType.BLOG)
     @ResponseBody
     @RequestLock
+    @RequestMethod(method = HttpMethod.POST)
     @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "navigation.update")
     public UpdateRecordResponse update() throws IOException, SQLException {
         return new UpdateRecordResponse(blogNavService.update(getRequestBodyWithNullCheck(UpdateNavRequest.class)));

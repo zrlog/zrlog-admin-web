@@ -1144,6 +1144,7 @@ const useArticleSaveCoordinator = ({
                 {
                     title: article.title,
                     alias: article.alias,
+                    arrange_plugin: article.arrange_plugin,
                     digest: article.digest,
                     keywords: article.keywords,
                     markdown: article.markdown,

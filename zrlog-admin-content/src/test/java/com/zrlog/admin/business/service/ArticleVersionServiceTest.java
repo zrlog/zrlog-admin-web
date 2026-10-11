@@ -95,6 +95,16 @@ public class ArticleVersionServiceTest {
     }
 
     @Test
+    public void historicalNullArrangementPatchRestoresDefaultInsteadOfPreservingCurrentPlugin() throws Exception {
+        ArticleVersionService service = newService();
+        LoadEditArticleResponse article = article(9, 4, "Layout");
+        article.setArrange_plugin("retro-runtime");
+        method("applyReversePatch", LoadEditArticleResponse.class, String.class).invoke(
+                service, article, "{\"arrange_plugin\":{\"type\":\"value\",\"old\":null}}");
+        assertEquals("", article.getArrange_plugin());
+    }
+
+    @Test
     public void shouldHandlePrivateValueConversionHelpers() throws Exception {
         Method applyTextReversePatch = method("applyTextReversePatch", String.class, Map.class);
         Method toInteger = method("toInteger", Object.class);

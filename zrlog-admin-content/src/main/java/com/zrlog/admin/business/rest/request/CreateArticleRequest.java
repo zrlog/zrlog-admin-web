@@ -15,6 +15,7 @@ public class CreateArticleRequest implements Validator {
     private String title;
     private Long typeId;
     private String alias;
+    private String arrange_plugin;
     private String markdown;
     private boolean canComment;
     private boolean privacy;
@@ -64,6 +65,21 @@ public class CreateArticleRequest implements Validator {
 
     public void setAlias(String alias) {
         this.alias = alias;
+    }
+
+    public String getArrange_plugin() {
+        return arrange_plugin;
+    }
+
+    public void setArrange_plugin(String arrange_plugin) {
+        this.arrange_plugin = arrange_plugin;
+    }
+
+    public void validateArrangePlugin() {
+        if (arrange_plugin != null && !arrange_plugin.isEmpty()
+                && !arrange_plugin.matches("[A-Za-z0-9][A-Za-z0-9_.-]{0,63}")) {
+            throw new ArgsException("arrange_plugin");
+        }
     }
 
     public String getMarkdown() {
@@ -148,6 +164,7 @@ public class CreateArticleRequest implements Validator {
 
     @Override
     public void doValid() {
+        validateArrangePlugin();
         if (Objects.isNull(typeId) || typeId <= 0) {
             throw new ArgsException("typeId");
         }

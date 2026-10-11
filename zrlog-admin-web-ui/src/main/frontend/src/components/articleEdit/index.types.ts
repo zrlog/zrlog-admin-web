@@ -6,6 +6,7 @@ export type ArticleEntry = ChangedContent &
     ThumbnailChanged &
     TitleChanged &
     AliasChanged &
+    ArrangementChanged &
     DigestChanged &
     KeywordsChanged &
     RecommendedChanged &
@@ -53,6 +54,10 @@ export type AliasChanged = {
     alias?: string;
 };
 
+export type ArrangementChanged = {
+    arrange_plugin?: string;
+};
+
 export type DigestChanged = {
     digest?: string;
 };
@@ -81,6 +86,7 @@ export type ArticleChangeableValue =
     | PrivacyChanged
     | CanCommentChanged
     | AliasChanged
+    | ArrangementChanged
     | TypeChanged
     | TitleChanged
     | KeywordsChanged

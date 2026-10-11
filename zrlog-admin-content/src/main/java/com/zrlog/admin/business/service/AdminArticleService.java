@@ -83,6 +83,7 @@ public class AdminArticleService {
             throw new ArticleMissingTypeException();
         }
         com.zrlog.data.security.AccountAccess access = AccountPermissionService.account(adminTokenVO);
+        createArticleRequest.validateArrangePlugin();
         if ("contributor".equals(access.getRole()) && !createArticleRequest.isRubbish()) throw new com.zrlog.admin.business.exception.PermissionErrorException();
         if (!createArticleRequest.isRubbish() && !createArticleRequest.isPrivacy() && !access.canPublish()) throw new com.zrlog.admin.business.exception.PermissionErrorException();
         Integer logId = (createArticleRequest instanceof UpdateArticleRequest ? ((UpdateArticleRequest) createArticleRequest).getLogId() : null);
@@ -201,6 +202,10 @@ public class AdminArticleService {
             log.put("sticky", 0);
         }
         log.put("content", createArticleRequest.getContent());
+        // Null/omitted values preserve existing arrangements for older clients.
+        if (createArticleRequest.getArrange_plugin() != null) {
+            log.put("arrange_plugin", createArticleRequest.getArrange_plugin());
+        }
         log.put("title", Jsoup.clean(createArticleRequest.getTitle(), Safelist.basic()));
         if (StringUtils.isNotEmpty(createArticleRequest.getKeywords())) {
             log.put("keywords", Jsoup.clean(createArticleRequest.getKeywords(), Safelist.basic()));
@@ -445,6 +450,7 @@ public class AdminArticleService {
         //remove convert error str
         log.setLastUpdateDate(null);
         LoadEditArticleResponse loadEditArticleResponse = BeanUtil.convert(log, LoadEditArticleResponse.class);
+        loadEditArticleResponse.setArrange_plugin(Objects.toString(log.getArrange_plugin(), ""));
         if (Objects.isNull(loadEditArticleResponse.getDigest())) {
             loadEditArticleResponse.setDigest("");
         }
