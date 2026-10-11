@@ -7,7 +7,6 @@ import { getRealRouteUrl, getRes } from "../../utils/constants";
 import Form from "antd/es/form";
 import Select from "antd/es/select";
 
-
 import { theme } from "antd";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -17,6 +16,7 @@ import { ApiResponse, UpgradeData } from "../../type";
 import axios, { AxiosResponse, CancelTokenSource } from "axios";
 import UpgradeContent from "../upgrade-content";
 import { useResponsiveFormLayout } from "../../utils/responsive-form";
+import DockerRepositorySetting from "./DockerRepositorySetting";
 import WebsiteSubmitBar from "./WebsiteSubmitBar";
 
 const layout = {
@@ -37,6 +37,7 @@ const UpgradeSettingForm = ({
     loading?: boolean;
     onSubmit: (data: Upgrade) => void;
 }) => {
+    const [dockerMode, setDockerMode] = useState(false);
     const [checking, setChecking] = useState<boolean>(false);
     const { modal } = useUiApp();
     const [messageApi, contextHolder] = useUiMessage({ maxCount: 3 });
@@ -66,6 +67,7 @@ const UpgradeSettingForm = ({
             const { data }: AxiosResponse<ApiResponse<UpgradeData>> = await axiosInstance.get("/api/admin/upgrade", {
                 cancelToken: source.token,
             });
+            setDockerMode(data.data.dockerMode === true);
             if (data.data.upgrade) {
                 modal.info({
                     width: narrow ? "calc(100vw - 32px)" : 682,
@@ -101,6 +103,27 @@ const UpgradeSettingForm = ({
             setChecking(false);
         }
     };
+
+    useEffect(() => {
+        if (offline || offlineData) {
+            return;
+        }
+        let active = true;
+        const requestConfig = { params: { fetch: false }, showError: false };
+        void axiosInstance
+            .get<ApiResponse<UpgradeData>>("/api/admin/upgrade", requestConfig)
+            .then((response) => {
+                if (active && response.data.error === 0) {
+                    setDockerMode(response.data.data.dockerMode === true);
+                }
+            })
+            .catch(() => {
+                /* The existing check button can retry. */
+            });
+        return () => {
+            active = false;
+        };
+    }, [offline, offlineData, axiosInstance]);
 
     useEffect(() => {
         setState(data);
@@ -181,7 +204,23 @@ const UpgradeSettingForm = ({
                 <Switch />
             </Form.Item>
 
+            <Form.Item
+                name="upgradePackageSource"
+                label={getRes().websiteUpgrade.packageSource}
+                extra={getRes().websiteUpgrade.packageSourceTip}
+                style={formItemStyle}
+            >
+                <Select
+                    options={[
+                        { value: "dl", label: getRes().websiteUpgrade.dlSource },
+                        { value: "github", label: getRes().websiteUpgrade.githubSource },
+                    ]}
+                />
+            </Form.Item>
             <WebsiteSubmitBar loading={loading} disabled={offline || offlineData} />
+            {dockerMode && (
+                <DockerRepositorySetting disabled={offline || offlineData} preview={!!state.upgradePreview} />
+            )}
         </Form>
     );
 };

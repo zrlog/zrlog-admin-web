@@ -7,7 +7,6 @@ import InfoIcon from "@zrlog/ui/icons/info";
 import LoadingIcon from "@zrlog/ui/icons/loading";
 import { FunctionComponent, useEffect, useRef, useState } from "react";
 
-
 import Title from "antd/es/typography/Title";
 import { getRealRouteUrl, getRes } from "../utils/constants";
 import { getContextPath } from "../utils/helpers";
@@ -21,6 +20,15 @@ import { getAppState } from "../base/ConfigProviderApp";
 import { postRefreshCacheSse, SseEvent } from "../utils/sse-utils";
 import { createBackgroundTask, finishBackgroundTask, updateBackgroundTask } from "../utils/background-task-store";
 import UpgradeReadiness from "./upgrade-readiness";
+import {
+    clearDockerUpgrade,
+    DockerUpgradeJob,
+    DockerUpgradeRequest,
+    matchesDockerJob,
+    newDockerRequestId,
+    readDockerUpgrade,
+    saveDockerUpgrade,
+} from "../utils/docker-upgrade";
 
 const RESTART_CHECK_INITIAL_DELAY_MS = 2000;
 const RESTART_CHECK_MAX_DELAY_MS = 10000;
@@ -75,6 +83,9 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
         },
     ];
 
+    const mounted = useRef(true);
+    const [dockerPending, setDockerPending] = useState(false);
+    const [dockerRetry, setDockerRetry] = useState(false);
     const upgradeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const upgradeTaskId = useRef<string | undefined>();
     const restartCheckReady = useRef(false);
@@ -355,6 +366,136 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
             });
     };
 
+    const pollDockerUpgrade = async (task: DockerUpgradeRequest, startedAt = Date.now()) => {
+        if (!mounted.current) {
+            return;
+        }
+        clearUpgradeTimer();
+        if (Date.now() - startedAt >= RESTART_CHECK_TIMEOUT_MS) {
+            upsertProgressItem({ stage: "docker", status: "error", message: getRes().upgrade.docker.unknown });
+            finishUpgradeTask("warning", getRes().upgrade.docker.unknown);
+            return;
+        }
+        try {
+            const requestConfig = { params: { requestId: task.requestId }, showError: false, timeout: 15000 };
+            const response = await axiosInstance.get<ApiResponse<DockerUpgradeJob | null>>(
+                "/api/admin/upgrade/docker-status",
+                requestConfig
+            );
+            if (!mounted.current) {
+                return;
+            }
+            const job = response.data.data;
+            // Gson may omit a null data property on the successful "task not found" response.
+            if (response.data.error === 0 && job == null) {
+                setDockerRetry(true);
+                upsertProgressItem({ stage: "docker", status: "error", message: getRes().upgrade.docker.unknown });
+                return;
+            }
+            if (response.data.error || !matchesDockerJob(job, task)) {
+                throw new Error();
+            }
+            const failed = job.phase === "failed" || job.phase === "interrupted";
+            upsertProgressItem({
+                stage: "docker",
+                status: failed ? "error" : job.phase === "succeeded" ? "complete" : "running",
+                message: getRes().upgrade.docker.phases[job.phase],
+                detail: job.recoveryRequired && failed ? getRes().upgrade.docker.recovery : undefined,
+            });
+            if (failed) {
+                clearDockerUpgrade(task.requestId);
+                setDockerPending(false);
+                finishUpgradeTask("error", getRes().upgrade.docker.failed);
+                return;
+            }
+            if (job.phase === "succeeded") {
+                const version = await getVersion(task.buildId, axiosInstance);
+                if (!mounted.current) {
+                    return;
+                }
+                if (version.data?.buildId !== task.buildId) {
+                    throw new Error();
+                }
+                await completeUpgrade(task.buildId);
+                clearDockerUpgrade(task.requestId);
+                setDockerPending(false);
+                return;
+            }
+        } catch {
+            if (!mounted.current) {
+                return;
+            }
+            upsertProgressItem({ stage: "docker", status: "running", message: getRes().upgrade.docker.waiting });
+        }
+        if (mounted.current) {
+            upgradeTimer.current = setTimeout(() => void pollDockerUpgrade(task, startedAt), 3000);
+        }
+    };
+
+    const startDockerUpgrade = async () => {
+        const existing = readDockerUpgrade();
+        if (!existing && (!data.version.artifactVersion || !data.version.channel)) {
+            throw new Error(getRes().upgrade.maintenance.refreshFailed);
+        }
+        const task: DockerUpgradeRequest = existing || {
+            requestId: newDockerRequestId(),
+            version: data.version.artifactVersion!,
+            buildId: data.version.buildId,
+            channel: data.version.channel!,
+        };
+        try {
+            saveDockerUpgrade(task);
+        } catch {
+            throw new Error(getRes().upgrade.docker.storageUnavailable);
+        }
+        setDockerPending(true);
+        setDockerRetry(false);
+        try {
+            const requestConfig = { showError: false, timeout: 30000 };
+            const response = await axiosInstance.post<ApiResponse<DockerUpgradeJob>>(
+                API_DO_UPGRADE_PATH,
+                { upgradeRiskAccepted: existing ? true : upgradeRiskAccepted, docker: task },
+                requestConfig
+            );
+            if (response.data.error) {
+                // Only a completed rejection AND an absent durable job permit a new submission.
+                const statusConfig = { params: { requestId: task.requestId }, showError: false, timeout: 30000 };
+                const status = await axiosInstance.get<ApiResponse<DockerUpgradeJob | null>>(
+                    "/api/admin/upgrade/docker-status",
+                    statusConfig
+                );
+                if (status.data.error === 0 && status.data.data == null) {
+                    clearDockerUpgrade(task.requestId);
+                    setDockerPending(false);
+                }
+                throw new Error(response.data.message);
+            }
+        } catch (error) {
+            // A lost response may already have started a job. Never submit a second request automatically.
+            if (!readDockerUpgrade()) {
+                throw error;
+            }
+        }
+        void pollDockerUpgrade(task);
+    };
+
+    const retryDockerSubmission = async () => {
+        if (upgradeStarting.current || offline) {
+            return;
+        }
+        upgradeStarting.current = true;
+        try {
+            await startDockerUpgrade();
+        } catch (error) {
+            const message = error instanceof Error ? error.message : getRes().upgrade.docker.failed;
+            finishUpgradeTask("error", message);
+            messageApi.error(message);
+            returnToChangeLog();
+        } finally {
+            upgradeStarting.current = false;
+        }
+    };
+
     const getStepIndex = (alias: StepInfo["alias"]) => {
         const index = steps.findIndex((step) => step.alias === alias);
         return index >= 0 ? index : 0;
@@ -497,6 +638,10 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
         upgradeTaskId.current = undefined;
         ensureUpgradeTask(getRes().upgrade.preparing);
         try {
+            if (data.dockerUpdaterAvailable) {
+                await startDockerUpgrade();
+                return;
+            }
             const response = await postRefreshCacheSse<ApiResponse<UpgradeProcessResponse>>(API_DO_UPGRADE_PATH, {
                 body: { upgradeRiskAccepted },
                 messageApi,
@@ -542,7 +687,7 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
     };
 
     const nextDisabled = (): boolean => {
-        if (refreshing || refreshError || (offlineData && checkedAt === undefined)) {
+        if (dockerPending || refreshing || refreshError || (offlineData && checkedAt === undefined)) {
             return true;
         }
         if (offline) {
@@ -558,10 +703,17 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
     };
 
     useEffect(() => {
+        mounted.current = true;
+        const pending = readDockerUpgrade();
+        if (pending && !offline) {
+            setDockerPending(true);
+            void pollDockerUpgrade(pending);
+        }
         return () => {
+            mounted.current = false;
             clearUpgradeTimer();
         };
-    }, []);
+    }, [offline]);
 
     if (!breakpointReady) {
         return null;
@@ -570,6 +722,11 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
     return (
         <>
             {contextHolder}
+            {dockerRetry && (
+                <Button disabled={offline} onClick={() => void retryDockerSubmission()}>
+                    {getRes().upgrade.docker.retrySubmission}
+                </Button>
+            )}
             <Row key={data.version.buildId || data.version.version} justify="start" style={{ width: "100%" }}>
                 <Col style={{ maxWidth: contentMaxWidth, width: "100%" }} xs={24} md={22} xl={18} xxl={14}>
                     <Card styles={{ body: { padding: narrow ? token.padding : token.paddingLG } }}>

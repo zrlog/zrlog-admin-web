@@ -33,6 +33,9 @@ public class AdminRouters {
         router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/message-center/operation/upgrade-restart", MessageCenterController.class, "upgradeRestart");
         router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/upgrade", UpgradeController.class);
         router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/upgrade/notice", UpgradeController.class, "notice");
+        router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/upgrade/docker-status", UpgradeController.class, "dockerStatus");
+        router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/upgrade/docker-settings", UpgradeController.class, "dockerSettings");
+        router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/upgrade/save-docker-settings", UpgradeController.class, "saveDockerSettings");
         router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/system", AdminSystemController.class);
         router.addMapper("/api" + AdminConstants.ADMIN_DEV_URI_BASE_PATH, AdminDevController.class);
 

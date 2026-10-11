@@ -20,6 +20,7 @@ public class AdminNativeImageUtils {
                 com.zrlog.admin.business.rest.request.ReadMessageCenterNoticeRequest.class,
                 com.zrlog.admin.business.rest.request.UpgradeRestartNoticeRequest.class,
                 com.zrlog.admin.business.rest.request.ExecuteUpgradeRequest.class,
+                com.zrlog.admin.business.rest.request.DockerUpgradeSettingsRequest.class,
                 com.zrlog.admin.business.rest.response.TemplateDownloadResponse.class,
                 com.zrlog.admin.business.rest.response.TemplateEntryResponse.class,
                 com.zrlog.admin.business.rest.response.IndexResponse.class,

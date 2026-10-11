@@ -4,6 +4,11 @@ import com.zrlog.admin.web.annotation.RequiresAction;
 import com.zrlog.data.security.AccountAction;
 
 import com.hibegin.http.annotation.ResponseBody;
+import com.hibegin.http.annotation.RequestMethod;
+import com.hibegin.http.HttpMethod;
+import com.zrlog.common.updater.docker.DockerUpdaterClient;
+import com.zrlog.common.updater.docker.DockerUpdaterProtocol;
+import com.zrlog.util.ZrLogUtil;
 import com.zrlog.admin.business.rest.request.ExecuteUpgradeRequest;
 import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
 import com.zrlog.admin.business.service.AdminAuditService;
@@ -31,7 +36,7 @@ public class UpgradeController extends BaseController {
     @ResponseBody
     @RequiresAction(value = AccountAction.SYSTEM_MANAGE, descriptionKey = "system.upgradeCheck")
     public AdminPageDataResponse<PreCheckVersionResponse> index() {
-        PreCheckVersionResponse preCheckVersionResponse = AdminStaticService.getInstance().getUpgradeService().preUpgradeVersion(true, Constants.zrLogConfig.getPlugin(UpdateVersionInfoPlugin.class));
+        PreCheckVersionResponse preCheckVersionResponse = AdminStaticService.getInstance().getUpgradeService().preUpgradeVersion(!"false".equals(request.getParaToStr("fetch", "true")), Constants.zrLogConfig.getPlugin(UpdateVersionInfoPlugin.class));
         return new AdminPageDataResponse<>(preCheckVersionResponse,
                 Objects.equals(preCheckVersionResponse.getUpgrade(), true) ? "" : I18nUtil.getAdminBackendStringFromRes("admin.upgrade.version.notFound"), request.getUri());
     }
@@ -49,8 +54,15 @@ public class UpgradeController extends BaseController {
 
     @ResponseBody
     @RequiresAction(value = AccountAction.SYSTEM_MANAGE, descriptionKey = "system.upgrade")
+    @RequestMethod(method = HttpMethod.POST)
     public void doUpgrade() throws IOException {
         ExecuteUpgradeRequest upgradeRequest = getRequestBodyWithNullCheck(ExecuteUpgradeRequest.class);
+        if (upgradeRequest.getDocker() != null) {
+            DockerUpdaterProtocol.Job job = dockerClient().submit(upgradeRequest.getDocker());
+            recordUpgradeAudit(upgradeRequest);
+            response.renderJson(new ApiStandardResponse<>(job));
+            return;
+        }
         UpdateVersionInfoPlugin plugin = Constants.zrLogConfig.getPlugin(UpdateVersionInfoPlugin.class);
         Map<String, Object> backend = I18nUtil.getBackend();
         if (!isSseRequest()) {
@@ -81,6 +93,40 @@ public class UpgradeController extends BaseController {
             recordUpgradeAudit(upgradeRequest);
             emitter.send("response", new ApiStandardResponse<>(upgradeProcessResponse));
         });
+    }
+
+    @ResponseBody
+    @RequestMethod(method = HttpMethod.GET)
+    @RequiresAction(value = AccountAction.SYSTEM_MANAGE, descriptionKey = "system.upgrade")
+    public ApiStandardResponse<DockerUpdaterProtocol.Job> dockerStatus() {
+        try {
+            return new ApiStandardResponse<>(dockerClient().status(request.getParaToStr("requestId")));
+        } catch (DockerUpdaterClient.RequestException error) {
+            if (error.getStatus() == 404) { return new ApiStandardResponse<>(null); }
+            throw error;
+        }
+    }
+
+    @ResponseBody
+    @RequestMethod(method = HttpMethod.GET)
+    @RequiresAction(value = AccountAction.SYSTEM_MANAGE, descriptionKey = "system.upgrade")
+    public ApiStandardResponse<DockerUpdaterProtocol.SettingsResponse> dockerSettings() {
+        return new ApiStandardResponse<>(dockerClient().settings(request.getParaToStr("channel", "release")));
+    }
+
+    @ResponseBody
+    @RequestMethod(method = HttpMethod.POST)
+    @RequiresAction(value = AccountAction.SYSTEM_MANAGE, descriptionKey = "system.upgrade")
+    public ApiStandardResponse<DockerUpdaterProtocol.Settings> saveDockerSettings() {
+        DockerUpdaterProtocol.Settings settings = getRequestBodyWithNullCheck(com.zrlog.admin.business.rest.request.DockerUpgradeSettingsRequest.class);
+        DockerUpdaterProtocol.Settings saved = dockerClient().saveSettings(settings.repository, settings.channel);
+        new AdminAuditService().record(request, AdminAuditAction.UPDATE_SETTING, "Docker image repository");
+        return new ApiStandardResponse<>(saved);
+    }
+
+    protected DockerUpdaterClient dockerClient() {
+        if (!ZrLogUtil.isDockerMode()) { throw new IllegalStateException("Docker updater requires Docker mode"); }
+        return DockerUpdaterClient.fromEnvironment();
     }
 
     private boolean isSseRequest() {

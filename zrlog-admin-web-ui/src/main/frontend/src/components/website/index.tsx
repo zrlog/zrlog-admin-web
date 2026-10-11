@@ -1,6 +1,5 @@
 import { useUiMessage } from "@zrlog/ui/feedback";
 
-
 import { getRealRouteUrl, getRes, setRes } from "../../utils/constants";
 import BlogForm from "./BlogForm";
 import BasicForm from "./BasicForm";
@@ -100,6 +99,7 @@ export interface AIModelEntry {
 }
 
 export interface Upgrade {
+    upgradePackageSource?: "dl" | "github";
     autoUpgradeVersion: number;
     upgradePreview: boolean;
 }

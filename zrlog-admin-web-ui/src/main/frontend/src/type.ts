@@ -34,6 +34,7 @@ export type UpgradeData = {
     version: UpgradeVersion;
     backupProtection?: BackupProtectionStatus;
     dockerMode?: boolean;
+    dockerUpdaterAvailable?: boolean;
     systemServiceMode?: boolean;
     faasMode?: boolean;
     warMode?: boolean;
@@ -77,6 +78,8 @@ export type ApiResponse<T> = {
 };
 
 export type UpgradeVersion = {
+    artifactVersion?: string;
+    channel?: "release" | "preview";
     changeLog: string;
     buildId: string;
     releaseDate?: string;

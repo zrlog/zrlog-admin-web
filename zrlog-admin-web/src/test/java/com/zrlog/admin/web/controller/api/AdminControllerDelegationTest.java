@@ -537,6 +537,53 @@ public class AdminControllerDelegationTest {
     }
 
     @Test
+    public void shouldSubmitDockerJobWithRiskConsentAndRecoverById() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            setAdminToken();
+            var job = new com.zrlog.common.updater.docker.DockerUpdaterProtocol.Job();
+            job.id = "browser-request-1234";
+            job.phase = "queued";
+            var submissions = new java.util.concurrent.atomic.AtomicInteger();
+            var client = new com.zrlog.common.updater.docker.DockerUpdaterClient("http://updater:8081",
+                    "test_token_123456789012345678901234", "https://dl.example", "docker.json") {
+                @Override public com.zrlog.common.updater.docker.DockerUpdaterProtocol.Job submit(
+                        com.zrlog.common.updater.docker.DockerUpdaterProtocol.UpgradeRequest request) {
+                    submissions.incrementAndGet();
+                    assertEquals(job.id, request.requestId);
+                    assertEquals("4.0.0-SNAPSHOT", request.version);
+                    assertEquals("preview", request.channel);
+                    return job;
+                }
+                @Override public com.zrlog.common.updater.docker.DockerUpdaterProtocol.Job status(String id) {
+                    assertEquals(job.id, id); return job;
+                }
+            };
+            UpgradeController controller = new UpgradeController() {
+                @Override protected com.zrlog.common.updater.docker.DockerUpdaterClient dockerClient() { return client; }
+            };
+            String docker = ",\"docker\":{\"requestId\":\"browser-request-1234\",\"version\":\"4.0.0-SNAPSHOT\","
+                    + "\"buildId\":\"1234567\",\"channel\":\"preview\"}}";
+            setControllerRequest(controller, request(HttpMethod.POST, "/api/admin/upgrade/doUpgrade", Map.of(),
+                    Map.of(), "{\"upgradeRiskAccepted\":false" + docker));
+            assertThrows(ArgsException.class, controller::doUpgrade);
+            assertEquals(0, submissions.get());
+            ResponseRecorder recorder = new ResponseRecorder();
+            setControllerRequest(controller, request(HttpMethod.POST, "/api/admin/upgrade/doUpgrade", Map.of(),
+                    Map.of(), "{\"upgradeRiskAccepted\":true" + docker));
+            setControllerResponse(controller, recorder.response());
+            controller.doUpgrade();
+            assertEquals(1, submissions.get());
+            assertSame(job, ((ApiStandardResponse<?>) recorder.renderedJson).getData());
+            assertWebsiteValueContains(db, "admin_audit_log", "EXECUTE_UPGRADE");
+            job.phase = "succeeded";
+            setControllerRequest(controller, request(HttpMethod.GET, "/api/admin/upgrade/docker-status",
+                    Map.of("requestId", job.id), Map.of(), null));
+            assertEquals("succeeded", controller.dockerStatus().getData().phase);
+            assertEquals(1, submissions.get());
+        }
+    }
+
+    @Test
     public void shouldServeManifestPersistDashboardConfigAndRecordRefreshCacheThroughRealWebsiteTable()
             throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {

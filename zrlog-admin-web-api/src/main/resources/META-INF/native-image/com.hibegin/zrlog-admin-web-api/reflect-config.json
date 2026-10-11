@@ -74,7 +74,10 @@
       {"name": "<init>", "parameterTypes": []},
       {"name": "doUpgrade", "parameterTypes": []},
       {"name": "index", "parameterTypes": []},
-      {"name": "notice", "parameterTypes": []}
+      {"name": "notice", "parameterTypes": []},
+      {"name": "dockerStatus", "parameterTypes": []},
+      {"name": "dockerSettings", "parameterTypes": []},
+      {"name": "saveDockerSettings", "parameterTypes": []}
     ]
   },
   {

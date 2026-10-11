@@ -68,6 +68,11 @@ public class WebSiteSettingsService {
     }
 
     public void updateUpgrade(UpgradeWebSiteInfo settings, HttpRequest request) throws SQLException {
+        settings.doValid();
+        if (settings.getUpgradePackageSource() == null) {
+            settings.setUpgradePackageSource(new com.zrlog.business.service.WebsiteKvService()
+                    .upgradeWebSiteInfo().getUpgradePackageSource());
+        }
         UpdateVersionInfoPlugin plugin = Constants.zrLogConfig.getPlugin(UpdateVersionInfoPlugin.class);
         if (plugin == null) {
             throw new IllegalStateException(
