@@ -589,16 +589,24 @@ public class AdminControllerDelegationTest {
                 throw new RequestException(502, "metadata_unavailable");
             }
         };
-        UpgradeController controller = new UpgradeController() {
-            @Override protected com.zrlog.common.updater.docker.DockerUpdaterClient dockerClient() { return client; }
-        };
-        setControllerRequest(controller, request(HttpMethod.GET, "/api/admin/upgrade/docker-settings",
-                Map.of("channel", "preview"), Map.of(), null));
-        var response = controller.dockerSettings();
-        assertEquals(1, response.getError());
-        assertEquals("metadata_unavailable", response.getErrorCode());
-        assertEquals("", response.getMessage());
-        assertEquals(null, response.getData());
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            WebSiteController controller = new WebSiteController() {
+                @Override protected com.zrlog.admin.business.service.UpgradeSettingsService upgradeSettingsService() {
+                    return new com.zrlog.admin.business.service.UpgradeSettingsService() {
+                        @Override protected boolean isDockerMode() { return true; }
+                        @Override protected com.zrlog.common.updater.docker.DockerUpdaterClient dockerClient() { return client; }
+                    };
+                }
+            };
+            setControllerRequest(controller, request(HttpMethod.GET, "/api/admin/website/upgrade",
+                    Map.of("channel", "preview"), Map.of(), null));
+            var response = controller.upgrade();
+            assertEquals(0, response.getError());
+            assertTrue(response.getData().isDockerMode());
+            assertEquals("metadata_unavailable", response.getData().getDockerErrorCode());
+            assertEquals("", response.getMessage());
+            assertEquals(null, response.getData().getDockerSettings());
+        }
     }
 
     @Test

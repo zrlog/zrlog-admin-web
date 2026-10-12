@@ -11,7 +11,6 @@ import com.zrlog.common.updater.docker.DockerUpdaterProtocol;
 import com.zrlog.util.ZrLogUtil;
 import com.zrlog.admin.business.rest.request.ExecuteUpgradeRequest;
 import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
-import com.zrlog.admin.business.rest.response.DockerRepositorySettingsResponse;
 import com.zrlog.admin.business.service.AdminAuditService;
 import com.zrlog.admin.business.service.AdminStaticService;
 import com.zrlog.admin.business.service.MessageCenterOperationService;
@@ -108,29 +107,6 @@ public class UpgradeController extends BaseController {
             if (error.getStatus() == 404) { return new ApiStandardResponse<>(null); }
             throw error;
         }
-    }
-
-    @ResponseBody
-    @RequestMethod(method = HttpMethod.GET)
-    @RequiresAction(value = AccountAction.SYSTEM_MANAGE, descriptionKey = "system.upgrade")
-    public DockerRepositorySettingsResponse dockerSettings() {
-        try {
-            return new DockerRepositorySettingsResponse(dockerClient().settings(request.getParaToStr("channel", "release")));
-        } catch (DockerUpdaterClient.RequestException error) {
-            return DockerRepositorySettingsResponse.failed(error.getCode());
-        } catch (IllegalArgumentException | IllegalStateException error) {
-            return DockerRepositorySettingsResponse.failed("updater_not_configured");
-        }
-    }
-
-    @ResponseBody
-    @RequestMethod(method = HttpMethod.POST)
-    @RequiresAction(value = AccountAction.SYSTEM_MANAGE, descriptionKey = "system.upgrade")
-    public ApiStandardResponse<DockerUpdaterProtocol.Settings> saveDockerSettings() {
-        DockerUpdaterProtocol.Settings settings = getRequestBodyWithNullCheck(com.zrlog.admin.business.rest.request.DockerUpgradeSettingsRequest.class);
-        DockerUpdaterProtocol.Settings saved = dockerClient().saveSettings(settings.repository, settings.channel);
-        new AdminAuditService().record(request, AdminAuditAction.UPDATE_SETTING, "Docker image repository");
-        return new ApiStandardResponse<>(saved);
     }
 
     protected DockerUpdaterClient dockerClient() {

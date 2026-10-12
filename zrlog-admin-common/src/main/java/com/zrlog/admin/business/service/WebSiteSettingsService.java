@@ -68,6 +68,16 @@ public class WebSiteSettingsService {
     }
 
     public void updateUpgrade(UpgradeWebSiteInfo settings, HttpRequest request) throws SQLException {
+        validateUpgrade(settings);
+        UpdateVersionInfoPlugin plugin = Constants.zrLogConfig.getPlugin(UpdateVersionInfoPlugin.class);
+        update(settings, request);
+        plugin.stop();
+        if (AutoUpgradeVersionType.cycle(settings.getAutoUpgradeVersion()) != AutoUpgradeVersionType.NEVER) {
+            plugin.start();
+        }
+    }
+
+    public void validateUpgrade(UpgradeWebSiteInfo settings) throws SQLException {
         settings.doValid();
         if (settings.getUpgradePackageSource() == null) {
             settings.setUpgradePackageSource(new com.zrlog.business.service.WebsiteKvService()
@@ -77,11 +87,6 @@ public class WebSiteSettingsService {
         if (plugin == null) {
             throw new IllegalStateException(
                     I18nUtil.getAdminBackendStringFromRes("admin.website.upgrade.error.missingUpdatePlugin"));
-        }
-        update(settings, request);
-        plugin.stop();
-        if (AutoUpgradeVersionType.cycle(settings.getAutoUpgradeVersion()) != AutoUpgradeVersionType.NEVER) {
-            plugin.start();
         }
     }
 

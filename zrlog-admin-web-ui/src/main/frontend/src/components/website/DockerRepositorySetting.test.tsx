@@ -2,73 +2,76 @@ import { act } from "react";
 import { createRoot, Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, jest, test } from "@jest/globals";
 import DockerRepositorySetting from "./DockerRepositorySetting";
+import type { Upgrade } from "./index";
 
 const mockGet = jest.fn<Promise<any>, [string, unknown]>();
-const mockPost = jest.fn<Promise<any>, [string, unknown, unknown]>();
-const mockAxios = { get: mockGet, post: mockPost };
+const mockAxios = { get: mockGet };
 jest.mock("../../base/AppBase", () => ({ useAxiosBaseInstance: () => mockAxios }));
 jest.mock("../../utils/constants", () => ({
     getRes: () => require("../../i18n/admin").getAdminI18n("en_US"),
 }));
 jest.mock("antd", () => {
     const React = require("react");
-    const Container = ({ children }: any) => React.createElement("div", null, children);
     return {
-        Form: { Item: Container },
-        Space: Container,
-        Alert: ({ type, message }: any) => React.createElement("div", { role: "status", "data-result": type }, message),
+        Space: ({ children }: any) => React.createElement("div", null, children),
+        Alert: ({ message, action }: any) => React.createElement("div", { role: "alert" }, message, action),
         Button: ({ children, onClick, disabled, htmlType }: any) =>
             React.createElement("button", { onClick, disabled, type: htmlType }, children),
         Select: ({ options, onChange, value, disabled }: any) =>
             React.createElement(
                 "select",
-                { value, disabled, onChange: (event: any) => onChange(event.target.value) },
-                options.map((option: { value: string; label: string }) =>
+                { value: value ?? "", disabled, onChange: (event: any) => onChange(event.target.value) },
+                options.map((option: any) =>
                     React.createElement("option", { key: option.value, value: option.value }, option.label)
                 )
             ),
     };
 });
-
 const aliyun = "registry.cn-chengdu.aliyuncs.com/hibegin/zrlog";
 const hub = "docker.io/zrlog/zrlog";
-const settings = (repository = "", channel = "preview") => ({
+const initial: Upgrade = {
+    autoUpgradeVersion: 86400,
+    upgradePreview: true,
+    dockerMode: true,
+    dockerSettings: {
+        settings: { repository: hub, channel: "preview" },
+        currentRepository: aliyun,
+        images: [aliyun, hub].map((repository) => ({ repository, platforms: ["linux/amd64"] })),
+    },
+};
+const response = (repository = hub) => ({
     data: {
         error: 0,
         data: {
-            settings: { repository, channel },
-            currentRepository: aliyun,
-            images: [
-                { repository: aliyun, platforms: ["linux/amd64", "linux/arm64"] },
-                { repository: hub, platforms: ["linux/amd64", "linux/arm64"] },
-            ],
+            ...initial,
+            dockerSettings: { ...initial.dockerSettings, settings: { repository, channel: "release" } },
         },
     },
 });
-const deferred = () => {
-    let resolve!: (value: unknown) => void;
-    const promise = new Promise((done) => {
-        resolve = done;
-    });
-    return { promise, resolve };
-};
 let root: Root;
 let container: HTMLDivElement;
-const reactActEnvironment = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
-const render = async (preview = true, disabled = false) => {
-    await act(async () => root.render(<DockerRepositorySetting preview={preview} disabled={disabled} />));
-};
-const click = async (label: string) => {
-    const element = Array.from(container.querySelectorAll("button")).find((item) => item.textContent === label);
-    expect(element).toBeDefined();
-    await act(async () => element!.click());
+const change = jest.fn();
+const busy = jest.fn();
+const render = async (data = initial, preview = true, disabled = false, value?: string) => {
+    await act(async () =>
+        root.render(
+            <DockerRepositorySetting
+                data={data}
+                preview={preview}
+                disabled={disabled}
+                value={value}
+                onChange={change}
+                onLoadingChange={busy}
+            />
+        )
+    );
 };
 const select = () => container.querySelector("select")!;
-
 beforeEach(() => {
-    reactActEnvironment.IS_REACT_ACT_ENVIRONMENT = true;
+    (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
     mockGet.mockReset();
-    mockPost.mockReset();
+    change.mockClear();
+    busy.mockClear();
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -76,79 +79,53 @@ beforeEach(() => {
 afterEach(() => {
     act(() => root.unmount());
     container.remove();
-    reactActEnvironment.IS_REACT_ACT_ENVIRONMENT = false;
+    delete (globalThis as any).IS_REACT_ACT_ENVIRONMENT;
 });
-
-test("loads the persisted repository and explicitly saves Aliyun for the selected channel", async () => {
-    mockGet.mockResolvedValue(settings(hub));
-    mockPost.mockResolvedValue({ data: { error: 0, data: { repository: aliyun } } });
+test("shows the initial repository without a request or independent save button", async () => {
     await render();
-    expect(mockGet).not.toHaveBeenCalled();
-    await click("Load image repositories");
-    expect(mockGet).toHaveBeenCalledWith("/api/admin/upgrade/docker-settings", {
-        params: { channel: "preview" },
-        showError: false,
-    });
     expect(select().value).toBe(hub);
-    expect(select().textContent).toContain(`Use current deployment repository (${aliyun})`);
+    expect(mockGet).not.toHaveBeenCalled();
+    expect(container.querySelector("button")).toBeNull();
     await act(async () => {
         select().value = aliyun;
         select().dispatchEvent(new Event("change", { bubbles: true }));
     });
-    expect(mockPost).not.toHaveBeenCalled();
-    await click("Save image repository");
-    expect(mockPost).toHaveBeenCalledWith(
-        "/api/admin/upgrade/save-docker-settings",
-        {
-            repository: aliyun,
-            channel: "preview",
-        },
-        { showError: false, timeout: 30000 }
-    );
-    expect(container.querySelector('[data-result="success"]')?.textContent).toBe("Image repository saved");
-    expect(select().value).toBe(aliyun);
+    expect(change).toHaveBeenCalledWith(aliyun);
+    expect(mockGet).not.toHaveBeenCalled();
 });
-
-test("ignores a previous channel response after switching from preview to release", async () => {
-    const preview = deferred();
-    mockGet.mockReturnValueOnce(preview.promise);
-    mockGet.mockResolvedValue(settings(aliyun, "release"));
-    await render();
-    await click("Load image repositories");
-    await render(false);
-    await click("Load image repositories");
-    await act(async () => preview.resolve(settings(hub)));
-    expect(select().value).toBe(aliyun);
-    mockPost.mockResolvedValue({ data: { error: 0, data: { repository: aliyun } } });
-    await click("Save image repository");
-    expect(mockPost).toHaveBeenCalledWith(
-        "/api/admin/upgrade/save-docker-settings",
-        {
-            repository: aliyun,
-            channel: "release",
-        },
-        expect.anything()
+test("ignores stale channel replies and preserves the unsaved repository", async () => {
+    let resolve!: (value: unknown) => void;
+    mockGet.mockReturnValueOnce(
+        new Promise((done) => {
+            resolve = done;
+        })
     );
-});
-
-test("keeps the selected repository on save failure and leaves saving disabled while offline", async () => {
-    mockGet.mockResolvedValue(settings(aliyun));
-    mockPost.mockResolvedValue({ data: { error: 1 } });
+    mockGet.mockResolvedValueOnce(response(hub));
     await render();
-    await click("Load image repositories");
-    await click("Save image repository");
+    await render(initial, false, false, aliyun);
+    expect(busy).toHaveBeenLastCalledWith(true);
+    await render(initial, true, false, aliyun);
+    await act(async () => resolve(response("stale.example/zrlog")));
     expect(select().value).toBe(aliyun);
-    expect(container.querySelector('[data-result="error"]')).not.toBeNull();
-    expect(container.textContent).toContain("Your selection has been kept");
-    expect(container.querySelector('[data-result="success"]')).toBeNull();
-    await render(true, true);
-    await click("Save image repository");
-    await click("Load image repositories");
-    expect(mockPost).toHaveBeenCalledTimes(1);
-    expect(mockGet).toHaveBeenCalledTimes(1);
+    expect(select().textContent).not.toContain("stale.example");
+    expect(mockGet).toHaveBeenLastCalledWith("/api/admin/website/upgrade", {
+        params: { channel: "preview" },
+        showError: false,
+    });
+    expect(busy).toHaveBeenLastCalledWith(false);
+    expect(change).not.toHaveBeenCalled();
+});
+test("keeps edited selection when channel loading fails and disables controls offline", async () => {
+    mockGet.mockRejectedValue(new Error("private detail"));
+    await render();
+    await render(initial, false, false, aliyun);
+    expect(select().value).toBe(aliyun);
     expect(select().disabled).toBe(true);
+    expect(container.textContent).not.toContain("private detail");
+    await render(initial, false, true, aliyun);
+    await act(async () => container.querySelector("button")!.click());
+    expect(mockGet).toHaveBeenCalledTimes(1);
 });
-
 test.each([
     ["metadata_unavailable", "The Docker update manifest is unavailable"],
     ["metadata_not_found", "The Docker update manifest is unavailable"],
@@ -156,15 +133,18 @@ test.each([
     ["updater_unauthorized", "Updater authentication failed"],
     ["updater_configuration_mismatch", "The updater configuration is incomplete"],
     ["unexpected private detail", "Unable to load image repositories"],
-])("explains %s and allows retry without exposing service messages", async (errorCode, message) => {
-    mockGet.mockResolvedValueOnce({ data: { error: 1, errorCode, message: "private service detail" } });
-    mockGet.mockResolvedValue(settings(aliyun));
-    await render();
-    await click("Load image repositories");
-    expect(container.querySelector('[data-result="error"]')?.textContent).toContain(message);
+])("explains %s and retries through the existing website endpoint", async (errorCode, message) => {
+    const data = { ...initial, dockerSettings: undefined, dockerErrorCode: errorCode };
+    await render(data);
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain(message);
     expect(container.textContent).not.toContain("private");
-    expect(container.querySelector("select")).toBeNull();
-    await click("Load image repositories");
+    expect(select().disabled).toBe(true);
+    mockGet.mockResolvedValue(response(aliyun));
+    await act(async () => container.querySelector("button")!.click());
+    expect(mockGet).toHaveBeenCalledWith("/api/admin/website/upgrade", {
+        params: { channel: "preview" },
+        showError: false,
+    });
     expect(select().value).toBe(aliyun);
-    expect(container.querySelector('[data-result="error"]')).toBeNull();
+    expect(container.querySelector('[role="alert"]')).toBeNull();
 });

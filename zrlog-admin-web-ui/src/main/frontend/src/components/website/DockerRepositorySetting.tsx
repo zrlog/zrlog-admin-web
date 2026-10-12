@@ -1,16 +1,9 @@
-import { Alert, Button, Form, Select, Space } from "antd";
-import { useEffect, useRef, useState } from "react";
+import { Alert, Button, Select, Space } from "antd";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useAxiosBaseInstance } from "../../base/AppBase";
 import { ApiResponse } from "../../type";
 import { getRes } from "../../utils/constants";
-
-type RepositorySettings = {
-    settings: { repository: string; channel: string };
-    currentRepository: string;
-    images: { repository: string; platforms: string[] }[];
-};
-
-type RepositoryResponse = ApiResponse<RepositorySettings> & { errorCode?: string };
+import type { Upgrade } from "./index";
 
 const loadErrorMessage = (code?: string) => {
     const res = getRes().websiteUpgrade;
@@ -30,128 +23,110 @@ const loadErrorMessage = (code?: string) => {
     }
 };
 
-// This setting is owned by the independent updater and has its own save action.
-export default function DockerRepositorySetting({ disabled, preview }: { disabled: boolean; preview: boolean }) {
+export default function DockerRepositorySetting({
+    data,
+    value,
+    onChange,
+    onLoadingChange,
+    disabled,
+    preview,
+}: {
+    data: Upgrade;
+    value?: string;
+    onChange: (repository: string) => void;
+    onLoadingChange: (loading: boolean) => void;
+    disabled: boolean;
+    preview: boolean;
+}) {
     const axiosInstance = useAxiosBaseInstance();
-    const [data, setData] = useState<RepositorySettings>();
-    const [repository, setRepository] = useState("");
+    const [settings, setSettings] = useState(data.dockerSettings);
+    const [error, setError] = useState(data.dockerErrorCode);
     const [busy, setBusy] = useState(false);
-    const [result, setResult] = useState<"error" | "success">();
-    const [errorMessage, setErrorMessage] = useState<string>();
     const operation = useRef(0);
-    const channel = preview ? "preview" : "release";
-    const load = async () => {
+    const previousPreview = useRef(preview);
+    const load = useCallback(async () => {
         const request = ++operation.current;
         setBusy(true);
-        setResult(undefined);
+        onLoadingChange(true);
         try {
-            const requestConfig = { params: { channel }, showError: false };
-            const response = await axiosInstance.get<RepositoryResponse>(
-                "/api/admin/upgrade/docker-settings",
-                requestConfig
-            );
-            if (request !== operation.current) {
+            const requestConfig = { params: { channel: preview ? "preview" : "release" }, showError: false };
+            const response = await axiosInstance.get<ApiResponse<Upgrade>>("/api/admin/website/upgrade", requestConfig);
+            if (request !== operation.current) return;
+            if (response.data.error || !response.data.data?.dockerSettings?.images) {
+                setError(response.data.data?.dockerErrorCode ?? "updater_request_failed");
                 return;
             }
-            if (response.data.error || !response.data.data?.images) {
-                setData(undefined);
-                setErrorMessage(loadErrorMessage(response.data.errorCode));
-                setResult("error");
-                return;
-            }
-            setData(response.data.data);
-            setRepository(response.data.data.settings.repository);
+            setSettings(response.data.data.dockerSettings);
+            setError(undefined);
         } catch {
-            if (request !== operation.current) {
-                return;
-            }
-            setData(undefined);
-            setErrorMessage(getRes().websiteUpgrade.repositoryUnavailable);
-            setResult("error");
+            if (request === operation.current) setError("updater_request_failed");
         } finally {
             if (request === operation.current) {
                 setBusy(false);
+                onLoadingChange(false);
             }
         }
-    };
+    }, [axiosInstance, preview, onLoadingChange]);
     useEffect(() => {
-        setData(undefined);
-        setResult(undefined);
+        operation.current += 1;
+        setSettings(data.dockerSettings);
+        setError(data.dockerErrorCode);
         setBusy(false);
-        return () => {
-            operation.current += 1;
-        };
-    }, [channel]);
-    const save = async () => {
-        const request = ++operation.current;
-        setBusy(true);
-        setResult(undefined);
-        try {
-            const requestConfig = { showError: false, timeout: 30000 };
-            const response = await axiosInstance.post<ApiResponse<{ repository: string }>>(
-                "/api/admin/upgrade/save-docker-settings",
-                { repository, channel },
-                requestConfig
-            );
-            if (request !== operation.current) {
-                return;
-            }
-            if (response.data.error) {
-                throw new Error();
-            }
-            setRepository(response.data.data.repository);
-            setResult("success");
-        } catch {
-            if (request === operation.current) {
-                setErrorMessage(getRes().websiteUpgrade.repositorySaveFailed);
-                setResult("error");
-            }
-        } finally {
-            if (request === operation.current) {
-                setBusy(false);
-            }
+        onLoadingChange(false);
+        previousPreview.current = !!data.upgradePreview;
+    }, [data, onLoadingChange]);
+    useEffect(() => {
+        if (preview !== previousPreview.current && !disabled) {
+            previousPreview.current = preview;
+            void load();
         }
-    };
+    }, [preview, disabled, load]);
+    useEffect(
+        () => () => {
+            operation.current += 1;
+        },
+        []
+    );
+
+    const repository = value ?? settings?.settings.repository;
+    const repositories = new Set(settings?.images.map((image) => image.repository));
+    if (repository) repositories.add(repository);
     return (
-        <Form.Item label={getRes().websiteUpgrade.dockerRepository} extra={getRes().websiteUpgrade.dockerRepositoryTip}>
-            <Space direction="vertical" style={{ width: "100%" }}>
-                {data && (
-                    <Select
-                        aria-label={getRes().websiteUpgrade.dockerRepository}
-                        value={repository}
-                        onChange={setRepository}
-                        disabled={disabled || busy}
-                        style={{ width: "100%" }}
-                        options={[
-                            {
-                                value: "",
-                                label: `${getRes().websiteUpgrade.currentRepository} (${data.currentRepository})`,
-                            },
-                            ...Array.from(new Set(data.images.map((image) => image.repository))).map((value) => ({
-                                value,
-                                label: value,
-                            })),
-                        ]}
-                    />
-                )}
-                <Space wrap>
-                    <Button htmlType="button" disabled={disabled || busy} loading={busy} onClick={() => void load()}>
-                        {getRes().websiteUpgrade.loadRepository}
-                    </Button>
-                    {data && (
-                        <Button htmlType="button" disabled={disabled || busy} onClick={() => void save()}>
-                            {getRes().websiteUpgrade.saveRepository}
+        <Space orientation="vertical" style={{ width: "100%" }}>
+            <Select
+                aria-label={getRes().websiteUpgrade.dockerRepository}
+                value={repository}
+                onChange={onChange}
+                disabled={disabled || busy || !!error || !settings}
+                loading={busy}
+                style={{ width: "100%" }}
+                options={[
+                    {
+                        value: "",
+                        label: settings?.currentRepository
+                            ? `${getRes().websiteUpgrade.currentRepository} (${settings.currentRepository})`
+                            : getRes().websiteUpgrade.currentRepository,
+                    },
+                    ...Array.from(repositories).map((repository) => ({ value: repository, label: repository })),
+                ]}
+            />
+            {error && (
+                <Alert
+                    showIcon
+                    type="error"
+                    message={loadErrorMessage(error)}
+                    action={
+                        <Button
+                            htmlType="button"
+                            disabled={disabled || busy}
+                            loading={busy}
+                            onClick={() => void load()}
+                        >
+                            {getRes().websiteUpgrade.retryRepository}
                         </Button>
-                    )}
-                </Space>
-                {result && (
-                    <Alert
-                        showIcon
-                        type={result}
-                        message={result === "success" ? getRes().websiteUpgrade.repositorySaved : errorMessage}
-                    />
-                )}
-            </Space>
-        </Form.Item>
+                    }
+                />
+            )}
+        </Space>
     );
 }

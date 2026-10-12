@@ -37,7 +37,8 @@ const UpgradeSettingForm = ({
     loading?: boolean;
     onSubmit: (data: Upgrade) => void;
 }) => {
-    const [dockerMode, setDockerMode] = useState(false);
+    const dockerMode = data.dockerMode === true;
+    const [repositoryLoading, setRepositoryLoading] = useState(false);
     const [checking, setChecking] = useState<boolean>(false);
     const { modal } = useUiApp();
     const [messageApi, contextHolder] = useUiMessage({ maxCount: 3 });
@@ -68,7 +69,6 @@ const UpgradeSettingForm = ({
                 params: { fetch: true },
                 cancelToken: source.token,
             });
-            setDockerMode(data.data.dockerMode === true);
             if (data.data.upgrade && data.data.version) {
                 modal.info({
                     width: narrow ? "calc(100vw - 32px)" : 682,
@@ -106,30 +106,9 @@ const UpgradeSettingForm = ({
     };
 
     useEffect(() => {
-        if (offline || offlineData) {
-            return;
-        }
-        let active = true;
-        const requestConfig = { params: { fetch: false }, showError: false };
-        void axiosInstance
-            .get<ApiResponse<UpgradeData>>("/api/admin/upgrade", requestConfig)
-            .then((response) => {
-                if (active && response.data.error === 0) {
-                    setDockerMode(response.data.data.dockerMode === true);
-                }
-            })
-            .catch(() => {
-                /* The existing check button can retry. */
-            });
-        return () => {
-            active = false;
-        };
-    }, [offline, offlineData, axiosInstance]);
-
-    useEffect(() => {
         setState(data);
         form.setFieldsValue(data);
-    }, [data]);
+    }, [data, form]);
 
     useEffect(() => {
         return () => {
@@ -147,10 +126,21 @@ const UpgradeSettingForm = ({
         <Form
             form={form}
             {...formLayout}
-            disabled={offline || offlineData}
+            disabled={offline || offlineData || loading}
             initialValues={data}
             onValuesChange={(_k, v) => setState({ ...state, ...v })}
-            onFinish={(nv) => onSubmit({ ...state, ...nv })}
+            onFinish={(nv) => {
+                if (offline || offlineData || loading || repositoryLoading) return;
+                onSubmit({
+                    autoUpgradeVersion: nv.autoUpgradeVersion,
+                    upgradePreview: nv.upgradePreview,
+                    ...(dockerMode
+                        ? state.dockerRepository === undefined
+                            ? {}
+                            : { dockerRepository: state.dockerRepository }
+                        : { upgradePackageSource: nv.upgradePackageSource }),
+                });
+            }}
         >
             {contextHolder}
             <Row style={checkRowStyle}>
@@ -205,23 +195,37 @@ const UpgradeSettingForm = ({
                 <Switch />
             </Form.Item>
 
-            <Form.Item
-                name="upgradePackageSource"
-                label={getRes().websiteUpgrade.packageSource}
-                extra={getRes().websiteUpgrade.packageSourceTip}
-                style={formItemStyle}
-            >
-                <Select
-                    options={[
-                        { value: "dl", label: getRes().websiteUpgrade.dlSource },
-                        { value: "github", label: getRes().websiteUpgrade.githubSource },
-                    ]}
-                />
-            </Form.Item>
-            <WebsiteSubmitBar loading={loading} disabled={offline || offlineData} />
-            {dockerMode && (
-                <DockerRepositorySetting disabled={offline || offlineData} preview={!!state.upgradePreview} />
+            {dockerMode ? (
+                <Form.Item
+                    label={getRes().websiteUpgrade.dockerRepository}
+                    extra={getRes().websiteUpgrade.dockerRepositoryTip}
+                    style={formItemStyle}
+                >
+                    <DockerRepositorySetting
+                        data={data}
+                        value={state.dockerRepository}
+                        onChange={(dockerRepository) => setState((current) => ({ ...current, dockerRepository }))}
+                        onLoadingChange={setRepositoryLoading}
+                        disabled={offline || offlineData || !!loading}
+                        preview={!!state.upgradePreview}
+                    />
+                </Form.Item>
+            ) : (
+                <Form.Item
+                    name="upgradePackageSource"
+                    label={getRes().websiteUpgrade.packageSource}
+                    extra={getRes().websiteUpgrade.packageSourceTip}
+                    style={formItemStyle}
+                >
+                    <Select
+                        options={[
+                            { value: "dl", label: getRes().websiteUpgrade.dlSource },
+                            { value: "github", label: getRes().websiteUpgrade.githubSource },
+                        ]}
+                    />
+                </Form.Item>
             )}
+            <WebsiteSubmitBar loading={loading} disabled={offline || offlineData || repositoryLoading} />
         </Form>
     );
 };
