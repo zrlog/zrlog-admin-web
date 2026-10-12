@@ -35,6 +35,7 @@ export type AdminRuntimeResourceInfo = {
     currentVersion?: string;
     defaultLoginInfo?: LoginUserInfo;
     feature_personal_data_enabled?: boolean;
+    feature_article_arrangement_enabled?: boolean;
     feature_webhook_enabled?: boolean;
     homeUrl?: string;
     lang?: AdminLang;
@@ -65,6 +66,7 @@ const toRuntimeResourceInfo = (res?: AdminRuntimeResourceInfo | null): AdminRunt
         currentVersion: res.currentVersion,
         defaultLoginInfo: res.defaultLoginInfo,
         feature_personal_data_enabled: res.feature_personal_data_enabled,
+        feature_article_arrangement_enabled: res.feature_article_arrangement_enabled,
         feature_webhook_enabled: res.feature_webhook_enabled,
         homeUrl: res.homeUrl,
         lang: res.lang,

@@ -65,6 +65,7 @@ public class AdminResourceService {
         FeatureLabWebSiteInfo featureLab = new FeatureLabService().featureLab();
         response.setFeature_webhook_enabled(featureLab.getFeature_webhook_enabled());
         response.setFeature_personal_data_enabled(featureLab.getFeature_personal_data_enabled());
+        response.setFeature_article_arrangement_enabled(featureLab.getFeature_article_arrangement_enabled());
         response.setPasskeyLoginEnabled(isPasskeyLoginEnabled());
         return response;
     }
