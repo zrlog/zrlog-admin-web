@@ -93,6 +93,7 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
     const upgradeTaskId = useRef<string | undefined>();
     const restartCheckReady = useRef(false);
     const progressEventReceived = useRef(false);
+    const failureEventReceived = useRef(false);
     const upgradeFinishing = useRef(false);
     const readinessRequest = useRef(0);
     const readinessRefreshing = useRef(false);
@@ -389,6 +390,7 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
         const controller = new AbortController();
         dockerStream.current = controller;
         dockerTask.current = task;
+        failureEventReceived.current = false;
         const generation = connectionGeneration.current;
         const isCurrent = () =>
             mounted.current && !controller.signal.aborted && generation === connectionGeneration.current;
@@ -459,6 +461,7 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
                 failed = job.phase === "failed" || job.phase === "interrupted";
                 terminalFailure = failed;
                 if (failed) {
+                    failureEventReceived.current = true;
                     upsertProgressItem({
                         stage: "error",
                         status: "error",
@@ -588,6 +591,9 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
         if (event.event === "upgrade-progress") {
             const eventData = event.data as UpgradeProgressEvent;
             progressEventReceived.current = true;
+            if (eventData.status === "error") {
+                failureEventReceived.current = true;
+            }
             if (eventData.stage === "manual" || eventData.status === "manual") {
                 updateUpgradeTask(eventData);
                 void updateManualMessage(eventData.message || "");
@@ -662,7 +668,9 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
         if (response.error) {
             messageApi.error(response.message);
             finishUpgradeTask("error", response.message);
-            returnToChangeLog();
+            if (!failureEventReceived.current) {
+                returnToChangeLog();
+            }
             return;
         }
         if (response.data?.message && !progressEventReceived.current) {
@@ -677,14 +685,16 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
     };
 
     const handleUpgradeFailure = (error: unknown, buildId: string, checkRestart: boolean) => {
-        if (checkRestart) {
+        if (checkRestart && !failureEventReceived.current) {
             checkRestartSuccess(buildId);
             return;
         }
         const errorMessage = error instanceof Error ? error.message : getRes().error.requestError;
         messageApi.error(errorMessage);
         finishUpgradeTask("error", errorMessage);
-        returnToChangeLog();
+        if (!failureEventReceived.current) {
+            returnToChangeLog();
+        }
     };
 
     const newBuildId = data.version?.buildId || "";
@@ -705,6 +715,7 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
         });
         restartCheckReady.current = false;
         progressEventReceived.current = false;
+        failureEventReceived.current = false;
         upgradeFinishing.current = false;
         clearUpgradeTimer();
         upgradeTaskId.current = undefined;

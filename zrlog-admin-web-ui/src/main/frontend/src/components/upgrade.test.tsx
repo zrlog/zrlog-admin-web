@@ -402,13 +402,18 @@ describe("Docker upgrade interaction and recovery", () => {
         mockSubscribe.mockImplementation(async (_path, options) => {
             options.onEvent({
                 event: "upgrade-progress",
-                data: { stage: "error", status: "error", message: phase, detail: "recovery" },
+                data: {
+                    stage: "error",
+                    status: "error",
+                    message: phase,
+                    detail: "Inspect the updater task before recovery",
+                },
             });
             return { error: 1, message: phase, data: { finish: false } };
         });
         await render();
         expect(readDockerUpgrade()).toBeUndefined();
-        expect(container.textContent).toContain("recovery");
+        expect(container.textContent).toContain("Inspect the updater task before recovery");
         expect(getVersion).not.toHaveBeenCalled();
         expect(mockModal.success).not.toHaveBeenCalled();
         await tick();
