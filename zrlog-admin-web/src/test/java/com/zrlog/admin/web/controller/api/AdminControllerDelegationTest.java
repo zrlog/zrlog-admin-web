@@ -666,6 +666,8 @@ public class AdminControllerDelegationTest {
                 assertTrue(stream.stream.contains("\"stage\":\"complete\""));
                 assertTrue(stream.stream.contains("event: response\n"));
                 assertTrue(stream.stream.contains("\"finish\":true"));
+                assertFalse(stream.stream.contains("\"message\":\"\""));
+                assertTrue(stream.stream.contains(com.zrlog.util.I18nUtil.getAdminBackendStringFromRes("admin.upgrade.docker.succeeded")));
                 assertEquals(null, stream.renderedJson);
             }
             assertEquals(2, submissions.get());

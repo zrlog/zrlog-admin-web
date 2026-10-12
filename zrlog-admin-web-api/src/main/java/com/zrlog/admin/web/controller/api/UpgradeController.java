@@ -127,7 +127,7 @@ public class UpgradeController extends BaseController {
     }
 
     private void streamDockerUpgrade(DockerUpdaterClient client, DockerUpdaterProtocol.Job job) throws IOException {
-        Map<String, Object> backend = I18nUtil.getBackend();
+        Map<String, Object> backend = I18nUtil.getAdminBackend();
         AdminSseEmitter.write(response, "admin-upgrade", "sse-error", emitter -> {
             ApiStandardResponse<UpgradeProcessResponse> result = new DockerUpgradeProgressService()
                     .watch(client, job, emitter::send, backend);
