@@ -31,7 +31,7 @@ export type UpgradeData = {
     upgrade: boolean;
     onlineUpgradable: boolean;
     disableUpgradeReason: string;
-    version: UpgradeVersion;
+    version?: UpgradeVersion | null;
     backupProtection?: BackupProtectionStatus;
     dockerMode?: boolean;
     dockerUpdaterAvailable?: boolean;

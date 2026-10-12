@@ -38,7 +38,7 @@ jest.mock("@zrlog/editor/core/editor/html-preview-panel", () => () => null);
 jest.mock("./upgrade-content", () => ({
     __esModule: true,
     default: ({ data }: { data: UpgradeData }) =>
-        require("react").createElement("div", { "data-version": data.version.buildId }),
+        require("react").createElement("div", { "data-version": data.version?.buildId }),
 }));
 jest.mock("./upgrade-readiness", () => ({
     __esModule: true,
@@ -107,7 +107,7 @@ const initialData = (): UpgradeData => ({
 });
 const refreshedData = (): UpgradeData => ({
     ...initialData(),
-    version: { ...initialData().version, buildId: "new" },
+    version: { ...initialData().version!, buildId: "new" },
     backupProtection: { ...initialData().backupProtection!, status: "READY", ready: true },
 });
 const deferred = () => {
@@ -167,7 +167,11 @@ describe("upgrade readiness actions", () => {
         await click(check());
         await click(check());
         expect(mockGet).toHaveBeenCalledTimes(1);
-        expect(mockGet).toHaveBeenCalledWith("/api/admin/upgrade", { showError: false, timeout: 30000 });
+        expect(mockGet).toHaveBeenCalledWith("/api/admin/upgrade", {
+            params: { fetch: true },
+            showError: false,
+            timeout: 30000,
+        });
         expect(checkbox().checked).toBe(false);
         expect(checkbox().disabled).toBe(true);
         expect(execute().disabled).toBe(true);
@@ -263,7 +267,7 @@ describe("upgrade readiness actions", () => {
         } else if (transition === "offline") {
             await render({ offline: true });
         } else {
-            await render({ data: { ...initialData(), version: { ...initialData().version, buildId: "route-data" } } });
+            await render({ data: { ...initialData(), version: { ...initialData().version!, buildId: "route-data" } } });
         }
         await act(async () => pending.resolve({ data: { error: 0, data: refreshedData() } }));
         expect(container.querySelector("[data-checked-at]")).toBeNull();
@@ -287,7 +291,7 @@ describe("Docker upgrade interaction and recovery", () => {
         dockerMode: true,
         dockerUpdaterAvailable: true,
         version: {
-            ...initialData().version,
+            ...initialData().version!,
             buildId: request.buildId,
             artifactVersion: request.version,
             channel: request.channel,
@@ -402,6 +406,18 @@ describe("Docker upgrade interaction and recovery", () => {
         expect(readDockerUpgrade()).toBeUndefined();
         await tick();
         expect(mockGet).toHaveBeenCalledTimes(2);
+    });
+
+    it("recovers a task even when page data has no version metadata", async () => {
+        saveDockerUpgrade(request);
+        mockGet.mockResolvedValue(job("succeeded"));
+        jest.mocked(getVersion).mockResolvedValue({ data: { buildId: request.buildId } } as any);
+        mockUpgrade.mockResolvedValue({ error: 0, data: { synced: true } });
+        mockPost.mockResolvedValue({ data: { error: 0 } });
+        await render({ data: { ...page(), upgrade: false, version: undefined } });
+        expect(mockModal.success).toHaveBeenCalledTimes(1);
+        expect(readDockerUpgrade()).toBeUndefined();
+        expect(mockPost.mock.calls.some(([path]) => path === "/api/admin/upgrade/doUpgrade")).toBe(false);
     });
 
     it.each(["failed", "interrupted"] as const)("keeps a %s task out of the success path", async (phase) => {

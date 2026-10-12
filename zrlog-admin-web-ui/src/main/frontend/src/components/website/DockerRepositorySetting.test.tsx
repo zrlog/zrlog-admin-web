@@ -139,6 +139,7 @@ test("keeps the selected repository on save failure and leaves saving disabled w
     await click("Save image repository");
     expect(select().value).toBe(aliyun);
     expect(container.querySelector('[data-result="error"]')).not.toBeNull();
+    expect(container.textContent).toContain("Your selection has been kept");
     expect(container.querySelector('[data-result="success"]')).toBeNull();
     await render(true, true);
     await click("Save image repository");
@@ -146,4 +147,24 @@ test("keeps the selected repository on save failure and leaves saving disabled w
     expect(mockPost).toHaveBeenCalledTimes(1);
     expect(mockGet).toHaveBeenCalledTimes(1);
     expect(select().disabled).toBe(true);
+});
+
+test.each([
+    ["metadata_unavailable", "The Docker update manifest is unavailable"],
+    ["metadata_not_found", "The Docker update manifest is unavailable"],
+    ["updater_unavailable", "Unable to connect to the updater"],
+    ["updater_unauthorized", "Updater authentication failed"],
+    ["updater_configuration_mismatch", "The updater configuration is incomplete"],
+    ["unexpected private detail", "Unable to load image repositories"],
+])("explains %s and allows retry without exposing service messages", async (errorCode, message) => {
+    mockGet.mockResolvedValueOnce({ data: { error: 1, errorCode, message: "private service detail" } });
+    mockGet.mockResolvedValue(settings(aliyun));
+    await render();
+    await click("Load image repositories");
+    expect(container.querySelector('[data-result="error"]')?.textContent).toContain(message);
+    expect(container.textContent).not.toContain("private");
+    expect(container.querySelector("select")).toBeNull();
+    await click("Load image repositories");
+    expect(select().value).toBe(aliyun);
+    expect(container.querySelector('[data-result="error"]')).toBeNull();
 });

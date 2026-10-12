@@ -11,6 +11,7 @@ import com.zrlog.common.updater.docker.DockerUpdaterProtocol;
 import com.zrlog.util.ZrLogUtil;
 import com.zrlog.admin.business.rest.request.ExecuteUpgradeRequest;
 import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
+import com.zrlog.admin.business.rest.response.DockerRepositorySettingsResponse;
 import com.zrlog.admin.business.service.AdminAuditService;
 import com.zrlog.admin.business.service.AdminStaticService;
 import com.zrlog.admin.business.service.MessageCenterOperationService;
@@ -36,7 +37,9 @@ public class UpgradeController extends BaseController {
     @ResponseBody
     @RequiresAction(value = AccountAction.SYSTEM_MANAGE, descriptionKey = "system.upgradeCheck")
     public AdminPageDataResponse<PreCheckVersionResponse> index() {
-        PreCheckVersionResponse preCheckVersionResponse = AdminStaticService.getInstance().getUpgradeService().preUpgradeVersion(!"false".equals(request.getParaToStr("fetch", "true")), Constants.zrLogConfig.getPlugin(UpdateVersionInfoPlugin.class));
+        // Page rendering and durable Docker job recovery must not depend on the metadata server.
+        boolean fetch = "true".equals(request.getParaToStr("fetch", "false"));
+        PreCheckVersionResponse preCheckVersionResponse = AdminStaticService.getInstance().getUpgradeService().preUpgradeVersion(fetch, Constants.zrLogConfig.getPlugin(UpdateVersionInfoPlugin.class));
         return new AdminPageDataResponse<>(preCheckVersionResponse,
                 Objects.equals(preCheckVersionResponse.getUpgrade(), true) ? "" : I18nUtil.getAdminBackendStringFromRes("admin.upgrade.version.notFound"), request.getUri());
     }
@@ -110,8 +113,14 @@ public class UpgradeController extends BaseController {
     @ResponseBody
     @RequestMethod(method = HttpMethod.GET)
     @RequiresAction(value = AccountAction.SYSTEM_MANAGE, descriptionKey = "system.upgrade")
-    public ApiStandardResponse<DockerUpdaterProtocol.SettingsResponse> dockerSettings() {
-        return new ApiStandardResponse<>(dockerClient().settings(request.getParaToStr("channel", "release")));
+    public DockerRepositorySettingsResponse dockerSettings() {
+        try {
+            return new DockerRepositorySettingsResponse(dockerClient().settings(request.getParaToStr("channel", "release")));
+        } catch (DockerUpdaterClient.RequestException error) {
+            return DockerRepositorySettingsResponse.failed(error.getCode());
+        } catch (IllegalArgumentException | IllegalStateException error) {
+            return DockerRepositorySettingsResponse.failed("updater_not_configured");
+        }
     }
 
     @ResponseBody

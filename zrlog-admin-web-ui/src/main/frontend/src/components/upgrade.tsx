@@ -138,7 +138,7 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
         setRefreshError(undefined);
         setUpgradeRiskAccepted(false);
         try {
-            const requestConfig = { showError: false, timeout: 30000 };
+            const requestConfig = { params: { fetch: true }, showError: false, timeout: 30000 };
             const { data: response } = await axiosInstance.get<ApiResponse<UpgradeData>>(
                 "/api/admin/upgrade",
                 requestConfig
@@ -442,15 +442,19 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
         const generation = dockerPollGeneration.current;
         const isCurrent = () => mounted.current && generation === dockerPollGeneration.current;
         const existing = readDockerUpgrade();
-        if (!existing && (!data.version.artifactVersion || !data.version.channel)) {
-            throw new Error(getRes().upgrade.maintenance.refreshFailed);
+        let task = existing;
+        if (!task) {
+            const version = data.version;
+            if (!version?.artifactVersion || !version.channel) {
+                throw new Error(getRes().upgrade.maintenance.refreshFailed);
+            }
+            task = {
+                requestId: newDockerRequestId(),
+                version: version.artifactVersion,
+                buildId: version.buildId,
+                channel: version.channel,
+            };
         }
-        const task: DockerUpgradeRequest = existing || {
-            requestId: newDockerRequestId(),
-            version: data.version.artifactVersion!,
-            buildId: data.version.buildId,
-            channel: data.version.channel!,
-        };
         try {
             saveDockerUpgrade(task);
         } catch {
@@ -632,7 +636,7 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
         }));
     };
 
-    const newBuildId = data.version.buildId;
+    const newBuildId = data.version?.buildId || "";
 
     const upgrade = async () => {
         if (upgradeStarting.current || readinessRefreshing.current || nextDisabled()) {
@@ -710,7 +714,7 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
         if (offline) {
             return true;
         }
-        if (!data.upgrade) {
+        if (!data.upgrade || !data.version) {
             return true;
         }
         if (!upgradeRiskAccepted) {
@@ -745,7 +749,7 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
                     {getRes().upgrade.docker.retrySubmission}
                 </Button>
             )}
-            <Row key={data.version.buildId || data.version.version} justify="start" style={{ width: "100%" }}>
+            <Row key={data.version?.buildId || data.version?.version} justify="start" style={{ width: "100%" }}>
                 <Col style={{ maxWidth: contentMaxWidth, width: "100%" }} xs={24} md={22} xl={18} xxl={14}>
                     <Card styles={{ body: { padding: narrow ? token.padding : token.paddingLG } }}>
                         {data.upgrade && (

@@ -10,6 +10,26 @@ type RepositorySettings = {
     images: { repository: string; platforms: string[] }[];
 };
 
+type RepositoryResponse = ApiResponse<RepositorySettings> & { errorCode?: string };
+
+const loadErrorMessage = (code?: string) => {
+    const res = getRes().websiteUpgrade;
+    switch (code) {
+        case "metadata_unavailable":
+        case "metadata_not_found":
+            return res.repositoryMetadataUnavailable;
+        case "updater_unavailable":
+            return res.repositoryServiceUnavailable;
+        case "updater_unauthorized":
+            return res.repositoryUnauthorized;
+        case "updater_not_configured":
+        case "updater_configuration_mismatch":
+            return res.repositoryConfigurationInvalid;
+        default:
+            return res.repositoryUnavailable;
+    }
+};
+
 // This setting is owned by the independent updater and has its own save action.
 export default function DockerRepositorySetting({ disabled, preview }: { disabled: boolean; preview: boolean }) {
     const axiosInstance = useAxiosBaseInstance();
@@ -17,6 +37,7 @@ export default function DockerRepositorySetting({ disabled, preview }: { disable
     const [repository, setRepository] = useState("");
     const [busy, setBusy] = useState(false);
     const [result, setResult] = useState<"error" | "success">();
+    const [errorMessage, setErrorMessage] = useState<string>();
     const operation = useRef(0);
     const channel = preview ? "preview" : "release";
     const load = async () => {
@@ -25,7 +46,7 @@ export default function DockerRepositorySetting({ disabled, preview }: { disable
         setResult(undefined);
         try {
             const requestConfig = { params: { channel }, showError: false };
-            const response = await axiosInstance.get<ApiResponse<RepositorySettings>>(
+            const response = await axiosInstance.get<RepositoryResponse>(
                 "/api/admin/upgrade/docker-settings",
                 requestConfig
             );
@@ -33,7 +54,10 @@ export default function DockerRepositorySetting({ disabled, preview }: { disable
                 return;
             }
             if (response.data.error || !response.data.data?.images) {
-                throw new Error();
+                setData(undefined);
+                setErrorMessage(loadErrorMessage(response.data.errorCode));
+                setResult("error");
+                return;
             }
             setData(response.data.data);
             setRepository(response.data.data.settings.repository);
@@ -42,6 +66,7 @@ export default function DockerRepositorySetting({ disabled, preview }: { disable
                 return;
             }
             setData(undefined);
+            setErrorMessage(getRes().websiteUpgrade.repositoryUnavailable);
             setResult("error");
         } finally {
             if (request === operation.current) {
@@ -78,6 +103,7 @@ export default function DockerRepositorySetting({ disabled, preview }: { disable
             setResult("success");
         } catch {
             if (request === operation.current) {
+                setErrorMessage(getRes().websiteUpgrade.repositorySaveFailed);
                 setResult("error");
             }
         } finally {
@@ -122,11 +148,7 @@ export default function DockerRepositorySetting({ disabled, preview }: { disable
                     <Alert
                         showIcon
                         type={result}
-                        message={
-                            result === "success"
-                                ? getRes().websiteUpgrade.repositorySaved
-                                : getRes().websiteUpgrade.repositoryUnavailable
-                        }
+                        message={result === "success" ? getRes().websiteUpgrade.repositorySaved : errorMessage}
                     />
                 )}
             </Space>

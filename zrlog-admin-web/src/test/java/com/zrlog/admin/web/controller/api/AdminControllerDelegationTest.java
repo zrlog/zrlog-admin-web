@@ -497,6 +497,41 @@ public class AdminControllerDelegationTest {
     }
 
     @Test
+    public void shouldLoadUpgradePageWithoutMetadataButKeepExplicitCheckFailure() throws Exception {
+        java.util.concurrent.atomic.AtomicInteger checks = new java.util.concurrent.atomic.AtomicInteger();
+        com.zrlog.business.updater.UpdateVersionInfoPlugin plugin = new com.zrlog.business.updater.UpdateVersionInfoPlugin() {
+            @Override
+            public com.zrlog.common.vo.Version getLastVersion(boolean fetch) {
+                if (fetch) { checks.incrementAndGet(); }
+                return null;
+            }
+            @Override
+            public boolean isLastCheckFailed() { return true; }
+        };
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            Constants.zrLogConfig = new UploadFallbackZrLogConfig() {
+                @Override
+                public <T extends com.zrlog.plugin.IPlugin> T getPlugin(Class<T> type) {
+                    return type.isInstance(plugin) ? type.cast(plugin) : super.getPlugin(type);
+                }
+            };
+            setAdminToken();
+            UpgradeController controller = new UpgradeController();
+            for (String path : List.of("/admin/upgrade", "/api/admin/upgrade")) {
+                setControllerRequest(controller, request(HttpMethod.GET, path, Map.of(), Map.of(), null));
+                AdminPageDataResponse<PreCheckVersionResponse> page = controller.index();
+                assertEquals(Boolean.FALSE, page.getData().getUpgrade());
+                assertEquals(null, page.getData().getVersion());
+            }
+            assertEquals(0, checks.get());
+            setControllerRequest(controller, request(HttpMethod.GET, "/api/admin/upgrade",
+                    Map.of("fetch", "true"), Map.of(), null));
+            assertThrows(IllegalStateException.class, controller::index);
+            assertEquals(1, checks.get());
+        }
+    }
+
+    @Test
     public void shouldCheckAndExecuteNoChangeUpgradeThroughRealWebsiteState() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             setAdminToken();
@@ -534,6 +569,27 @@ public class AdminControllerDelegationTest {
             assertWebsiteValueContains(db, "admin_audit_log", "EXECUTE_UPGRADE");
             assertWebsiteValueContains(db, "admin_audit_log", "upgradeRiskAccepted");
         }
+    }
+
+    @Test
+    public void shouldReturnDockerRepositoryFailureCodeWithoutServiceDetails() throws Exception {
+        var client = new com.zrlog.common.updater.docker.DockerUpdaterClient("http://updater:8081",
+                "test_token_123456789012345678901234", "https://dl.example", "docker.json") {
+            @Override public com.zrlog.common.updater.docker.DockerUpdaterProtocol.SettingsResponse settings(String channel) {
+                assertEquals("preview", channel);
+                throw new RequestException(502, "metadata_unavailable");
+            }
+        };
+        UpgradeController controller = new UpgradeController() {
+            @Override protected com.zrlog.common.updater.docker.DockerUpdaterClient dockerClient() { return client; }
+        };
+        setControllerRequest(controller, request(HttpMethod.GET, "/api/admin/upgrade/docker-settings",
+                Map.of("channel", "preview"), Map.of(), null));
+        var response = controller.dockerSettings();
+        assertEquals(1, response.getError());
+        assertEquals("metadata_unavailable", response.getErrorCode());
+        assertEquals("", response.getMessage());
+        assertEquals(null, response.getData());
     }
 
     @Test

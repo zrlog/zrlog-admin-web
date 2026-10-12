@@ -65,10 +65,11 @@ const UpgradeSettingForm = ({
             const source = axios.CancelToken.source();
             cancelTokenSource.current = source;
             const { data }: AxiosResponse<ApiResponse<UpgradeData>> = await axiosInstance.get("/api/admin/upgrade", {
+                params: { fetch: true },
                 cancelToken: source.token,
             });
             setDockerMode(data.data.dockerMode === true);
-            if (data.data.upgrade) {
+            if (data.data.upgrade && data.data.version) {
                 modal.info({
                     width: narrow ? "calc(100vw - 32px)" : 682,
                     title: `${getRes().upgrade.detectedPrefix}${data.data.version.type}`,
