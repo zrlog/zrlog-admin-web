@@ -651,8 +651,24 @@ public class AdminControllerDelegationTest {
             job.phase = "succeeded";
             setControllerRequest(controller, request(HttpMethod.GET, "/api/admin/upgrade/docker-status",
                     Map.of("requestId", job.id), Map.of(), null));
-            assertEquals("succeeded", controller.dockerStatus().getData().phase);
-            assertEquals(1, submissions.get());
+            controller.dockerStatus();
+            assertSame(job, ((ApiStandardResponse<?>) recorder.renderedJson).getData());
+            for (String action : List.of("doUpgrade", "docker-status")) {
+                ResponseRecorder stream = new ResponseRecorder();
+                setControllerResponse(controller, stream.response());
+                setControllerRequest(controller, request(action.equals("doUpgrade") ? HttpMethod.POST : HttpMethod.GET,
+                        "/api/admin/upgrade/" + action, Map.of("requestId", job.id),
+                        Map.of("Accept", "text/event-stream"), "{\"upgradeRiskAccepted\":true" + docker));
+                if (action.equals("doUpgrade")) { controller.doUpgrade(); } else { controller.dockerStatus(); }
+                assertEquals("text/event-stream;charset=UTF-8", stream.headers.get("Content-Type"));
+                assertEquals("no", stream.headers.get("X-Accel-Buffering"));
+                assertTrue(stream.stream.contains("event: upgrade-progress\n"));
+                assertTrue(stream.stream.contains("\"stage\":\"complete\""));
+                assertTrue(stream.stream.contains("event: response\n"));
+                assertTrue(stream.stream.contains("\"finish\":true"));
+                assertEquals(null, stream.renderedJson);
+            }
+            assertEquals(2, submissions.get());
         }
     }
 
@@ -931,6 +947,7 @@ public class AdminControllerDelegationTest {
 
         private final Map<String, String> headers = new LinkedHashMap<>();
         private Object renderedJson;
+        private String stream;
 
         private HttpResponse response() {
             return (HttpResponse) Proxy.newProxyInstance(
@@ -942,6 +959,10 @@ public class AdminControllerDelegationTest {
                         }
                         if ("getHeader".equals(method.getName())) {
                             return headers;
+                        }
+                        if ("write".equals(method.getName()) && args[0] instanceof java.io.InputStream) {
+                            try (java.io.InputStream input = (java.io.InputStream) args[0]) { stream = new String(input.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8); }
+                            return null;
                         }
                         if ("renderJson".equals(method.getName())) {
                             renderedJson = args[0];

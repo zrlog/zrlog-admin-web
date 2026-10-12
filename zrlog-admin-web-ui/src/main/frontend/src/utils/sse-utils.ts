@@ -22,6 +22,7 @@ export type StaticProgress = {
 export type SseEvent<T = any> = SharedSseEvent<T>;
 
 export type RefreshCacheSseOptions<T> = {
+    signal?: AbortSignal;
     body?: any;
     messageApi?: MessageInstance;
     messageKey?: string;
@@ -126,6 +127,15 @@ export const parseSseEvent = (chunk: string): SseEvent | null => parseJsonSseEve
 
 /** Shared POST transport for controller methods annotated with @RefreshCache. */
 export const postRefreshCacheSse = async <T>(uri: string, options: RefreshCacheSseOptions<T> = {}): Promise<T> => {
+    return requestRefreshCacheSse(uri, "POST", options);
+};
+
+/** Read-only subscription using the same authentication, event parsing and error handling. */
+export const getRefreshCacheSse = async <T>(uri: string, options: RefreshCacheSseOptions<T> = {}): Promise<T> => {
+    return requestRefreshCacheSse(uri, "GET", options);
+};
+
+const requestRefreshCacheSse = async <T>(uri: string, method: "GET" | "POST", options: RefreshCacheSseOptions<T>): Promise<T> => {
     const messageKey = options.messageKey || "refreshCache";
     const supportSse = getRes().supportSse !== false;
     const backgroundTaskId = options.backgroundTaskTitle
@@ -134,13 +144,14 @@ export const postRefreshCacheSse = async <T>(uri: string, options: RefreshCacheS
     let response: Response;
     try {
         response = await fetch(toApiUrl(uri), {
-            method: "POST",
+            method,
+            signal: options.signal,
             headers: {
                 "Content-Type": "application/json",
                 Accept: supportSse ? "text/event-stream" : "application/json",
             },
             credentials: isStaticPage() ? "include" : "same-origin",
-            body: options.body === undefined ? undefined : JSON.stringify(options.body),
+            body: method === "GET" || options.body === undefined ? undefined : JSON.stringify(options.body),
         });
     } catch (error) {
         if (backgroundTaskId) {

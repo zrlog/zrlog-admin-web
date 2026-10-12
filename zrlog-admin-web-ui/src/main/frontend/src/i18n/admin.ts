@@ -1670,7 +1670,6 @@ const zhCN = {
         "docker": {
             "task": "镜像更新任务",
             "retrySubmission": "重试提交同一任务",
-            "waiting": "正在等待服务恢复，更新任务会继续执行",
             "unknown": "暂时无法确认任务结果，请稍后重新打开更新页面查看；不要重复提交",
             "failed": "镜像更新未完成，请检查部署状态后再操作",
             "recovery": "程序替换已开始，请保留数据库、附件和配置，检查服务状态后按备份方案恢复",
@@ -3672,7 +3671,6 @@ const enUS: AdminI18nResource = {
         "docker": {
             "task": "Image update task",
             "retrySubmission": "Retry the same task",
-            "waiting": "Waiting for the service to return. The update continues in the background.",
             "unknown": "The task result could not be confirmed. Reopen this page later to check; do not submit another update.",
             "failed": "The image update did not complete. Check the deployment before continuing.",
             "recovery": "Application replacement has started. Preserve the database, attachments and configuration; inspect the service and follow your backup recovery procedure.",

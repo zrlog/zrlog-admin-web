@@ -13,6 +13,7 @@ import com.zrlog.admin.business.rest.request.ExecuteUpgradeRequest;
 import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
 import com.zrlog.admin.business.service.AdminAuditService;
 import com.zrlog.admin.business.service.AdminStaticService;
+import com.zrlog.admin.business.service.DockerUpgradeProgressService;
 import com.zrlog.admin.business.service.MessageCenterOperationService;
 import com.zrlog.admin.business.type.AdminAuditAction;
 import com.zrlog.admin.util.AdminSseEmitter;
@@ -60,9 +61,14 @@ public class UpgradeController extends BaseController {
     public void doUpgrade() throws IOException {
         ExecuteUpgradeRequest upgradeRequest = getRequestBodyWithNullCheck(ExecuteUpgradeRequest.class);
         if (upgradeRequest.getDocker() != null) {
-            DockerUpdaterProtocol.Job job = dockerClient().submit(upgradeRequest.getDocker());
+            DockerUpdaterClient client = dockerClient();
+            DockerUpdaterProtocol.Job job = client.submit(upgradeRequest.getDocker());
             recordUpgradeAudit(upgradeRequest);
-            response.renderJson(new ApiStandardResponse<>(job));
+            if (isSseRequest()) {
+                streamDockerUpgrade(client, job);
+            } else {
+                response.renderJson(new ApiStandardResponse<>(job));
+            }
             return;
         }
         UpdateVersionInfoPlugin plugin = Constants.zrLogConfig.getPlugin(UpdateVersionInfoPlugin.class);
@@ -100,13 +106,33 @@ public class UpgradeController extends BaseController {
     @ResponseBody
     @RequestMethod(method = HttpMethod.GET)
     @RequiresAction(value = AccountAction.SYSTEM_MANAGE, descriptionKey = "system.upgrade")
-    public ApiStandardResponse<DockerUpdaterProtocol.Job> dockerStatus() {
+    public void dockerStatus() throws IOException {
+        DockerUpdaterClient client = dockerClient();
+        DockerUpdaterProtocol.Job job;
         try {
-            return new ApiStandardResponse<>(dockerClient().status(request.getParaToStr("requestId")));
+            String requestId = request.getParaToStr("requestId");
+            job = client.status(requestId);
+            if (job != null && !Objects.equals(requestId, job.id)) {
+                throw new IllegalStateException("Updater returned a different upgrade task");
+            }
         } catch (DockerUpdaterClient.RequestException error) {
-            if (error.getStatus() == 404) { return new ApiStandardResponse<>(null); }
-            throw error;
+            if (error.getStatus() != 404) { throw error; }
+            job = null;
         }
+        if (isSseRequest()) {
+            streamDockerUpgrade(client, job);
+        } else {
+            response.renderJson(new ApiStandardResponse<>(job));
+        }
+    }
+
+    private void streamDockerUpgrade(DockerUpdaterClient client, DockerUpdaterProtocol.Job job) throws IOException {
+        Map<String, Object> backend = I18nUtil.getBackend();
+        AdminSseEmitter.write(response, "admin-upgrade", "sse-error", emitter -> {
+            ApiStandardResponse<UpgradeProcessResponse> result = new DockerUpgradeProgressService()
+                    .watch(client, job, emitter::send, backend);
+            emitter.send("response", result);
+        });
     }
 
     protected DockerUpdaterClient dockerClient() {
