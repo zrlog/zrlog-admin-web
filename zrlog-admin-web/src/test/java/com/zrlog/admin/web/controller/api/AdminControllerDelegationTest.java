@@ -526,7 +526,16 @@ public class AdminControllerDelegationTest {
             assertEquals(0, checks.get());
             setControllerRequest(controller, request(HttpMethod.GET, "/api/admin/upgrade",
                     Map.of("fetch", "true"), Map.of(), null));
-            assertThrows(IllegalStateException.class, controller::index);
+            com.zrlog.common.exception.AbstractBusinessException error =
+                    assertThrows(com.zrlog.common.exception.AbstractBusinessException.class, controller::index);
+            ResponseRecorder recorder = new ResponseRecorder();
+            new com.zrlog.common.web.ZrLogErrorHandle(500).doHandle(
+                    request(HttpMethod.GET, "/api/admin/upgrade", Map.of(), Map.of(), null),
+                    recorder.response(), error);
+            ApiStandardResponse<?> response = (ApiStandardResponse<?>) recorder.renderedJson;
+            assertEquals(9038, response.getError());
+            assertEquals(com.zrlog.util.I18nUtil.getBackendStringFromRes("upgrade.check.failed"), response.getMessage());
+            assertFalse(response.getMessage().isBlank());
             assertEquals(1, checks.get());
         }
     }
