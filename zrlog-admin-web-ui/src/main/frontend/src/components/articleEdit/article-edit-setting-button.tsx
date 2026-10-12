@@ -146,35 +146,39 @@ const ArticleEditSettingButton = ({
                                 </Form.Item>
                             </Card>
                         </Col>
-                        <Col span={24}>
-                            <Card title={getRes().articleEdit.arrangement.title}>
-                                <Form.Item
-                                    label={getRes().articleEdit.arrangement.plugin}
-                                    layout="vertical"
-                                    htmlFor="article-arrangement-plugin"
-                                    style={{ marginBottom: 0 }}
-                                    validateStatus={arrangementInvalid ? "error" : undefined}
-                                    help={
-                                        <span id="article-arrangement-help">
-                                            {arrangementInvalid
-                                                ? getRes().articleEdit.arrangement.invalid
-                                                : getRes().articleEdit.arrangement.help}
-                                        </span>
-                                    }
-                                >
-                                    <Input
-                                        id="article-arrangement-plugin"
-                                        value={arrangement}
-                                        maxLength={64}
-                                        allowClear
-                                        aria-invalid={arrangementInvalid}
-                                        aria-describedby="article-arrangement-help"
-                                        placeholder={getRes().articleEdit.arrangement.placeholder}
-                                        onChange={(event) => handleValuesChange({ arrange_plugin: event.target.value })}
-                                    />
-                                </Form.Item>
-                            </Card>
-                        </Col>
+                        {getRes().feature_article_arrangement_enabled === true && (
+                            <Col span={24}>
+                                <Card title={getRes().articleEdit.arrangement.title}>
+                                    <Form.Item
+                                        label={getRes().articleEdit.arrangement.plugin}
+                                        layout="vertical"
+                                        htmlFor="article-arrangement-plugin"
+                                        style={{ marginBottom: 0 }}
+                                        validateStatus={arrangementInvalid ? "error" : undefined}
+                                        help={
+                                            <span id="article-arrangement-help">
+                                                {arrangementInvalid
+                                                    ? getRes().articleEdit.arrangement.invalid
+                                                    : getRes().articleEdit.arrangement.help}
+                                            </span>
+                                        }
+                                    >
+                                        <Input
+                                            id="article-arrangement-plugin"
+                                            value={arrangement}
+                                            maxLength={64}
+                                            allowClear
+                                            aria-invalid={arrangementInvalid}
+                                            aria-describedby="article-arrangement-help"
+                                            placeholder={getRes().articleEdit.arrangement.placeholder}
+                                            onChange={(event) =>
+                                                handleValuesChange({ arrange_plugin: event.target.value })
+                                            }
+                                        />
+                                    </Form.Item>
+                                </Card>
+                            </Col>
+                        )}
                         <Col span={24}>
                             <Card title={getRes().articleEdit.settings}>
                                 <Row>

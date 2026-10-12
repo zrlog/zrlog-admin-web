@@ -35,6 +35,7 @@ public class AdminResourceInfoResponse {
     private String admin_static_resource_base_url;
     private Boolean feature_webhook_enabled;
     private Boolean feature_personal_data_enabled;
+    private Boolean feature_article_arrangement_enabled;
     private Boolean passkeyLoginEnabled;
 
     public String getCurrentVersion() {
@@ -179,6 +180,14 @@ public class AdminResourceInfoResponse {
 
     public void setFeature_personal_data_enabled(Boolean feature_personal_data_enabled) {
         this.feature_personal_data_enabled = feature_personal_data_enabled;
+    }
+
+    public Boolean getFeature_article_arrangement_enabled() {
+        return feature_article_arrangement_enabled;
+    }
+
+    public void setFeature_article_arrangement_enabled(Boolean feature_article_arrangement_enabled) {
+        this.feature_article_arrangement_enabled = feature_article_arrangement_enabled;
     }
 
     public Boolean getPasskeyLoginEnabled() {

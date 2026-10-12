@@ -5,7 +5,6 @@ import { Link } from "react-router-dom";
 import { USER_ROUTES } from "../../utils/account-page-routes";
 import Form from "antd/es/form";
 
-
 import { useEffect } from "react";
 import { getRealRouteUrl, getRes } from "../../utils/constants";
 import { FeatureLab } from "./index";
@@ -67,6 +66,15 @@ const FeatureLabForm = ({
                 tooltip={getRes().websiteLab.articleExtensionFilterTip}
             >
                 <Switch />
+            </Form.Item>
+            <Form.Item
+                valuePropName="checked"
+                name="feature_article_arrangement_enabled"
+                label={getRes().websiteLab.articleArrangement}
+                htmlFor="lab-article-arrangement"
+                extra={<span id="lab-article-arrangement-help">{getRes().websiteLab.articleArrangementTip}</span>}
+            >
+                <Switch id="lab-article-arrangement" aria-describedby="lab-article-arrangement-help" />
             </Form.Item>
             {isModuleEnabled("access") && (
                 <Form.Item

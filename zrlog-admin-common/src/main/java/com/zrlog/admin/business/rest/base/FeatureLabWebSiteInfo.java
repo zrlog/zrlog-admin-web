@@ -8,6 +8,7 @@ public class FeatureLabWebSiteInfo implements Validator {
 
     private Boolean feature_resource_reference_enabled;
     private Boolean feature_article_extension_filter_enabled;
+    private Boolean feature_article_arrangement_enabled;
     private Boolean feature_webhook_enabled;
     private Boolean feature_personal_data_enabled;
 
@@ -25,6 +26,14 @@ public class FeatureLabWebSiteInfo implements Validator {
 
     public void setFeature_article_extension_filter_enabled(Boolean feature_article_extension_filter_enabled) {
         this.feature_article_extension_filter_enabled = feature_article_extension_filter_enabled;
+    }
+
+    public Boolean getFeature_article_arrangement_enabled() {
+        return feature_article_arrangement_enabled;
+    }
+
+    public void setFeature_article_arrangement_enabled(Boolean feature_article_arrangement_enabled) {
+        this.feature_article_arrangement_enabled = feature_article_arrangement_enabled;
     }
 
     public Boolean getFeature_webhook_enabled() {
@@ -48,6 +57,7 @@ public class FeatureLabWebSiteInfo implements Validator {
         feature_resource_reference_enabled = Objects.equals(feature_resource_reference_enabled, true);
         feature_article_extension_filter_enabled =
                 Objects.equals(feature_article_extension_filter_enabled, true);
+        feature_article_arrangement_enabled = Objects.equals(feature_article_arrangement_enabled, true);
         feature_webhook_enabled = Objects.equals(feature_webhook_enabled, true);
         feature_personal_data_enabled = Objects.equals(feature_personal_data_enabled, true);
     }
