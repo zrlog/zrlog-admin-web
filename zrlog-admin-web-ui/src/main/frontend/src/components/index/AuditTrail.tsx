@@ -51,7 +51,7 @@ const AuditTrail: React.FC<AuditTrailProps> = ({ data }) => {
             {data.map((log, index) => (
                 <Timeline.Item key={index} dot={getIcon(log.type)}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                        <div style={{ flex: 1 }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
                             <Text strong style={{ display: "block" }}>
                                 {log.action}
                             </Text>
@@ -62,10 +62,12 @@ const AuditTrail: React.FC<AuditTrailProps> = ({ data }) => {
                             )}
                             <Text type="secondary" style={{ fontSize: 12 }}>
                                 {log.ip}
-                                {(log.os || log.browser) && (
-                                    <span style={{ opacity: 0.6, marginLeft: 8 }}>
+                                {(log.os || log.browser || log.agentName) && (
+                                    <span style={{ marginLeft: 8, overflowWrap: "anywhere" }}>
                                         {log.os && ` · ${log.os}`}
                                         {log.browser && ` · ${log.browser}`}
+                                        {log.agentName &&
+                                            ` · ${log.agentName}${log.agentVersion ? ` ${log.agentVersion}` : ""}`}
                                     </span>
                                 )}
                                 {log.crawler && (

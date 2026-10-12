@@ -13,6 +13,13 @@ public class AdminAuditLogEntryResponse {
     private String os;
     private String browser;
     private Boolean crawler;
+    private String agentName;
+    private String agentVersion;
+
+    public String getAgentName() { return agentName; }
+    public void setAgentName(String agentName) { this.agentName = agentName; }
+    public String getAgentVersion() { return agentVersion; }
+    public void setAgentVersion(String agentVersion) { this.agentVersion = agentVersion; }
 
     public Long getTimestamp() {
         return timestamp;
