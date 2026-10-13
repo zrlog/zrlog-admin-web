@@ -9,7 +9,7 @@
     "@ant-design/plots": "2.6.8",
     "@craco/craco": "7.1.0",
     "@simplewebauthn/browser": "13.3.0",
-    "@zrlog/editor": "2.2.0",
+    "@zrlog/editor": "2.2.1",
     "@zrlog/ui": "0.2.0",
     "@zrlog/utils": "0.2.0",
     "antd": "6.4.3",
