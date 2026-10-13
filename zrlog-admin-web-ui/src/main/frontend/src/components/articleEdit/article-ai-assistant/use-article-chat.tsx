@@ -1,3 +1,4 @@
+import { AiFileAttachment, AiFileInput, AiFileList } from "./article-ai-files";
 import { Alert, Space, Typography } from "antd";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -13,6 +14,7 @@ export type ChatMessage = ToolAwareAIContent & {
     messageType?: string;
     messageId?: string;
     sources?: Source[];
+    attachments?: AiFileAttachment[];
     reasoningContent?: string;
     failed?: boolean;
     runId?: string;
@@ -22,6 +24,7 @@ export type ChatRun = {
     runId: string;
     articleId: number;
     input: string;
+    attachments?: AiFileAttachment[];
     status:
         | "awaiting_approval"
         | "awaiting_input"
@@ -114,6 +117,7 @@ export const renderChatMessage = ({ content, defaultNode }: AIButtonRenderMessag
     const res = getRes().articleEdit.knowledge;
     return (
         <>
+            <AiFileList files={message.attachments} />
             {!message.failed && message.role === "assistant" && (
                 <ArticleAiReasoning content={message.reasoningContent} thinking={message.thinking} status={status} />
             )}
@@ -199,6 +203,7 @@ export const useArticleChat = (
                       {
                           role: "user",
                           content: view.input,
+                          attachments: view.attachments,
                           messageType: "knowledge",
                           runId: view.runId,
                           thinking: false,
@@ -297,7 +302,8 @@ export const useArticleChat = (
             decision: "approve" | "reject" | "submit" | "cancel";
             interaction?: { value?: string; contextRevision: string };
         },
-        snapshot?: EditorSnapshot
+        snapshot?: EditorSnapshot,
+        files?: AiFileInput[]
     ) => {
         if (approval)
             context = (context as ChatMessage[]).filter(
@@ -317,6 +323,12 @@ export const useArticleChat = (
             providerResponseInvalid: res.providerResponseInvalid,
             requestFailed: res.requestFailed,
             contextChanged: res.contextChanged,
+            fileInputFailed: getRes().articleEdit.files.unavailable,
+            ADMIN_AI_FILE_INVALID: getRes().articleEdit.files.invalid,
+            ADMIN_AI_FILE_UNSUPPORTED: getRes().articleEdit.files.unsupported,
+            ADMIN_AI_FILE_SIZE: getRes().articleEdit.files.sizeLimit,
+            ADMIN_AI_FILE_QUOTA: getRes().articleEdit.files.quota,
+            ADMIN_AI_FILE_UNAVAILABLE: getRes().articleEdit.files.unavailable,
         };
         const controller = new AbortController();
         pending.current = controller;
@@ -331,6 +343,14 @@ export const useArticleChat = (
         const question: ChatMessage = {
             role: "user",
             content: prompt,
+            attachments:
+                approval?.run.attachments ||
+                files?.map((file) => ({
+                    name: file.name,
+                    size:
+                        Math.floor((file.data.length * 3) / 4) -
+                        (file.data.endsWith("==") ? 2 : file.data.endsWith("=") ? 1 : 0),
+                })),
             thinking: false,
             messageType: "knowledge",
             runId: approval?.run.runId,
@@ -360,6 +380,10 @@ export const useArticleChat = (
         };
         const consume = (text: string, final: boolean) => {
             if (run !== generation.current) return;
+            if (final && text.trimStart().startsWith("{")) {
+                const error = JSON.parse(text) as { errorCode?: string };
+                throw new Error(errors[error.errorCode || ""] || res.requestFailed);
+            }
             const events = parseChatEvents(text);
             question.runId = events.find((event) => event.type === "run-start")?.runId || question.runId;
             // XHR supplies the entire response again on each progress callback and at completion.
@@ -493,7 +517,7 @@ export const useArticleChat = (
                               ? { interactionId: approval.run.interaction?.id, ...approval.interaction }
                               : { approvalId: approval.run.approval?.id }),
                       }
-                    : { input: prompt, articleId, ...snapshot },
+                    : { input: prompt, articleId, ...snapshot, ...(files?.length ? { files } : {}) },
                 requestConfig
             );
             consume(typeof response.data === "string" ? response.data : "", true);

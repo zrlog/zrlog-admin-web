@@ -312,7 +312,7 @@ public class AIChatServiceTest {
         }
     }
 
-    private static HttpResponse<InputStream> streamResponse(String body) {
+    static HttpResponse<InputStream> streamResponse(String body) {
         return streamResponse(200, body);
     }
 
@@ -389,14 +389,14 @@ public class AIChatServiceTest {
         }
     }
 
-    private static class FakeHttpClient extends HttpClient {
+    static class FakeHttpClient extends HttpClient {
 
         private final List<HttpResponse<InputStream>> responses;
-        private final List<HttpRequest> requests = new ArrayList<>();
-        private final List<JsonObject> requestBodies = new ArrayList<>();
+        final List<HttpRequest> requests = new ArrayList<>();
+        final List<JsonObject> requestBodies = new ArrayList<>();
         private int index;
 
-        private FakeHttpClient(HttpResponse<InputStream>... responses) {
+        FakeHttpClient(HttpResponse<InputStream>... responses) {
             this.responses = Arrays.asList(responses);
         }
 

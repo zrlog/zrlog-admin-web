@@ -12,8 +12,10 @@ public final class AIChatModels {
         public long articleId;
         public com.zrlog.admin.business.rest.request.GenerateArticleFieldRequest editorContext;
         public String contextRevision;
+        public List<AIFileModels.Input> files = new ArrayList<>();
         public List<ChatMessage> history = new ArrayList<>();
         public void doValid() {
+            com.zrlog.admin.business.ai.service.AIFileService.validateInputs(files);
             com.zrlog.admin.business.ai.service.AIWritingSkillCatalog.validateSnapshot(editorContext);
             if (editorContext != null && (contextRevision == null || !contextRevision.matches("[a-f0-9]{32}"))) throw new ArgsException();
             if (articleId < 0 || input == null || input.trim().isEmpty() || input.length() > 8000
@@ -26,7 +28,7 @@ public final class AIChatModels {
             if (size > 32000) throw new ArgsException();
         }
     }
-    public static class ChatMessage { public String role; public String content; }
+    public static class ChatMessage { public String role; public String content; public List<AIFileModels.Attachment> attachments; }
     public static class ApprovalRequest implements Validator {
         public long articleId;
         public String runId;
@@ -91,6 +93,7 @@ public final class AIChatModels {
         public int authVersion;
         public long articleId;
         public String input;
+        public List<AIFileModels.Attachment> attachments;
         public String language;
         public String preferences;
         public String provider;
@@ -120,6 +123,7 @@ public final class AIChatModels {
         public String runId;
         public long articleId;
         public String input;
+        public List<AIFileModels.Attachment> attachments;
         public String status;
         public Approval approval;
         public Interaction interaction;

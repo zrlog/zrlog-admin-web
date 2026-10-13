@@ -6,6 +6,9 @@ import java.util.List;
 public class AIArticleGlobalResponse extends ArticleGlobalResponse {
     private AIProviderType aiProvider;
     private String aiModel;
+    private com.zrlog.admin.business.ai.model.AIFileModels.Capabilities aiFileInput;
+    public com.zrlog.admin.business.ai.model.AIFileModels.Capabilities getAiFileInput() { return aiFileInput; }
+    public void setAiFileInput(com.zrlog.admin.business.ai.model.AIFileModels.Capabilities value) { aiFileInput = value; }
     private Boolean aiConfigured;
     private List<AIResponseEntry.AIContentEntry> aiMessages;
 

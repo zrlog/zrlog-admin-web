@@ -9,6 +9,7 @@ import { ArticleChangeableValue, ArticleEditState } from "../index.types";
 import { createDraftAiSaveGate, DraftAiSaveGate } from "../draft-ai-save-gate";
 import { AssistantTool, ToolAwareAIContent } from "./article-ai-assistant.types";
 import { useArticleAiAssistantConfig } from "./article-ai-assistant-button";
+import * as AiFiles from "./article-ai-files";
 
 const mockMessageError = jest.fn(async (content?: unknown): Promise<void> => {
     void content;
@@ -85,6 +86,7 @@ jest.mock("../../../utils/constants", () => ({
     getRealRouteUrl: (url: string) => url,
     getRes: () => ({
         articleEdit: {
+            files: require("../../../i18n/admin").getAdminI18n("en_US").articleEdit.files,
             interaction: {
                 staleResult: "Stale result",
                 invalidResult: "Invalid result",
@@ -142,7 +144,7 @@ type FooterActions = {
     onResumeQueue: () => void;
     onRemoveQueued: (id: number) => void;
     onClearAiMessages: () => void;
-    onSubmit: (message: string, tool?: AssistantTool) => void;
+    onSubmit: (message: string, tool?: AssistantTool, files?: File[]) => void;
 };
 
 type ToolContentActions = {
@@ -464,6 +466,7 @@ describe("useArticleAiAssistantConfig draft request gate", () => {
             act(() => root.unmount());
             container.remove();
         });
+        jest.restoreAllMocks();
         reactActEnvironment.IS_REACT_ACT_ENVIRONMENT = false;
     });
 
@@ -572,6 +575,42 @@ describe("useArticleAiAssistantConfig draft request gate", () => {
                 { role: "assistant", content: reply, messageType: "knowledge", messageId: `${question}:assistant` },
             ],
         })}\n\ndata: {"type":"done"}\n\n`,
+    });
+
+    it("forwards selected files through chat even when a writing skill is selected", async () => {
+        const files = [new File(["revenue,47925"], "report.csv")];
+        const encoded = [{ name: "report.csv", data: "cmV2ZW51ZSw0NzkyNQ==" }];
+        const encode = jest.spyOn(AiFiles, "encodeAiFiles").mockResolvedValue(encoded);
+        const post = jest
+            .fn<ReturnType<AxiosPost>, Parameters<AxiosPost>>()
+            .mockResolvedValue(answer("Analyze", "Read report"));
+        const mounted = mountHook(createDraftAiSaveGate(), post, undefined, 7);
+        await act(async () => {
+            mounted.getFooter().onSubmit("Analyze", "digest", files);
+            await flushRequest();
+        });
+        expect(encode).toHaveBeenCalledWith(files);
+        expect(post).toHaveBeenCalledTimes(1);
+        expect(post.mock.calls[0][0]).toBe("/api/admin/article/ai");
+        expect(post.mock.calls[0][1]).toMatchObject({ input: "Analyze", files: encoded, articleId: 7 });
+    });
+
+    it("does not send files after stopping or switching articles while reading them", async () => {
+        for (const action of ["stop", "navigate"]) {
+            const reading = deferred<AiFiles.AiFileInput[]>();
+            jest.spyOn(AiFiles, "encodeAiFiles").mockReturnValueOnce(reading.promise);
+            const post = jest.fn<ReturnType<AxiosPost>, Parameters<AxiosPost>>();
+            const gate = createDraftAiSaveGate();
+            const mounted = mountHook(gate, post, undefined, 7);
+            act(() => mounted.getFooter().onSubmit("Read", undefined, [new File(["notes"], "notes.txt")]));
+            act(() => (action === "stop" ? mounted.getFooter().onStop() : mounted.rerender(8)));
+            await act(async () => {
+                reading.resolve([{ name: "notes.txt", data: "bm90ZXM=" }]);
+                await flushRequest();
+            });
+            expect(post).not.toHaveBeenCalled();
+            expect(gate.getPendingAiCount()).toBe(0);
+        }
     });
 
     it("serializes rapid submissions and uses completed history for each queued turn", async () => {

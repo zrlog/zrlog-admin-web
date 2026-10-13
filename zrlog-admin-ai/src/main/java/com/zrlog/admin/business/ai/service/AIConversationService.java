@@ -93,13 +93,47 @@ public class AIConversationService {
         try {
             AIApprovalStore checkpoints = new AIApprovalStore();
             com.zrlog.admin.business.ai.model.AIChatModels.Run run = checkpoints.read(conversationUserId(), Math.max(0, articleId));
+            List<com.zrlog.admin.business.ai.model.AIFileModels.Attachment> files = new ArrayList<>();
+            for (var entry : getAiMessageInfoByArticleId(articleId).getAiMessages()) {
+                if (entry.getAttachments() != null) files.addAll(entry.getAttachments());
+            }
             if (run != null) {
                 String status = AIApprovalStore.view(run).status;
                 if ("running".equals(status) || "executing".equals(status)) return false;
+                if (run.attachments != null) files.addAll(run.attachments);
+                run.attachments = List.of(); run.messages.clear();
                 run.answer = null; run.approval = null; run.interaction = null; run.skillMessages.clear(); checkpoints.save(run, "cancelled");
             }
-            return mutateMessages(articleId, messages -> new ArrayList<>());
-        } catch (SQLException | AIApprovalStore.Changed e) { return false; }
+            if (!mutateMessages(articleId, messages -> new ArrayList<>())) return false;
+            // A draft checkpoint may still reference files moved into a saved article.
+            Set<String> retained = referencedFileIds();
+            files.removeIf(file -> retained.contains(file.id));
+            new AIFileService().remove(files);
+            return true;
+        } catch (SQLException | java.io.IOException | AIApprovalStore.Changed e) { return false; }
+    }
+
+    private Set<String> referencedFileIds() throws SQLException {
+        SecurityStore db = new SecurityStore();
+        List<Map<String, Object>> rows = db.withSession(c -> db.list(c,
+                "select name,value from website where value is not null and (name like ? escape '!' or name like ? escape '!')",
+                "ai!_chat!_message!_u" + conversationUserId() + "!_%", "ai!_pending!_u" + conversationUserId() + "!_%"));
+        Set<String> ids = new HashSet<>();
+        Gson json = new Gson();
+        for (var row : rows) {
+            String value = Objects.toString(row.get("value"), "");
+            if (value.isBlank()) continue;
+            if (row.get("name").toString().startsWith("ai_chat_message_")) {
+                var entries = json.fromJson(value, AIResponseEntry.AIContentEntry[].class);
+                if (entries != null) for (var entry : entries) if (entry.getAttachments() != null)
+                    for (var file : entry.getAttachments()) ids.add(file.id);
+            } else {
+                var checkpoint = json.fromJson(value, com.zrlog.admin.business.ai.model.AIChatModels.Run.class);
+                if (AIApprovalStore.active(checkpoint)) for (var message : checkpoint.messages) if (message.attachments != null)
+                    for (var file : message.attachments) ids.add(file.id);
+            }
+        }
+        return ids;
     }
 
     public ArticleAIMessageExportResponse exportAIMessage(Long articleId) {

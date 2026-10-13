@@ -76,6 +76,8 @@ public final class AIProviderRequests {
 
         private String role;
         private String content;
+        // Private file references, projected to native content parts at the provider boundary.
+        public List<AIFileModels.Attachment> attachments;
         @SerializedName("tool_calls")
         public List<ToolCall> toolCalls;
         @SerializedName("tool_call_id")

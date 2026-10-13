@@ -101,6 +101,7 @@ export type ArticleEditInfo = {
     article: ArticleEntry;
     aiProvider: AIProviderType;
     aiModel?: string;
+    aiFileInput?: import("./article-ai-assistant/article-ai-files").AiFileCapabilities;
     aiConfigured?: boolean;
     aiMessages: AIContent[];
     linkPreviewEnabled?: boolean;
@@ -122,6 +123,7 @@ export type ArticleEditState = {
     tags: any[];
     aiProvider: AIProviderType;
     aiModel?: string;
+    aiFileInput?: import("./article-ai-assistant/article-ai-files").AiFileCapabilities;
     aiConfigured: boolean;
     aiMessages: AIContent[];
     linkPreviewEnabled: boolean;

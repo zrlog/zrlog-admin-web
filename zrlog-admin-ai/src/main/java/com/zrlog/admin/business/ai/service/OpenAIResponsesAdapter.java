@@ -19,6 +19,10 @@ final class OpenAIResponsesAdapter {
     private final Gson gson = new Gson();
 
     Request request(AIProviderRequests.CompletionRequest completion, boolean summaries) {
+        return request(completion, summaries, Map.of());
+    }
+
+    Request request(AIProviderRequests.CompletionRequest completion, boolean summaries, Map<String, String> files) {
         Request request = new Request();
         request.model = completion.getModel();
         request.stream = completion.isStream();
@@ -41,7 +45,15 @@ final class OpenAIResponsesAdapter {
                     boolean assistant = "assistant".equals(message.getRole());
                     text.type = assistant ? "output_text" : "input_text";
                     if (assistant) text.annotations = new JsonArray();
-                    input.content = List.of(text); request.input.add(input);
+                    input.content = new ArrayList<>(List.of(text));
+                    if (message.attachments != null) for (var file : message.attachments) {
+                        if (assistant || !"user".equals(message.getRole())) throw AIFileService.error("invalid");
+                        Content part = new Content();
+                        String data = Objects.requireNonNull(files.get(file.id), "Missing file input");
+                        part.type = "input_file"; part.filename = file.name; part.file_data = data;
+                        input.content.add(part);
+                    }
+                    request.input.add(input);
                 }
                 // Also accepts checkpoints created before Responses was enabled.
                 if (message.toolCalls != null) for (AIProviderRequests.ToolCall call : message.toolCalls) {

@@ -47,6 +47,7 @@ public class AIWebSetup implements ArticleAssistant {
         AIArticleGlobalResponse response = new AIArticleGlobalResponse(article);
         response.setAiProvider(ai.getAi_provider());
         response.setAiModel(ai.getAi_model());
+        response.setAiFileInput(com.zrlog.admin.business.ai.service.AIFileService.capabilities(ai));
         response.setAiConfigured(ai.getAi_provider() != null && StringUtils.isNotEmpty(ai.getAi_model())
                 && (StringUtils.isNotEmpty(ai.getAi_api_key()) || StringUtils.isNotEmpty(ai.getAi_base_url())));
         response.setAiMessages(ai.getAiMessages().stream().filter(e -> !Objects.equals(e.getRole(), "system")).collect(Collectors.toList()));

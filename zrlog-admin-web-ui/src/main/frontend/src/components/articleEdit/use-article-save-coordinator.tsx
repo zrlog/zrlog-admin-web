@@ -349,6 +349,7 @@ const useArticleSaveCoordinator = ({
                 tags: newState.tags,
                 aiProvider: newState.aiProvider,
                 aiModel: newState.aiModel,
+                aiFileInput: newState.aiFileInput,
                 aiConfigured: newState.aiConfigured,
                 aiMessages,
                 linkPreviewEnabled: newState.linkPreviewEnabled,
@@ -375,6 +376,7 @@ const useArticleSaveCoordinator = ({
             tags: newState.tags,
             aiProvider: newState.aiProvider,
             aiModel: newState.aiModel,
+            aiFileInput: newState.aiFileInput,
             aiConfigured: newState.aiConfigured,
             aiMessages,
             linkPreviewEnabled: newState.linkPreviewEnabled,
@@ -391,10 +393,11 @@ const useArticleSaveCoordinator = ({
             ...previousState,
             aiProvider: data.aiProvider,
             aiModel: data.aiModel,
+            aiFileInput: data.aiFileInput,
             aiConfigured: data.aiConfigured === true,
             aiMessages,
         }));
-    }, [articlePageCacheKey, data.aiConfigured, data.aiMessages, data.aiModel, data.aiProvider]);
+    }, [articlePageCacheKey, data.aiConfigured, data.aiMessages, data.aiModel, data.aiProvider, data.aiFileInput]);
 
     const finishPendingAutoSave = (preserveExitTips = false) => {
         pendingMessagesRef.current = Math.max(0, pendingMessagesRef.current - 1);

@@ -38,7 +38,7 @@ public class AIArticleController extends BaseController {
         AIStreamResponse streamResponse;
         if (StringUtils.isEmpty(tool) && StringUtils.isEmpty(request.getParaToStr("input", ""))) {
             java.nio.ByteBuffer body = request.getRequestBodyByteBuffer();
-            if (body == null || body.remaining() > 1024 * 1024) throw new ArgsException();
+            if (body == null || body.remaining() > com.zrlog.admin.business.ai.service.AIFileService.MAX_REQUEST_BYTES) throw new ArgsException();
             streamResponse = new AIChatService(request).start(getRequestBodyWithNullCheck(
                     com.zrlog.admin.business.ai.model.AIChatModels.ChatRequest.class));
         } else {
