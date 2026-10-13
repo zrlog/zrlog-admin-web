@@ -1,7 +1,13 @@
 import { useEffect, useReducer, useRef } from "react";
 import { AssistantTool } from "./article-ai-assistant.types";
 
-export type QueuedAiMessage = { id: number; input: string; tool?: AssistantTool; selectedText?: string };
+export type QueuedAiMessage = {
+    id: number;
+    input: string;
+    tool?: AssistantTool;
+    selectedText?: string;
+    files?: File[];
+};
 
 // Queue only unsent input. Conversation history and article context are read when a turn starts.
 export const useArticleAiQueue = (
@@ -35,7 +41,8 @@ export const useArticleAiQueue = (
                 (success) => {
                     if (!success) current.paused = true;
                     // A save in progress can reject dispatch before any request/message exists.
-                    if (success === undefined) current.items = [message, ...current.items];
+                    if (success === undefined || (!success && message.files?.length))
+                        current.items = [message, ...current.items];
                 },
                 () => {
                     current.paused = true;
@@ -58,9 +65,12 @@ export const useArticleAiQueue = (
         key: current.key,
         messages: current.items,
         paused: current.paused,
-        add: (input: string, tool?: AssistantTool, selectedText?: string) => {
+        add: (input: string, tool?: AssistantTool, selectedText?: string, files?: File[]) => {
             if (!current.running && !current.items.length) current.paused = false;
-            current.items = [...current.items, { id: ++nextId.current, input, tool, selectedText }];
+            current.items = [
+                ...current.items,
+                { id: ++nextId.current, input, tool, selectedText, ...(files?.length ? { files: [...files] } : {}) },
+            ];
             redraw();
         },
         remove: (id: number) => {

@@ -108,6 +108,7 @@ final class AIApprovalStore {
     static RunView view(Run run) {
         if (run == null) return null;
         RunView view = new RunView();
+        view.attachments = run.attachments;
         view.runId = run.id; view.articleId = run.articleId; view.input = run.input;
         view.status = run.status; view.approval = run.approval; view.error = run.error;
         view.interaction = run.interaction; view.skillMessages = run.skillMessages;

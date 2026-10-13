@@ -6,6 +6,7 @@ import java.util.*;
 public final class AiNativeImageUtils {
     private AiNativeImageUtils() { }
     public static void reg() {
+        NativeImageUtils.gsonNativeAgentByClazz(Arrays.asList(com.zrlog.admin.business.ai.model.AIFileModels.class.getDeclaredClasses()));
         NativeImageUtils.gsonNativeAgentByClazz(Arrays.asList(
                 com.zrlog.admin.business.rest.request.AnalyzeCommentRequest.class,
                 com.zrlog.admin.business.rest.response.AnalyzeCommentResponse.class,

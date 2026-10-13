@@ -1,3 +1,4 @@
+import { AiFileCapabilities, AiFilePicker } from "./article-ai-files";
 import Tag from "@zrlog/ui/antd/Tag";
 import Input from "@zrlog/ui/antd/Input";
 import ArrowUpIcon from "@zrlog/ui/icons/arrow-up";
@@ -34,7 +35,8 @@ type ArticleAiAssistantSkillContentProps = {
     theme: any;
     selectedText?: string;
     markdownLength: number;
-    onSubmit: (message: string, tool?: AssistantTool) => boolean;
+    fileInput?: AiFileCapabilities;
+    onSubmit: (message: string, tool?: AssistantTool, files?: File[]) => boolean;
 };
 
 const ArticleAiAssistantSkillContent: FunctionComponent<ArticleAiAssistantSkillContentProps> = ({
@@ -51,8 +53,10 @@ const ArticleAiAssistantSkillContent: FunctionComponent<ArticleAiAssistantSkillC
     selectedText,
     markdownLength,
     onSubmit,
+    fileInput,
 }) => {
     const [input, setInput] = useState("");
+    const [files, setFiles] = useState<File[]>([]);
     const [selectedTool, setSelectedTool] = useState<AssistantTool>();
     const [skillPanelOpen, setSkillPanelOpen] = useState(false);
     const skillPanelId = useId();
@@ -125,6 +129,16 @@ const ArticleAiAssistantSkillContent: FunctionComponent<ArticleAiAssistantSkillC
         return inputContainsOnlySelectedText() ? prompt : input.trim() || prompt;
     };
 
+    const submit = (message: string, tool?: AssistantTool) => {
+        const accepted = files.length
+            ? onSubmit(message, tool, files)
+            : tool
+            ? onSubmit(message, tool)
+            : onSubmit(message);
+        if (accepted) setFiles([]);
+        return accepted;
+    };
+
     const submitInput = () => {
         if (disabled) return;
         const parsedSkillCommand = parseSkillCommand(input);
@@ -133,7 +147,7 @@ const ArticleAiAssistantSkillContent: FunctionComponent<ArticleAiAssistantSkillC
             if (parsedSkillCommand.disabled) {
                 return;
             }
-            if (!onSubmit(parsedSkillCommand.prompt, parsedSkillCommand.tool)) return;
+            if (!submit(parsedSkillCommand.prompt, parsedSkillCommand.tool)) return;
             setInput("");
             setSelectedTool(undefined);
             return;
@@ -143,12 +157,12 @@ const ArticleAiAssistantSkillContent: FunctionComponent<ArticleAiAssistantSkillC
             if (matchedTool?.disabled) {
                 return;
             }
-            if (!onSubmit(getEffectiveInput(), selectedTool)) return;
+            if (!submit(getEffectiveInput(), selectedTool)) return;
             setInput("");
             setSelectedTool(undefined);
             return;
         }
-        if (!input.trim() || !onSubmit(input)) return;
+        if ((!input.trim() && !files.length) || !submit(input.trim() || getRes().articleEdit.files.prompt)) return;
         setInput("");
     };
 
@@ -206,7 +220,8 @@ const ArticleAiAssistantSkillContent: FunctionComponent<ArticleAiAssistantSkillC
     const parsedSkillCommand = parseSkillCommand(input);
     const selectedToolButton = selectedTool ? toolButtons.find((tool) => tool.key === selectedTool) : undefined;
     const activeToolDisabledReason = selectedToolButton?.disabledReason || parsedSkillCommand?.disabledReason;
-    const cannotSubmit = disabled || Boolean(activeToolDisabledReason) || (!selectedTool && !input.trim());
+    const cannotSubmit =
+        disabled || Boolean(activeToolDisabledReason) || (!selectedTool && !input.trim() && !files.length);
     const willQueue = busy || waiting || queuedMessages.length > 0;
     const actionLabel = busy
         ? getRes().articleEdit.knowledge.stop
@@ -276,6 +291,11 @@ const ArticleAiAssistantSkillContent: FunctionComponent<ArticleAiAssistantSkillC
                                 >
                                     {message.tool && <Tag>{getAssistantToolLabel(message.tool)}</Tag>}
                                     {message.input}
+                                    {message.files?.map((file, index) => (
+                                        <span key={index} style={{ display: "block" }}>
+                                            {file.name}
+                                        </span>
+                                    ))}
                                 </Typography.Text>
                                 <Button
                                     type="text"
@@ -289,6 +309,7 @@ const ArticleAiAssistantSkillContent: FunctionComponent<ArticleAiAssistantSkillC
                     </div>
                 </div>
             )}
+            <AiFilePicker capabilities={fileInput} files={files} disabled={disabled} onChange={setFiles} />
             <div style={{ position: "relative" }}>
                 {selectedTool && (
                     <Space style={{ marginBottom: 6 }}>

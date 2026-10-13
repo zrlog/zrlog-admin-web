@@ -156,3 +156,63 @@ it("opens reasoning as it arrives after an initial status and even after answer 
     expect(container.querySelector('[aria-expanded="true"]')).not.toBeNull();
     expect(container.querySelectorAll('[role="status"]')).toHaveLength(1);
 });
+
+const fileInput = {
+    extensions: [".pdf", ".csv", ".xlsx", ".txt"],
+    maxFiles: 4,
+    maxFileBytes: 4 * 1024 * 1024,
+    maxTotalBytes: 8 * 1024 * 1024,
+};
+const attach = (...files: File[]) =>
+    act(() => Simulate.change(container.querySelector('input[type="file"]')!, { target: { files, value: "" } } as any));
+
+it("queues selected document bytes with a prompt and clears files only after acceptance", () => {
+    render({ busy: false, fileInput });
+    const file = new File(["region,revenue\nShanghai,1537"], "sales.csv");
+    attach(file);
+    expect(container.textContent).toContain("sales.csv");
+    expect(container.textContent).toContain(getRes().articleEdit.files.spreadsheetNote);
+    submit.mockReturnValueOnce(false);
+    type("Analyze sales");
+    enter();
+    expect(submit).toHaveBeenLastCalledWith("Analyze sales", undefined, [file]);
+    expect(container.textContent).toContain("sales.csv");
+    enter();
+    expect(container.textContent).not.toContain("sales.csv");
+    expect(input().value).toBe("");
+});
+
+it("accepts a file-only turn and lets a selected attachment be removed", () => {
+    render({ busy: false, fileInput });
+    const file = new File(["notes"], "notes.txt");
+    attach(file);
+    click(`${getRes().articleEdit.files.remove} notes.txt`);
+    expect(container.textContent).not.toContain("notes.txt");
+    attach(file);
+    enter();
+    expect(submit).toHaveBeenLastCalledWith(getRes().articleEdit.files.prompt, undefined, [file]);
+});
+
+it("rejects unsupported formats and excessive attachments without losing valid selections", () => {
+    render({ busy: false, fileInput });
+    const file = new File(["data"], "notes.txt");
+    attach(file);
+    attach(new File(["pixels"], "photo.png"));
+    expect(container.textContent).toContain(getRes().articleEdit.files.unsupported);
+    expect(container.textContent).not.toContain("photo.png");
+    attach(file, file, file, file);
+    expect(container.textContent).toContain(getRes().articleEdit.files.countLimit);
+    expect(container.textContent).toContain("notes.txt");
+});
+
+it("encodes the actual UTF-8 contents of a selected file", async () => {
+    const { encodeAiFiles, validateAiFiles } = await import("./article-ai-files");
+    const contents = "城市,营收\n上海,1537\n";
+    const file = new File([contents], "sales.csv", { type: "text/csv" });
+    const result = await encodeAiFiles([file]);
+    expect(result).toEqual([{ name: "sales.csv", data: Buffer.from(contents, "utf8").toString("base64") }]);
+    expect(validateAiFiles([new File([], "empty.txt")], fileInput)).toBe(getRes().articleEdit.files.sizeLimit);
+    expect(validateAiFiles([new File(["x".repeat(fileInput.maxFileBytes + 1)], "large.txt")], fileInput)).toBe(
+        getRes().articleEdit.files.sizeLimit
+    );
+});

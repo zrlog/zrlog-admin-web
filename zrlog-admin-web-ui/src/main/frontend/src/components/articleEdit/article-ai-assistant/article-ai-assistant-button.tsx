@@ -1,3 +1,4 @@
+import { encodeAiFiles } from "./article-ai-files";
 import { Alert, Button, Space, Typography } from "antd";
 import Tag from "@zrlog/ui/antd/Tag";
 import { useUiApp } from "@zrlog/ui/feedback";
@@ -116,6 +117,7 @@ export const useArticleAiAssistantConfig = ({
     const latestDataRef = useRef(data);
     latestDataRef.current = data;
     const skillRequest = useRef<AbortController>();
+    const fileReadGeneration = useRef(0);
     const scope = `${getSsDate().key}/${data.article.logId || "draft"}`;
     const scopeRef = useRef(scope);
     scopeRef.current = scope;
@@ -149,26 +151,28 @@ export const useArticleAiAssistantConfig = ({
     const queue = useArticleAiQueue(
         scope,
         offline || data.aiConfigured !== true || busy || activeRun || aiMessagesClearing,
-        ({ input, tool, selectedText }) => sendMessage(input, tool, selectedText)
+        ({ input, tool, selectedText, files }) => sendMessage(input, tool, selectedText, files)
     );
     migrateQueue.current = queue.migrate;
 
     useEffect(() => {
         setLoadingKey(undefined);
         return () => {
+            fileReadGeneration.current++;
             skillRequest.current?.abort();
             skillRequest.current = undefined;
         };
     }, [scope]);
 
-    const submitMessage = (input: string, tool?: AssistantTool, selectedText?: string) => {
+    const submitMessage = (input: string, tool?: AssistantTool, selectedText?: string, files?: File[]) => {
         if (!input.trim() || offline || data.aiConfigured !== true || aiMessagesClearing) return false;
-        queue.add(input.trim(), tool, selectedText);
+        queue.add(input.trim(), tool, selectedText, files);
         return true;
     };
 
     const stopGeneration = () => {
         queue.pause();
+        fileReadGeneration.current++;
         if (chat.busy) chat.stop();
         skillRequest.current?.abort();
     };
@@ -395,7 +399,8 @@ export const useArticleAiAssistantConfig = ({
     const sendMessage = async (
         messageInput: string,
         tool?: AssistantTool,
-        selectedText?: string
+        selectedText?: string,
+        files?: File[]
     ): Promise<boolean | undefined> => {
         const normalizedInput = messageInput.trim();
         if (!normalizedInput || loadingKey || chat.busy || activeRun) {
@@ -407,15 +412,30 @@ export const useArticleAiAssistantConfig = ({
             void message.warning(getRes().articleEdit.assistant.saveInProgress);
             return undefined;
         }
-        if (!tool) {
+        if (!tool || files?.length) {
             setLoadingKey("chat");
             try {
+                const fileRead = fileReadGeneration.current;
                 const editorContext = getArticleAiRequestBody(selectedText);
-                await chat.send(normalizedInput, aiMessages, articleId, undefined, {
-                    editorContext,
-                    contextRevision: editorContextRevision(editorContext),
-                });
+                const fileInputs = files?.length ? await encodeAiFiles(files) : undefined;
+                if (scopeRef.current !== scope) return undefined;
+                if (fileRead !== fileReadGeneration.current) return false;
+                await chat.send(
+                    normalizedInput,
+                    aiMessages,
+                    articleId,
+                    undefined,
+                    {
+                        editorContext,
+                        contextRevision: editorContextRevision(editorContext),
+                    },
+                    fileInputs
+                );
+
                 return chat.outcome.current;
+            } catch (error) {
+                void message.error(error instanceof Error ? error.message : getRes().articleEdit.files.readFailed);
+                return false;
             } finally {
                 if (scopeRef.current === scope) setLoadingKey(undefined);
                 releaseRequest();
@@ -867,6 +887,7 @@ export const useArticleAiAssistantConfig = ({
         <ArticleAiAssistantSkillContent
             key={queue.key}
             aiProvider={data.aiProvider}
+            fileInput={data.aiFileInput}
             disabled={offline || data.aiConfigured !== true || aiMessagesClearing}
             busy={busy}
             waiting={activeRun}
@@ -878,7 +899,7 @@ export const useArticleAiAssistantConfig = ({
             theme={theme}
             selectedText={selectedText}
             markdownLength={(data.article.markdown || "").trim().length}
-            onSubmit={(messageInput, tool) => submitMessage(messageInput, tool, selectedText)}
+            onSubmit={(messageInput, tool, files) => submitMessage(messageInput, tool, selectedText, files)}
         />
     );
 

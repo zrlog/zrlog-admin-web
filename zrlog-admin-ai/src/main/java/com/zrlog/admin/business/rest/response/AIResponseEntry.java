@@ -51,6 +51,9 @@ public class AIResponseEntry {
 
         public List<com.zrlog.admin.business.knowledge.KnowledgeModels.Source> getSources() { return sources; }
         public void setSources(List<com.zrlog.admin.business.knowledge.KnowledgeModels.Source> sources) { this.sources = sources; }
+        private java.util.List<com.zrlog.admin.business.ai.model.AIFileModels.Attachment> attachments;
+        public java.util.List<com.zrlog.admin.business.ai.model.AIFileModels.Attachment> getAttachments() { return attachments; }
+        public void setAttachments(java.util.List<com.zrlog.admin.business.ai.model.AIFileModels.Attachment> value) { attachments = value; }
         private String messageType;
         private ArticleContextMeta contextMeta;
         private String tool;

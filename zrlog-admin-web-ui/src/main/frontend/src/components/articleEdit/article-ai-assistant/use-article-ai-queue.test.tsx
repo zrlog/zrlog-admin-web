@@ -81,3 +81,27 @@ it("lets a new explicit submission start after stopping with an empty queue", as
     expect(send).toHaveBeenCalledTimes(1);
     expect(queue.paused).toBe(false);
 });
+
+it("retains the original File after failure and sends it again on explicit resume", async () => {
+    send.mockResolvedValueOnce(false).mockResolvedValue(true);
+    const file = new File(["private report"], "report.txt");
+    render("user/7");
+    await act(async () => queue.add("Read report", undefined, undefined, [file]));
+    expect(queue.paused).toBe(true);
+    expect(queue.messages[0].files?.[0]).toBe(file);
+    await act(async () => queue.resume());
+    expect(send.mock.calls[1][0].files[0]).toBe(file);
+    expect(queue.messages).toHaveLength(0);
+});
+
+it("preserves files on draft adoption and discards them when switching to another article", () => {
+    render("user/draft", true);
+    const file = new File(["draft"], "draft.txt");
+    act(() => queue.add("Analyze", undefined, undefined, [file]));
+    act(() => queue.migrate("user/7"));
+    render("user/7", true);
+    expect(queue.messages[0].files?.[0]).toBe(file);
+    render("user/8", true);
+    expect(queue.messages).toHaveLength(0);
+    expect(send).not.toHaveBeenCalled();
+});

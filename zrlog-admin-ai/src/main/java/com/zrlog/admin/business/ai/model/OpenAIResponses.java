@@ -53,6 +53,8 @@ public final class OpenAIResponses {
         public String type;
         public String text;
         public String refusal;
+        public String filename;
+        public String file_data;
         public JsonArray annotations;
     }
 

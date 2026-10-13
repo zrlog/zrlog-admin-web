@@ -73,6 +73,47 @@ describe("knowledge assistant", () => {
             </>
         );
     }
+    it("sends document bytes while rendering only safe attachment metadata", async () => {
+        const files = [{ name: "sales.csv", data: "YSxiXG4xLDI=" }];
+        post.mockImplementationOnce(async (_url, body) => {
+            expect(body.files).toEqual(files);
+            return {
+                data: `data: ${JSON.stringify({
+                    type: "answer",
+                    messages: [
+                        {
+                            role: "user",
+                            content: "Read files",
+                            messageId: "files:user",
+                            attachments: [{ id: "file-id", name: "sales.csv", size: 8 }],
+                            messageType: "knowledge",
+                        },
+                        {
+                            role: "assistant",
+                            content: "Read the rows",
+                            messageType: "knowledge",
+                            messageId: "files:assistant",
+                        },
+                    ],
+                })}\n\ndata: {"type":"done"}\n\n`,
+            };
+        });
+        await act(async () => root.render(<Harness />));
+        await act(async () => chat.send("Read files", [], 7, undefined, undefined, files));
+        expect(post.mock.calls[0][1].files).toEqual(files);
+        expect(container.textContent).toContain("sales.csv");
+        expect(container.textContent).not.toContain(files[0].data);
+        expect(chat.outcome.current).toBe(true);
+    });
+
+    it("shows file validation failures returned before the stream starts", async () => {
+        post.mockResolvedValueOnce({ data: JSON.stringify({ error: 9039, errorCode: "ADMIN_AI_FILE_UNSUPPORTED" }) });
+        await act(async () => root.render(<Harness />));
+        await act(async () => chat.send("Read files", [], 7));
+        expect(container.textContent).toContain(getRes().articleEdit.files.unsupported);
+        expect(chat.outcome.current).toBe(false);
+    });
+
     it("streams validated skill cards, restores title selection, and resumes the same task", async () => {
         const frame = (event: object) => `data: ${JSON.stringify(event)}\n\n`;
         const revision = "0123456789abcdef0123456789abcdef";
