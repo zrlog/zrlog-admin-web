@@ -115,6 +115,7 @@ export interface Upgrade {
 export interface FeatureLab {
     feature_resource_reference_enabled: boolean;
     feature_article_extension_filter_enabled: boolean;
+    feature_article_arrangement_enabled: boolean;
     feature_webhook_enabled: boolean;
     feature_personal_data_enabled: boolean;
 }
@@ -183,6 +184,7 @@ const WebSite: FunctionComponent<WebSiteProps> = ({ data, offline, offlineData, 
             const featureLab = newData as FeatureLab;
             setRes({
                 ...getRes(),
+                feature_article_arrangement_enabled: featureLab.feature_article_arrangement_enabled,
                 feature_personal_data_enabled: featureLab.feature_personal_data_enabled,
                 feature_webhook_enabled: featureLab.feature_webhook_enabled,
             });

@@ -16,6 +16,11 @@ import com.zrlog.admin.business.rest.base.OtherWebSiteInfo;
 import com.zrlog.admin.business.rest.response.AIWebSiteInfoResponse;
 import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
 import com.zrlog.admin.business.rest.response.VersionResponse;
+import com.zrlog.admin.business.rest.request.CreateArticleRequest;
+import com.zrlog.admin.business.rest.request.UpdateArticleRequest;
+import com.zrlog.admin.business.service.AdminArticleService;
+import com.zrlog.admin.business.service.AdminResourceService;
+import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.business.rest.base.UpgradeWebSiteInfo;
@@ -34,6 +39,47 @@ import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 public class WebSiteControllerDatabaseTest {
+
+    @Test
+    public void arrangementVisibilityIsPersistedWithoutChangingArticleDataOrBlockingWrites() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            String labUri = "/api/admin/website/lab";
+            HttpRequest editorRequest = request(HttpMethod.GET, "/admin/article-edit", null);
+            AdminResourceService resources = new AdminResourceService();
+            assertFalse(controller(HttpMethod.GET, labUri, null).lab().getData().getFeature_article_arrangement_enabled());
+            assertFalse(resources.adminResourceInfo(editorRequest).getFeature_article_arrangement_enabled());
+
+            AdminArticleService articles = new AdminArticleService();
+            CreateArticleRequest create = new CreateArticleRequest();
+            create.setTitle("Layout visibility");
+            create.setAlias("layout-visibility");
+            create.setContent("<p>Content</p>");
+            create.setMarkdown("Content");
+            create.setTypeId(1L);
+            create.setRubbish(true);
+            create.setArrange_plugin("retro-runtime");
+            int id = articles.create(AdminTokenThreadLocal.getUser(), create).getLogId().intValue();
+            Map<String, Object> original = db.queryOne("select * from log where logId=?", id);
+
+            for (boolean enabled : new boolean[]{true, false}) {
+                var saved = controller(HttpMethod.POST, labUri,
+                        "{\"feature_article_arrangement_enabled\":" + enabled + "}").lab();
+                assertEquals(enabled, saved.getData().getFeature_article_arrangement_enabled());
+                assertEquals(String.valueOf(enabled), String.valueOf(value(db, "feature_article_arrangement_enabled")));
+                assertEquals(enabled, controller(HttpMethod.GET, labUri, null).lab().getData().getFeature_article_arrangement_enabled());
+                assertEquals(enabled, resources.adminResourceInfo(editorRequest).getFeature_article_arrangement_enabled());
+                assertEquals(original, db.queryOne("select * from log where logId=?", id));
+                assertEquals("retro-runtime", articles.loadDetail("layout-visibility", editorRequest).getArrange_plugin());
+            }
+
+            UpdateArticleRequest update = articles.loadDetail("layout-visibility", editorRequest);
+            update.setArrange_plugin("another-arranger");
+            update.setRubbish(false);
+            articles.update(AdminTokenThreadLocal.getUser(), update);
+            assertEquals("another-arranger", db.scalar("select arrange_plugin from log where logId=?", id));
+            assertEquals(Boolean.FALSE, db.scalar("select rubbish from log where logId=?", id));
+        }
+    }
 
     @Test
     public void backendServiceAddressIsSavedPrivatelyAndUsedByOAuthImmediately() throws Exception {

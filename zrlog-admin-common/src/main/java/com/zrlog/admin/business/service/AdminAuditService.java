@@ -49,6 +49,8 @@ public class AdminAuditService {
                 newLog.setOs(uaInfo.getOs());
                 newLog.setBrowser(uaInfo.getFullBrowser());
                 newLog.setCrawler(uaInfo.isCrawler());
+                newLog.setAgentName(uaInfo.getAgentName());
+                newLog.setAgentVersion(uaInfo.getAgentVersion());
             }
             if ((newLog.getBrowser() == null || "Unknown".equals(newLog.getBrowser()))
                     && "/mcp".equals(request.getUri())) {
@@ -101,6 +103,8 @@ public class AdminAuditService {
         displayLog.setOs(log.getOs());
         displayLog.setBrowser(log.getBrowser());
         displayLog.setCrawler(log.getCrawler());
+        displayLog.setAgentName(log.getAgentName());
+        displayLog.setAgentVersion(log.getAgentVersion());
         if (isSecurityLog(log, auditAction)) {
             displayLog.setContent("");
         }
@@ -143,6 +147,8 @@ public class AdminAuditService {
         entry.setContent(toStringValue(log.get("content")));
         entry.setOs(toStringValue(log.get("os")));
         entry.setBrowser(toStringValue(log.get("browser")));
+        entry.setAgentName(toStringValue(log.get("agentName")));
+        entry.setAgentVersion(toStringValue(log.get("agentVersion")));
         entry.setCrawler(toBoolean(log.get("crawler")));
         return entry;
     }

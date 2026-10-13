@@ -29,6 +29,19 @@ public class AdminAuditServiceTest {
     }
 
     @Test
+    public void shouldReadAgentFieldsAndKeepLegacyLogsCompatible() {
+        AdminAuditService service = new AdminAuditService();
+        List<AdminAuditLogEntryResponse> logs = service.readLogs(
+                "[{\"browser\":\"ZrLogCtl 0.1.42\",\"agentName\":\"dot\",\"agentVersion\":\"1.2\"},{\"browser\":\"Chrome\"}]");
+        AdminAuditLogEntryResponse display = service.toDisplayLog(logs.get(0));
+        assertEquals("ZrLogCtl 0.1.42", display.getBrowser());
+        assertEquals("dot", display.getAgentName());
+        assertEquals("1.2", display.getAgentVersion());
+        assertEquals(null, logs.get(1).getAgentName());
+        assertEquals(null, logs.get(1).getAgentVersion());
+    }
+
+    @Test
     public void shouldSanitizeSecurityLogsForDisplay() throws Exception {
         AdminAuditService service = new AdminAuditService();
 

@@ -35,16 +35,19 @@ public class UpgradeController extends BaseController {
 
 
     @ResponseBody
+    @RequestMethod(method = HttpMethod.GET)
     @RequiresAction(value = AccountAction.SYSTEM_MANAGE, descriptionKey = "system.upgradeCheck")
     public AdminPageDataResponse<PreCheckVersionResponse> index() {
-        // Page rendering and durable Docker job recovery must not depend on the metadata server.
-        boolean fetch = "true".equals(request.getParaToStr("fetch", "false"));
+        // Keep the public check fresh; page rendering and task recovery can use cached metadata.
+        boolean apiCheck = request.getUri().endsWith("/api" + Constants.ADMIN_URI_BASE_PATH + "/upgrade");
+        boolean fetch = "true".equals(request.getParaToStr("fetch", apiCheck ? "true" : "false"));
         PreCheckVersionResponse preCheckVersionResponse = AdminStaticService.getInstance().getUpgradeService().preUpgradeVersion(fetch, Constants.zrLogConfig.getPlugin(UpdateVersionInfoPlugin.class));
         return new AdminPageDataResponse<>(preCheckVersionResponse,
                 Objects.equals(preCheckVersionResponse.getUpgrade(), true) ? "" : I18nUtil.getAdminBackendStringFromRes("admin.upgrade.version.notFound"), request.getUri());
     }
 
     @ResponseBody
+    @RequestMethod(method = HttpMethod.GET)
     @RequiresAction(value = AccountAction.SYSTEM_MANAGE, descriptionKey = "system.upgradeNotice")
     public ApiStandardResponse<CheckVersionResponse> notice() {
         boolean fetch = Objects.equals("true", request.getParaToStr("fetch", "false"));
@@ -56,8 +59,8 @@ public class UpgradeController extends BaseController {
 
 
     @ResponseBody
-    @RequiresAction(value = AccountAction.SYSTEM_MANAGE, descriptionKey = "system.upgrade")
     @RequestMethod(method = HttpMethod.POST)
+    @RequiresAction(value = AccountAction.SYSTEM_MANAGE, descriptionKey = "system.upgrade")
     public void doUpgrade() throws IOException {
         ExecuteUpgradeRequest upgradeRequest = getRequestBodyWithNullCheck(ExecuteUpgradeRequest.class);
         if (upgradeRequest.getDocker() != null) {

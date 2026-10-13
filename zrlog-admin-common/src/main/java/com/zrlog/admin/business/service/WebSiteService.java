@@ -21,6 +21,7 @@ public class WebSiteService {
             "feature_article_extension_filter_enabled";
     public static final String FEATURE_WEBHOOK_ENABLED_KEY = "feature_webhook_enabled";
     public static final String FEATURE_PERSONAL_DATA_ENABLED_KEY = "feature_personal_data_enabled";
+    public static final String FEATURE_ARTICLE_ARRANGEMENT_ENABLED_KEY = "feature_article_arrangement_enabled";
     private static final List<String> ARTICLE_EDIT_WEBSITE_INFO_KEYS = Arrays.asList(WebSite.article_auto_digest_length,
             ARTICLE_EDITOR_LINK_PREVIEW_ENABLED_KEY, ARTICLE_PUBLISH_CHECK_ENABLED_KEY,
             ARTICLE_COVER_ASPECT_RATIO_KEY, ARTICLE_EDIT_AUTO_SAVE_INTERVAL_KEY);

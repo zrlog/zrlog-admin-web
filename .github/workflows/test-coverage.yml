@@ -39,13 +39,14 @@ jobs:
             ${{ runner.os }}-frontend-v2-
 
       - name: Generate admin frontend resources
-        run: ./mvnw -q -PnodeBuild generate-resources -DskipTests=true -Dmaven.test.skip=true
+        # Refresh SNAPSHOT parents and dependencies even after restoring the Maven cache.
+        run: ./mvnw -q -U -PnodeBuild generate-resources -DskipTests=true -Dmaven.test.skip=true
 
       - name: Verify snapshot deployment against a temporary repository
         run: python3 scripts/test-snapshot-deploy.py
 
       - name: Run tests and generate coverage
-        run: ./mvnw -q -DskipTests=false -Dmaven.test.skip=false -Djacoco.append=true -DforkCount=1 -DreuseForks=false org.jacoco:jacoco-maven-plugin:0.8.12:prepare-agent test org.jacoco:jacoco-maven-plugin:0.8.12:report
+        run: ./mvnw -q -U -DskipTests=false -Dmaven.test.skip=false -Djacoco.append=true -DforkCount=1 -DreuseForks=false org.jacoco:jacoco-maven-plugin:0.8.12:prepare-agent test org.jacoco:jacoco-maven-plugin:0.8.12:report
 
       - name: Summarize JaCoCo coverage
         shell: bash

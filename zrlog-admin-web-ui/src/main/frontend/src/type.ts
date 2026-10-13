@@ -99,6 +99,8 @@ export type AdminAuditLogEntry = {
     content?: string;
     os?: string;
     browser?: string;
+    agentName?: string;
+    agentVersion?: string;
     crawler?: boolean;
 };
 

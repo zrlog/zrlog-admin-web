@@ -517,13 +517,20 @@ public class AdminControllerDelegationTest {
             };
             setAdminToken();
             UpgradeController controller = new UpgradeController();
-            for (String path : List.of("/admin/upgrade", "/api/admin/upgrade")) {
+            for (String path : List.of("/admin/upgrade", "/admin/ssJson")) {
                 setControllerRequest(controller, request(HttpMethod.GET, path, Map.of(), Map.of(), null));
                 AdminPageDataResponse<PreCheckVersionResponse> page = controller.index();
                 assertEquals(Boolean.FALSE, page.getData().getUpgrade());
                 assertEquals(null, page.getData().getVersion());
             }
+            setControllerRequest(controller, request(HttpMethod.GET, "/api/admin/upgrade",
+                    Map.of("fetch", "false"), Map.of(), null));
+            assertEquals(Boolean.FALSE, controller.index().getData().getUpgrade());
             assertEquals(0, checks.get());
+            for (String path : List.of("/api/admin/upgrade", "/sub/api/admin/upgrade")) {
+                setControllerRequest(controller, request(HttpMethod.GET, path, Map.of(), Map.of(), null));
+                assertThrows(com.zrlog.common.exception.AbstractBusinessException.class, controller::index);
+            }
             setControllerRequest(controller, request(HttpMethod.GET, "/api/admin/upgrade",
                     Map.of("fetch", "true"), Map.of(), null));
             com.zrlog.common.exception.AbstractBusinessException error =
@@ -536,7 +543,7 @@ public class AdminControllerDelegationTest {
             assertEquals(9038, response.getError());
             assertEquals(com.zrlog.util.I18nUtil.getBackendStringFromRes("upgrade.check.failed"), response.getMessage());
             assertFalse(response.getMessage().isBlank());
-            assertEquals(1, checks.get());
+            assertEquals(3, checks.get());
         }
     }
 
