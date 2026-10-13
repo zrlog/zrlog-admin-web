@@ -180,8 +180,10 @@ body.light .activity-graph::-webkit-scrollbar-thumb {
 body.light .cm-editor,
             body.light .cm-scroller,
             body.light .cm-gutters {
-              background: ${token.colorBgContainer};
               color: ${token.colorText};
+            }
+body.light .cm-gutters {
+              background: ${token.colorBgContainer};
             }
 body.light .cm-gutters,
             body.light .cm-activeLineGutter {

@@ -4058,10 +4058,10 @@
   resolved "https://registry.npmmirror.com/@xtuc/long/-/long-4.2.2.tgz#d291c6a4e97989b5c61d9acf396ae4fe133a718d"
   integrity sha512-NuHqBY1PB/D8xU6s/thBgOAiAP7HOYDQ32+BFZILJ8ivkUkAHQnWfn6WhL79Owj1qmUnoN/YPhktdIoucipkAQ==
 
-"@zrlog/editor@2.2.0":
-  version "2.2.0"
-  resolved "https://registry.npmjs.org/@zrlog/editor/-/editor-2.2.0.tgz#2c38e5a4282796127a7991114a0b282b6d592430"
-  integrity sha512-nQe5R99EMmiHvyGnVggRMbfcZ8k2dPJUZTQkcvrnXZB+GiRi8fny3CHx/zpqM9KH5/9z3Ws6jbeSUgRVF/etLw==
+"@zrlog/editor@2.2.1":
+  version "2.2.1"
+  resolved "https://registry.npmjs.org/@zrlog/editor/-/editor-2.2.1.tgz#960baa0e65311899a52f02e99676e518606dc607"
+  integrity sha512-grzd+s6AkKkB/5/DxtUxOkJlA1ESdXm+sy2lJ6yLYPCc59eK/SZYpqA0rJdHTmrBpEmgbZzyF3pRVEem2RzvFA==
   dependencies:
     "@ant-design/icons" "6.2.3"
     "@codemirror/lang-markdown" "6.3.3"
