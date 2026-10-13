@@ -101,8 +101,12 @@ const BlogForm = ({
             <Form.Item
                 name="backend_server_url"
                 label={getRes().websiteAdmin.backendServer.label}
-                tooltip={getRes().websiteAdmin.backendServer.help}
-                extra={getRes().websiteAdmin.backendServer.changeHelp}
+                tooltip={
+                    <>
+                        <div>{getRes().websiteAdmin.backendServer.help}</div>
+                        <div>{getRes().websiteAdmin.backendServer.changeHelp}</div>
+                    </>
+                }
                 normalize={(value: string) => value.trim()}
                 rules={[
                     {

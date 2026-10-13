@@ -72,9 +72,9 @@ const FeatureLabForm = ({
                 name="feature_article_arrangement_enabled"
                 label={getRes().websiteLab.articleArrangement}
                 htmlFor="lab-article-arrangement"
-                extra={<span id="lab-article-arrangement-help">{getRes().websiteLab.articleArrangementTip}</span>}
+                tooltip={getRes().websiteLab.articleArrangementTip}
             >
-                <Switch id="lab-article-arrangement" aria-describedby="lab-article-arrangement-help" />
+                <Switch id="lab-article-arrangement" />
             </Form.Item>
             {isModuleEnabled("access") && (
                 <Form.Item
