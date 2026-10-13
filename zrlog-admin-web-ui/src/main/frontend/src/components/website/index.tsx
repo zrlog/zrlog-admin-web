@@ -99,6 +99,15 @@ export interface AIModelEntry {
 }
 
 export interface Upgrade {
+    dockerMode?: boolean;
+    dockerRepository?: string;
+    dockerSettings?: {
+        settings: { repository: string; channel: string };
+        currentRepository: string;
+        images: { repository: string; platforms: string[] }[];
+    };
+    dockerErrorCode?: string;
+    upgradePackageSource?: "dl" | "github";
     autoUpgradeVersion: number;
     upgradePreview: boolean;
 }

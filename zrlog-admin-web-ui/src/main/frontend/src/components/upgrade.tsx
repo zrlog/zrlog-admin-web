@@ -7,7 +7,6 @@ import InfoIcon from "@zrlog/ui/icons/info";
 import LoadingIcon from "@zrlog/ui/icons/loading";
 import { FunctionComponent, useEffect, useRef, useState } from "react";
 
-
 import Title from "antd/es/typography/Title";
 import { getRealRouteUrl, getRes } from "../utils/constants";
 import { getContextPath } from "../utils/helpers";
@@ -18,9 +17,18 @@ import UpgradeContent from "./upgrade-content";
 import { markdownToHtml } from "@zrlog/editor/dist/editor/utils/marked-utils";
 import HtmlPreviewPanel from "@zrlog/editor/core/editor/html-preview-panel";
 import { getAppState } from "../base/ConfigProviderApp";
-import { postRefreshCacheSse, SseEvent } from "../utils/sse-utils";
+import { getRefreshCacheSse, postRefreshCacheSse, SseEvent } from "../utils/sse-utils";
 import { createBackgroundTask, finishBackgroundTask, updateBackgroundTask } from "../utils/background-task-store";
 import UpgradeReadiness from "./upgrade-readiness";
+import {
+    clearDockerUpgrade,
+    DockerUpgradeJob,
+    DockerUpgradeRequest,
+    matchesDockerJob,
+    newDockerRequestId,
+    readDockerUpgrade,
+    saveDockerUpgrade,
+} from "../utils/docker-upgrade";
 
 const RESTART_CHECK_INITIAL_DELAY_MS = 2000;
 const RESTART_CHECK_MAX_DELAY_MS = 10000;
@@ -75,10 +83,17 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
         },
     ];
 
+    const mounted = useRef(true);
+    const connectionGeneration = useRef(0);
+    const dockerStream = useRef<AbortController>();
+    const dockerTask = useRef<DockerUpgradeRequest>();
+    const [dockerPending, setDockerPending] = useState(false);
+    const [dockerRetry, setDockerRetry] = useState(false);
     const upgradeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const upgradeTaskId = useRef<string | undefined>();
     const restartCheckReady = useRef(false);
     const progressEventReceived = useRef(false);
+    const failureEventReceived = useRef(false);
     const upgradeFinishing = useRef(false);
     const readinessRequest = useRef(0);
     const readinessRefreshing = useRef(false);
@@ -126,7 +141,7 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
         setRefreshError(undefined);
         setUpgradeRiskAccepted(false);
         try {
-            const requestConfig = { showError: false, timeout: 30000 };
+            const requestConfig = { params: { fetch: true }, showError: false, timeout: 30000 };
             const { data: response } = await axiosInstance.get<ApiResponse<UpgradeData>>(
                 "/api/admin/upgrade",
                 requestConfig
@@ -269,11 +284,16 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
     };
 
     const completeUpgrade = async (newBuildId: string, message?: string) => {
-        if (upgradeFinishing.current) {
+        if (!mounted.current || upgradeFinishing.current) {
             return;
         }
         upgradeFinishing.current = true;
         clearUpgradeTimer();
+        if (dockerTask.current?.buildId === newBuildId) {
+            clearDockerUpgrade(dockerTask.current.requestId);
+            dockerTask.current = undefined;
+            setDockerPending(false);
+        }
         upsertProgressItem({
             stage: "restart-check",
             status: "complete",
@@ -305,6 +325,9 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
     };
 
     const scheduleRestartCheck = (newBuildId: string, startedAt: number, delayMs: number) => {
+        if (!mounted.current) {
+            return;
+        }
         clearUpgradeTimer();
         if (Date.now() - startedAt >= RESTART_CHECK_TIMEOUT_MS) {
             upsertProgressItem({
@@ -333,9 +356,10 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
         startedAt = Date.now(),
         delayMs = RESTART_CHECK_INITIAL_DELAY_MS
     ) => {
-        if (upgradeFinishing.current) {
+        if (!mounted.current || upgradeFinishing.current) {
             return;
         }
+        const generation = connectionGeneration.current;
         upsertProgressItem({
             stage: "restart-check",
             status: "running",
@@ -344,6 +368,9 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
         });
         getVersion(newBuildId, axiosInstance)
             .then((version) => {
+                if (!mounted.current || generation !== connectionGeneration.current) {
+                    return;
+                }
                 if (newBuildId === version.data?.buildId) {
                     void completeUpgrade(newBuildId, version.message);
                     return;
@@ -351,8 +378,164 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
                 scheduleRestartCheck(newBuildId, startedAt, Math.min(delayMs * 1.5, RESTART_CHECK_MAX_DELAY_MS));
             })
             .catch(() => {
+                if (!mounted.current || generation !== connectionGeneration.current) {
+                    return;
+                }
                 scheduleRestartCheck(newBuildId, startedAt, Math.min(delayMs * 1.5, RESTART_CHECK_MAX_DELAY_MS));
             });
+    };
+
+    const watchDockerUpgrade = async (task: DockerUpgradeRequest, submit: boolean) => {
+        dockerStream.current?.abort();
+        const controller = new AbortController();
+        dockerStream.current = controller;
+        dockerTask.current = task;
+        failureEventReceived.current = false;
+        const generation = connectionGeneration.current;
+        const isCurrent = () =>
+            mounted.current && !controller.signal.aborted && generation === connectionGeneration.current;
+        let failed = false;
+        let terminalFailure = false;
+        let receivedProgress = false;
+        setDockerPending(true);
+        setDockerRetry(false);
+        const options = {
+            signal: controller.signal,
+            messageApi,
+            messageKey: "upgrade",
+            responseEvents: ["response"],
+            waitForComplete: true,
+            showErrorMessage: false,
+            onEvent: (event: SseEvent) => {
+                if (!isCurrent()) {
+                    return;
+                }
+                if (event.event === "upgrade-progress") {
+                    receivedProgress = true;
+                }
+                if (
+                    event.event === "sse-error" ||
+                    (event.event === "upgrade-progress" && event.data?.status === "error")
+                ) {
+                    failed = true;
+                }
+                if (event.event === "upgrade-progress" && event.data?.status === "error") {
+                    terminalFailure = true;
+                }
+                onUpgradeEvent(event);
+            },
+        };
+        try {
+            type DockerResponse = ApiResponse<UpgradeProcessResponse | DockerUpgradeJob | null>;
+            const response = submit
+                ? await postRefreshCacheSse<DockerResponse>(API_DO_UPGRADE_PATH, {
+                      ...options,
+                      body: { upgradeRiskAccepted: true, docker: task },
+                  })
+                : await getRefreshCacheSse<DockerResponse>(
+                      "/api/admin/upgrade/docker-status?requestId=" + encodeURIComponent(task.requestId),
+                      options
+                  );
+            if (!isCurrent()) {
+                return;
+            }
+            if (submit && response.error && !receivedProgress) {
+                messageApi.error(response.message);
+                // A rejection may follow an accepted request. Recover by ID without submitting again.
+                await watchDockerUpgrade(task, false);
+                return;
+            }
+            if (response.error === 0 && response.data == null) {
+                // A missing durable task requires an explicit retry with the same ID.
+                setDockerRetry(true);
+                upsertProgressItem({ stage: "error", status: "error", message: getRes().upgrade.docker.unknown });
+                return;
+            }
+            if (response.data && "phase" in response.data) {
+                // JSON fallback for deployments that disable SSE, including an older server during replacement.
+                const job = response.data;
+                if (!matchesDockerJob(job, task)) {
+                    failed = true;
+                    throw new Error(getRes().upgrade.docker.unknown);
+                }
+                failed = job.phase === "failed" || job.phase === "interrupted";
+                terminalFailure = failed;
+                if (failed) {
+                    failureEventReceived.current = true;
+                    upsertProgressItem({
+                        stage: "error",
+                        status: "error",
+                        message: getRes().upgrade.docker.phases[job.phase],
+                        detail: job.recoveryRequired ? getRes().upgrade.docker.recovery : undefined,
+                    });
+                }
+                await handleUpgradeResponse(
+                    {
+                        ...response,
+                        error: failed ? 1 : response.error,
+                        message: failed ? getRes().upgrade.docker.failed : response.message,
+                        data: { finish: !failed, message: "" },
+                    },
+                    task.buildId,
+                    true
+                );
+            } else {
+                failed = failed || !!response.error;
+                await handleUpgradeResponse(response as ApiResponse<UpgradeProcessResponse>, task.buildId, true);
+            }
+        } catch (error) {
+            if (!isCurrent()) {
+                return;
+            }
+            // Container replacement can end the stream before the restart event arrives.
+            // Keep the durable ID and use the same version check as all online upgrades.
+            handleUpgradeFailure(error, task.buildId, !failed);
+        } finally {
+            if (isCurrent() && terminalFailure) {
+                clearDockerUpgrade(task.requestId);
+                dockerTask.current = undefined;
+                setDockerPending(false);
+            }
+        }
+    };
+
+    const startDockerUpgrade = async () => {
+        let task = readDockerUpgrade();
+        if (!task) {
+            const version = data.version;
+            if (!version?.artifactVersion || !version.channel) {
+                throw new Error(getRes().upgrade.maintenance.refreshFailed);
+            }
+            task = {
+                requestId: newDockerRequestId(),
+                version: version.artifactVersion,
+                buildId: version.buildId,
+                channel: version.channel,
+            };
+        }
+        try {
+            saveDockerUpgrade(task);
+        } catch {
+            throw new Error(getRes().upgrade.docker.storageUnavailable);
+        }
+        await watchDockerUpgrade(task, true);
+    };
+
+    const retryDockerSubmission = async () => {
+        if (upgradeStarting.current || offline) {
+            return;
+        }
+        upgradeStarting.current = true;
+        try {
+            await startDockerUpgrade();
+        } catch (error) {
+            const message = error instanceof Error ? error.message : getRes().upgrade.docker.failed;
+            finishUpgradeTask("error", message);
+            messageApi.error(message);
+            returnToChangeLog();
+        } finally {
+            upgradeStarting.current = false;
+        }
     };
 
     const getStepIndex = (alias: StepInfo["alias"]) => {
@@ -408,6 +591,9 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
         if (event.event === "upgrade-progress") {
             const eventData = event.data as UpgradeProgressEvent;
             progressEventReceived.current = true;
+            if (eventData.status === "error") {
+                failureEventReceived.current = true;
+            }
             if (eventData.stage === "manual" || eventData.status === "manual") {
                 updateUpgradeTask(eventData);
                 void updateManualMessage(eventData.message || "");
@@ -474,7 +660,44 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
         }));
     };
 
-    const newBuildId = data.version.buildId;
+    const handleUpgradeResponse = async (
+        response: ApiResponse<UpgradeProcessResponse>,
+        buildId: string,
+        online: boolean
+    ) => {
+        if (response.error) {
+            messageApi.error(response.message);
+            finishUpgradeTask("error", response.message);
+            if (!failureEventReceived.current) {
+                returnToChangeLog();
+            }
+            return;
+        }
+        if (response.data?.message && !progressEventReceived.current) {
+            await updateManualMessage(response.data.message);
+            if (!(response.data.finish && online)) {
+                finishUpgradeTask(response.data.finish ? "success" : "warning", response.data.message);
+            }
+        }
+        if (response.data?.finish && online) {
+            checkRestartSuccess(buildId);
+        }
+    };
+
+    const handleUpgradeFailure = (error: unknown, buildId: string, checkRestart: boolean) => {
+        if (checkRestart && !failureEventReceived.current) {
+            checkRestartSuccess(buildId);
+            return;
+        }
+        const errorMessage = error instanceof Error ? error.message : getRes().error.requestError;
+        messageApi.error(errorMessage);
+        finishUpgradeTask("error", errorMessage);
+        if (!failureEventReceived.current) {
+            returnToChangeLog();
+        }
+    };
+
+    const newBuildId = data.version?.buildId || "";
 
     const upgrade = async () => {
         if (upgradeStarting.current || readinessRefreshing.current || nextDisabled()) {
@@ -492,11 +715,16 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
         });
         restartCheckReady.current = false;
         progressEventReceived.current = false;
+        failureEventReceived.current = false;
         upgradeFinishing.current = false;
         clearUpgradeTimer();
         upgradeTaskId.current = undefined;
         ensureUpgradeTask(getRes().upgrade.preparing);
         try {
+            if (data.dockerUpdaterAvailable) {
+                await startDockerUpgrade();
+                return;
+            }
             const response = await postRefreshCacheSse<ApiResponse<UpgradeProcessResponse>>(API_DO_UPGRADE_PATH, {
                 body: { upgradeRiskAccepted },
                 messageApi,
@@ -505,31 +733,9 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
                 responseEvents: ["response"],
                 waitForComplete: true,
             });
-            if (response.error) {
-                messageApi.error(response.message);
-                finishUpgradeTask("error", response.message);
-                returnToChangeLog();
-                return;
-            }
-            if (response.data?.message && !progressEventReceived.current) {
-                await updateManualMessage(response.data.message);
-                if (!(response.data.finish && data.onlineUpgradable)) {
-                    finishUpgradeTask(response.data.finish ? "success" : "warning", response.data.message);
-                }
-            }
-            if (response.data?.finish && data.onlineUpgradable) {
-                checkRestartSuccess(newBuildId);
-            }
-        } catch (e) {
-            console.error(e);
-            if (data.onlineUpgradable && restartCheckReady.current) {
-                checkRestartSuccess(newBuildId);
-                return;
-            }
-            const errorMessage = e instanceof Error ? e.message : getRes().error.requestError;
-            messageApi.error(errorMessage);
-            finishUpgradeTask("error", errorMessage);
-            returnToChangeLog();
+            await handleUpgradeResponse(response, newBuildId, data.onlineUpgradable);
+        } catch (error) {
+            handleUpgradeFailure(error, newBuildId, data.onlineUpgradable && restartCheckReady.current);
         } finally {
             upgradeStarting.current = false;
         }
@@ -542,13 +748,13 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
     };
 
     const nextDisabled = (): boolean => {
-        if (refreshing || refreshError || (offlineData && checkedAt === undefined)) {
+        if (dockerPending || refreshing || refreshError || (offlineData && checkedAt === undefined)) {
             return true;
         }
         if (offline) {
             return true;
         }
-        if (!data.upgrade) {
+        if (!data.upgrade || !data.version) {
             return true;
         }
         if (!upgradeRiskAccepted) {
@@ -558,10 +764,19 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
     };
 
     useEffect(() => {
+        mounted.current = !offline;
+        const pending = readDockerUpgrade();
+        if (pending && !offline) {
+            setDockerPending(true);
+            void watchDockerUpgrade(pending, false);
+        }
         return () => {
+            mounted.current = false;
+            connectionGeneration.current += 1;
+            dockerStream.current?.abort();
             clearUpgradeTimer();
         };
-    }, []);
+    }, [offline]);
 
     if (!breakpointReady) {
         return null;
@@ -570,7 +785,12 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
     return (
         <>
             {contextHolder}
-            <Row key={data.version.buildId || data.version.version} justify="start" style={{ width: "100%" }}>
+            {dockerRetry && (
+                <Button disabled={offline} onClick={() => void retryDockerSubmission()}>
+                    {getRes().upgrade.docker.retrySubmission}
+                </Button>
+            )}
+            <Row key={data.version?.buildId || data.version?.version} justify="start" style={{ width: "100%" }}>
                 <Col style={{ maxWidth: contentMaxWidth, width: "100%" }} xs={24} md={22} xl={18} xxl={14}>
                     <Card styles={{ body: { padding: narrow ? token.padding : token.paddingLG } }}>
                         {data.upgrade && (
