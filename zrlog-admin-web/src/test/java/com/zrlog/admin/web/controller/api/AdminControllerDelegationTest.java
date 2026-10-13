@@ -497,6 +497,57 @@ public class AdminControllerDelegationTest {
     }
 
     @Test
+    public void shouldLoadUpgradePageWithoutMetadataButKeepExplicitCheckFailure() throws Exception {
+        java.util.concurrent.atomic.AtomicInteger checks = new java.util.concurrent.atomic.AtomicInteger();
+        com.zrlog.business.updater.UpdateVersionInfoPlugin plugin = new com.zrlog.business.updater.UpdateVersionInfoPlugin() {
+            @Override
+            public com.zrlog.common.vo.Version getLastVersion(boolean fetch) {
+                if (fetch) { checks.incrementAndGet(); }
+                return null;
+            }
+            @Override
+            public boolean isLastCheckFailed() { return true; }
+        };
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            Constants.zrLogConfig = new UploadFallbackZrLogConfig() {
+                @Override
+                public <T extends com.zrlog.plugin.IPlugin> T getPlugin(Class<T> type) {
+                    return type.isInstance(plugin) ? type.cast(plugin) : super.getPlugin(type);
+                }
+            };
+            setAdminToken();
+            UpgradeController controller = new UpgradeController();
+            for (String path : List.of("/admin/upgrade", "/admin/ssJson")) {
+                setControllerRequest(controller, request(HttpMethod.GET, path, Map.of(), Map.of(), null));
+                AdminPageDataResponse<PreCheckVersionResponse> page = controller.index();
+                assertEquals(Boolean.FALSE, page.getData().getUpgrade());
+                assertEquals(null, page.getData().getVersion());
+            }
+            setControllerRequest(controller, request(HttpMethod.GET, "/api/admin/upgrade",
+                    Map.of("fetch", "false"), Map.of(), null));
+            assertEquals(Boolean.FALSE, controller.index().getData().getUpgrade());
+            assertEquals(0, checks.get());
+            for (String path : List.of("/api/admin/upgrade", "/sub/api/admin/upgrade")) {
+                setControllerRequest(controller, request(HttpMethod.GET, path, Map.of(), Map.of(), null));
+                assertThrows(com.zrlog.common.exception.AbstractBusinessException.class, controller::index);
+            }
+            setControllerRequest(controller, request(HttpMethod.GET, "/api/admin/upgrade",
+                    Map.of("fetch", "true"), Map.of(), null));
+            com.zrlog.common.exception.AbstractBusinessException error =
+                    assertThrows(com.zrlog.common.exception.AbstractBusinessException.class, controller::index);
+            ResponseRecorder recorder = new ResponseRecorder();
+            new com.zrlog.common.web.ZrLogErrorHandle(500).doHandle(
+                    request(HttpMethod.GET, "/api/admin/upgrade", Map.of(), Map.of(), null),
+                    recorder.response(), error);
+            ApiStandardResponse<?> response = (ApiStandardResponse<?>) recorder.renderedJson;
+            assertEquals(9038, response.getError());
+            assertEquals(com.zrlog.util.I18nUtil.getBackendStringFromRes("upgrade.check.failed"), response.getMessage());
+            assertFalse(response.getMessage().isBlank());
+            assertEquals(3, checks.get());
+        }
+    }
+
+    @Test
     public void shouldCheckAndExecuteNoChangeUpgradeThroughRealWebsiteState() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             setAdminToken();
@@ -533,6 +584,100 @@ public class AdminControllerDelegationTest {
             assertTrue(process.getMessage().length() > 0);
             assertWebsiteValueContains(db, "admin_audit_log", "EXECUTE_UPGRADE");
             assertWebsiteValueContains(db, "admin_audit_log", "upgradeRiskAccepted");
+        }
+    }
+
+    @Test
+    public void shouldReturnDockerRepositoryFailureCodeWithoutServiceDetails() throws Exception {
+        var client = new com.zrlog.common.updater.docker.DockerUpdaterClient("http://updater:8081",
+                "test_token_123456789012345678901234", "https://dl.example", "docker.json") {
+            @Override public com.zrlog.common.updater.docker.DockerUpdaterProtocol.SettingsResponse settings(String channel) {
+                assertEquals("preview", channel);
+                throw new RequestException(502, "metadata_unavailable");
+            }
+        };
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            WebSiteController controller = new WebSiteController() {
+                @Override protected com.zrlog.admin.business.service.UpgradeSettingsService upgradeSettingsService() {
+                    return new com.zrlog.admin.business.service.UpgradeSettingsService() {
+                        @Override protected boolean isDockerMode() { return true; }
+                        @Override protected com.zrlog.common.updater.docker.DockerUpdaterClient dockerClient() { return client; }
+                    };
+                }
+            };
+            setControllerRequest(controller, request(HttpMethod.GET, "/api/admin/website/upgrade",
+                    Map.of("channel", "preview"), Map.of(), null));
+            var response = controller.upgrade();
+            assertEquals(0, response.getError());
+            assertTrue(response.getData().isDockerMode());
+            assertEquals("metadata_unavailable", response.getData().getDockerErrorCode());
+            assertEquals("", response.getMessage());
+            assertEquals(null, response.getData().getDockerSettings());
+        }
+    }
+
+    @Test
+    public void shouldSubmitDockerJobWithRiskConsentAndRecoverById() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            setAdminToken();
+            var job = new com.zrlog.common.updater.docker.DockerUpdaterProtocol.Job();
+            job.id = "browser-request-1234";
+            job.phase = "queued";
+            var submissions = new java.util.concurrent.atomic.AtomicInteger();
+            var client = new com.zrlog.common.updater.docker.DockerUpdaterClient("http://updater:8081",
+                    "test_token_123456789012345678901234", "https://dl.example", "docker.json") {
+                @Override public com.zrlog.common.updater.docker.DockerUpdaterProtocol.Job submit(
+                        com.zrlog.common.updater.docker.DockerUpdaterProtocol.UpgradeRequest request) {
+                    submissions.incrementAndGet();
+                    assertEquals(job.id, request.requestId);
+                    assertEquals("4.0.0-SNAPSHOT", request.version);
+                    assertEquals("preview", request.channel);
+                    return job;
+                }
+                @Override public com.zrlog.common.updater.docker.DockerUpdaterProtocol.Job status(String id) {
+                    assertEquals(job.id, id); return job;
+                }
+            };
+            UpgradeController controller = new UpgradeController() {
+                @Override protected com.zrlog.common.updater.docker.DockerUpdaterClient dockerClient() { return client; }
+            };
+            String docker = ",\"docker\":{\"requestId\":\"browser-request-1234\",\"version\":\"4.0.0-SNAPSHOT\","
+                    + "\"buildId\":\"1234567\",\"channel\":\"preview\"}}";
+            setControllerRequest(controller, request(HttpMethod.POST, "/api/admin/upgrade/doUpgrade", Map.of(),
+                    Map.of(), "{\"upgradeRiskAccepted\":false" + docker));
+            assertThrows(ArgsException.class, controller::doUpgrade);
+            assertEquals(0, submissions.get());
+            ResponseRecorder recorder = new ResponseRecorder();
+            setControllerRequest(controller, request(HttpMethod.POST, "/api/admin/upgrade/doUpgrade", Map.of(),
+                    Map.of(), "{\"upgradeRiskAccepted\":true" + docker));
+            setControllerResponse(controller, recorder.response());
+            controller.doUpgrade();
+            assertEquals(1, submissions.get());
+            assertSame(job, ((ApiStandardResponse<?>) recorder.renderedJson).getData());
+            assertWebsiteValueContains(db, "admin_audit_log", "EXECUTE_UPGRADE");
+            job.phase = "succeeded";
+            setControllerRequest(controller, request(HttpMethod.GET, "/api/admin/upgrade/docker-status",
+                    Map.of("requestId", job.id), Map.of(), null));
+            controller.dockerStatus();
+            assertSame(job, ((ApiStandardResponse<?>) recorder.renderedJson).getData());
+            for (String action : List.of("doUpgrade", "docker-status")) {
+                ResponseRecorder stream = new ResponseRecorder();
+                setControllerResponse(controller, stream.response());
+                setControllerRequest(controller, request(action.equals("doUpgrade") ? HttpMethod.POST : HttpMethod.GET,
+                        "/api/admin/upgrade/" + action, Map.of("requestId", job.id),
+                        Map.of("Accept", "text/event-stream"), "{\"upgradeRiskAccepted\":true" + docker));
+                if (action.equals("doUpgrade")) { controller.doUpgrade(); } else { controller.dockerStatus(); }
+                assertEquals("text/event-stream;charset=UTF-8", stream.headers.get("Content-Type"));
+                assertEquals("no", stream.headers.get("X-Accel-Buffering"));
+                assertTrue(stream.stream.contains("event: upgrade-progress\n"));
+                assertTrue(stream.stream.contains("\"stage\":\"complete\""));
+                assertTrue(stream.stream.contains("event: response\n"));
+                assertTrue(stream.stream.contains("\"finish\":true"));
+                assertFalse(stream.stream.contains("\"message\":\"\""));
+                assertTrue(stream.stream.contains(com.zrlog.util.I18nUtil.getAdminBackendStringFromRes("admin.upgrade.docker.succeeded")));
+                assertEquals(null, stream.renderedJson);
+            }
+            assertEquals(2, submissions.get());
         }
     }
 
@@ -811,6 +956,7 @@ public class AdminControllerDelegationTest {
 
         private final Map<String, String> headers = new LinkedHashMap<>();
         private Object renderedJson;
+        private String stream;
 
         private HttpResponse response() {
             return (HttpResponse) Proxy.newProxyInstance(
@@ -822,6 +968,10 @@ public class AdminControllerDelegationTest {
                         }
                         if ("getHeader".equals(method.getName())) {
                             return headers;
+                        }
+                        if ("write".equals(method.getName()) && args[0] instanceof java.io.InputStream) {
+                            try (java.io.InputStream input = (java.io.InputStream) args[0]) { stream = new String(input.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8); }
+                            return null;
                         }
                         if ("renderJson".equals(method.getName())) {
                             renderedJson = args[0];

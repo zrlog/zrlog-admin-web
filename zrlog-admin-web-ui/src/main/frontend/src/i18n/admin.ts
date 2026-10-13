@@ -1477,6 +1477,19 @@ const zhCN = {
         "none": "无"
     },
     "websiteUpgrade": {
+        "packageSource": "安装包下载源",
+        "packageSourceTip": "只从所选来源下载已发布且校验一致的安装包。",
+        "dlSource": "官方下载站",
+        "githubSource": "GitHub Release",
+        "dockerRepository": "Docker 镜像仓库",
+        "dockerRepositoryTip": "保存后用于下一次更新。所选仓库不可用时会停止更新，不会自动切换仓库。",
+        "currentRepository": "沿用当前部署仓库",
+        "repositoryUnavailable": "无法读取可用镜像仓库，请稍后重试",
+        "repositoryMetadataUnavailable": "Docker 更新清单不可用，暂时无法列出镜像仓库。请确认当前更新通道已发布清单，且 updater 可以访问元数据源后重试。",
+        "repositoryServiceUnavailable": "无法连接 updater 服务，请检查服务是否运行以及连接地址后重试",
+        "repositoryUnauthorized": "updater 认证失败，请检查 ZrLog 与 updater 配置的访问令牌是否一致",
+        "repositoryConfigurationInvalid": "updater 配置不完整或与 ZrLog 不一致，请检查连接配置和元数据源后重试",
+        "retryRepository": "重试",
         "title": "更新设置",
         "summary": "用于设置版本检查周期和是否检查预览版",
         "autoCheckCycle": "自动检查周期",
@@ -1656,6 +1669,23 @@ const zhCN = {
         }
     },
     "upgrade": {
+        "docker": {
+            "task": "镜像更新任务",
+            "retrySubmission": "重试提交同一任务",
+            "unknown": "暂时无法确认任务结果，请稍后重新打开更新页面查看；不要重复提交",
+            "failed": "镜像更新未完成，请检查部署状态后再操作",
+            "recovery": "程序替换已开始，请保留数据库、附件和配置，检查服务状态后按备份方案恢复",
+            "storageUnavailable": "无法保存更新任务记录，请允许浏览器存储后重试",
+            "phases": {
+                "queued": "更新任务已接收",
+                "pulling": "正在下载并校验镜像",
+                "replacing": "正在替换 ZrLog 容器",
+                "checking": "正在检查新版本",
+                "succeeded": "镜像更新已完成",
+                "failed": "镜像更新失败",
+                "interrupted": "更新任务被中断，请检查部署状态"
+            }
+        },
         "wizard": "更新向导",
         "check": "检查更新",
         "doUpgrade": "立即更新",
@@ -3450,6 +3480,19 @@ const enUS: AdminI18nResource = {
         "none": "None"
     },
     "websiteUpgrade": {
+        "packageSource": "Package download source",
+        "packageSourceTip": "Download verified packages from the selected published source.",
+        "dlSource": "Official download site",
+        "githubSource": "GitHub Release",
+        "dockerRepository": "Docker image repository",
+        "dockerRepositoryTip": "Applies to the next update after saving. Updates stop if this repository is unavailable; no automatic switch occurs.",
+        "currentRepository": "Use current deployment repository",
+        "repositoryUnavailable": "Unable to load image repositories. Please retry later.",
+        "repositoryMetadataUnavailable": "The Docker update manifest is unavailable, so image repositories cannot be listed. Check that the selected update channel has a published manifest and the updater can reach the metadata source, then retry.",
+        "repositoryServiceUnavailable": "Unable to connect to the updater. Check that the service is running and its connection address is correct, then retry.",
+        "repositoryUnauthorized": "Updater authentication failed. Check that ZrLog and the updater use the same access token.",
+        "repositoryConfigurationInvalid": "The updater configuration is incomplete or does not match ZrLog. Check the connection settings and metadata source, then retry.",
+        "retryRepository": "Retry",
         "title": "Update Settings",
         "summary": "Set the update check interval and whether preview versions are included",
         "autoCheckCycle": "Auto Check Interval",
@@ -3629,6 +3672,23 @@ const enUS: AdminI18nResource = {
         }
     },
     "upgrade": {
+        "docker": {
+            "task": "Image update task",
+            "retrySubmission": "Retry the same task",
+            "unknown": "The task result could not be confirmed. Reopen this page later to check; do not submit another update.",
+            "failed": "The image update did not complete. Check the deployment before continuing.",
+            "recovery": "Application replacement has started. Preserve the database, attachments and configuration; inspect the service and follow your backup recovery procedure.",
+            "storageUnavailable": "Unable to save the update task. Allow browser storage and retry.",
+            "phases": {
+                "queued": "Update task accepted",
+                "pulling": "Downloading and verifying the image",
+                "replacing": "Replacing the ZrLog container",
+                "checking": "Checking the new version",
+                "succeeded": "Image update completed",
+                "failed": "Image update failed",
+                "interrupted": "Update interrupted; check the deployment"
+            }
+        },
         "wizard": "Upgrade Wizard",
         "check": "Check for Updates",
         "doUpgrade": "Update Now",

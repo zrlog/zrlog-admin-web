@@ -1,6 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it, jest } from "@jest/globals";
 import type { MessageInstance } from "antd/es/message/interface";
-import { postRefreshCacheSse } from "./sse-utils";
+import { getRefreshCacheSse, postRefreshCacheSse } from "./sse-utils";
 
 let mockSupportSse = true;
 
@@ -95,6 +95,34 @@ describe("postRefreshCacheSse", () => {
         Object.defineProperty(globalThis, "fetch", { configurable: true, value: originalFetch });
         Object.defineProperty(globalThis, "TextDecoder", { configurable: true, value: originalTextDecoder });
         Object.defineProperty(globalThis, "TextEncoder", { configurable: true, value: originalTextEncoder });
+    });
+
+    it("uses GET with the same SSE events, credentials and abort signal", async () => {
+        let readCount = 0;
+        mockFetch.mockResolvedValueOnce(sseResponse(async () => readCount++ === 0
+            ? { done: false, value: encode('event: upgrade-progress\ndata: {"stage":"restart"}\n\nevent: response\ndata: {"error":0,"data":{"finish":true}}\n\n') }
+            : { done: true, value: undefined }));
+        const controller = new AbortController();
+        const onEvent = jest.fn();
+        await expect(getRefreshCacheSse("/upgrade/docker-status?requestId=test", {
+            signal: controller.signal, onEvent, waitForComplete: true,
+        })).resolves.toEqual({ error: 0, data: { finish: true } });
+        expect(mockFetch).toHaveBeenCalledWith("https://api.example/upgrade/docker-status?requestId=test", {
+            method: "GET", signal: controller.signal, body: undefined, credentials: "include",
+            headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
+        });
+        expect(onEvent).toHaveBeenCalledWith(expect.objectContaining({ event: "upgrade-progress", data: { stage: "restart" } }));
+    });
+
+    it("propagates cancellation without opening another subscription", async () => {
+        const controller = new AbortController();
+        mockFetch.mockImplementation((_url, options) => new Promise((_resolve, reject) => {
+            options!.signal!.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")));
+        }));
+        const request = getRefreshCacheSse("/upgrade/docker-status", { signal: controller.signal });
+        controller.abort();
+        await expect(request).rejects.toMatchObject({ name: "AbortError" });
+        expect(mockFetch).toHaveBeenCalledTimes(1);
     });
 
     it("waits for the refresh stream to finish when requested", async () => {

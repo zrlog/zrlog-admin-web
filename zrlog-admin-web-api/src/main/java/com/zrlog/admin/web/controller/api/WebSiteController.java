@@ -19,7 +19,9 @@ import com.zrlog.admin.business.service.WebSiteSettingsService;
 import com.zrlog.admin.web.annotation.RefreshCache;
 import com.zrlog.admin.web.annotation.RequestLock;
 import com.zrlog.business.plugin.type.StaticSiteType;
-import com.zrlog.business.rest.base.UpgradeWebSiteInfo;
+import com.zrlog.admin.business.rest.request.UpgradeSettingsRequest;
+import com.zrlog.admin.business.rest.response.UpgradeSettingsResponse;
+import com.zrlog.admin.business.service.UpgradeSettingsService;
 import com.zrlog.business.updater.UpdateVersionInfoPlugin;
 import com.zrlog.common.controller.BaseController;
 import com.zrlog.util.I18nUtil;
@@ -137,12 +139,15 @@ public class WebSiteController extends BaseController {
     @RequestLock(onlyOnPostMethod = true)
     @ResponseBody
     @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "website.upgrade")
-    public AdminPageDataResponse<UpgradeWebSiteInfo> upgrade() throws SQLException {
+    public AdminPageDataResponse<UpgradeSettingsResponse> upgrade() throws SQLException {
+        UpgradeSettingsService upgradeSettings = upgradeSettingsService();
         if (isPost()) {
-            settingsService.updateUpgrade(getRequestBodyWithNullCheck(UpgradeWebSiteInfo.class), request);
+            upgradeSettings.save(getRequestBodyWithNullCheck(UpgradeSettingsRequest.class), request);
         }
-        return page(webSiteService.upgradeWebSiteInfo());
+        return page(upgradeSettings.read(isPost() ? null : request.getParaToStr("channel")));
     }
+
+    protected UpgradeSettingsService upgradeSettingsService() { return new UpgradeSettingsService(); }
 
     private boolean isPost() {
         return request.getMethod() == HttpMethod.POST;
