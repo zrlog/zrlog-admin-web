@@ -7,7 +7,6 @@ import { getRealRouteUrl, getRes } from "../../utils/constants";
 import Form from "antd/es/form";
 import Select from "antd/es/select";
 
-
 import { theme } from "antd";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -17,6 +16,7 @@ import { ApiResponse, UpgradeData } from "../../type";
 import axios, { AxiosResponse, CancelTokenSource } from "axios";
 import UpgradeContent from "../upgrade-content";
 import { useResponsiveFormLayout } from "../../utils/responsive-form";
+import DockerRepositorySetting from "./DockerRepositorySetting";
 import WebsiteSubmitBar from "./WebsiteSubmitBar";
 
 const layout = {
@@ -37,6 +37,8 @@ const UpgradeSettingForm = ({
     loading?: boolean;
     onSubmit: (data: Upgrade) => void;
 }) => {
+    const dockerMode = data.dockerMode === true;
+    const [repositoryLoading, setRepositoryLoading] = useState(false);
     const [checking, setChecking] = useState<boolean>(false);
     const { modal } = useUiApp();
     const [messageApi, contextHolder] = useUiMessage({ maxCount: 3 });
@@ -64,9 +66,10 @@ const UpgradeSettingForm = ({
             const source = axios.CancelToken.source();
             cancelTokenSource.current = source;
             const { data }: AxiosResponse<ApiResponse<UpgradeData>> = await axiosInstance.get("/api/admin/upgrade", {
+                params: { fetch: true },
                 cancelToken: source.token,
             });
-            if (data.data.upgrade) {
+            if (data.data.upgrade && data.data.version) {
                 modal.info({
                     width: narrow ? "calc(100vw - 32px)" : 682,
                     title: `${getRes().upgrade.detectedPrefix}${data.data.version.type}`,
@@ -105,7 +108,7 @@ const UpgradeSettingForm = ({
     useEffect(() => {
         setState(data);
         form.setFieldsValue(data);
-    }, [data]);
+    }, [data, form]);
 
     useEffect(() => {
         return () => {
@@ -123,10 +126,21 @@ const UpgradeSettingForm = ({
         <Form
             form={form}
             {...formLayout}
-            disabled={offline || offlineData}
+            disabled={offline || offlineData || loading}
             initialValues={data}
             onValuesChange={(_k, v) => setState({ ...state, ...v })}
-            onFinish={(nv) => onSubmit({ ...state, ...nv })}
+            onFinish={(nv) => {
+                if (offline || offlineData || loading || repositoryLoading) return;
+                onSubmit({
+                    autoUpgradeVersion: nv.autoUpgradeVersion,
+                    upgradePreview: nv.upgradePreview,
+                    ...(dockerMode
+                        ? state.dockerRepository === undefined
+                            ? {}
+                            : { dockerRepository: state.dockerRepository }
+                        : { upgradePackageSource: nv.upgradePackageSource }),
+                });
+            }}
         >
             {contextHolder}
             <Row style={checkRowStyle}>
@@ -181,7 +195,37 @@ const UpgradeSettingForm = ({
                 <Switch />
             </Form.Item>
 
-            <WebsiteSubmitBar loading={loading} disabled={offline || offlineData} />
+            {dockerMode ? (
+                <Form.Item
+                    label={getRes().websiteUpgrade.dockerRepository}
+                    extra={getRes().websiteUpgrade.dockerRepositoryTip}
+                    style={formItemStyle}
+                >
+                    <DockerRepositorySetting
+                        data={data}
+                        value={state.dockerRepository}
+                        onChange={(dockerRepository) => setState((current) => ({ ...current, dockerRepository }))}
+                        onLoadingChange={setRepositoryLoading}
+                        disabled={offline || offlineData || !!loading}
+                        preview={!!state.upgradePreview}
+                    />
+                </Form.Item>
+            ) : (
+                <Form.Item
+                    name="upgradePackageSource"
+                    label={getRes().websiteUpgrade.packageSource}
+                    extra={getRes().websiteUpgrade.packageSourceTip}
+                    style={formItemStyle}
+                >
+                    <Select
+                        options={[
+                            { value: "dl", label: getRes().websiteUpgrade.dlSource },
+                            { value: "github", label: getRes().websiteUpgrade.githubSource },
+                        ]}
+                    />
+                </Form.Item>
+            )}
+            <WebsiteSubmitBar loading={loading} disabled={offline || offlineData || repositoryLoading} />
         </Form>
     );
 };

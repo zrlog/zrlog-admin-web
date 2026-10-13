@@ -80,12 +80,12 @@ describe("UpgradeContent", () => {
         });
         expect(renderMarkdown).toHaveBeenCalledTimes(2);
 
-        render({ ...data, version: { ...data.version } });
+        render({ ...data, version: { ...data.version! } });
         expect(renderMarkdown).toHaveBeenCalledTimes(2);
 
         render({
             ...data,
-            version: { ...data.version, changeLog: "# New changes" },
+            version: { ...data.version!, changeLog: "# New changes" },
         });
         expect(renderMarkdown).toHaveBeenCalledTimes(3);
     });
