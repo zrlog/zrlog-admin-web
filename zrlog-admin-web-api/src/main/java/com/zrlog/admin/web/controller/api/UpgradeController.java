@@ -4,6 +4,8 @@ import com.zrlog.admin.web.annotation.RequiresAction;
 import com.zrlog.data.security.AccountAction;
 
 import com.hibegin.http.annotation.ResponseBody;
+import com.hibegin.http.annotation.RequestMethod;
+import com.hibegin.http.HttpMethod;
 import com.zrlog.admin.business.rest.request.ExecuteUpgradeRequest;
 import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
 import com.zrlog.admin.business.service.AdminAuditService;
@@ -29,6 +31,7 @@ public class UpgradeController extends BaseController {
 
 
     @ResponseBody
+    @RequestMethod(method = HttpMethod.GET)
     @RequiresAction(value = AccountAction.SYSTEM_MANAGE, descriptionKey = "system.upgradeCheck")
     public AdminPageDataResponse<PreCheckVersionResponse> index() {
         PreCheckVersionResponse preCheckVersionResponse = AdminStaticService.getInstance().getUpgradeService().preUpgradeVersion(true, Constants.zrLogConfig.getPlugin(UpdateVersionInfoPlugin.class));
@@ -37,6 +40,7 @@ public class UpgradeController extends BaseController {
     }
 
     @ResponseBody
+    @RequestMethod(method = HttpMethod.GET)
     @RequiresAction(value = AccountAction.SYSTEM_MANAGE, descriptionKey = "system.upgradeNotice")
     public ApiStandardResponse<CheckVersionResponse> notice() {
         boolean fetch = Objects.equals("true", request.getParaToStr("fetch", "false"));
@@ -48,6 +52,7 @@ public class UpgradeController extends BaseController {
 
 
     @ResponseBody
+    @RequestMethod(method = HttpMethod.POST)
     @RequiresAction(value = AccountAction.SYSTEM_MANAGE, descriptionKey = "system.upgrade")
     public void doUpgrade() throws IOException {
         ExecuteUpgradeRequest upgradeRequest = getRequestBodyWithNullCheck(ExecuteUpgradeRequest.class);
