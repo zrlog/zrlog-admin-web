@@ -11,7 +11,7 @@ import Form from "antd/es/form";
 import ArticleEditTag from "./article-edit-tag";
 import { Drawer, InputRef } from "antd";
 
-import { RefObject, useEffect, useState } from "react";
+import { RefObject, useEffect, useId, useState } from "react";
 import { ArticleChangeableValue, ArticleEntry } from "./index.types";
 import Button from "antd/es/button";
 import DigestEditorCard from "./digest-editor-card";
@@ -58,6 +58,7 @@ const ArticleEditSettingButton = ({
 }) => {
     const screens = useArticleEditorScreens();
     const theme = useTheme();
+    const settingsId = useId();
     const [innerOpen, setInnerOpen] = useState(false);
     const settingsOpen = open ?? innerOpen;
 
@@ -181,50 +182,50 @@ const ArticleEditSettingButton = ({
                         )}
                         <Col span={24}>
                             <Card title={getRes().articleEdit.settings}>
-                                <Row>
-                                    <Col span={24}>
-                                        <Form.Item
-                                            style={{ marginBottom: 0 }}
-                                            valuePropName="checked"
-                                            label={getRes().articleEdit.comment}
-                                        >
-                                            <Switch
-                                                value={article.canComment}
-                                                onChange={(checked) => {
-                                                    handleValuesChange({ canComment: checked });
-                                                }}
-                                            />
-                                        </Form.Item>
-                                    </Col>
-                                    <Col span={24}>
-                                        <Form.Item
-                                            style={{ marginBottom: 0 }}
-                                            valuePropName="checked"
-                                            label={getRes().articleEdit.recommended}
-                                        >
-                                            <Switch
-                                                value={article.recommended}
-                                                onChange={(checked) => {
-                                                    handleValuesChange({ recommended: checked });
-                                                }}
-                                            />
-                                        </Form.Item>
-                                    </Col>
-                                    <Col span={24}>
-                                        <Form.Item
-                                            style={{ marginBottom: 0 }}
-                                            valuePropName="checked"
-                                            label={getRes().articleEdit.status.private}
-                                        >
-                                            <Switch
-                                                value={article.privacy}
-                                                onChange={(checked) => {
-                                                    handleValuesChange({ privacy: checked });
-                                                }}
-                                            />
-                                        </Form.Item>
-                                    </Col>
-                                </Row>
+                                <Form component="div" layout="inline" style={{ gap: theme.marginSM }}>
+                                    <Form.Item
+                                        style={{ margin: 0 }}
+                                        valuePropName="checked"
+                                        label={getRes().articleEdit.comment}
+                                        htmlFor={`${settingsId}-comment`}
+                                    >
+                                        <Switch
+                                            id={`${settingsId}-comment`}
+                                            value={article.canComment}
+                                            onChange={(checked) => {
+                                                handleValuesChange({ canComment: checked });
+                                            }}
+                                        />
+                                    </Form.Item>
+                                    <Form.Item
+                                        style={{ margin: 0 }}
+                                        valuePropName="checked"
+                                        label={getRes().articleEdit.recommended}
+                                        htmlFor={`${settingsId}-recommended`}
+                                    >
+                                        <Switch
+                                            id={`${settingsId}-recommended`}
+                                            value={article.recommended}
+                                            onChange={(checked) => {
+                                                handleValuesChange({ recommended: checked });
+                                            }}
+                                        />
+                                    </Form.Item>
+                                    <Form.Item
+                                        style={{ margin: 0 }}
+                                        valuePropName="checked"
+                                        label={getRes().articleEdit.status.private}
+                                        htmlFor={`${settingsId}-private`}
+                                    >
+                                        <Switch
+                                            id={`${settingsId}-private`}
+                                            value={article.privacy}
+                                            onChange={(checked) => {
+                                                handleValuesChange({ privacy: checked });
+                                            }}
+                                        />
+                                    </Form.Item>
+                                </Form>
                             </Card>
                         </Col>
                         <Col span={24}>
