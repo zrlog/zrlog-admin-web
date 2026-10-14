@@ -140,7 +140,7 @@ public class UpgradeController extends BaseController {
 
     protected DockerControl dockerClient() {
         if (!ZrLogUtil.isDockerMode()) { throw new IllegalStateException("Docker updater requires Docker mode"); }
-        return com.zrlog.common.updater.UpdaterHosts.dockerControl();
+        return com.zrlog.common.adapter.UpdaterHosts.dockerControl();
     }
 
     private boolean isSseRequest() {

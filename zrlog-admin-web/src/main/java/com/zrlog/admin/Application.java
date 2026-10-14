@@ -12,7 +12,7 @@ import com.zrlog.common.Constants;
 import com.zrlog.common.TokenService;
 import com.zrlog.common.Updater;
 import com.zrlog.common.ZrLogConfig;
-import com.zrlog.common.updater.UpdaterHosts;
+import com.zrlog.common.adapter.UpdaterHosts;
 import com.zrlog.common.UpdaterTypeEnum;
 import com.zrlog.updater.spi.UpdateProviders;
 import com.zrlog.data.cache.CacheServiceImpl;

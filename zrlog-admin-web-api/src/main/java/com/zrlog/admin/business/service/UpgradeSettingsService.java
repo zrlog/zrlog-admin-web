@@ -71,7 +71,7 @@ public class UpgradeSettingsService {
     }
 
     protected boolean isDockerMode() { return ZrLogUtil.isDockerMode(); }
-    protected DockerControl dockerClient() { return com.zrlog.common.updater.UpdaterHosts.dockerControl(); }
+    protected DockerControl dockerClient() { return com.zrlog.common.adapter.UpdaterHosts.dockerControl(); }
     protected void requireDockerPermission() { AccountPermissionService.require(AccountAction.SYSTEM_MANAGE); }
     private String channel(Boolean preview) { return Boolean.TRUE.equals(preview) ? "preview" : "release"; }
 }
