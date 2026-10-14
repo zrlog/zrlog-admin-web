@@ -4,7 +4,7 @@ import com.zrlog.business.rest.response.UpgradeProcessResponse;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.common.updater.UpgradeProgressEvent;
 import com.zrlog.common.updater.UpgradeProgressListener;
-import com.zrlog.common.updater.docker.DockerUpdaterClient;
+import com.zrlog.updater.spi.DockerControl;
 import com.zrlog.common.updater.docker.DockerUpdaterProtocol;
 
 import java.util.Map;
@@ -12,7 +12,7 @@ import java.util.Objects;
 
 /** Adapts durable updater jobs to the application's existing upgrade SSE contract. */
 public class DockerUpgradeProgressService {
-    public ApiStandardResponse<UpgradeProcessResponse> watch(DockerUpdaterClient client,
+    public ApiStandardResponse<UpgradeProcessResponse> watch(DockerControl client,
             DockerUpdaterProtocol.Job initial, UpgradeProgressListener listener, Map<String, Object> messages) throws Exception {
         if (initial == null) { return new ApiStandardResponse<>(null); }
         DockerUpdaterProtocol.Job job = initial;

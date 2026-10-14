@@ -1,7 +1,7 @@
 package com.zrlog.admin.business.service;
 
 import com.zrlog.common.updater.UpgradeProgressEvent;
-import com.zrlog.common.updater.docker.DockerUpdaterClient;
+import com.zrlog.updater.spi.DockerControl;
 import com.zrlog.common.updater.docker.DockerUpdaterProtocol.Job;
 import org.junit.Test;
 
@@ -83,11 +83,10 @@ public class DockerUpgradeProgressServiceTest {
         job.buildId = "1234567"; job.channel = "preview"; job.phase = phase;
         return job;
     }
-    private static class Client extends DockerUpdaterClient {
+    private static class Client extends com.zrlog.admin.test.support.DockerControlStub {
         private final List<Job> jobs;
         private int reads;
         Client(Job... jobs) {
-            super("http://updater:8081", "test_token_123456789012345678901234", "https://dl.example", "docker.json");
             this.jobs = List.of(jobs);
         }
         @Override public Job status(String id) { assertEquals("browser-request-1234", id); return jobs.get(reads++); }

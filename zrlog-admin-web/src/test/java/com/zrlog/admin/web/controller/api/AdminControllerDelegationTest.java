@@ -589,8 +589,7 @@ public class AdminControllerDelegationTest {
 
     @Test
     public void shouldReturnDockerRepositoryFailureCodeWithoutServiceDetails() throws Exception {
-        var client = new com.zrlog.common.updater.docker.DockerUpdaterClient("http://updater:8081",
-                "test_token_123456789012345678901234", "https://dl.example", "docker.json") {
+        var client = new com.zrlog.admin.test.support.DockerControlStub() {
             @Override public com.zrlog.common.updater.docker.DockerUpdaterProtocol.SettingsResponse settings(String channel) {
                 assertEquals("preview", channel);
                 throw new RequestException(502, "metadata_unavailable");
@@ -601,7 +600,7 @@ public class AdminControllerDelegationTest {
                 @Override protected com.zrlog.admin.business.service.UpgradeSettingsService upgradeSettingsService() {
                     return new com.zrlog.admin.business.service.UpgradeSettingsService() {
                         @Override protected boolean isDockerMode() { return true; }
-                        @Override protected com.zrlog.common.updater.docker.DockerUpdaterClient dockerClient() { return client; }
+                        @Override protected com.zrlog.updater.spi.DockerControl dockerClient() { return client; }
                     };
                 }
             };
@@ -624,8 +623,7 @@ public class AdminControllerDelegationTest {
             job.id = "browser-request-1234";
             job.phase = "queued";
             var submissions = new java.util.concurrent.atomic.AtomicInteger();
-            var client = new com.zrlog.common.updater.docker.DockerUpdaterClient("http://updater:8081",
-                    "test_token_123456789012345678901234", "https://dl.example", "docker.json") {
+            var client = new com.zrlog.admin.test.support.DockerControlStub() {
                 @Override public com.zrlog.common.updater.docker.DockerUpdaterProtocol.Job submit(
                         com.zrlog.common.updater.docker.DockerUpdaterProtocol.UpgradeRequest request) {
                     submissions.incrementAndGet();
@@ -639,7 +637,7 @@ public class AdminControllerDelegationTest {
                 }
             };
             UpgradeController controller = new UpgradeController() {
-                @Override protected com.zrlog.common.updater.docker.DockerUpdaterClient dockerClient() { return client; }
+                @Override protected com.zrlog.updater.spi.DockerControl dockerClient() { return client; }
             };
             String docker = ",\"docker\":{\"requestId\":\"browser-request-1234\",\"version\":\"4.0.0-SNAPSHOT\","
                     + "\"buildId\":\"1234567\",\"channel\":\"preview\"}}";

@@ -12,7 +12,9 @@ import com.zrlog.common.Constants;
 import com.zrlog.common.TokenService;
 import com.zrlog.common.Updater;
 import com.zrlog.common.ZrLogConfig;
-import com.zrlog.common.updater.ZipUpdater;
+import com.zrlog.common.updater.UpdaterHosts;
+import com.zrlog.common.UpdaterTypeEnum;
+import com.zrlog.updater.spi.UpdateProviders;
 import com.zrlog.data.cache.CacheServiceImpl;
 import com.zrlog.plugin.IPlugin;
 import com.zrlog.plugin.Plugins;
@@ -35,10 +37,10 @@ public class Application {
         }
     }
 
-    public static ZipUpdater getZipUpdater(String[] args) {
+    public static Updater getUpdater(String[] args) {
         try {
             File jarFile = new File(PathUtil.getRootPath() + "/zrlog-starter.jar");
-            return new ZipUpdater(args, jarFile);
+            return UpdaterHosts.adapt(UpdateProviders.create(UpdaterTypeEnum.ZIP, UpdaterHosts.builder(args, jarFile).build()));
         } catch (Throwable e) {
             return null;
         }
@@ -46,7 +48,7 @@ public class Application {
 
     public static void main(String[] args) {
         System.getProperties().put("sws.run.mode", "dev");
-        Constants.zrLogConfig = new DevZrLogConfig(17080, getZipUpdater(args), "/sub");
+        Constants.zrLogConfig = new DevZrLogConfig(17080, getUpdater(args), "/sub");
         WebServerBuilder build = new WebServerBuilder.Builder().config(Constants.zrLogConfig).build();
         build.start();
     }
