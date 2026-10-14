@@ -64,6 +64,16 @@
     </build>
     <profiles>
         <profile>
+            <id>updater-dev</id>
+            <dependencies>
+                <!-- Standalone development is a host assembly; published admin modules use only SPI. -->
+                <dependency>
+                    <groupId>com.hibegin</groupId><artifactId>zrlog-updater-core</artifactId>
+                    <version>${zrlog-updater.version}</version><scope>runtime</scope>
+                </dependency>
+            </dependencies>
+        </profile>
+        <profile>
             <id>jar</id>
             <build>
                 <finalName>${finalName}-${project.version}</finalName>
