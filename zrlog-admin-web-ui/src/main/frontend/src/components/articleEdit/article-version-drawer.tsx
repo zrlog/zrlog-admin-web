@@ -241,7 +241,7 @@ const ArticleVersionDrawer: React.FC<ArticleVersionDrawerProps> = ({
         modal.confirm({
             title: `${getRes().articleEdit.version.rollback.label} v${version}`,
             content: getRes().articleEdit.version.rollback.tip,
-            okText: getRes().confirm,
+            okText: getRes().articleEdit.version.rollback.label,
             cancelText: getRes().cancel,
             getContainer: () => containerRef.current as HTMLElement,
             onOk: async () => {

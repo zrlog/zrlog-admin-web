@@ -447,6 +447,7 @@ public class TemplateService {
             }
         });
         templateVO.setConfig(config);
+        localizeConfig(templateVO);
         //添加一个隐藏的表单域
         TemplateVO.TemplateConfigVO templateConfigVO = new TemplateVO.TemplateConfigVO();
         templateConfigVO.setHtmlElementType("input");
@@ -454,6 +455,32 @@ public class TemplateService {
         templateConfigVO.setValue(templateName);
         config.put("template", templateConfigVO);
         return templateVO;
+    }
+
+    private void localizeConfig(TemplateVO template) {
+        String locale = I18nUtil.getCurrentLocale().startsWith("zh") ? "zh_CN" : "en_US";
+        String resource = template.getTemplate() + "/language/i18n_" + locale + ".properties";
+        boolean bundled = BundledThemes.getInstance().contains(template.getTemplate());
+        Path file = bundled ? null : PathUtil.getStaticFile(resource).toPath();
+        if (!bundled && !Files.isRegularFile(file)) {
+            return;
+        }
+        Properties messages = new Properties();
+        try (InputStream input = bundled ? TemplateService.class.getResourceAsStream(resource)
+                : Files.newInputStream(file)) {
+            if (input == null) {
+                return;
+            }
+            messages.load(input);
+        } catch (IOException | IllegalArgumentException e) {
+            LOGGER.warning("Could not load theme configuration translations: " + resource);
+            return;
+        }
+        template.getConfig().forEach((key, value) -> {
+            String prefix = "configForm." + key;
+            value.setLabel(messages.getProperty(prefix + ".label", value.getLabel()));
+            value.setPlaceholder(messages.getProperty(prefix + ".placeholder", value.getPlaceholder()));
+        });
     }
 
 

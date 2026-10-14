@@ -1,5 +1,20 @@
 import Typography from "@zrlog/ui/antd/Typography";
-import { Alert, Button, Checkbox, Divider, Drawer, Dropdown, Empty, Grid, Menu, Modal, Select, Space, theme, Tooltip } from "antd";
+import {
+    Alert,
+    Button,
+    Checkbox,
+    Divider,
+    Drawer,
+    Dropdown,
+    Empty,
+    Grid,
+    Menu,
+    Modal,
+    Select,
+    Space,
+    theme,
+    Tooltip,
+} from "antd";
 import Tag from "@zrlog/ui/antd/Tag";
 import Input from "@zrlog/ui/antd/Input";
 import Popconfirm from "@zrlog/ui/antd/Popconfirm";
@@ -631,7 +646,13 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                 items.push({
                     key: "delete",
                     label: (
-                        <Popconfirm title={res.confirmDelete} onConfirm={() => handleDelete(entry)} okType="danger">
+                        <Popconfirm
+                            title={res.confirmDelete}
+                            onConfirm={() => handleDelete(entry)}
+                            okText={res.delete}
+                            cancelText={getRes().cancel}
+                            okType="danger"
+                        >
                             <span style={{ color: token.colorError }}>{res.delete}</span>
                         </Popconfirm>
                     ),
@@ -849,6 +870,8 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                                     <Popconfirm
                                         title={res.confirmDelete}
                                         onConfirm={() => handleDelete(entry)}
+                                        okText={res.delete}
+                                        cancelText={getRes().cancel}
                                         okType="danger"
                                     >
                                         <Button
@@ -893,13 +916,37 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
     const categoryItems = useMemo<ResourceTypeItem[]>(
         () => [
             { key: "all", label: res.resourceType.all, icon: <AppsIcon selected={resourceType === "all"} /> },
-            { key: "image", label: res.resourceType.image, icon: <ImageFileIcon selected={resourceType === "image"} /> },
-            { key: "document", label: res.resourceType.document, icon: <FileTextIcon selected={resourceType === "document"} /> },
+            {
+                key: "image",
+                label: res.resourceType.image,
+                icon: <ImageFileIcon selected={resourceType === "image"} />,
+            },
+            {
+                key: "document",
+                label: res.resourceType.document,
+                icon: <FileTextIcon selected={resourceType === "document"} />,
+            },
             { key: "video", label: res.resourceType.video, icon: <VideoIcon selected={resourceType === "video"} /> },
-            { key: "archive", label: res.resourceType.archive, icon: <ArchiveIcon selected={resourceType === "archive"} /> },
-            { key: "external", label: res.resourceType.external, icon: <LinkIcon selected={resourceType === "external"} /> },
-            { key: "broken", label: res.resourceType.broken, icon: <WarningIcon selected={resourceType === "broken"} /> },
-            { key: "unused", label: res.resourceType.unused, icon: <DeleteIcon selected={resourceType === "unused"} /> },
+            {
+                key: "archive",
+                label: res.resourceType.archive,
+                icon: <ArchiveIcon selected={resourceType === "archive"} />,
+            },
+            {
+                key: "external",
+                label: res.resourceType.external,
+                icon: <LinkIcon selected={resourceType === "external"} />,
+            },
+            {
+                key: "broken",
+                label: res.resourceType.broken,
+                icon: <WarningIcon selected={resourceType === "broken"} />,
+            },
+            {
+                key: "unused",
+                label: res.resourceType.unused,
+                icon: <DeleteIcon selected={resourceType === "unused"} />,
+            },
         ],
         [res.resourceType, resourceType]
     );
@@ -1395,6 +1442,8 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                                         <Popconfirm
                                             title={res.confirmDelete}
                                             onConfirm={() => handleDelete(selectedEntry)}
+                                            okText={res.delete}
+                                            cancelText={getRes().cancel}
                                             okType="danger"
                                         >
                                             <Button danger icon={<DeleteIcon />}>
@@ -1486,7 +1535,7 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                         open={newFolderOpen}
                         onOk={handleMkdir}
                         onCancel={() => setNewFolderOpen(false)}
-                        okText={getRes().confirm}
+                        okText={res.newFolder}
                         cancelText={getRes().cancel}
                     >
                         <Input
@@ -1577,7 +1626,11 @@ const FileManager: FunctionComponent<FileManagerProps> = ({ data, style }) => {
                         open={!!renameTarget}
                         onOk={handleRename}
                         onCancel={resetRename}
-                        okText={getRes().confirm}
+                        okText={
+                            renameTarget && !hasAction(renameTarget, "RENAME")
+                                ? getReplaceArticleResourceUrlAction(renameTarget)
+                                : res.rename
+                        }
                         cancelText={getRes().cancel}
                         confirmLoading={renameSubmitting}
                         okButtonProps={{

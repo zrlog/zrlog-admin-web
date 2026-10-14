@@ -18,7 +18,6 @@ jest.mock("antd-style", () => ({
 jest.mock("../../../utils/constants", () => ({
     getRes: () => ({
         websiteAi: { label: "AI assistant" },
-        confirm: "Confirm",
         cancel: "Cancel",
         articleEdit: {
             assistant: {
@@ -124,7 +123,7 @@ it.each([false, true])("opens conversation actions and confirms clearing (fullsc
     expect(onClear).not.toHaveBeenCalled();
     expect(document.body.textContent).toContain("Clear this conversation?");
     expect(container.querySelector(".ant-modal")).not.toBeNull();
-    await click(byText(".ant-modal button", "Confirm"));
+    await click(byText(".ant-modal button", "Clear conversation"));
     expect(onClear).toHaveBeenCalledTimes(1);
     expect(onClose).not.toHaveBeenCalled();
     await click(close);

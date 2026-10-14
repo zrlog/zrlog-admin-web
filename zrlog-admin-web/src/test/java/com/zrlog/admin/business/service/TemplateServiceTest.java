@@ -4,6 +4,7 @@ import com.zrlog.admin.business.rest.response.UpdateRecordResponse;
 import com.zrlog.admin.business.rest.response.UploadTemplateResponse;
 import com.zrlog.admin.business.rest.response.TemplateEntryResponse;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
+import com.zrlog.admin.util.AdminLanguageContext;
 import com.zrlog.common.Constants;
 import com.zrlog.common.vo.BaseTemplateVO;
 import com.zrlog.common.vo.TemplateVO;
@@ -60,6 +61,41 @@ public class TemplateServiceTest {
                 assertEquals("db-blue", config.getConfig().get("accent").getValue());
                 assertEquals(templatePath, config.getConfig().get("template").getValue());
                 assertEquals("hidden", config.getConfig().get("template").getType());
+            }
+        });
+    }
+
+    @Test
+    public void shouldLocalizeThemeConfigWithoutChangingSavedValuesOrUntranslatedFields() throws Exception {
+        withRootPath(() -> {
+            try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+                String templatePath = createLocalTemplate("translated-theme");
+                File languageDir = new File(temporaryFolder.getRoot(), "static" + templatePath + "/language");
+                assertTrue(languageDir.mkdirs());
+                Files.writeString(new File(languageDir, "i18n_en_US.properties").toPath(),
+                        "configForm.accent.label=Accent color\nconfigForm.accent.placeholder=Choose a color\n");
+                Files.writeString(new File(languageDir, "i18n_zh_CN.properties").toPath(),
+                        "configForm.accent.label=\\u5f3a\\u8c03\\u8272\n"
+                                + "configForm.accent.placeholder=\\u9009\\u62e9\\u989c\\u8272\n");
+                db.putWebsite(templatePath + "_setting", "{\"accent\":\"db-blue\"}");
+                TemplateService service = new TemplateService();
+                for (String language : List.of("en_US", "zh_CN", "en_US")) {
+                    try (AdminLanguageContext ignored = AdminLanguageContext.open(language)) {
+                        TemplateVO config = service.loadTemplateConfig(templatePath);
+                        assertEquals(language.equals("en_US") ? "Accent color" : "强调色",
+                                config.getConfig().get("accent").getLabel());
+                        assertEquals(language.equals("en_US") ? "Choose a color" : "选择颜色",
+                                config.getConfig().get("accent").getPlaceholder());
+                        assertEquals("db-blue", config.getConfig().get("accent").getValue());
+                        assertEquals("CSS", config.getConfig().get("customCss").getLabel());
+                        assertEquals("hidden", config.getConfig().get("template").getType());
+                    }
+                }
+                Files.writeString(new File(languageDir, "i18n_en_US.properties").toPath(),
+                        "configForm.accent.label=\\uINVALID");
+                try (AdminLanguageContext ignored = AdminLanguageContext.open("en_US")) {
+                    assertEquals("Accent", service.loadTemplateConfig(templatePath).getConfig().get("accent").getLabel());
+                }
             }
         });
     }

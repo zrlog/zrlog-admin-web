@@ -501,7 +501,7 @@ const zhCN = {
             "writeArticle": "写文章",
             "backupFiles": "备份文件",
             "localDraft": "未完成草稿",
-            "localDraftTag": "本地缓存",
+            "localDraftTag": "本地草稿",
             "localDraftUntitled": "未命名草稿",
             "localDraftTip": "检测到上次未完成的本地内容，可返回编辑器继续写作",
             "localEdit": "未同步编辑",
@@ -930,7 +930,7 @@ const zhCN = {
         "rollbackRefresh": "刷新页面",
         "editExitWithoutSave": "文章未保存，无法离开页面",
         "editor": {
-            "placeholder": "使用 ZrLog，开始愉快地写作吧"
+            "placeholder": "开始撰写文章"
         },
         "digest": {
             "label": "摘要",
@@ -1192,7 +1192,7 @@ const zhCN = {
         "hostTip": "建议填写站点对外访问的完整地址。启用静态化时该项不能为空，否则无法保存",
         "staticPages": "静态页面",
         "staticPagesTip": "开启后会生成静态页面，通常需要配合正确的主页地址使用",
-        "commentDisabled": "评论关闭",
+        "commentDisabled": "关闭评论",
         "commentDisabledTip": "开启后，前台将不再允许访客发表评论",
         "systemNotify": "系统通知",
         "systemNotifyTip": "显示在前台的公告或提示，建议填写短句",
@@ -1209,7 +1209,7 @@ const zhCN = {
         },
         "summary": "设置站点后端地址，以及后台的默认语言、外观、每页文章数和登录有效时长。成员可在偏好设置中调整自己的语言、外观、每页文章数和登录有效时长",
         "theme": {
-            "label": "主题",
+            "label": "后台主题",
             "option": {
                 "default": "默认",
                 "desk": "Desk",
@@ -1467,26 +1467,26 @@ const zhCN = {
     },
     "websitePrivacy": {
         "title": "个人数据",
-        "summary": "用于按邮箱、昵称、主页或 IP 查找访客评论和当前管理员账号命中情况",
+        "summary": "按邮箱、昵称、主页或 IP 查找访客评论，并检查是否匹配当前账号",
         "noticeTitle": "只读预览",
         "noticeDesc": "预览只统计站点内置评论和当前账号，不会修改数据。AI 对话在文章编辑页管理，插件数据不包含在此预览和评论导出中",
-        "query": "查询标识",
+        "query": "查询内容",
         "queryPlaceholder": "输入邮箱、昵称、主页或 IP",
         "queryTip": "按邮箱、昵称、主页或 IP 精确匹配，用于预览匹配结果和导出评论",
-        "queryRequired": "请输入查询标识",
-        "queryTooLong": "查询标识不能超过 160 个字符",
-        "preview": "预览命中",
+        "queryRequired": "请输入邮箱、昵称、主页或 IP",
+        "queryTooLong": "查询内容不能超过 160 个字符",
+        "preview": "预览匹配结果",
         "exportComments": "导出评论 JSON",
         "exportSuccess": "已导出 {count} 条评论",
-        "result": "命中摘要",
+        "result": "匹配结果",
         "matchedQuery": "查询内容",
         "commentCount": "评论数",
         "commentArticleCount": "关联文章数",
         "latestCommentTime": "最近评论时间",
-        "adminAccount": "当前管理员账号",
-        "adminUserMatched": "用户名命中",
-        "adminEmailMatched": "邮箱命中",
-        "adminNotMatched": "未命中当前管理员账号",
+        "adminAccount": "当前账号",
+        "adminUserMatched": "用户名匹配",
+        "adminEmailMatched": "邮箱匹配",
+        "adminNotMatched": "未匹配当前账号",
         "pluginData": "插件数据",
         "pluginDataHint": "此预览和评论导出不包含插件数据",
         "matchSeparator": "、",
@@ -1532,7 +1532,7 @@ const zhCN = {
         "webhook": "接收外部通知",
         "webhookTip": "开启后，获准的外部应用可向消息中心发送通知",
         "personalData": "个人数据",
-        "personalDataTip": "开启后，站点设置侧边栏会显示个人数据预览和导出入口"
+        "personalDataTip": "开启后，站点设置中会显示个人数据预览和导出入口"
     },
     "websiteWebhook": {
         "title": "Webhook",
@@ -1801,8 +1801,8 @@ const zhCN = {
         "backendServerUrl": "后端服务地址",
         "submit": "登录",
         "passkeyDivider": "或",
-        "passkeySubmit": "使用通行密钥 登录",
-        "passkeyFailed": "无法使用通行密钥 登录，请重试或使用密码登录",
+        "passkeySubmit": "使用通行密钥登录",
+        "passkeyFailed": "无法使用通行密钥登录，请重试或使用密码登录",
         "copyrightCurrentYear": "© 2026 ZrLog，保留所有权利"
     },
     "submit": "提交",
@@ -1834,6 +1834,7 @@ const zhCN = {
     "common": {
         "preset": "预设",
         "tips": "提示",
+        "delete": "删除",
         "close": "关闭",
         "upload": "上传",
         "chooseFromAssets": "资源库",
@@ -1970,7 +1971,7 @@ const zhCN = {
             "impactSummary": "将更新 {count} 篇文章中的匹配引用",
             "noImpact": "当前索引未找到会被更新的文章引用",
             "syncDisabled": "未勾选同步更新，文章引用不会被修改",
-            "confirm": "确认修改",
+            "confirm": "替换引用",
             "success": "已更新 {articles} 篇文章、{fields} 个字段"
         },
         "uploadDrop": "拖拽文件到此处，或点击上传",
@@ -2045,9 +2046,9 @@ const enUS: AdminI18nResource = {
             "contributor": "Contributor"
         },
         "ranges": {
-            "owner": "All articles, including private content; appoint administrators and transfer ownership",
+            "owner": "All articles, including private content; appoint and remove administrators and transfer ownership",
             "admin": "All articles, including private content; manage regular members and site settings",
-            "editor": "All published articles and drafts, plus personal private articles",
+            "editor": "All public articles and drafts, plus your own private articles",
             "author": "Manage and publish personal articles",
             "contributor": "Create and edit personal drafts; publishing and deletion are unavailable"
         },
@@ -2212,7 +2213,7 @@ const enUS: AdminI18nResource = {
             "system.manage": "Manage system",
             "plugin.manage": "Manage plugins",
             "member.manage": "Manage regular members",
-            "member.appoint_admin": "Appoint administrators",
+            "member.appoint_admin": "Appoint and remove administrators",
             "ownership.transfer": "Transfer ownership",
             "oauth.client.manage": "Register and disable applications",
             "oauth.grant.manage": "Manage own application grants",
@@ -2321,7 +2322,7 @@ const enUS: AdminI18nResource = {
         "deny": "Deny",
         "saved": "Done",
         "scopeLabels": {
-            "articles:read": "Read published articles",
+            "articles:read": "Read public articles",
             "articles:read_drafts": "Read drafts",
             "articles:read_private": "Read private articles",
             "articles:all": "Access all articles I can access",
@@ -2519,7 +2520,7 @@ const enUS: AdminI18nResource = {
             "writeArticle": "Write an Article",
             "backupFiles": "Back Up Files",
             "localDraft": "Unfinished Draft",
-            "localDraftTag": "Local Cache",
+            "localDraftTag": "Local draft",
             "localDraftUntitled": "Untitled Draft",
             "localDraftTip": "Unfinished local content was found. Return to the editor to continue writing",
             "localEdit": "Unsynced Edit",
@@ -2774,7 +2775,7 @@ const enUS: AdminI18nResource = {
             "rejectCandidate": "Reject Candidate",
             "titleSuggestion": "Title Suggestions",
             "titleSuggestionPrompt": "Provide three title options for this article",
-            "rewriteSuggestion": "Polish Draft",
+            "rewriteSuggestion": "Polish article body",
             "rewriteSuggestionPrompt": "Polish the existing draft for clarity while preserving facts, structure, and Markdown resource links",
             "rewriteCurrent": "Current body",
             "rewriteCandidate": "Candidate body",
@@ -2914,7 +2915,7 @@ const enUS: AdminI18nResource = {
             "contentPreview": "Content Preview",
             "desktop": "Desktop",
             "mobile": "Mobile",
-            "confirm": "Confirm Publish",
+            "confirm": "Publish article",
             "ready": "Ready",
             "untitled": "Untitled Article",
             "blocked": "Add a title and valid category before publishing",
@@ -2949,7 +2950,7 @@ const enUS: AdminI18nResource = {
         "rollbackRefresh": "Refresh Page",
         "editExitWithoutSave": "The article has not been saved. You cannot leave this page",
         "editor": {
-            "placeholder": "Start writing with ZrLog"
+            "placeholder": "Start writing your article"
         },
         "digest": {
             "label": "Summary",
@@ -2957,7 +2958,7 @@ const enUS: AdminI18nResource = {
             "generate": "Summary Suggestion"
         },
         "tag": {
-            "label": "Tag",
+            "label": "Tags",
             "tips": "Enter a tag and press Enter",
             "all": "All",
             "generate": "Tag Suggestions"
@@ -3125,7 +3126,7 @@ const enUS: AdminI18nResource = {
     "tagManage": {
         "title": "Tags",
         "name": "Tag",
-        "count": "Published Articles",
+        "count": "Public articles",
         "url": "Public Page",
         "search": "Search",
         "searchTip": "Search tags",
@@ -3211,7 +3212,7 @@ const enUS: AdminI18nResource = {
         "hostTip": "Use the full public URL of the site. When static generation is enabled, this field must not be empty",
         "staticPages": "Static Pages",
         "staticPagesTip": "Generates static pages. Usually this should be paired with a correct homepage URL",
-        "commentDisabled": "Comments Disabled",
+        "commentDisabled": "Disable comments",
         "commentDisabledTip": "When enabled, visitors can no longer submit comments on the public site",
         "systemNotify": "System Notifications",
         "systemNotifyTip": "A public-site announcement or notice. Keep it short",
@@ -3228,7 +3229,7 @@ const enUS: AdminI18nResource = {
         },
         "summary": "Set the backend service URL and the default admin language, appearance, articles per page and session duration. Members can choose their own language, appearance, articles per page and session duration in Preferences",
         "theme": {
-            "label": "Theme",
+            "label": "Admin theme",
             "option": {
                 "default": "Default",
                 "desk": "Desk",
@@ -3486,26 +3487,26 @@ const enUS: AdminI18nResource = {
     },
     "websitePrivacy": {
         "title": "Personal Data",
-        "summary": "Find visitor comments and current admin-account matches by email, nickname, homepage, or IP",
+        "summary": "Find visitor comments by email, nickname, website or IP address, and check for a match with the current account",
         "noticeTitle": "Read-only preview",
         "noticeDesc": "The preview only counts built-in comments and the current account without changing data. Manage AI chats in the article editor. Plugin data is not included in this preview or comment export",
-        "query": "Query identity",
+        "query": "Search value",
         "queryPlaceholder": "Enter email, nickname, homepage, or IP",
         "queryTip": "Match an email, nickname, homepage, or IP exactly to preview matches and export comments",
-        "queryRequired": "Enter a query identity",
-        "queryTooLong": "Query identity must be 160 characters or fewer",
-        "preview": "Preview Matches",
+        "queryRequired": "Enter an email, nickname, website or IP address",
+        "queryTooLong": "The search value must be 160 characters or fewer",
+        "preview": "Preview matches",
         "exportComments": "Export Comments JSON",
         "exportSuccess": "Exported {count} comments",
-        "result": "Match Summary",
+        "result": "Matching data",
         "matchedQuery": "Query",
         "commentCount": "Comments",
         "commentArticleCount": "Related Articles",
         "latestCommentTime": "Latest Comment Time",
-        "adminAccount": "Current Admin Account",
+        "adminAccount": "Current account",
         "adminUserMatched": "Username matched",
         "adminEmailMatched": "Email matched",
-        "adminNotMatched": "No current admin-account match",
+        "adminNotMatched": "No match with the current account",
         "pluginData": "Plugin Data",
         "pluginDataHint": "Plugin data is not included in this preview or comment export",
         "matchSeparator": ", ",
@@ -3551,7 +3552,7 @@ const enUS: AdminI18nResource = {
         "webhook": "Receive external notifications",
         "webhookTip": "Allow authorized external applications to send messages to the message center",
         "personalData": "Personal Data",
-        "personalDataTip": "When enabled, the site settings sidebar shows the personal data preview and export entry"
+        "personalDataTip": "When enabled, site settings show options to preview personal data and export comments"
     },
     "websiteWebhook": {
         "title": "Webhook",
@@ -3853,6 +3854,7 @@ const enUS: AdminI18nResource = {
     "common": {
         "preset": "Preset",
         "tips": "Notice",
+        "delete": "Delete",
         "close": "Close",
         "upload": "Upload",
         "chooseFromAssets": "Assets",
@@ -3989,7 +3991,7 @@ const enUS: AdminI18nResource = {
             "impactSummary": "Matching references in {count} articles will be updated",
             "noImpact": "The current index did not find article references to update",
             "syncDisabled": "Sync is not selected, so article references will not be changed",
-            "confirm": "Confirm",
+            "confirm": "Replace references",
             "success": "Updated {articles} articles and {fields} fields"
         },
         "uploadDrop": "Drop files here or click to upload",

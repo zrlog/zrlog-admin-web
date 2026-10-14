@@ -93,7 +93,13 @@ const TemplateActions = ({
             ) : (
                 template.deleteAble &&
                 !template.use && (
-                    <Popconfirm title={getRes().deleteTips} onConfirm={deleteTemplate} okButtonProps={{ danger: true }}>
+                    <Popconfirm
+                        title={getRes().deleteTips}
+                        onConfirm={deleteTemplate}
+                        okText={res.actions.delete}
+                        cancelText={getRes().cancel}
+                        okButtonProps={{ danger: true }}
+                    >
                         <Button type="text" danger icon={<DeleteIcon />} aria-label={res.actions.delete} />
                     </Popconfirm>
                 )

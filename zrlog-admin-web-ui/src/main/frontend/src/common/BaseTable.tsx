@@ -238,6 +238,8 @@ const BaseTable: FunctionComponent<BaseTableProps> = ({
                             <Popconfirm
                                 disabled={deleteDisabled}
                                 title={getRes().deleteTips}
+                                okText={getRes().common.delete}
+                                cancelText={getRes().cancel}
                                 onConfirm={async () => {
                                     const success = await handleDelete(tableDataState.pagination, deleteApi, record.id);
                                     if (success) {

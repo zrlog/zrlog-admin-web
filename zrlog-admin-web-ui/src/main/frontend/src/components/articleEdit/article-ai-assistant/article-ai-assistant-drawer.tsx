@@ -107,7 +107,7 @@ export default function ArticleAiAssistantDrawer({
                                         modal.confirm({
                                             title: res.clearAiMessagesConfirmTitle,
                                             content: res.clearAiMessagesConfirmDescription,
-                                            okText: getRes().confirm,
+                                            okText: res.clearAiMessages,
                                             cancelText: getRes().cancel,
                                             okButtonProps: { danger: true },
                                             getContainer,
