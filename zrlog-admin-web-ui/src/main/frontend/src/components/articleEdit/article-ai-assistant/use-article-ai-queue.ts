@@ -46,6 +46,7 @@ export const useArticleAiQueue = (
                 },
                 () => {
                     current.paused = true;
+                    if (message.files?.length) current.items = [message, ...current.items];
                 }
             )
             .finally(() => {

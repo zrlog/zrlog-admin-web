@@ -16,7 +16,9 @@ const FILE_MANAGER_API = "/api/admin/file-manager";
 type FileManagerPickerProps = {
     data?: FileManagerData;
     onlyImage?: boolean;
-    onSelectFile?: (path: string) => void;
+    acceptExtensions?: string[];
+    onSelectFile?: (path: string, entry: FileEntry) => void;
+    disabled?: boolean;
     style?: CSSProperties;
     stateCacheKey?: string;
 };
@@ -38,7 +40,9 @@ const getCachedPickerUiState = (key?: string): FileManagerPickerUiState => {
 const FileManagerPicker: FunctionComponent<FileManagerPickerProps> = ({
     data,
     onlyImage = false,
+    acceptExtensions,
     onSelectFile,
+    disabled = false,
     style,
     stateCacheKey,
 }) => {
@@ -198,16 +202,27 @@ const FileManagerPicker: FunctionComponent<FileManagerPickerProps> = ({
     const contextMenuItems = () => [] as any[];
 
     const renderGridItem = (entry: FileEntry) => {
-        const selectable = hasAction(entry, "SELECT") && (!onlyImage || isImage(entry));
+        const selectable = !disabled && hasAction(entry, "SELECT") && (!onlyImage || isImage(entry));
+        const interactive = !disabled && (hasAction(entry, "OPEN") || selectable);
         return (
             <Dropdown key={entry.path} menu={{ items: contextMenuItems() }} trigger={["contextMenu"]}>
                 <div>
                     <div
+                        role="button"
+                        aria-label={entry.name}
+                        aria-disabled={!interactive}
+                        tabIndex={interactive ? 0 : -1}
+                        onKeyDown={(event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                                event.preventDefault();
+                                event.currentTarget.click();
+                            }
+                        }}
                         style={{
                             border: borderSecondary,
                             borderRadius: themeVars.borderRadius,
                             padding: gridItemPadding,
-                            cursor: "pointer",
+                            cursor: interactive ? "pointer" : "default",
                             display: "flex",
                             flexDirection: "column",
                             alignItems: "center",
@@ -219,11 +234,12 @@ const FileManagerPicker: FunctionComponent<FileManagerPickerProps> = ({
                         }}
                         className="file-grid-item"
                         onClick={() => {
+                            if (disabled) return;
                             if (hasAction(entry, "OPEN")) {
                                 setSearchKey("");
                                 setCurrentPath(entry.path);
                             } else if (selectable) {
-                                onSelectFile?.(tryAppendBackendServerUrl(entry.path));
+                                onSelectFile?.(tryAppendBackendServerUrl(entry.path), entry);
                             }
                         }}
                     >
@@ -257,10 +273,21 @@ const FileManagerPicker: FunctionComponent<FileManagerPickerProps> = ({
 
     const renderListItem = (entry: FileEntry) => {
         const isDir = entry.type === "directory";
-        const selectable = hasAction(entry, "SELECT") && (!onlyImage || isImage(entry));
+        const selectable = !disabled && hasAction(entry, "SELECT") && (!onlyImage || isImage(entry));
+        const interactive = !disabled && (hasAction(entry, "OPEN") || selectable);
         return (
             <Dropdown key={entry.path} menu={{ items: contextMenuItems() }} trigger={["contextMenu"]}>
                 <div
+                    role="button"
+                    aria-label={entry.name}
+                    aria-disabled={!interactive}
+                    tabIndex={interactive ? 0 : -1}
+                    onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            event.currentTarget.click();
+                        }
+                    }}
                     style={{
                         display: "flex",
                         alignItems: "center",
@@ -268,14 +295,15 @@ const FileManagerPicker: FunctionComponent<FileManagerPickerProps> = ({
                         padding: "8px 4px",
                         borderBottom: borderSecondary,
                         background: token.colorBgContainer,
-                        cursor: "pointer",
+                        cursor: interactive ? "pointer" : "default",
                     }}
                     onClick={() => {
+                        if (disabled) return;
                         if (hasAction(entry, "OPEN")) {
                             setSearchKey("");
                             setCurrentPath(entry.path);
                         } else if (selectable) {
-                            onSelectFile?.(tryAppendBackendServerUrl(entry.path));
+                            onSelectFile?.(tryAppendBackendServerUrl(entry.path), entry);
                         }
                     }}
                 >
@@ -293,9 +321,13 @@ const FileManagerPicker: FunctionComponent<FileManagerPickerProps> = ({
         );
     };
 
-    const visibleEntries = onlyImage
-        ? entries.filter((entry) => entry.type === "directory" || isImage(entry))
-        : entries;
+    const visibleEntries = entries.filter(
+        (entry) =>
+            entry.type === "directory" ||
+            ((!onlyImage || isImage(entry)) &&
+                (!acceptExtensions ||
+                    acceptExtensions.some((extension) => entry.name.toLowerCase().endsWith(extension))))
+    );
 
     return (
         <FileManagerView

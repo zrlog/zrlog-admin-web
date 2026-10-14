@@ -136,6 +136,20 @@ public final class AIFileService {
         String prefix = new String(bytes, 0, Math.min(bytes.length, 12), StandardCharsets.ISO_8859_1);
         boolean valid;
         switch (mime) {
+            case "image/png":
+                valid = bytes.length >= 33 && prefix.startsWith("\u0089PNG\r\n\u001a\n")
+                        && new String(bytes, 12, 4, StandardCharsets.US_ASCII).equals("IHDR");
+                break;
+            case "image/jpeg":
+                valid = bytes.length >= 4 && (bytes[0] & 0xff) == 0xff && (bytes[1] & 0xff) == 0xd8
+                        && (bytes[2] & 0xff) == 0xff
+                        && (bytes[bytes.length - 2] & 0xff) == 0xff && (bytes[bytes.length - 1] & 0xff) == 0xd9;
+                break;
+            case "image/webp":
+                valid = bytes.length >= 20 && prefix.startsWith("RIFF") && prefix.endsWith("WEBP")
+                        && Integer.toUnsignedLong(ByteBuffer.wrap(bytes, 4, 4).order(java.nio.ByteOrder.LITTLE_ENDIAN).getInt()) == bytes.length - 8L
+                        && List.of("VP8 ", "VP8L", "VP8X").contains(new String(bytes, 12, 4, StandardCharsets.US_ASCII));
+                break;
             case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
             case "application/vnd.openxmlformats-officedocument.presentationml.presentation":
             case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": valid = prefix.startsWith("PK\u0003\u0004"); break;
@@ -155,6 +169,10 @@ public final class AIFileService {
 
     private static Map<String, String> types() {
         Map<String, String> result = new LinkedHashMap<>();
+        result.put(".png", "image/png");
+        result.put(".jpg", "image/jpeg");
+        result.put(".jpeg", "image/jpeg");
+        result.put(".webp", "image/webp");
         result.put(".pdf", "application/pdf");
         result.put(".docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
         result.put(".doc", "application/msword");

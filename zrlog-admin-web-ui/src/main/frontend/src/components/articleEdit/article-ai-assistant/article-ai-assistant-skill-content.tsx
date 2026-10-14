@@ -1,4 +1,4 @@
-import { AiFileCapabilities, AiFilePicker } from "./article-ai-files";
+import { AiFileCapabilities, AiFileList, AiFilePicker } from "./article-ai-files";
 import Tag from "@zrlog/ui/antd/Tag";
 import Input from "@zrlog/ui/antd/Input";
 import ArrowUpIcon from "@zrlog/ui/icons/arrow-up";
@@ -36,6 +36,7 @@ type ArticleAiAssistantSkillContentProps = {
     selectedText?: string;
     markdownLength: number;
     fileInput?: AiFileCapabilities;
+    preparingFiles?: boolean;
     onSubmit: (message: string, tool?: AssistantTool, files?: File[]) => boolean;
 };
 
@@ -54,6 +55,7 @@ const ArticleAiAssistantSkillContent: FunctionComponent<ArticleAiAssistantSkillC
     markdownLength,
     onSubmit,
     fileInput,
+    preparingFiles,
 }) => {
     const [input, setInput] = useState("");
     const [files, setFiles] = useState<File[]>([]);
@@ -231,23 +233,6 @@ const ArticleAiAssistantSkillContent: FunctionComponent<ArticleAiAssistantSkillC
 
     return (
         <>
-            <Space wrap style={{ marginBottom: 8, width: "100%", justifyContent: "space-between", rowGap: 6 }}>
-                <Space wrap size={8}>
-                    <Button
-                        size="small"
-                        icon={<AIIcon name={aiProvider} />}
-                        disabled={disabled}
-                        aria-expanded={showSkillPanel}
-                        aria-controls={showSkillPanel ? skillPanelId : undefined}
-                        onClick={() => setSkillPanelOpen((prevState) => !prevState)}
-                    >
-                        {getRes().articleEdit.assistant.skill}
-                    </Button>
-                </Space>
-                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                    {getRes().articleEdit.assistant.skillHint}
-                </Typography.Text>
-            </Space>
             {showSkillPanel && (
                 <div
                     id={skillPanelId}
@@ -286,17 +271,11 @@ const ArticleAiAssistantSkillContent: FunctionComponent<ArticleAiAssistantSkillC
                     <div style={{ maxHeight: 144, overflowY: "auto" }}>
                         {queuedMessages.map((message) => (
                             <div key={message.id} style={{ display: "flex", gap: theme.marginXS, alignItems: "start" }}>
-                                <Typography.Text
-                                    style={{ flex: 1, minWidth: 0, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}
-                                >
+                                <div style={{ flex: 1, minWidth: 0, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
                                     {message.tool && <Tag>{getAssistantToolLabel(message.tool)}</Tag>}
                                     {message.input}
-                                    {message.files?.map((file, index) => (
-                                        <span key={index} style={{ display: "block" }}>
-                                            {file.name}
-                                        </span>
-                                    ))}
-                                </Typography.Text>
+                                    <AiFileList files={message.files} />
+                                </div>
                                 <Button
                                     type="text"
                                     icon={<CloseIcon />}
@@ -309,70 +288,88 @@ const ArticleAiAssistantSkillContent: FunctionComponent<ArticleAiAssistantSkillC
                     </div>
                 </div>
             )}
-            <AiFilePicker capabilities={fileInput} files={files} disabled={disabled} onChange={setFiles} />
-            <div style={{ position: "relative" }}>
-                {selectedTool && (
-                    <Space style={{ marginBottom: 6 }}>
-                        <Tag closable color="processing" onClose={() => setSelectedTool(undefined)}>
-                            {getAssistantToolLabel(selectedTool)}
-                        </Tag>
-                    </Space>
-                )}
-                {activeToolDisabledReason ? (
-                    <Typography.Text type="secondary" style={{ display: "block", fontSize: 12, marginBottom: 6 }}>
-                        {activeToolDisabledReason}
-                    </Typography.Text>
-                ) : null}
-                <TextArea
-                    autoSize={{ minRows: 2, maxRows: 5 }}
-                    disabled={disabled}
-                    aria-label={assistantRes.messageInput}
-                    value={input}
-                    placeholder={getRes().articleEdit.assistant.inputPlaceholder}
-                    onChange={(e) => updateInput(e.target.value)}
-                    onPressEnter={(e) => {
-                        if (e.shiftKey || e.nativeEvent.isComposing || e.keyCode === 229) {
-                            return;
+            {preparingFiles && <Typography.Text role="status">{getRes().articleEdit.files.preparing}</Typography.Text>}
+            <AiFilePicker
+                capabilities={fileInput}
+                files={files}
+                disabled={disabled}
+                onChange={setFiles}
+                toolbar={
+                    <Button
+                        type="text"
+                        icon={<AIIcon name={aiProvider} />}
+                        disabled={disabled}
+                        aria-expanded={showSkillPanel}
+                        aria-controls={showSkillPanel ? skillPanelId : undefined}
+                        onClick={() => setSkillPanelOpen((prevState) => !prevState)}
+                    >
+                        {getRes().articleEdit.assistant.skill}
+                    </Button>
+                }
+                action={
+                    <Button
+                        type="primary"
+                        shape="circle"
+                        icon={
+                            busy ? (
+                                <span
+                                    aria-hidden="true"
+                                    style={{
+                                        display: "block",
+                                        width: theme.fontSizeSM,
+                                        height: theme.fontSizeSM,
+                                        background: "currentColor",
+                                        borderRadius: theme.borderRadiusXS,
+                                    }}
+                                />
+                            ) : (
+                                <ArrowUpIcon />
+                            )
                         }
-                        e.preventDefault();
-                        e.stopPropagation();
-                        submitInput();
-                    }}
-                    style={{
-                        paddingRight: 48,
-                        resize: "none",
-                    }}
-                />
-                <Button
-                    type="primary"
-                    shape="circle"
-                    icon={
-                        busy ? (
-                            <span
-                                aria-hidden="true"
-                                style={{
-                                    display: "block",
-                                    width: theme.fontSizeSM,
-                                    height: theme.fontSizeSM,
-                                    background: "currentColor",
-                                    borderRadius: theme.borderRadiusXS,
-                                }}
-                            />
-                        ) : (
-                            <ArrowUpIcon />
-                        )
-                    }
-                    disabled={busy ? !onStop : cannotSubmit}
-                    onClick={busy ? onStop : submitInput}
-                    style={{
-                        position: "absolute",
-                        right: 8,
-                        bottom: 8,
-                    }}
-                    title={actionLabel}
-                    aria-label={actionLabel}
-                />
-            </div>
+                        disabled={busy ? !onStop : cannotSubmit}
+                        onClick={busy ? onStop : submitInput}
+                        title={actionLabel}
+                        aria-label={actionLabel}
+                    />
+                }
+            >
+                <div style={{ position: "relative" }}>
+                    {selectedTool && (
+                        <Space style={{ marginBottom: 6 }}>
+                            <Tag closable color="processing" onClose={() => setSelectedTool(undefined)}>
+                                {getAssistantToolLabel(selectedTool)}
+                            </Tag>
+                        </Space>
+                    )}
+                    {activeToolDisabledReason ? (
+                        <Typography.Text type="secondary" style={{ display: "block", fontSize: 12, marginBottom: 6 }}>
+                            {activeToolDisabledReason}
+                        </Typography.Text>
+                    ) : null}
+                    <TextArea
+                        autoSize={{ minRows: 1, maxRows: 5 }}
+                        variant="borderless"
+                        disabled={disabled}
+                        aria-label={assistantRes.messageInput}
+                        value={input}
+                        placeholder={getRes().articleEdit.assistant.inputPlaceholder}
+                        onChange={(e) => updateInput(e.target.value)}
+                        onPressEnter={(e) => {
+                            if (e.shiftKey || e.nativeEvent.isComposing || e.keyCode === 229) {
+                                return;
+                            }
+                            e.preventDefault();
+                            e.stopPropagation();
+                            submitInput();
+                        }}
+                        style={{
+                            boxShadow: "none",
+                            background: "transparent",
+                            resize: "none",
+                        }}
+                    />
+                </div>
+            </AiFilePicker>
             {willQueue && (
                 <Space wrap style={{ marginTop: theme.marginXS, width: "100%", justifyContent: "space-between" }}>
                     <Typography.Text type="secondary" style={{ fontSize: theme.fontSizeSM }}>
@@ -385,12 +382,6 @@ const ArticleAiAssistantSkillContent: FunctionComponent<ArticleAiAssistantSkillC
                     )}
                 </Space>
             )}
-            <Typography.Paragraph
-                type="secondary"
-                style={{ fontSize: theme.fontSizeSM, marginTop: theme.marginXS, marginBottom: 0 }}
-            >
-                {getRes().articleEdit.knowledge.sessionHint}
-            </Typography.Paragraph>
             <Typography.Text
                 type="secondary"
                 style={{

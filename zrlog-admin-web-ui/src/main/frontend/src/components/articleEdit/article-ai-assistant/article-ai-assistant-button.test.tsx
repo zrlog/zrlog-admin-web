@@ -23,6 +23,7 @@ const mockMessageWarning = jest.fn(async (content?: unknown): Promise<void> => {
 
 // Business tests keep feedback mocked at the shared UI boundary.
 jest.mock("@zrlog/ui/antd/Input", () => ({ __esModule: true, default: () => null }));
+jest.mock("@zrlog/ui/antd/Image", () => ({ __esModule: true, default: () => null }));
 
 jest.mock("@zrlog/ui/feedback", () => ({
     useUiMessage: (...args: unknown[]) => require("antd").message.useMessage(...args),

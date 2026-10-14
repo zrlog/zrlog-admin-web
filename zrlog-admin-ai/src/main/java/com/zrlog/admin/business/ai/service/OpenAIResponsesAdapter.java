@@ -37,7 +37,8 @@ final class OpenAIResponsesAdapter {
                 result.call_id = message.toolCallId; result.output = message.getContent();
                 request.input.add(result);
             } else {
-                if (message.getContent() != null && !message.getContent().isEmpty()) {
+                if (message.getContent() != null && !message.getContent().isEmpty()
+                        || message.attachments != null && !message.attachments.isEmpty()) {
                     Item input = new Item(); input.type = "message"; input.role = message.getRole();
                     Content text = new Content(); text.text = message.getContent();
                     // Persisted conversation history has no raw Responses output to replay.
@@ -45,12 +46,17 @@ final class OpenAIResponsesAdapter {
                     boolean assistant = "assistant".equals(message.getRole());
                     text.type = assistant ? "output_text" : "input_text";
                     if (assistant) text.annotations = new JsonArray();
-                    input.content = new ArrayList<>(List.of(text));
+                    input.content = new ArrayList<>();
+                    if (text.text != null && !text.text.isEmpty()) input.content.add(text);
                     if (message.attachments != null) for (var file : message.attachments) {
                         if (assistant || !"user".equals(message.getRole())) throw AIFileService.error("invalid");
                         Content part = new Content();
                         String data = Objects.requireNonNull(files.get(file.id), "Missing file input");
-                        part.type = "input_file"; part.filename = file.name; part.file_data = data;
+                        if (file.mimeType != null && file.mimeType.startsWith("image/")) {
+                            part.type = "input_image"; part.image_url = data; part.detail = "auto";
+                        } else {
+                            part.type = "input_file"; part.filename = file.name; part.file_data = data;
+                        }
                         input.content.add(part);
                     }
                     request.input.add(input);

@@ -56,12 +56,74 @@ public class AIFileInputTest {
         return new String(response.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
     }
     private static List<JsonObject> fileParts(JsonObject body) {
+        return parts(body, "input_file");
+    }
+    private static List<JsonObject> parts(JsonObject body, String type) {
         List<JsonObject> parts = new ArrayList<>();
         for (var item : body.getAsJsonArray("input")) {
             JsonArray content = item.getAsJsonObject().getAsJsonArray("content");
-            if (content != null) for (var part : content) if ("input_file".equals(part.getAsJsonObject().get("type").getAsString())) parts.add(part.getAsJsonObject());
+            if (content != null) for (var part : content) if (type.equals(part.getAsJsonObject().get("type").getAsString())) parts.add(part.getAsJsonObject());
         }
         return parts;
+    }
+
+    private static Input image(String extension) throws IOException {
+        try (InputStream stream = AIFileInputTest.class.getResourceAsStream("/ai-input/sample." + extension)) {
+            return file("sample." + extension, Objects.requireNonNull(stream).readAllBytes());
+        }
+    }
+
+    private static void assertImage(Input original, JsonObject part, String mime) {
+        assertEquals("input_image", part.get("type").getAsString());
+        assertEquals("data:" + mime + ";base64," + original.data, part.get("image_url").getAsString());
+        assertEquals("auto", part.get("detail").getAsString());
+        assertFalse(part.has("file_data"));
+        assertFalse(part.has("filename"));
+    }
+
+    @Test public void sendsImagesAndDocumentsAsDistinctInputsAndRestoresImagesOnFollowup() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            configure(db);
+            Input png = image("png"), jpeg = image("jpg"), webp = image("webp"), csv = text("notes.csv", "a,b\n1,2");
+            jpeg.name = "Photo.JPEG";
+            FakeHttpClient client = new FakeHttpClient(streamResponse(terminal(MESSAGE)), streamResponse(terminal(MESSAGE)));
+            String first = read(new AIChatService(client).start(request(7, png, jpeg, webp, csv)));
+            assertTrue(first, first.contains("\"type\":\"done\""));
+            assertFalse(first.contains(png.data));
+            assertTrue(read(new AIChatService(client).start(request(7))).contains("\"type\":\"done\""));
+            for (JsonObject wire : client.requestBodies) {
+                List<JsonObject> images = parts(wire, "input_image");
+                assertEquals(3, images.size());
+                assertImage(png, images.get(0), "image/png");
+                assertImage(jpeg, images.get(1), "image/jpeg");
+                assertImage(webp, images.get(2), "image/webp");
+                assertEquals(1, fileParts(wire).size());
+                assertBytes(csv, fileParts(wire).get(0));
+                assertFalse(wire.toString().contains("attachments"));
+            }
+            String stored = new Gson().toJson(new AIConversationService().exportAIMessage(7L));
+            assertTrue(stored.contains("image/png"));
+            assertFalse(stored.contains(png.data));
+            assertFalse(stored.contains("image_url"));
+        }
+    }
+
+    @Test public void preservesAttachmentOnlyProviderMessages() throws Exception {
+        try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
+            Input png = image("png");
+            AIFileService storage = new AIFileService();
+            Attachment image = storage.save(List.of(png), info()).get(0);
+            var message = new com.zrlog.admin.business.ai.model.AIProviderRequests.Message("user", "");
+            message.attachments = List.of(image);
+            var completion = new com.zrlog.admin.business.ai.model.AIProviderRequests.CompletionRequest();
+            completion.setMessages(List.of(message));
+            JsonObject wire = new Gson().toJsonTree(new OpenAIResponsesAdapter().request(completion, false,
+                    Map.of(image.id, storage.dataUrl(image)))).getAsJsonObject();
+            assertImage(png, parts(wire, "input_image").get(0), "image/png");
+            message.setRole("assistant");
+            assertThrows(AIFileInputException.class, () -> new OpenAIResponsesAdapter().request(completion, false,
+                    Map.of(image.id, storage.dataUrl(image))));
+        }
     }
     private static void assertBytes(Input original, JsonObject part) {
         assertEquals(original.name, part.get("filename").getAsString());
@@ -105,29 +167,34 @@ public class AIFileInputTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             configure(db);
             Input csv = text("sales.csv", "month,revenue\nOctober,47925\n");
+            Input png = image("png");
             JsonObject call = JsonParser.parseString(CALL).getAsJsonObject(); call.addProperty("name", "update_article");
             call.addProperty("arguments", "{\"id\":7,\"version\":2,\"title\":\"Revenue report\"}");
             FakeHttpClient client = new FakeHttpClient(streamResponse(terminal(call.toString())), streamResponse(terminal(MESSAGE)));
-            String first = read(new AIChatService(client).start(request(7, csv)));
+            String first = read(new AIChatService(client).start(request(7, csv, png)));
             assertTrue(first, first.contains("approval-required"));
             RunView view = new AIChatService().getRun(7);
             assertEquals("sales.csv", view.attachments.get(0).name);
             String checkpoint = db.scalar("select value from website where name='ai_pending_u1_7'").toString();
             assertFalse(checkpoint.contains(csv.data)); assertFalse(checkpoint.contains("file_data"));
+            assertFalse(checkpoint.contains(png.data));
             ApprovalRequest decision = new ApprovalRequest(); decision.articleId = 7; decision.runId = view.runId;
             decision.approvalId = view.approval.id; decision.decision = "reject";
             assertTrue(read(new AIChatService(client).resume(decision)).contains("\"type\":\"done\""));
             assertBytes(csv, fileParts(client.requestBodies.get(1)).get(0));
+            assertImage(png, parts(client.requestBodies.get(1), "input_image").get(0), "image/png");
         }
     }
 
-    @Test public void rejectsUnsupportedModelsAndImagesBeforePersistingOrCallingProvider() throws Exception {
+    @Test public void rejectsUnsupportedProvidersAndInvalidImagesBeforePersistingOrCallingProvider() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             configure(db);
             for (String provider : List.of("GOOGLE_GEMINI", "QWEN", "DEEP_SEEK")) {
                 db.putWebsite("ai_provider", provider);
                 FakeHttpClient client = new FakeHttpClient();
                 assertThrows(AIFileInputException.class, () -> new AIChatService(client).start(request(7, text("report.csv", "a,b"))));
+                Input image = image("png");
+                assertThrows(AIFileInputException.class, () -> new AIChatService(client).start(request(7, image)));
                 assertTrue(client.requests.isEmpty());
             }
             assertThrows(AIFileInputException.class, () -> AIFileService.validateInputs(List.of(text("photo.png", "image"))));
@@ -140,7 +207,7 @@ public class AIFileInputTest {
             AIFileService storage = new AIFileService();
             for (String name : List.of("../notes.txt", "a/b.txt", "a\\b.txt", "a\ntxt", "notes.exe"))
                 assertThrows(AIFileInputException.class, () -> storage.save(List.of(text(name, "test")), info()));
-            for (String name : List.of("fake.pdf", "fake.xlsx", "fake.xls", "fake.docx", "fake.ppt"))
+            for (String name : List.of("fake.pdf", "fake.xlsx", "fake.xls", "fake.docx", "fake.ppt", "fake.png", "fake.jpeg", "fake.webp"))
                 assertThrows(AIFileInputException.class, () -> storage.save(List.of(text(name, "not a document")), info()));
             Input corrupt = text("bad.txt", "test"); corrupt.data = "%%%";
             assertThrows(AIFileInputException.class, () -> storage.save(List.of(corrupt), info()));
@@ -152,6 +219,22 @@ public class AIFileInputTest {
             assertThrows(AIFileInputException.class, () -> storage.save(Collections.nCopies(3, large), info()));
             assertFalse(Files.exists(PathUtil.getConfFile("ai-input-files").toPath()));
         }
+    }
+
+    @Test public void rejectsMismatchedAndTruncatedImageSignaturesAndUnsupportedImageFormats() throws Exception {
+        for (String extension : List.of("png", "jpg", "webp")) {
+            Input image = image(extension);
+            byte[] bytes = Base64.getDecoder().decode(image.data);
+            AIFileService.validateInputs(List.of(image));
+            assertThrows(AIFileInputException.class, () -> AIFileService.validateInputs(List.of(file(image.name, Arrays.copyOf(bytes, 12)))));
+            String wrongName = extension.equals("png") ? "wrong.jpg" : "wrong.png";
+            assertThrows(AIFileInputException.class, () -> AIFileService.validateInputs(List.of(file(wrongName, bytes))));
+        }
+        for (String name : List.of("image.svg", "image.gif", "image.heic"))
+            assertThrows(AIFileInputException.class, () -> AIFileService.validateInputs(List.of(text(name, "<svg/>"))));
+        assertTrue(AIFileService.capabilities(info()).extensions.containsAll(List.of(".png", ".jpg", ".jpeg", ".webp")));
+        AIWebSiteInfo unsupported = info(); unsupported.setAi_model("gpt-3.5-turbo");
+        assertTrue(AIFileService.capabilities(unsupported).extensions.isEmpty());
     }
 
     @Test public void isolatesAccountsAndRejectsExpiredOrSymlinkReferences() throws Exception {

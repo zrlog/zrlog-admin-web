@@ -413,13 +413,14 @@ export const useArticleAiAssistantConfig = ({
             return undefined;
         }
         if (!tool || files?.length) {
-            setLoadingKey("chat");
+            setLoadingKey(files?.length ? "files" : "chat");
             try {
                 const fileRead = fileReadGeneration.current;
                 const editorContext = getArticleAiRequestBody(selectedText);
                 const fileInputs = files?.length ? await encodeAiFiles(files) : undefined;
                 if (scopeRef.current !== scope) return undefined;
                 if (fileRead !== fileReadGeneration.current) return false;
+                setLoadingKey("chat");
                 await chat.send(
                     normalizedInput,
                     aiMessages,
@@ -888,6 +889,7 @@ export const useArticleAiAssistantConfig = ({
             key={queue.key}
             aiProvider={data.aiProvider}
             fileInput={data.aiFileInput}
+            preparingFiles={loadingKey === "files"}
             disabled={offline || data.aiConfigured !== true || aiMessagesClearing}
             busy={busy}
             waiting={activeRun}

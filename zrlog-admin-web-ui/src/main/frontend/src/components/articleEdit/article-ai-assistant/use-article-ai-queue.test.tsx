@@ -105,3 +105,15 @@ it("preserves files on draft adoption and discards them when switching to anothe
     expect(queue.messages).toHaveLength(0);
     expect(send).not.toHaveBeenCalled();
 });
+
+it("retains attachments after an unexpected send rejection for explicit retry", async () => {
+    send.mockRejectedValueOnce(new Error("Connection lost")).mockResolvedValue(true);
+    const file = new File(["image"], "screenshot.png");
+    render("user/7");
+    await act(async () => queue.add("Describe screenshot", undefined, undefined, [file]));
+    expect(queue.paused).toBe(true);
+    expect(queue.messages[0].files?.[0]).toBe(file);
+    await act(async () => queue.resume());
+    expect(send.mock.calls[1][0].files[0]).toBe(file);
+    expect(queue.messages).toHaveLength(0);
+});
