@@ -5,7 +5,7 @@ import com.zrlog.admin.business.rest.request.UpgradeSettingsRequest;
 import com.zrlog.admin.business.rest.response.UpgradeSettingsResponse;
 import com.zrlog.business.rest.base.UpgradeWebSiteInfo;
 import com.zrlog.common.exception.ArgsException;
-import com.zrlog.common.updater.docker.DockerUpdaterClient;
+import com.zrlog.updater.spi.DockerControl;
 import com.zrlog.common.updater.docker.DockerUpdaterProtocol;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.ZrLogUtil;
@@ -27,7 +27,7 @@ public class UpgradeSettingsService {
         if (!"preview".equals(channel) && !"release".equals(channel)) { throw new ArgsException("channel"); }
         try {
             response.setDockerSettings(dockerClient().settings(channel));
-        } catch (DockerUpdaterClient.RequestException error) {
+        } catch (DockerControl.RequestException error) {
             response.setDockerErrorCode(error.getCode());
         } catch (IllegalArgumentException | IllegalStateException error) {
             response.setDockerErrorCode("updater_not_configured");
@@ -50,7 +50,7 @@ public class UpgradeSettingsService {
             settingsService.updateUpgrade(settings, request);
             return;
         }
-        DockerUpdaterClient client = dockerClient();
+        DockerControl client = dockerClient();
         String channel = channel(input.getUpgradePreview());
         DockerUpdaterProtocol.SettingsResponse previous = client.settings(channel);
         String repository = input.getDockerRepository();
@@ -71,7 +71,7 @@ public class UpgradeSettingsService {
     }
 
     protected boolean isDockerMode() { return ZrLogUtil.isDockerMode(); }
-    protected DockerUpdaterClient dockerClient() { return DockerUpdaterClient.fromEnvironment(); }
+    protected DockerControl dockerClient() { return com.zrlog.common.adapter.UpdaterHosts.dockerControl(); }
     protected void requireDockerPermission() { AccountPermissionService.require(AccountAction.SYSTEM_MANAGE); }
     private String channel(Boolean preview) { return Boolean.TRUE.equals(preview) ? "preview" : "release"; }
 }

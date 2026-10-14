@@ -6,7 +6,7 @@ import com.zrlog.data.security.AccountAction;
 import com.hibegin.http.annotation.ResponseBody;
 import com.hibegin.http.annotation.RequestMethod;
 import com.hibegin.http.HttpMethod;
-import com.zrlog.common.updater.docker.DockerUpdaterClient;
+import com.zrlog.updater.spi.DockerControl;
 import com.zrlog.common.updater.docker.DockerUpdaterProtocol;
 import com.zrlog.util.ZrLogUtil;
 import com.zrlog.admin.business.rest.request.ExecuteUpgradeRequest;
@@ -64,7 +64,7 @@ public class UpgradeController extends BaseController {
     public void doUpgrade() throws IOException {
         ExecuteUpgradeRequest upgradeRequest = getRequestBodyWithNullCheck(ExecuteUpgradeRequest.class);
         if (upgradeRequest.getDocker() != null) {
-            DockerUpdaterClient client = dockerClient();
+            DockerControl client = dockerClient();
             DockerUpdaterProtocol.Job job = client.submit(upgradeRequest.getDocker());
             recordUpgradeAudit(upgradeRequest);
             if (isSseRequest()) {
@@ -110,7 +110,7 @@ public class UpgradeController extends BaseController {
     @RequestMethod(method = HttpMethod.GET)
     @RequiresAction(value = AccountAction.SYSTEM_MANAGE, descriptionKey = "system.upgrade")
     public void dockerStatus() throws IOException {
-        DockerUpdaterClient client = dockerClient();
+        DockerControl client = dockerClient();
         DockerUpdaterProtocol.Job job;
         try {
             String requestId = request.getParaToStr("requestId");
@@ -118,7 +118,7 @@ public class UpgradeController extends BaseController {
             if (job != null && !Objects.equals(requestId, job.id)) {
                 throw new IllegalStateException("Updater returned a different upgrade task");
             }
-        } catch (DockerUpdaterClient.RequestException error) {
+        } catch (DockerControl.RequestException error) {
             if (error.getStatus() != 404) { throw error; }
             job = null;
         }
@@ -129,8 +129,8 @@ public class UpgradeController extends BaseController {
         }
     }
 
-    private void streamDockerUpgrade(DockerUpdaterClient client, DockerUpdaterProtocol.Job job) throws IOException {
-        Map<String, Object> backend = I18nUtil.getAdminBackend();
+    private void streamDockerUpgrade(DockerControl client, DockerUpdaterProtocol.Job job) throws IOException {
+        Map<String, Object> backend = I18nUtil.getBackend();
         AdminSseEmitter.write(response, "admin-upgrade", "sse-error", emitter -> {
             ApiStandardResponse<UpgradeProcessResponse> result = new DockerUpgradeProgressService()
                     .watch(client, job, emitter::send, backend);
@@ -138,9 +138,9 @@ public class UpgradeController extends BaseController {
         });
     }
 
-    protected DockerUpdaterClient dockerClient() {
+    protected DockerControl dockerClient() {
         if (!ZrLogUtil.isDockerMode()) { throw new IllegalStateException("Docker updater requires Docker mode"); }
-        return DockerUpdaterClient.fromEnvironment();
+        return com.zrlog.common.adapter.UpdaterHosts.dockerControl();
     }
 
     private boolean isSseRequest() {

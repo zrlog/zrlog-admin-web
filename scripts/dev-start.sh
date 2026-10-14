@@ -61,7 +61,7 @@ else
     (
         cd "$ROOT_DIR"
         ./mvnw $MVNW_ARGS -q -DskipTests install
-        ./mvnw $MVNW_ARGS -pl zrlog-admin-web exec:java -Dexec.mainClass="com.zrlog.admin.Application"
+        ./mvnw $MVNW_ARGS -Pupdater-dev -pl zrlog-admin-web exec:java -Dexec.mainClass="com.zrlog.admin.Application"
     ) >"$BACKEND_LOG" 2>&1 &
     BACKEND_PID="$!"
     wait_until_ready "Backend" "$BACKEND_URL/admin/login" "$BACKEND_LOG" 90

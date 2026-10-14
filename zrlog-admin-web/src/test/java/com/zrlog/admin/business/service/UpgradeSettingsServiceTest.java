@@ -9,7 +9,7 @@ import com.zrlog.business.rest.base.UpgradeWebSiteInfo;
 import com.zrlog.business.updater.UpdateVersionInfoPlugin;
 import com.zrlog.common.Constants;
 import com.zrlog.common.exception.ArgsException;
-import com.zrlog.common.updater.docker.DockerUpdaterClient;
+import com.zrlog.updater.spi.DockerControl;
 import com.zrlog.common.updater.docker.DockerUpdaterProtocol;
 import org.junit.Test;
 
@@ -58,7 +58,7 @@ public class UpgradeSettingsServiceTest {
             assertEquals("86400", value(db, "autoUpgradeVersion"));
             assertTrue(client.saves.isEmpty());
             client.failSave = true;
-            assertThrows(DockerUpdaterClient.RequestException.class, () -> service.save(input(ALIYUN), request()));
+            assertThrows(DockerControl.RequestException.class, () -> service.save(input(ALIYUN), request()));
             assertEquals("86400", value(db, "autoUpgradeVersion"));
             assertEquals(HUB, client.repository);
         }
@@ -130,7 +130,7 @@ public class UpgradeSettingsServiceTest {
     private static UpgradeSettingsService service(Client client, boolean docker, WebSiteSettingsService settings) {
         return new UpgradeSettingsService(settings) {
             @Override protected boolean isDockerMode() { return docker; }
-            @Override protected DockerUpdaterClient dockerClient() { return client; }
+            @Override protected DockerControl dockerClient() { return client; }
         };
     }
     private static UpgradeSettingsRequest input(String repository) {
@@ -145,13 +145,13 @@ public class UpgradeSettingsServiceTest {
         return (HttpRequest) Proxy.newProxyInstance(HttpRequest.class.getClassLoader(), new Class<?>[]{HttpRequest.class},
                 (proxy, method, args) -> method.getName().equals("getUri") ? "/api/admin/website/upgrade" : null);
     }
-    private static class Client extends DockerUpdaterClient {
+    private static class Client extends com.zrlog.admin.test.support.DockerControlStub {
         String repository = HUB;
         String channel = "release";
         int reads;
         boolean failRead, failSave;
         List<String> saves = new ArrayList<>();
-        Client() { super("http://updater:8081", "test_token_123456789012345678901234", "https://dl.example", "docker.json"); }
+        Client() { }
         @Override public DockerUpdaterProtocol.SettingsResponse settings(String requestedChannel) {
             reads++;
             if (failRead) throw new RequestException(502, "metadata_unavailable");
