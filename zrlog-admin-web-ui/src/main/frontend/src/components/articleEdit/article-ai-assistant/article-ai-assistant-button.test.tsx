@@ -10,6 +10,7 @@ import { createDraftAiSaveGate, DraftAiSaveGate } from "../draft-ai-save-gate";
 import { AssistantTool, ToolAwareAIContent } from "./article-ai-assistant.types";
 import { useArticleAiAssistantConfig } from "./article-ai-assistant-button";
 import * as AiFiles from "./article-ai-files";
+import type { AiMentionInput } from "./article-ai-mentions";
 
 const mockMessageError = jest.fn(async (content?: unknown): Promise<void> => {
     void content;
@@ -145,7 +146,7 @@ type FooterActions = {
     onResumeQueue: () => void;
     onRemoveQueued: (id: number) => void;
     onClearAiMessages: () => void;
-    onSubmit: (message: string, tool?: AssistantTool, files?: File[]) => void;
+    onSubmit: (message: string, tool?: AssistantTool, files?: File[], references?: AiMentionInput[]) => void;
 };
 
 type ToolContentActions = {
@@ -594,6 +595,24 @@ describe("useArticleAiAssistantConfig draft request gate", () => {
         expect(post).toHaveBeenCalledTimes(1);
         expect(post.mock.calls[0][0]).toBe("/api/admin/article/ai");
         expect(post.mock.calls[0][1]).toMatchObject({ input: "Analyze", files: encoded, articleId: 7 });
+    });
+
+    it("sends article references with a selected skill through chat without losing either", async () => {
+        const post = jest
+            .fn<ReturnType<AxiosPost>, Parameters<AxiosPost>>()
+            .mockResolvedValue(answer("Compare", "Summary"));
+        const mounted = mountHook(createDraftAiSaveGate(), post, undefined, 7);
+        const references = [{ type: "article" as const, articleId: 42 }];
+        await act(async () => {
+            mounted.getFooter().onSubmit("Compare", "digest", [], references);
+            await flushRequest();
+        });
+        expect(post.mock.calls[0][0]).toBe("/api/admin/article/ai");
+        expect(post.mock.calls[0][1]).toMatchObject({
+            input: "digest\nCompare",
+            articleId: 7,
+            references,
+        });
     });
 
     it("does not send files after stopping or switching articles while reading them", async () => {

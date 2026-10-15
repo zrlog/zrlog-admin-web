@@ -1,5 +1,6 @@
 import { useEffect, useReducer, useRef } from "react";
 import { AssistantTool } from "./article-ai-assistant.types";
+import type { AiMentionInput } from "./article-ai-mentions";
 
 export type QueuedAiMessage = {
     id: number;
@@ -7,6 +8,7 @@ export type QueuedAiMessage = {
     tool?: AssistantTool;
     selectedText?: string;
     files?: File[];
+    references?: AiMentionInput[];
 };
 
 // Queue only unsent input. Conversation history and article context are read when a turn starts.
@@ -41,12 +43,13 @@ export const useArticleAiQueue = (
                 (success) => {
                     if (!success) current.paused = true;
                     // A save in progress can reject dispatch before any request/message exists.
-                    if (success === undefined || (!success && message.files?.length))
+                    if (success === undefined || (!success && (message.files?.length || message.references?.length)))
                         current.items = [message, ...current.items];
                 },
                 () => {
                     current.paused = true;
-                    if (message.files?.length) current.items = [message, ...current.items];
+                    if (message.files?.length || message.references?.length)
+                        current.items = [message, ...current.items];
                 }
             )
             .finally(() => {
@@ -66,11 +69,24 @@ export const useArticleAiQueue = (
         key: current.key,
         messages: current.items,
         paused: current.paused,
-        add: (input: string, tool?: AssistantTool, selectedText?: string, files?: File[]) => {
+        add: (
+            input: string,
+            tool?: AssistantTool,
+            selectedText?: string,
+            files?: File[],
+            references?: AiMentionInput[]
+        ) => {
             if (!current.running && !current.items.length) current.paused = false;
             current.items = [
                 ...current.items,
-                { id: ++nextId.current, input, tool, selectedText, ...(files?.length ? { files: [...files] } : {}) },
+                {
+                    id: ++nextId.current,
+                    input,
+                    tool,
+                    selectedText,
+                    ...(files?.length ? { files: [...files] } : {}),
+                    ...(references?.length ? { references: references.map((reference) => ({ ...reference })) } : {}),
+                },
             ];
             redraw();
         },

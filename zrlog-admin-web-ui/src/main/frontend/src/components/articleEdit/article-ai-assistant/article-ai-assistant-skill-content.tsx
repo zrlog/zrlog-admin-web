@@ -4,8 +4,12 @@ import Input from "@zrlog/ui/antd/Input";
 import ArrowUpIcon from "@zrlog/ui/icons/arrow-up";
 import CloseIcon from "@zrlog/ui/icons/close";
 import InfoIcon from "@zrlog/ui/icons/info";
-import { FunctionComponent, useEffect, useId, useState } from "react";
+import { FunctionComponent, useEffect, useId, useRef, useState } from "react";
 import { Button, Space, Typography } from "antd";
+import type { TextAreaRef } from "antd/es/input/TextArea";
+import type { AxiosInstance } from "axios";
+import { useArticleAiMentions } from "./use-article-ai-mentions";
+import { AiMentionInput, encodeAiMentions, withAiMentionLabels } from "./article-ai-mentions";
 
 import AIIcon from "../../../icons/AIProviderIcon";
 import { getEditorRes } from "@zrlog/editor/dist/editor/lang/editor-lang";
@@ -37,7 +41,8 @@ type ArticleAiAssistantSkillContentProps = {
     markdownLength: number;
     fileInput?: AiFileCapabilities;
     preparingFiles?: boolean;
-    onSubmit: (message: string, tool?: AssistantTool, files?: File[]) => boolean;
+    api?: AxiosInstance;
+    onSubmit: (message: string, tool?: AssistantTool, files?: File[], references?: AiMentionInput[]) => boolean;
 };
 
 const ArticleAiAssistantSkillContent: FunctionComponent<ArticleAiAssistantSkillContentProps> = ({
@@ -56,12 +61,21 @@ const ArticleAiAssistantSkillContent: FunctionComponent<ArticleAiAssistantSkillC
     onSubmit,
     fileInput,
     preparingFiles,
+    api,
 }) => {
     const [input, setInput] = useState("");
     const [files, setFiles] = useState<File[]>([]);
     const [selectedTool, setSelectedTool] = useState<AssistantTool>();
     const [skillPanelOpen, setSkillPanelOpen] = useState(false);
     const skillPanelId = useId();
+    const inputRef = useRef<TextAreaRef>(null);
+    const focusInput = (caret: number) => {
+        requestAnimationFrame(() => {
+            inputRef.current?.focus();
+            inputRef.current?.resizableTextArea?.textArea.setSelectionRange(caret, caret);
+        });
+    };
+    const mentions = useArticleAiMentions(input, setInput, files, disabled, theme, focusInput, api);
 
     const assistantRes = getRes().articleEdit.assistant;
     const selectedTextValue = selectedText?.trim() || "";
@@ -132,12 +146,22 @@ const ArticleAiAssistantSkillContent: FunctionComponent<ArticleAiAssistantSkillC
     };
 
     const submit = (message: string, tool?: AssistantTool) => {
-        const accepted = files.length
+        const accepted = mentions.mentions.length
+            ? onSubmit(
+                  withAiMentionLabels(message, mentions.mentions),
+                  tool,
+                  files,
+                  encodeAiMentions(mentions.mentions, files)
+              )
+            : files.length
             ? onSubmit(message, tool, files)
             : tool
             ? onSubmit(message, tool)
             : onSubmit(message);
-        if (accepted) setFiles([]);
+        if (accepted) {
+            setFiles([]);
+            mentions.reset();
+        }
         return accepted;
     };
 
@@ -164,7 +188,14 @@ const ArticleAiAssistantSkillContent: FunctionComponent<ArticleAiAssistantSkillC
             setSelectedTool(undefined);
             return;
         }
-        if ((!input.trim() && !files.length) || !submit(input.trim() || getRes().articleEdit.files.prompt)) return;
+        if (
+            (!input.trim() && !files.length && !mentions.mentions.length) ||
+            !submit(
+                input.trim() ||
+                    (mentions.mentions.length ? assistantRes.mentions.prompt : getRes().articleEdit.files.prompt)
+            )
+        )
+            return;
         setInput("");
     };
 
@@ -223,7 +254,9 @@ const ArticleAiAssistantSkillContent: FunctionComponent<ArticleAiAssistantSkillC
     const selectedToolButton = selectedTool ? toolButtons.find((tool) => tool.key === selectedTool) : undefined;
     const activeToolDisabledReason = selectedToolButton?.disabledReason || parsedSkillCommand?.disabledReason;
     const cannotSubmit =
-        disabled || Boolean(activeToolDisabledReason) || (!selectedTool && !input.trim() && !files.length);
+        disabled ||
+        Boolean(activeToolDisabledReason) ||
+        (!selectedTool && !input.trim() && !files.length && !mentions.mentions.length);
     const willQueue = busy || waiting || queuedMessages.length > 0;
     const actionLabel = busy
         ? getRes().articleEdit.knowledge.stop
@@ -233,7 +266,7 @@ const ArticleAiAssistantSkillContent: FunctionComponent<ArticleAiAssistantSkillC
 
     return (
         <>
-            {showSkillPanel && (
+            {showSkillPanel && !mentions.open && (
                 <div
                     id={skillPanelId}
                     style={{
@@ -295,16 +328,27 @@ const ArticleAiAssistantSkillContent: FunctionComponent<ArticleAiAssistantSkillC
                 disabled={disabled}
                 onChange={setFiles}
                 toolbar={
-                    <Button
-                        type="text"
-                        icon={<AIIcon name={aiProvider} />}
-                        disabled={disabled}
-                        aria-expanded={showSkillPanel}
-                        aria-controls={showSkillPanel ? skillPanelId : undefined}
-                        onClick={() => setSkillPanelOpen((prevState) => !prevState)}
-                    >
-                        {getRes().articleEdit.assistant.skill}
-                    </Button>
+                    <Space size={theme.marginXXS}>
+                        <Button
+                            type="text"
+                            disabled={disabled}
+                            aria-label={assistantRes.mentions.choose}
+                            title={assistantRes.mentions.choose}
+                            onClick={mentions.insert}
+                        >
+                            @
+                        </Button>
+                        <Button
+                            type="text"
+                            icon={<AIIcon name={aiProvider} />}
+                            disabled={disabled}
+                            aria-expanded={showSkillPanel}
+                            aria-controls={showSkillPanel ? skillPanelId : undefined}
+                            onClick={() => setSkillPanelOpen((prevState) => !prevState)}
+                        >
+                            {getRes().articleEdit.assistant.skill}
+                        </Button>
+                    </Space>
                 }
                 action={
                     <Button
@@ -334,6 +378,8 @@ const ArticleAiAssistantSkillContent: FunctionComponent<ArticleAiAssistantSkillC
                 }
             >
                 <div style={{ position: "relative" }}>
+                    {mentions.panel}
+                    {mentions.tags}
                     {selectedTool && (
                         <Space style={{ marginBottom: 6 }}>
                             <Tag closable color="processing" onClose={() => setSelectedTool(undefined)}>
@@ -347,17 +393,29 @@ const ArticleAiAssistantSkillContent: FunctionComponent<ArticleAiAssistantSkillC
                         </Typography.Text>
                     ) : null}
                     <TextArea
+                        ref={inputRef}
+                        {...mentions.inputProps}
                         autoSize={{ minRows: 1, maxRows: 5 }}
                         variant="borderless"
                         disabled={disabled}
                         aria-label={assistantRes.messageInput}
                         value={input}
                         placeholder={getRes().articleEdit.assistant.inputPlaceholder}
-                        onChange={(e) => updateInput(e.target.value)}
-                        onPressEnter={(e) => {
+                        onChange={(e) => {
+                            mentions.setCaret(e.target.selectionStart);
+                            updateInput(e.target.value);
+                        }}
+                        onSelect={(e) => {
+                            const target = e.currentTarget;
+                            mentions.setCaret(
+                                target.selectionStart === target.selectionEnd ? target.selectionStart : -1
+                            );
+                        }}
+                        onKeyDown={(e) => {
                             if (e.shiftKey || e.nativeEvent.isComposing || e.keyCode === 229) {
                                 return;
                             }
+                            if (mentions.onKeyDown(e) || e.key !== "Enter") return;
                             e.preventDefault();
                             e.stopPropagation();
                             submitInput();

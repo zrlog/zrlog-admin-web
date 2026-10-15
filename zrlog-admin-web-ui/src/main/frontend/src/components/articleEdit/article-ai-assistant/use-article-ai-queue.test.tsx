@@ -94,6 +94,26 @@ it("retains the original File after failure and sends it again on explicit resum
     expect(queue.messages).toHaveLength(0);
 });
 
+it("preserves reference IDs and attachment indexes through queueing and explicit resume", async () => {
+    send.mockResolvedValueOnce(false).mockResolvedValue(true);
+    const file = new File(["report"], "report.txt");
+    const references = [
+        { type: "article" as const, articleId: 42 },
+        { type: "file" as const, fileIndex: 0 },
+    ];
+    render("user/7", true);
+    act(() => queue.add("Compare", undefined, undefined, [file], references));
+    references[0].articleId = 99;
+    await act(async () => render("user/7"));
+    expect(queue.messages[0].references).toEqual([
+        { type: "article", articleId: 42 },
+        { type: "file", fileIndex: 0 },
+    ]);
+    await act(async () => queue.resume());
+    expect(send.mock.calls[1][0].references).toEqual(send.mock.calls[0][0].references);
+    expect(send.mock.calls[1][0].files[0]).toBe(file);
+});
+
 it("preserves files on draft adoption and discards them when switching to another article", () => {
     render("user/draft", true);
     const file = new File(["draft"], "draft.txt");

@@ -75,7 +75,9 @@ const render = (props: Partial<ComponentProps<typeof ArticleAiAssistantSkillCont
 const input = () => container.querySelector("textarea")!;
 const type = (value: string) =>
     act(() => {
-        Simulate.change(input(), { target: { value } } as any);
+        input().value = value;
+        input().setSelectionRange(value.length, value.length);
+        Simulate.change(input());
     });
 const enter = (options: { shiftKey?: boolean; composing?: boolean; keyCode?: number } = {}) =>
     act(() => {
@@ -215,4 +217,147 @@ it("encodes the actual UTF-8 contents of a selected file", async () => {
     expect(validateAiFiles([new File(["x".repeat(fileInput.maxFileBytes + 1)], "large.txt")], fileInput)).toBe(
         getRes().articleEdit.files.sizeLimit
     );
+});
+
+it("selects attachment references with the keyboard without sending, and ignores email addresses", () => {
+    render({ busy: false, fileInput });
+    const file = new File(["notes"], "notes.txt");
+    attach(file);
+    type("person@example.com");
+    expect(container.querySelector('[role="listbox"]')).toBeNull();
+    type("Summarize @notes");
+    expect(container.querySelectorAll('[role="option"]')).toHaveLength(1);
+    enter({ composing: true });
+    enter({ keyCode: 229 });
+    expect(container.querySelector('[role="listbox"]')).not.toBeNull();
+    enter();
+    expect(submit).not.toHaveBeenCalled();
+    expect(input().value).toBe("Summarize ");
+    expect(container.querySelector('[role="listbox"]')).toBeNull();
+    submit.mockReturnValueOnce(false);
+    enter();
+    expect(submit).toHaveBeenLastCalledWith(
+        expect.stringContaining("@notes.txt"),
+        undefined,
+        [file],
+        [{ type: "file", fileIndex: 0 }]
+    );
+    expect(container.textContent).toContain("@notes.txt");
+    enter();
+    expect(container.textContent).not.toContain("@notes.txt");
+});
+
+it("keeps same-name attachments distinct and reindexes a reference after another attachment is removed", () => {
+    render({ busy: false, fileInput });
+    const first = new File(["first"], "notes.txt");
+    const second = new File(["second"], "notes.txt");
+    attach(first, second);
+    type("Compare @");
+    act(() => Simulate.keyDown(input(), { key: "ArrowDown" }));
+    act(() => Simulate.keyDown(input(), { key: "Tab" }));
+    expect(submit).not.toHaveBeenCalled();
+    click(`${getRes().articleEdit.files.remove} notes.txt`);
+    enter();
+    expect(submit).toHaveBeenLastCalledWith(
+        expect.stringContaining("@notes.txt"),
+        undefined,
+        [second],
+        [{ type: "file", fileIndex: 0 }]
+    );
+});
+
+it("removes a reference when its attachment is removed, and supports Escape and the visible @ button", () => {
+    render({ busy: false, fileInput });
+    const file = new File(["notes"], "notes.txt");
+    attach(file);
+    type("@");
+    act(() => Simulate.keyDown(input(), { key: "Escape" }));
+    expect(container.querySelector('[role="listbox"]')).toBeNull();
+    type("");
+    click(res().mentions.choose);
+    expect(container.querySelector('[role="listbox"]')).not.toBeNull();
+    enter();
+    click(`${getRes().articleEdit.files.remove} notes.txt`);
+    expect(container.textContent).not.toContain("@notes.txt");
+    type("Plain question");
+    enter();
+    expect(submit).toHaveBeenLastCalledWith("Plain question");
+});
+
+it("searches articles, ignores stale replies, and submits the selected article ID", async () => {
+    jest.useFakeTimers();
+    try {
+        let resolveOld!: (value: unknown) => void;
+        const get = jest
+            .fn<any, any[]>()
+            .mockReturnValueOnce(
+                new Promise((resolve) => {
+                    resolveOld = resolve;
+                })
+            )
+            .mockResolvedValueOnce({
+                data: {
+                    error: 0,
+                    data: { articles: [{ id: 42, title: "Deployment", url: "https://blog.example/42" }] },
+                },
+            });
+        render({ busy: false, api: { get } as any });
+        type("Compare @old");
+        await act(async () => {
+            jest.advanceTimersByTime(200);
+        });
+        type("Compare @deploy");
+        await act(async () => {
+            jest.advanceTimersByTime(200);
+        });
+        await act(async () =>
+            resolveOld({
+                data: { error: 0, data: { articles: [{ id: 99, title: "Stale", url: "https://blog.example/99" }] } },
+            })
+        );
+        expect(get.mock.calls[0][1].signal.aborted).toBe(true);
+        expect(container.textContent).not.toContain("Stale");
+        expect(container.querySelector('[role="option"]')?.textContent).toContain("Deployment");
+        act(() => (container.querySelector('[role="option"]') as HTMLElement).click());
+        expect(input().value).toBe("Compare ");
+        expect(submit).not.toHaveBeenCalled();
+        enter();
+        expect(submit).toHaveBeenLastCalledWith(
+            expect.stringContaining("[@Deployment](<https://blog.example/42>)"),
+            undefined,
+            [],
+            [{ type: "article", articleId: 42 }]
+        );
+    } finally {
+        jest.useRealTimers();
+    }
+});
+
+it("keeps the prompt while article search fails and supports retry without sending an unresolved mention", async () => {
+    jest.useFakeTimers();
+    try {
+        const get = jest
+            .fn<any, any[]>()
+            .mockRejectedValueOnce(new Error("private server detail"))
+            .mockResolvedValueOnce({ data: { error: 0, data: { articles: [] } } });
+        render({ busy: false, api: { get } as any });
+        type("Read @missing");
+        enter();
+        expect(submit).not.toHaveBeenCalled();
+        await act(async () => {
+            jest.advanceTimersByTime(200);
+        });
+        expect(container.textContent).toContain(res().mentions.failed);
+        expect(container.textContent).not.toContain("private server detail");
+        click(res().mentions.retry);
+        await act(async () => {
+            jest.advanceTimersByTime(200);
+        });
+        expect(container.textContent).toContain(res().mentions.empty);
+        expect(input().value).toBe("Read @missing");
+        enter();
+        expect(submit).not.toHaveBeenCalled();
+    } finally {
+        jest.useRealTimers();
+    }
 });

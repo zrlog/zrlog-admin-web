@@ -111,6 +111,15 @@ public class AIArticleController extends BaseController {
     }
 
     @ResponseBody
+    @RequiresAction(value = AccountAction.ARTICLE_ASSIST, descriptionKey = "article.assist")
+    @RequestMethod(method = HttpMethod.GET)
+    public ApiStandardResponse<com.zrlog.admin.business.knowledge.KnowledgeModels.SearchResult> aiReferences() throws SQLException {
+        response.addHeader("Cache-Control", "private, no-store");
+        return new ApiStandardResponse<>(new com.zrlog.admin.business.ai.service.AIReferenceService()
+                .search(request.getParaToStr("query", "")));
+    }
+
+    @ResponseBody
     @RequiresAction(value = AccountAction.ARTICLE_ASSIST, articleQuery = true, descriptionKey = "article.aiMessage")
     public ApiStandardResponse<Boolean> updateAiMessage() throws SQLException {
         UpdateAIMessageRequest updateRequest = getRequestBodyWithNullCheck(UpdateAIMessageRequest.class);

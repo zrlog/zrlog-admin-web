@@ -54,6 +54,7 @@ import { getShortcutTitle, isTouchLikeDevice } from "../shortcut-utils";
 import { ApiResponse } from "../../../type";
 import { DraftAiSaveGate } from "../draft-ai-save-gate";
 import { useArticleAiQueue } from "./use-article-ai-queue";
+import type { AiMentionInput } from "./article-ai-mentions";
 
 type ArticleAiAssistantConfigProps = {
     data: ArticleEditState;
@@ -151,7 +152,7 @@ export const useArticleAiAssistantConfig = ({
     const queue = useArticleAiQueue(
         scope,
         offline || data.aiConfigured !== true || busy || activeRun || aiMessagesClearing,
-        ({ input, tool, selectedText, files }) => sendMessage(input, tool, selectedText, files)
+        ({ input, tool, selectedText, files, references }) => sendMessage(input, tool, selectedText, files, references)
     );
     migrateQueue.current = queue.migrate;
 
@@ -164,9 +165,15 @@ export const useArticleAiAssistantConfig = ({
         };
     }, [scope]);
 
-    const submitMessage = (input: string, tool?: AssistantTool, selectedText?: string, files?: File[]) => {
+    const submitMessage = (
+        input: string,
+        tool?: AssistantTool,
+        selectedText?: string,
+        files?: File[],
+        references?: AiMentionInput[]
+    ) => {
         if (!input.trim() || offline || data.aiConfigured !== true || aiMessagesClearing) return false;
-        queue.add(input.trim(), tool, selectedText, files);
+        queue.add(input.trim(), tool, selectedText, files, references);
         return true;
     };
 
@@ -400,7 +407,8 @@ export const useArticleAiAssistantConfig = ({
         messageInput: string,
         tool?: AssistantTool,
         selectedText?: string,
-        files?: File[]
+        files?: File[],
+        references?: AiMentionInput[]
     ): Promise<boolean | undefined> => {
         const normalizedInput = messageInput.trim();
         if (!normalizedInput || loadingKey || chat.busy || activeRun) {
@@ -412,7 +420,7 @@ export const useArticleAiAssistantConfig = ({
             void message.warning(getRes().articleEdit.assistant.saveInProgress);
             return undefined;
         }
-        if (!tool || files?.length) {
+        if (!tool || files?.length || references?.length) {
             setLoadingKey(files?.length ? "files" : "chat");
             try {
                 const fileRead = fileReadGeneration.current;
@@ -422,7 +430,7 @@ export const useArticleAiAssistantConfig = ({
                 if (fileRead !== fileReadGeneration.current) return false;
                 setLoadingKey("chat");
                 await chat.send(
-                    normalizedInput,
+                    tool && references?.length ? `${getAssistantToolLabel(tool)}\n${normalizedInput}` : normalizedInput,
                     aiMessages,
                     articleId,
                     undefined,
@@ -431,7 +439,8 @@ export const useArticleAiAssistantConfig = ({
                         contextRevision: editorContextRevision(editorContext),
                     },
                     fileInputs,
-                    files
+                    files,
+                    references
                 );
 
                 return chat.outcome.current;
@@ -893,6 +902,7 @@ export const useArticleAiAssistantConfig = ({
         <ArticleAiAssistantSkillContent
             key={queue.key}
             aiProvider={data.aiProvider}
+            api={axiosInstance}
             fileInput={data.aiFileInput}
             preparingFiles={loadingKey === "files"}
             disabled={offline || data.aiConfigured !== true || aiMessagesClearing}
@@ -906,7 +916,9 @@ export const useArticleAiAssistantConfig = ({
             theme={theme}
             selectedText={selectedText}
             markdownLength={(data.article.markdown || "").trim().length}
-            onSubmit={(messageInput, tool, files) => submitMessage(messageInput, tool, selectedText, files)}
+            onSubmit={(messageInput, tool, files, references) =>
+                submitMessage(messageInput, tool, selectedText, files, references)
+            }
         />
     );
 

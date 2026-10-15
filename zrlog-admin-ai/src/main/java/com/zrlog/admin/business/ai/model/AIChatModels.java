@@ -13,9 +13,26 @@ public final class AIChatModels {
         public com.zrlog.admin.business.rest.request.GenerateArticleFieldRequest editorContext;
         public String contextRevision;
         public List<AIFileModels.Input> files = new ArrayList<>();
+        public List<Reference> references = new ArrayList<>();
         public List<ChatMessage> history = new ArrayList<>();
         public void doValid() {
             com.zrlog.admin.business.ai.service.AIFileService.validateInputs(files);
+            if (references == null || references.size() > 8) throw new ArgsException();
+            Set<String> referenceKeys = new HashSet<>();
+            for (Reference reference : references) {
+                if (reference == null) throw new ArgsException();
+                String key;
+                if ("article".equals(reference.type)) {
+                    if (reference.articleId == null || reference.articleId <= 0 || reference.articleId > Integer.MAX_VALUE
+                            || reference.fileIndex != null) throw new ArgsException();
+                    key = "article:" + reference.articleId;
+                } else if ("file".equals(reference.type)) {
+                    if (reference.fileIndex == null || reference.fileIndex < 0 || reference.fileIndex >= files.size()
+                            || reference.articleId != null) throw new ArgsException();
+                    key = "file:" + reference.fileIndex;
+                } else throw new ArgsException();
+                if (!referenceKeys.add(key)) throw new ArgsException();
+            }
             com.zrlog.admin.business.ai.service.AIWritingSkillCatalog.validateSnapshot(editorContext);
             if (editorContext != null && (contextRevision == null || !contextRevision.matches("[a-f0-9]{32}"))) throw new ArgsException();
             if (articleId < 0 || input == null || input.trim().isEmpty() || input.length() > 8000
@@ -27,6 +44,18 @@ public final class AIChatModels {
             }
             if (size > 32000) throw new ArgsException();
         }
+    }
+    public static class Reference {
+        public String type;
+        public Long articleId;
+        public Integer fileIndex;
+    }
+    public static class ResolvedReference {
+        public String type;
+        public com.zrlog.admin.business.knowledge.KnowledgeModels.ArticleResult article;
+        public Integer fileIndex;
+        public String fileName;
+        public String attachmentId;
     }
     public static class ChatMessage { public String role; public String content; public List<AIFileModels.Attachment> attachments; }
     public static class ApprovalRequest implements Validator {

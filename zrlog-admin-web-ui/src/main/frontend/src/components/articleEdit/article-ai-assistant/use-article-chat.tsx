@@ -14,6 +14,7 @@ import { AIButtonRenderMessageOptions } from "@zrlog/editor/core/ai/AIButton";
 import ArticleAiReasoning from "./article-ai-reasoning";
 import { getRes } from "../../../utils/constants";
 import { ArticleUpdatedEvent, EditorSnapshot, ToolAwareAIContent } from "./article-ai-assistant.types";
+import type { AiMentionInput } from "./article-ai-mentions";
 
 type Source = { id: number; title: string; url: string; draft: boolean; privateArticle: boolean };
 export type ChatMessage = ToolAwareAIContent & {
@@ -329,7 +330,8 @@ export const useArticleChat = (
         },
         snapshot?: EditorSnapshot,
         files?: AiFileInput[],
-        localFiles?: File[]
+        localFiles?: File[],
+        references?: AiMentionInput[]
     ) => {
         if (approval)
             context = (context as ChatMessage[]).filter(
@@ -548,7 +550,13 @@ export const useArticleChat = (
                               ? { interactionId: approval.run.interaction?.id, ...approval.interaction }
                               : { approvalId: approval.run.approval?.id }),
                       }
-                    : { input: prompt, articleId, ...snapshot, ...(files?.length ? { files } : {}) },
+                    : {
+                          input: prompt,
+                          articleId,
+                          ...snapshot,
+                          ...(files?.length ? { files } : {}),
+                          ...(references?.length ? { references } : {}),
+                      },
                 requestConfig
             );
             consume(typeof response.data === "string" ? response.data : "", true);
