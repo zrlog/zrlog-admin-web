@@ -4,10 +4,11 @@ import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals
 import { UpgradeData } from "../type";
 import Upgrade, { UpgradeProps } from "./upgrade";
 import { getVersion } from "../api";
+import { finishBackgroundTask, updateBackgroundTask } from "../utils/background-task-store";
 import { DockerUpgradeJob, DockerUpgradeRequest, readDockerUpgrade, saveDockerUpgrade } from "../utils/docker-upgrade";
 
 const mockGet = jest.fn<Promise<any>, [string, unknown]>();
-const mockUpgrade = jest.fn<Promise<any>, [string, unknown]>();
+const mockUpgrade = jest.fn<Promise<any>, [string, any]>();
 const mockSubscribe = jest.fn<Promise<any>, [string, any]>();
 const mockPost = jest.fn<Promise<any>, [string, any, unknown?]>();
 const mockMessage = { error: jest.fn() };
@@ -80,6 +81,12 @@ jest.mock("antd", () => {
         Col: Container,
         Card: Container,
         Steps: () => null,
+        Progress: ({ percent, status, format, "aria-label": label }: any) =>
+            React.createElement(
+                "div",
+                { role: "progressbar", "aria-label": label, "aria-valuenow": percent, "data-status": status },
+                format(percent)
+            ),
         Alert: ({ message, description }: any) => React.createElement("div", null, message, description),
         Button: ({ children, onClick, disabled, loading }: any) =>
             React.createElement("button", { onClick, disabled: disabled || loading }, children),
@@ -485,6 +492,28 @@ describe("Docker upgrade interaction and recovery", () => {
         expect(container.textContent).toContain("recovery");
     });
 
+    it.each(["pulling", "succeeded"] as const)(
+        "verifies %s JSON snapshots before completing progress",
+        async (phase) => {
+            saveDockerUpgrade(request);
+            mockSubscribe.mockResolvedValue(job(phase));
+            jest.mocked(getVersion)
+                .mockResolvedValueOnce({ data: { buildId: "old-build" } } as any)
+                .mockResolvedValue({ data: { buildId: request.buildId } } as any);
+            mockUpgrade.mockResolvedValue({ error: 0, data: { synced: true } });
+            await render();
+            expect(container.querySelector('[role="progressbar"]')?.getAttribute("aria-valuenow")).toBe(
+                phase === "succeeded" ? "33" : "0"
+            );
+            expect(mockModal.success).not.toHaveBeenCalled();
+            await tick();
+            expect(container.querySelectorAll('[role="listitem"][aria-busy="true"]')).toHaveLength(0);
+            expect(container.querySelector('[role="progressbar"]')?.getAttribute("aria-valuenow")).toBe("100");
+            expect(mockModal.success).toHaveBeenCalledTimes(1);
+            expect(readDockerUpgrade()).toBeUndefined();
+        }
+    );
+
     it.each(["offline", "unmount"])("aborts the stream and ignores late events after %s", async (transition) => {
         saveDockerUpgrade(request);
         const pending = deferred();
@@ -521,4 +550,224 @@ describe("Docker upgrade interaction and recovery", () => {
         expect(mockUpgrade).not.toHaveBeenCalled();
         expect(mockMessage.error).not.toHaveBeenCalled();
     });
+});
+
+describe.each([false, true])("shared online upgrade lifecycle (Docker=%s)", (docker) => {
+    let root: Root;
+    let container: HTMLDivElement;
+    const originalCrypto = Object.getOwnPropertyDescriptor(globalThis, "crypto");
+    const targetBuild = "target-build";
+    const rows = () => Array.from(container.querySelectorAll('[role="listitem"]'));
+    const running = () => container.querySelectorAll('[role="listitem"][aria-busy="true"]');
+    const percent = () => container.querySelector('[role="progressbar"]')?.getAttribute("aria-valuenow");
+    const emit = async (stage: string, status = "running") => {
+        await act(async () =>
+            mockUpgrade.mock.calls[0][1].onEvent({
+                event: "upgrade-progress",
+                data: { stage, status, message: `Stage: ${stage}` },
+            })
+        );
+    };
+    const start = async (online = true) => {
+        const data: UpgradeData = {
+            ...initialData(),
+            onlineUpgradable: online,
+            dockerMode: docker,
+            dockerUpdaterAvailable: docker,
+            version: { ...initialData().version!, buildId: targetBuild, artifactVersion: "4.0.0", channel: "release" },
+        };
+        await act(async () => root.render(<Upgrade data={data} offline={false} offlineData={false} />));
+        await act(async () => (container.querySelector('input[type="checkbox"]') as HTMLInputElement).click());
+        const button = Array.from(container.querySelectorAll("button")).find(
+            (item) => item.textContent === (online ? "Update Now" : "View Manual Instructions")
+        );
+        expect(button).toBeDefined();
+        await act(async () => button!.click());
+    };
+
+    beforeEach(() => {
+        reactActEnvironment.IS_REACT_ACT_ENVIRONMENT = true;
+        jest.useFakeTimers();
+        jest.clearAllMocks();
+        mockUpgrade.mockReset();
+        mockSubscribe.mockReset();
+        mockPost.mockResolvedValue({ data: { error: 0 } });
+        jest.mocked(getVersion).mockReset();
+        jest.mocked(getVersion).mockResolvedValue({ data: { buildId: "previous-build" } } as any);
+        Object.defineProperty(globalThis, "crypto", { configurable: true, value: require("crypto").webcrypto });
+        localStorage.clear();
+        container = document.createElement("div");
+        document.body.appendChild(container);
+        root = createRoot(container);
+    });
+    afterEach(() => {
+        act(() => root.unmount());
+        container.remove();
+        localStorage.clear();
+        jest.restoreAllMocks();
+        jest.useRealTimers();
+        if (originalCrypto) Object.defineProperty(globalThis, "crypto", originalCrypto);
+        else Reflect.deleteProperty(globalThis, "crypto");
+        reactActEnvironment.IS_REACT_ACT_ENVIRONMENT = false;
+    });
+
+    it("shows confirmed step percentages and settles every spinner after sync", async () => {
+        const stream = deferred();
+        const version = deferred();
+        const sync = deferred();
+        mockPost.mockReturnValue(deferred().promise);
+        mockUpgrade.mockReturnValueOnce(stream.promise).mockReturnValueOnce(sync.promise);
+        jest.mocked(getVersion).mockReturnValueOnce(version.promise as any);
+        await start();
+        expect(percent()).toBe("0");
+        await emit("download");
+        await emit("restart");
+        expect(rows()[0].getAttribute("aria-busy")).toBe("false");
+        expect(rows()[0].textContent).toContain("Completed");
+        expect(running()).toHaveLength(1);
+        await emit("complete", "complete");
+        expect(percent()).toBe("33");
+        await act(async () => stream.resolve({ error: 0, data: { finish: true } }));
+        expect(percent()).toBe("33");
+        await act(async () => version.resolve({ data: { buildId: targetBuild } }));
+        expect(percent()).toBe("67");
+        expect(running()).toHaveLength(1);
+        expect(mockModal.success).not.toHaveBeenCalled();
+        await act(async () => sync.resolve({ error: 0, data: { synced: true } }));
+        expect(percent()).toBe("100");
+        expect(running()).toHaveLength(0);
+        expect(mockModal.success).toHaveBeenCalledTimes(1);
+        expect(finishBackgroundTask).toHaveBeenLastCalledWith("test-upgrade-task", "success", expect.any(String));
+        const taskUpdates = jest.mocked(updateBackgroundTask).mock.calls.length;
+        await emit("download");
+        await emit("late-stage");
+        expect(percent()).toBe("100");
+        expect(running()).toHaveLength(0);
+        expect(container.textContent).not.toContain("late-stage");
+        expect(updateBackgroundTask).toHaveBeenCalledTimes(taskUpdates);
+    });
+
+    it.each(["before-progress", "download", "restart"])(
+        "verifies the version after disconnect at %s without submitting again",
+        async (stage) => {
+            const stream = deferred();
+            mockUpgrade.mockReturnValueOnce(stream.promise).mockResolvedValue({ error: 0, data: { synced: true } });
+            jest.mocked(getVersion)
+                .mockResolvedValueOnce({ data: { buildId: "previous-build" } } as any)
+                .mockResolvedValue({ data: { buildId: targetBuild } } as any);
+            await start();
+            if (stage !== "before-progress") await emit(stage);
+            await act(async () => stream.reject(new Error("connection closed")));
+            expect(mockUpgrade.mock.calls[0][1].showErrorMessage).toBe(false);
+            expect(mockMessage.error).not.toHaveBeenCalled();
+            expect(percent()).toBe("0");
+            expect(mockModal.success).not.toHaveBeenCalled();
+            await act(async () => jest.advanceTimersByTime(3000));
+            expect(percent()).toBe("100");
+            expect(running()).toHaveLength(0);
+            expect(mockModal.success).toHaveBeenCalledTimes(1);
+            expect(mockUpgrade.mock.calls.filter(([path]) => path === "/api/admin/upgrade/doUpgrade")).toHaveLength(1);
+            expect(readDockerUpgrade()).toBeUndefined();
+        }
+    );
+
+    it.each(["upgrade-progress", "sse-error", "response", "json"])(
+        "stops all pending rows on a %s failure without starting version recovery",
+        async (source) => {
+            const stream = deferred();
+            mockUpgrade.mockReturnValueOnce(stream.promise);
+            await start();
+            await emit("download");
+            await emit("restart");
+            await act(async () => {
+                if (source === "json") {
+                    stream.resolve({ error: 1, message: "Update rejected" });
+                } else {
+                    mockUpgrade.mock.calls[0][1].onEvent({
+                        event: source,
+                        data: { stage: "error", status: "error", error: 1, message: "Update rejected" },
+                    });
+                    stream.reject(new Error("connection closed after rejection"));
+                }
+            });
+            expect(container.textContent).toContain("Update rejected");
+            expect(running()).toHaveLength(0);
+            expect(rows()[0].textContent).toContain("Completed");
+            expect(rows()[1].textContent).toContain("Failed");
+            expect(getVersion).not.toHaveBeenCalled();
+            expect(mockModal.success).not.toHaveBeenCalled();
+            expect(percent()).toBe("0");
+        }
+    );
+
+    it("stops waiting at the shared verification deadline and ignores delayed progress", async () => {
+        const stream = deferred();
+        mockUpgrade.mockReturnValueOnce(stream.promise);
+        await start();
+        await emit("download");
+        await act(async () => stream.reject(new Error("connection closed")));
+        for (let attempt = 0; attempt < 70 && mockModal.warning.mock.calls.length === 0; attempt++) {
+            await act(async () => jest.runOnlyPendingTimers());
+        }
+        expect(container.textContent).toContain("New version was not confirmed");
+        expect(running()).toHaveLength(0);
+        expect(percent()).toBe("0");
+        expect(mockModal.warning).toHaveBeenCalledTimes(1);
+        expect(mockModal.success).not.toHaveBeenCalled();
+        const checks = jest.mocked(getVersion).mock.calls.length;
+        await emit("late-stage");
+        await act(async () => jest.advanceTimersByTime(60000));
+        expect(getVersion).toHaveBeenCalledTimes(checks);
+        expect(running()).toHaveLength(0);
+    });
+
+    it("keeps waiting through unavailable and unsuccessful version responses", async () => {
+        mockUpgrade
+            .mockResolvedValueOnce({ error: 0, data: { finish: true } })
+            .mockResolvedValue({ error: 0, data: { synced: true } });
+        jest.mocked(getVersion)
+            .mockRejectedValueOnce(new Error("version request timed out"))
+            .mockResolvedValueOnce({ error: 1, data: { buildId: targetBuild } } as any)
+            .mockResolvedValue({ error: 0, data: { buildId: targetBuild } } as any);
+        await start();
+        await act(async () => jest.advanceTimersByTime(3000));
+        expect(mockModal.success).not.toHaveBeenCalled();
+        expect(percent()).toBe("0");
+        await act(async () => jest.advanceTimersByTime(4500));
+        expect(percent()).toBe("100");
+        expect(running()).toHaveLength(0);
+        expect(mockModal.success).toHaveBeenCalledTimes(1);
+    });
+
+    it("keeps 67% and stops all spinners if resource sync fails after version confirmation", async () => {
+        jest.spyOn(console, "error").mockImplementation(() => undefined);
+        mockPost.mockReturnValue(deferred().promise);
+        const stream = deferred();
+        mockUpgrade.mockReturnValueOnce(stream.promise).mockRejectedValueOnce(new Error("sync failed"));
+        jest.mocked(getVersion).mockResolvedValue({ data: { buildId: targetBuild } } as any);
+        await start();
+        await emit("download");
+        await emit("restart");
+        await act(async () => stream.resolve({ error: 0, data: { finish: true } }));
+        expect(percent()).toBe("67");
+        expect(container.querySelector('[role="progressbar"]')?.getAttribute("data-status")).toBe("exception");
+        expect(running()).toHaveLength(0);
+        expect(mockModal.success).not.toHaveBeenCalled();
+        expect(mockModal.warning).toHaveBeenCalledTimes(1);
+        expect(finishBackgroundTask).toHaveBeenLastCalledWith("test-upgrade-task", "warning", expect.any(String));
+    });
+
+    if (!docker) {
+        it("settles pending work for manual instructions without an online progress percentage", async () => {
+            const stream = deferred();
+            mockUpgrade.mockReturnValueOnce(stream.promise);
+            await start(false);
+            await emit("download");
+            await emit("manual", "manual");
+            await act(async () => stream.resolve({ error: 0, data: { finish: false } }));
+            expect(running()).toHaveLength(0);
+            expect(percent()).toBeUndefined();
+            expect(getVersion).not.toHaveBeenCalled();
+        });
+    }
 });

@@ -37,7 +37,8 @@ export const getVersion = async (
     axiosInstance: AxiosInstance
 ): Promise<ApiResponse<PublicVersionResponse>> => {
     const { data } = await axiosInstance.get<ApiResponse<PublicVersionResponse>>(
-        API_VERSION_PATH + "?buildId=" + encodeURIComponent(buildId)
+        API_VERSION_PATH + "?buildId=" + encodeURIComponent(buildId),
+        { timeout: 15000 }
     );
     return data;
 };
