@@ -274,7 +274,7 @@ const ArticleAiAssistantSkillContent: FunctionComponent<ArticleAiAssistantSkillC
                                 <div style={{ flex: 1, minWidth: 0, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
                                     {message.tool && <Tag>{getAssistantToolLabel(message.tool)}</Tag>}
                                     {message.input}
-                                    <AiFileList files={message.files} />
+                                    <AiFileList files={message.files} compact />
                                 </div>
                                 <Button
                                     type="text"

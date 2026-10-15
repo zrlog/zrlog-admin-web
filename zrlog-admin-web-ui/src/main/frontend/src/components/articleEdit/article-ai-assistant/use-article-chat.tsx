@@ -125,9 +125,24 @@ export const renderChatMessage = (
 ) => {
     const message = content as ChatMessage;
     const res = getRes().articleEdit.knowledge;
+    const attachments = (
+        <AiFileList
+            files={message.attachments}
+            previewContext={previewContext}
+            align={message.role === "user" ? "end" : "start"}
+        />
+    );
+    if (message.role === "user" && message.attachments?.length && !message.failed) {
+        return (
+            <Space orientation="vertical" size="small" style={{ width: "100%", minWidth: 0 }}>
+                {defaultNode}
+                {attachments}
+            </Space>
+        );
+    }
     return (
         <>
-            <AiFileList files={message.attachments} previewContext={previewContext} />
+            {attachments}
             {!message.failed && message.role === "assistant" && (
                 <ArticleAiReasoning content={message.reasoningContent} thinking={message.thinking} status={status} />
             )}

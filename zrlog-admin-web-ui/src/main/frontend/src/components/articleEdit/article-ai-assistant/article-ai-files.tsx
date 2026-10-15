@@ -1,4 +1,4 @@
-import { Alert, Button, Dropdown, GetRef, Space, Tooltip, Typography, theme as antdTheme } from "antd";
+import { Alert, Button, Dropdown, GetRef, GlobalToken, Space, Tooltip, Typography, theme as antdTheme } from "antd";
 import type { AxiosInstance, AxiosRequestConfig } from "axios";
 import Image from "@zrlog/ui/antd/Image";
 import AddIcon from "@zrlog/ui/icons/add";
@@ -8,11 +8,83 @@ import FileIcon from "@zrlog/ui/icons/file";
 import ImageFileIcon from "@zrlog/ui/icons/image-file";
 import FolderIcon from "@zrlog/ui/icons/folder";
 import { lazy, ReactNode, Suspense, useEffect, useId, useRef, useState } from "react";
+import styled from "styled-components";
 import { getRes } from "../../../utils/constants";
 import { hasAction } from "../../../utils/account-access";
 import { isModuleEnabled } from "../../../utils/module-capabilities";
 
 const AiAssetPicker = lazy(() => import("./article-ai-asset-picker"));
+
+const FileList = styled.div<{ $gap: number; $align?: "start" | "end" }>(({ $gap, $align }) => ({
+    display: "flex",
+    flexWrap: "wrap",
+    alignItems: "flex-start",
+    justifyContent: $align === "end" ? "flex-end" : "flex-start",
+    gap: $gap,
+    minWidth: 0,
+}));
+
+const FileCard = styled.div<{ $token: GlobalToken; $image: boolean; $compact: boolean }>(
+    ({ $token: token, $image, $compact }) => ({
+        position: "relative",
+        boxSizing: "border-box",
+        display: $image ? "block" : "flex",
+        alignItems: "center",
+        gap: token.marginSM,
+        width: $image ? ($compact ? 112 : 160) : 256,
+        maxWidth: "100%",
+        minWidth: 0,
+        padding: $image ? token.paddingXXS : token.paddingSM,
+        border: `${token.lineWidth}px ${token.lineType} ${token.colorBorderSecondary}`,
+        borderRadius: token.borderRadiusLG,
+        background: token.colorBgContainer,
+        ".ai-file-preview": {
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: "100%",
+            height: $compact ? 80 : 128,
+            padding: 0,
+            border: 0,
+            borderRadius: token.borderRadius,
+            background: token.colorFillQuaternary,
+            color: token.colorTextSecondary,
+            fontSize: token.fontSizeHeading3,
+            overflow: "hidden",
+            cursor: "pointer",
+            "&:hover": { background: token.colorFillSecondary },
+            "&:focus-visible": {
+                outline: `${token.lineWidthFocus}px solid ${token.colorPrimary}`,
+                outlineOffset: token.lineWidth,
+            },
+        },
+        ".ai-file-icon": {
+            display: "grid",
+            placeItems: "center",
+            flexShrink: 0,
+            width: 40,
+            height: 44,
+            borderRadius: token.borderRadiusSM,
+            background: token.colorFillQuaternary,
+            color: token.colorTextSecondary,
+            fontSize: token.fontSizeHeading3,
+        },
+        ".ai-image-details": { padding: `${token.paddingXXS}px ${token.paddingXXS}px 0` },
+        ".ai-file-name": { display: "block", fontSize: token.fontSizeSM, fontWeight: token.fontWeightStrong },
+        ".ai-file-metadata": { display: "block", fontSize: token.fontSizeSM },
+        ".ai-file-remove": {
+            position: "absolute",
+            insetBlockStart: token.marginXXS,
+            insetInlineEnd: token.marginXXS,
+            width: 32,
+            height: 32,
+            minWidth: 32,
+            padding: 0,
+            borderRadius: "50%",
+            background: token.colorBgElevated,
+        },
+    })
+);
 
 export type AiFileCapabilities = {
     extensions: string[];
@@ -87,11 +159,13 @@ function AiFileCard({
     disabled,
     onRemove,
     previewContext,
+    compact = false,
 }: {
     file: AiFileAttachment | File;
     disabled?: boolean;
     onRemove?: () => void;
     previewContext?: AiFilePreviewContext;
+    compact?: boolean;
 }) {
     const { token } = antdTheme.useToken();
     const [preview, setPreview] = useState<string>();
@@ -144,64 +218,51 @@ function AiFileCard({
         };
     }, [localFile, mime, fileId, api, articleId, retry]);
     const res = getRes().articleEdit.files;
+    const extension = file.name.includes(".") ? file.name.split(".").pop()?.toUpperCase() : undefined;
     return (
-        <div
-            style={{
-                display: "flex",
-                alignItems: "center",
-                gap: token.marginXS,
-                minWidth: 0,
-                padding: token.paddingXS,
-                border: `${token.lineWidth}px ${token.lineType} ${token.colorBorderSecondary}`,
-                borderRadius: token.borderRadius,
-                background: token.colorFillQuaternary,
-            }}
-        >
-            {preview ? (
+        <FileCard $token={token} $image={Boolean(mime)} $compact={compact}>
+            {mime && preview && !previewFailed ? (
                 <>
                     <button
                         type="button"
+                        className="ai-file-preview"
                         aria-label={`${res.preview} ${file.name}`}
                         onClick={() => setPreviewOpen(true)}
-                        style={{
-                            border: 0,
-                            padding: 0,
-                            background: "transparent",
-                            cursor: "pointer",
-                            flexShrink: 0,
-                            width: 48,
-                            height: 48,
-                            borderRadius: token.borderRadiusSM,
-                        }}
                     >
                         <img
                             src={preview}
                             alt=""
-                            style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "inherit" }}
+                            onError={() => setPreviewFailed(true)}
+                            style={{ width: "100%", height: "100%", objectFit: compact ? "cover" : "contain" }}
                         />
                     </button>
                     <Image
                         src={preview}
                         alt={file.name}
-                        style={{ display: "none" }}
+                        styles={{ root: { display: "none" } }}
                         preview={{ open: previewOpen, onOpenChange: setPreviewOpen }}
                     />
                 </>
             ) : (
                 <span
                     aria-hidden="true"
-                    style={{ color: token.colorTextSecondary, fontSize: token.fontSizeHeading3, flexShrink: 0 }}
+                    className={mime ? "ai-file-preview" : "ai-file-icon"}
+                    style={{ cursor: "default" }}
                 >
                     {mime ? <ImageFileIcon /> : <FileIcon />}
                 </span>
             )}
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div
+                className={mime ? "ai-image-details" : undefined}
+                style={{ flex: 1, minWidth: 0, paddingInlineEnd: !mime && onRemove ? token.paddingLG : undefined }}
+            >
                 <Tooltip title={file.name} trigger={["hover", "focus", "click"]}>
-                    <Typography.Text ellipsis tabIndex={0} style={{ display: "block" }}>
+                    <Typography.Text ellipsis tabIndex={0} className="ai-file-name">
                         {file.name}
                     </Typography.Text>
                 </Tooltip>
-                <Typography.Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
+                <Typography.Text type="secondary" className="ai-file-metadata">
+                    {extension && `${extension} · `}
                     {formatBytes(file.size)}
                 </Typography.Text>
                 {previewFailed && (
@@ -212,34 +273,42 @@ function AiFileCard({
             </div>
             {onRemove && (
                 <Button
-                    type="text"
+                    className="ai-file-remove"
                     icon={<CloseIcon />}
                     disabled={disabled}
                     aria-label={`${res.remove} ${file.name}`}
                     title={`${res.remove} ${file.name}`}
                     onClick={onRemove}
-                    style={{ flexShrink: 0 }}
                 />
             )}
-        </div>
+        </FileCard>
     );
 }
 
 export function AiFileList({
     files,
     previewContext,
+    align = "start",
+    compact = false,
 }: {
     files?: (AiFileAttachment | File)[];
     previewContext?: AiFilePreviewContext;
+    align?: "start" | "end";
+    compact?: boolean;
 }) {
     const { token } = antdTheme.useToken();
     if (!files?.length) return null;
     return (
-        <div style={{ display: "grid", gap: token.marginXS, width: "100%", minWidth: 0 }}>
+        <FileList $gap={token.marginXS} $align={align}>
             {files.map((file, index) => (
-                <AiFileCard key={"id" in file ? file.id || index : index} file={file} previewContext={previewContext} />
+                <AiFileCard
+                    key={"id" in file ? file.id || index : index}
+                    file={file}
+                    previewContext={previewContext}
+                    compact={compact}
+                />
             ))}
-        </div>
+        </FileList>
     );
 }
 
@@ -374,17 +443,12 @@ export function AiFilePicker({
                 }}
             />
             {files.length > 0 && (
-                <div
-                    style={{
-                        display: "grid",
-                        gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 180px), 1fr))",
-                        gap: token.marginXS,
-                    }}
-                >
+                <FileList $gap={token.marginXS}>
                     {files.map((file, index) => (
                         <AiFileCard
                             key={`${index}/${file.name}`}
                             file={file}
+                            compact
                             disabled={disabled}
                             onRemove={() => {
                                 onChange(files.filter((_, position) => position !== index));
@@ -392,7 +456,7 @@ export function AiFilePicker({
                             }}
                         />
                     ))}
-                </div>
+                </FileList>
             )}
             {files.some((file) => /\.(xlsx?|csv|tsv)$/i.test(file.name)) && (
                 <Typography.Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
