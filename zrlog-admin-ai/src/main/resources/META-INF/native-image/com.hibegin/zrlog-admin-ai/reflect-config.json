@@ -8,6 +8,7 @@
       {"name": "submitAiInput", "parameterTypes": []},
       {"name": "aiRun", "parameterTypes": []},
       {"name": "aiFile", "parameterTypes": []},
+      {"name": "aiReferences", "parameterTypes": []},
       {"name": "applyCover", "parameterTypes": []},
       {"name": "clearAiMessages", "parameterTypes": []},
       {"name": "exportAiMessages", "parameterTypes": []},
