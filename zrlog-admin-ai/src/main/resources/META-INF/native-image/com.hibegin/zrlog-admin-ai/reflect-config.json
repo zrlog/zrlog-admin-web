@@ -7,6 +7,7 @@
       {"name": "approveAiOperation", "parameterTypes": []},
       {"name": "submitAiInput", "parameterTypes": []},
       {"name": "aiRun", "parameterTypes": []},
+      {"name": "aiFile", "parameterTypes": []},
       {"name": "applyCover", "parameterTypes": []},
       {"name": "clearAiMessages", "parameterTypes": []},
       {"name": "exportAiMessages", "parameterTypes": []},

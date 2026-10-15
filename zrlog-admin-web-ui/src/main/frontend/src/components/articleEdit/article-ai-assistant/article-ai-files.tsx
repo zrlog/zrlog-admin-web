@@ -1,4 +1,5 @@
-import { Alert, Button, Dropdown, GetRef, Space, Typography, theme as antdTheme } from "antd";
+import { Alert, Button, Dropdown, GetRef, Space, Tooltip, Typography, theme as antdTheme } from "antd";
+import type { AxiosInstance, AxiosRequestConfig } from "axios";
 import Image from "@zrlog/ui/antd/Image";
 import AddIcon from "@zrlog/ui/icons/add";
 import AttachmentIcon from "@zrlog/ui/icons/attachment";
@@ -21,6 +22,17 @@ export type AiFileCapabilities = {
 };
 export type AiFileInput = { name: string; data: string };
 export type AiFileAttachment = { id?: string; name: string; size: number; mimeType?: string; expiresAt?: number };
+export type AiFilePreviewContext = { api: AxiosInstance; articleId: number };
+
+// Keep local bytes outside serializable messages, exports and browser storage.
+const localPreviews = new WeakMap<AiFileAttachment, File>();
+export const rememberAiFilePreviews = (attachments: AiFileAttachment[] | undefined, files?: File[]) => {
+    attachments?.forEach((attachment, index) => {
+        const file = files?.[index];
+        if (file && file.name === attachment.name && file.size === attachment.size) localPreviews.set(attachment, file);
+    });
+    return attachments;
+};
 
 const imageMimeType = (name: string): string | undefined => {
     const extension = name.slice(name.lastIndexOf(".")).toLowerCase();
@@ -74,23 +86,63 @@ function AiFileCard({
     file,
     disabled,
     onRemove,
+    previewContext,
 }: {
     file: AiFileAttachment | File;
     disabled?: boolean;
     onRemove?: () => void;
+    previewContext?: AiFilePreviewContext;
 }) {
     const { token } = antdTheme.useToken();
     const [preview, setPreview] = useState<string>();
     const [previewOpen, setPreviewOpen] = useState(false);
+    const [previewFailed, setPreviewFailed] = useState(false);
+    const [retry, setRetry] = useState(0);
     const mime = imageMimeType(file.name);
-    const localFile = typeof File !== "undefined" && file instanceof File ? file : undefined;
+    const localFile = typeof File !== "undefined" && file instanceof File ? file : localPreviews.get(file);
+    const fileId = "id" in file ? file.id : undefined;
+    const api = previewContext?.api;
+    const articleId = previewContext?.articleId;
     useEffect(() => {
         setPreview(undefined);
-        if (!localFile || !mime) return;
-        const url = URL.createObjectURL(localFile.slice(0, localFile.size, mime));
-        setPreview(url);
-        return () => URL.revokeObjectURL(url);
-    }, [localFile, mime]);
+        setPreviewFailed(false);
+        if (!mime) return;
+        let url: string | undefined;
+        const controller = new AbortController();
+        const show = (blob: Blob) => {
+            if (controller.signal.aborted) return;
+            url = URL.createObjectURL(blob);
+            setPreview(url);
+        };
+        if (localFile) show(localFile.slice(0, localFile.size, mime));
+        else if (fileId && api && articleId !== undefined) {
+            const config: AxiosRequestConfig & { showError: boolean } = {
+                params: { id: articleId, fileId },
+                responseType: "blob",
+                signal: controller.signal,
+                showError: false,
+            };
+            void api
+                .get<Blob>("/api/admin/article/ai/file", config)
+                .then(({ data }) => {
+                    if (
+                        !(data instanceof Blob) ||
+                        data.type.split(";")[0] !== mime ||
+                        !data.size ||
+                        data.size > 4 * 1024 * 1024
+                    )
+                        throw new Error("Invalid image response");
+                    show(data);
+                })
+                .catch(() => {
+                    if (!controller.signal.aborted) setPreviewFailed(true);
+                });
+        }
+        return () => {
+            controller.abort();
+            if (url) URL.revokeObjectURL(url);
+        };
+    }, [localFile, mime, fileId, api, articleId, retry]);
     const res = getRes().articleEdit.files;
     return (
         <div
@@ -144,10 +196,19 @@ function AiFileCard({
                 </span>
             )}
             <div style={{ flex: 1, minWidth: 0 }}>
-                <Typography.Text style={{ display: "block", overflowWrap: "anywhere" }}>{file.name}</Typography.Text>
+                <Tooltip title={file.name} trigger={["hover", "focus", "click"]}>
+                    <Typography.Text ellipsis tabIndex={0} style={{ display: "block" }}>
+                        {file.name}
+                    </Typography.Text>
+                </Tooltip>
                 <Typography.Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
                     {formatBytes(file.size)}
                 </Typography.Text>
+                {previewFailed && (
+                    <Button type="link" size="small" onClick={() => setRetry((value) => value + 1)}>
+                        {res.retryPreview}
+                    </Button>
+                )}
             </div>
             {onRemove && (
                 <Button
@@ -164,13 +225,19 @@ function AiFileCard({
     );
 }
 
-export function AiFileList({ files }: { files?: (AiFileAttachment | File)[] }) {
+export function AiFileList({
+    files,
+    previewContext,
+}: {
+    files?: (AiFileAttachment | File)[];
+    previewContext?: AiFilePreviewContext;
+}) {
     const { token } = antdTheme.useToken();
     if (!files?.length) return null;
     return (
         <div style={{ display: "grid", gap: token.marginXS, width: "100%", minWidth: 0 }}>
             {files.map((file, index) => (
-                <AiFileCard key={"id" in file ? file.id || index : index} file={file} />
+                <AiFileCard key={"id" in file ? file.id || index : index} file={file} previewContext={previewContext} />
             ))}
         </div>
     );

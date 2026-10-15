@@ -89,6 +89,8 @@ public class AdminModuleSwitchTest {
                 else assertNull(path, method);
             }
             assertEquals(ai, router.getMethod("/api/admin/article/ai/run", HttpMethod.GET) != null);
+            assertEquals(ai, router.getMethod("/api/admin/article/ai/file", HttpMethod.GET) != null);
+            assertNull(router.getMethod("/api/admin/article/ai/file", HttpMethod.POST));
             assertEquals(account, router.getMethod("/api/admin/login", HttpMethod.POST) != null);
             assertEquals(content, router.getMethod("/api/admin/article/create", HttpMethod.POST) != null);
             assertEquals(assets, router.getMethod("/api/admin/upload", HttpMethod.POST) != null);

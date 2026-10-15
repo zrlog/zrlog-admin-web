@@ -430,7 +430,8 @@ export const useArticleAiAssistantConfig = ({
                         editorContext,
                         contextRevision: editorContextRevision(editorContext),
                     },
-                    fileInputs
+                    fileInputs,
+                    files
                 );
 
                 return chat.outcome.current;
@@ -745,7 +746,11 @@ export const useArticleAiAssistantConfig = ({
                 />
             );
         }
-        if (isChatMessage(content)) return renderChatMessage({ content, index, defaultNode }, status);
+        if (isChatMessage(content))
+            return renderChatMessage({ content, index, defaultNode }, status, {
+                api: axiosInstance,
+                articleId: data.article.logId || 0,
+            });
         const toolAwareContent = content as ToolAwareAIContent;
         if (
             toolAwareContent.messageId &&

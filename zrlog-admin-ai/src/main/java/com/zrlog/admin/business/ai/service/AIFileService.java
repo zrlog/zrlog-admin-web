@@ -99,6 +99,11 @@ public final class AIFileService {
     }
 
     public String dataUrl(Attachment file) throws IOException {
+        byte[] bytes = read(file);
+        return "data:" + file.mimeType + ";base64," + Base64.getEncoder().encodeToString(bytes);
+    }
+
+    public byte[] read(Attachment file) throws IOException {
         Path path = path(file);
         if (file.expiresAt < System.currentTimeMillis() || !Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS)
                 || file.size <= 0 || file.size > 4 * 1024 * 1024 || Files.size(path) != file.size) throw error("unavailable");
@@ -107,7 +112,7 @@ public final class AIFileService {
             bytes = in.readNBytes(file.size + 1);
         }
         if (bytes.length != file.size || !Objects.equals(TYPES.get(extension(file.name)), file.mimeType)) throw error("unavailable");
-        return "data:" + file.mimeType + ";base64," + Base64.getEncoder().encodeToString(bytes);
+        return bytes;
     }
 
     public void remove(Collection<Attachment> files) throws IOException {

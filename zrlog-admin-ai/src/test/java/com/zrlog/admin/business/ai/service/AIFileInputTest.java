@@ -302,6 +302,54 @@ public class AIFileInputTest {
         }
     }
 
+    @Test public void previewsOnlyImagesReferencedByTheAuthorizedAccountAndConversation() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            configure(db);
+            AIFileService storage = new AIFileService();
+            Input image = image("png");
+            Attachment png = storage.save(List.of(image), info()).get(0);
+            Attachment document = storage.save(List.of(text("notes.txt", "private notes")), info()).get(0);
+            AIResponseEntry.AIContentEntry message = new AIResponseEntry.AIContentEntry("user", "Look at this image");
+            message.setAttachments(List.of(png, document));
+            AIConversationService conversations = new AIConversationService();
+            conversations.appendAIMessageEntries(List.of(message), 7L);
+            AIChatService chat = new AIChatService();
+            assertArrayEquals(Base64.getDecoder().decode(image.data), storage.read(chat.imageAttachment(7, png.id)));
+            assertThrows(AIFileInputException.class, () -> chat.imageAttachment(0, png.id));
+            assertThrows(AIFileInputException.class, () -> chat.imageAttachment(7, document.id));
+            assertThrows(AIFileInputException.class, () -> chat.imageAttachment(7, "../../secret"));
+            assertThrows(com.zrlog.common.exception.ArgsException.class, () -> chat.imageAttachment(-1, png.id));
+            db.execute("insert into user(userId,userName,role,authVersion) values(?,?,?,?)", 2, "another", "admin", 0);
+            AdminTokenVO another = new AdminTokenVO(); another.setUserId(2); another.setAuthVersion(0);
+            AdminTokenThreadLocal.withUser(another, () -> {
+                assertThrows(AIFileInputException.class, () -> chat.imageAttachment(7, png.id)); return null;
+            });
+            db.execute("update user set role='author' where userId=1");
+            db.execute("update log set userId=2,privacy=true where logId=7");
+            assertThrows(com.zrlog.admin.business.exception.PermissionErrorException.class, () -> chat.imageAttachment(7, png.id));
+        }
+    }
+
+    @Test public void previewsDraftAndPendingImagesButRejectsClearedOrExpiredFiles() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            configure(db);
+            AIFileService storage = new AIFileService();
+            Attachment image = storage.save(List.of(image("webp")), info()).get(0);
+            Run run = new Run(); run.userId = 1; run.articleId = 0; run.input = "Describe"; run.attachments = List.of(image);
+            AIApprovalStore checkpoints = new AIApprovalStore(); checkpoints.pause(run); checkpoints.save(run, "running");
+            AIChatService chat = new AIChatService();
+            assertEquals(image.id, chat.imageAttachment(0, image.id).id);
+            checkpoints.save(run, "completed");
+            AIResponseEntry.AIContentEntry message = new AIResponseEntry.AIContentEntry("user", "Describe");
+            image.expiresAt = 1; message.setAttachments(List.of(image));
+            AIConversationService conversations = new AIConversationService();
+            conversations.appendAIMessageEntries(List.of(message), -1L);
+            assertThrows(AIFileInputException.class, () -> storage.read(chat.imageAttachment(0, image.id)));
+            assertTrue(conversations.clearAIMessage(-1L));
+            assertThrows(AIFileInputException.class, () -> chat.imageAttachment(0, image.id));
+        }
+    }
+
     @Test public void clearsFilesWithoutBreakingMigratedDraftConversation() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             configure(db); AIFileService storage = new AIFileService();

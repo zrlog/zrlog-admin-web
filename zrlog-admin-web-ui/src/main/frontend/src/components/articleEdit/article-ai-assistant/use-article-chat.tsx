@@ -1,4 +1,10 @@
-import { AiFileAttachment, AiFileInput, AiFileList } from "./article-ai-files";
+import {
+    AiFileAttachment,
+    AiFileInput,
+    AiFileList,
+    AiFilePreviewContext,
+    rememberAiFilePreviews,
+} from "./article-ai-files";
 import { Alert, Space, Typography } from "antd";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -112,12 +118,16 @@ export const parseChatEvents = (text: string): Event[] =>
 export const isChatMessage = (message: AIContent): message is ChatMessage =>
     (message as ChatMessage).messageType === "knowledge";
 
-export const renderChatMessage = ({ content, defaultNode }: AIButtonRenderMessageOptions, status?: string) => {
+export const renderChatMessage = (
+    { content, defaultNode }: AIButtonRenderMessageOptions,
+    status?: string,
+    previewContext?: AiFilePreviewContext
+) => {
     const message = content as ChatMessage;
     const res = getRes().articleEdit.knowledge;
     return (
         <>
-            <AiFileList files={message.attachments} />
+            <AiFileList files={message.attachments} previewContext={previewContext} />
             {!message.failed && message.role === "assistant" && (
                 <ArticleAiReasoning content={message.reasoningContent} thinking={message.thinking} status={status} />
             )}
@@ -303,7 +313,8 @@ export const useArticleChat = (
             interaction?: { value?: string; contextRevision: string };
         },
         snapshot?: EditorSnapshot,
-        files?: AiFileInput[]
+        files?: AiFileInput[],
+        localFiles?: File[]
     ) => {
         if (approval)
             context = (context as ChatMessage[]).filter(
@@ -345,12 +356,15 @@ export const useArticleChat = (
             content: prompt,
             attachments:
                 approval?.run.attachments ||
-                files?.map((file) => ({
-                    name: file.name,
-                    size:
-                        Math.floor((file.data.length * 3) / 4) -
-                        (file.data.endsWith("==") ? 2 : file.data.endsWith("=") ? 1 : 0),
-                })),
+                rememberAiFilePreviews(
+                    files?.map((file) => ({
+                        name: file.name,
+                        size:
+                            Math.floor((file.data.length * 3) / 4) -
+                            (file.data.endsWith("==") ? 2 : file.data.endsWith("=") ? 1 : 0),
+                    })),
+                    localFiles
+                ),
             thinking: false,
             messageType: "knowledge",
             runId: approval?.run.runId,
@@ -482,6 +496,8 @@ export const useArticleChat = (
             if (answer && final) {
                 if (!answer.messages || answer.messages.length < 2 || answer.messages.some((entry) => !entry.messageId))
                     throw new Error(res.saveFailed);
+                const sentQuestion = answer.messages.find((entry) => entry.role === "user");
+                if (sentQuestion) rememberAiFilePreviews(sentQuestion.attachments, localFiles);
                 publish([...context, ...answer.messages.map((entry) => ({ ...entry, thinking: false }))]);
                 outcome.current = true;
             }

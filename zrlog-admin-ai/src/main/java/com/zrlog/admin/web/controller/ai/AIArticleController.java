@@ -80,6 +80,18 @@ public class AIArticleController extends BaseController {
         return new ApiStandardResponse<>(new AIChatService(request).getRun(Long.parseLong(request.getParaToStr("id", "0"))));
     }
 
+    @RequiresAction(value = AccountAction.ARTICLE_ASSIST, articleQuery = true, descriptionKey = "article.assist")
+    @RequestMethod(method = HttpMethod.GET)
+    public void aiFile() throws SQLException, IOException {
+        response.addHeader("Cache-Control", "private, no-store");
+        response.addHeader("X-Content-Type-Options", "nosniff");
+        var file = new AIChatService(request).imageAttachment(Long.parseLong(request.getParaToStr("id", "0")),
+                getParamWithEmptyCheck("fileId"));
+        byte[] bytes = new com.zrlog.admin.business.ai.service.AIFileService().read(file);
+        response.setContentType(file.mimeType);
+        response.write(new ByteArrayInputStream(bytes));
+    }
+
     private void writeStream(AIStreamResponse streamResponse) throws IOException {
         AdminSseEmitter.setHeaders(response);
         response.addHeader("Cache-Control", "no-store, no-transform");

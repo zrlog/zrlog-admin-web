@@ -4,7 +4,14 @@ import { createRoot, Root } from "react-dom/client";
 import { Simulate } from "react-dom/test-utils";
 import { afterEach, beforeEach, expect, it, jest } from "@jest/globals";
 import { ConfigProvider, Drawer } from "antd";
-import { AiFilePicker, AiFileCapabilities, encodeAiFiles } from "./article-ai-files";
+import {
+    AiFilePicker,
+    AiFileCapabilities,
+    AiFileList,
+    encodeAiFiles,
+    rememberAiFilePreviews,
+} from "./article-ai-files";
+import type { AxiosInstance } from "axios";
 import { getRes } from "../../../utils/constants";
 import { hasAction } from "../../../utils/account-access";
 import { isModuleEnabled } from "../../../utils/module-capabilities";
@@ -276,4 +283,82 @@ it("closes only the attachment menu on Escape and keeps the assistant drawer ope
     expect(closeDrawer).not.toHaveBeenCalled();
     expect(attachmentButton().getAttribute("aria-expanded")).toBe("false");
     expect(document.activeElement).toBe(attachmentButton());
+});
+
+it("restores a sent image through the authenticated article endpoint and releases its URL", async () => {
+    const get = jest
+        .fn<Promise<{ data: Blob }>, any[]>()
+        .mockResolvedValue({ data: new Blob(["image"], { type: "image/png" }) });
+    const api = { get } as unknown as AxiosInstance;
+    const files = [{ id: "saved-image", name: "sent.png", size: 5 }];
+    await act(async () => root.render(<AiFileList files={files} previewContext={{ api, articleId: 7 }} />));
+    expect(get).toHaveBeenCalledWith(
+        "/api/admin/article/ai/file",
+        expect.objectContaining({
+            params: { id: 7, fileId: "saved-image" },
+            responseType: "blob",
+            showError: false,
+        })
+    );
+    expect(container.querySelector(`button[aria-label="${res().preview} sent.png"]`)).not.toBeNull();
+    act(() => root.render(<div />));
+    expect(get.mock.calls[0][1].signal.aborted).toBe(true);
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith(previewUrls[0]);
+});
+
+it("retains local image previews after sending without putting bytes in message metadata", async () => {
+    const file = new File(["image"], "sent.png", { type: "image/png" });
+    const files = rememberAiFilePreviews([{ id: "saved-image", name: file.name, size: file.size }], [file]);
+    const get = jest.fn();
+    await act(async () =>
+        root.render(
+            <AiFileList files={files} previewContext={{ api: { get } as unknown as AxiosInstance, articleId: 7 }} />
+        )
+    );
+    expect(container.querySelector(`button[aria-label="${res().preview} sent.png"]`)).not.toBeNull();
+    expect(get).not.toHaveBeenCalled();
+    expect(JSON.stringify(files)).toBe('[{"id":"saved-image","name":"sent.png","size":5}]');
+});
+
+it("keeps attachment details and allows retry after an expired session or failed image response", async () => {
+    const get = jest
+        .fn<Promise<{ data: Blob }>, any[]>()
+        .mockResolvedValueOnce({ data: new Blob(['{"error":401}'], { type: "application/json" }) })
+        .mockResolvedValueOnce({ data: new Blob(["image"], { type: "image/png" }) });
+    await act(async () =>
+        root.render(
+            <AiFileList
+                files={[{ id: "saved-image", name: "sent.png", size: 5 }]}
+                previewContext={{ api: { get } as unknown as AxiosInstance, articleId: 0 }}
+            />
+        )
+    );
+    expect(container.textContent).toContain("sent.png");
+    expect(URL.createObjectURL).not.toHaveBeenCalled();
+    const retry = Array.from(container.querySelectorAll("button")).find(
+        (button) => button.textContent === res().retryPreview
+    )!;
+    await act(async () => retry.click());
+    expect(container.querySelector(`button[aria-label="${res().preview} sent.png"]`)).not.toBeNull();
+});
+
+it("ignores a late image response after leaving the conversation", async () => {
+    let finish!: (value: { data: Blob }) => void;
+    const get = jest.fn(
+        () =>
+            new Promise<{ data: Blob }>((resolve) => {
+                finish = resolve;
+            })
+    );
+    await act(async () =>
+        root.render(
+            <AiFileList
+                files={[{ id: "saved-image", name: "sent.png", size: 5 }]}
+                previewContext={{ api: { get } as unknown as AxiosInstance, articleId: 7 }}
+            />
+        )
+    );
+    act(() => root.render(<div />));
+    await act(async () => finish({ data: new Blob(["image"], { type: "image/png" }) }));
+    expect(URL.createObjectURL).not.toHaveBeenCalled();
 });

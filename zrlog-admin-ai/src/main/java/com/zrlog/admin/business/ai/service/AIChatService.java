@@ -101,6 +101,22 @@ public class AIChatService extends AIService {
         return visibleRun(new AIApprovalStore().read(token.getUserId(), articleId));
     }
 
+    /** Resolve only images referenced by this account's authorized editor conversation. */
+    public com.zrlog.admin.business.ai.model.AIFileModels.Attachment imageAttachment(long articleId, String fileId) throws SQLException {
+        if (articleId < 0) throw new ArgsException();
+        AdminTokenVO token = AdminTokenThreadLocal.getUser();
+        authorizeArticle(token, articleId);
+        List<com.zrlog.admin.business.ai.model.AIFileModels.Attachment> files = new ArrayList<>();
+        for (var message : new AIConversationService().getAiMessageInfoByArticleId(conversationId(token, articleId)).getAiMessages()) {
+            if (message.getAttachments() != null) files.addAll(message.getAttachments());
+        }
+        Run run = new AIApprovalStore().read(token.getUserId(), articleId);
+        if (run != null && !"cancelled".equals(run.status) && run.attachments != null) files.addAll(run.attachments);
+        return files.stream().filter(file -> file.id != null && file.id.equals(fileId)
+                        && Set.of("image/png", "image/jpeg", "image/webp").contains(Objects.toString(file.mimeType, "")))
+                .findFirst().orElseThrow(() -> AIFileService.error("unavailable"));
+    }
+
     public AIStreamResponse resume(ApprovalRequest input) throws IOException, SQLException {
         input.doValid();
         AdminTokenVO token = AdminTokenThreadLocal.getUser();

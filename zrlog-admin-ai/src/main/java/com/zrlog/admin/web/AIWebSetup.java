@@ -144,6 +144,7 @@ public class AIWebSetup implements ArticleAssistant {
         router.addMapper("/api/admin/article/ai/approval", AIArticleController.class, "approveAiOperation");
         router.addMapper("/api/admin/article/ai/input", AIArticleController.class, "submitAiInput");
         router.addMapper("/api/admin/article/ai/run", AIArticleController.class, "aiRun");
+        router.addMapper("/api/admin/article/ai/file", AIArticleController.class, "aiFile");
         router.addMapper("/api/admin/article/applyCover", AIArticleController.class, "applyCover");
         router.addMapper("/api/admin/article/updateAiMessage", AIArticleController.class, "updateAiMessage");
         router.addMapper("/api/admin/article/clearAiMessages", AIArticleController.class, "clearAiMessages");
