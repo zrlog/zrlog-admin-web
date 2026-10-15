@@ -198,7 +198,7 @@ const UpgradeSettingForm = ({
             {dockerMode ? (
                 <Form.Item
                     label={getRes().websiteUpgrade.dockerRepository}
-                    extra={getRes().websiteUpgrade.dockerRepositoryTip}
+                    tooltip={getRes().websiteUpgrade.dockerRepositoryTip}
                     style={formItemStyle}
                 >
                     <DockerRepositorySetting
@@ -214,7 +214,7 @@ const UpgradeSettingForm = ({
                 <Form.Item
                     name="upgradePackageSource"
                     label={getRes().websiteUpgrade.packageSource}
-                    extra={getRes().websiteUpgrade.packageSourceTip}
+                    tooltip={getRes().websiteUpgrade.packageSourceTip}
                     style={formItemStyle}
                 >
                     <Select
