@@ -27,7 +27,8 @@ public final class AIFileService {
     private static final Map<String, String> TYPES = types();
     private final Path root;
 
-    public AIFileService() { this(PathUtil.getConfFile("ai-input-files").toPath()); }
+    // Runtime storage is a directory, not a bundled configuration resource.
+    public AIFileService() { this(Path.of(PathUtil.getConfPath()).toAbsolutePath().normalize().resolve("ai-input-files")); }
     AIFileService(Path root) { this.root = root; }
 
     public static Capabilities capabilities(AIWebSiteInfo info) {

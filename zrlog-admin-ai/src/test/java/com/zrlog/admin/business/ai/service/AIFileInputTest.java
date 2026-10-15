@@ -55,6 +55,52 @@ public class AIFileInputTest {
     private static String read(com.zrlog.admin.business.ai.dto.AIStreamResponse response) throws IOException {
         return new String(response.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
     }
+
+    @Test public void keepsTextOnlyConversationsWorkingWithRelativeConfigurationDirectory() throws Exception {
+        String previousConf = System.getProperty("sws.conf.path");
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            configure(db);
+            Path conf = temporary.newFolder("text-conf").toPath();
+            System.setProperty("sws.conf.path", Path.of("").toAbsolutePath().relativize(conf).toString());
+            for (AIProviderType provider : AIProviderType.values()) {
+                db.putWebsite("ai_provider", provider.name());
+                String response = provider == AIProviderType.OPEN_AI ? terminal(MESSAGE)
+                        : "data: {\"choices\":[{\"delta\":{\"content\":\"Answer\"}}]}\n\n"
+                        + "data: {\"choices\":[{\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n";
+                FakeHttpClient client = new FakeHttpClient(streamResponse(response), streamResponse(response));
+                for (String json : List.of("{\"input\":\"Hello\",\"articleId\":7}",
+                        "{\"input\":\"Continue\",\"articleId\":7,\"files\":[]}")) {
+                    String payload = read(new AIChatService(client).start(new Gson().fromJson(json, ChatRequest.class)));
+                    assertTrue(payload, payload.contains("\"type\":\"done\""));
+                }
+                assertEquals(2, client.requests.size());
+            }
+            assertFalse(Files.exists(conf.resolve("ai-input-files")));
+        } finally {
+            if (previousConf == null) System.clearProperty("sws.conf.path");
+            else System.setProperty("sws.conf.path", previousConf);
+        }
+    }
+
+    @Test public void storesAttachmentsUnderTheConfiguredRelativeDirectory() throws Exception {
+        String previousConf = System.getProperty("sws.conf.path");
+        try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
+            Path conf = temporary.newFolder("file-conf").toPath();
+            System.setProperty("sws.conf.path", Path.of("").toAbsolutePath().relativize(conf).toString());
+            AIFileService storage = new AIFileService();
+            Input input = text("notes.txt", "Original document bytes");
+            Attachment file = storage.save(List.of(input), info()).get(0);
+            assertArrayEquals(Base64.getDecoder().decode(input.data),
+                    Files.readAllBytes(conf.resolve("ai-input-files/1/" + file.id)));
+            assertEquals("data:text/plain;base64," + input.data, storage.dataUrl(file));
+            storage.remove(List.of(file));
+            assertFalse(Files.exists(conf.resolve("ai-input-files/1/" + file.id)));
+        } finally {
+            if (previousConf == null) System.clearProperty("sws.conf.path");
+            else System.setProperty("sws.conf.path", previousConf);
+        }
+    }
+
     private static List<JsonObject> fileParts(JsonObject body) {
         return parts(body, "input_file");
     }

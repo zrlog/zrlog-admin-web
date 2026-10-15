@@ -394,7 +394,7 @@ public class AIChatService extends AIService {
         int currentArticleIndex = messages.size();
         messages.add(new AIProviderRequests.Message("user", ""));
         AIProviderRequests.Message question = new AIProviderRequests.Message("user", input.input);
-        question.attachments = new AIFileService().save(input.files, info);
+        question.attachments = input.files.isEmpty() ? List.of() : new AIFileService().save(input.files, info);
         messages.add(question);
         Run run = new Run(); run.input = input.input; run.articleId = input.articleId; run.attachments = question.attachments;
         run.editorContext = input.editorContext; run.contextRevision = input.contextRevision;
@@ -687,11 +687,12 @@ public class AIChatService extends AIService {
         OpenAIResponsesAdapter adapter = new OpenAIResponsesAdapter();
         AIProviderRequests.CompletionRequest completion = gson.fromJson(body, AIProviderRequests.CompletionRequest.class);
         Map<String, String> files = new HashMap<>();
-        AIFileService storage = new AIFileService();
+        AIFileService storage = null;
         long size = 0;
-        for (AIProviderRequests.Message message : completion.getMessages()) if (message.attachments != null) {
-            if (!message.attachments.isEmpty() && !"user".equals(message.getRole())) throw AIFileService.error("invalid");
+        for (AIProviderRequests.Message message : completion.getMessages()) if (message.attachments != null && !message.attachments.isEmpty()) {
+            if (!"user".equals(message.getRole())) throw AIFileService.error("invalid");
             AIFileService.requireSupported(info, message.attachments.stream().map(file -> file.name).collect(java.util.stream.Collectors.toList()));
+            if (storage == null) storage = new AIFileService();
             for (var file : message.attachments) {
                 if ((size += file.size) > AIFileService.MAX_CONTEXT_BYTES) throw AIFileService.error("size");
                 files.put(file.id, storage.dataUrl(file));
