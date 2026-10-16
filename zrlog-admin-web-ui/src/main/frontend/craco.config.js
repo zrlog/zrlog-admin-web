@@ -1,4 +1,5 @@
 module.exports = {
+    devServer: require("./dev-server-config.cjs"),
     jest: {
         configure: (jestConfig) => {
             // CRA's Jest resolver predates the package exports used by Ant Design 6.

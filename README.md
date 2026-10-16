@@ -47,6 +47,13 @@ sh shell/mvn-run.sh
 
 ### 前端
 
+使用 Node.js 20.20.2+（20 LTS）或 22.22.1+（22 LTS）与 Yarn 1.x；不通过 npm 的
+`node` 依赖覆盖本机运行时。Maven 仍固定 Node.js 20.20.2。
+webpack-dev-server 5.2.6 使用不依赖 node-forge 的证书实现，由 `dev-server-config.cjs`
+适配 CRA 的 HTTPS、源码映射、用户 proxy 和 service-worker 清理。中间件保留 Host/跨站检查，
+不启用 wildcard CORS 或 `allowedHosts=all`。改动锁文件或适配器后运行
+`yarn test:dev-server`，验证 HTTP/HTTPS 和异常 Host/跨站请求。
+
 ```shell
 cd zrlog-admin-web-ui/src/main/frontend
 yarn install --frozen-lockfile --ignore-scripts
