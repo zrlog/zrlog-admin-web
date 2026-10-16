@@ -4,7 +4,7 @@
     <parent>
         <groupId>com.hibegin</groupId>
         <artifactId>zrlog-admin-web-parent</artifactId>
-        <version>4.0.0-SNAPSHOT</version>
+        <version>4.0.0</version>
     </parent>
     <artifactId>zrlog-admin-web</artifactId>
     <name>ZrLog Admin Web Assembly</name>
