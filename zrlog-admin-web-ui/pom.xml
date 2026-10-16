@@ -51,7 +51,6 @@
                             <installDirectory>../.frontend-tools</installDirectory>
                             <nodeDownloadRoot>https://npmmirror.com/mirrors/node/</nodeDownloadRoot>
                             <yarnDownloadRoot>https://github.com/yarnpkg/yarn/releases/download/</yarnDownloadRoot>
-                            <npmRegistryURL>https://registry.npmmirror.com</npmRegistryURL>
                         </configuration>
                         <executions>
                             <execution>
@@ -69,6 +68,17 @@
                                 <configuration>
                                     <arguments>install --registry=https://registry.npmmirror.com --frozen-lockfile
                                     </arguments>
+                                </configuration>
+                                <phase>generate-resources</phase>
+                            </execution>
+                            <execution>
+                                <id>yarn test dev-server</id>
+                                <goals>
+                                    <goal>yarn</goal>
+                                </goals>
+                                <configuration>
+                                    <arguments>test:dev-server</arguments>
+                                    <yarnInheritsProxyConfigFromMaven>false</yarnInheritsProxyConfigFromMaven>
                                 </configuration>
                                 <phase>generate-resources</phase>
                             </execution>
