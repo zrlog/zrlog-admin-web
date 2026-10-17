@@ -203,6 +203,19 @@ public class FileManagerControllerTest {
     }
 
     @Test
+    public void shouldEncodeExternalDownloadUnicodeWithoutReencodingExistingEscapes() throws Exception {
+        FakeFileManagerService service = new FakeFileManagerService();
+        ResponseRecorder recorder = new ResponseRecorder();
+        String url = "https://cdn.example.com/中文%20😀.png?filename=报告%2B.txt&token=a%2Fb%3D#片段";
+
+        controller(Map.of("path", url), service, recorder).download();
+
+        assertEquals("https://cdn.example.com/%E4%B8%AD%E6%96%87%20%F0%9F%98%80.png"
+                + "?filename=%E6%8A%A5%E5%91%8A%2B.txt&token=a%2Fb%3D#%E7%89%87%E6%AE%B5", recorder.redirect);
+        assertNull(service.readPath);
+    }
+
+    @Test
     public void shouldDownloadLocalFilesWithAttachmentHeader() throws Exception {
         FakeFileManagerService service = new FakeFileManagerService();
         service.bytes = "download".getBytes(StandardCharsets.UTF_8);

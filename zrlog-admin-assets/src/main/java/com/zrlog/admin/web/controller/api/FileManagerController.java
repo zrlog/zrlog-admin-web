@@ -26,6 +26,7 @@ import com.zrlog.util.ZrLogUtil;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
 import java.sql.SQLException;
 import java.util.List;
 
@@ -151,7 +152,8 @@ public class FileManagerController extends BaseController {
     public void download() throws IOException {
         String path = request.getParaToStr("path", "");
         if (FileEntryUtils.isExternalUrl(path)) {
-            response.redirect(path.startsWith("//") ? "https:" + path : path);
+            String target = path.trim();
+            response.redirect(URI.create(target.startsWith("//") ? "https:" + target : target).toASCIIString());
             return;
         }
         byte[] target = fileManagerService.read(path);
