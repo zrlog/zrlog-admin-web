@@ -19,7 +19,7 @@ zrlogctl logout --site https://blog.example/sub
 
 客户端可用 `--permissions` 替换默认权限集合，例如发布文章使用 `--permissions article.read,article.create,article.update,article.publish,taxonomy.read,asset.upload`，仅更新模板使用 `--permissions site.configure`；客户端会自动附加 `offline_access`。`--inherit-permissions` 保留原来的继承申请入口，需要在浏览器显式选择继承，不能与 `--permissions` 同时传入。旧只读授权不会自动扩权，需要重新登录确认。
 
-MCP 使用自己的 resource，支持文章读取、写入、发布、分类标签读取与附件上传 scope；不提供删除工具。旧授权不自动扩大范围。通用个人令牌遵守账号 Action 权限，旧 MCP 个人令牌保留原只读 scope 限制。详见 [MCP 内容工具](../mcp-content-tools.md)。
+MCP 使用自己的 resource，支持文章读取、写入、发布、分类标签读取与附件上传 scope；不提供删除工具。旧授权不自动扩大范围。通用个人令牌遵守账号 Action 权限，旧 MCP 个人令牌保留原只读 scope 限制。详见 [MCP 内容工具](mcp.md)。
 
 ## 部署与客户端
 
@@ -94,7 +94,7 @@ access token 不允许出现在 query 或 cookie；`/api/oauth/me` 要求 `Autho
 管理员角色变更、停用账号、改密、重置密码和所有权转移会使旧会话/授权失效。
 普通用户只能查看和撤销自己的授权。管理员可以停用应用并撤销该应用的全部授权。
 
-个人设置左侧“外部应用”包含独立的个人令牌、我的授权、站点应用页面。个人令牌使用 7/30/90 天有效期，明文只显示一次，不支持刷新。创建请求显式传入 `permissionMode=custom` 与 AccountAction ID 列表，或 `permissionMode=inherit`；旧请求未传模式时仍创建 MCP-only 令牌。详见 [统一授权契约](../general-personal-tokens.md)。
+个人设置左侧“外部应用”包含独立的个人令牌、我的授权、站点应用页面。个人令牌使用 7/30/90 天有效期，明文只显示一次，不支持刷新。创建请求显式传入 `permissionMode=custom` 与 AccountAction ID 列表，或 `permissionMode=inherit`；旧请求未传模式时仍创建 MCP-only 令牌。个人令牌权限仍受账号当前权限约束，角色调整或撤销后立即生效。
 撤销 endpoint 接受 form 字段 `token`、`client_id`；未知 token 返回 200 `{}`，不泄露凭证是否存在。
 
 错误使用标准 HTTP 状态与 `{ "error": "invalid_grant" }` 一类 JSON，和后台业务 envelope 区分。
@@ -106,7 +106,7 @@ Bearer 验证失败返回 401；scope 不足返回 403；响应包含资源元�
 [服务发现](https://www.rfc-editor.org/rfc/rfc8414)、[issuer 响应](https://www.rfc-editor.org/rfc/rfc9207)、
 [资源元数据](https://www.rfc-editor.org/rfc/rfc9728)。这是明确限定的协议实现，不宣称认证或完整覆盖所有 OAuth 扩展。
 
-MCP 资源只接受读取相关 scope 与 offline_access，写 scope 会返回 invalid_scope。工具与客户端配置见 [知识库契约](../mcp-knowledge-base.md)。
+MCP 资源接受文章读取、写入、发布、分类标签读取、附件上传相关 scope 与 `offline_access`，实际可用范围以 MCP 资源发现文档为准。工具与客户端配置见 [MCP 内容工具](mcp.md)。
 
 连接 ChatGPT 等 MCP 客户端时填写完整的 `{后端地址}/mcp`，授权与 token 请求的 resource 也使用这个地址。客户端应从 MCP 资源发现文档读取可选 scope；授权服务器的通用 scopes_supported 同时包含其他资源支持的写操作，不能全部用于 MCP。错误 `invalid_target` 表示 resource 与服务配置不匹配，`invalid_scope` 表示请求了该资源不支持的权限。
 
