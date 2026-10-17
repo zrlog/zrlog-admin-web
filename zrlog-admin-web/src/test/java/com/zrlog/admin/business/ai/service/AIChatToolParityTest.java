@@ -99,7 +99,7 @@ public class AIChatToolParityTest {
             assertFalse(com.zrlog.data.security.AccountAccess.truth(row.get("rubbish")));
             String auditJson = Objects.toString(db.scalar("select value from website where name='admin_audit_log'"));
             assertTrue(auditJson.contains("CREATE_ARTICLE"));
-            assertTrue(auditJson.contains("UPDATE_ARTICLE"));
+            assertTrue(auditJson.contains("PUBLISH_ARTICLE"));
             var audit = new AdminAuditService().getRecentLogs();
             assertFalse(audit.isEmpty());
             assertTrue(audit.stream().allMatch(entry -> entry.getActorUserId() == 1));

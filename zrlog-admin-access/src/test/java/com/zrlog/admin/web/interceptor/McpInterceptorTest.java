@@ -155,30 +155,44 @@ public class McpInterceptorTest {
                 token = new PersonalAccessTokenService(new OAuthService().mcpResource()).create(input).token;
             }
             AdminTokenThreadLocal.remove();
+            call(token, "initialize", "{\"protocolVersion\":\"2025-11-25\",\"capabilities\":{},\"clientInfo\":{\"name\":\"initialize-only\",\"version\":\"99.0\"}}");
             String[][] clients = {
-                    {"codex/0.42.0-beta.1 (Linux; x86_64)", "codex 0.42.0-beta.1", "Linux"},
-                    {"openai-mcp/1.0.0", "openai-mcp 1.0.0", "Unknown"},
-                    {"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/146.0.0.0 Safari/537.36", "Chrome 146.0.0.0", "Linux"},
-                    {null, "MCP", null},
-                    {"   ", "MCP", null}
+                    {"codex/0.42.0-beta.1 (Linux; x86_64)", "Linux", "codex", "0.42.0-beta.1"},
+                    {"openai-mcp/1.0.0", "Unknown", "openai-mcp", "1.0.0"},
+                    {"custom-agent", "Unknown", "custom-agent", null},
+                    {"zrlogctl/0.1.42 dot/1.2-beta.1", "Unknown", "dot", "1.2-beta.1"},
+                    {"zrlogctl/0.1.42 muse", "Unknown", "muse", null},
+                    {"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/146.0.0.0 Safari/537.36", "Linux", "Chrome", "146.0.0.0"},
+                    {"client/", "Unknown", null, null},
+                    {null, null, null, null},
+                    {"   ", null, null, null}
             };
             for (String[] client : clients) {
                 JsonObject created = call(token, "tools/call", "{\"name\":\"create_article\",\"arguments\":{\"title\":\"Audit article\",\"typeId\":1,\"status\":\"draft\",\"content\":\"Text\"}}", client[0]).result();
                 assertFalse(created.toString(), created.get("isError").getAsBoolean());
                 long id = created.getAsJsonObject("structuredContent").get("id").getAsLong();
-                JsonObject published = call(token, "tools/call", "{\"name\":\"publish_article\",\"arguments\":{\"id\":" + id + ",\"version\":0}}", client[0]).result();
+                JsonObject updated = call(token, "tools/call", "{\"name\":\"update_article\",\"arguments\":{\"id\":" + id + ",\"version\":0,\"title\":\"Updated draft\"}}", client[0]).result();
+                assertFalse(updated.toString(), updated.get("isError").getAsBoolean());
+                assertEquals("draft", updated.getAsJsonObject("structuredContent").get("status").getAsString());
+                JsonObject published = call(token, "tools/call", "{\"name\":\"publish_article\",\"arguments\":{\"id\":" + id + ",\"version\":1}}", client[0]).result();
                 assertFalse(published.toString(), published.get("isError").getAsBoolean());
                 assertEquals("published", published.getAsJsonObject("structuredContent").get("status").getAsString());
                 JsonArray audit = JsonParser.parseString(String.valueOf(db.scalar("select value from website where name='admin_audit_log'"))).getAsJsonArray();
                 for (int index = 0; index < 2; index++) {
                     JsonObject entry = audit.get(index).getAsJsonObject();
-                    assertEquals(index == 0 ? "UPDATE_ARTICLE" : "CREATE_ARTICLE", entry.get("action").getAsString());
+                    assertEquals(index == 0 ? "PUBLISH_ARTICLE" : "CREATE_ARTICLE", entry.get("action").getAsString());
+                    assertEquals(index == 0 ? "Updated draft" : "Audit article", entry.get("content").getAsString());
                     assertEquals(1, entry.get("actorUserId").getAsInt());
                     assertEquals("127.0.0.1", entry.get("ip").getAsString());
-                    assertEquals(client[1], entry.get("browser").getAsString());
-                    if (client[2] != null) assertEquals(client[2], entry.get("os").getAsString());
+                    assertEquals("MCP", entry.get("browser").getAsString());
+                    if (client[1] != null) assertEquals(client[1], entry.get("os").getAsString());
+                    assertEquals(client[2], entry.has("agentName") ? entry.get("agentName").getAsString() : null);
+                    assertEquals(client[3], entry.has("agentVersion") ? entry.get("agentVersion").getAsString() : null);
                 }
-                assertEquals(client[1], new AdminAuditService().getRecentLogs().get(0).getBrowser());
+                var displayed = new AdminAuditService().getRecentLogs().get(0);
+                assertEquals("MCP", displayed.getBrowser());
+                assertEquals(client[2], displayed.getAgentName());
+                assertEquals(client[3], displayed.getAgentVersion());
                 assertNull(AdminTokenThreadLocal.getUser());
             }
         }

@@ -43,6 +43,7 @@ public class AdminAuditService {
             newLog.setType(action.getType());
             newLog.setContent(sanitizeContent(action, content));
 
+            boolean mcpRequest = "/mcp".equals(request.getUri());
             String uaString = request.getHeader("User-Agent");
             if (uaString != null && !uaString.isBlank()) {
                 UserAgentUtils.UserAgentInfo uaInfo = UserAgentUtils.parse(uaString);
@@ -51,10 +52,15 @@ public class AdminAuditService {
                 newLog.setCrawler(uaInfo.isCrawler());
                 newLog.setAgentName(uaInfo.getAgentName());
                 newLog.setAgentVersion(uaInfo.getAgentVersion());
+                if (mcpRequest && uaInfo.getAgentName() == null && !"Unknown".equals(uaInfo.getBrowser())) {
+                    newLog.setAgentName(uaInfo.getBrowser());
+                    if (!"Unknown".equals(uaInfo.getBrowserVersion())) {
+                        newLog.setAgentVersion(uaInfo.getBrowserVersion());
+                    }
+                }
             }
-            if ((newLog.getBrowser() == null || "Unknown".equals(newLog.getBrowser()))
-                    && "/mcp".equals(request.getUri())) {
-                // Stateless MCP calls may omit User-Agent; do not invent a client version.
+            if (mcpRequest) {
+                // Keep the MCP entry point visible alongside the caller's declared name/version.
                 newLog.setBrowser("MCP");
             }
 
