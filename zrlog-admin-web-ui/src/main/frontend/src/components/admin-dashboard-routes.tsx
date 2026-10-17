@@ -67,6 +67,7 @@ const AsyncOAuthConsent = lazy(() => import("components/oauth-consent"));
 const AsyncUser = lazy(() => import("components/user"));
 const AsyncError = lazy(() => import("components/unknown-error-page"));
 const AsyncSystem = lazy(() => import("components/system"));
+const AsyncProxy = lazy(() => import("components/system/Proxy"));
 const AsyncVersion = lazy(() => import("components/website/version"));
 const AsyncStaticSite = lazy(() => import("components/StaticSite"));
 const DevAsync = lazy(() => import("components/dev"));
@@ -647,6 +648,19 @@ export const createAdminDashboardRoutes = (
                 title: () => getRes().system.info,
                 iconKey: "info",
                 keywords: ["system", "info", "系统", "信息", "环境"],
+            },
+        ],
+    },
+    {
+        paths: buildUriPaths("system/proxy"),
+        lazy: AsyncProxy,
+        fallback: LightweightFallback,
+        search: [
+            {
+                id: "system_proxy",
+                title: () => getRes().system.proxy.title,
+                iconKey: "link",
+                keywords: ["proxy", "network", "代理", "网络"],
             },
         ],
     },

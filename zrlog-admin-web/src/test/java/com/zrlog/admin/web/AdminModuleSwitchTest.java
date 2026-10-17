@@ -72,6 +72,8 @@ public class AdminModuleSwitchTest {
             var router = config.getServerConfig().getRouter();
             assertEquals(ui, config.getWebSetup(AdminUiWebSetup.class) != null);
             assertEquals(ui, router.getMethod("/admin", HttpMethod.GET) != null);
+            assertEquals(ui, router.getMethod("/admin/system/proxy", HttpMethod.GET) != null);
+            assertEquals(admin, router.getMethod("/api/admin/system/proxy", HttpMethod.GET) != null);
             assertEquals(ai, config.getWebSetup(ArticleAssistant.class) != null);
             assertEquals(assets, com.zrlog.admin.business.content.AttachmentStorage.current() != null);
             assertEquals(mcp, config.getServerConfig().getInterceptors().contains(McpInterceptor.class));

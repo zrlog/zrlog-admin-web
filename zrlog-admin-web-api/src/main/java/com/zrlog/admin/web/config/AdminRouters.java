@@ -35,6 +35,7 @@ public class AdminRouters {
         router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/upgrade/notice", UpgradeController.class, "notice");
         router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/upgrade/docker-status", UpgradeController.class, "dockerStatus");
         router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/system", AdminSystemController.class);
+        router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/system/proxy", AdminProxyController.class);
         router.addMapper("/api" + AdminConstants.ADMIN_DEV_URI_BASE_PATH, AdminDevController.class);
 
         router.addMapper(Constants.API_PUBLIC_ADMIN_RESOURCE, AdminPublicController.class, "adminResource");

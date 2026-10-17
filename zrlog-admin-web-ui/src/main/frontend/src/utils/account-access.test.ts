@@ -21,6 +21,7 @@ describe("account permission and cache boundary", () => {
         expect(actionForPath("/user/security")).toBe("account.self");
         expect(actionForPath("/user/preferences/appearance")).toBe("account.self");
         expect(actionForPath("/user/applications/authorize?request_id=example")).toBe("oauth.grant.manage");
+        expect(actionForPath("/system/proxy.html?v=1")).toBe("system.manage");
     });
     it("does not reuse another signed-in session's article or grant cache", () => {
         addToCache("/article", { privateText: "first session" });
@@ -33,6 +34,13 @@ describe("account permission and cache boundary", () => {
         addToCache("/user/applications/authorize?request_id=example", { csrf: "csrf-example" });
         expect(getCacheByKey("/user/applications/authorize?request_id=example").csrf).toBe("csrf-example");
         expect(JSON.stringify(localStorage)).not.toContain("csrf-example");
+    });
+    it("keeps deployment proxy settings only in the current session", () => {
+        addToCache("/system/proxy", { url: "http://private-proxy.example:3128" });
+        expect(getCacheByKey("/system/proxy").url).toContain("private-proxy");
+        expect(JSON.stringify(localStorage)).not.toContain("private-proxy");
+        window.__SS_DATA__!.key = "two";
+        expect(getCacheByKey("/system/proxy")).toBeUndefined();
     });
     it("keeps site member data in the current session only", () => {
         addToCache("/website/members", { members: ["member-cache-example"] });

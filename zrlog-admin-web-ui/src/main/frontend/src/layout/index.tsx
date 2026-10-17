@@ -4,8 +4,6 @@ import HomeIcon from "@zrlog/ui/icons/home";
 import { getAccountPage } from "../utils/account-page-routes";
 import { hasAction } from "../utils/account-access";
 
-
-
 import { getRes } from "../utils/constants";
 import { CSSProperties, FunctionComponent, PropsWithChildren, useCallback, useEffect, useRef, useState } from "react";
 import UserInfo from "./user-info";
@@ -198,6 +196,9 @@ const AdminManageLayout: FunctionComponent<AdminManageLayoutProps> = ({
         }
         if (pathname.startsWith("/template")) {
             return { title: getRes().websiteTemplate.title, subtitle: navigationSubtitle };
+        }
+        if (pathname.startsWith("/system/proxy")) {
+            return { title: getRes().system.proxy.title, subtitle: navigationSubtitle };
         }
         if (pathname.startsWith("/system")) {
             return { title: getRes().system.info, subtitle: navigationSubtitle };

@@ -75,6 +75,7 @@ public class AdminConstants {
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/template-config", "admin.template.config.manage");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/template-center", "admin.template.center.manage");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/system", "admin.system.info.manage");
+        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/system/proxy", "admin.system.proxy.manage");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/file-manager", "admin.fileManager.title");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/dev", "admin.dev.manage");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/dev/ui", "admin.dev.ui.manage");

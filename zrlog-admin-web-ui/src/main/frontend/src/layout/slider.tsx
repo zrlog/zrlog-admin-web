@@ -68,7 +68,7 @@ const SliderMenu = ({ expanded = false }: SliderMenuProps) => {
         if (selectPath.startsWith("/template")) {
             return ["/template"];
         }
-        if (selectPath === "/upgrade" || selectPath === "/system") {
+        if (selectPath === "/upgrade" || selectPath.startsWith("/system")) {
             return ["/website"];
         }
         if (selectPath.startsWith("/website")) {

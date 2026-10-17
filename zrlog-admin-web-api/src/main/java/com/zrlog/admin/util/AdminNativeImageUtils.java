@@ -36,6 +36,8 @@ public class AdminNativeImageUtils {
                 com.zrlog.admin.business.rest.response.UploadTemplateResponse.UploadTemplateData.class,
                 com.zrlog.admin.util.ServerInfo.class,
                 com.zrlog.admin.business.rest.response.SystemResponse.class,
+                com.zrlog.admin.business.rest.response.ProxySettingsResponse.class,
+                com.zrlog.admin.business.rest.request.ProxySettingsRequest.class,
                 com.zrlog.admin.business.rest.response.ErrorPageResponse.class,
                 com.zrlog.admin.business.rest.response.DevInfoResponse.class,
                 com.zrlog.admin.business.rest.response.TemplateValuePreviewResponse.class,

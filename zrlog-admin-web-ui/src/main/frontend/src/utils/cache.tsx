@@ -32,7 +32,8 @@ export const getPageDataCacheKeyByPath = (pathname: string, search: string) => {
 
 const ephemeralPageData: Record<string, any> = {};
 const ephemeralKey = (key: string) => `${getCacheKey()}:${key}`;
-const isSensitivePage = (key: string) => getAccountPage(key)?.sensitive === true;
+const isSensitivePage = (key: string) =>
+    getAccountPage(key)?.sensitive === true || key.split(/[?#]/)[0].replace(/\.html$/, "") === "/system/proxy";
 
 export const getCachedData = (): Record<string, any> => {
     const tempData = localStorage.getItem(getCacheKey());
