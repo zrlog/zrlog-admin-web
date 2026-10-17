@@ -1,14 +1,6 @@
 # 后台 API 文档
 
-这里是 `zrlog-admin-web` 后台 API 的统一文档入口，供开发者、调用方和 AI Agent 共同使用。
-
-## 评论插件内部 AI 接口
-
-`POST /api/admin/internal/ai/comment/analyze` 由 `zrlog-admin-ai` 提供，使用与 `refreshCache` 相同的 `PluginTokenValidator` 校验 `X-Plugin-Token`。`plugin-core` 仅为宿主配置地址下的此精确路径 POST 请求注入内部 token，并清除用户会话凭据；插件不持有该 token。后台由专用拦截器处理此精确路由，不接受仅有登录 Cookie 的请求。评论插件页面仍要求后台登录和操作令牌。后台、plugin-core 与评论插件需同步更新。
-
-请求只包含 `content`（非空、最多 5000 字符）；成功响应为 `ApiStandardResponse<AnalyzeCommentResponse>`，数据包含 `verdict`（`normal` / `spam` / `review`）、`reason`（最多 300 字符）和 `reply`（最多 600 字符）。结果仅作建议，不执行评论写入、删除或回复。
-
-模型配置、提示词、供应商适配和调用统一归属 `admin-ai`，复用 `AIConfigService` 与 `AIService`。请求超时 25 秒，输出 token 上限为站点配置和 2048 的较小值。接口错误由插件转为人工审核提示。此接口仅供后台与插件内部协作，不纳入稳定公开 OpenAPI。
+这里是 `zrlog-admin-web` 后台 API 的统一文档入口，供接口调用方使用。
 
 ## 文档来源
 
@@ -16,7 +8,6 @@
 - [`conventions.md`](conventions.md)：鉴权、context path、响应包装、错误和副作用等跨接口约定。
 - [`oauth.md`](oauth.md)：外部应用授权协议、scope 和部署范围。
 - [`article-publish-sse.md`](article-publish-sse.md)：文章发布进度、完成事件与断流处理。
-- Controller、DTO 和测试：接口实现来源。文档与实现不一致时，应在同一改动中修正，不保留两套语义。
 
 人类可浏览的聚合页面由 `zrlog-www` 提供：`https://www.zrlog.com/docs/api?source=admin-web`。该页面读取本仓库契约，不拥有或改写接口定义。
 
@@ -45,36 +36,4 @@ rg -n '/api/admin/template/upload|operationId: uploadTemplate' docs/api/openapi.
 - `stream`：SSE 或其他流式响应，必须单独记录事件协议。
 - `download`：文件或导出响应，不使用 JSON 响应包装。
 
-## 文档范围
-
-适合写入 OpenAPI 文档的接口应同时满足：
-
-- 调用目标可以脱离某个具体后台页面独立描述。
-- 鉴权、参数、响应、错误和副作用已经稳定。
-- 对脚本、集成或 AI 辅助调用有明确价值。
-- 维护者愿意为已发布字段和行为承担兼容责任。
-
-以下路由默认不写入：页面初始化数据、预览或搜索辅助、轮询、AI 助手内部流程、开发与错误测试入口、临时上传路径，以及插件私有业务接口。确有外部价值时，应单独评审并明确支持，不能因为路由已经存在就自动公开。
-
-## 维护接口
-
-维护文档中的 API，或明确支持新 API 时，同时完成以下事项：
-
-1. 在所属功能的 `*WebSetup` 路由和 Controller 中确认真实路径与方法；变更接口必须显式声明 HTTP 方法。
-2. 使用 typed request/response DTO，不用临时 `Map` 代替稳定协议。
-3. 在 `zrlog-api/admin-web.yaml` 中维护参数、请求体、响应 Schema、鉴权、失败语义和示例，生成索引并同步本仓库快照。
-4. 记录写库、覆盖文件、缓存刷新、静态站更新和审计等副作用。
-5. 为每个操作填写稳定且唯一的 `operationId`、`x-zrlog-controller` 和 `x-zrlog-response-kind`。
-6. DTO 有变化时同步维护 Native Image 注册和协议测试。
-7. 运行文档校验和相关代码测试。
-
-新建或修改一个尚未记录的内部路由，不需要仅为追求数量而补入 OpenAPI。反过来，文档中接口的实现、DTO 或错误语义发生变化时，必须在同一改动中更新；移除已记录接口前必须先给出兼容和迁移方案。
-
-```shell
-cd zrlog-admin-web-ui/src/main/frontend
-yarn api-docs:check
-```
-
-OpenAPI 稳定并达到足够覆盖率之前，不从契约自动生成客户端、运行时 Swagger UI 或 MCP 工具。独立的内容工具契约见 [MCP](../mcp-knowledge-base.md) 与 [MCP 内容工具](../mcp-content-tools.md)，它复用业务服务和账号权限，不自动映射后台管理接口。
-
-同步：在 `zrlog-api` 运行 `python3 bin/contracts.py index`，再运行 `python3 bin/contracts.py sync --workspace .. --consumer zrlog-admin-web`。本地校验会检查快照与同级契约是否一致；独立检出使用已提交快照。
+MCP 使用独立的[内容工具协议](mcp.md)，不从后台 OpenAPI 自动生成工具。

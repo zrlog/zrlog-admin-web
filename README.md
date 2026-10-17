@@ -1,143 +1,21 @@
 # zrlog-admin-web
 
-`zrlog-admin-web` 是 ZrLog 后台管理端模块，包含后台接口、后台静态资源构建和本地开发入口。后端使用 Java、SimpleWebServer、Gson、DbUtils；前端使用 React、Ant Design、styled-components 和 css-in-js。
+`zrlog-admin-web` 是 ZrLog 后台管理工程，提供后台 API、React 管理界面、资源管理、AI 写作辅助和插件面板宿主。
 
-## 目录
+## 模块
 
-- `zrlog-admin-account/content/assets/ai/access`：各功能自己的 Controller、服务、DTO、资源和测试。
-- `zrlog-admin-common`：共享 HTTP 契约、审计、通知状态和通用设置；不依赖功能模块。
-- `zrlog-admin-web-api`：Java 后端组装与公共 API；不依赖 UI，不打包页面资源。
-- `zrlog-admin-web-ui`：React、页面渲染、PWA 和后台页面静态化；依赖 API。
-- `zrlog-admin-web`：兼容原构件坐标的组装模块、开发启动入口和跨模块集成测试。
-- 通用测试夹具由 base 的 `zrlog-test-support` 提供；后台专用夹具在 `zrlog-admin-common/src/test/java/com/zrlog/admin/support`，通过 tests classifier 共享。
-- `zrlog-admin-web-ui/src/main/frontend/build`：忽略的前端构建输出，仅由 UI 构件打包。
-- `zrlog-admin-web-ui/src/main/frontend`：React 后台页面工程。
-- `docs`：后台开发规则和协议文档。
-- `shell`：本地运行、前端构建和静态资源预览脚本。
-- `conf`：本地开发配置示例。
+- `zrlog-admin-account/content/assets/ai/access`：各功能的接口、服务、资源和测试。
+- `zrlog-admin-common`：共享 HTTP 契约、审计、通知和通用设置。
+- `zrlog-admin-web-api`：后端组装与公共 API。
+- `zrlog-admin-web-ui`：后台页面、PWA 和静态资源。
+- `zrlog-admin-web`：保留 `com.hibegin:zrlog-admin-web` 坐标，组装完整后台。
 
-模块依赖、启动开关及验证记录见 [后台模块化](docs/admin-module-plan.md)。API 和 UI 分别产出 JAR，UI 的 `build` 输出仅打包到 UI JAR 的 `admin/` 目录。下游继续依赖 `com.hibegin:zrlog-admin-web`，通过传递依赖获得完整后台；API 和 UI 仍在同一仓库一起构建、发布。
+API 和 UI 分别产出 JAR，下游通过原构件的传递依赖获取完整后台。
 
-## 本地开发
+## 接入文档
 
-前后端一起启动：
-
-```shell
-scripts/dev-start.sh
-```
-
-脚本会复用已运行的 `http://localhost:17080/sub` 后端和 `http://localhost:3000/admin` 前端；未运行时会自动启动。前端默认启用 polling watcher，避免 Linux inotify 数量不足导致 `ENOSPC`。
-
-### 后端
-
-```shell
-./mvnw -DskipTests install
-./mvnw -pl zrlog-admin-web exec:java -Dexec.mainClass="com.zrlog.admin.Application"
-```
-
-开发入口 `com.zrlog.admin.Application` 默认使用 `17080` 端口和 `/sub` context path，并从 `conf/db.properties` 读取本地数据库配置。
-
-需要先打包再启动时，也可以使用：
-
-```shell
-sh shell/mvn-run.sh
-```
-
-内存预览使用 `bash shell/memory-run.sh`。`MemoryApplication` 位于测试源码，脚本以 test classpath 启动，仍通过真实安装流程初始化。共享测试规则见 base 的 `docs/test-support.md`。
-
-### 前端
-
-使用 Node.js 20.20.2+（20 LTS）或 22.22.1+（22 LTS）与 Yarn 1.x；不通过 npm 的
-`node` 依赖覆盖本机运行时。Maven 仍固定 Node.js 20.20.2。
-webpack-dev-server 5.2.6 使用不依赖 node-forge 的证书实现，由 `dev-server-config.cjs`
-适配 CRA 的 HTTPS、源码映射、用户 proxy 和 service-worker 清理。中间件保留 Host/跨站检查，
-不启用 wildcard CORS 或 `allowedHosts=all`。改动锁文件或适配器后运行
-`yarn test:dev-server`，验证 HTTP/HTTPS 和异常 Host/跨站请求。
-
-```shell
-cd zrlog-admin-web-ui/src/main/frontend
-yarn install --frozen-lockfile --ignore-scripts
-yarn start
-```
-
-前端工程的排障笔记保留在 [zrlog-admin-web-ui/src/main/frontend/README.md](zrlog-admin-web-ui/src/main/frontend/README.md)。
-
-## 构建
-
-### 后台 jar
-
-```shell
-./mvnw -Pjar clean package
-```
-
-`jar` profile 会生成 starter jar，并把运行依赖复制到 `lib`。
-
-### 后台静态资源
-
-```shell
-./mvnw -PnodeBuild package
-```
-
-`nodeBuild` profile 只在 UI 模块执行：在 `zrlog-admin-web-ui/src/main/frontend` 下运行 `yarn install --frozen-lockfile` 和构建，输出到其 `build` 目录，并打入 UI JAR。Node/Yarn 工具缓存保留在根 `.frontend-tools`，不会被 `mvn clean` 删除。`shell/admin-compile-frontend.sh` 只运行到 `generate-resources`，不重复执行后端编译和测试。
-
-只需要直接构建前端时：
-
-```shell
-cd zrlog-admin-web-ui/src/main/frontend
-yarn type-check
-yarn build
-```
-
-如果需要预览已构建的后台静态资源：
-
-```shell
-sh shell/admin-static-page.sh
-```
-
-### Maven 开发快照
-
-main 的 CI 使用一次 `./mvnw -U -PnodeBuild,snapshot clean deploy` 完成前端、后端、测试与上传。`snapshot` profile 使用 Maven Deploy 3.1.4，在所有模块成功后统一部署，按模块合并附件和元数据；保留 JAR、POM、sources 和 common 的 tests classifier，省略开发快照的 Javadoc 和 GPG 签名。
-
-正式 tag 使用 `./mvnw -U -PnodeBuild clean deploy`，保留 Central Publishing bundle、源码、Javadoc、签名与发布完成等待。`snapshot` profile 只部署 SNAPSHOT，正式版本会被 Maven Deploy 跳过。
-
-[Sonatype SNAPSHOT 仓库](https://central.sonatype.org/publish/publish-portal-snapshots/)使用标准 Maven 部署协议，不能用正式版的 ZIP bundle 接口发布开发快照；JAR 本身已压缩，优化重点是减少重复构建和元数据请求。
-
-上传行为的本地回归验证使用临时文件仓库，不访问远端发布接口、不需要发布凭证：
-
-```shell
-python3 scripts/test-snapshot-deploy.py
-```
-
-已有依赖缓存时可传 `--offline`；`--maven-repo /tmp/m2` 可指定独立 Maven 缓存。验证覆盖附件和元数据、全部测试完成后再部署、中途测试失败不上传，以及普通发布配置仍启用签名和 Javadoc。
-
-## 开发规则
-
-- 面向 AI Agent 的仓库入口见 [AGENTS.md](AGENTS.md)。
-- 大功能、跨前后端改动和 AI 辅助开发必须遵守 [工程协作约定](docs/engineering-conventions.md)。
-- 后台 API 的统一入口、接口约定和 OpenAPI 契约见 [后台 API 文档](docs/api/README.md)。
-- AI 模型列表的热加载、官方目录同步脚本和 GitHub Actions 每日更新 PR 见 [AI 模型目录](docs/ai-model-catalog.md)。
-- 前端可见文案必须维护在 `zrlog-admin-web-ui/src/main/frontend/src/i18n/admin.ts`，详见 [i18n 规则](docs/i18n.md)。
-- 后台主题样式、圆角和链接颜色必须复用主题配置，详见 [前端主题规则](docs/frontend-theme.md)。
-- 后台 UI 调整必须使用真实页面验收，详见 [后台 UI 真实页面验收](docs/admin-ui-real-page-validation.md)。
-- 新增会被 Gson 序列化或反序列化的 DTO 时，要同步维护 native image 注册，详见 [Native Image 规则](docs/native-image.md)。
-- 后台插件交互面板协议见 [插件交互面板协议](docs/plugin-interactive-surface.md)。
-- 高频接口优化需要记录 before/after 证据，详见 [接口性能基线](docs/api-performance-baseline.md)。
-- 后续后台开发事项见 [后台后续开发计划](docs/admin-next-dev-plan.md)。
-
-## 提交前检查
-
-按改动范围选择检查项：
-
-```shell
-scripts/check-admin-guardrails.sh
-mvn -q -DskipTests compile
-cd zrlog-admin-web-ui/src/main/frontend && yarn type-check
-cd zrlog-admin-web-ui/src/main/frontend && yarn build
-git diff --check
-```
-
-如果需要一次性执行护栏扫描、后端编译、前端类型检查和 diff 空白检查：
-
-```shell
-scripts/check-admin-guardrails.sh --full
-```
+- [后台 API](docs/api/README.md)
+- [外部应用授权](docs/api/oauth.md)
+- [MCP 内容工具](docs/api/mcp.md)
+- [安装与部署](docs/install.md)
+- [仓库职责与最小验证命令](AGENTS.md)

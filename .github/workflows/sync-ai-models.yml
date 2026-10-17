@@ -83,5 +83,5 @@ jobs:
 
           The workflow's `pull-requests: write` permission does not enable this repository setting. Keep the default workflow token permissions at read-only; only this job needs write permissions. After enabling the setting, run **Sync AI model catalog** again.
 
-          See `docs/ai-model-catalog.md` for troubleshooting. A pushed `automation/ai-model-catalog` branch alone does not mean a PR was created successfully.
+          A pushed `automation/ai-model-catalog` branch alone does not mean a PR was created successfully.
           MARKDOWN
