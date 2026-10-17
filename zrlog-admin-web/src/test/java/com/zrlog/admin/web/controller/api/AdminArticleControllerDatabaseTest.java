@@ -205,7 +205,7 @@ public class AdminArticleControllerDatabaseTest {
             assertEquals(false, row.get("rubbish"));
             assertEquals(false, row.get("privacy"));
             assertTrue(auditLog.contains("CREATE_ARTICLE"));
-            assertTrue(auditLog.contains("UPDATE_ARTICLE"));
+            assertTrue(auditLog.contains("PUBLISH_ARTICLE"));
         }
     }
 

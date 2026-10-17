@@ -12,6 +12,8 @@ public enum AdminAuditAction {
     LOGIN_SUCCESS("admin.audit.action.loginSuccess", "login"),
     LOGIN_WITH_PASSKEY("admin.audit.action.loginWithPasskey", "login"),
     CREATE_ARTICLE("admin.audit.action.createArticle", "article"),
+    PUBLISH_ARTICLE("admin.audit.action.publishArticle", "article"),
+    // Kept so historical audit entries retain their original label.
     UPDATE_ARTICLE("admin.audit.action.updateArticle", "article"),
     DELETE_ARTICLE("admin.audit.action.deleteArticle", "article"),
     ROLLBACK_ARTICLE_VERSION("admin.audit.action.rollbackArticleVersion", "article"),

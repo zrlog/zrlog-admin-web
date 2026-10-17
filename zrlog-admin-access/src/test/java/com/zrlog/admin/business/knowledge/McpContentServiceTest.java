@@ -72,17 +72,23 @@ public class McpContentServiceTest {
             Map<String,Object> row=db.queryOne("select * from log where logId=?",saved.id);
             assertEquals("Original body",row.get("markdown"));assertEquals("<p>Original body</p>",row.get("content"));
             assertEquals("real,notes",row.get("keywords"));assertEquals("Original summary",row.get("digest"));
+            JsonArray draftAudit = JsonParser.parseString(String.valueOf(db.scalar("select value from website where name='admin_audit_log'"))).getAsJsonArray();
+            assertEquals(1, draftAudit.size());
+            assertEquals("CREATE_ARTICLE", draftAudit.get(0).getAsJsonObject().get("action").getAsString());
+            assertEquals("Original", draftAudit.get(0).getAsJsonObject().get("content").getAsString());
             SavedArticle published=(SavedArticle)tools.call("publish_article",args("{\"id\":"+saved.id+",\"version\":1}"));
             assertEquals("published",published.status);assertEquals(2,published.version);assertEquals("updated",published.refreshStatus);
             assertEquals(1,refreshes.get());assertFalse(AccountAccess.truth(db.scalar("select rubbish from log where logId=?",saved.id)));
             String audit=String.valueOf(db.scalar("select value from website where name='admin_audit_log'"));
-            assertTrue(audit.contains("CREATE_ARTICLE"));assertTrue(audit.contains("UPDATE_ARTICLE"));
+            assertEquals(2, JsonParser.parseString(audit).getAsJsonArray().size());
+            assertTrue(audit.contains("CREATE_ARTICLE"));assertTrue(audit.contains("PUBLISH_ARTICLE"));
             assertEquals("MCP", new AdminAuditService().getRecentLogs().get(0).getBrowser());
             for(int version:new int[]{0,1,99}) assertThrows(UpdateArticleExpireException.class,()->tools.call("update_article",args("{\"id\":"+saved.id+",\"version\":"+version+",\"title\":\"Stale\"}")));
             JsonObject conflict = new McpService("en_US").handle("{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\",\"params\":{\"name\":\"publish_article\",\"arguments\":{\"id\":"+saved.id+",\"version\":0}}}",tools).body.getAsJsonObject("result");
             assertTrue(conflict.get("isError").getAsBoolean());
             assertEquals("ADMIN_ARTICLE_UPDATE_EXPIRED",conflict.getAsJsonObject("structuredContent").get("code").getAsString());
             assertEquals("Revised",db.scalar("select title from log where logId=?",saved.id));
+            assertEquals(audit, db.scalar("select value from website where name='admin_audit_log'"));
             assertSame(browser,AdminTokenThreadLocal.getUser());
         }
     }
@@ -97,6 +103,10 @@ public class McpContentServiceTest {
             JsonObject saved=result.getAsJsonObject("structuredContent");assertEquals("failed",saved.get("refreshStatus").getAsString());
             assertTrue(saved.get("warning").getAsString().contains("文章已保存"));assertFalse(saved.toString().contains("internal detail"));
             assertEquals(1,((Number)db.scalar("select count(*) from log")).intValue());
+            JsonArray audit = JsonParser.parseString(String.valueOf(db.scalar("select value from website where name='admin_audit_log'"))).getAsJsonArray();
+            assertEquals(2, audit.size());
+            assertEquals("PUBLISH_ARTICLE", audit.get(0).getAsJsonObject().get("action").getAsString());
+            assertEquals("CREATE_ARTICLE", audit.get(1).getAsJsonObject().get("action").getAsString());
         }
     }
     @Test public void replacesBodyWithoutLeavingStaleMarkdownOrHtml() throws Exception {
@@ -122,11 +132,13 @@ public class McpContentServiceTest {
     @Test public void filtersActionsAndDeniesHiddenToolsWithoutWideningOldReadTokens() throws Exception {
         try(InMemoryZrLogDatabase db=open()) {
             String writer=token("article.create","article.update");McpContentService tools=tools(writer);
+            Object auditBefore = db.scalar("select value from website where name='admin_audit_log'");
             assertEquals(Set.of("create_article","update_article"),names(tools));
             JsonObject published=args(CREATE);published.addProperty("status","published");
             assertThrows(PermissionErrorException.class,()->tools.call("create_article",published));
             assertThrows(PermissionErrorException.class,()->tools.call("publish_article",args("{\"id\":1,\"version\":0}")));
             assertThrows(PermissionErrorException.class,()->tools.call("list_categories",new JsonObject()));
+            assertEquals(auditBefore, db.scalar("select value from website where name='admin_audit_log'"));
             assertEquals("draft",((SavedArticle)tools.call("create_article",args(CREATE))).status);
             PersonalTokenModels.Create legacy=new PersonalTokenModels.Create();legacy.name="old";legacy.scopes=List.of("articles:read");
             String old=new PersonalAccessTokenService(new OAuthService().mcpResource()).create(legacy).token;

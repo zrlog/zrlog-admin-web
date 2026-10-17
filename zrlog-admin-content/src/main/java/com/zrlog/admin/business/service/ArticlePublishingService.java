@@ -68,12 +68,15 @@ public class ArticlePublishingService {
     public DeleteResponse deleteArticles(String ids, HttpRequest request) throws SQLException {
         boolean deleted = Arrays.stream(ids.split(",")).allMatch(id -> {
             try {
-                return articleService.delete(Long.valueOf(id));
+                boolean removed = articleService.delete(Long.valueOf(id));
+                if (removed) {
+                    new AdminAuditService().record(request, AdminAuditAction.DELETE_ARTICLE, id);
+                }
+                return removed;
             } catch (SQLException e) {
                 throw new DAOException(e);
             }
         });
-        new AdminAuditService().record(request, AdminAuditAction.DELETE_ARTICLE, ids);
         return new DeleteResponse(deleted);
     }
 
@@ -90,16 +93,22 @@ public class ArticlePublishingService {
             throws SQLException {
         CreateOrUpdateArticleResponse response = articleService.create(token, body);
         new AdminAuditService().record(request, AdminAuditAction.CREATE_ARTICLE, body.getTitle());
+        recordPublication(body, response, request);
         return response;
     }
 
     public CreateOrUpdateArticleResponse update(AdminTokenVO token, UpdateArticleRequest body, HttpRequest request)
             throws SQLException {
         CreateOrUpdateArticleResponse response = articleService.update(token, body);
-        if (Objects.equals(response.getRubbish(), false)) {
-            new AdminAuditService().record(request, AdminAuditAction.UPDATE_ARTICLE, body.getTitle());
-        }
+        recordPublication(body, response, request);
         return response;
+    }
+
+    private void recordPublication(CreateArticleRequest body, CreateOrUpdateArticleResponse saved, HttpRequest request) {
+        // Admin APIs, MCP and the built-in assistant share the same publication policy.
+        if (Objects.equals(saved.getRubbish(), false) && Objects.equals(saved.getPrivacy(), false)) {
+            new AdminAuditService().record(request, AdminAuditAction.PUBLISH_ARTICLE, body.getTitle());
+        }
     }
 
     public AdminPageDataResponse<ArticleGlobalResponse> articleResponse(CreateOrUpdateArticleResponse saveResponse,
