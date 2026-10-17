@@ -23,6 +23,14 @@
     ]
   },
   {
+    "name": "com.zrlog.admin.web.controller.api.AdminProxyController",
+    "methods": [
+      {"name": "<init>", "parameterTypes": []},
+      {"name": "index", "parameterTypes": []},
+      {"name": "test", "parameterTypes": []}
+    ]
+  },
+  {
     "name": "com.zrlog.admin.web.controller.api.AdminPublicController",
     "methods": [
       {"name": "<init>", "parameterTypes": []},

@@ -10,11 +10,13 @@ import com.hibegin.http.annotation.ResponseBody;
 import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
 import com.zrlog.admin.business.rest.response.AdminResourceInfoResponse;
+import com.zrlog.admin.business.rest.response.ProxySettingsResponse;
 import com.zrlog.admin.business.rest.response.ServerSideDataResponse;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.common.vo.AdminTokenVO;
+import com.zrlog.util.NetworkProxy;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.junit.After;
@@ -292,6 +294,36 @@ public class AdminPageServiceTest {
             // ssJson uses the same page mapping and must enforce the same member action.
             org.junit.Assert.assertThrows(com.zrlog.admin.business.exception.PermissionErrorException.class,
                     () -> service.serverSide("/admin/website/members", request("/admin/ssJson", "/blog", config), response()));
+        }
+    }
+
+    @Test
+    public void shouldLoadProxyPageForAdministratorsAndRejectOtherRoles() throws Throwable {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            db.loadAdminWebModules();
+            NetworkProxy.save("http://proxy.example:3128", ".internal.example");
+            RequestConfig config = new RequestConfig();
+            config.setRouter(com.zrlog.common.Constants.zrLogConfig.getServerConfig().getRouter());
+            AdminPageService service = new AdminPageService();
+            String page = "/admin/system/proxy";
+            for (String contextPath : java.util.List.of("", "/blog")) {
+                for (String uri : java.util.List.of(page, "/admin/ssJson")) {
+                    HttpRequest request = request(uri, contextPath, config);
+                    for (String role : java.util.List.of("owner", "admin")) {
+                        AccountAuthorizationTest.login(db, 1, role);
+                        ServerSideDataResponse<Object> response = service.serverSide(page, request, response());
+                        ProxySettingsResponse settings = (ProxySettingsResponse) response.getData();
+                        assertEquals("http://proxy.example:3128", settings.getUrl());
+                        assertEquals(".internal.example", settings.getNoProxy());
+                        assertEquals(AdminConstants.getAdminDocumentTitleByUri(page), response.getDocumentTitle());
+                    }
+                    for (String role : java.util.List.of("editor", "author", "contributor")) {
+                        AccountAuthorizationTest.login(db, 1, role);
+                        org.junit.Assert.assertThrows(com.zrlog.admin.business.exception.PermissionErrorException.class,
+                                () -> service.serverSide(page, request, response()));
+                    }
+                }
+            }
         }
     }
 

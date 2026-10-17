@@ -2,6 +2,7 @@ package com.zrlog.admin.web.controller.api;
 
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.ResponseBody;
+import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.rest.request.ProxySettingsRequest;
 import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
 import com.zrlog.admin.business.rest.response.ProxySettingsResponse;
@@ -31,7 +32,7 @@ public class AdminProxyController extends BaseController {
             return null;
         }
         return new AdminPageDataResponse<>(new ProxySettingsResponse(NetworkProxy.initialize(), NetworkProxy.configured()),
-                "", request.getUri());
+                "", AdminConstants.ADMIN_URI_BASE_PATH + "/system/proxy");
     }
 
     @ResponseBody
