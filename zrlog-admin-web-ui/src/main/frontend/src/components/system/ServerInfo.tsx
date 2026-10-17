@@ -178,13 +178,19 @@ const ServerInfo = ({ data }: ServerInfoProps) => {
             items.push(<DockerOutlined key="docker" style={{ fontSize: iconSize }} />);
         }
         if (data.nativeImageMode) {
-            items.push(<GraalVmOutlined key="graalvm" />);
+            items.push(<GraalVmOutlined key="graalvm" size={iconSize} />);
         } else {
             items.push(<RiJavaLine key="java" style={{ width: iconSize, height: iconSize }} />);
         }
         return (
             <span
-                style={{ display: "inline-flex", alignItems: "center", gap: theme.marginXS, color: theme.colorPrimary }}
+                style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: theme.marginXS,
+                    color: theme.colorPrimary,
+                    flexShrink: 0,
+                }}
             >
                 {items}
             </span>
@@ -241,8 +247,11 @@ const ServerInfo = ({ data }: ServerInfoProps) => {
         return (
             <span
                 style={{
-                    width: 36,
+                    width: item.key === "runtime" ? "auto" : 36,
+                    minWidth: 36,
                     height: 36,
+                    paddingInline: item.key === "runtime" ? theme.paddingXXS : 0,
+                    boxSizing: "border-box",
                     borderRadius: theme.borderRadius,
                     background: theme.colorPrimaryBg,
                     color: theme.colorPrimary,

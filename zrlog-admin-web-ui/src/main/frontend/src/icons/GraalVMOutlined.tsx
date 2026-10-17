@@ -1,4 +1,4 @@
-const GraalVmOutlined = () => {
+const GraalVmOutlined = ({ size = 34 }: { size?: number }) => {
     return (
         <span
             className={"anticon"}
@@ -13,7 +13,7 @@ const GraalVmOutlined = () => {
                 style={{
                     display: "block",
                     width: "auto",
-                    height: 34,
+                    height: size,
                     maxWidth: "100%",
                     objectFit: "contain",
                 }}
