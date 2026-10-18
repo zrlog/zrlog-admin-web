@@ -15,9 +15,12 @@ import com.zrlog.admin.business.rest.response.ServerSideDataResponse;
 import com.zrlog.admin.business.rest.response.SystemResponse;
 import com.zrlog.admin.business.rest.response.VersionResponse;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
+import com.zrlog.admin.web.annotation.RequiresAction;
+import com.zrlog.admin.web.controller.api.WebSiteController;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.common.vo.AdminTokenVO;
+import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.NetworkProxy;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -364,7 +367,7 @@ public class AdminPageServiceTest {
         }
     }
 
-    @Test
+    @Test(timeout = 30000)
     public void shouldLoadCanonicalVersionPageWithExistingPermissionsAndTitle() throws Throwable {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             db.loadAdminWebModules();
@@ -377,6 +380,8 @@ public class AdminPageServiceTest {
             assertEquals(com.zrlog.data.security.AccountAction.SITE_CONFIGURE,
                     config.getRouter().getMethod("/api" + page, HttpMethod.GET)
                             .getAnnotation(com.zrlog.admin.web.annotation.RequiresAction.class).value());
+            // Keep the real version response logic, with a local changelog instead of a public HTTP request.
+            config.getRouter().addMapper("/api" + page, OfflineVersionController.class, "version");
             AdminPageService service = new AdminPageService();
             for (String contextPath : java.util.List.of("", "/blog")) {
                 for (String uri : java.util.List.of(page, "/admin/ssJson")) {
@@ -385,6 +390,7 @@ public class AdminPageServiceTest {
                         AccountAuthorizationTest.login(db, 1, role);
                         ServerSideDataResponse<Object> result = service.serverSide(page, request, response());
                         assertNotNull(((VersionResponse) result.getData()).getVersion());
+                        assertEquals("test changelog", ((VersionResponse) result.getData()).getChangelog());
                         assertEquals(AdminConstants.getAdminDocumentTitleByUri(page), result.getDocumentTitle());
                     }
                     for (String role : java.util.List.of("editor", "author", "contributor")) {
@@ -518,6 +524,21 @@ public class AdminPageServiceTest {
         Method method = AdminTokenThreadLocal.class.getDeclaredMethod("setAdminToken", AdminTokenVO.class);
         method.setAccessible(true);
         method.invoke(null, token);
+    }
+
+    public static class OfflineVersionController extends WebSiteController {
+
+        @Override
+        @ResponseBody
+        @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "website.version")
+        public AdminPageDataResponse<VersionResponse> version() {
+            return super.version();
+        }
+
+        @Override
+        protected String getCurrentChangeLog(Map<String, Object> backendMessages) {
+            return "test changelog";
+        }
     }
 
     public static class FakePageController extends Controller {

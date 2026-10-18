@@ -3,6 +3,7 @@ package com.zrlog.admin.web.controller.api;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
+import com.hibegin.http.server.util.PathUtil;
 import com.hibegin.http.server.web.Controller;
 import com.hibegin.http.server.web.Router;
 import com.zrlog.admin.business.exception.PermissionErrorException;
@@ -13,7 +14,11 @@ import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.NetworkProxy;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Proxy;
@@ -25,6 +30,19 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.Assert.*;
 
 public class AdminProxyControllerTest {
+    @Rule public TemporaryFolder temporary = new TemporaryFolder();
+    private String previousRoot;
+
+    @Before public void isolateConfiguration() throws Exception {
+        previousRoot = System.getProperty("sws.root.path");
+        PathUtil.setRootPath(temporary.newFolder("runtime").toString());
+    }
+
+    @After public void restoreConfiguration() {
+        if (previousRoot == null) System.clearProperty("sws.root.path");
+        else System.setProperty("sws.root.path", previousRoot);
+    }
+
     @Test
     public void bothProxyRoutesRequireSystemManagement() throws Exception {
         Router router = new Router();
@@ -60,11 +78,14 @@ public class AdminProxyControllerTest {
     public void savesLocalFileAndRejectsInvalidInputWithoutLosingSavedSettings() throws Exception {
         try (InMemoryZrLogDatabase database = InMemoryZrLogDatabase.open()) {
             database.loadAdminWebModules();
+            // Change the running policy, including when other test classes already initialized it.
+            String proxyUrl = NetworkProxy.initialize().getUrl().equals("http://proxy.example:3128")
+                    ? "http://proxy.example:3129" : "http://proxy.example:3128";
             AdminProxyController controller = new AdminProxyController();
             set(controller, "request", request(HttpMethod.POST,
-                    "{\"url\":\"http://proxy.example:3128\",\"noProxy\":\".internal.example\"}"));
+                    "{\"url\":\"" + proxyUrl + "\",\"noProxy\":\".internal.example\"}"));
             var saved = controller.index().getData();
-            assertEquals("http://proxy.example:3128", saved.getUrl());
+            assertEquals(proxyUrl, saved.getUrl());
             assertTrue(saved.isRestartRequired());
             byte[] previousFile = Files.readAllBytes(NetworkProxy.configFile());
             assertTrue(new String(previousFile, StandardCharsets.ISO_8859_1).contains("network.proxy.url"));
