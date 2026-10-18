@@ -9,10 +9,14 @@ const AdminSettingsLayout = ({
     activeKey,
     children,
     extra,
+    title,
+    summary,
 }: {
     activeKey: AdminSettingsPage;
     children: ReactNode;
     extra?: ReactNode;
+    title?: string;
+    summary?: ReactNode;
 }) => {
     const { token } = theme.useToken();
     const res = getRes();
@@ -35,8 +39,8 @@ const AdminSettingsLayout = ({
     return (
         <SettingsLayout
             activeKey={activeKey}
-            title={activeMeta.text}
-            summary={activeMeta.summary}
+            title={title ?? activeMeta.text}
+            summary={summary === undefined ? activeMeta.summary : summary}
             groups={groups}
             extra={extra}
         >

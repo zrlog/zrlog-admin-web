@@ -1,6 +1,6 @@
 import { act } from "react";
 import { createRoot, Root } from "react-dom/client";
-import { MemoryRouter, NavigateFunction, Route, Routes, useNavigate, useLocation } from "react-router-dom";
+import { Link, MemoryRouter, NavigateFunction, Route, Routes, useNavigate, useLocation } from "react-router-dom";
 import { Grid } from "antd";
 import { afterEach, beforeEach, expect, jest, test } from "@jest/globals";
 import System from "./index";
@@ -301,6 +301,19 @@ test.each([
                     element={<AdminSettingsLayout activeKey="upgrade">Update content</AdminSettingsLayout>}
                 />
                 <Route
+                    path={`/blog/admin/upgrade${suffix}`}
+                    element={
+                        <AdminSettingsLayout
+                            activeKey="upgrade"
+                            title="Upgrade Wizard"
+                            summary={null}
+                            extra={<Link to={`/blog/admin/system/upgrade${suffix}`}>Back to Update Settings</Link>}
+                        >
+                            Update execution
+                        </AdminSettingsLayout>
+                    }
+                />
+                <Route
                     path={`/blog/admin/dev${suffix}`}
                     element={<AdminSettingsLayout activeKey="dev">Developer content</AdminSettingsLayout>}
                 />
@@ -359,6 +372,23 @@ test.each([
     await choose("Version Info");
     expect(selected()).toBe("Version Info");
     expect(container.textContent).toContain("Version content");
+    await choose("Update Settings");
+    expect(selected()).toBe("Update Settings");
+    await act(async () => navigate(`/blog/admin/upgrade${suffix}`));
+    expect(selected()).toBe("Update Settings");
+    expect(container.textContent).toContain("Update execution");
+    expect(container.textContent).not.toContain(
+        "Set the update check interval and whether preview versions are included"
+    );
+    expect(container.querySelector('nav a[href^="/blog/admin/upgrade"]')).toBeNull();
+    if (!mobile) expect(container.textContent).toContain("Upgrade Wizard");
+    await act(async () =>
+        Array.from(container.querySelectorAll<HTMLAnchorElement>("a"))
+            .find((item) => item.textContent === "Back to Update Settings")!
+            .click()
+    );
+    expect(selected()).toBe("Update Settings");
+    expect(container.textContent).toContain("Update content");
 });
 
 test.each([false, true])(
@@ -371,6 +401,8 @@ test.each([false, true])(
             "/system/proxy",
             "/dev.html",
             "/system/version",
+            "/upgrade",
+            "/upgrade.html",
         ]) {
             await act(async () =>
                 root.render(
@@ -387,6 +419,7 @@ test.each([false, true])(
                 "/blog/admin/website"
             );
             expect(container.querySelector('a[href="/blog/admin/system"]')).toBeNull();
+            expect(container.querySelector('a[href="/blog/admin/upgrade"]')).toBeNull();
         }
         mockConfigure = false;
         await act(async () =>

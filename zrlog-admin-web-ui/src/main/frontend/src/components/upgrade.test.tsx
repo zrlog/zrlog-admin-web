@@ -1,5 +1,6 @@
 import { act } from "react";
 import { createRoot, Root } from "react-dom/client";
+import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { UpgradeData } from "../type";
 import Upgrade, { UpgradeProps } from "./upgrade";
@@ -38,6 +39,17 @@ jest.mock("../utils/background-task-store", () => ({
 }));
 jest.mock("@zrlog/editor/dist/editor/utils/marked-utils", () => ({ markdownToHtml: async (text: string) => text }));
 jest.mock("@zrlog/editor/core/editor/html-preview-panel", () => () => null);
+jest.mock("./common/AdminSettingsLayout", () => ({
+    __esModule: true,
+    default: ({ activeKey, title, extra, children }: any) =>
+        require("react").createElement(
+            "main",
+            { "data-settings-page": activeKey },
+            require("react").createElement("h1", null, title),
+            extra,
+            children
+        ),
+}));
 jest.mock("./upgrade-content", () => ({
     __esModule: true,
     default: ({ data }: { data: UpgradeData }) =>
@@ -71,16 +83,13 @@ jest.mock("antd/es/typography/Title", () => ({
 }));
 jest.mock("antd", () => {
     const React = require("react");
-    const Container = ({ children }: any) => React.createElement("div", null, children);
     return {
         App: { useApp: () => ({ modal: mockModal }) },
         message: { useMessage: () => [mockMessage, null] },
         theme: { useToken: () => ({ token: {} }) },
         Grid: { useBreakpoint: () => ({ xs: false, sm: true, md: true }) },
-        Row: Container,
-        Col: Container,
-        Card: Container,
-        Steps: () => null,
+        Empty: ({ description, children }: any) =>
+            React.createElement("div", { role: "status" }, description, children),
         Progress: ({ percent, status, format, "aria-label": label }: any) =>
             React.createElement(
                 "div",
@@ -135,7 +144,13 @@ describe("upgrade readiness actions", () => {
     let props: UpgradeProps;
     const render = async (changes: Partial<UpgradeProps> = {}) => {
         props = { ...props, ...changes };
-        await act(async () => root.render(<Upgrade {...props} />));
+        await act(async () =>
+            root.render(
+                <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+                    <Upgrade {...props} />
+                </MemoryRouter>
+            )
+        );
     };
     const button = (label: string) => {
         const element = Array.from(container.querySelectorAll("button")).find((item) => item.textContent === label);
@@ -203,26 +218,35 @@ describe("upgrade readiness actions", () => {
         expect(container.querySelector("[data-backup]")).toBeNull();
     });
 
-    it("shows only the result and recheck action when no update is available", async () => {
-        await render({ data: { ...initialData(), upgrade: false } });
+    it("shows an empty state in update settings and can check for an update", async () => {
+        await render({ data: { ...initialData(), upgrade: false, version: null } });
+        expect(container.querySelector("main")?.getAttribute("data-settings-page")).toBe("upgrade");
+        expect(container.querySelector("h1")?.textContent).toBe("Upgrade Wizard");
+        expect(container.querySelector("a")?.getAttribute("href")).toBe("/system/upgrade");
+        expect(container.querySelector("a")?.textContent).toBe("Back to Update Settings");
+        expect(container.textContent).toContain("No update is waiting to be installed");
         expect(container.querySelector("[data-backup]")).toBeNull();
         expect(checkbox()).toBeNull();
         expect(container.textContent).not.toContain("Update Now");
-        expect(check().disabled).toBe(false);
+        expect(container.querySelector('[role="progressbar"]')).toBeNull();
+        expect(button("Check for Updates").disabled).toBe(false);
 
         mockGet.mockResolvedValueOnce({ data: { error: 0, data: refreshedData() } });
-        await click(check());
+        await click(button("Check for Updates"));
         expect(container.querySelector("[data-backup]")).not.toBeNull();
         expect(checkbox().checked).toBe(false);
         expect(execute().disabled).toBe(true);
         expect(mockUpgrade).not.toHaveBeenCalled();
     });
 
-    it("hides upgrade warnings and actions when a recheck finds no update", async () => {
+    it.each([null, undefined])("accepts a no-update check without version metadata (%s)", async (version) => {
         await render();
         await click(checkbox());
-        mockGet.mockResolvedValueOnce({ data: { error: 0, data: { ...refreshedData(), upgrade: false } } });
+        mockGet.mockResolvedValueOnce({ data: { error: 0, data: { ...refreshedData(), upgrade: false, version } } });
         await click(check());
+        expect(container.querySelector('[role="alert"]')).toBeNull();
+        expect(container.textContent).toContain("No update is waiting to be installed");
+        expect(button("Check for Updates").disabled).toBe(false);
         expect(container.querySelector("[data-backup]")).toBeNull();
         expect(checkbox()).toBeNull();
         expect(container.textContent).not.toContain("Update Now");
@@ -311,7 +335,13 @@ describe("Docker upgrade interaction and recovery", () => {
         data: { ...request, id: request.requestId, phase, recoveryRequired: false, ...changes },
     });
     const render = async (changes: Partial<UpgradeProps> = {}) => {
-        await act(async () => root.render(<Upgrade data={page()} offline={false} offlineData={false} {...changes} />));
+        await act(async () =>
+            root.render(
+                <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+                    <Upgrade data={page()} offline={false} offlineData={false} {...changes} />
+                </MemoryRouter>
+            )
+        );
     };
     const click = async (label: string) => {
         const element = Array.from(container.querySelectorAll("button")).find((item) => item.textContent === label);
@@ -389,6 +419,7 @@ describe("Docker upgrade interaction and recovery", () => {
         mockUpgrade.mockResolvedValue({ error: 0, data: { synced: true } });
         mockPost.mockResolvedValue({ data: { error: 0 } });
         await render({ data: { ...page(), upgrade: false, version: metadata ? page().version : undefined } });
+        expect(container.textContent).not.toContain("No update is waiting to be installed");
         expect(mockSubscribe).toHaveBeenCalledWith(
             "/api/admin/upgrade/docker-status?requestId=" + request.requestId,
             expect.objectContaining({ waitForComplete: true, responseEvents: ["response"] })
@@ -402,6 +433,16 @@ describe("Docker upgrade interaction and recovery", () => {
         await tick();
         expect(mockSubscribe).toHaveBeenCalledTimes(1);
         expect(mockGet).not.toHaveBeenCalled();
+    });
+
+    it("shows recovery while the saved task is loading without version metadata", async () => {
+        saveDockerUpgrade(request);
+        mockSubscribe.mockReturnValue(deferred().promise);
+        await render({ data: { ...page(), upgrade: false, version: null } });
+        expect(container.textContent).toContain("Checking the existing update task");
+        expect(container.textContent).not.toContain("No update is waiting to be installed");
+        expect(container.querySelector('input[type="checkbox"]')).toBeNull();
+        expect(mockUpgrade).not.toHaveBeenCalled();
     });
 
     it.each(["failed", "interrupted"] as const)("renders the standard terminal error for %s", async (phase) => {
@@ -576,7 +617,13 @@ describe.each([false, true])("shared online upgrade lifecycle (Docker=%s)", (doc
             dockerUpdaterAvailable: docker,
             version: { ...initialData().version!, buildId: targetBuild, artifactVersion: "4.0.0", channel: "release" },
         };
-        await act(async () => root.render(<Upgrade data={data} offline={false} offlineData={false} />));
+        await act(async () =>
+            root.render(
+                <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+                    <Upgrade data={data} offline={false} offlineData={false} />
+                </MemoryRouter>
+            )
+        );
         await act(async () => (container.querySelector('input[type="checkbox"]') as HTMLInputElement).click());
         const button = Array.from(container.querySelectorAll("button")).find(
             (item) => item.textContent === (online ? "Update Now" : "View Manual Instructions")

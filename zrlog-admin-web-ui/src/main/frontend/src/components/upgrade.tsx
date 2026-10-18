@@ -1,5 +1,4 @@
-import { Alert, Button, Card, Checkbox, Col, Grid, Row, theme } from "antd";
-import Steps from "@zrlog/ui/antd/Steps";
+import { Alert, Button, Checkbox, Empty, Grid, theme } from "antd";
 import Progress from "@zrlog/ui/antd/Progress";
 import { useUiMessage, useUiApp } from "@zrlog/ui/feedback";
 import SuccessIcon from "@zrlog/ui/icons/success";
@@ -9,6 +8,8 @@ import LoadingIcon from "@zrlog/ui/icons/loading";
 import { FunctionComponent, useEffect, useRef, useState } from "react";
 
 import Title from "antd/es/typography/Title";
+import { Link } from "react-router-dom";
+import AdminSettingsLayout from "./common/AdminSettingsLayout";
 import { getRealRouteUrl, getRes } from "../utils/constants";
 import { getContextPath } from "../utils/helpers";
 import { useAxiosBaseInstance } from "../base/AppBase";
@@ -42,14 +43,9 @@ const RESTART_CHECK_MAX_DELAY_MS = 10000;
 const RESTART_CHECK_TIMEOUT_MS = 10 * 60 * 1000;
 
 type UpgradeState = {
-    current: number;
+    phase: "review" | "execution";
     manualMessageHtml: string;
     progressItems: UpgradeProgressItem[];
-};
-
-type StepInfo = {
-    title: string;
-    alias: "changeLog" | "doUpgrade";
 };
 
 export type UpgradeProps = {
@@ -68,17 +64,6 @@ type StaticSiteSyncResponse = {
 };
 
 const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, offlineData }) => {
-    const steps: StepInfo[] = [
-        {
-            title: getRes().upgrade.changeLog,
-            alias: "changeLog",
-        },
-        {
-            title: getRes().upgrade.execute,
-            alias: "doUpgrade",
-        },
-    ];
-
     const mounted = useRef(true);
     const connectionGeneration = useRef(0);
     const dockerStream = useRef<AbortController>();
@@ -97,10 +82,9 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
     const { token } = theme.useToken();
     const breakpointReady = screens.xs !== undefined;
     const narrow = screens.md !== true;
-    const contentMaxWidth = narrow ? "100%" : screens.xl ? 760 : 720;
 
     const [state, setState] = useState<UpgradeState>({
-        current: 0,
+        phase: "review",
         manualMessageHtml: "",
         progressItems: [],
     });
@@ -127,7 +111,7 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
     }, [initialData, offline]);
 
     const refreshReadiness = async () => {
-        if (offline || readinessRefreshing.current || upgradeStarting.current || state.current !== 0) {
+        if (offline || readinessRefreshing.current || upgradeStarting.current || state.phase !== "review") {
             return;
         }
         const request = ++readinessRequest.current;
@@ -146,9 +130,9 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
             }
             if (
                 response.error !== 0 ||
-                !response.data?.version ||
-                typeof response.data.upgrade !== "boolean" ||
-                typeof response.data.onlineUpgradable !== "boolean"
+                typeof response.data?.upgrade !== "boolean" ||
+                typeof response.data.onlineUpgradable !== "boolean" ||
+                (response.data.upgrade && !response.data.version)
             ) {
                 setRefreshError(getRes().upgrade.maintenance.refreshFailed);
                 return;
@@ -538,18 +522,13 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
             const message = error instanceof Error ? error.message : getRes().upgrade.docker.failed;
             finishUpgradeTask("error", message);
             messageApi.error(message);
-            returnToChangeLog();
+            returnToReview();
         } finally {
             upgradeStarting.current = false;
         }
     };
 
-    const getStepIndex = (alias: StepInfo["alias"]) => {
-        const index = steps.findIndex((step) => step.alias === alias);
-        return index >= 0 ? index : 0;
-    };
-
-    const currentStepAlias = steps[state.current]?.alias || "changeLog";
+    const showExecution = state.phase === "execution" || dockerPending;
     const hasExecutionOutput = state.progressItems.length > 0 || !!state.manualMessageHtml;
     const executionTitle = data.onlineUpgradable ? getRes().upgrade.execute : getRes().upgrade.manualTitle;
     const stepProgress = getUpgradeStepProgress(state.progressItems);
@@ -564,7 +543,7 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
             return {
                 ...prevState,
                 manualMessageHtml: htmlContent,
-                current: getStepIndex("doUpgrade"),
+                phase: "execution",
             };
         });
     };
@@ -577,7 +556,7 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
         const key = eventData.stage || `event-${Date.now()}`;
         setState((prevState) => ({
             ...prevState,
-            current: getStepIndex("doUpgrade"),
+            phase: "execution",
             progressItems: mergeUpgradeProgress(prevState.progressItems, eventData, key),
         }));
     };
@@ -666,10 +645,10 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
         );
     };
 
-    const returnToChangeLog = () => {
+    const returnToReview = () => {
         setState((prevState) => ({
             ...prevState,
-            current: getStepIndex("changeLog"),
+            phase: "review",
         }));
     };
 
@@ -718,15 +697,14 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
     const newBuildId = data.version?.buildId || "";
 
     const upgrade = async () => {
-        if (upgradeStarting.current || readinessRefreshing.current || nextDisabled()) {
+        if (upgradeStarting.current || readinessRefreshing.current || upgradeDisabled()) {
             return;
         }
         upgradeStarting.current = true;
-        const current = getStepIndex("doUpgrade");
         setState((prevState) => {
             return {
                 ...prevState,
-                current: current,
+                phase: "execution",
                 manualMessageHtml: "",
                 progressItems: [],
             };
@@ -760,13 +738,7 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
         }
     };
 
-    const next = async () => {
-        if (currentStepAlias === "changeLog") {
-            await upgrade();
-        }
-    };
-
-    const nextDisabled = (): boolean => {
+    const upgradeDisabled = (): boolean => {
         if (dockerPending || refreshing || refreshError || (offlineData && checkedAt === undefined)) {
             return true;
         }
@@ -802,172 +774,150 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
     }
 
     return (
-        <>
+        <AdminSettingsLayout
+            activeKey="upgrade"
+            title={getRes().upgrade.wizard}
+            summary={null}
+            extra={<Link to={getRealRouteUrl("/system/upgrade")}>{getRes().upgrade.backToSettings}</Link>}
+        >
             {contextHolder}
             {dockerRetry && (
                 <Button disabled={offline} onClick={() => void retryDockerSubmission()}>
                     {getRes().upgrade.docker.retrySubmission}
                 </Button>
             )}
-            <Row key={data.version?.buildId || data.version?.version} justify="start" style={{ width: "100%" }}>
-                <Col style={{ maxWidth: contentMaxWidth, width: "100%" }} xs={24} md={22} xl={18} xxl={14}>
-                    <Card styles={{ body: { padding: narrow ? token.padding : token.paddingLG } }}>
-                        {data.upgrade && (
-                            <Steps
-                                current={state.current}
-                                direction={narrow ? "vertical" : "horizontal"}
-                                size={narrow ? "small" : "default"}
-                                style={{ paddingTop: narrow ? 0 : token.paddingSM }}
-                                items={steps}
-                            />
-                        )}
-                        <div
-                            className="steps-content"
-                            style={{
-                                marginTop: token.marginLG,
-                                minWidth: 0,
-                                overflowX: "auto",
-                            }}
-                        >
-                            {currentStepAlias === "changeLog" && (
-                                <>
-                                    {data.upgrade && (
-                                        <Title level={4} style={{ marginTop: 0 }}>
-                                            {getRes().upgrade.changeLog}
-                                        </Title>
-                                    )}
-                                    <UpgradeContent data={data} />
-                                    {data.upgrade ? (
+            <div style={{ minWidth: 0, paddingBottom: token.paddingLG }}>
+                {!showExecution && (
+                    <>
+                        {data.upgrade ? (
+                            <>
+                                <Title level={4} style={{ marginTop: 0 }}>
+                                    {getRes().upgrade.changeLog}
+                                </Title>
+                                <UpgradeContent data={data} />
+                                <UpgradeReadiness
+                                    data={data}
+                                    offline={offline}
+                                    onRefresh={() => void refreshReadiness()}
+                                    refreshing={refreshing}
+                                    refreshDisabled={offline || upgradeStarting.current}
+                                    refreshError={refreshError}
+                                    checkedAt={checkedAt}
+                                />
+                                <Alert
+                                    type="warning"
+                                    showIcon
+                                    style={{ marginTop: token.marginLG }}
+                                    message={getRes().upgrade.risk.title}
+                                    description={
                                         <>
-                                            <UpgradeReadiness
-                                                data={data}
-                                                offline={offline}
-                                                onRefresh={() => void refreshReadiness()}
-                                                refreshing={refreshing}
-                                                refreshDisabled={offline || upgradeStarting.current}
-                                                refreshError={refreshError}
-                                                checkedAt={checkedAt}
-                                            />
-                                            <Alert
-                                                type="warning"
-                                                showIcon
-                                                style={{ marginTop: token.marginLG }}
-                                                message={getRes().upgrade.risk.title}
-                                                description={
-                                                    <>
-                                                        <div>{getRes().upgrade.risk.description}</div>
-                                                        <div style={{ marginTop: token.marginXS }}>
-                                                            {getRes().upgrade.risk.rollback}
-                                                        </div>
-                                                        <Checkbox
-                                                            checked={upgradeRiskAccepted}
-                                                            disabled={offline || refreshing || !!refreshError}
-                                                            style={{ marginTop: token.marginSM }}
-                                                            onChange={(event) =>
-                                                                setUpgradeRiskAccepted(event.target.checked)
-                                                            }
-                                                        >
-                                                            {getRes().upgrade.risk.acceptance}
-                                                        </Checkbox>
-                                                    </>
-                                                }
-                                            />
-                                        </>
-                                    ) : (
-                                        <>
-                                            {refreshError && <Alert type="error" showIcon message={refreshError} />}
-                                            <Button
-                                                style={{ marginTop: token.marginLG }}
-                                                loading={refreshing}
-                                                disabled={offline || refreshing}
-                                                onClick={() => void refreshReadiness()}
-                                            >
-                                                {getRes().upgrade.maintenance.refresh}
-                                            </Button>
-                                        </>
-                                    )}
-                                </>
-                            )}
-                            {currentStepAlias === "doUpgrade" && (
-                                <>
-                                    <Title level={4} style={{ marginTop: 0 }}>
-                                        {executionTitle}
-                                    </Title>
-                                    {data.onlineUpgradable && (
-                                        <div style={{ marginBottom: token.marginSM }}>
-                                            <div>
-                                                {getRes()
-                                                    .upgrade.stepProgress.replace(
-                                                        "{completed}",
-                                                        String(stepProgress.completed)
-                                                    )
-                                                    .replace("{total}", String(stepProgress.total))}
+                                            <div>{getRes().upgrade.risk.description}</div>
+                                            <div style={{ marginTop: token.marginXS }}>
+                                                {getRes().upgrade.risk.rollback}
                                             </div>
-                                            <Progress
-                                                percent={stepProgress.percent}
-                                                status={
-                                                    progressFailed
-                                                        ? "exception"
-                                                        : stepProgress.percent === 100
-                                                        ? "success"
-                                                        : "normal"
-                                                }
-                                                format={(percent) => `${percent}%`}
-                                                aria-label={getRes().upgrade.execute}
-                                            />
-                                            <div
-                                                style={{ color: token.colorTextSecondary, fontSize: token.fontSizeSM }}
+                                            <Checkbox
+                                                checked={upgradeRiskAccepted}
+                                                disabled={offline || refreshing || !!refreshError}
+                                                style={{ marginTop: token.marginSM }}
+                                                onChange={(event) => setUpgradeRiskAccepted(event.target.checked)}
                                             >
-                                                {getRes().upgrade.stepProgressDetail}
-                                            </div>
-                                        </div>
-                                    )}
-                                    {(!hasExecutionOutput || state.progressItems.length > 0) && (
-                                        <div
-                                            role="list"
-                                            aria-label={getRes().upgrade.execute}
-                                            style={{ paddingTop: token.paddingXXS }}
-                                        >
-                                            {!hasExecutionOutput
-                                                ? renderProgressItem({
-                                                      key: "preparing",
-                                                      status: "running",
-                                                      message: getRes().upgrade.preparing,
-                                                      detail: getRes().upgrade.preparingDetail,
-                                                  })
-                                                : state.progressItems.map(renderProgressItem)}
-                                        </div>
-                                    )}
-                                    {state.manualMessageHtml && (
-                                        <HtmlPreviewPanel
-                                            dark={getAppState().dark}
-                                            htmlContent={state.manualMessageHtml}
-                                        />
-                                    )}
-                                </>
-                            )}
-                        </div>
-                        {data.upgrade && (
-                            <div className="steps-action" style={{ paddingTop: token.marginLG }}>
-                                {state.current < steps.length - 1 && (
+                                                {getRes().upgrade.risk.acceptance}
+                                            </Checkbox>
+                                        </>
+                                    }
+                                />
+                                <div style={{ paddingTop: token.marginLG }}>
                                     <Button
                                         type="primary"
                                         loading={offlineData && checkedAt === undefined}
-                                        disabled={nextDisabled()}
-                                        onClick={() => next()}
+                                        disabled={upgradeDisabled()}
+                                        onClick={() => void upgrade()}
                                         block={narrow}
                                     >
                                         {data.onlineUpgradable
                                             ? getRes().upgrade.doUpgrade
                                             : getRes().upgrade.manualSteps}
                                     </Button>
-                                )}
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                {refreshError && <Alert type="error" showIcon message={refreshError} />}
+                                <Empty
+                                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                                    description={getRes().upgrade.noPendingUpdate}
+                                >
+                                    <Button
+                                        type="primary"
+                                        loading={refreshing}
+                                        disabled={offline || refreshing}
+                                        onClick={() => void refreshReadiness()}
+                                    >
+                                        {getRes().upgrade.check}
+                                    </Button>
+                                </Empty>
+                            </>
+                        )}
+                    </>
+                )}
+                {showExecution && (
+                    <>
+                        <Title level={4} style={{ marginTop: 0 }}>
+                            {executionTitle}
+                        </Title>
+                        {data.onlineUpgradable && (
+                            <div style={{ marginBottom: token.marginSM }}>
+                                <div>
+                                    {getRes()
+                                        .upgrade.stepProgress.replace("{completed}", String(stepProgress.completed))
+                                        .replace("{total}", String(stepProgress.total))}
+                                </div>
+                                <Progress
+                                    percent={stepProgress.percent}
+                                    status={
+                                        progressFailed
+                                            ? "exception"
+                                            : stepProgress.percent === 100
+                                            ? "success"
+                                            : "normal"
+                                    }
+                                    format={(percent) => `${percent}%`}
+                                    aria-label={getRes().upgrade.execute}
+                                />
+                                <div style={{ color: token.colorTextSecondary, fontSize: token.fontSizeSM }}>
+                                    {getRes().upgrade.stepProgressDetail}
+                                </div>
                             </div>
                         )}
-                    </Card>
-                </Col>
-            </Row>
-        </>
+                        {(!hasExecutionOutput || state.progressItems.length > 0) && (
+                            <div
+                                role="list"
+                                aria-label={getRes().upgrade.execute}
+                                style={{ paddingTop: token.paddingXXS }}
+                            >
+                                {!hasExecutionOutput
+                                    ? renderProgressItem({
+                                          key: "preparing",
+                                          status: "running",
+                                          message:
+                                              dockerPending && state.phase === "review"
+                                                  ? getRes().upgrade.docker.restoring
+                                                  : getRes().upgrade.preparing,
+                                          detail:
+                                              dockerPending && state.phase === "review"
+                                                  ? undefined
+                                                  : getRes().upgrade.preparingDetail,
+                                      })
+                                    : state.progressItems.map(renderProgressItem)}
+                            </div>
+                        )}
+                        {state.manualMessageHtml && (
+                            <HtmlPreviewPanel dark={getAppState().dark} htmlContent={state.manualMessageHtml} />
+                        )}
+                    </>
+                )}
+            </div>
+        </AdminSettingsLayout>
     );
 };
 

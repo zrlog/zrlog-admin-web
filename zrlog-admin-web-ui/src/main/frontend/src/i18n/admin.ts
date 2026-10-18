@@ -1747,6 +1747,7 @@ const zhCN = {
     "upgrade": {
         "docker": {
             "task": "镜像更新任务",
+            "restoring": "正在查询已有更新任务的状态",
             "retrySubmission": "重试提交同一任务",
             "unknown": "暂时无法确认任务结果，请稍后重新打开更新页面查看；不要重复提交",
             "failed": "镜像更新未完成，请检查部署状态后再操作",
@@ -1763,6 +1764,8 @@ const zhCN = {
             }
         },
         "wizard": "更新向导",
+        "backToSettings": "返回更新设置",
+        "noPendingUpdate": "当前没有待执行的更新",
         "check": "检查更新",
         "doUpgrade": "立即更新",
         "changeLog": "更新日志",
@@ -3829,6 +3832,7 @@ const enUS: AdminI18nResource = {
     "upgrade": {
         "docker": {
             "task": "Image update task",
+            "restoring": "Checking the existing update task",
             "retrySubmission": "Retry the same task",
             "unknown": "The task result could not be confirmed. Reopen this page later to check; do not submit another update.",
             "failed": "The image update did not complete. Check the deployment before continuing.",
@@ -3845,6 +3849,8 @@ const enUS: AdminI18nResource = {
             }
         },
         "wizard": "Upgrade Wizard",
+        "backToSettings": "Back to Update Settings",
+        "noPendingUpdate": "No update is waiting to be installed",
         "check": "Check for Updates",
         "doUpgrade": "Update Now",
         "changeLog": "Changelog",
