@@ -15,6 +15,7 @@ type SettingsLayoutProps = {
     extra?: ReactNode;
     groups: SettingsNavigationGroup[];
     children: ReactNode;
+    footer?: ReactNode;
     replaceNavigation?: boolean;
 };
 
@@ -25,6 +26,7 @@ const SettingsLayout = ({
     extra,
     groups,
     children,
+    footer,
     replaceNavigation = false,
 }: SettingsLayoutProps) => {
     const navigate = useNavigate();
@@ -34,7 +36,7 @@ const SettingsLayout = ({
     const showTitle =
         !compact || !groups.some((group) => group.items.some((item) => item.key === activeKey && item.label === title));
     const border = `${token.lineWidth}px ${token.lineType} ${token.colorBorderSecondary}`;
-    const height = compact ? undefined : "var(--admin-content-height)";
+    const height = compact && !footer ? undefined : "var(--admin-content-height)";
     const options = groups.map((group) => ({
         label: group.label,
         options: group.items.map((item) => ({
@@ -42,6 +44,42 @@ const SettingsLayout = ({
             label: <SidebarNavItem icon={item.icon} label={item.label} />,
         })),
     }));
+    const content = (
+        <>
+            <div style={{ marginBottom: token.marginLG }}>
+                {(showTitle || extra) && (
+                    <div
+                        style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: showTitle ? "space-between" : "flex-end",
+                            flexWrap: "wrap",
+                            gap: token.marginSM,
+                            marginBottom: token.marginXS,
+                        }}
+                    >
+                        {showTitle && (
+                            <h2 style={{ fontSize: token.fontSizeHeading5, fontWeight: 600, margin: 0 }}>{title}</h2>
+                        )}
+                        {extra}
+                    </div>
+                )}
+                {summary && (
+                    <div
+                        style={{
+                            marginBottom: token.margin,
+                            fontSize: token.fontSizeSM,
+                            lineHeight: 1.7,
+                            color: token.colorTextSecondary,
+                        }}
+                    >
+                        {summary}
+                    </div>
+                )}
+            </div>
+            {children}
+        </>
+    );
     return (
         <Card
             style={{
@@ -56,15 +94,15 @@ const SettingsLayout = ({
                 body: {
                     display: "flex",
                     flexDirection: compact ? "column" : "row",
-                    height: compact ? undefined : "100%",
+                    height: height ? "100%" : undefined,
                     minHeight: 0,
                     padding: 0,
-                    overflow: compact ? "visible" : "hidden",
+                    overflow: compact && !footer ? "visible" : "hidden",
                 },
             }}
         >
             {compact ? (
-                <div style={{ padding: token.padding, paddingBottom: 0 }}>
+                <div style={{ padding: token.padding, paddingBottom: 0, flexShrink: 0 }}>
                     <Select
                         aria-label={title}
                         value={activeKey}
@@ -151,45 +189,39 @@ const SettingsLayout = ({
                     minWidth: 0,
                     minHeight: 0,
                     background: token.colorBgContainer,
-                    padding: token.padding,
+                    padding: footer ? 0 : token.padding,
                     paddingBottom: 0,
-                    overflow: compact ? "visible" : "auto",
+                    overflow: footer ? "hidden" : compact ? "visible" : "auto",
+                    ...(footer && { display: "flex", flexDirection: "column" }),
                 }}
             >
-                <div style={{ marginBottom: token.marginLG }}>
-                    {(showTitle || extra) && (
+                {footer ? (
+                    <>
                         <div
                             style={{
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: showTitle ? "space-between" : "flex-end",
-                                flexWrap: "wrap",
-                                gap: token.marginSM,
-                                marginBottom: token.marginXS,
+                                flex: 1,
+                                minHeight: 0,
+                                overflow: "auto",
+                                padding: token.padding,
+                                paddingBottom: 0,
                             }}
                         >
-                            {showTitle && (
-                                <h2 style={{ fontSize: token.fontSizeHeading5, fontWeight: 600, margin: 0 }}>
-                                    {title}
-                                </h2>
-                            )}
-                            {extra}
+                            {content}
                         </div>
-                    )}
-                    {summary && (
                         <div
                             style={{
-                                marginBottom: token.margin,
-                                fontSize: token.fontSizeSM,
-                                lineHeight: 1.7,
-                                color: token.colorTextSecondary,
+                                flexShrink: 0,
+                                borderTop: border,
+                                padding: token.padding,
+                                paddingBottom: `calc(${token.padding}px + env(safe-area-inset-bottom))`,
                             }}
                         >
-                            {summary}
+                            {footer}
                         </div>
-                    )}
-                </div>
-                {children}
+                    </>
+                ) : (
+                    content
+                )}
             </div>
         </Card>
     );

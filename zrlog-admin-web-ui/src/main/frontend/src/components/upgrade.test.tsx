@@ -41,13 +41,14 @@ jest.mock("@zrlog/editor/dist/editor/utils/marked-utils", () => ({ markdownToHtm
 jest.mock("@zrlog/editor/core/editor/html-preview-panel", () => () => null);
 jest.mock("./common/AdminSettingsLayout", () => ({
     __esModule: true,
-    default: ({ activeKey, title, extra, children }: any) =>
+    default: ({ activeKey, title, extra, children, footer }: any) =>
         require("react").createElement(
             "main",
             { "data-settings-page": activeKey },
             require("react").createElement("h1", null, title),
             extra,
-            children
+            children,
+            footer
         ),
 }));
 jest.mock("./upgrade-content", () => ({

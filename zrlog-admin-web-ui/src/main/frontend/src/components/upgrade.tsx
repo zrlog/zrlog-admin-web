@@ -5,7 +5,7 @@ import SuccessIcon from "@zrlog/ui/icons/success";
 import ErrorIcon from "@zrlog/ui/icons/error";
 import InfoIcon from "@zrlog/ui/icons/info";
 import LoadingIcon from "@zrlog/ui/icons/loading";
-import { FunctionComponent, useEffect, useRef, useState } from "react";
+import { FunctionComponent, useEffect, useId, useRef, useState } from "react";
 
 import Title from "antd/es/typography/Title";
 import { Link } from "react-router-dom";
@@ -65,6 +65,7 @@ type StaticSiteSyncResponse = {
 };
 
 const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, offlineData }) => {
+    const riskDescriptionId = useId();
     const mounted = useRef(true);
     const connectionGeneration = useRef(0);
     const dockerStream = useRef<AbortController>();
@@ -783,6 +784,41 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
             title={getRes().upgrade.wizard}
             summary={null}
             extra={<Link to={getRealRouteUrl("/system/upgrade")}>{getRes().upgrade.backToSettings}</Link>}
+            footer={
+                !showExecution &&
+                data.upgrade && (
+                    <div
+                        role="group"
+                        aria-label={getRes().upgrade.risk.title}
+                        style={{
+                            display: "flex",
+                            flexDirection: narrow ? "column" : "row",
+                            alignItems: narrow ? "stretch" : "center",
+                            gap: token.marginSM,
+                        }}
+                    >
+                        <Checkbox
+                            checked={upgradeRiskAccepted}
+                            disabled={offline || refreshing || !!refreshError}
+                            aria-describedby={riskDescriptionId}
+                            style={{ flex: 1 }}
+                            onChange={(event) => setUpgradeRiskAccepted(event.target.checked)}
+                        >
+                            {getRes().upgrade.risk.acceptance}
+                        </Checkbox>
+                        <Button
+                            type="primary"
+                            loading={offlineData && checkedAt === undefined}
+                            disabled={upgradeDisabled()}
+                            onClick={() => void upgrade()}
+                            block={narrow}
+                            style={{ flexShrink: 0 }}
+                        >
+                            {data.onlineUpgradable ? getRes().upgrade.doUpgrade : getRes().upgrade.manualSteps}
+                        </Button>
+                    </div>
+                )
+            }
         >
             {contextHolder}
             {dockerRetry && (
@@ -809,6 +845,7 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
                                     checkedAt={checkedAt}
                                 />
                                 <Alert
+                                    id={riskDescriptionId}
                                     type="warning"
                                     showIcon
                                     style={{ marginTop: token.marginLG }}
@@ -819,30 +856,9 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
                                             <div style={{ marginTop: token.marginXS }}>
                                                 {getRes().upgrade.risk.rollback}
                                             </div>
-                                            <Checkbox
-                                                checked={upgradeRiskAccepted}
-                                                disabled={offline || refreshing || !!refreshError}
-                                                style={{ marginTop: token.marginSM }}
-                                                onChange={(event) => setUpgradeRiskAccepted(event.target.checked)}
-                                            >
-                                                {getRes().upgrade.risk.acceptance}
-                                            </Checkbox>
                                         </>
                                     }
                                 />
-                                <div style={{ paddingTop: token.marginLG }}>
-                                    <Button
-                                        type="primary"
-                                        loading={offlineData && checkedAt === undefined}
-                                        disabled={upgradeDisabled()}
-                                        onClick={() => void upgrade()}
-                                        block={narrow}
-                                    >
-                                        {data.onlineUpgradable
-                                            ? getRes().upgrade.doUpgrade
-                                            : getRes().upgrade.manualSteps}
-                                    </Button>
-                                </div>
                             </>
                         ) : (
                             <>

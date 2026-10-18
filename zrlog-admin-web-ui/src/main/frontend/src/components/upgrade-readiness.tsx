@@ -5,7 +5,6 @@ import RefreshIcon from "@zrlog/ui/icons/refresh";
 import SecurityIcon from "@zrlog/ui/icons/security";
 import { formatDateTime } from "../utils/date-time";
 
-
 import { useTheme } from "antd-style";
 import { Link } from "react-router-dom";
 import { BackupProtectionStatus, UpgradeData } from "../type";
@@ -174,11 +173,18 @@ const UpgradeReadiness = ({
                     style={{ marginBottom: theme.marginSM, overflowWrap: "anywhere" }}
                 />
             )}
-            <Descriptions size="small" column={{ xs: 1, sm: 2 }} style={{ marginBottom: theme.marginSM }}>
+            <Descriptions
+                size="small"
+                layout="vertical"
+                column={{ xs: 1, sm: 2 }}
+                style={{ marginBottom: theme.marginSM }}
+            >
                 <Descriptions.Item label={res.runtime}>
-                    <Space size={4} wrap>
+                    <Space size={theme.marginXS} wrap style={{ width: "max-content", maxWidth: "100%" }}>
                         {resolveUpgradeRuntimeModes(data).map((mode) => (
-                            <Tag key={mode}>{runtimeModeLabels[mode]}</Tag>
+                            <Tag key={mode} style={{ marginInlineEnd: 0 }}>
+                                {runtimeModeLabels[mode]}
+                            </Tag>
                         ))}
                     </Space>
                 </Descriptions.Item>

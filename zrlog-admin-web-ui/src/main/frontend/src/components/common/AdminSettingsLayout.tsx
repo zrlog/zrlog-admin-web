@@ -11,12 +11,14 @@ const AdminSettingsLayout = ({
     extra,
     title,
     summary,
+    footer,
 }: {
     activeKey: AdminSettingsPage;
     children: ReactNode;
     extra?: ReactNode;
     title?: string;
     summary?: ReactNode;
+    footer?: ReactNode;
 }) => {
     const { token } = theme.useToken();
     const res = getRes();
@@ -43,6 +45,7 @@ const AdminSettingsLayout = ({
             summary={summary === undefined ? activeMeta.summary : summary}
             groups={groups}
             extra={extra}
+            footer={footer && <div style={{ maxWidth: 800 }}>{footer}</div>}
         >
             <div
                 style={{
