@@ -114,12 +114,12 @@ public class UserPreferenceService {
         catch (SQLException e) { throw new IllegalStateException("Unable to save dashboard preferences", e); }
     }
 
-    public void apply(AdminResourceInfoResponse resource, UserPreferences preferences) {
-        resource.setLang(preferences.language);
-        resource.setAdmin_theme(preferences.appearance.theme);
-        resource.setAdmin_darkMode(preferences.appearance.darkMode);
-        resource.setAdmin_compactMode(preferences.appearance.compactMode);
-        resource.setAdmin_color_primary(preferences.appearance.colorPrimary);
+    public void apply(AdminResourceInfoResponse resource, String language, UserPreferences.Appearance appearance) {
+        resource.setLang(language);
+        resource.setAdmin_theme(appearance.theme);
+        resource.setAdmin_darkMode(appearance.darkMode);
+        resource.setAdmin_compactMode(appearance.compactMode);
+        resource.setAdmin_color_primary(appearance.colorPrimary);
     }
 
     UserPreferences defaults() {

@@ -79,7 +79,15 @@ public class UserService {
                 sessionId, buildLastVersionPlaceholder(), mfaEnabled);
         result.setUserId(userId);
         result.setRole(com.zrlog.data.security.AccountAccess.load(userId).getRole());
+        fillDisplayPreferences(result, userId);
         return result;
+    }
+
+    private void fillDisplayPreferences(UserInfoResponse response, int userId) throws SQLException {
+        // Resolve inherited defaults on each account response; the identity cache must not freeze them.
+        var preferences = new UserPreferenceService().effective(userId);
+        response.setLanguage(preferences.language);
+        response.setAppearance(preferences.appearance);
     }
 
     private String getDefaultHeaderImage() {
@@ -97,6 +105,7 @@ public class UserService {
         try {
             basicInfoResponse.setUserId(userBasicDTO.getUserId().intValue());
             basicInfoResponse.setRole(com.zrlog.data.security.AccountAccess.load(userBasicDTO.getUserId().intValue()).getRole());
+            fillDisplayPreferences(basicInfoResponse, userBasicDTO.getUserId().intValue());
         } catch (SQLException e) { throw new PermissionErrorException(); }
         if (EnvKit.isFaaSMode() || AdminConstants.adminResource == null) {
             basicInfoResponse.setCacheableApiUris(new HashSet<>());

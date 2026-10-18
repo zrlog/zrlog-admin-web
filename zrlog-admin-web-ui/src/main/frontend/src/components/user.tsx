@@ -20,6 +20,8 @@ import ImageCropper from "../common/ImageCropper";
 import { resolveBackendCropImageUrl } from "../utils/crop-image-url";
 import BackendImage from "../common/BackendImage";
 import { useResponsiveFormLayout } from "../utils/responsive-form";
+import { refreshUserInfo } from "../utils/user-info";
+import { getSsDate } from "../base/SsData";
 
 const layout = {
     labelCol: { span: 8 },
@@ -81,15 +83,26 @@ const UserProfile = ({ data, offline }: { data: BasicUserInfo; offline: boolean 
             return;
         }
         setSubmitting(true);
+        const session = getSsDate().key;
+        let streaming = false;
+        const refreshAccount = () => {
+            if (session === getSsDate().key) void refreshUserInfo(axiosInstance).catch(() => undefined);
+        };
         postRefreshCacheSse<any>("/api/admin/user/update", {
             body: userInfo,
             messageApi,
             messageKey: "userRefreshCache",
+            onEvent: (event) => {
+                streaming = true;
+                // The SSE response precedes the server identity-cache refresh.
+                if (event.event === "refresh-complete" && event.data?.error === 0) refreshAccount();
+            },
         })
             .then(async (data) => {
                 if (data.error) {
                     await messageApi.error(data.message);
                 } else if (data.error === 0) {
+                    if (!streaming) refreshAccount();
                     await messageApi.success(data.message);
                 }
             })

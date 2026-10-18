@@ -1,3 +1,5 @@
+import { addToCache, getCacheByKey } from "../utils/cache";
+import { getSsDate } from "../base/SsData";
 import { act } from "react";
 import { createRoot, Root } from "react-dom/client";
 import { Simulate } from "react-dom/test-utils";
@@ -90,10 +92,26 @@ describe("personal preferences", () => {
             key: "preferences-test",
             pageBuildId: "test",
             systemNotification: "",
-            user: null,
+            user: {
+                userId: 1,
+                userName: "owner",
+                key: "preferences-test",
+                header: "",
+                language: response.effective.language,
+                appearance: response.effective.appearance,
+            },
             resourceInfo: { lang: "zh_CN" },
         };
-        mockGet.mockReset().mockResolvedValue({ data: { error: 0, data: response } });
+        localStorage.clear();
+        addToCache("/user", getSsDate().user);
+        mockGet.mockReset().mockImplementation(async (url: string) => ({
+            data: {
+                error: 0,
+                data: url.startsWith("/api/admin/user/info")
+                    ? { ...getSsDate().user, userName: "fresh-owner" }
+                    : response,
+            },
+        }));
         mockPost.mockReset();
         mockChangeAppState.mockClear();
         updateCache.mockClear();
@@ -195,12 +213,14 @@ describe("personal preferences", () => {
         );
         expect(getRes().admin_compactMode).toBe(true);
         expect(mockPost).not.toHaveBeenCalled();
+        expect(getCacheByKey("/user").appearance.compactMode).toBe(false);
         mockPost.mockResolvedValue({ data: { error: 9012, message: "Invalid" } });
         await submit();
         expect(mockPost).toHaveBeenCalledWith("/api/admin/user/updatePreferences?section=appearance", {
             appearance: { darkMode: false, colorPrimary: "#123456", compactMode: true },
         });
         expect(container.querySelector("#appearance_compactMode")?.getAttribute("aria-checked")).toBe("true");
+        expect(mockGet).not.toHaveBeenCalled();
         act(() => root.render(null));
         expect(getRes().admin_compactMode).toBe(false);
     });
@@ -233,12 +253,17 @@ describe("personal preferences", () => {
         mockPost.mockResolvedValue({ data: { error: 0, data: { overrides: {}, defaults, effective: defaults } } });
         await submit();
         expect(mockPost).toHaveBeenCalledWith("/api/admin/user/updatePreferences?section=appearance", {});
+        expect(getCacheByKey("/user")).toMatchObject({ language: defaults.language, appearance: defaults.appearance });
+        expect(getSsDate().user?.appearance).toEqual(defaults.appearance);
+        expect(getSsDate().user?.userName).toBe("fresh-owner");
+        expect(mockGet).toHaveBeenCalledWith(expect.stringMatching(/^\/api\/admin\/user\/info\?/));
         expect(updateCache).toHaveBeenCalledWith(
             { overrides: {}, defaults, effective: defaults },
             USER_ROUTES.appearance
         );
         toggle("appearance_darkMode");
         expect(getRes().admin_darkMode).toBe(false);
+        expect(getCacheByKey("/user").appearance.darkMode).toBe(true);
         act(() => button(getRes().user.preferences.undo).click());
         expect(getRes().admin_darkMode).toBe(true);
         expect(button(getRes().user.preferences.save).disabled).toBe(true);

@@ -1,5 +1,6 @@
 package com.zrlog.admin.business.rest.response;
 
+import com.zrlog.admin.business.rest.base.UserPreferences;
 import com.zrlog.business.rest.response.CheckVersionResponse;
 
 public class UserInfoResponse {
@@ -20,6 +21,13 @@ public class UserInfoResponse {
     private String key;
     private CheckVersionResponse lastVersion;
     private boolean mfaEnabled;
+    private String language;
+    private UserPreferences.Appearance appearance;
+
+    public String getLanguage() { return language; }
+    public void setLanguage(String language) { this.language = language; }
+    public UserPreferences.Appearance getAppearance() { return appearance; }
+    public void setAppearance(UserPreferences.Appearance appearance) { this.appearance = appearance; }
 
     public UserInfoResponse() {
     }

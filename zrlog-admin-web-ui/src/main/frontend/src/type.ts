@@ -182,7 +182,7 @@ export type MessageCenterNotice =
           payload?: Record<string, unknown>;
       });
 
-export type BasicUserInfo = {
+export type BasicUserInfo = import("./utils/user-appearance").UserAppearance & {
     userId?: number;
     role?: import("./utils/account-access").AccountRole;
     actions?: string[];

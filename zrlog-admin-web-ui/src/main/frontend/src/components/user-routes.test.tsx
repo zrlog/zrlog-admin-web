@@ -14,6 +14,7 @@ jest.mock("antd/es/grid/row", () => require("antd").Row);
 jest.mock("antd/es/grid/col", () => require("antd").Col);
 const mockGet = jest.fn<Promise<any>, any[]>();
 const mockApi = { get: mockGet };
+jest.mock("../utils/user-info", () => ({ refreshUserInfo: require("@jest/globals").jest.fn() }));
 jest.mock("../base/AppBase", () => ({ useAxiosBaseInstance: () => mockApi }));
 jest.mock("../base/ConfigProviderApp", () => ({ getAppState: () => ({ compactMode: false }) }));
 jest.mock("../common/ResourceDragger", () => () => null);

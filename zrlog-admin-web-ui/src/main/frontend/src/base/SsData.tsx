@@ -1,8 +1,9 @@
-import { getCacheByKey } from "../utils/cache";
+import { cacheUserInfo, getCacheByKey } from "../utils/cache";
 import { BasicUserInfo } from "../type";
 import { FunctionComponent, PropsWithChildren } from "react";
 import type { AdminRuntimeResourceInfo } from "../utils/constants";
 import { MessageCenterStatus, syncMessageCenterStatus } from "../utils/message-center-status";
+import { hasUserAppearance, userAppearanceResources } from "../utils/user-appearance";
 
 type SsDate = {
     data?: any;
@@ -12,8 +13,8 @@ type SsDate = {
     systemNotification: string;
     messageCenter?: MessageCenterStatus;
     pageBuildId: string;
-    // Runtime-only provenance for the language and appearance already applied to this document.
-    appearanceSession?: { key: string; userId?: number };
+    // Cached identity is usable offline and revalidated once when this document goes online.
+    userFromCache?: boolean;
 };
 
 declare global {
@@ -59,13 +60,6 @@ const SsData: FunctionComponent<PropsWithChildren> = ({ children }) => {
             tSData = createEmptySsData();
         }
 
-        // Only authenticated server data contains personal appearance. Cached users and
-        // a login performed in this document still need to load their preferences.
-        tSData.appearanceSession =
-            tSData.user && tSData.key && tSData.resourceInfo && !tSData.resourceInfo.staticPage
-                ? { key: tSData.key, userId: tSData.user.userId }
-                : undefined;
-
         if (tSData.key === "" || tSData.key === null || tSData.key === undefined) {
             const ssKey = localStorage.getItem(ssKeyStorageKey);
             if (ssKey) {
@@ -82,8 +76,21 @@ const SsData: FunctionComponent<PropsWithChildren> = ({ children }) => {
 
     if (ssData.user === undefined || ssData.user === null) {
         if (ssData.key !== "") {
-            ssData.user = getCacheByKey("/user");
+            const cached = getCacheByKey<BasicUserInfo | undefined>("/user");
+            if (cached && cached.key === ssData.key) {
+                ssData.user = cached;
+                ssData.userFromCache = true;
+            }
         }
+    }
+
+    if (ssData.user?.key === ssData.key && hasUserAppearance(ssData.user)) {
+        // Apply before ConfigProviderApp's first render, including offline static pages.
+        if (ssData.resourceInfo && Object.keys(ssData.resourceInfo).length > 0) {
+            ssData.resourceInfo = { ...ssData.resourceInfo, ...userAppearanceResources(ssData.user) };
+        }
+        document.documentElement.lang = ssData.user.language === "en_US" ? "en" : "zh";
+        if (!ssData.userFromCache) cacheUserInfo(ssData.user);
     }
 
     return <>{children}</>;

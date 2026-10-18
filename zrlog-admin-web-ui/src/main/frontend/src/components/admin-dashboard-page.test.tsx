@@ -5,12 +5,12 @@ import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
 import SsData, { getSsDate, ssKeyStorageKey } from "../base/SsData";
 import { getRes } from "../utils/constants";
-import { applyUserPreferences } from "../utils/user-preferences";
+import { refreshUserInfo } from "../utils/user-info";
+import { applyUserPreferences, cacheUserAppearance } from "../utils/user-preferences";
 import type { BasicUserInfo } from "../type";
 import AdminDashboardPage from "./admin-dashboard-page";
 
-const mockGet = jest.fn<Promise<any>, [string]>();
-const mockAxios = { get: mockGet };
+const mockAxios = {};
 const mockGetCsrData = jest.fn<Promise<any>, unknown[]>();
 const mockRedirect = jest.fn();
 const mockChangeAppState = jest.fn();
@@ -21,7 +21,12 @@ jest.mock("../base/AppBase", () => ({
     jumpToLoginPage: () => mockRedirect(),
 }));
 jest.mock("../api", () => ({ getCsrData: (...args: unknown[]) => mockGetCsrData(...args) }));
-jest.mock("../utils/cache", () => ({ getCacheByKey: () => mockCachedUser }));
+jest.mock("../utils/cache", () => ({
+    getCacheByKey: () => mockCachedUser,
+    cacheUserInfo: (user: BasicUserInfo) => {
+        mockCachedUser = user;
+    },
+}));
 jest.mock("../base/ConfigProviderApp", () => ({ changeAppState: (state: unknown) => mockChangeAppState(state) }));
 jest.mock("../base/AppInit", () => ({
     getColorPrimaryByRes: () => require("../utils/constants").getRes().admin_color_primary,
@@ -36,8 +41,14 @@ const personal = {
     language: "en_US" as const,
     appearance: { theme: "antd" as const, darkMode: true, compactMode: true, colorPrimary: "#00875a" },
 };
-const user = (id = 1, key = "one"): BasicUserInfo => ({ userId: id, userName: `user-${id}`, header: "", key });
-const preferenceResponse = () => ({ data: { error: 0, data: { effective: personal } } });
+const user = (id = 1, key = "one"): BasicUserInfo => ({
+    userId: id,
+    userName: `user-${id}`,
+    header: "",
+    key,
+    ...personal,
+});
+const userResponse = (value = user()) => ({ error: 0, data: value });
 const deferred = () => {
     let resolve!: (value: unknown) => void;
     const promise = new Promise((done) => {
@@ -85,8 +96,7 @@ describe("dashboard appearance initialization", () => {
         localStorage.clear();
         delete window.__SS_DATA__;
         mockCachedUser = undefined;
-        mockGet.mockReset().mockResolvedValue(preferenceResponse());
-        mockGetCsrData.mockReset();
+        mockGetCsrData.mockReset().mockResolvedValue(userResponse());
         mockRedirect.mockReset();
         mockChangeAppState.mockReset();
         container = document.createElement("div");
@@ -105,99 +115,153 @@ describe("dashboard appearance initialization", () => {
         (globalThis as any).IS_REACT_ACT_ENVIRONMENT = false;
     });
 
-    it("uses authenticated server appearance without a second preferences request, including re-entry", async () => {
-        await render({
-            user: user(),
-            key: "one",
-            resourceInfo: { lang: "en_US", admin_theme: "antd", admin_darkMode: true, staticPage: false },
-        });
+    it("reuses authenticated server identity and appearance on entry and re-entry", async () => {
+        await render({ user: user(), key: "one", resourceInfo: { lang: "zh_CN", staticPage: false } });
         await remount();
         expect(container.textContent).toBe("user-1");
         expect(getRes()).toMatchObject({ lang: "en_US", admin_theme: "antd", admin_darkMode: true });
-        expect(mockGet).not.toHaveBeenCalled();
         expect(mockGetCsrData).not.toHaveBeenCalled();
+        expect(mockCachedUser).toEqual(user());
         expect(mockChangeAppState).not.toHaveBeenCalled();
     });
 
     it.each([true, false])(
-        "loads personal appearance for a cached user on a public shell (static=%s)",
+        "restores cached appearance before revalidating a public shell (static=%s)",
         async (staticPage) => {
+            const pending = deferred();
+            mockGetCsrData.mockReturnValueOnce(pending.promise);
             mockCachedUser = user();
             localStorage.setItem(ssKeyStorageKey, "one");
             await render({ user: null, key: null, resourceInfo: { lang: "zh_CN", staticPage } });
             expect(container.textContent).toBe("user-1");
-            expect(mockGet).toHaveBeenCalledWith("/api/admin/user/preferences");
             expect(getRes()).toMatchObject({ lang: "en_US", admin_theme: "antd", admin_darkMode: true });
             expect(document.documentElement.lang).toBe("en");
+            expect(mockGetCsrData).toHaveBeenCalledWith("/user/info", expect.any(Number), mockAxios);
+            const fresh = { ...user(), appearance: { ...personal.appearance, colorPrimary: "#123456" } };
+            await act(async () => pending.resolve(userResponse(fresh)));
             await remount();
-            expect(mockGet).toHaveBeenCalledTimes(1);
-            expect(getSsDate().appearanceSession).toEqual({ key: "one", userId: 1 });
+            expect(mockGetCsrData).toHaveBeenCalledTimes(1);
+            expect(getRes().admin_color_primary).toBe("#123456");
+            expect(mockCachedUser).toEqual(fresh);
         }
     );
 
-    it("loads preferences after resolving a signed-in user without server or browser user data", async () => {
-        mockGetCsrData.mockResolvedValue({ error: 0, data: user(2, "new-session") });
-        await render({ user: null, resourceInfo: { lang: "zh_CN", staticPage: true } });
+    it("initializes identity, session and appearance together without cached account data", async () => {
+        mockGetCsrData.mockResolvedValue(userResponse(user(2, "new-session")));
+        await render({ user: null, key: "", resourceInfo: { lang: "zh_CN", staticPage: true } });
         expect(container.textContent).toBe("user-2");
-        expect(getSsDate().appearanceSession).toEqual({ key: "new-session", userId: 2 });
+        expect(getSsDate().key).toBe("new-session");
+        expect(localStorage.getItem(ssKeyStorageKey)).toBe("new-session");
         expect(getRes().lang).toBe("en_US");
-        expect(mockGet).toHaveBeenCalledTimes(1);
+        expect(mockCachedUser).toEqual(user(2, "new-session"));
+        expect(mockGetCsrData).toHaveBeenCalledTimes(1);
     });
 
-    it("loads the next login's preferences instead of reusing the previous session marker", async () => {
-        await render({ user: user(), key: "one", resourceInfo: { lang: "zh_CN", staticPage: false } });
-        await act(async () => setMounted(false));
-        getSsDate().user = user(2, "two");
-        getSsDate().key = "two";
-        await act(async () => setMounted(true));
-        expect(container.textContent).toBe("user-2");
-        expect(getRes().lang).toBe("en_US");
-        expect(getSsDate().appearanceSession).toEqual({ key: "two", userId: 2 });
-        expect(mockGet).toHaveBeenCalledTimes(1);
+    it("refreshes legacy account data without appearance using user/info", async () => {
+        const legacy = { ...user(), language: undefined, appearance: undefined };
+        await render({ user: legacy, key: "one", resourceInfo: { lang: "zh_CN" } });
+        expect(mockGetCsrData).toHaveBeenCalledTimes(1);
+        expect(getSsDate().user).toEqual(user());
+        expect(getRes().admin_theme).toBe("antd");
     });
 
-    it("defers missing preferences while offline and loads them once after reconnection", async () => {
+    it("renders cached appearance offline and revalidates once after reconnecting", async () => {
         mockCachedUser = user();
         localStorage.setItem(ssKeyStorageKey, "one");
         await render({ user: null, resourceInfo: { lang: "zh_CN", staticPage: true } }, true);
         expect(container.textContent).toBe("user-1");
-        expect(mockGet).not.toHaveBeenCalled();
-        await act(async () => setOffline(false));
         expect(getRes().lang).toBe("en_US");
+        expect(mockGetCsrData).not.toHaveBeenCalled();
+        await act(async () => setOffline(false));
         await act(async () => setOffline(true));
         await act(async () => setOffline(false));
-        expect(mockGet).toHaveBeenCalledTimes(1);
+        expect(mockGetCsrData).toHaveBeenCalledTimes(1);
+        expect(mockCachedUser).toEqual(user());
     });
 
-    it("does not overwrite an appearance preview with a late bootstrap response", async () => {
+    it("reconnects a cold offline shell and redirects invalid authentication", async () => {
+        mockGetCsrData.mockResolvedValue({ error: 401 });
+        await render({ user: null, key: "", resourceInfo: { staticPage: true } }, true);
+        expect(mockGetCsrData).not.toHaveBeenCalled();
+        await act(async () => setOffline(false));
+        expect(mockRedirect).toHaveBeenCalledTimes(1);
+        expect(getSsDate().user).toBeNull();
+    });
+
+    it("does not overwrite or cache a temporary preview when revalidation completes", async () => {
         const pending = deferred();
-        mockGet.mockReturnValue(pending.promise);
+        mockGetCsrData.mockReturnValueOnce(pending.promise);
         mockCachedUser = user();
         localStorage.setItem(ssKeyStorageKey, "one");
-        await render({ user: null, resourceInfo: { lang: "zh_CN", staticPage: true } });
+        await render({ user: null, resourceInfo: { staticPage: true } });
         applyUserPreferences({ language: "zh_CN", appearance: { theme: "desk", darkMode: false } });
-        await act(async () => pending.resolve(preferenceResponse()));
+        await act(async () => pending.resolve(userResponse()));
         expect(getRes()).toMatchObject({ lang: "zh_CN", admin_theme: "desk", admin_darkMode: false });
-        expect(getSsDate().appearanceSession).toBeUndefined();
+        expect(mockCachedUser).toEqual(user());
     });
 
-    it("ignores a previous session's response and retries failed initialization on re-entry", async () => {
+    it("ignores responses for a previous account and retries transient failures on re-entry", async () => {
         const pending = deferred();
-        mockGet.mockReturnValueOnce(pending.promise);
+        mockGetCsrData.mockReturnValueOnce(pending.promise);
         mockCachedUser = user();
         localStorage.setItem(ssKeyStorageKey, "one");
-        await render({ user: null, resourceInfo: { lang: "zh_CN", staticPage: true } });
+        await render({ user: null, resourceInfo: { staticPage: true } });
         getSsDate().key = "two";
         getSsDate().user = user(2, "two");
-        await act(async () => pending.resolve(preferenceResponse()));
-        expect(getRes().lang).toBe("zh_CN");
-        expect(getSsDate().appearanceSession).toBeUndefined();
-        mockGet.mockRejectedValueOnce(new Error("unavailable"));
+        await act(async () => pending.resolve(userResponse()));
+        expect(getSsDate().user).toEqual(user(2, "two"));
+        mockGetCsrData.mockRejectedValueOnce(new Error("unavailable"));
         await remount();
-        expect(getSsDate().appearanceSession).toBeUndefined();
-        await remount();
+        expect(mockRedirect).not.toHaveBeenCalled();
         expect(container.textContent).toBe("user-2");
-        expect(getRes().lang).toBe("en_US");
-        expect(getSsDate().appearanceSession).toEqual({ key: "two", userId: 2 });
+        mockGetCsrData.mockResolvedValue(userResponse(user(2, "two")));
+        await remount();
+        expect(mockCachedUser).toEqual(user(2, "two"));
+        expect(getSsDate().userFromCache).toBe(false);
+    });
+
+    it("refreshes the saved account and ignores an earlier request that finishes afterward", async () => {
+        const old = deferred();
+        mockGetCsrData.mockReturnValueOnce(old.promise);
+        mockCachedUser = user();
+        localStorage.setItem(ssKeyStorageKey, "one");
+        await render({ user: null, resourceInfo: { staticPage: true } });
+        const saved = { language: "zh_CN" as const, appearance: { ...personal.appearance, compactMode: false } };
+        cacheUserAppearance(saved);
+        applyUserPreferences(saved);
+        mockGetCsrData.mockResolvedValueOnce(userResponse({ ...user(), ...saved, userName: "updated" }));
+        await act(async () => {
+            await refreshUserInfo(mockAxios as any);
+        });
+        await act(async () => old.resolve(userResponse()));
+        expect(container.textContent).toBe("updated");
+        expect(mockCachedUser).toMatchObject({ userName: "updated", ...saved });
+        expect(getRes()).toMatchObject({ lang: "zh_CN", admin_compactMode: false });
+    });
+
+    it("retains a confirmed save when refreshing fails and retries on re-entry", async () => {
+        await render({ user: user(), key: "one", resourceInfo: { staticPage: false } });
+        const saved = { language: "zh_CN" as const, appearance: { ...personal.appearance, compactMode: false } };
+        cacheUserAppearance(saved);
+        applyUserPreferences(saved);
+        mockGetCsrData.mockRejectedValueOnce(new Error("unavailable"));
+        await act(async () => {
+            await refreshUserInfo(mockAxios as any).catch(() => undefined);
+        });
+        expect(mockCachedUser).toMatchObject(saved);
+        expect(getSsDate().userFromCache).toBe(true);
+        mockGetCsrData.mockResolvedValueOnce(userResponse({ ...user(), ...saved }));
+        await remount();
+        expect(getSsDate().userFromCache).toBe(false);
+        expect(mockCachedUser).toMatchObject(saved);
+    });
+
+    it("rejects a cached account whose session does not match", async () => {
+        mockCachedUser = user(2, "two");
+        localStorage.setItem(ssKeyStorageKey, "one");
+        await render({ user: null, resourceInfo: { lang: "zh_CN", staticPage: true } }, true);
+        expect(getSsDate().user).toBeNull();
+        expect(getRes().lang).toBe("zh_CN");
+        expect(mockGetCsrData).not.toHaveBeenCalled();
     });
 });

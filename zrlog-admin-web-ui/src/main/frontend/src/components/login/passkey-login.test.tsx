@@ -4,9 +4,15 @@ import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals
 import type { ApiResponse, PasskeyAuthenticationOptionsResponse } from "../../type";
 import Index from "./index";
 
-const mockAxiosPost = jest.fn();
-const mockAuthenticateWithPasskey = jest.fn();
+const mockAxiosPost = jest.fn<Promise<any>, any[]>();
+const mockAuthenticateWithPasskey = jest.fn<Promise<any>, any[]>();
 let mockPasskeyLoginEnabled = true;
+const mockApplyPreferences = jest.fn();
+const mockSession: Record<string, any> = {};
+const mockNavigate = jest.fn();
+jest.mock("../../utils/user-preferences", () => ({
+    applyUserPreferences: (value: unknown) => mockApplyPreferences(value),
+}));
 
 // Business tests keep feedback mocked at the shared UI boundary.
 jest.mock("@zrlog/ui/feedback", () => ({
@@ -51,7 +57,7 @@ jest.mock("styled-components", () => ({
 }));
 
 jest.mock("react-router-dom", () => ({
-    useNavigate: () => require("@jest/globals").jest.fn(),
+    useNavigate: () => mockNavigate,
 }));
 
 jest.mock("../../base/PWAHandler", () => ({
@@ -110,7 +116,7 @@ jest.mock("../../api", () => ({
 }));
 
 jest.mock("../../base/SsData", () => ({
-    getSsDate: () => ({}),
+    getSsDate: () => mockSession,
     ssKeyStorageKey: "ss-key",
 }));
 
@@ -218,6 +224,34 @@ describe("Passkey login", () => {
             });
             await optionsResponse.promise;
         });
+    });
+
+    it("applies and caches the account appearance before completing Passkey login", async () => {
+        const user = {
+            userId: 2,
+            userName: "writer",
+            key: "writer-session",
+            header: "",
+            language: "en_US",
+            appearance: { theme: "desk", darkMode: false, compactMode: true },
+            cacheableApiUris: [],
+        };
+        mockAxiosPost
+            .mockResolvedValueOnce({ data: apiResponse({ requestId: "challenge", options: {} }) })
+            .mockResolvedValueOnce({ data: apiResponse(user) });
+        mockAuthenticateWithPasskey.mockResolvedValueOnce({ id: "credential" });
+        await act(async () => root.render(<Index offline={false} />));
+        await act(async () =>
+            Array.from(container.querySelectorAll("button"))
+                .find((button) => button.textContent === "Sign in with Passkey")!
+                .click()
+        );
+        expect(mockSession.user).toEqual(user);
+        expect(mockSession.key).toBe("writer-session");
+        expect(require("../../utils/cache").addToCache).toHaveBeenCalledWith("/user", user);
+        expect(mockApplyPreferences).toHaveBeenCalledWith(user);
+        expect(mockNavigate).toHaveBeenCalled();
+        expect(mockApplyPreferences.mock.invocationCallOrder[0]).toBeLessThan(mockNavigate.mock.invocationCallOrder[0]);
     });
 
     it("hides Passkey login until the site has a registered credential", async () => {

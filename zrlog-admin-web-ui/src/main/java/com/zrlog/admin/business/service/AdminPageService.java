@@ -117,8 +117,8 @@ public class AdminPageService {
         if (Objects.isNull(AdminTokenThreadLocal.getUser()) || BaseStaticSitePlugin.isStaticPluginRequest(request)) {
             return new ServerSideDataResponse<>(null, resourceInfo, null, null, AdminConstants.getAdminDocumentTitleByUri(request.getUri()));
         }
-        new UserPreferenceService().apply(resourceInfo, new UserPreferenceService().effective());
         UserInfoResponse userInfo = new UserService().getUserInfoWithCache(AdminTokenThreadLocal.getUserId(), AdminTokenThreadLocal.getUser().getSessionId());
+        new UserPreferenceService().apply(resourceInfo, userInfo.getLanguage(), userInfo.getAppearance());
         Method method = request.getRequestConfig().getRouter().getMethod(AdminAccountPages.apiUri(uri), request.getMethod());
         // Disabled features have no API route; retain the shell so the UI can render its 404 page.
         if (method == null) {

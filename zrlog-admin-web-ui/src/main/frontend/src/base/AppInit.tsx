@@ -9,6 +9,7 @@ import { AppState } from "../type";
 import { changeAppState, getAppState } from "./ConfigProviderApp";
 import { getSsDate } from "./SsData";
 import { getAdminThemeDefinition, supportsDarkMode } from "../utils/admin-themes";
+import { hasUserAppearance, userAppearanceResources } from "../utils/user-appearance";
 
 declare global {
     interface Window {
@@ -111,7 +112,12 @@ const AppInit: FunctionComponent<AppInitProps> = ({ lang, offline }) => {
                 if (baseUrl.length > 0) {
                     setBackendServerUrl(baseUrl);
                 }
-                handleRes(data.data);
+                const user = getSsDate().user;
+                handleRes(
+                    user?.key === getSsDate().key && hasUserAppearance(user)
+                        ? { ...data.data, ...userAppearanceResources(user) }
+                        : data.data
+                );
             })
             .catch((e) => {
                 const errorMsg =

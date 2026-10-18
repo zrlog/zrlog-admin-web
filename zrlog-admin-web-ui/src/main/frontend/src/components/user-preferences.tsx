@@ -14,6 +14,7 @@ import { getPageDataCacheKey, putCache } from "../utils/cache";
 import { useResponsiveFormLayout } from "../utils/responsive-form";
 import {
     applyUserPreferences,
+    cacheUserAppearance,
     mergeUserPreferenceChanges,
     replaceUserPreferencePage,
     resolveUserPreferences,
@@ -23,6 +24,7 @@ import {
 import type { AdminCommonProps, ApiResponse } from "../type";
 import AdminAppearanceFields from "./common/AdminAppearanceFields";
 import type { UserPreferencePage } from "../utils/account-page-routes";
+import { refreshUserInfo } from "../utils/user-info";
 
 const UserPreferencesForm = ({
     data: initialData,
@@ -136,8 +138,11 @@ const UserPreferencesForm = ({
             previewing.current = false;
             if (session.current === getSsDate().key) {
                 putCache({});
+                cacheUserAppearance(response.data.effective);
                 updateCache?.(response.data, getPageDataCacheKey(location));
                 applyUserPreferences(response.data.effective);
+                // The save already succeeded. Revalidation failure must not report it as a failed save.
+                void refreshUserInfo(axios).catch(() => undefined);
             }
             if (mounted.current) {
                 acceptSaved(response.data);

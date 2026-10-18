@@ -31,6 +31,7 @@ public class UserServiceDatabaseTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             String submittedPassword = SecurityUtils.md5("secret");
             db.execute("update user set password=?, secretKey=? where userId=?", submittedPassword, "secret-key", 1);
+            db.execute("update user set preferences=? where userId=1", "{\"language\":\"en_US\",\"appearance\":{\"theme\":\"desk\"}}");
             LoginRequest request = new LoginRequest();
             request.setUserName("admin");
             request.setPassword(submittedPassword);
@@ -41,6 +42,8 @@ public class UserServiceDatabaseTest {
             assertEquals(Integer.valueOf(1), login.getId());
             assertEquals("secret-key", login.getSecretKey());
             assertEquals("admin@example.com", login.getUserBasicInfoResponse().getEmail());
+            assertEquals("en_US", login.getUserBasicInfoResponse().getLanguage());
+            assertEquals("desk", login.getUserBasicInfoResponse().getAppearance().theme);
             assertFalse(PasswordHashUtils.isLegacyMd5(upgradedPassword));
             assertTrue(PasswordHashUtils.matches(submittedPassword, upgradedPassword));
         }
@@ -75,6 +78,43 @@ public class UserServiceDatabaseTest {
             assertEquals("session-key", response.getKey());
             assertEquals(Boolean.FALSE, response.getLastVersion().getUpgrade());
             assertTrue(response.isMfaEnabled());
+        }
+    }
+
+    @Test
+    public void shouldResolveAccountAppearanceWithoutFreezingDefaultsInTheIdentityCache() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            db.execute("insert into user(userId,userName,role) values(2,'writer','author')");
+            db.putWebsite("admin_theme", "antd");
+            db.putWebsite("admin_darkMode", true);
+            db.execute("update user set preferences=? where userId=1",
+                    "{\"language\":\"en_US\",\"appearance\":{\"darkMode\":false}}");
+            UserService service = new UserService();
+            UserInfoResponse owner = service.getUserInfoWithCache(1, "owner-session");
+            UserInfoResponse writer = service.getUserInfoWithCache(2, "writer-session");
+            assertEquals("en_US", owner.getLanguage());
+            assertEquals("zh_CN", writer.getLanguage());
+            assertEquals("antd", owner.getAppearance().theme);
+            assertFalse(owner.getAppearance().darkMode);
+            assertTrue(writer.getAppearance().darkMode);
+            assertEquals("writer-session", writer.getKey());
+            assertEquals("author", writer.getRole());
+            assertEquals("en_US", service.getBasicUserInfo(1, "owner-session").getLanguage());
+            // Passkey login uses this same builder without a thread-local browser identity.
+            assertEquals("zh_CN", service.buildLoginDTO(new com.zrlog.model.User().loadById(2))
+                    .getUserBasicInfoResponse().getLanguage());
+
+            db.putWebsite("admin_theme", "desk");
+            assertEquals("desk", service.getUserInfoWithCache(1, "owner-session").getAppearance().theme);
+            new UserPreferenceService().updateBody("{}", "appearance");
+            UserInfoResponse reset = service.getUserInfoWithCache(1, "owner-session");
+            assertEquals("zh_CN", reset.getLanguage());
+            assertTrue(reset.getAppearance().darkMode);
+            assertEquals("desk", reset.getAppearance().theme);
+            com.google.gson.JsonObject json = new com.google.gson.Gson().toJsonTree(reset).getAsJsonObject();
+            assertEquals("desk", json.getAsJsonObject("appearance").get("theme").getAsString());
+            assertFalse(json.has("defaults"));
+            assertFalse(json.has("editor"));
         }
     }
 

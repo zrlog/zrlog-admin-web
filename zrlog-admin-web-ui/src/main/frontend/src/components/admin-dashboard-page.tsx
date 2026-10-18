@@ -1,11 +1,11 @@
-import { applyUserPreferences, getUserPreferenceRevision } from "../utils/user-preferences";
 import { FunctionComponent, lazy, useEffect, useState } from "react";
 import { jumpToLoginPage, useAxiosBaseInstance } from "../base/AppBase";
 import { BasicUserInfo } from "../type";
 import { Spin } from "antd";
-import { getCsrData } from "../api";
 import { useNavigate } from "react-router-dom";
 import { getSsDate } from "../base/SsData";
+import { hasUserAppearance } from "../utils/user-appearance";
+import { refreshUserInfo, subscribeUserInfo } from "../utils/user-info";
 
 type AdminDashBroadPageProps = {
     offline: boolean;
@@ -23,59 +23,26 @@ const AdminDashboardPage: FunctionComponent<AdminDashBroadPageProps> = ({ offlin
     const [userInfo, setUserInfo] = useState<BasicUserInfo | null>(initUserInfo);
     const session = getSsDate().key;
 
-    useEffect(() => {
-        if (offline) {
-            return;
-        }
-        //有用户信息，不用主动请求
-        if (userInfo !== undefined && userInfo !== null) {
-            return;
-        }
-        getCsrData(`/user/info`, new Date().getTime(), axiosBaseInstance)
-            .then((data) => {
-                if (data && data.error === 0) {
-                    const userData: BasicUserInfo = data.data;
-                    if (userData.key) {
-                        getSsDate().key = userData.key;
-                    }
-                    getSsDate().user = userData;
-                    setUserInfo(userData);
-                } else {
-                    jumpToLoginPage(navigate);
-                }
-            })
-            .catch(() => {
-                jumpToLoginPage(navigate);
-            });
-    }, []);
+    useEffect(() => subscribeUserInfo(setUserInfo), []);
 
     useEffect(() => {
-        if (offline || !userInfo) return;
-        const appearanceSession = getSsDate().appearanceSession;
-        if (appearanceSession && appearanceSession.key === session && appearanceSession.userId === userInfo.userId)
-            return;
+        const currentUser = getSsDate().user;
+        if (offline || (currentUser && hasUserAppearance(currentUser) && !getSsDate().userFromCache)) return;
         let active = true;
-        const revision = getUserPreferenceRevision();
-        const userId = userInfo.userId;
-        axiosBaseInstance
-            .get("/api/admin/user/preferences")
-            .then(({ data }) => {
-                if (
-                    active &&
-                    data.error === 0 &&
-                    revision === getUserPreferenceRevision() &&
-                    session === getSsDate().key &&
-                    userId === getSsDate().user?.userId
-                ) {
-                    applyUserPreferences(data.data.effective);
-                    getSsDate().appearanceSession = { key: session, userId };
-                }
+        const userId = currentUser?.userId;
+        const isCurrent = () => active && session === getSsDate().key && userId === getSsDate().user?.userId;
+        refreshUserInfo(axiosBaseInstance, () => active)
+            .then((response) => {
+                if (response && response.error !== 0) jumpToLoginPage(navigate);
             })
-            .catch(() => undefined);
+            .catch(() => {
+                // An existing cached account remains available during a transient outage.
+                if (isCurrent() && !currentUser) jumpToLoginPage(navigate);
+            });
         return () => {
             active = false;
         };
-    }, [offline, userInfo?.userId, session, axiosBaseInstance]);
+    }, [offline, session, axiosBaseInstance, navigate]);
 
     if (userInfo === undefined || userInfo === null) {
         return <Spin fullscreen={true} delay={1000} />;

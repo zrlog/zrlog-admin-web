@@ -152,6 +152,8 @@ public class AdminPageServiceTest {
                     com.google.gson.JsonObject resource = data.getAsJsonObject("resourceInfo");
                     assertEquals("antd", resource.get("admin_theme").getAsString());
                     assertEquals("en_US", resource.get("lang").getAsString());
+                    assertEquals(resource.get("lang"), data.getAsJsonObject("user").get("language"));
+                    assertEquals(resource.get("admin_theme"), data.getAsJsonObject("user").getAsJsonObject("appearance").get("theme"));
                     assertEquals("#00875a", resource.get("admin_color_primary").getAsString());
                     assertTrue(resource.get("admin_darkMode").getAsBoolean());
                     assertTrue(resource.get("admin_compactMode").getAsBoolean());

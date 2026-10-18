@@ -35,6 +35,8 @@ import { ADMIN_ERROR_CODE } from "../../common/admin-error-code";
 import loginPublishingWorkspace from "../../assets/login-publishing-workspace.webp";
 
 import { authenticateWithPasskey, canUsePasskeys, isPasskeyCancellation } from "../../utils/passkey";
+import { applyUserPreferences } from "../../utils/user-preferences";
+import { hasUserAppearance } from "../../utils/user-appearance";
 
 const md5 = require("md5");
 
@@ -243,6 +245,8 @@ const saveApiCache = (axiosInstance: AxiosInstance, responseBody: LoginResponse)
     getSsDate().pageBuildId = responseBody.pageBuildId;
     getSsDate().user = responseBody.data;
     getSsDate().key = responseBody.data.key;
+    getSsDate().userFromCache = false;
+    if (hasUserAppearance(responseBody.data)) applyUserPreferences(responseBody.data);
     if (isStaticPage()) {
         localStorage.setItem(ssKeyStorageKey, responseBody.data.key);
     }

@@ -2,6 +2,9 @@ import type { UserPreferencePage } from "./account-page-routes";
 import { AdminTheme, getRes, setRes } from "./constants";
 import { changeAppState } from "../base/ConfigProviderApp";
 import { getColorPrimaryByRes, isDarkModeByRes } from "../base/AppInit";
+import { getSsDate } from "../base/SsData";
+import { cacheUserInfo } from "./cache";
+import { userAppearanceResources } from "./user-appearance";
 
 export type UserPreferences = {
     language?: "zh_CN" | "en_US" | null;
@@ -38,14 +41,7 @@ export const getUserPreferenceRevision = () => appearanceRevision;
 export const applyUserPreferences = (preferences: UserPreferences) => {
     appearanceRevision++;
     const appearance = preferences.appearance;
-    setRes({
-        ...getRes(),
-        lang: preferences.language ?? undefined,
-        admin_theme: appearance?.theme ?? undefined,
-        admin_darkMode: appearance?.darkMode ?? undefined,
-        admin_compactMode: appearance?.compactMode ?? undefined,
-        admin_color_primary: appearance?.colorPrimary ?? undefined,
-    });
+    setRes({ ...getRes(), ...userAppearanceResources(preferences) });
     changeAppState({
         lang: preferences.language ?? "zh_CN",
         theme: appearance?.theme ?? "default",
@@ -54,6 +50,14 @@ export const applyUserPreferences = (preferences: UserPreferences) => {
         colorPrimary: getColorPrimaryByRes(),
     });
     document.documentElement.lang = preferences.language === "en_US" ? "en" : "zh";
+};
+
+// Only confirmed saves update the account cache; temporary previews use applyUserPreferences alone.
+export const cacheUserAppearance = (preferences: UserPreferences) => {
+    const ssData = getSsDate();
+    if (!ssData.user || ssData.user.key !== ssData.key) return;
+    ssData.user = { ...ssData.user, language: preferences.language, appearance: preferences.appearance };
+    cacheUserInfo(ssData.user);
 };
 
 // The form displays effective values, while only edited fields become personal overrides.

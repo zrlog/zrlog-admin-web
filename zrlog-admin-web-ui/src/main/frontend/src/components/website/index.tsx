@@ -20,6 +20,8 @@ import { getWebsiteSettingsItems, WebsiteSettingsPage } from "../../utils/settin
 import ContentProtectorForm from "./ContentProtectorForm";
 import WebhookForm from "./WebhookForm";
 import PrivacyForm from "./PrivacyForm";
+import { refreshUserInfo } from "../../utils/user-info";
+import { getSsDate } from "../../base/SsData";
 
 export interface Basic {
     second_title: string;
@@ -198,6 +200,7 @@ const WebSite: FunctionComponent<WebSiteProps> = ({ data, offline, offlineData, 
     };
 
     const onSubmit = async (form: WebSiteEntry): Promise<boolean> => {
+        const session = getSsDate().key;
         try {
             setLoading(true);
             const useRefreshCacheSse = ["basic", "blog", "admin", "other", "content-protector"].includes(activeKey);
@@ -219,6 +222,9 @@ const WebSite: FunctionComponent<WebSiteProps> = ({ data, offline, offlineData, 
             if (data.error) {
                 await messageApi.error(data.message);
                 return false;
+            }
+            if (activeKey === "admin" && session === getSsDate().key) {
+                await refreshUserInfo(axiosInstance).catch(() => undefined);
             }
             await messageApi.success(data.message);
             onChanged(data.data);

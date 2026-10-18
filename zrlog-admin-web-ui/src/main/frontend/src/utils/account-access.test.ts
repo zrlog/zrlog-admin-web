@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "@jest/globals";
 import { hasAction, actionForPath } from "./account-access";
-import { addToCache, getCacheByKey } from "./cache";
+import { addToCache, cacheUserInfo, getCacheByKey } from "./cache";
 import { BasicUserInfo } from "../type";
 
 describe("account permission and cache boundary", () => {
@@ -38,6 +38,20 @@ describe("account permission and cache boundary", () => {
         window.__SS_DATA__!.key = "two";
         expect(getCacheByKey("/article")).toBeUndefined();
         expect(getCacheByKey("/user/applications/grants")).toBeUndefined();
+    });
+    it("refreshes account fields without dropping the cached profile or mixing sessions", () => {
+        const user: BasicUserInfo = { userId: 1, userName: "owner", header: "", key: "one", language: "zh_CN" };
+        addToCache("/user", { ...user, email: "owner@example.com" });
+        cacheUserInfo({ ...user, language: "en_US", appearance: { theme: "desk" } });
+        expect(getCacheByKey("/user")).toMatchObject({
+            email: "owner@example.com",
+            language: "en_US",
+            appearance: { theme: "desk" },
+        });
+        window.__SS_DATA__!.key = "two";
+        cacheUserInfo({ ...user, userId: 2, key: "two", language: "zh_CN" });
+        expect(getCacheByKey("/user").email).toBeUndefined();
+        expect(getCacheByKey("/user").language).toBe("zh_CN");
     });
     it("keeps consent state out of persistent browser storage", () => {
         addToCache("/user/applications/authorize?request_id=example", { csrf: "csrf-example" });

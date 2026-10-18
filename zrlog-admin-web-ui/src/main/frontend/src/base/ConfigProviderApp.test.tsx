@@ -56,68 +56,88 @@ jest.mock("./AppInit", () => ({
 }));
 
 describe("global appearance updates", () => {
-    it.each([
-        { theme: "default", dark: true, color: "#00875a" },
-        { theme: "desk", dark: false, color: "#172033" },
-        { theme: "antd", dark: true, color: "#00875a" },
-    ] as const)(
-        "uses injected $theme appearance on the first render before initialization effects",
-        async ({ theme, dark, color }) => {
-            (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
-            delete window.__SS_DATA__;
-            window.history.replaceState(null, "", "/admin/dev/ui");
-            const base = document.createElement("base");
-            base.href = "http://localhost/";
-            document.head.appendChild(base);
-            const injected = document.createElement("pre");
-            injected.id = "__SS_DATA__";
-            injected.innerText = JSON.stringify({
-                data: true,
-                key: "review",
-                user: null,
-                pageBuildId: "test",
-                systemNotification: "",
-                resourceInfo: {
-                    lang: "en_US",
-                    admin_theme: theme,
-                    admin_darkMode: dark,
-                    admin_compactMode: true,
-                    admin_color_primary: color,
-                },
-            });
-            document.body.appendChild(injected);
-            const container = document.createElement("div");
-            document.body.appendChild(container);
-            const root = createRoot(container);
-            mockInitialAppearances.length = 0;
-            try {
-                await act(async () =>
-                    root.render(
-                        <SsData>
-                            <ConfigProviderApp />
-                        </SsData>
-                    )
-                );
-                expect(mockInitialAppearances).toHaveLength(1);
-                expect(mockInitialAppearances[0]).toMatchObject({
-                    lang: "en_US",
-                    theme,
-                    dark,
-                    compactMode: true,
-                    colorPrimary: color,
-                });
-                expect(container.querySelector("input")!.dataset.lang).toBe("en_US");
-                expect(document.body.className).toBe(dark ? "dark" : "light");
-            } finally {
-                act(() => root.unmount());
-                container.remove();
-                injected.remove();
-                base.remove();
-                delete window.__SS_DATA__;
-                (globalThis as any).IS_REACT_ACT_ENVIRONMENT = false;
-            }
+    it.each(
+        (
+            [
+                { theme: "default", dark: true, color: "#00875a" },
+                { theme: "desk", dark: false, color: "#172033" },
+                { theme: "antd", dark: true, color: "#00875a" },
+            ] as const
+        ).flatMap((appearance) => [false, true].map((cached) => ({ ...appearance, cached })))
+    )("uses $theme appearance on the first render (cached=$cached)", async ({ theme, dark, color, cached }) => {
+        (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+        delete window.__SS_DATA__;
+        window.history.replaceState(null, "", "/admin/dev/ui");
+        const base = document.createElement("base");
+        base.href = "http://localhost/";
+        document.head.appendChild(base);
+        const injected = document.createElement("pre");
+        injected.id = "__SS_DATA__";
+        localStorage.clear();
+        if (cached) {
+            localStorage.setItem(
+                "localhost_cache_page_data_session_review",
+                JSON.stringify({
+                    "/user": {
+                        userId: 1,
+                        userName: "owner",
+                        key: "review",
+                        header: "",
+                        language: "en_US",
+                        appearance: { theme, darkMode: dark, compactMode: true, colorPrimary: color },
+                    },
+                })
+            );
         }
-    );
+        injected.innerText = JSON.stringify({
+            data: true,
+            key: "review",
+            user: null,
+            pageBuildId: "test",
+            systemNotification: "",
+            resourceInfo: cached
+                ? { lang: "zh_CN", staticPage: true, admin_theme: "default", admin_darkMode: false }
+                : {
+                      lang: "en_US",
+                      admin_theme: theme,
+                      admin_darkMode: dark,
+                      admin_compactMode: true,
+                      admin_color_primary: color,
+                  },
+        });
+        document.body.appendChild(injected);
+        const container = document.createElement("div");
+        document.body.appendChild(container);
+        const root = createRoot(container);
+        mockInitialAppearances.length = 0;
+        try {
+            await act(async () =>
+                root.render(
+                    <SsData>
+                        <ConfigProviderApp />
+                    </SsData>
+                )
+            );
+            expect(mockInitialAppearances).toHaveLength(1);
+            expect(mockInitialAppearances[0]).toMatchObject({
+                lang: "en_US",
+                theme,
+                dark,
+                compactMode: true,
+                colorPrimary: color,
+            });
+            expect(container.querySelector("input")!.dataset.lang).toBe("en_US");
+            expect(document.body.className).toBe(dark ? "dark" : "light");
+        } finally {
+            act(() => root.unmount());
+            container.remove();
+            injected.remove();
+            base.remove();
+            delete window.__SS_DATA__;
+            localStorage.clear();
+            (globalThis as any).IS_REACT_ACT_ENVIRONMENT = false;
+        }
+    });
 
     it("applies color, dark, density and language immediately without remounting the page", async () => {
         mockMounts = 0;
