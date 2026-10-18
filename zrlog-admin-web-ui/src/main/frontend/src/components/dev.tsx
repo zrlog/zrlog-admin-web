@@ -4,10 +4,12 @@ import Table from "@zrlog/ui/antd/Table";
 import { useUiMessage } from "@zrlog/ui/feedback";
 import { FunctionComponent, useState } from "react";
 import { AdminCommonProps } from "../type";
-import { Button, Card, Empty, Grid, Space, TableColumnsType, Typography } from "antd";
+import { Button, Empty, Flex, Grid, Space, TableColumnsType, Typography, theme } from "antd";
 import { useNavigate } from "react-router-dom";
 import { useAxiosBaseInstance } from "../base/AppBase";
-import { getLabelValueSeparator, getRes } from "../utils/constants";
+import { getLabelValueSeparator, getRealRouteUrl, getRes, setRes } from "../utils/constants";
+import SettingsSection from "./common/SettingsSection";
+import SystemSettingsLayout from "./system/SystemSettingsLayout";
 
 type Lock = {
     name: string;
@@ -30,6 +32,7 @@ const Dev: FunctionComponent<AdminCommonProps<DevResponse>> = ({ data }) => {
     const axiosInstance = useAxiosBaseInstance();
     const navigate = useNavigate();
     const screens = Grid.useBreakpoint();
+    const { token } = theme.useToken();
     const res = getRes().dev;
     const [devMode, setDevMode] = useState(data.devMode);
     const [devModeUpdating, setDevModeUpdating] = useState(false);
@@ -49,6 +52,7 @@ const Dev: FunctionComponent<AdminCommonProps<DevResponse>> = ({ data }) => {
                 messageApi.error(data.message);
                 return;
             }
+            setRes({ ...getRes(), devMode: data.data });
             setDevMode(data.data);
             messageApi.success(data.data ? res.enableDevModeSuccess : res.disableDevModeSuccess);
         } finally {
@@ -161,10 +165,10 @@ const Dev: FunctionComponent<AdminCommonProps<DevResponse>> = ({ data }) => {
           ];
 
     return (
-        <>
+        <SystemSettingsLayout activeKey="dev">
             {messageContextHolder}
-            <Space direction="vertical" size="middle" style={{ width: "100%" }}>
-                <Card
+            <Flex vertical gap={token.marginLG} style={{ paddingBottom: token.paddingLG }}>
+                <SettingsSection
                     title={res.devMode}
                     extra={<Tag color={devMode ? "success" : "default"}>{devMode ? res.enabled : res.disabled}</Tag>}
                 >
@@ -177,14 +181,15 @@ const Dev: FunctionComponent<AdminCommonProps<DevResponse>> = ({ data }) => {
                             <Button
                                 block={!screens.sm}
                                 disabled={!devMode}
-                                onClick={() => navigate("/file-manager?path=/admin/dev/file")}
+                                onClick={() => navigate(getRealRouteUrl("/file-manager?path=/admin/dev/file"))}
                             >
                                 {res.viewProjectFiles}
                             </Button>
                         </Space>
                     </Space>
-                </Card>
-                <Card
+                </SettingsSection>
+                <SettingsSection
+                    divided
                     title={res.cacheTitle}
                     extra={<Typography.Text type="secondary">{renderEntryCount(cacheEntries.length)}</Typography.Text>}
                 >
@@ -198,8 +203,9 @@ const Dev: FunctionComponent<AdminCommonProps<DevResponse>> = ({ data }) => {
                             emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={res.cacheEmpty} />,
                         }}
                     />
-                </Card>
-                <Card
+                </SettingsSection>
+                <SettingsSection
+                    divided
                     title={res.lockTitle}
                     extra={<Typography.Text type="secondary">{renderEntryCount(locks.length)}</Typography.Text>}
                 >
@@ -225,9 +231,9 @@ const Dev: FunctionComponent<AdminCommonProps<DevResponse>> = ({ data }) => {
                             }}
                         />
                     </Space>
-                </Card>
-            </Space>
-        </>
+                </SettingsSection>
+            </Flex>
+        </SystemSettingsLayout>
     );
 };
 export default Dev;

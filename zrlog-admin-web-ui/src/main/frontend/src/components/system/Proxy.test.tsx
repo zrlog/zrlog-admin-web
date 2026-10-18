@@ -6,7 +6,7 @@ import ProxySettings, { ProxyData, validProxyUrl, validNoProxy } from "./Proxy";
 
 jest.mock("@zrlog/ui/antd/Input", () => require("antd/lib/input"));
 jest.mock("@zrlog/ui/antd/Tag", () => require("antd/lib/tag"));
-jest.mock("../common/SettingsLayout", () => ({ children }: any) => <div>{children}</div>);
+jest.mock("./SystemSettingsLayout", () => ({ children }: any) => <div>{children}</div>);
 const mockPost = jest.fn<Promise<any>, any[]>();
 const mockAxios = { post: mockPost };
 const mockSuccess = jest.fn();

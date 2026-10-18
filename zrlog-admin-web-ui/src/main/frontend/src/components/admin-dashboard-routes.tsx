@@ -38,7 +38,7 @@ import { lazy } from "react";
 import type { ComponentType, ReactNode } from "react";
 
 import { buildUriPaths } from "../base/AppBase";
-import { getRes } from "../utils/constants";
+import { getRes, isServerDevelopmentMode } from "../utils/constants";
 import MyLoadingComponent from "./my-loading-component";
 import type { WebSiteProps } from "./website";
 import type { ArticleEditProps } from "./articleEdit/index.types";
@@ -68,7 +68,8 @@ const AsyncUser = lazy(() => import("components/user"));
 const AsyncError = lazy(() => import("components/unknown-error-page"));
 const AsyncSystem = lazy(() => import("components/system"));
 const AsyncProxy = lazy(() => import("components/system/Proxy"));
-const AsyncVersion = lazy(() => import("components/website/version"));
+const AsyncVersion = lazy(() => import("components/system/Version"));
+const AsyncLegacyVersion = lazy(() => import("components/website/version"));
 const AsyncStaticSite = lazy(() => import("components/StaticSite"));
 const DevAsync = lazy(() => import("components/dev"));
 const DevUiAsync = lazy(() => import("components/dev-ui"));
@@ -411,17 +412,22 @@ export const createAdminDashboardRoutes = (
         ],
     },
     {
-        paths: buildUriPaths("website/version"),
+        paths: buildUriPaths("system/version"),
         lazy: AsyncVersion,
         fallback: LightweightFallback,
         search: [
             {
                 id: "version",
-                title: () => getRes().websiteVersion.title,
+                title: () => getRes().system.version.title,
                 iconKey: "info",
                 keywords: ["version", "update", "版本", "更新", "banben", "gengxin"],
             },
         ],
+    },
+    {
+        paths: buildUriPaths("website/version"),
+        lazy: AsyncLegacyVersion,
+        fallback: LightweightFallback,
     },
     {
         paths: buildUriPaths("article-type"),
@@ -645,9 +651,37 @@ export const createAdminDashboardRoutes = (
         search: [
             {
                 id: "system",
-                title: () => getRes().system.info,
+                title: () => getRes().system.navigation.overview,
                 iconKey: "info",
-                keywords: ["system", "info", "系统", "信息", "环境"],
+                keywords: ["system", "overview", "系统", "概览"],
+            },
+        ],
+    },
+    {
+        paths: buildUriPaths("system/runtime"),
+        lazy: AsyncSystem,
+        fallback: LightweightFallback,
+        props: { activePage: "runtime" },
+        search: [
+            {
+                id: "system_runtime",
+                title: () => getRes().system.navigation.runtime,
+                iconKey: "container",
+                keywords: ["runtime", "environment", "version", "java", "database", "运行环境", "版本", "数据库"],
+            },
+        ],
+    },
+    {
+        paths: buildUriPaths("system/resources"),
+        lazy: AsyncSystem,
+        fallback: LightweightFallback,
+        props: { activePage: "resources" },
+        search: [
+            {
+                id: "system_resources",
+                title: () => getRes().system.navigation.resources,
+                iconKey: "dashboard",
+                keywords: ["resources", "cpu", "memory", "disk", "load", "资源", "内存", "磁盘", "负载"],
             },
         ],
     },
@@ -673,6 +707,15 @@ export const createAdminDashboardRoutes = (
         paths: buildUriPaths("dev"),
         lazy: DevAsync,
         fallback: LightweightFallback,
+        search: [
+            {
+                id: "dev",
+                title: () => getRes().dev.title,
+                iconKey: "experiment",
+                keywords: ["dev", "debug", "cache", "locks", "开发", "诊断", "缓存", "锁"],
+                visible: isServerDevelopmentMode,
+            },
+        ],
     },
     {
         // Developer review surface: direct access only, no navigation/search entry or static export.

@@ -29,6 +29,12 @@ public class AdminPageController extends Controller {
             response.redirect(Constants.ADMIN_URI_BASE_PATH + AdminConstants.INDEX_URI_PATH);
             return;
         }
+        if (Objects.equals(request.getUri(), Constants.ADMIN_URI_BASE_PATH + "/website/version")) {
+            String query = request.getQueryStr();
+            response.redirect(Constants.ADMIN_URI_BASE_PATH + "/system/version"
+                    + (query == null || query.isEmpty() ? "" : "?" + query));
+            return;
+        }
         renderIndex();
     }
 

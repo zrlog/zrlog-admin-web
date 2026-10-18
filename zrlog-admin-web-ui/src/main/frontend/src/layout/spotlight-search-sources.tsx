@@ -330,18 +330,19 @@ const withSource = (sourceId: string, items: SpotlightItem[]) =>
     }));
 
 const createRouteSource = (): SpotlightSource => {
-    const items = withSource(
-        "route",
-        getAdminDashboardRouteSearchItems().map((item) => ({
-            ...item,
-            type: "route" as const,
-        }))
-    );
+    const items = () =>
+        withSource(
+            "route",
+            getAdminDashboardRouteSearchItems().map((item) => ({
+                ...item,
+                type: "route" as const,
+            }))
+        );
     return {
         id: "route",
-        empty: () => items.slice(0, SOURCE_RESULT_LIMIT),
+        empty: () => items().slice(0, SOURCE_RESULT_LIMIT),
         search: ({ normalizedKeyword }) =>
-            items.filter(
+            items().filter(
                 (item) =>
                     includesKeyword(item.title, normalizedKeyword) ||
                     item.keywords.some((keyword) => includesKeyword(keyword, normalizedKeyword))

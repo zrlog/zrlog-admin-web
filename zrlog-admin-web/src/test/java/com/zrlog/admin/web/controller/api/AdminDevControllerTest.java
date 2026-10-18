@@ -86,10 +86,16 @@ public class AdminDevControllerTest {
     @Test
     public void shouldSetDevModeThroughModeEndpoint() throws Exception {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
+            ServerConfig config = new ServerConfig();
+            var resources = new com.zrlog.admin.business.service.AdminResourceService();
+            assertFalse(resources.adminResourceInfo(request(Map.of(), config)).isDevMode());
             ApiStandardResponse<Boolean> enabled = controller(Map.of("enabled", "true")).mode();
 
             assertEquals(Boolean.TRUE, enabled.getData());
             assertEquals("dev", System.getProperty("sws.run.mode"));
+            assertTrue(resources.adminResourceInfo(request(Map.of(), config)).isDevMode());
+            controller(Map.of("enabled", "false"), config).mode();
+            assertFalse(resources.adminResourceInfo(request(Map.of(), config)).isDevMode());
         }
     }
 

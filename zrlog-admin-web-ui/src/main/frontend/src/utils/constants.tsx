@@ -34,6 +34,7 @@ export type AdminRuntimeResourceInfo = {
     copyrightTips?: string;
     currentVersion?: string;
     defaultLoginInfo?: LoginUserInfo;
+    devMode?: boolean;
     feature_personal_data_enabled?: boolean;
     feature_article_arrangement_enabled?: boolean;
     feature_webhook_enabled?: boolean;
@@ -65,6 +66,7 @@ const toRuntimeResourceInfo = (res?: AdminRuntimeResourceInfo | null): AdminRunt
         copyrightTips: res.copyrightTips,
         currentVersion: res.currentVersion,
         defaultLoginInfo: res.defaultLoginInfo,
+        devMode: res.devMode,
         feature_personal_data_enabled: res.feature_personal_data_enabled,
         feature_article_arrangement_enabled: res.feature_article_arrangement_enabled,
         feature_webhook_enabled: res.feature_webhook_enabled,
@@ -127,6 +129,8 @@ export const cacheIgnoreReloadKeys = cacheIgnoreReloadTime + ",v" + ",view";
 export const isDev = () => {
     return process.env.NODE_ENV != "production";
 };
+
+export const isServerDevelopmentMode = () => getRes().devMode === true;
 
 export const isStaticPage = () => {
     if (isDev()) {

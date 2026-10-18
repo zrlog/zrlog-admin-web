@@ -12,6 +12,8 @@ import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
 import com.zrlog.admin.business.rest.response.AdminResourceInfoResponse;
 import com.zrlog.admin.business.rest.response.ProxySettingsResponse;
 import com.zrlog.admin.business.rest.response.ServerSideDataResponse;
+import com.zrlog.admin.business.rest.response.SystemResponse;
+import com.zrlog.admin.business.rest.response.VersionResponse;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.rest.response.ApiStandardResponse;
@@ -328,6 +330,100 @@ public class AdminPageServiceTest {
     }
 
     @Test
+    public void shouldLoadSystemSectionsWithMatchingPermissionsAndTitles() throws Throwable {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            db.loadAdminWebModules();
+            RequestConfig config = new RequestConfig();
+            config.setRouter(com.zrlog.common.Constants.zrLogConfig.getServerConfig().getRouter());
+            AdminPageService service = new AdminPageService();
+            for (String page : java.util.List.of("/admin/system", "/admin/system/runtime", "/admin/system/resources")) {
+                assertNotNull(config.getRouter().getMethod(page, HttpMethod.GET));
+                Method api = config.getRouter().getMethod("/api" + page, HttpMethod.GET);
+                assertNotNull(api);
+                assertEquals(com.zrlog.data.security.AccountAction.SYSTEM_MANAGE,
+                        api.getAnnotation(com.zrlog.admin.web.annotation.RequiresAction.class).value());
+                for (String contextPath : java.util.List.of("", "/blog")) {
+                    for (String uri : java.util.List.of(page, "/admin/ssJson")) {
+                        HttpRequest request = request(uri, contextPath, config);
+                        for (String role : java.util.List.of("owner", "admin")) {
+                            AccountAuthorizationTest.login(db, 1, role);
+                            ServerSideDataResponse<Object> result = service.serverSide(page, request, response());
+                            SystemResponse data = (SystemResponse) result.getData();
+                            assertFalse(data.getServerInfos().isEmpty());
+                            assertFalse(data.getServerInfos2().isEmpty());
+                            assertEquals(AdminConstants.getAdminDocumentTitleByUri(page), result.getDocumentTitle());
+                        }
+                        for (String role : java.util.List.of("editor", "author", "contributor")) {
+                            AccountAuthorizationTest.login(db, 1, role);
+                            org.junit.Assert.assertThrows(com.zrlog.admin.business.exception.PermissionErrorException.class,
+                                    () -> service.serverSide(page, request, response()));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    public void shouldLoadCanonicalVersionPageWithExistingPermissionsAndTitle() throws Throwable {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            db.loadAdminWebModules();
+            RequestConfig config = new RequestConfig();
+            config.setRouter(com.zrlog.common.Constants.zrLogConfig.getServerConfig().getRouter());
+            String page = "/admin/system/version";
+            assertNotNull(config.getRouter().getMethod(page, HttpMethod.GET));
+            assertEquals(config.getRouter().getMethod("/api/admin/website/version", HttpMethod.GET),
+                    config.getRouter().getMethod("/api" + page, HttpMethod.GET));
+            assertEquals(com.zrlog.data.security.AccountAction.SITE_CONFIGURE,
+                    config.getRouter().getMethod("/api" + page, HttpMethod.GET)
+                            .getAnnotation(com.zrlog.admin.web.annotation.RequiresAction.class).value());
+            AdminPageService service = new AdminPageService();
+            for (String contextPath : java.util.List.of("", "/blog")) {
+                for (String uri : java.util.List.of(page, "/admin/ssJson")) {
+                    HttpRequest request = request(uri, contextPath, config);
+                    for (String role : java.util.List.of("owner", "admin")) {
+                        AccountAuthorizationTest.login(db, 1, role);
+                        ServerSideDataResponse<Object> result = service.serverSide(page, request, response());
+                        assertNotNull(((VersionResponse) result.getData()).getVersion());
+                        assertEquals(AdminConstants.getAdminDocumentTitleByUri(page), result.getDocumentTitle());
+                    }
+                    for (String role : java.util.List.of("editor", "author", "contributor")) {
+                        AccountAuthorizationTest.login(db, 1, role);
+                        org.junit.Assert.assertThrows(com.zrlog.admin.business.exception.PermissionErrorException.class,
+                                () -> service.serverSide(page, request, response()));
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    public void shouldRedirectLegacyVersionPagePreservingContextAndEncodedQuery() throws Throwable {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            db.loadAdminWebModules();
+            RequestConfig config = new RequestConfig();
+            config.setRouter(com.zrlog.common.Constants.zrLogConfig.getServerConfig().getRouter());
+            Method route = config.getRouter().getMethod("/admin/website/version", HttpMethod.GET);
+            for (String contextPath : java.util.List.of("", "/", "/blog")) {
+                for (String query : java.util.List.of("", "v=1&message=%E4%B8%AD%E6%96%87&value=a%2Bb%2525")) {
+                    HttpRequest base = request("/admin/website/version", contextPath, config);
+                    HttpRequest request = (HttpRequest) Proxy.newProxyInstance(getClass().getClassLoader(),
+                            new Class[]{HttpRequest.class}, (proxy, method, args) ->
+                                    method.getName().equals("getQueryStr") ? query : method.invoke(base, args));
+                    var response = new com.hibegin.http.server.impl.SimpleHttpResponse(request,
+                            new com.hibegin.http.server.config.ResponseConfig()) {
+                        @Override protected void send(byte[] bytes, boolean body, boolean close) { }
+                    };
+                    route.invoke(Controller.buildController(route, request, response));
+                    String prefix = contextPath.equals("/") ? "" : contextPath;
+                    assertEquals(prefix + "/admin/system/version" + (query.isEmpty() ? "" : "?" + query),
+                            response.getHeader().get("Location"));
+                }
+            }
+        }
+    }
+
+    @Test
     public void shouldReturnNullDataForNonPageServerSideResponse() throws Throwable {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
             setAdminToken();
@@ -377,6 +473,9 @@ public class AdminPageServiceTest {
                     if ("getMethod".equals(method.getName())) {
                         return HttpMethod.GET;
                     }
+                    if ("getHttpVersion".equals(method.getName())) {
+                        return com.hibegin.http.HttpVersion.HTTP_1_1;
+                    }
                     if ("getHeader".equals(method.getName())) {
                         return null;
                     }
@@ -385,6 +484,9 @@ public class AdminPageServiceTest {
                     }
                     if ("getRequestConfig".equals(method.getName())) {
                         return requestConfig;
+                    }
+                    if ("getServerConfig".equals(method.getName())) {
+                        return com.zrlog.common.Constants.zrLogConfig.getServerConfig();
                     }
                     if ("toString".equals(method.getName())) {
                         return "HttpRequestProxy";

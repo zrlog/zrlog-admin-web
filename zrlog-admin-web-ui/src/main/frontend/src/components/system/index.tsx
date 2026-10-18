@@ -3,19 +3,18 @@ import { SystemData } from "../../type";
 import { FunctionComponent, useEffect, useRef, useState } from "react";
 import { getCsrData, getTimeInfoBySearchStr } from "../../api";
 import { useAxiosBaseInstance } from "../../base/AppBase";
-import { useLocation, useNavigate } from "react-router";
-import { Button, Flex } from "antd";
-import { getRealRouteUrl, getRes } from "../../utils/constants";
-import { hasAction } from "../../utils/account-access";
+import { useLocation } from "react-router";
+import SystemSettingsLayout, { SystemInfoPage } from "./SystemSettingsLayout";
 
 type SystemProps = {
     data: SystemData;
     offline: boolean;
+    activePage?: SystemInfoPage;
 };
 
 const SYSTEM_REFRESH_INTERVAL = 5000;
 
-const System: FunctionComponent<SystemProps> = ({ data }) => {
+const System: FunctionComponent<SystemProps> = ({ data, offline, activePage = "overview" }) => {
     const [state, setState] = useState<SystemData>(data);
 
     const axiosInstance = useAxiosBaseInstance();
@@ -23,9 +22,9 @@ const System: FunctionComponent<SystemProps> = ({ data }) => {
     const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const location = useLocation();
-    const navigate = useNavigate();
 
     useEffect(() => {
+        if (offline || activePage === "runtime") return;
         let active = true;
 
         const scheduleNext = () => {
@@ -39,7 +38,11 @@ const System: FunctionComponent<SystemProps> = ({ data }) => {
                 scheduleNext();
                 return;
             }
-            getCsrData("/system", getTimeInfoBySearchStr(location.search), axiosInstance)
+            getCsrData(
+                activePage === "resources" ? "/system/resources" : "/system",
+                getTimeInfoBySearchStr(location.search),
+                axiosInstance
+            )
                 .then(({ data }) => {
                     if (active) {
                         setState(data);
@@ -56,23 +59,16 @@ const System: FunctionComponent<SystemProps> = ({ data }) => {
                 clearTimeout(timer.current);
             }
         };
-    }, [axiosInstance, location.search]);
+    }, [axiosInstance, location.search, offline, activePage]);
 
     useEffect(() => {
         setState(data);
     }, [data]);
 
     return (
-        <Flex vertical gap="middle">
-            {hasAction("system.manage") && (
-                <div>
-                    <Button onClick={() => navigate(getRealRouteUrl("/system/proxy"))}>
-                        {getRes().system.proxy.title}
-                    </Button>
-                </div>
-            )}
-            <ServerInfo data={state} />
-        </Flex>
+        <SystemSettingsLayout activeKey={activePage}>
+            <ServerInfo data={state} page={activePage} />
+        </SystemSettingsLayout>
     );
 };
 

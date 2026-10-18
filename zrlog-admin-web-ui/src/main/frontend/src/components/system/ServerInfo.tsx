@@ -1,36 +1,24 @@
 import AppleOutlined from "@ant-design/icons/lib/icons/AppleOutlined";
-import ArrowRightIcon from "@zrlog/ui/icons/arrow-right";
-import TimeIcon from "@zrlog/ui/icons/time";
-import ServerIcon from "@zrlog/ui/icons/server";
-import CodeIcon from "@zrlog/ui/icons/code";
-import DashboardIcon from "@zrlog/ui/icons/dashboard";
-import DatabaseIcon from "@zrlog/ui/icons/database";
 import DockerOutlined from "@ant-design/icons/lib/icons/DockerOutlined";
-import GlobeIcon from "@zrlog/ui/icons/globe";
-import DiskIcon from "@zrlog/ui/icons/disk";
-import PartitionIcon from "@zrlog/ui/icons/partition";
-import SettingsIcon from "@zrlog/ui/icons/settings";
-import WindowsOutlined from "@ant-design/icons/lib/icons/WindowsOutlined";
 import LinuxOutlined from "@ant-design/icons/lib/icons/LinuxOutlined";
-import { Card, Col, Row, Space, Typography } from "antd";
-import { useTheme } from "antd-style";
+import WindowsOutlined from "@ant-design/icons/lib/icons/WindowsOutlined";
+import DatabaseIcon from "@zrlog/ui/icons/database";
+import TimeIcon from "@zrlog/ui/icons/time";
+import { Descriptions, Flex, Typography, theme } from "antd";
+import { ReactNode } from "react";
 import GraalVmOutlined from "icons/GraalVMOutlined";
 import ZrLogOutlined from "icons/ZrLogOutlined";
-import * as React from "react";
-import { Link } from "react-router-dom";
 import CPUIcon from "../../icons/CPUIcon";
 import MemoryIcon from "../../icons/MemoryIcon";
 import { RiJavaLine } from "../../icons/ri/RiJavaLine";
 import { ServerInfoEntry, SystemData } from "../../type";
 import { getRes } from "../../utils/constants";
-
-type ServerInfoProps = {
-    data: SystemData;
-};
+import SettingsSection from "../common/SettingsSection";
+import type { SystemInfoPage } from "./SystemSettingsLayout";
 
 const APPLICATION_KEYS = ["programInfo", "runtime", "webServer", "system", "runPath"];
 const CONFIGURATION_KEYS = ["dbInfo", "timezone", "locale", "encoding"];
-const RESOURCE_KEYS = ["cpuInfo", "usedDiskSpace", "usedCacheSpace"];
+const RESOURCE_KEYS = ["cpuInfo", "totalMemorySpace", "usedDiskSpace", "usedCacheSpace"];
 
 const clampPercent = (value: number) => Math.min(Math.max(value, 0), 100);
 
@@ -51,26 +39,6 @@ const parseCpuPercent = (value?: string) => {
         return clampPercent(numberValue * 100);
     }
     return clampPercent(numberValue);
-};
-
-const parseSize = (value?: string) => {
-    const match = value?.trim().match(/^(\d+(?:\.\d+)?)\s*([KMGT]?B?)$/i);
-    if (!match) {
-        return undefined;
-    }
-    const unit = match[2].toUpperCase();
-    const unitScale: Record<string, number> = {
-        B: 1,
-        K: 1024,
-        KB: 1024,
-        M: 1024 ** 2,
-        MB: 1024 ** 2,
-        G: 1024 ** 3,
-        GB: 1024 ** 3,
-        T: 1024 ** 4,
-        TB: 1024 ** 4,
-    };
-    return Number(match[1]) * (unitScale[unit] || 1);
 };
 
 const parseConnectionUsage = (value?: string) => {
@@ -99,490 +67,253 @@ const getItemsByKeys = (itemMap: Map<string, ServerInfoEntry>, keys: string[]) =
     return keys.map((key) => itemMap.get(key)).filter((item): item is ServerInfoEntry => Boolean(item));
 };
 
-type GridSpan = {
-    xs: number;
-    sm?: number;
-    md?: number;
-    lg?: number;
-    xl?: number;
-};
-
-const ServerInfo = ({ data }: ServerInfoProps) => {
-    const theme = useTheme();
-    const borderSecondary = `${theme.lineWidth}px ${theme.lineType} ${theme.colorBorderSecondary}`;
-    const infoEntries = [...(data.serverInfos || []), ...(data.serverInfos2 || [])];
-    const itemMap = new Map(infoEntries.map((item) => [item.key, item]));
-    const applicationItems = getItemsByKeys(itemMap, APPLICATION_KEYS);
-    const configurationItems = getItemsByKeys(itemMap, CONFIGURATION_KEYS);
-    const resourceItems = getItemsByKeys(itemMap, RESOURCE_KEYS);
-    const loadLabels = [
-        getRes().system.loadAverage.oneMinute,
-        getRes().system.loadAverage.fiveMinutes,
-        getRes().system.loadAverage.fifteenMinutes,
+const ServerInfo = ({ data, page }: { data: SystemData; page: SystemInfoPage }) => {
+    const { token } = theme.useToken();
+    const text = getRes().system;
+    const border = `${token.lineWidth}px ${token.lineType} ${token.colorBorderSecondary}`;
+    const entries = [...(data.serverInfos || []), ...(data.serverInfos2 || [])];
+    const itemMap = new Map(entries.map((item) => [item.key, item]));
+    const cpu = itemMap.get("cpuLoad");
+    const memory = itemMap.get("usedMemorySpace");
+    const connections = itemMap.get("dbConnectSize");
+    const uptime = itemMap.get("uptime");
+    const load = itemMap.get("systemLoad");
+    const cpuPercent = parseCpuPercent(cpu?.value);
+    const metrics: Array<{ item?: ServerInfoEntry; value?: string; percent?: number; icon: ReactNode }> = [
+        {
+            item: cpu,
+            value: cpuPercent === undefined ? cpu?.value : formatPercent(cpuPercent),
+            percent: cpuPercent,
+            icon: <CPUIcon />,
+        },
+        { item: memory, icon: <MemoryIcon /> },
+        { item: connections, percent: parseConnectionUsage(connections?.value), icon: <DatabaseIcon /> },
+        { item: uptime, icon: <TimeIcon /> },
     ];
 
-    const metricColor = (percent: number) => {
-        if (percent >= 85) {
-            return theme.colorError;
-        }
-        if (percent >= 65) {
-            return theme.colorWarning;
-        }
-        return theme.colorSuccess;
-    };
-
-    const externalUrl = (key: string, value: string) => {
-        if (key === "programInfo") {
-            return "https://www.zrlog.com/changelog/?ref=systemInfo";
-        }
-        if (key === "webServer") {
-            if (value.toLowerCase().startsWith("simplewebserver/")) {
+    const externalUrl = (item: ServerInfoEntry) => {
+        if (item.key === "programInfo") return "https://www.zrlog.com/changelog/?ref=systemInfo";
+        if (item.key === "runtime")
+            return data.nativeImageMode ? "https://www.graalvm.org" : "https://www.oracle.com/java";
+        if (item.key === "webServer") {
+            if (item.value.toLowerCase().startsWith("simplewebserver/"))
                 return "https://github.com/94fzb/simplewebserver";
-            }
-            if (value.startsWith("Apache Tomcat/")) {
-                return "https://tomcat.apache.org/";
-            }
-            if (value.startsWith("Lambda")) {
-                return "https://aws.amazon.com/lambda/";
-            }
+            if (item.value.startsWith("Apache Tomcat/")) return "https://tomcat.apache.org/";
+            if (item.value.startsWith("Lambda")) return "https://aws.amazon.com/lambda/";
         }
-        if (key === "runtime") {
-            if (data.nativeImageMode) {
-                return "https://www.graalvm.org";
-            }
-            return "https://www.oracle.com/java";
-        }
-        return "";
+        return undefined;
     };
 
-    const wrapByLink = (item: ServerInfoEntry, node: React.ReactNode) => {
-        const url = externalUrl(item.key, item.value);
-        if (!url) {
-            return node;
-        }
-        return (
-            <Link
-                target="_blank"
-                rel="noopener noreferrer"
-                to={url}
-                style={{ display: "block", color: "inherit", height: "100%" }}
-            >
-                {node}
-            </Link>
-        );
-    };
-
-    const renderRuntimeIcons = (iconSize: number) => {
-        const items: React.ReactNode[] = [];
-        if (data.dockerMode) {
-            items.push(<DockerOutlined key="docker" style={{ fontSize: iconSize }} />);
-        }
-        if (data.nativeImageMode) {
-            items.push(<GraalVmOutlined key="graalvm" size={iconSize} />);
-        } else {
-            items.push(<RiJavaLine key="java" style={{ width: iconSize, height: iconSize }} />);
-        }
-        return (
-            <span
-                style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: theme.marginXS,
-                    color: theme.colorPrimary,
-                    flexShrink: 0,
-                }}
-            >
-                {items}
-            </span>
-        );
-    };
-
-    const renderItemIcon = (item: ServerInfoEntry, iconSize = 24) => {
+    const environmentIcon = (item: ServerInfoEntry) => {
+        if (item.key === "programInfo") return <ZrLogOutlined size={18} />;
         if (item.key === "runtime") {
-            return renderRuntimeIcons(iconSize);
-        }
-        if (item.key === "programInfo") {
-            return <ZrLogOutlined size={iconSize} />;
+            return (
+                <>
+                    {data.dockerMode && <DockerOutlined />}
+                    {data.nativeImageMode ? (
+                        <GraalVmOutlined size={18} />
+                    ) : (
+                        <RiJavaLine style={{ width: 18, height: 18 }} />
+                    )}
+                </>
+            );
         }
         if (item.key === "system") {
-            if (item.value.startsWith("Linux")) {
-                return <LinuxOutlined />;
-            }
-            if (item.value.startsWith("Darwin") || item.value.startsWith("Mac")) {
-                return <AppleOutlined />;
-            }
+            if (item.value.startsWith("Linux")) return <LinuxOutlined />;
+            if (item.value.startsWith("Darwin") || item.value.startsWith("Mac")) return <AppleOutlined />;
             return <WindowsOutlined />;
         }
-        if (item.key === "usedCacheSpace" || item.key === "usedDiskSpace") {
-            return <DiskIcon />;
-        }
-        if (item.key === "usedMemorySpace" || item.key === "totalMemorySpace") {
-            return <MemoryIcon />;
-        }
-        if (item.key === "dbInfo" || item.key === "dbConnectSize") {
-            return <DatabaseIcon />;
-        }
-        if (item.key === "cpuInfo" || item.key === "cpuLoad" || item.key === "systemLoad") {
-            return <CPUIcon />;
-        }
-        if (item.key === "webServer") {
-            return <ServerIcon />;
-        }
-        if (item.key === "runPath") {
-            return <PartitionIcon />;
-        }
-        if (item.key === "timezone" || item.key === "uptime") {
-            return <TimeIcon />;
-        }
-        if (item.key === "locale") {
-            return <GlobeIcon />;
-        }
-        if (item.key === "encoding") {
-            return <CodeIcon />;
-        }
-        return <GlobeIcon />;
+        return null;
     };
 
-    const renderIconBox = (item: ServerInfoEntry) => {
-        return (
-            <span
-                style={{
-                    width: item.key === "runtime" ? "auto" : 36,
-                    minWidth: 36,
-                    height: 36,
-                    paddingInline: item.key === "runtime" ? theme.paddingXXS : 0,
-                    boxSizing: "border-box",
-                    borderRadius: theme.borderRadius,
-                    background: theme.colorPrimaryBg,
-                    color: theme.colorPrimary,
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    flexShrink: 0,
-                    fontSize: theme.fontSizeLG,
-                }}
-            >
-                {renderItemIcon(item)}
-            </span>
-        );
-    };
-
-    const renderProgressBar = (percent: number) => {
-        const color = metricColor(percent);
-        return (
-            <div
-                style={{
-                    height: 8,
-                    borderRadius: theme.borderRadiusLG,
-                    background: theme.colorFillSecondary,
-                    overflow: "hidden",
-                }}
-            >
-                <div
-                    style={{
-                        width: `${percent}%`,
-                        height: "100%",
-                        borderRadius: theme.borderRadiusLG,
-                        background: color,
-                        transition: "width 0.3s ease",
-                    }}
-                />
-            </div>
-        );
-    };
-
-    const renderMetricTile = ({
-        item,
-        value,
-        percent,
-        extra,
-    }: {
-        item: ServerInfoEntry;
-        value?: string;
-        percent?: number;
-        extra?: React.ReactNode;
-    }) => {
-        return (
-            <div
-                style={{
-                    height: "100%",
-                    minHeight: 132,
-                    padding: theme.padding,
-                    borderRadius: theme.borderRadiusLG,
-                    border: borderSecondary,
-                    background: theme.colorBgContainer,
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: theme.marginSM,
-                    boxSizing: "border-box",
-                }}
-            >
-                <div style={{ display: "flex", alignItems: "center", gap: theme.marginSM, minWidth: 0 }}>
-                    {renderIconBox(item)}
-                    <Typography.Text type="secondary" ellipsis={true} style={{ minWidth: 0 }}>
-                        {item.name}
-                    </Typography.Text>
-                </div>
-                <Typography.Text
-                    style={{
-                        display: "block",
-                        color: theme.colorTextHeading,
-                        fontSize: theme.fontSizeHeading4,
-                        fontWeight: 700,
-                        lineHeight: 1.2,
-                        wordBreak: "break-word",
-                    }}
-                >
-                    {value || item.value}
-                </Typography.Text>
-                {typeof percent === "number" ? renderProgressBar(percent) : null}
-                {extra}
-            </div>
-        );
-    };
-
-    const renderLoadBars = (item: ServerInfoEntry) => {
-        const values = parseLoadValues(item.value);
-        if (values.length === 0) {
-            return undefined;
-        }
-        const maxValue = Math.max(...values, 1);
-        return (
-            <div style={{ display: "grid", gap: theme.marginXS }}>
-                {values.map((value, index) => (
-                    <div key={`${item.key}-${index}`} style={{ display: "grid", gap: theme.marginXXS }}>
-                        <div
-                            style={{
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "space-between",
-                                gap: theme.marginXS,
-                            }}
-                        >
-                            <Typography.Text type="secondary" style={{ fontSize: theme.fontSizeSM }}>
-                                {loadLabels[index]}
-                            </Typography.Text>
-                            <Typography.Text style={{ fontSize: theme.fontSizeSM }}>{value.toFixed(2)}</Typography.Text>
+    const details = (items: ServerInfoEntry[]) => (
+        <Descriptions
+            size="small"
+            column={{ xs: 1, sm: 1, md: 1, xl: 2 }}
+            styles={{ label: { whiteSpace: "normal" }, content: { minWidth: 0, overflowWrap: "anywhere" } }}
+            items={items.map((item) => {
+                const href = externalUrl(item);
+                const icon = environmentIcon(item);
+                return {
+                    key: item.key,
+                    label: item.name,
+                    span: item.key === "runPath" || item.key === "cpuInfo" ? 2 : 1,
+                    children: (
+                        <div style={{ display: "flex", alignItems: "baseline", gap: token.marginXS, minWidth: 0 }}>
+                            {icon && (
+                                <span
+                                    aria-hidden="true"
+                                    style={{ display: "inline-flex", gap: token.marginXXS, flexShrink: 0 }}
+                                >
+                                    {icon}
+                                </span>
+                            )}
+                            {href ? (
+                                <Typography.Link href={href} target="_blank" rel="noopener noreferrer">
+                                    {item.value}
+                                </Typography.Link>
+                            ) : (
+                                <Typography.Text style={{ overflowWrap: "anywhere" }}>{item.value}</Typography.Text>
+                            )}
                         </div>
-                        <div
-                            style={{
-                                height: 6,
-                                borderRadius: theme.borderRadiusLG,
-                                background: theme.colorFillSecondary,
-                                overflow: "hidden",
-                            }}
-                        >
-                            <div
-                                style={{
-                                    width: `${clampPercent((value / maxValue) * 100)}%`,
-                                    height: "100%",
-                                    borderRadius: theme.borderRadiusLG,
-                                    background: theme.colorPrimary,
-                                }}
-                            />
-                        </div>
-                    </div>
-                ))}
-            </div>
-        );
-    };
-
-    const renderInfoItem = (item: ServerInfoEntry) => {
-        const node = (
-            <div
-                style={{
-                    height: "100%",
-                    padding: theme.padding,
-                    borderRadius: theme.borderRadiusLG,
-                    border: borderSecondary,
-                    background: theme.colorBgContainer,
-                    display: "flex",
-                    gap: theme.marginSM,
-                    alignItems: "flex-start",
-                    minWidth: 0,
-                    boxSizing: "border-box",
-                }}
-            >
-                {renderIconBox(item)}
-                <div style={{ minWidth: 0, flex: 1 }}>
-                    <Typography.Text type="secondary" style={{ fontSize: theme.fontSizeSM }}>
-                        {item.name}
-                    </Typography.Text>
-                    <Typography.Text
-                        style={{
-                            display: "block",
-                            marginTop: theme.marginXXS,
-                            color: theme.colorText,
-                            fontWeight: 500,
-                            lineHeight: 1.55,
-                            wordBreak: "break-word",
-                        }}
-                    >
-                        {item.value}
-                    </Typography.Text>
-                </div>
-                {externalUrl(item.key, item.value) ? (
-                    <span
-                        style={{
-                            width: 28,
-                            height: 28,
-                            borderRadius: theme.borderRadius,
-                            background: theme.colorFillQuaternary,
-                            color: theme.colorPrimary,
-                            display: "inline-flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            flexShrink: 0,
-                        }}
-                    >
-                        <ArrowRightIcon />
-                    </span>
-                ) : null}
-            </div>
-        );
-        return wrapByLink(item, node);
-    };
-
-    const renderSectionTitle = (icon: React.ReactNode, title: string) => (
-        <Space size={theme.marginXS}>
-            {icon}
-            <span>{title}</span>
-        </Space>
+                    ),
+                };
+            })}
+        />
     );
 
-    const renderInfoGrid = (items: ServerInfoEntry[], getSpan: (item: ServerInfoEntry) => GridSpan) => {
-        if (items.length === 0) {
-            return null;
-        }
-        return (
-            <Row gutter={[theme.marginSM, theme.marginSM]}>
-                {items.map((item) => (
-                    <Col {...getSpan(item)} key={item.key}>
-                        {renderInfoItem(item)}
-                    </Col>
-                ))}
-            </Row>
-        );
-    };
-
-    const getApplicationSpan = (item: ServerInfoEntry) => {
-        if (item.key === "runPath") {
-            return { xs: 24, md: 24, xl: 16 };
-        }
-        return { xs: 24, md: 12, xl: 8 };
-    };
-
-    const getConfigurationSpan = () => ({ xs: 24, md: 12, xl: 6 });
-
-    const getResourceSpan = () => ({ xs: 24, md: 12 });
-
-    const cpuLoad = itemMap.get("cpuLoad");
-    const usedMemory = itemMap.get("usedMemorySpace");
-    const totalMemory = itemMap.get("totalMemorySpace");
-    const dbConnections = itemMap.get("dbConnectSize");
-    const uptime = itemMap.get("uptime");
-    const systemLoad = itemMap.get("systemLoad");
-    const cpuPercent = parseCpuPercent(cpuLoad?.value);
-    const dbConnectionPercent = parseConnectionUsage(dbConnections?.value);
-    const memoryPercent =
-        usedMemory && totalMemory
-            ? (() => {
-                  const usedSize = parseSize(usedMemory.value);
-                  const totalSize = parseSize(totalMemory.value);
-                  return usedSize !== undefined && totalSize ? clampPercent((usedSize / totalSize) * 100) : undefined;
-              })()
-            : undefined;
-    const overviewItems: { key: string; node: React.ReactNode }[] = [];
-    if (cpuLoad) {
-        overviewItems.push({
-            key: cpuLoad.key,
-            node: renderMetricTile({
-                item: cpuLoad,
-                value: cpuPercent !== undefined ? formatPercent(cpuPercent) : cpuLoad.value,
-                percent: cpuPercent,
-            }),
-        });
-    }
-    if (usedMemory) {
-        overviewItems.push({
-            key: usedMemory.key,
-            node: renderMetricTile({
-                item: usedMemory,
-                value: totalMemory ? `${usedMemory.value} / ${totalMemory.value}` : usedMemory.value,
-                percent: memoryPercent,
-            }),
-        });
-    }
-    if (dbConnections) {
-        overviewItems.push({
-            key: dbConnections.key,
-            node: renderMetricTile({
-                item: dbConnections,
-                percent: dbConnectionPercent,
-            }),
-        });
-    }
-    if (uptime) {
-        overviewItems.push({
-            key: uptime.key,
-            node: renderMetricTile({
-                item: uptime,
-            }),
-        });
-    }
+    const loadValues = parseLoadValues(load?.value);
+    const loadLabels = [text.loadAverage.oneMinute, text.loadAverage.fiveMinutes, text.loadAverage.fifteenMinutes];
 
     return (
-        <Space direction="vertical" size={theme.marginMD} style={{ width: "100%" }}>
-            {overviewItems.length > 0 ? (
-                <Card
-                    title={renderSectionTitle(<DashboardIcon />, getRes().system.overview)}
-                    styles={{ body: { padding: theme.padding } }}
-                >
-                    <Row gutter={[theme.marginSM, theme.marginSM]}>
-                        {overviewItems.map((item) => (
-                            <Col xs={24} sm={12} xl={6} key={item.key}>
-                                {item.node}
-                            </Col>
-                        ))}
-                    </Row>
-                </Card>
-            ) : null}
-
-            <Card
-                title={renderSectionTitle(<ServerIcon />, getRes().system.applicationRuntime)}
-                styles={{ body: { padding: theme.padding } }}
-            >
-                {renderInfoGrid(applicationItems, getApplicationSpan)}
-            </Card>
-
-            <Card
-                title={renderSectionTitle(<SettingsIcon />, getRes().system.systemConfiguration)}
-                styles={{ body: { padding: theme.padding } }}
-            >
-                {renderInfoGrid(configurationItems, getConfigurationSpan)}
-            </Card>
-
-            <Card
-                title={renderSectionTitle(<DiskIcon />, getRes().system.resourceStatus)}
-                styles={{ body: { padding: theme.padding } }}
-            >
-                <Row gutter={[theme.marginSM, theme.marginSM]}>
-                    {systemLoad ? (
-                        <Col xs={24} md={12}>
-                            {renderMetricTile({
-                                item: systemLoad,
-                                extra: renderLoadBars(systemLoad),
-                            })}
-                        </Col>
-                    ) : null}
-                    {resourceItems.map((item) => (
-                        <Col {...getResourceSpan()} key={item.key}>
-                            {renderInfoItem(item)}
-                        </Col>
-                    ))}
-                </Row>
-            </Card>
-        </Space>
+        <Flex vertical gap={token.marginLG} style={{ paddingBottom: token.paddingLG }}>
+            {page === "overview" && metrics.some(({ item }) => item) && (
+                <SettingsSection title={text.overview}>
+                    <div
+                        style={{
+                            display: "grid",
+                            gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 180px), 1fr))",
+                            gap: token.marginSM,
+                        }}
+                    >
+                        {metrics.map(
+                            ({ item, value, percent, icon }) =>
+                                item && (
+                                    <dl
+                                        key={item.key}
+                                        style={{
+                                            margin: 0,
+                                            padding: token.padding,
+                                            border,
+                                            borderRadius: token.borderRadiusLG,
+                                            minWidth: 0,
+                                            background: token.colorFillQuaternary,
+                                        }}
+                                    >
+                                        <dt
+                                            style={{
+                                                display: "flex",
+                                                alignItems: "center",
+                                                gap: token.marginXS,
+                                                color: token.colorTextSecondary,
+                                            }}
+                                        >
+                                            <span
+                                                aria-hidden="true"
+                                                style={{ display: "inline-flex", color: token.colorPrimary }}
+                                            >
+                                                {icon}
+                                            </span>
+                                            {item.name}
+                                        </dt>
+                                        <dd
+                                            style={{
+                                                margin: `${token.marginSM}px 0 0`,
+                                                fontSize: token.fontSizeHeading4,
+                                                fontWeight: token.fontWeightStrong,
+                                                lineHeight: token.lineHeightHeading4,
+                                                color: token.colorTextHeading,
+                                                overflowWrap: "anywhere",
+                                                fontVariantNumeric: "tabular-nums",
+                                            }}
+                                        >
+                                            {value || item.value}
+                                            {percent !== undefined && (
+                                                <div
+                                                    role="meter"
+                                                    aria-label={item.name}
+                                                    aria-valuemin={0}
+                                                    aria-valuemax={100}
+                                                    aria-valuenow={percent}
+                                                    aria-valuetext={formatPercent(percent)}
+                                                    style={{
+                                                        marginTop: token.marginSM,
+                                                        height: token.sizeXXS,
+                                                        borderRadius: token.borderRadiusSM,
+                                                        background: token.colorFillSecondary,
+                                                        overflow: "hidden",
+                                                    }}
+                                                >
+                                                    <div
+                                                        style={{
+                                                            width: `${percent}%`,
+                                                            height: "100%",
+                                                            background:
+                                                                percent >= 85
+                                                                    ? token.colorError
+                                                                    : percent >= 65
+                                                                    ? token.colorWarning
+                                                                    : token.colorPrimary,
+                                                        }}
+                                                    />
+                                                </div>
+                                            )}
+                                        </dd>
+                                    </dl>
+                                )
+                        )}
+                    </div>
+                </SettingsSection>
+            )}
+            {page === "runtime" && (
+                <>
+                    <SettingsSection title={text.applicationRuntime}>
+                        {details(getItemsByKeys(itemMap, APPLICATION_KEYS))}
+                    </SettingsSection>
+                    <SettingsSection title={text.systemConfiguration} divided>
+                        {details(getItemsByKeys(itemMap, CONFIGURATION_KEYS))}
+                    </SettingsSection>
+                </>
+            )}
+            {page === "resources" && (
+                <SettingsSection title={text.resourceStatus}>
+                    <Flex vertical gap={token.margin}>
+                        {load && (
+                            <div>
+                                <Typography.Text type="secondary">{load.name}</Typography.Text>
+                                {loadValues.length ? (
+                                    <div
+                                        style={{
+                                            display: "grid",
+                                            gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+                                            gap: token.marginSM,
+                                            marginTop: token.marginXS,
+                                        }}
+                                    >
+                                        {loadValues.map((value, index) => (
+                                            <dl key={loadLabels[index]} style={{ margin: 0 }}>
+                                                <dt
+                                                    style={{
+                                                        color: token.colorTextSecondary,
+                                                        fontSize: token.fontSizeSM,
+                                                    }}
+                                                >
+                                                    {loadLabels[index]}
+                                                </dt>
+                                                <dd
+                                                    style={{
+                                                        margin: `${token.marginXXS}px 0 0`,
+                                                        fontSize: token.fontSizeLG,
+                                                        fontVariantNumeric: "tabular-nums",
+                                                    }}
+                                                >
+                                                    {value.toFixed(2)}
+                                                </dd>
+                                            </dl>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <Typography.Paragraph style={{ marginTop: token.marginXS }}>
+                                        {load.value}
+                                    </Typography.Paragraph>
+                                )}
+                            </div>
+                        )}
+                        {details(getItemsByKeys(itemMap, RESOURCE_KEYS))}
+                    </Flex>
+                </SettingsSection>
+            )}
+        </Flex>
     );
 };
 

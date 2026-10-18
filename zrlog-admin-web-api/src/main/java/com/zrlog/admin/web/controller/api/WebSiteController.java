@@ -5,6 +5,7 @@ import com.zrlog.data.security.AccountAction;
 
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.ResponseBody;
+import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.rest.base.AdminWebSiteInfo;
 import com.zrlog.admin.business.rest.base.ArticleEditWebSiteInfo;
 import com.zrlog.admin.business.rest.base.BasicWebSiteInfo;
@@ -38,7 +39,7 @@ public class WebSiteController extends BaseController {
     @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "website.version")
     public AdminPageDataResponse<VersionResponse> version() {
         VersionResponse version = settingsService.version(getCurrentChangeLog(I18nUtil.getBackend()));
-        return new AdminPageDataResponse<>(version, "", request.getUri());
+        return new AdminPageDataResponse<>(version, "", AdminConstants.ADMIN_URI_BASE_PATH + "/system/version");
     }
 
     protected String getCurrentChangeLog(Map<String, Object> backendMessages) {

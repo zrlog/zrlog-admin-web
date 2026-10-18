@@ -200,14 +200,26 @@ const AdminManageLayout: FunctionComponent<AdminManageLayoutProps> = ({
         if (pathname.startsWith("/system/proxy")) {
             return { title: getRes().system.proxy.title, subtitle: navigationSubtitle };
         }
+        if (pathname.startsWith("/system/runtime")) {
+            return { title: getRes().system.navigation.runtime, subtitle: navigationSubtitle };
+        }
+        if (pathname.startsWith("/system/version")) {
+            return { title: getRes().system.version.title, subtitle: navigationSubtitle };
+        }
+        if (pathname.startsWith("/system/resources")) {
+            return { title: getRes().system.navigation.resources, subtitle: navigationSubtitle };
+        }
         if (pathname.startsWith("/system")) {
-            return { title: getRes().system.info, subtitle: navigationSubtitle };
+            return { title: getRes().system.navigation.overview, subtitle: navigationSubtitle };
+        }
+        if (pathname === "/dev" || pathname === "/dev.html") {
+            return { title: getRes().dev.title, subtitle: navigationSubtitle };
         }
         if (pathname.startsWith("/website/template")) {
             return { title: getRes().websiteTemplate.title, subtitle: navigationSubtitle };
         }
         if (pathname.startsWith("/website/version")) {
-            return { title: getRes().websiteVersion.title, subtitle: navigationSubtitle };
+            return { title: getRes().system.version.title, subtitle: navigationSubtitle };
         }
         if (pathname.startsWith("/upgrade")) {
             return { title: getRes().upgrade.wizard, subtitle: navigationSubtitle };

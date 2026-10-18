@@ -1,62 +1,9 @@
-import { FunctionComponent, useState } from "react";
-import { Grid } from "antd";
-import Card from "antd/es/card";
-import { markdownToHtmlSyncWithCallback } from "@zrlog/editor/dist/editor/utils/marked-utils";
-import HtmlPreviewPanel from "@zrlog/editor/core/editor/html-preview-panel";
-import { getAppState } from "../../base/ConfigProviderApp";
-import { useTheme } from "antd-style";
+import { Navigate, useLocation } from "react-router-dom";
+import { getRealRouteUrl } from "../../utils/constants";
 
-type VersionProps = {
-    data: VersionResponse;
+const LegacyVersion = () => {
+    const location = useLocation();
+    return <Navigate replace to={getRealRouteUrl("/system/version" + location.search) + location.hash} />;
 };
 
-type VersionResponse = {
-    version: string;
-    changelog: string;
-    buildSystemInfo: string;
-};
-
-const Version: FunctionComponent<VersionProps> = ({ data }) => {
-    const theme = useTheme();
-    const screens = Grid.useBreakpoint();
-    const cardMaxWidth = screens.lg ? 720 : "100%";
-    const surface = {
-        card: {
-            maxWidth: cardMaxWidth,
-            width: "100%",
-            padding: theme.paddingSM,
-        },
-        sectionTop: {
-            marginTop: theme.marginSM,
-        },
-        preview: {
-            overflowX: "auto" as const,
-        },
-    };
-    const defaultHtmlStr = markdownToHtmlSyncWithCallback(data.changelog, (htmlStr) => {
-        setChangeLogStr(htmlStr);
-    });
-
-    const defaultBuildStr = markdownToHtmlSyncWithCallback(data.buildSystemInfo, (htmlStr) => {
-        setBuildStr(htmlStr);
-    });
-
-    const [changeLogStr, setChangeLogStr] = useState<string>(defaultHtmlStr);
-    const [buildStr, setBuildStr] = useState<string>(defaultBuildStr);
-
-    return (
-        <>
-            <Card title={""} style={surface.card}>
-                <div style={surface.preview}>
-                    <HtmlPreviewPanel htmlContent={changeLogStr} dark={getAppState().dark} />
-                </div>
-            </Card>
-            <Card title={""} style={{ ...surface.card, ...surface.sectionTop }}>
-                <div style={surface.preview}>
-                    <HtmlPreviewPanel htmlContent={buildStr} dark={getAppState().dark} />
-                </div>
-            </Card>
-        </>
-    );
-};
-export default Version;
+export default LegacyVersion;

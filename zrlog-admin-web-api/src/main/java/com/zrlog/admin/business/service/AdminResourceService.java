@@ -26,6 +26,7 @@ public class AdminResourceService {
     public AdminResourceInfoResponse adminResourceInfo(HttpRequest request) {
         String lang = I18nUtil.getCurrentLocale();
         AdminResourceInfoResponse response = new AdminResourceInfoResponse();
+        response.setDevMode(EnvKit.isDevMode());
         PublicWebSiteInfo publicWebSiteInfo = AdminConstants.getPublicWebSiteInfo();
         AdminResourceInfoResponse.Capabilities capabilities = new AdminResourceInfoResponse.Capabilities();
         if (Constants.zrLogConfig != null) {

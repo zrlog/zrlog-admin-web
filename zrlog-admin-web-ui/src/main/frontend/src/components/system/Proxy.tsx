@@ -1,11 +1,12 @@
-import { Alert, Button, Descriptions, Flex, Form, Space, Typography } from "antd";
+import { Alert, Button, Descriptions, Flex, Form, Space, Typography, theme } from "antd";
 import Input from "@zrlog/ui/antd/Input";
 import Tag from "@zrlog/ui/antd/Tag";
 import { useUiApp } from "@zrlog/ui/feedback";
 import { useEffect, useState } from "react";
 import { useAxiosBaseInstance } from "../../base/AppBase";
 import { getRes } from "../../utils/constants";
-import SettingsLayout from "../common/SettingsLayout";
+import SettingsSection from "../common/SettingsSection";
+import SystemSettingsLayout from "./SystemSettingsLayout";
 
 export type ProxyData = {
     url: string;
@@ -59,6 +60,7 @@ export const validNoProxy = (value: string) =>
 const ProxySettings = ({ data, offline }: { data: ProxyData; offline: boolean }) => {
     const res = getRes();
     const text = res.system.proxy;
+    const { token } = theme.useToken();
     const axios = useAxiosBaseInstance();
     const { message } = useUiApp();
     const [form] = Form.useForm();
@@ -106,127 +108,138 @@ const ProxySettings = ({ data, offline }: { data: ProxyData; offline: boolean })
     };
 
     return (
-        <SettingsLayout
-            activeKey="proxy"
-            title={text.title}
-            summary={text.summary}
-            groups={[
-                {
-                    label: res.website.nav.system,
-                    items: [
-                        { key: "info", label: res.system.info, path: "/system" },
-                        { key: "proxy", label: text.title, path: "/system/proxy" },
-                    ],
-                },
-            ]}
-        >
-            <Flex vertical gap="large" style={{ maxWidth: 800, paddingBottom: 24 }}>
+        <SystemSettingsLayout activeKey="proxy">
+            <Flex vertical gap={token.marginLG} style={{ maxWidth: 800, paddingBottom: token.paddingLG }}>
                 {settings.restartRequired && <Alert type="warning" showIcon title={text.pending} />}
-                <Descriptions
-                    title={text.active}
-                    column={1}
-                    size="small"
-                    items={[
-                        {
-                            key: "http",
-                            label: "HTTP",
-                            children: settings.activeUrl ? (
-                                <Typography.Text style={{ overflowWrap: "anywhere" }}>
-                                    {settings.activeUrl}
-                                </Typography.Text>
-                            ) : (
-                                text.disabled
-                            ),
-                        },
-                        {
-                            key: "https",
-                            label: "HTTPS",
-                            children: settings.activeHttpsUrl ? (
-                                <Typography.Text style={{ overflowWrap: "anywhere" }}>
-                                    {settings.activeHttpsUrl}
-                                </Typography.Text>
-                            ) : (
-                                text.disabled
-                            ),
-                        },
-                        { key: "bypass", label: text.noProxy, children: settings.activeNoProxy || text.loopbackOnly },
-                    ]}
-                />
-                <Alert type="info" showIcon title={text.restartHint} description={text.recoveryHint} />
-                {!settings.writable && <Alert type="warning" showIcon title={text.readOnly} />}
-                {failure && <Alert type="error" showIcon title={failure} role="alert" />}
-                <Form form={form} layout="vertical" initialValues={data} onFinish={save}>
-                    <Form.Item
-                        name="url"
-                        label={
-                            <Space wrap>
-                                {text.url}
-                                <Tag>{text.localFile}</Tag>
-                            </Space>
-                        }
-                        extra={
-                            <>
-                                {text.urlHint}
-                                {proxyVariables.map((variable) => (
-                                    <div key={variable}>{hint(variable)}</div>
-                                ))}
-                            </>
-                        }
-                        rules={[
+                <SettingsSection title={text.active}>
+                    <Descriptions
+                        column={1}
+                        size="small"
+                        styles={{ content: { overflowWrap: "anywhere", minWidth: 0 } }}
+                        items={[
                             {
-                                validator: (_, value) =>
-                                    validProxyUrl(value || "")
-                                        ? Promise.resolve()
-                                        : Promise.reject(new Error(text.invalidUrl)),
+                                key: "http",
+                                label: "HTTP",
+                                children: settings.activeUrl ? (
+                                    <Typography.Text style={{ overflowWrap: "anywhere" }}>
+                                        {settings.activeUrl}
+                                    </Typography.Text>
+                                ) : (
+                                    text.disabled
+                                ),
+                            },
+                            {
+                                key: "https",
+                                label: "HTTPS",
+                                children: settings.activeHttpsUrl ? (
+                                    <Typography.Text style={{ overflowWrap: "anywhere" }}>
+                                        {settings.activeHttpsUrl}
+                                    </Typography.Text>
+                                ) : (
+                                    text.disabled
+                                ),
+                            },
+                            {
+                                key: "bypass",
+                                label: text.noProxy,
+                                children: settings.activeNoProxy || text.loopbackOnly,
                             },
                         ]}
-                    >
-                        <Input disabled={readOnly} maxLength={2048} placeholder="http://proxy.example.com:3128" />
-                    </Form.Item>
-                    <Form.Item
-                        name="noProxy"
-                        label={
-                            <Space wrap>
-                                {text.noProxy}
-                                <Tag>{text.localFile}</Tag>
-                            </Space>
-                        }
-                        extra={
-                            <>
-                                {text.noProxyHint}
-                                {settings.noProxyVariable && <div>{hint(settings.noProxyVariable)}</div>}
-                            </>
-                        }
-                        rules={[
-                            {
-                                validator: (_, value: string) => {
-                                    const valid = validNoProxy(value || "");
-                                    return valid ? Promise.resolve() : Promise.reject(new Error(text.invalidNoProxy));
-                                },
-                            },
-                        ]}
-                    >
-                        <Input disabled={readOnly} maxLength={4096} placeholder=".example.com,*.internal" />
-                    </Form.Item>
-                    <Flex wrap gap="small">
-                        <Button type="primary" htmlType="submit" loading={saving} disabled={readOnly || testing}>
-                            {text.save}
-                        </Button>
-                        <Button
-                            onClick={() => {
-                                void test().catch(() => undefined);
-                            }}
-                            loading={testing}
-                            disabled={offline || saving}
-                        >
-                            {text.test}
-                        </Button>
+                    />
+                </SettingsSection>
+                <SettingsSection title={text.configuration} divided>
+                    <Flex vertical gap={token.margin}>
+                        <Alert type="info" showIcon title={text.restartHint} description={text.recoveryHint} />
+                        {!settings.writable && <Alert type="warning" showIcon title={text.readOnly} />}
+                        {failure && <Alert type="error" showIcon title={failure} role="alert" />}
+                        <Form form={form} layout="vertical" initialValues={data} onFinish={save}>
+                            <Form.Item
+                                name="url"
+                                label={
+                                    <Space wrap>
+                                        {text.url}
+                                        <Tag>{text.localFile}</Tag>
+                                    </Space>
+                                }
+                                extra={
+                                    <>
+                                        {text.urlHint}
+                                        {proxyVariables.map((variable) => (
+                                            <div key={variable}>{hint(variable)}</div>
+                                        ))}
+                                    </>
+                                }
+                                rules={[
+                                    {
+                                        validator: (_, value) =>
+                                            validProxyUrl(value || "")
+                                                ? Promise.resolve()
+                                                : Promise.reject(new Error(text.invalidUrl)),
+                                    },
+                                ]}
+                            >
+                                <Input
+                                    disabled={readOnly}
+                                    maxLength={2048}
+                                    placeholder="http://proxy.example.com:3128"
+                                />
+                            </Form.Item>
+                            <Form.Item
+                                name="noProxy"
+                                label={
+                                    <Space wrap>
+                                        {text.noProxy}
+                                        <Tag>{text.localFile}</Tag>
+                                    </Space>
+                                }
+                                extra={
+                                    <>
+                                        {text.noProxyHint}
+                                        {settings.noProxyVariable && <div>{hint(settings.noProxyVariable)}</div>}
+                                    </>
+                                }
+                                rules={[
+                                    {
+                                        validator: (_, value: string) => {
+                                            const valid = validNoProxy(value || "");
+                                            return valid
+                                                ? Promise.resolve()
+                                                : Promise.reject(new Error(text.invalidNoProxy));
+                                        },
+                                    },
+                                ]}
+                            >
+                                <Input disabled={readOnly} maxLength={4096} placeholder=".example.com,*.internal" />
+                            </Form.Item>
+                            <Flex wrap gap="small">
+                                <Button
+                                    type="primary"
+                                    htmlType="submit"
+                                    loading={saving}
+                                    disabled={readOnly || testing}
+                                >
+                                    {text.save}
+                                </Button>
+                                <Button
+                                    onClick={() => {
+                                        void test().catch(() => undefined);
+                                    }}
+                                    loading={testing}
+                                    disabled={offline || saving}
+                                >
+                                    {text.test}
+                                </Button>
+                            </Flex>
+                            <Typography.Paragraph
+                                type="secondary"
+                                style={{ marginTop: token.marginSM, marginBottom: 0 }}
+                            >
+                                {text.testHint}
+                            </Typography.Paragraph>
+                        </Form>
                     </Flex>
-                    <Typography.Paragraph type="secondary" style={{ marginTop: 12 }}>
-                        {text.testHint}
-                    </Typography.Paragraph>
-                </Form>
-                <div>
+                </SettingsSection>
+                <SettingsSection title={text.manualSetup} divided>
                     <Typography.Text code>conf/proxy.properties</Typography.Text>
                     <pre style={{ overflowX: "auto", whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
                         {
@@ -239,9 +252,9 @@ const ProxySettings = ({ data, offline }: { data: ProxyData; offline: boolean })
                     {" / "}
                     <Typography.Text code>NO_PROXY</Typography.Text>
                     <Typography.Paragraph type="secondary">{text.precedenceHint}</Typography.Paragraph>
-                </div>
+                </SettingsSection>
             </Flex>
-        </SettingsLayout>
+        </SystemSettingsLayout>
     );
 };
 

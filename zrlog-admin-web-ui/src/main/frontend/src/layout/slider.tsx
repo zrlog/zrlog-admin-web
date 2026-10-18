@@ -68,7 +68,10 @@ const SliderMenu = ({ expanded = false }: SliderMenuProps) => {
         if (selectPath.startsWith("/template")) {
             return ["/template"];
         }
-        if (selectPath === "/upgrade" || selectPath.startsWith("/system")) {
+        if (selectPath.startsWith("/system") || selectPath === "/dev" || selectPath === "/website/version") {
+            return ["/system"];
+        }
+        if (selectPath === "/upgrade") {
             return ["/website"];
         }
         if (selectPath.startsWith("/website")) {
@@ -184,6 +187,12 @@ const SliderMenu = ({ expanded = false }: SliderMenuProps) => {
             iconKey: "api",
         },
         {
+            key: "/system",
+            text: getRes().system.navigation.title,
+            link: "/system",
+            iconKey: "info",
+        },
+        {
             key: "/website",
             text: getRes().common.settings,
             link: "/website",
@@ -284,6 +293,12 @@ const SliderMenu = ({ expanded = false }: SliderMenuProps) => {
     ];
 
     const panelFooterItems: MenuItem[] = [
+        getItem({
+            key: "/system",
+            text: getRes().system.navigation.title,
+            link: "/system",
+            iconKey: "info",
+        }),
         getItem({
             key: "/website",
             text: getRes().common.settings,

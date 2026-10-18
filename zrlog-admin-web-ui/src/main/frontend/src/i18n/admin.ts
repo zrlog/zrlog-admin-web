@@ -325,6 +325,8 @@ const zhCN = {
     "key": "名称",
     "value": "值",
     "dev": {
+        "title": "开发工具",
+        "summary": "查看运行缓存与开发锁，管理开发模式。",
         "devMode": "开发模式",
         "devModeTip": "通过 system 参数 sws.run.mode 控制当前运行模式",
         "enableDevModeSuccess": "开发模式已开启",
@@ -1589,9 +1591,6 @@ const zhCN = {
         "legacyTokens": "管理旧 Webhook 令牌",
         "tokenRequiredNotice": "启用后，外部请求需要使用具有相应权限的个人访问令牌，或已配置的旧站点令牌"
     },
-    "websiteVersion": {
-        "title": "版本信息"
-    },
     "templateCenter": {
         "title": "主题中心",
         "download": "下载"
@@ -1698,7 +1697,24 @@ const zhCN = {
         "passkeyRemoveFailed": "无法删除通行密钥，请重试"
     },
     "system": {
-        "info": "系统信息",
+        "version": {
+            "title": "版本信息",
+            "summary": "查看当前版本的更新记录与构建环境信息。",
+            "changelog": "更新记录",
+            "buildInfo": "构建信息"
+        },
+        "navigation": {
+            "title": "系统管理",
+            "maintenance": "维护与诊断",
+            "overview": "系统概览",
+            "runtime": "运行环境",
+            "resources": "资源状态"
+        },
+        "summaries": {
+            "overview": "查看 CPU、进程内存、数据库连接与运行时间。页面可见时每 5 秒刷新。",
+            "runtime": "查看应用版本、运行环境与系统配置。",
+            "resources": "查看系统负载、硬件信息与应用占用空间。页面可见时每 5 秒刷新。"
+        },
         "proxy": {
             "title": "网络代理",
             "summary": "管理 ZrLog 对外 HTTP/HTTPS 请求使用的代理，包括 WebAPI 数据库访问。",
@@ -1716,6 +1732,8 @@ const zhCN = {
             "recoveryHint": "代理配置在连接数据库前读取。若代理故障导致后台无法访问，请修改配置文件或环境变量后重启。",
             "pending": "配置已保存，等待重启生效",
             "active": "当前生效",
+            "configuration": "代理配置",
+            "manualSetup": "启动前配置",
             "disabled": "未启用应用代理",
             "readOnly": "配置目录不可写。请通过部署环境修改配置文件或环境变量。",
             "save": "保存配置",
@@ -2398,6 +2416,8 @@ const enUS: AdminI18nResource = {
     "key": "Name",
     "value": "Value",
     "dev": {
+        "title": "Developer tools",
+        "summary": "Inspect runtime caches and development locks, and manage development mode.",
         "devMode": "Dev Mode",
         "devModeTip": "Controls the current run mode through the sws.run.mode system parameter",
         "enableDevModeSuccess": "Dev mode enabled",
@@ -3663,9 +3683,6 @@ const enUS: AdminI18nResource = {
         "legacyTokens": "Manage legacy Webhook tokens",
         "tokenRequiredNotice": "When enabled, external requests require a personal access token with the required permissions or a configured legacy site token"
     },
-    "websiteVersion": {
-        "title": "Version Info"
-    },
     "templateCenter": {
         "title": "Theme Center",
         "download": "Download"
@@ -3772,7 +3789,24 @@ const enUS: AdminI18nResource = {
         "passkeyRemoveFailed": "Could not remove the passkey. Try again"
     },
     "system": {
-        "info": "System Info",
+        "version": {
+            "title": "Version Info",
+            "summary": "View the changelog and build environment for the current version.",
+            "changelog": "Changelog",
+            "buildInfo": "Build information"
+        },
+        "navigation": {
+            "title": "System management",
+            "maintenance": "Maintenance and diagnostics",
+            "overview": "System overview",
+            "runtime": "Runtime environment",
+            "resources": "Resource status"
+        },
+        "summaries": {
+            "overview": "View CPU usage, process memory, database connections, and uptime. Refreshes every 5 seconds while this page is visible.",
+            "runtime": "View the application version, runtime environment, and system configuration.",
+            "resources": "View system load, hardware details, and application disk usage. Refreshes every 5 seconds while this page is visible."
+        },
         "proxy": {
             "title": "Network Proxy",
             "summary": "Manage the proxy for outbound ZrLog HTTP/HTTPS requests, including WebAPI database access.",
@@ -3790,6 +3824,8 @@ const enUS: AdminI18nResource = {
             "recoveryHint": "Proxy settings load before the database connection. If a proxy failure prevents access to the admin panel, edit the file or environment variables and restart.",
             "pending": "Settings saved; restart required to apply",
             "active": "Currently active",
+            "configuration": "Proxy configuration",
+            "manualSetup": "Configure before startup",
             "disabled": "No application proxy enabled",
             "readOnly": "The configuration directory is read-only. Edit the file or environment variables in your deployment.",
             "save": "Save configuration",

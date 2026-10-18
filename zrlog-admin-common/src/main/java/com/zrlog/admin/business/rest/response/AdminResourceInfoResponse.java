@@ -3,6 +3,10 @@ package com.zrlog.admin.business.rest.response;
 public class AdminResourceInfoResponse {
 
     private Capabilities capabilities;
+    private boolean devMode;
+
+    public boolean isDevMode() { return devMode; }
+    public void setDevMode(boolean devMode) { this.devMode = devMode; }
 
     public Capabilities getCapabilities() { return capabilities; }
     public void setCapabilities(Capabilities capabilities) { this.capabilities = capabilities; }

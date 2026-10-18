@@ -32,13 +32,15 @@ admin/website/members
 admin/plugin
 admin/upgrade
 admin/system
+admin/system/runtime
+admin/system/resources
+admin/system/version
 admin/403
 admin/404
 admin/500
 admin/login
 admin/website/version
 admin/static-site
-admin/dev
 admin/website/ai
 admin/file-manager
 admin/website/article-edit

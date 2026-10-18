@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "@jest/globals";
 import { isModuleEnabled, isFeaturePathEnabled } from "./module-capabilities";
-import { getRes, setRes } from "./constants";
+import { getRes, setRes, isServerDevelopmentMode } from "./constants";
 
 describe("enabled backend modules", () => {
     beforeEach(() => {
@@ -25,5 +25,13 @@ describe("enabled backend modules", () => {
         expect(isFeaturePathEnabled("user/applications/authorize.html?request_id=1")).toBe(false);
         expect(isFeaturePathEnabled("/website/webhook")).toBe(false);
         expect(isFeaturePathEnabled("/user/security")).toBe(true);
+    });
+    it("uses the server development flag independently of the frontend build mode", () => {
+        expect(isServerDevelopmentMode()).toBe(false);
+        setRes({ devMode: true });
+        expect(getRes().devMode).toBe(true);
+        expect(isServerDevelopmentMode()).toBe(true);
+        setRes({ devMode: false });
+        expect(isServerDevelopmentMode()).toBe(false);
     });
 });

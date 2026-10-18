@@ -73,6 +73,19 @@ public class AdminModuleSwitchTest {
             assertEquals(ui, config.getWebSetup(AdminUiWebSetup.class) != null);
             assertEquals(ui, router.getMethod("/admin", HttpMethod.GET) != null);
             assertEquals(ui, router.getMethod("/admin/system/proxy", HttpMethod.GET) != null);
+            assertEquals(ui, router.getMethod("/admin/system/runtime", HttpMethod.GET) != null);
+            assertEquals(ui, router.getMethod("/admin/system/resources", HttpMethod.GET) != null);
+            assertEquals(admin, router.getMethod("/api/admin/system/runtime", HttpMethod.GET) != null);
+            assertEquals(admin, router.getMethod("/api/admin/system/resources", HttpMethod.GET) != null);
+            assertEquals(ui, router.getMethod("/admin/system/version", HttpMethod.GET) != null);
+            assertEquals(admin, router.getMethod("/api/admin/system/version", HttpMethod.GET) != null);
+            assertEquals(ui, router.getMethod("/admin/dev", HttpMethod.GET) != null);
+            if (ui) {
+                assertTrue(com.zrlog.admin.business.AdminConstants.adminResource.getAdminPageUris().stream()
+                        .noneMatch(uri -> uri.endsWith("/admin/dev")));
+                assertTrue(com.zrlog.admin.business.AdminConstants.adminResource.getAdminCacheableApiUris().stream()
+                        .noneMatch(uri -> uri.endsWith("/api/admin/dev")));
+            }
             assertEquals(admin, router.getMethod("/api/admin/system/proxy", HttpMethod.GET) != null);
             assertEquals(ai, config.getWebSetup(ArticleAssistant.class) != null);
             assertEquals(assets, com.zrlog.admin.business.content.AttachmentStorage.current() != null);

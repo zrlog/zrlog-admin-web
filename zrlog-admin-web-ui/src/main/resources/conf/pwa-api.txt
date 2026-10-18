@@ -20,9 +20,11 @@
 /api/admin/plugin
 /api/admin/upgrade
 /api/admin/system
+/api/admin/system/runtime
+/api/admin/system/resources
+/api/admin/system/version
 /api/admin/website/version
 /api/admin/static-site
-/api/admin/dev
 /api/admin/website/ai
 /api/admin/file-manager
 /api/admin/website/article-edit
