@@ -21,6 +21,7 @@ const AdminDashboardPage: FunctionComponent<AdminDashBroadPageProps> = ({ offlin
     const initUserInfo = getSsDate().user;
 
     const [userInfo, setUserInfo] = useState<BasicUserInfo | null>(initUserInfo);
+    const session = getSsDate().key;
 
     useEffect(() => {
         if (offline) {
@@ -33,10 +34,10 @@ const AdminDashboardPage: FunctionComponent<AdminDashBroadPageProps> = ({ offlin
         getCsrData(`/user/info`, new Date().getTime(), axiosBaseInstance)
             .then((data) => {
                 if (data && data.error === 0) {
-                    if (data.key) {
-                        getSsDate().key = data.key;
+                    const userData: BasicUserInfo = data.data;
+                    if (userData.key) {
+                        getSsDate().key = userData.key;
                     }
-                    const userData = data.data;
                     getSsDate().user = userData;
                     setUserInfo(userData);
                 } else {
@@ -50,9 +51,12 @@ const AdminDashboardPage: FunctionComponent<AdminDashBroadPageProps> = ({ offlin
 
     useEffect(() => {
         if (offline || !userInfo) return;
+        const appearanceSession = getSsDate().appearanceSession;
+        if (appearanceSession && appearanceSession.key === session && appearanceSession.userId === userInfo.userId)
+            return;
         let active = true;
         const revision = getUserPreferenceRevision();
-        const session = getSsDate().key;
+        const userId = userInfo.userId;
         axiosBaseInstance
             .get("/api/admin/user/preferences")
             .then(({ data }) => {
@@ -60,15 +64,18 @@ const AdminDashboardPage: FunctionComponent<AdminDashBroadPageProps> = ({ offlin
                     active &&
                     data.error === 0 &&
                     revision === getUserPreferenceRevision() &&
-                    session === getSsDate().key
-                )
+                    session === getSsDate().key &&
+                    userId === getSsDate().user?.userId
+                ) {
                     applyUserPreferences(data.data.effective);
+                    getSsDate().appearanceSession = { key: session, userId };
+                }
             })
             .catch(() => undefined);
         return () => {
             active = false;
         };
-    }, [offline, userInfo?.userId, axiosBaseInstance]);
+    }, [offline, userInfo?.userId, session, axiosBaseInstance]);
 
     if (userInfo === undefined || userInfo === null) {
         return <Spin fullscreen={true} delay={1000} />;

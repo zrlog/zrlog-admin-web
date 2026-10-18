@@ -12,6 +12,8 @@ type SsDate = {
     systemNotification: string;
     messageCenter?: MessageCenterStatus;
     pageBuildId: string;
+    // Runtime-only provenance for the language and appearance already applied to this document.
+    appearanceSession?: { key: string; userId?: number };
 };
 
 declare global {
@@ -56,6 +58,13 @@ const SsData: FunctionComponent<PropsWithChildren> = ({ children }) => {
         } else {
             tSData = createEmptySsData();
         }
+
+        // Only authenticated server data contains personal appearance. Cached users and
+        // a login performed in this document still need to load their preferences.
+        tSData.appearanceSession =
+            tSData.user && tSData.key && tSData.resourceInfo && !tSData.resourceInfo.staticPage
+                ? { key: tSData.key, userId: tSData.user.userId }
+                : undefined;
 
         if (tSData.key === "" || tSData.key === null || tSData.key === undefined) {
             const ssKey = localStorage.getItem(ssKeyStorageKey);
