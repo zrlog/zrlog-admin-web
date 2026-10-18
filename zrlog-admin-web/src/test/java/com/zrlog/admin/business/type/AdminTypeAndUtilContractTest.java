@@ -13,6 +13,7 @@ import com.zrlog.admin.plugin.rest.response.UploadServiceResponseEntity;
 import com.zrlog.business.plugin.type.StaticSiteType;
 import com.zrlog.common.Constants;
 import com.zrlog.common.ZrLogConfig;
+import com.zrlog.util.BlogBuildInfoUtil;
 import org.junit.Test;
 
 import java.io.File;
@@ -23,6 +24,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -186,15 +188,14 @@ public class AdminTypeAndUtilContractTest {
         ServerInfoSnapshot data = new ServerInfoSnapshot("Linux", "amd64", "6.0", "/app", "VM", "21",
                 "SWS/1", "Asia/Shanghai", "MySQL", "UTF-8");
 
-        List<ServerInfo> infos = ServerInfoUtils.convertToServerInfos(data);
+        Map<String, String> infoByKey = ServerInfoUtils.convertToServerInfos(data).stream()
+                .collect(Collectors.toMap(ServerInfo::getKey, ServerInfo::getValue));
 
-        assertEquals(10, infos.size());
-        assertEquals("system", infos.get(0).getKey());
-        assertEquals("Linux - amd64 - 6.0", infos.get(0).getValue());
-        assertEquals("runPath", infos.get(1).getKey());
-        assertEquals("/app", infos.get(1).getValue());
-        assertEquals("runtime", infos.get(2).getKey());
-        assertEquals("VM - 21", infos.get(2).getValue());
+        assertEquals("Linux - amd64 - 6.0", infoByKey.get("system"));
+        assertEquals("/app", infoByKey.get("runPath"));
+        assertEquals("VM - 21", infoByKey.get("runtime"));
+        assertEquals(BlogBuildInfoUtil.getVersion(), infoByKey.get("programInfo"));
+        assertEquals(BlogBuildInfoUtil.getBuildId(), infoByKey.get("buildInfo"));
 
         assertEquals(".00B", ServerInfoUtils.formatFileSize(0L));
         assertEquals("1.00K", ServerInfoUtils.formatFileSize(1024L));
