@@ -434,7 +434,7 @@ export const createAdminDashboardRoutes = (
                 id: "version",
                 title: () => getRes().system.version.title,
                 iconKey: "info",
-                keywords: ["version", "update", "版本", "更新", "banben", "gengxin"],
+                keywords: ["version", "build", "changelog", "版本", "构建", "更新记录", "banben", "goujian"],
             },
         ],
     },

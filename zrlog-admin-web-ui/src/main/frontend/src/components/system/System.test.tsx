@@ -4,6 +4,8 @@ import { Link, MemoryRouter, NavigateFunction, Route, Routes, useNavigate, useLo
 import { Grid } from "antd";
 import { afterEach, beforeEach, expect, jest, test } from "@jest/globals";
 import System from "./index";
+import Version from "./Version";
+import { markdownToHtmlSyncWithCallback } from "@zrlog/editor/dist/editor/utils/marked-utils";
 import AdminSettingsLayout from "../common/AdminSettingsLayout";
 import { SystemData } from "../../type";
 import SliderMenu from "../../layout/slider";
@@ -20,6 +22,13 @@ jest.mock("@zrlog/ui/icons/cpu", () => () => null);
 jest.mock("@zrlog/ui/icons/memory", () => () => null);
 jest.mock("icons/ZrLogOutlined", () => () => null);
 jest.mock("../admin-dashboard-routes", () => ({ renderAdminDashboardRouteIcon: () => null }));
+jest.mock("@zrlog/editor/dist/editor/utils/marked-utils", () => ({
+    markdownToHtmlSyncWithCallback: require("@jest/globals").jest.fn(),
+}));
+jest.mock("@zrlog/editor/core/editor/html-preview-panel", () => ({
+    __esModule: true,
+    default: ({ htmlContent }: { htmlContent: string }) => require("react").createElement("div", null, htmlContent),
+}));
 jest.mock("../../base/ConfigProviderApp", () => ({ getAppState: () => ({ dark: false, compactMode: false }) }));
 jest.mock("../../utils/helpers", () => ({
     parseQueryParamsToMap: () => new Map(),
@@ -58,7 +67,8 @@ const data: SystemData = {
     dockerMode: true,
     nativeImageMode: true,
     serverInfos: [
-        entry("programInfo", "Application", "ZrLog 4.0.1"),
+        entry("programInfo", "Application version", "4.0.1"),
+        entry("buildInfo", "Build information", "a1b2c3d"),
         entry("runtime", "Runtime", "GraalVM 25"),
         entry("webServer", "Web server", "simplewebserver/4.1.15"),
         entry("system", "Operating system", "Linux - amd64"),
@@ -79,6 +89,12 @@ const data: SystemData = {
         entry("usedDiskSpace", "Disk usage", "512M"),
         entry("usedCacheSpace", "Cache usage", "16M"),
     ],
+};
+const versionData = {
+    version: "4.0.1",
+    buildId: "a1b2c3d",
+    changelog: "Current release changes",
+    buildSystemInfo: "Package build environment",
 };
 
 let root: Root;
@@ -110,6 +126,9 @@ beforeEach(() => {
     mockStatic = false;
     mockLang = "en_US";
     mockGetCsrData.mockReset();
+    jest.mocked(markdownToHtmlSyncWithCallback)
+        .mockReset()
+        .mockImplementation((markdown) => markdown);
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -149,7 +168,8 @@ test("system information shows live readings, environment and resource details o
     expect(container.querySelector('a[href="/blog/admin/system/runtime"]')).toBeNull();
     expect(container.querySelector('a[href="/blog/admin/system/resources"]')).toBeNull();
     expect(container.querySelector('a[href="/blog/admin/dev"]')).toBeNull();
-    expect(container.querySelector('a[href="/blog/admin/system/version"]')?.textContent).toBe("Version Info");
+    expect(container.querySelector('a[href="/blog/admin/system/version"]')?.textContent).toBe("View build details");
+    expect(container.querySelector('nav a[href="/blog/admin/system/version"]')).toBeNull();
 });
 
 test("developer tools appear only while server development mode is enabled", async () => {
@@ -223,6 +243,9 @@ test("navigation respects system and site permissions and selects the current pa
     );
     expect(container.querySelector('a[href="/blog/admin/system/proxy"]')?.getAttribute("aria-current")).toBe("page");
     expect(container.querySelector('a[href="/blog/admin/system"]')?.textContent).toBe("系统信息");
+    expect(container.querySelector('a[href="/blog/admin/system/version"]')).toBeNull();
+    await renderSystem();
+    expect(container.textContent).toContain("a1b2c3d");
     expect(container.querySelector('a[href="/blog/admin/system/version"]')).toBeNull();
 });
 
@@ -317,10 +340,7 @@ test.each([
                     path={`/blog/admin/dev${suffix}`}
                     element={<AdminSettingsLayout activeKey="dev">Developer content</AdminSettingsLayout>}
                 />
-                <Route
-                    path={`/blog/admin/system/version${suffix}`}
-                    element={<AdminSettingsLayout activeKey="version">Version content</AdminSettingsLayout>}
-                />
+                <Route path={`/blog/admin/system/version${suffix}`} element={<Version data={versionData} />} />
             </Routes>
         );
     };
@@ -369,9 +389,24 @@ test.each([
     await choose("Developer tools");
     expect(selected()).toBe("Developer tools");
     expect(container.textContent).toContain("Developer content");
-    await choose("Version Info");
-    expect(selected()).toBe("Version Info");
-    expect(container.textContent).toContain("Version content");
+    await choose("System information");
+    await act(async () =>
+        container.querySelector<HTMLAnchorElement>(`a[href="/blog/admin/system/version${suffix}"]`)!.click()
+    );
+    expect(selected()).toBe("System information");
+    expect(container.textContent).toContain("Build ID");
+    expect(container.textContent).toContain("a1b2c3d");
+    expect(container.textContent).toContain("Package build environment");
+    expect(container.textContent).toContain("Current release changes");
+    expect(container.querySelector(`nav a[href="/blog/admin/system/version${suffix}"]`)).toBeNull();
+    if (!mobile) expect(container.textContent).toContain("Build Information");
+    await act(async () =>
+        Array.from(container.querySelectorAll<HTMLAnchorElement>("a"))
+            .find((item) => item.textContent === "Back to System Information")!
+            .click()
+    );
+    expect(selected()).toBe("System information");
+    expect(container.textContent).toContain("GraalVM 25");
     await choose("Update Settings");
     expect(selected()).toBe("Update Settings");
     await act(async () => navigate(`/blog/admin/upgrade${suffix}`));
@@ -389,6 +424,54 @@ test.each([
     );
     expect(selected()).toBe("Update Settings");
     expect(container.textContent).toContain("Update content");
+});
+
+test("build details keep a permitted return path for accounts without system access", async () => {
+    mockManage = false;
+    await act(async () =>
+        root.render(
+            <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+                <Version data={versionData} />
+            </MemoryRouter>
+        )
+    );
+    expect(container.querySelector('nav a[aria-current="page"]')?.textContent).toBe("Basic Settings");
+    expect(container.querySelector('a[href="/blog/admin/system"]')).toBeNull();
+    expect(
+        Array.from(container.querySelectorAll("a"))
+            .find((item) => item.textContent === "Back to Settings")
+            ?.getAttribute("href")
+    ).toBe("/blog/admin/website");
+});
+
+test("build details render markdown once per document and ignore replaced document callbacks", async () => {
+    const callbacks: Array<(html: string) => void> = [];
+    const renderMarkdown = jest.mocked(markdownToHtmlSyncWithCallback);
+    renderMarkdown.mockImplementation((markdown, callback) => {
+        callbacks.push(callback);
+        return markdown;
+    });
+    const renderVersion = async (value: typeof versionData) => {
+        await act(async () =>
+            root.render(
+                <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+                    <Version data={value} />
+                </MemoryRouter>
+            )
+        );
+    };
+    await renderVersion(versionData);
+    expect(renderMarkdown).toHaveBeenCalledTimes(2);
+    await act(async () => callbacks[1]("Rendered build report"));
+    expect(container.textContent).toContain("Rendered build report");
+    expect(renderMarkdown).toHaveBeenCalledTimes(2);
+    await renderVersion({ ...versionData });
+    expect(renderMarkdown).toHaveBeenCalledTimes(2);
+    await renderVersion({ ...versionData, buildSystemInfo: "New build report" });
+    expect(renderMarkdown).toHaveBeenCalledTimes(3);
+    await act(async () => callbacks[1]("Outdated report"));
+    expect(container.textContent).toContain("New build report");
+    expect(container.textContent).not.toContain("Outdated report");
 });
 
 test.each([false, true])(

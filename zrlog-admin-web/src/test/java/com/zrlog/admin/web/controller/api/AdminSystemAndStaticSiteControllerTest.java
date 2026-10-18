@@ -10,6 +10,7 @@ import com.zrlog.admin.business.rest.response.AdminStaticSiteSyncResponse;
 import com.zrlog.admin.business.rest.response.SystemResponse;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.common.rest.response.ApiStandardResponse;
+import com.zrlog.util.BlogBuildInfoUtil;
 import org.junit.Test;
 
 import java.lang.reflect.Field;
@@ -37,6 +38,10 @@ public class AdminSystemAndStaticSiteControllerTest {
             assertFalse(response.getData().getServerInfos2().isEmpty());
             assertNotNull(response.getData().getDockerMode());
             assertNotNull(response.getData().getNativeImageMode());
+            assertEquals(BlogBuildInfoUtil.getVersion(), response.getData().getServerInfos().stream()
+                    .filter(item -> "programInfo".equals(item.getKey())).findFirst().orElseThrow().getValue());
+            assertEquals(BlogBuildInfoUtil.getBuildId(), response.getData().getServerInfos().stream()
+                    .filter(item -> "buildInfo".equals(item.getKey())).findFirst().orElseThrow().getValue());
         }
     }
 

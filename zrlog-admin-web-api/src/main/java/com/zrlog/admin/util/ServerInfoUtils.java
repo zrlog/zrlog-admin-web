@@ -33,7 +33,8 @@ public class ServerInfoUtils {
         systemInfo.add(new ServerInfo(I18nUtil.getAdminBackendStringFromRes("admin.system.serverInfo.dbInfo"), data.getDbServerVersion(), "dbInfo"));
         systemInfo.add(new ServerInfo(I18nUtil.getAdminBackendStringFromRes("admin.system.serverInfo.cpuInfo"), CPUInfo.getInstance().getCpuModel(), "cpuInfo"));
         systemInfo.add(new ServerInfo(I18nUtil.getAdminBackendStringFromRes("admin.system.serverInfo.encoding"), data.getFileEncoding(), "encoding"));
-        systemInfo.add(new ServerInfo(I18nUtil.getAdminBackendStringFromRes("admin.system.serverInfo.programInfo"), BlogBuildInfoUtil.getVersionInfo(), "programInfo"));
+        systemInfo.add(new ServerInfo(I18nUtil.getAdminBackendStringFromRes("admin.system.serverInfo.programInfo"), BlogBuildInfoUtil.getVersion(), "programInfo"));
+        systemInfo.add(new ServerInfo(I18nUtil.getAdminBackendStringFromRes("admin.system.serverInfo.buildInfo"), BlogBuildInfoUtil.getBuildId(), "buildInfo"));
         return systemInfo;
     }
 

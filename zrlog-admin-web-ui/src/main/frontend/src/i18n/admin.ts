@@ -1698,10 +1698,15 @@ const zhCN = {
     },
     "system": {
         "version": {
-            "title": "版本信息",
-            "summary": "查看当前版本的更新记录与构建环境信息。",
+            "title": "构建信息",
+            "summary": "查看当前安装包的构建环境与更新记录。构建环境为打包时的信息。",
+            "currentVersion": "当前版本",
+            "buildId": "构建 ID",
+            "viewBuildInfo": "查看构建详情",
+            "backToSystem": "返回系统信息",
+            "backToSettings": "返回设置",
             "changelog": "更新记录",
-            "buildInfo": "构建信息"
+            "buildInfo": "构建环境"
         },
         "title": "系统信息",
         "summary": "查看系统状态、运行环境与资源使用情况。页面可见时每 5 秒刷新。",
@@ -3783,10 +3788,15 @@ const enUS: AdminI18nResource = {
     },
     "system": {
         "version": {
-            "title": "Version Info",
-            "summary": "View the changelog and build environment for the current version.",
+            "title": "Build Information",
+            "summary": "View the current package's build environment and changelog. Environment details were recorded when the package was built.",
+            "currentVersion": "Current version",
+            "buildId": "Build ID",
+            "viewBuildInfo": "View build details",
+            "backToSystem": "Back to System Information",
+            "backToSettings": "Back to Settings",
             "changelog": "Changelog",
-            "buildInfo": "Build information"
+            "buildInfo": "Build environment"
         },
         "title": "System information",
         "summary": "View system status, the runtime environment, and resource usage. Refreshes every 5 seconds while this page is visible.",

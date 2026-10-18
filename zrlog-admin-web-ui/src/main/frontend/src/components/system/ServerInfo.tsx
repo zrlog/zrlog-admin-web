@@ -6,16 +6,18 @@ import DatabaseIcon from "@zrlog/ui/icons/database";
 import TimeIcon from "@zrlog/ui/icons/time";
 import { Descriptions, Flex, Typography, theme } from "antd";
 import { ReactNode } from "react";
+import { Link } from "react-router-dom";
 import GraalVmOutlined from "icons/GraalVMOutlined";
 import ZrLogOutlined from "icons/ZrLogOutlined";
 import CPUIcon from "../../icons/CPUIcon";
 import MemoryIcon from "../../icons/MemoryIcon";
 import { RiJavaLine } from "../../icons/ri/RiJavaLine";
 import { ServerInfoEntry, SystemData } from "../../type";
-import { getRes } from "../../utils/constants";
+import { getRealRouteUrl, getRes } from "../../utils/constants";
+import { actionForPath, hasAction } from "../../utils/account-access";
 import SettingsSection from "../common/SettingsSection";
 
-const APPLICATION_KEYS = ["programInfo", "runtime", "webServer", "system", "runPath"];
+const APPLICATION_KEYS = ["programInfo", "buildInfo", "runtime", "webServer", "system", "runPath"];
 const CONFIGURATION_KEYS = ["dbInfo", "timezone", "locale", "encoding"];
 const RESOURCE_KEYS = ["cpuInfo", "totalMemorySpace", "usedDiskSpace", "usedCacheSpace"];
 
@@ -69,6 +71,7 @@ const getItemsByKeys = (itemMap: Map<string, ServerInfoEntry>, keys: string[]) =
 const ServerInfo = ({ data }: { data: SystemData }) => {
     const { token } = theme.useToken();
     const text = getRes().system;
+    const canViewBuildInfo = hasAction(actionForPath("/system/version"));
     const border = `${token.lineWidth}px ${token.lineType} ${token.colorBorderSecondary}`;
     const entries = [...(data.serverInfos || []), ...(data.serverInfos2 || [])];
     const itemMap = new Map(entries.map((item) => [item.key, item]));
@@ -136,9 +139,17 @@ const ServerInfo = ({ data }: { data: SystemData }) => {
                 return {
                     key: item.key,
                     label: item.name,
-                    span: item.key === "runPath" || item.key === "cpuInfo" ? 2 : 1,
+                    span: item.key === "runPath" || item.key === "cpuInfo" ? ("filled" as const) : 1,
                     children: (
-                        <div style={{ display: "flex", alignItems: "baseline", gap: token.marginXS, minWidth: 0 }}>
+                        <div
+                            style={{
+                                display: "flex",
+                                alignItems: "baseline",
+                                flexWrap: "wrap",
+                                gap: token.marginXS,
+                                minWidth: 0,
+                            }}
+                        >
                             {icon && (
                                 <span
                                     aria-hidden="true"
@@ -153,6 +164,9 @@ const ServerInfo = ({ data }: { data: SystemData }) => {
                                 </Typography.Link>
                             ) : (
                                 <Typography.Text style={{ overflowWrap: "anywhere" }}>{item.value}</Typography.Text>
+                            )}
+                            {item.key === "buildInfo" && canViewBuildInfo && (
+                                <Link to={getRealRouteUrl("/system/version")}>{text.version.viewBuildInfo}</Link>
                             )}
                         </div>
                     ),

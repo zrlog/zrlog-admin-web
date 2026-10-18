@@ -18,7 +18,7 @@ export type WebsiteSettingsPage =
     | "privacy"
     | "members";
 
-export type AdminSettingsPage = WebsiteSettingsPage | "system" | "proxy" | "version" | "dev";
+export type AdminSettingsPage = WebsiteSettingsPage | "system" | "proxy" | "dev";
 
 export const getWebsiteSettingsItems = () => {
     const navItems: Array<{
@@ -146,14 +146,6 @@ export const getAdminSettingsItems = (): SettingsItem[] => {
             group: res.website.nav.system,
             iconKey: "link",
             path: "/system/proxy",
-        },
-        {
-            key: "version",
-            text: res.system.version.title,
-            summary: res.system.version.summary,
-            group: res.website.nav.system,
-            iconKey: "info",
-            path: "/system/version",
         },
         {
             key: "system",
