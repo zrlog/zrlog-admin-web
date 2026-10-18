@@ -17,6 +17,12 @@ jest.mock("@zrlog/ui/icons/info", () => () => null);
 jest.mock("@zrlog/ui/icons/experiment", () => () => null);
 jest.mock("@zrlog/ui/icons/link", () => () => null);
 jest.mock("@zrlog/ui/icons/database", () => () => null);
+jest.mock("@zrlog/ui/icons/arrow-right", () => () => null);
+jest.mock("@zrlog/ui/icons/code", () => () => null);
+jest.mock("@zrlog/ui/icons/disk", () => () => null);
+jest.mock("@zrlog/ui/icons/globe", () => () => null);
+jest.mock("@zrlog/ui/icons/partition", () => () => null);
+jest.mock("@zrlog/ui/icons/server", () => () => null);
 jest.mock("@zrlog/ui/icons/time", () => () => null);
 jest.mock("@zrlog/ui/icons/cpu", () => () => null);
 jest.mock("@zrlog/ui/icons/memory", () => () => null);
@@ -162,13 +168,23 @@ test("system information shows live readings, environment and resource details o
     expect(container.textContent).not.toContain("128M / 2G");
     for (const item of data.serverInfos) expect(container.textContent).toContain(item.value);
     for (const value of ["2G", "512M", "16M", "0.10", "0.20", "0.30"]) expect(container.textContent).toContain(value);
-    expect(container.querySelector('a[href="https://www.graalvm.org"]')?.textContent).toBe("GraalVM 25");
+    const runtimeLink = container.querySelector('a[href="https://www.graalvm.org"]');
+    expect(runtimeLink?.textContent).toContain("Runtime");
+    expect(runtimeLink?.textContent).toContain("GraalVM 25");
+    expect(runtimeLink?.getAttribute("target")).toBe("_blank");
+    expect(runtimeLink?.getAttribute("rel")).toBe("noopener noreferrer");
+    expect(runtimeLink?.querySelector("a")).toBeNull();
     expect(container.querySelector('a[href="/blog/admin/website"]')).not.toBeNull();
     expect(container.querySelector('a[href="/blog/admin/system/upgrade"]')).not.toBeNull();
     expect(container.querySelector('a[href="/blog/admin/system/runtime"]')).toBeNull();
     expect(container.querySelector('a[href="/blog/admin/system/resources"]')).toBeNull();
     expect(container.querySelector('a[href="/blog/admin/dev"]')).toBeNull();
-    expect(container.querySelector('a[href="/blog/admin/system/version"]')?.textContent).toBe("View build details");
+    const buildLink = container.querySelector('a[href="/blog/admin/system/version"]');
+    for (const value of ["Build information", "a1b2c3d"]) {
+        expect(buildLink?.textContent).toContain(value);
+    }
+    expect(buildLink?.getAttribute("aria-label")).toContain("View build details");
+    expect(buildLink?.querySelector("a")).toBeNull();
     expect(container.querySelector('nav a[href="/blog/admin/system/version"]')).toBeNull();
 });
 

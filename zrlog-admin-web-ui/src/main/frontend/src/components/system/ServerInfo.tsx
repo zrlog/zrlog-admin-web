@@ -2,9 +2,15 @@ import AppleOutlined from "@ant-design/icons/lib/icons/AppleOutlined";
 import DockerOutlined from "@ant-design/icons/lib/icons/DockerOutlined";
 import LinuxOutlined from "@ant-design/icons/lib/icons/LinuxOutlined";
 import WindowsOutlined from "@ant-design/icons/lib/icons/WindowsOutlined";
+import ArrowRightIcon from "@zrlog/ui/icons/arrow-right";
+import CodeIcon from "@zrlog/ui/icons/code";
 import DatabaseIcon from "@zrlog/ui/icons/database";
+import DiskIcon from "@zrlog/ui/icons/disk";
+import GlobeIcon from "@zrlog/ui/icons/globe";
+import PartitionIcon from "@zrlog/ui/icons/partition";
+import ServerIcon from "@zrlog/ui/icons/server";
 import TimeIcon from "@zrlog/ui/icons/time";
-import { Descriptions, Flex, Typography, theme } from "antd";
+import { Flex, Typography, theme } from "antd";
 import { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import GraalVmOutlined from "icons/GraalVMOutlined";
@@ -106,8 +112,17 @@ const ServerInfo = ({ data }: { data: SystemData }) => {
         return undefined;
     };
 
-    const environmentIcon = (item: ServerInfoEntry) => {
+    const detailIcon = (item: ServerInfoEntry) => {
         if (item.key === "programInfo") return <ZrLogOutlined size={18} />;
+        if (item.key === "buildInfo" || item.key === "encoding") return <CodeIcon />;
+        if (item.key === "dbInfo") return <DatabaseIcon />;
+        if (item.key === "timezone") return <TimeIcon />;
+        if (item.key === "locale") return <GlobeIcon />;
+        if (item.key === "webServer") return <ServerIcon />;
+        if (item.key === "runPath" || item.key === "usedDiskSpace") return <DiskIcon />;
+        if (item.key === "cpuInfo") return <CPUIcon />;
+        if (item.key === "totalMemorySpace") return <MemoryIcon />;
+        if (item.key === "usedCacheSpace") return <PartitionIcon />;
         if (item.key === "runtime") {
             return (
                 <>
@@ -128,51 +143,110 @@ const ServerInfo = ({ data }: { data: SystemData }) => {
         return null;
     };
 
-    const details = (items: ServerInfoEntry[]) => (
-        <Descriptions
-            size="small"
-            column={{ xs: 1, sm: 1, md: 1, xl: 2 }}
-            styles={{ label: { whiteSpace: "normal" }, content: { minWidth: 0, overflowWrap: "anywhere" } }}
-            items={items.map((item) => {
+    const details = (items: ServerInfoEntry[], maxColumns = 3) => (
+        <div
+            style={{
+                display: "grid",
+                gridTemplateColumns: `repeat(auto-fit, minmax(min(100%, max(${
+                    maxColumns === 3 ? 280 : 220
+                }px, calc((100% - ${token.marginSM * (maxColumns - 1)}px) / ${maxColumns}))), 1fr))`,
+                gap: token.marginSM,
+            }}
+        >
+            {items.map((item) => {
                 const href = externalUrl(item);
-                const icon = environmentIcon(item);
-                return {
-                    key: item.key,
-                    label: item.name,
-                    span: item.key === "runPath" || item.key === "cpuInfo" ? ("filled" as const) : 1,
-                    children: (
-                        <div
+                const buildLink = item.key === "buildInfo" && canViewBuildInfo;
+                const card = (
+                    <div
+                        key={item.key}
+                        style={{
+                            display: "flex",
+                            alignItems: "flex-start",
+                            gap: token.marginSM,
+                            height: "100%",
+                            minWidth: 0,
+                            padding: token.paddingSM,
+                            border,
+                            borderRadius: token.borderRadiusLG,
+                            background: token.colorBgContainer,
+                        }}
+                    >
+                        <span
+                            aria-hidden="true"
                             style={{
-                                display: "flex",
-                                alignItems: "baseline",
-                                flexWrap: "wrap",
-                                gap: token.marginXS,
-                                minWidth: 0,
+                                display: "inline-flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                gap: token.marginXXS,
+                                flexShrink: 0,
+                                minWidth: token.controlHeightLG,
+                                height: token.controlHeightLG,
+                                paddingInline: token.paddingXS,
+                                borderRadius: token.borderRadius,
+                                background: token.colorFillQuaternary,
+                                color: token.colorPrimary,
+                                fontSize: token.fontSizeHeading4,
                             }}
                         >
-                            {icon && (
-                                <span
-                                    aria-hidden="true"
-                                    style={{ display: "inline-flex", gap: token.marginXXS, flexShrink: 0 }}
-                                >
-                                    {icon}
-                                </span>
-                            )}
-                            {href ? (
-                                <Typography.Link href={href} target="_blank" rel="noopener noreferrer">
-                                    {item.value}
-                                </Typography.Link>
-                            ) : (
-                                <Typography.Text style={{ overflowWrap: "anywhere" }}>{item.value}</Typography.Text>
-                            )}
-                            {item.key === "buildInfo" && canViewBuildInfo && (
-                                <Link to={getRealRouteUrl("/system/version")}>{text.version.viewBuildInfo}</Link>
-                            )}
-                        </div>
-                    ),
-                };
+                            {detailIcon(item)}
+                        </span>
+                        <dl style={{ margin: 0, minWidth: 0 }}>
+                            <dt style={{ color: token.colorTextSecondary, fontSize: token.fontSizeSM }}>{item.name}</dt>
+                            <dd
+                                style={{
+                                    margin: `${token.marginXXS}px 0 0`,
+                                    color: token.colorText,
+                                    overflowWrap: "anywhere",
+                                    fontVariantNumeric: "tabular-nums",
+                                }}
+                            >
+                                {item.value}
+                            </dd>
+                        </dl>
+                        {(href || buildLink) && (
+                            <span
+                                aria-hidden="true"
+                                style={{
+                                    display: "inline-flex",
+                                    alignSelf: "center",
+                                    marginInlineStart: "auto",
+                                    flexShrink: 0,
+                                    color: token.colorPrimary,
+                                }}
+                            >
+                                <ArrowRightIcon />
+                            </span>
+                        )}
+                    </div>
+                );
+                if (href) {
+                    return (
+                        <a
+                            key={item.key}
+                            href={href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ display: "block", borderRadius: token.borderRadiusLG }}
+                        >
+                            {card}
+                        </a>
+                    );
+                }
+                if (buildLink) {
+                    return (
+                        <Link
+                            key={item.key}
+                            to={getRealRouteUrl("/system/version")}
+                            aria-label={`${item.name} ${item.value} ${text.version.viewBuildInfo}`}
+                            style={{ display: "block", borderRadius: token.borderRadiusLG }}
+                        >
+                            {card}
+                        </Link>
+                    );
+                }
+                return card;
             })}
-        />
+        </div>
     );
 
     const loadValues = parseLoadValues(load?.value);
@@ -272,12 +346,19 @@ const ServerInfo = ({ data }: { data: SystemData }) => {
                 {details(getItemsByKeys(itemMap, APPLICATION_KEYS))}
             </SettingsSection>
             <SettingsSection title={text.systemConfiguration} divided>
-                {details(getItemsByKeys(itemMap, CONFIGURATION_KEYS))}
+                {details(getItemsByKeys(itemMap, CONFIGURATION_KEYS), 4)}
             </SettingsSection>
             <SettingsSection title={text.resourceStatus} divided>
                 <Flex vertical gap={token.margin}>
                     {load && (
-                        <div>
+                        <div
+                            style={{
+                                padding: token.paddingSM,
+                                border,
+                                borderRadius: token.borderRadiusLG,
+                                background: token.colorFillQuaternary,
+                            }}
+                        >
                             <Typography.Text type="secondary">{load.name}</Typography.Text>
                             {loadValues.length ? (
                                 <div
@@ -301,7 +382,9 @@ const ServerInfo = ({ data }: { data: SystemData }) => {
                                             <dd
                                                 style={{
                                                     margin: `${token.marginXXS}px 0 0`,
-                                                    fontSize: token.fontSizeLG,
+                                                    fontSize: token.fontSizeHeading4,
+                                                    fontWeight: token.fontWeightStrong,
+                                                    color: token.colorTextHeading,
                                                     fontVariantNumeric: "tabular-nums",
                                                 }}
                                             >
@@ -317,7 +400,7 @@ const ServerInfo = ({ data }: { data: SystemData }) => {
                             )}
                         </div>
                     )}
-                    {details(getItemsByKeys(itemMap, RESOURCE_KEYS))}
+                    {details(getItemsByKeys(itemMap, RESOURCE_KEYS), 4)}
                 </Flex>
             </SettingsSection>
         </Flex>

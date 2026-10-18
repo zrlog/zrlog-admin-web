@@ -1699,7 +1699,7 @@ const zhCN = {
     "system": {
         "version": {
             "title": "构建信息",
-            "summary": "查看当前安装包的构建环境与更新记录。构建环境为打包时的信息。",
+            "summary": "查看当前安装包的更新记录，以及打包时的环境信息",
             "currentVersion": "当前版本",
             "buildId": "构建 ID",
             "viewBuildInfo": "查看构建详情",
@@ -1709,7 +1709,7 @@ const zhCN = {
             "buildInfo": "构建环境"
         },
         "title": "系统信息",
-        "summary": "查看系统状态、运行环境与资源使用情况。页面可见时每 5 秒刷新。",
+        "summary": "查看运行环境和资源使用情况，页面可见时每 5 秒刷新",
         "proxy": {
             "title": "网络代理",
             "summary": "设置 ZrLog 访问外部服务时使用的代理",
@@ -3788,7 +3788,7 @@ const enUS: AdminI18nResource = {
     "system": {
         "version": {
             "title": "Build Information",
-            "summary": "View the current package's build environment and changelog. Environment details were recorded when the package was built.",
+            "summary": "View the current package's changelog and the environment used to build it",
             "currentVersion": "Current version",
             "buildId": "Build ID",
             "viewBuildInfo": "View build details",
@@ -3798,7 +3798,7 @@ const enUS: AdminI18nResource = {
             "buildInfo": "Build environment"
         },
         "title": "System information",
-        "summary": "View system status, the runtime environment, and resource usage. Refreshes every 5 seconds while this page is visible.",
+        "summary": "Runtime environment and resource usage, refreshed every 5 seconds while this page is visible",
         "proxy": {
             "title": "Network Proxy",
             "summary": "Set the proxy ZrLog uses to connect to external services",
