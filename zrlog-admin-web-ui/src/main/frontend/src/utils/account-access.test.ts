@@ -22,13 +22,15 @@ describe("account permission and cache boundary", () => {
         expect(actionForPath("/user/preferences/appearance")).toBe("account.self");
         expect(actionForPath("/user/applications/authorize?request_id=example")).toBe("oauth.grant.manage");
         expect(actionForPath("/system/proxy.html?v=1")).toBe("system.manage");
-        for (const path of ["/system", "/system/runtime", "/system/resources", "/dev"]) {
+        for (const path of ["/system", "/dev"]) {
             expect(actionForPath(path)).toBe("system.manage");
             expect(actionForPath(path + ".html?v=1")).toBe("system.manage");
         }
         expect(actionForPath("/website/version")).toBe("site.configure");
         expect(actionForPath("/system/version")).toBe("site.configure");
         expect(actionForPath("/system/version.html?v=1")).toBe("site.configure");
+        expect(actionForPath("/system/upgrade")).toBe("site.configure");
+        expect(actionForPath("/system/upgrade.html?v=1")).toBe("site.configure");
     });
     it("does not reuse another signed-in session's article or grant cache", () => {
         addToCache("/article", { privateText: "first session" });

@@ -10,7 +10,7 @@ import { useAxiosBaseInstance } from "../base/AppBase";
 import { getRes } from "../utils/constants";
 import { getSsDate } from "../base/SsData";
 import { AccountRole, hasAction } from "../utils/account-access";
-import WebsiteSettingsLayout from "./common/WebsiteSettingsLayout";
+import AdminSettingsLayout from "./common/AdminSettingsLayout";
 import PermissionHelp from "./common/PermissionHelp";
 import { getPageDataCacheKey } from "../utils/cache";
 import type { AdminCommonProps } from "../type";
@@ -76,7 +76,7 @@ export default function Members({ data, updateCache }: Pick<AdminCommonProps<Pag
         }
     };
     return (
-        <WebsiteSettingsLayout
+        <AdminSettingsLayout
             activeKey="members"
             extra={
                 <Space wrap>
@@ -204,6 +204,6 @@ export default function Members({ data, updateCache }: Pick<AdminCommonProps<Pag
                     </Form>
                 </Drawer>
             </Space>
-        </WebsiteSettingsLayout>
+        </AdminSettingsLayout>
     );
 }

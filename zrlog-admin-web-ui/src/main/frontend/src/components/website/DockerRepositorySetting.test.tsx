@@ -108,7 +108,7 @@ test("ignores stale channel replies and preserves the unsaved repository", async
     await act(async () => resolve(response("stale.example/zrlog")));
     expect(select().value).toBe(aliyun);
     expect(select().textContent).not.toContain("stale.example");
-    expect(mockGet).toHaveBeenLastCalledWith("/api/admin/website/upgrade", {
+    expect(mockGet).toHaveBeenLastCalledWith("/api/admin/system/upgrade", {
         params: { channel: "preview" },
         showError: false,
     });
@@ -141,7 +141,7 @@ test.each([
     expect(select().disabled).toBe(true);
     mockGet.mockResolvedValue(response(aliyun));
     await act(async () => container.querySelector("button")!.click());
-    expect(mockGet).toHaveBeenCalledWith("/api/admin/website/upgrade", {
+    expect(mockGet).toHaveBeenCalledWith("/api/admin/system/upgrade", {
         params: { channel: "preview" },
         showError: false,
     });

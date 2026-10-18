@@ -69,7 +69,7 @@ const AsyncError = lazy(() => import("components/unknown-error-page"));
 const AsyncSystem = lazy(() => import("components/system"));
 const AsyncProxy = lazy(() => import("components/system/Proxy"));
 const AsyncVersion = lazy(() => import("components/system/Version"));
-const AsyncLegacyVersion = lazy(() => import("components/website/version"));
+const AsyncLegacySystemSettings = lazy(() => import("components/website/system-settings-redirect"));
 const AsyncStaticSite = lazy(() => import("components/StaticSite"));
 const DevAsync = lazy(() => import("components/dev"));
 const DevUiAsync = lazy(() => import("components/dev-ui"));
@@ -392,10 +392,24 @@ export const createAdminDashboardRoutes = (
         ],
     },
     {
-        paths: buildUriPaths("website/upgrade"),
+        paths: buildUriPaths("system/upgrade"),
         lazy: AsyncWebSite,
         fallback: LightweightFallback,
         props: { activeKey: "upgrade" } as WebSiteProps,
+        search: [
+            {
+                id: "system_upgrade",
+                title: () => getRes().websiteUpgrade.title,
+                iconKey: "sync",
+                keywords: ["upgrade", "update", "更新", "升级"],
+            },
+        ],
+    },
+    {
+        paths: buildUriPaths("website/upgrade"),
+        lazy: AsyncLegacySystemSettings,
+        fallback: LightweightFallback,
+        props: { page: "upgrade" },
     },
     {
         paths: buildUriPaths("website/lab"),
@@ -426,8 +440,9 @@ export const createAdminDashboardRoutes = (
     },
     {
         paths: buildUriPaths("website/version"),
-        lazy: AsyncLegacyVersion,
+        lazy: AsyncLegacySystemSettings,
         fallback: LightweightFallback,
+        props: { page: "version" },
     },
     {
         paths: buildUriPaths("article-type"),
@@ -651,37 +666,25 @@ export const createAdminDashboardRoutes = (
         search: [
             {
                 id: "system",
-                title: () => getRes().system.navigation.overview,
+                title: () => getRes().system.title,
                 iconKey: "info",
-                keywords: ["system", "overview", "系统", "概览"],
-            },
-        ],
-    },
-    {
-        paths: buildUriPaths("system/runtime"),
-        lazy: AsyncSystem,
-        fallback: LightweightFallback,
-        props: { activePage: "runtime" },
-        search: [
-            {
-                id: "system_runtime",
-                title: () => getRes().system.navigation.runtime,
-                iconKey: "container",
-                keywords: ["runtime", "environment", "version", "java", "database", "运行环境", "版本", "数据库"],
-            },
-        ],
-    },
-    {
-        paths: buildUriPaths("system/resources"),
-        lazy: AsyncSystem,
-        fallback: LightweightFallback,
-        props: { activePage: "resources" },
-        search: [
-            {
-                id: "system_resources",
-                title: () => getRes().system.navigation.resources,
-                iconKey: "dashboard",
-                keywords: ["resources", "cpu", "memory", "disk", "load", "资源", "内存", "磁盘", "负载"],
+                keywords: [
+                    "system",
+                    "runtime",
+                    "environment",
+                    "cpu",
+                    "memory",
+                    "disk",
+                    "java",
+                    "database",
+                    "系统",
+                    "运行环境",
+                    "资源",
+                    "内存",
+                    "磁盘",
+                    "负载",
+                    "数据库",
+                ],
             },
         ],
     },

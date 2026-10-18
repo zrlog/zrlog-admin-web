@@ -9,7 +9,7 @@ import { useNavigate } from "react-router-dom";
 import { useAxiosBaseInstance } from "../base/AppBase";
 import { getLabelValueSeparator, getRealRouteUrl, getRes, setRes } from "../utils/constants";
 import SettingsSection from "./common/SettingsSection";
-import SystemSettingsLayout from "./system/SystemSettingsLayout";
+import AdminSettingsLayout from "./common/AdminSettingsLayout";
 
 type Lock = {
     name: string;
@@ -165,7 +165,7 @@ const Dev: FunctionComponent<AdminCommonProps<DevResponse>> = ({ data }) => {
           ];
 
     return (
-        <SystemSettingsLayout activeKey="dev">
+        <AdminSettingsLayout activeKey="dev">
             {messageContextHolder}
             <Flex vertical gap={token.marginLG} style={{ paddingBottom: token.paddingLG }}>
                 <SettingsSection
@@ -233,7 +233,7 @@ const Dev: FunctionComponent<AdminCommonProps<DevResponse>> = ({ data }) => {
                     </Space>
                 </SettingsSection>
             </Flex>
-        </SystemSettingsLayout>
+        </AdminSettingsLayout>
     );
 };
 export default Dev;

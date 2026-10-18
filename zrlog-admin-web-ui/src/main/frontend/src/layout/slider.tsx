@@ -7,6 +7,7 @@ import { Menu, MenuProps, Modal } from "antd";
 import { parseQueryParamsToMap, tryBlock } from "../utils/helpers";
 import { getAppState } from "../base/ConfigProviderApp";
 import { AdminDashboardRouteIconKey, renderAdminDashboardRouteIcon } from "../components/admin-dashboard-routes";
+import { getSettingsEntryPath } from "../utils/settings-navigation";
 import { getAdminNavigationGroup } from "./admin-navigation-model";
 
 type MenuItem = Required<MenuProps>["items"][number];
@@ -69,7 +70,7 @@ const SliderMenu = ({ expanded = false }: SliderMenuProps) => {
             return ["/template"];
         }
         if (selectPath.startsWith("/system") || selectPath === "/dev" || selectPath === "/website/version") {
-            return ["/system"];
+            return ["/website"];
         }
         if (selectPath === "/upgrade") {
             return ["/website"];
@@ -187,15 +188,9 @@ const SliderMenu = ({ expanded = false }: SliderMenuProps) => {
             iconKey: "api",
         },
         {
-            key: "/system",
-            text: getRes().system.navigation.title,
-            link: "/system",
-            iconKey: "info",
-        },
-        {
             key: "/website",
             text: getRes().common.settings,
-            link: "/website",
+            link: getSettingsEntryPath() || "/website",
             iconKey: "setting",
         },
     ];
@@ -294,15 +289,9 @@ const SliderMenu = ({ expanded = false }: SliderMenuProps) => {
 
     const panelFooterItems: MenuItem[] = [
         getItem({
-            key: "/system",
-            text: getRes().system.navigation.title,
-            link: "/system",
-            iconKey: "info",
-        }),
-        getItem({
             key: "/website",
             text: getRes().common.settings,
-            link: "/website",
+            link: getSettingsEntryPath() || "/website",
             iconKey: "setting",
         }),
     ];
@@ -315,6 +304,7 @@ const SliderMenu = ({ expanded = false }: SliderMenuProps) => {
                 return children.length ? [{ ...item, children } as MenuItem] : [];
             }
             if (item.type === "divider") return [item];
+            if (item.key === "/website") return getSettingsEntryPath() ? [item] : [];
             return isFeaturePathEnabled(String(item.key)) && hasAction(actionForPath(String(item.key))) ? [item] : [];
         });
     return (

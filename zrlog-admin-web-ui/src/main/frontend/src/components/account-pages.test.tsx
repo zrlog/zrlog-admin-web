@@ -7,7 +7,7 @@ import { MemoryRouter } from "react-router-dom";
 import Access from "./common/PermissionHelpContent";
 import PermissionHelp from "./common/PermissionHelp";
 import Members from "./members";
-import WebsiteSettingsLayout from "./common/WebsiteSettingsLayout";
+import AdminSettingsLayout from "./common/AdminSettingsLayout";
 import OAuthConsent from "./oauth-consent";
 import { getRes } from "../utils/constants";
 import { BasicUserInfo } from "../type";
@@ -200,9 +200,9 @@ describe("account management pages", () => {
             act(() =>
                 root.render(
                     <MemoryRouter>
-                        <WebsiteSettingsLayout activeKey="basic">
+                        <AdminSettingsLayout activeKey="basic">
                             <div />
-                        </WebsiteSettingsLayout>
+                        </AdminSettingsLayout>
                     </MemoryRouter>
                 )
             );

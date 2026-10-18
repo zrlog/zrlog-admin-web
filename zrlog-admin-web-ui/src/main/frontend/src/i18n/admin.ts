@@ -1703,18 +1703,8 @@ const zhCN = {
             "changelog": "更新记录",
             "buildInfo": "构建信息"
         },
-        "navigation": {
-            "title": "系统管理",
-            "maintenance": "维护与诊断",
-            "overview": "系统概览",
-            "runtime": "运行环境",
-            "resources": "资源状态"
-        },
-        "summaries": {
-            "overview": "查看 CPU、进程内存、数据库连接与运行时间。页面可见时每 5 秒刷新。",
-            "runtime": "查看应用版本、运行环境与系统配置。",
-            "resources": "查看系统负载、硬件信息与应用占用空间。页面可见时每 5 秒刷新。"
-        },
+        "title": "系统信息",
+        "summary": "查看系统状态、运行环境与资源使用情况。页面可见时每 5 秒刷新。",
         "proxy": {
             "title": "网络代理",
             "summary": "管理 ZrLog 对外 HTTP/HTTPS 请求使用的代理，包括 WebAPI 数据库访问。",
@@ -3795,18 +3785,8 @@ const enUS: AdminI18nResource = {
             "changelog": "Changelog",
             "buildInfo": "Build information"
         },
-        "navigation": {
-            "title": "System management",
-            "maintenance": "Maintenance and diagnostics",
-            "overview": "System overview",
-            "runtime": "Runtime environment",
-            "resources": "Resource status"
-        },
-        "summaries": {
-            "overview": "View CPU usage, process memory, database connections, and uptime. Refreshes every 5 seconds while this page is visible.",
-            "runtime": "View the application version, runtime environment, and system configuration.",
-            "resources": "View system load, hardware details, and application disk usage. Refreshes every 5 seconds while this page is visible."
-        },
+        "title": "System information",
+        "summary": "View system status, the runtime environment, and resource usage. Refreshes every 5 seconds while this page is visible.",
         "proxy": {
             "title": "Network Proxy",
             "summary": "Manage the proxy for outbound ZrLog HTTP/HTTPS requests, including WebAPI database access.",

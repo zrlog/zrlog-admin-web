@@ -4,10 +4,10 @@ import { MemoryRouter, NavigateFunction, Route, Routes, useNavigate, useLocation
 import { Grid } from "antd";
 import { afterEach, beforeEach, expect, jest, test } from "@jest/globals";
 import System from "./index";
-import SystemSettingsLayout, { SystemInfoPage } from "./SystemSettingsLayout";
+import AdminSettingsLayout from "../common/AdminSettingsLayout";
 import { SystemData } from "../../type";
 import SliderMenu from "../../layout/slider";
-import LegacyVersion from "../website/version";
+import SystemSettingsRedirect from "../website/system-settings-redirect";
 
 jest.mock("@zrlog/ui/icons/dashboard", () => () => null);
 jest.mock("@zrlog/ui/icons/container", () => () => null);
@@ -38,9 +38,11 @@ jest.mock("../../api", () => ({
     getCsrData: (...args: any[]) => mockGetCsrData(...args),
     getTimeInfoBySearchStr: () => ({}),
 }));
+jest.mock("../../utils/module-capabilities", () => ({ isFeaturePathEnabled: () => true }));
 jest.mock("../../utils/account-access", () => ({
     hasAction: (action: string) => (action === "site.configure" ? mockConfigure : mockManage),
-    actionForPath: (path: string) => (path === "/system/version" ? "site.configure" : "system.manage"),
+    actionForPath: (path: string) =>
+        path === "/system" || path === "/system/proxy" || path === "/dev" ? "system.manage" : "site.configure",
 }));
 jest.mock("../../utils/constants", () => ({
     getRes: () => require("../../i18n/admin").getAdminI18n(mockLang),
@@ -121,17 +123,17 @@ afterEach(() => {
     delete (globalThis as any).MessageChannel;
 });
 
-const renderSystem = async (value = data, page: SystemInfoPage = "overview", offline = false) => {
+const renderSystem = async (value = data, offline = false) => {
     await act(async () =>
         root.render(
             <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-                <System data={value} offline={offline} activePage={page} />
+                <System data={value} offline={offline} />
             </MemoryRouter>
         )
     );
 };
 
-test("overview shows key live readings without the environment and resource detail lists", async () => {
+test("system information shows live readings, environment and resource details on one page", async () => {
     await renderSystem();
     const overview = container.querySelector('a[href="/blog/admin/system"]');
     expect(overview?.getAttribute("aria-current")).toBe("page");
@@ -139,23 +141,15 @@ test("overview shows key live readings without the environment and resource deta
     for (const value of ["13%", "128M", "2 / 8", "2 hours"]) expect(container.textContent).toContain(value);
     expect(container.querySelectorAll('[role="meter"]')).toHaveLength(2);
     expect(container.textContent).not.toContain("128M / 2G");
-    expect(container.textContent).not.toContain("GraalVM 25");
-    expect(container.textContent).not.toContain("512M");
+    for (const item of data.serverInfos) expect(container.textContent).toContain(item.value);
+    for (const value of ["2G", "512M", "16M", "0.10", "0.20", "0.30"]) expect(container.textContent).toContain(value);
+    expect(container.querySelector('a[href="https://www.graalvm.org"]')?.textContent).toBe("GraalVM 25");
+    expect(container.querySelector('a[href="/blog/admin/website"]')).not.toBeNull();
+    expect(container.querySelector('a[href="/blog/admin/system/upgrade"]')).not.toBeNull();
+    expect(container.querySelector('a[href="/blog/admin/system/runtime"]')).toBeNull();
+    expect(container.querySelector('a[href="/blog/admin/system/resources"]')).toBeNull();
     expect(container.querySelector('a[href="/blog/admin/dev"]')).toBeNull();
     expect(container.querySelector('a[href="/blog/admin/system/version"]')?.textContent).toBe("Version Info");
-});
-
-test("runtime and resource pages separate their details and preserve external documentation links", async () => {
-    await renderSystem(data, "runtime");
-    for (const item of data.serverInfos.filter((item) => item.key !== "cpuInfo"))
-        expect(container.textContent).toContain(item.value);
-    expect(container.querySelector('a[href="https://www.graalvm.org"]')?.textContent).toBe("GraalVM 25");
-    expect(container.textContent).not.toContain("128M");
-    await renderSystem(data, "resources");
-    for (const value of ["Test processor", "2G", "512M", "16M", "0.10", "0.20", "0.30"])
-        expect(container.textContent).toContain(value);
-    expect(container.textContent).not.toContain("ZrLog 4.0.1");
-    expect(container.querySelectorAll('[role="meter"]')).toHaveLength(0);
 });
 
 test("developer tools appear only while server development mode is enabled", async () => {
@@ -169,9 +163,14 @@ test("developer tools appear only while server development mode is enabled", asy
     expect(container.querySelector('a[href="/blog/admin/dev"]')).toBeNull();
 });
 
-test.each([false, true])(
-    "legacy version links redirect without re-encoding query parameters (static=%s)",
-    async (staticPage) => {
+test.each([
+    [false, "version"],
+    [true, "version"],
+    [false, "upgrade"],
+    [true, "upgrade"],
+] as const)(
+    "existing settings links redirect with encoded queries and history preserved (static=%s, page=%s)",
+    async (staticPage, page) => {
         mockStatic = staticPage;
         const suffix = staticPage ? ".html" : "";
         let navigate: NavigateFunction;
@@ -183,19 +182,22 @@ test.each([false, true])(
         await act(async () =>
             root.render(
                 <MemoryRouter
-                    initialEntries={["/blog/admin/system", `/blog/admin/website/version${suffix}?value=a%2Bb#build`]}
+                    initialEntries={["/blog/admin/system", `/blog/admin/website/${page}${suffix}?value=a%2Bb#build`]}
                     future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
                 >
                     <Location />
                     <Routes>
-                        <Route path={`/blog/admin/website/version${suffix}`} element={<LegacyVersion />} />
+                        <Route
+                            path={`/blog/admin/website/${page}${suffix}`}
+                            element={<SystemSettingsRedirect page={page} />}
+                        />
                         <Route path="*" element={<div />} />
                     </Routes>
                 </MemoryRouter>
             )
         );
         expect(container.querySelector("output")?.textContent).toBe(
-            `/blog/admin/system/version${suffix}?value=a%2Bb#build`
+            `/blog/admin/system/${page}${suffix}?value=a%2Bb#build`
         );
         await act(async () => navigate(-1));
         expect(container.querySelector("output")?.textContent).toBe("/blog/admin/system");
@@ -215,12 +217,12 @@ test("navigation respects system and site permissions and selects the current pa
     await act(async () =>
         root.render(
             <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-                <SystemSettingsLayout activeKey="proxy">代理表单</SystemSettingsLayout>
+                <AdminSettingsLayout activeKey="proxy">代理表单</AdminSettingsLayout>
             </MemoryRouter>
         )
     );
     expect(container.querySelector('a[href="/blog/admin/system/proxy"]')?.getAttribute("aria-current")).toBe("page");
-    expect(container.querySelector('a[href="/blog/admin/system"]')?.textContent).toBe("系统概览");
+    expect(container.querySelector('a[href="/blog/admin/system"]')?.textContent).toBe("系统信息");
     expect(container.querySelector('a[href="/blog/admin/system/version"]')).toBeNull();
 });
 
@@ -233,46 +235,41 @@ test("unavailable metrics remain raw readings without invented percentages", asy
     expect(container.querySelectorAll('[role="meter"]')).toHaveLength(0);
 });
 
-test.each(["overview", "resources"] as SystemInfoPage[])(
-    "%s refreshes live readings and stops polling on unmount",
-    async (page) => {
-        jest.useFakeTimers();
-        jest.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
-        mockGetCsrData.mockResolvedValue({
-            data: {
-                ...data,
-                serverInfos2: [entry("uptime", "Uptime", "3 hours"), entry("usedDiskSpace", "Disk usage", "600M")],
-            },
-        });
-        await renderSystem(data, page);
-        expect(mockGetCsrData).not.toHaveBeenCalled();
-        await act(async () => {
-            jest.advanceTimersByTime(5000);
-        });
-        expect(mockGetCsrData).toHaveBeenCalledTimes(1);
-        expect(mockGetCsrData.mock.calls[0][0]).toBe(page === "resources" ? "/system/resources" : "/system");
-        expect(container.textContent).toContain(page === "overview" ? "3 hours" : "600M");
-        await act(async () => root.render(<div />));
-        await act(async () => {
-            jest.advanceTimersByTime(10000);
-        });
-        expect(mockGetCsrData).toHaveBeenCalledTimes(1);
-    }
-);
-
-test("runtime, offline, and hidden pages do not poll", async () => {
+test("refreshes all system readings together and stops polling on unmount", async () => {
     jest.useFakeTimers();
     jest.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
-    await renderSystem(data, "runtime");
+    mockGetCsrData.mockResolvedValue({
+        data: {
+            ...data,
+            serverInfos2: [entry("uptime", "Uptime", "3 hours"), entry("usedDiskSpace", "Disk usage", "600M")],
+        },
+    });
+    await renderSystem();
+    expect(mockGetCsrData).not.toHaveBeenCalled();
+    await act(async () => {
+        jest.advanceTimersByTime(5000);
+    });
+    expect(mockGetCsrData).toHaveBeenCalledTimes(1);
+    expect(mockGetCsrData.mock.calls[0][0]).toBe("/system");
+    expect(container.textContent).toContain("3 hours");
+    expect(container.textContent).toContain("600M");
+    expect(container.textContent).toContain("GraalVM 25");
+    await act(async () => root.render(<div />));
     await act(async () => {
         jest.advanceTimersByTime(10000);
     });
-    await renderSystem(data, "overview", true);
+    expect(mockGetCsrData).toHaveBeenCalledTimes(1);
+});
+
+test("offline and hidden pages do not poll", async () => {
+    jest.useFakeTimers();
+    jest.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
+    await renderSystem(data, true);
     await act(async () => {
         jest.advanceTimersByTime(10000);
     });
     jest.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
-    await renderSystem(data, "overview");
+    await renderSystem(data);
     await act(async () => {
         jest.advanceTimersByTime(10000);
     });
@@ -294,20 +291,22 @@ test.each([
         navigate = useNavigate();
         return (
             <Routes>
-                {(["overview", "runtime", "resources"] as SystemInfoPage[]).map((page) => (
-                    <Route
-                        key={page}
-                        path={`/blog/admin/system${page === "overview" ? "" : `/${page}`}${suffix}`}
-                        element={<System data={data} offline={false} activePage={page} />}
-                    />
-                ))}
+                <Route path={`/blog/admin/system${suffix}`} element={<System data={data} offline={false} />} />
+                <Route
+                    path={`/blog/admin/website${suffix}`}
+                    element={<AdminSettingsLayout activeKey="basic">Site content</AdminSettingsLayout>}
+                />
+                <Route
+                    path={`/blog/admin/system/upgrade${suffix}`}
+                    element={<AdminSettingsLayout activeKey="upgrade">Update content</AdminSettingsLayout>}
+                />
                 <Route
                     path={`/blog/admin/dev${suffix}`}
-                    element={<SystemSettingsLayout activeKey="dev">Developer content</SystemSettingsLayout>}
+                    element={<AdminSettingsLayout activeKey="dev">Developer content</AdminSettingsLayout>}
                 />
                 <Route
                     path={`/blog/admin/system/version${suffix}`}
-                    element={<SystemSettingsLayout activeKey="version">Version content</SystemSettingsLayout>}
+                    element={<AdminSettingsLayout activeKey="version">Version content</AdminSettingsLayout>}
                 />
             </Routes>
         );
@@ -315,7 +314,7 @@ test.each([
     await act(async () =>
         root.render(
             <MemoryRouter
-                initialEntries={[`/blog/admin/system/runtime${suffix}`]}
+                initialEntries={[`/blog/admin/system${suffix}`]}
                 future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
             >
                 <Pages />
@@ -344,15 +343,16 @@ test.each([
             );
         }
     };
-    expect(selected()).toBe("Runtime environment");
+    expect(selected()).toBe("System information");
     expect(container.textContent).toContain("GraalVM 25");
-    await choose("Resource status");
-    expect(selected()).toBe("Resource status");
     expect(container.textContent).toContain("512M");
+    await choose("Basic Settings");
+    expect(selected()).toBe("Basic Settings");
+    expect(container.textContent).toContain("Site content");
     await act(async () => navigate(-1));
-    expect(selected()).toBe("Runtime environment");
+    expect(selected()).toBe("System information");
     await act(async () => navigate(1));
-    expect(selected()).toBe("Resource status");
+    expect(selected()).toBe("Basic Settings");
     await choose("Developer tools");
     expect(selected()).toBe("Developer tools");
     expect(container.textContent).toContain("Developer content");
@@ -362,12 +362,12 @@ test.each([
 });
 
 test.each([false, true])(
-    "global navigation keeps all system pages under their own entry (expanded=%s)",
+    "global navigation selects Settings for site and system pages (expanded=%s)",
     async (expanded) => {
         for (const path of [
             "/system",
-            "/system/runtime.html",
-            "/system/resources",
+            "/website/admin",
+            "/system/upgrade.html",
             "/system/proxy",
             "/dev.html",
             "/system/version",
@@ -384,10 +384,11 @@ test.each([false, true])(
                 )
             );
             expect(container.querySelector(".ant-menu-item-selected a")?.getAttribute("href")).toBe(
-                "/blog/admin/system"
+                "/blog/admin/website"
             );
+            expect(container.querySelector('a[href="/blog/admin/system"]')).toBeNull();
         }
-        mockManage = false;
+        mockConfigure = false;
         await act(async () =>
             root.render(
                 <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
@@ -395,6 +396,7 @@ test.each([false, true])(
                 </MemoryRouter>
             )
         );
-        expect(container.querySelector('a[href="/blog/admin/system"]')).toBeNull();
+        expect(container.querySelector('a[href="/blog/admin/system"]')).not.toBeNull();
+        expect(container.querySelector('a[href="/blog/admin/website"]')).toBeNull();
     }
 );

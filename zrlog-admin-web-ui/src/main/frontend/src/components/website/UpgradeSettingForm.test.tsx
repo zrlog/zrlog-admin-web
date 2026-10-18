@@ -135,7 +135,7 @@ test("channel refresh does not overwrite unsaved form fields", async () => {
     mockGet.mockResolvedValue({ data: { error: 0, data: { ...data, autoUpgradeVersion: -1, upgradePreview: true } } });
     await render();
     await act(async () => (container.querySelector("#upgradePreview") as HTMLElement).click());
-    expect(mockGet).toHaveBeenCalledWith("/api/admin/website/upgrade", {
+    expect(mockGet).toHaveBeenCalledWith("/api/admin/system/upgrade", {
         params: { channel: "release" },
         showError: false,
     });

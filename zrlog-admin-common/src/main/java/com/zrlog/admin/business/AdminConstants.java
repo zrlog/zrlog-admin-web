@@ -74,9 +74,8 @@ public class AdminConstants {
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/upgrade", "admin.upgrade.wizard.manage");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/template-config", "admin.template.config.manage");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/template-center", "admin.template.center.manage");
-        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/system", "admin.system.overview.manage");
-        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/system/runtime", "admin.system.runtime.manage");
-        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/system/resources", "admin.system.resources.manage");
+        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/system", "admin.system.manage");
+        TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/system/upgrade", "admin.system.upgrade.manage");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/system/version", "admin.system.version.manage");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/system/proxy", "admin.system.proxy.manage");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/file-manager", "admin.fileManager.title");

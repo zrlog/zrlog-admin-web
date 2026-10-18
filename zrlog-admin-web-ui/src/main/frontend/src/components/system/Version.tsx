@@ -5,7 +5,7 @@ import HtmlPreviewPanel from "@zrlog/editor/core/editor/html-preview-panel";
 import { getAppState } from "../../base/ConfigProviderApp";
 import { getRes } from "../../utils/constants";
 import SettingsSection from "../common/SettingsSection";
-import SystemSettingsLayout from "./SystemSettingsLayout";
+import AdminSettingsLayout from "../common/AdminSettingsLayout";
 
 type VersionProps = {
     data: VersionResponse;
@@ -32,7 +32,7 @@ const Version: FunctionComponent<VersionProps> = ({ data }) => {
     const [buildStr, setBuildStr] = useState<string>(defaultBuildStr);
 
     return (
-        <SystemSettingsLayout activeKey="version">
+        <AdminSettingsLayout activeKey="version">
             <Flex vertical gap={token.marginLG} style={{ paddingBottom: token.paddingLG, minWidth: 0 }}>
                 <SettingsSection title={text.changelog}>
                     <div style={{ overflowX: "auto" }}>
@@ -45,7 +45,7 @@ const Version: FunctionComponent<VersionProps> = ({ data }) => {
                     </div>
                 </SettingsSection>
             </Flex>
-        </SystemSettingsLayout>
+        </AdminSettingsLayout>
     );
 };
 export default Version;

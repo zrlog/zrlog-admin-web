@@ -68,19 +68,24 @@ describe("account page routing", () => {
         }
     });
 
-    it("registers canonical system pages and keeps the old version URL only as a redirect", () => {
+    it("keeps system settings together without the development-only subdivisions", () => {
         const routes = createAdminDashboardRoutes();
-        for (const path of ["system", "system/runtime", "system/resources", "system/proxy", "system/version", "dev"]) {
+        for (const path of ["system", "system/proxy", "system/version", "system/upgrade", "dev"]) {
             const route = routes.find((route) => route.paths.includes(path));
             expect(route?.paths).toContain(path + ".html");
             expect(route?.search).toHaveLength(1);
         }
-        const legacy = routes.find((route) => route.paths.includes("website/version"));
-        expect(legacy?.paths).toContain("website/version.html");
-        expect(legacy?.search).toBeUndefined();
-        expect(legacy?.lazy).not.toBe(routes.find((route) => route.paths.includes("system/version"))?.lazy);
-        for (const page of ["runtime", "resources"]) {
-            expect(routes.find((route) => route.paths.includes(`system/${page}`))?.props).toEqual({ activePage: page });
+        for (const path of ["system/runtime", "system/resources"]) {
+            expect(routes.some((route) => route.paths.includes(path) || route.paths.includes(path + ".html"))).toBe(
+                false
+            );
+        }
+        for (const page of ["version", "upgrade"]) {
+            const redirect = routes.find((route) => route.paths.includes(`website/${page}`));
+            expect(redirect?.paths).toContain(`website/${page}.html`);
+            expect(redirect?.search).toBeUndefined();
+            expect(redirect?.props).toEqual({ page });
+            expect(redirect?.lazy).not.toBe(routes.find((route) => route.paths.includes(`system/${page}`))?.lazy);
         }
     });
 });

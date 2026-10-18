@@ -15,7 +15,8 @@ import AIForm from "./AIForm";
 import { postRefreshCacheSse } from "../../utils/sse-utils";
 import ArticleEditForm from "./ArticleEditForm";
 import FeatureLabForm from "./FeatureLabForm";
-import WebsiteSettingsLayout, { getWebsiteSettingsItems, WebsiteSettingsPage } from "../common/WebsiteSettingsLayout";
+import AdminSettingsLayout from "../common/AdminSettingsLayout";
+import { getWebsiteSettingsItems, WebsiteSettingsPage } from "../../utils/settings-navigation";
 import ContentProtectorForm from "./ContentProtectorForm";
 import WebhookForm from "./WebhookForm";
 import PrivacyForm from "./PrivacyForm";
@@ -208,7 +209,12 @@ const WebSite: FunctionComponent<WebSiteProps> = ({ data, offline, offlineData, 
                       waitForComplete: true,
                       backgroundTaskTitle: activeMeta.text,
                   })
-                : (await axiosInstance.post("/api/admin/website/" + activeKey, { ...form })).data;
+                : (
+                      await axiosInstance.post(
+                          activeKey === "upgrade" ? "/api/admin/system/upgrade" : "/api/admin/website/" + activeKey,
+                          { ...form }
+                      )
+                  ).data;
             setLoading(false);
             if (data.error) {
                 await messageApi.error(data.message);
@@ -401,7 +407,7 @@ const WebSite: FunctionComponent<WebSiteProps> = ({ data, offline, offlineData, 
     return (
         <>
             {contextHolder}
-            <WebsiteSettingsLayout activeKey={activeKey}>{getItemBody()}</WebsiteSettingsLayout>
+            <AdminSettingsLayout activeKey={activeKey}>{getItemBody()}</AdminSettingsLayout>
         </>
     );
 };

@@ -13,7 +13,7 @@ export const actionForPath = (raw: string): string => {
     if (path.startsWith("/file-manager")) return "file.manage";
     if (path.startsWith("/plugin")) return "plugin.manage";
     if (path === "/dev" || path === "/dev/ui") return "system.manage";
-    if (path === "/system/version") return "site.configure";
+    if (path === "/system/version" || path === "/system/upgrade") return "site.configure";
     if (path === "/system" || path.startsWith("/system/")) return "system.manage";
     if (["/", "", "/index"].includes(path)) return "dashboard.read";
     return "site.configure";

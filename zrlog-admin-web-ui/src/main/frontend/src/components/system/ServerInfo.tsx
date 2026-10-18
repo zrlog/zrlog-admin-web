@@ -14,7 +14,6 @@ import { RiJavaLine } from "../../icons/ri/RiJavaLine";
 import { ServerInfoEntry, SystemData } from "../../type";
 import { getRes } from "../../utils/constants";
 import SettingsSection from "../common/SettingsSection";
-import type { SystemInfoPage } from "./SystemSettingsLayout";
 
 const APPLICATION_KEYS = ["programInfo", "runtime", "webServer", "system", "runPath"];
 const CONFIGURATION_KEYS = ["dbInfo", "timezone", "locale", "encoding"];
@@ -67,7 +66,7 @@ const getItemsByKeys = (itemMap: Map<string, ServerInfoEntry>, keys: string[]) =
     return keys.map((key) => itemMap.get(key)).filter((item): item is ServerInfoEntry => Boolean(item));
 };
 
-const ServerInfo = ({ data, page }: { data: SystemData; page: SystemInfoPage }) => {
+const ServerInfo = ({ data }: { data: SystemData }) => {
     const { token } = theme.useToken();
     const text = getRes().system;
     const border = `${token.lineWidth}px ${token.lineType} ${token.colorBorderSecondary}`;
@@ -167,7 +166,7 @@ const ServerInfo = ({ data, page }: { data: SystemData; page: SystemInfoPage }) 
 
     return (
         <Flex vertical gap={token.marginLG} style={{ paddingBottom: token.paddingLG }}>
-            {page === "overview" && metrics.some(({ item }) => item) && (
+            {metrics.some(({ item }) => item) && (
                 <SettingsSection title={text.overview}>
                     <div
                         style={{
@@ -255,64 +254,58 @@ const ServerInfo = ({ data, page }: { data: SystemData; page: SystemInfoPage }) 
                     </div>
                 </SettingsSection>
             )}
-            {page === "runtime" && (
-                <>
-                    <SettingsSection title={text.applicationRuntime}>
-                        {details(getItemsByKeys(itemMap, APPLICATION_KEYS))}
-                    </SettingsSection>
-                    <SettingsSection title={text.systemConfiguration} divided>
-                        {details(getItemsByKeys(itemMap, CONFIGURATION_KEYS))}
-                    </SettingsSection>
-                </>
-            )}
-            {page === "resources" && (
-                <SettingsSection title={text.resourceStatus}>
-                    <Flex vertical gap={token.margin}>
-                        {load && (
-                            <div>
-                                <Typography.Text type="secondary">{load.name}</Typography.Text>
-                                {loadValues.length ? (
-                                    <div
-                                        style={{
-                                            display: "grid",
-                                            gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-                                            gap: token.marginSM,
-                                            marginTop: token.marginXS,
-                                        }}
-                                    >
-                                        {loadValues.map((value, index) => (
-                                            <dl key={loadLabels[index]} style={{ margin: 0 }}>
-                                                <dt
-                                                    style={{
-                                                        color: token.colorTextSecondary,
-                                                        fontSize: token.fontSizeSM,
-                                                    }}
-                                                >
-                                                    {loadLabels[index]}
-                                                </dt>
-                                                <dd
-                                                    style={{
-                                                        margin: `${token.marginXXS}px 0 0`,
-                                                        fontSize: token.fontSizeLG,
-                                                        fontVariantNumeric: "tabular-nums",
-                                                    }}
-                                                >
-                                                    {value.toFixed(2)}
-                                                </dd>
-                                            </dl>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <Typography.Paragraph style={{ marginTop: token.marginXS }}>
-                                        {load.value}
-                                    </Typography.Paragraph>
-                                )}
-                            </div>
-                        )}
-                        {details(getItemsByKeys(itemMap, RESOURCE_KEYS))}
-                    </Flex>
-                </SettingsSection>
-            )}
+            <SettingsSection title={text.applicationRuntime} divided>
+                {details(getItemsByKeys(itemMap, APPLICATION_KEYS))}
+            </SettingsSection>
+            <SettingsSection title={text.systemConfiguration} divided>
+                {details(getItemsByKeys(itemMap, CONFIGURATION_KEYS))}
+            </SettingsSection>
+            <SettingsSection title={text.resourceStatus} divided>
+                <Flex vertical gap={token.margin}>
+                    {load && (
+                        <div>
+                            <Typography.Text type="secondary">{load.name}</Typography.Text>
+                            {loadValues.length ? (
+                                <div
+                                    style={{
+                                        display: "grid",
+                                        gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+                                        gap: token.marginSM,
+                                        marginTop: token.marginXS,
+                                    }}
+                                >
+                                    {loadValues.map((value, index) => (
+                                        <dl key={loadLabels[index]} style={{ margin: 0 }}>
+                                            <dt
+                                                style={{
+                                                    color: token.colorTextSecondary,
+                                                    fontSize: token.fontSizeSM,
+                                                }}
+                                            >
+                                                {loadLabels[index]}
+                                            </dt>
+                                            <dd
+                                                style={{
+                                                    margin: `${token.marginXXS}px 0 0`,
+                                                    fontSize: token.fontSizeLG,
+                                                    fontVariantNumeric: "tabular-nums",
+                                                }}
+                                            >
+                                                {value.toFixed(2)}
+                                            </dd>
+                                        </dl>
+                                    ))}
+                                </div>
+                            ) : (
+                                <Typography.Paragraph style={{ marginTop: token.marginXS }}>
+                                    {load.value}
+                                </Typography.Paragraph>
+                            )}
+                        </div>
+                    )}
+                    {details(getItemsByKeys(itemMap, RESOURCE_KEYS))}
+                </Flex>
+            </SettingsSection>
         </Flex>
     );
 };

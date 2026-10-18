@@ -32,8 +32,7 @@ admin/website/members
 admin/plugin
 admin/upgrade
 admin/system
-admin/system/runtime
-admin/system/resources
+admin/system/upgrade
 admin/system/version
 admin/403
 admin/404

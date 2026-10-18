@@ -50,7 +50,7 @@ export default function DockerRepositorySetting({
         onLoadingChange(true);
         try {
             const requestConfig = { params: { channel: preview ? "preview" : "release" }, showError: false };
-            const response = await axiosInstance.get<ApiResponse<Upgrade>>("/api/admin/website/upgrade", requestConfig);
+            const response = await axiosInstance.get<ApiResponse<Upgrade>>("/api/admin/system/upgrade", requestConfig);
             if (request !== operation.current) return;
             if (response.data.error || !response.data.data?.dockerSettings?.images) {
                 setError(response.data.data?.dockerErrorCode ?? "updater_request_failed");

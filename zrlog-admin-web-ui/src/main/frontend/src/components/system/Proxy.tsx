@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { useAxiosBaseInstance } from "../../base/AppBase";
 import { getRes } from "../../utils/constants";
 import SettingsSection from "../common/SettingsSection";
-import SystemSettingsLayout from "./SystemSettingsLayout";
+import AdminSettingsLayout from "../common/AdminSettingsLayout";
 
 export type ProxyData = {
     url: string;
@@ -108,7 +108,7 @@ const ProxySettings = ({ data, offline }: { data: ProxyData; offline: boolean })
     };
 
     return (
-        <SystemSettingsLayout activeKey="proxy">
+        <AdminSettingsLayout activeKey="proxy">
             <Flex vertical gap={token.marginLG} style={{ maxWidth: 800, paddingBottom: token.paddingLG }}>
                 {settings.restartRequired && <Alert type="warning" showIcon title={text.pending} />}
                 <SettingsSection title={text.active}>
@@ -254,7 +254,7 @@ const ProxySettings = ({ data, offline }: { data: ProxyData; offline: boolean })
                     <Typography.Paragraph type="secondary">{text.precedenceHint}</Typography.Paragraph>
                 </SettingsSection>
             </Flex>
-        </SystemSettingsLayout>
+        </AdminSettingsLayout>
     );
 };
 

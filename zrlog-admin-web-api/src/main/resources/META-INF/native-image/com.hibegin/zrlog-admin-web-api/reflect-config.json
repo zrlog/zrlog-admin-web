@@ -42,9 +42,7 @@
     "name": "com.zrlog.admin.web.controller.api.AdminSystemController",
     "methods": [
       {"name": "<init>", "parameterTypes": []},
-      {"name": "index", "parameterTypes": []},
-      {"name": "resources", "parameterTypes": []},
-      {"name": "runtime", "parameterTypes": []}
+      {"name": "index", "parameterTypes": []}
     ]
   },
   {

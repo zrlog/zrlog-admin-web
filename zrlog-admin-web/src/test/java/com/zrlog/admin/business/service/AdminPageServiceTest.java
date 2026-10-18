@@ -333,13 +333,13 @@ public class AdminPageServiceTest {
     }
 
     @Test
-    public void shouldLoadSystemSectionsWithMatchingPermissionsAndTitles() throws Throwable {
+    public void shouldLoadCompleteSystemInformationWithMatchingPermissionsAndTitle() throws Throwable {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             db.loadAdminWebModules();
             RequestConfig config = new RequestConfig();
             config.setRouter(com.zrlog.common.Constants.zrLogConfig.getServerConfig().getRouter());
             AdminPageService service = new AdminPageService();
-            for (String page : java.util.List.of("/admin/system", "/admin/system/runtime", "/admin/system/resources")) {
+            for (String page : java.util.List.of("/admin/system")) {
                 assertNotNull(config.getRouter().getMethod(page, HttpMethod.GET));
                 Method api = config.getRouter().getMethod("/api" + page, HttpMethod.GET);
                 assertNotNull(api);
@@ -404,28 +404,47 @@ public class AdminPageServiceTest {
     }
 
     @Test
-    public void shouldRedirectLegacyVersionPagePreservingContextAndEncodedQuery() throws Throwable {
+    public void shouldRedirectExistingSystemSettingsPagesPreservingContextAndEncodedQuery() throws Throwable {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             db.loadAdminWebModules();
             RequestConfig config = new RequestConfig();
             config.setRouter(com.zrlog.common.Constants.zrLogConfig.getServerConfig().getRouter());
-            Method route = config.getRouter().getMethod("/admin/website/version", HttpMethod.GET);
-            for (String contextPath : java.util.List.of("", "/", "/blog")) {
-                for (String query : java.util.List.of("", "v=1&message=%E4%B8%AD%E6%96%87&value=a%2Bb%2525")) {
-                    HttpRequest base = request("/admin/website/version", contextPath, config);
-                    HttpRequest request = (HttpRequest) Proxy.newProxyInstance(getClass().getClassLoader(),
-                            new Class[]{HttpRequest.class}, (proxy, method, args) ->
-                                    method.getName().equals("getQueryStr") ? query : method.invoke(base, args));
-                    var response = new com.hibegin.http.server.impl.SimpleHttpResponse(request,
-                            new com.hibegin.http.server.config.ResponseConfig()) {
-                        @Override protected void send(byte[] bytes, boolean body, boolean close) { }
-                    };
-                    route.invoke(Controller.buildController(route, request, response));
-                    String prefix = contextPath.equals("/") ? "" : contextPath;
-                    assertEquals(prefix + "/admin/system/version" + (query.isEmpty() ? "" : "?" + query),
-                            response.getHeader().get("Location"));
+            for (String page : java.util.List.of("version", "upgrade")) {
+                Method route = config.getRouter().getMethod("/admin/website/" + page, HttpMethod.GET);
+                for (String contextPath : java.util.List.of("", "/", "/blog")) {
+                    for (String query : java.util.List.of("", "v=1&message=%E4%B8%AD%E6%96%87&value=a%2Bb%2525")) {
+                        HttpRequest base = request("/admin/website/" + page, contextPath, config);
+                        HttpRequest request = (HttpRequest) Proxy.newProxyInstance(getClass().getClassLoader(),
+                                new Class[]{HttpRequest.class}, (proxy, method, args) ->
+                                        method.getName().equals("getQueryStr") ? query : method.invoke(base, args));
+                        var response = new com.hibegin.http.server.impl.SimpleHttpResponse(request,
+                                new com.hibegin.http.server.config.ResponseConfig()) {
+                            @Override protected void send(byte[] bytes, boolean body, boolean close) { }
+                        };
+                        route.invoke(Controller.buildController(route, request, response));
+                        String prefix = contextPath.equals("/") ? "" : contextPath;
+                        assertEquals(prefix + "/admin/system/" + page + (query.isEmpty() ? "" : "?" + query),
+                                response.getHeader().get("Location"));
+                    }
                 }
             }
+        }
+    }
+
+    @Test
+    public void shouldReuseUpgradeSettingsApiAndPermissionAtTheSystemPage() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            db.loadAdminWebModules();
+            Router router = com.zrlog.common.Constants.zrLogConfig.getServerConfig().getRouter();
+            assertNotNull(router.getMethod("/admin/system/upgrade", HttpMethod.GET));
+            for (HttpMethod method : java.util.List.of(HttpMethod.GET, HttpMethod.POST)) {
+                Method route = router.getMethod("/api/admin/system/upgrade", method);
+                assertNotNull(route);
+                assertEquals(router.getMethod("/api/admin/website/upgrade", method), route);
+                assertEquals(AccountAction.SITE_CONFIGURE, route.getAnnotation(RequiresAction.class).value());
+            }
+            assertEquals(AdminConstants.getAdminDocumentTitleByUri("/admin/website/upgrade"),
+                    AdminConstants.getAdminDocumentTitleByUri("/admin/system/upgrade"));
         }
     }
 

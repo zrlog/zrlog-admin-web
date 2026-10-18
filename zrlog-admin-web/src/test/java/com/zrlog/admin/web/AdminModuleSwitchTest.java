@@ -73,10 +73,12 @@ public class AdminModuleSwitchTest {
             assertEquals(ui, config.getWebSetup(AdminUiWebSetup.class) != null);
             assertEquals(ui, router.getMethod("/admin", HttpMethod.GET) != null);
             assertEquals(ui, router.getMethod("/admin/system/proxy", HttpMethod.GET) != null);
-            assertEquals(ui, router.getMethod("/admin/system/runtime", HttpMethod.GET) != null);
-            assertEquals(ui, router.getMethod("/admin/system/resources", HttpMethod.GET) != null);
-            assertEquals(admin, router.getMethod("/api/admin/system/runtime", HttpMethod.GET) != null);
-            assertEquals(admin, router.getMethod("/api/admin/system/resources", HttpMethod.GET) != null);
+            for (String removed : java.util.List.of("/admin/system/runtime", "/admin/system/resources",
+                    "/api/admin/system/runtime", "/api/admin/system/resources")) {
+                assertNull(router.getMethod(removed, HttpMethod.GET));
+            }
+            assertEquals(ui, router.getMethod("/admin/system/upgrade", HttpMethod.GET) != null);
+            assertEquals(admin, router.getMethod("/api/admin/system/upgrade", HttpMethod.GET) != null);
             assertEquals(ui, router.getMethod("/admin/system/version", HttpMethod.GET) != null);
             assertEquals(admin, router.getMethod("/api/admin/system/version", HttpMethod.GET) != null);
             assertEquals(ui, router.getMethod("/admin/dev", HttpMethod.GET) != null);

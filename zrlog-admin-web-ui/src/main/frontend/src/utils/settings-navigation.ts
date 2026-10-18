@@ -1,11 +1,8 @@
-import { isFeaturePathEnabled } from "../../utils/module-capabilities";
-import { ReactNode } from "react";
-import { theme } from "antd";
-import { getRes } from "../../utils/constants";
-import { WEBSITE_ROUTES } from "../../utils/account-page-routes";
-import { hasAction } from "../../utils/account-access";
-import { AdminDashboardRouteIconKey, renderAdminDashboardRouteIcon } from "../admin-dashboard-routes";
-import SettingsLayout from "./SettingsLayout";
+import { getRes, isServerDevelopmentMode } from "./constants";
+import { WEBSITE_ROUTES } from "./account-page-routes";
+import { actionForPath, hasAction } from "./account-access";
+import { isFeaturePathEnabled } from "./module-capabilities";
+import type { AdminDashboardRouteIconKey } from "../components/admin-dashboard-routes";
 
 export type WebsiteSettingsPage =
     | "basic"
@@ -20,6 +17,8 @@ export type WebsiteSettingsPage =
     | "webhook"
     | "privacy"
     | "members";
+
+export type AdminSettingsPage = WebsiteSettingsPage | "system" | "proxy" | "version" | "dev";
 
 export const getWebsiteSettingsItems = () => {
     const navItems: Array<{
@@ -114,69 +113,78 @@ export const getWebsiteSettingsItems = () => {
             iconKey: "sync",
         },
     ];
-    return navItems;
+    return navItems.map((item) => ({
+        ...item,
+        path:
+            item.key === "members"
+                ? WEBSITE_ROUTES.members
+                : item.key === "basic"
+                ? "/website"
+                : item.key === "upgrade"
+                ? "/system/upgrade"
+                : "/website/" + item.key,
+    }));
 };
 
-const WebsiteSettingsLayout = ({
-    activeKey,
-    children,
-    extra,
-}: {
-    activeKey: WebsiteSettingsPage;
-    children: ReactNode;
-    extra?: ReactNode;
-}) => {
-    const { token } = theme.useToken();
-    const navItems = getWebsiteSettingsItems();
-    const activeMeta = navItems.find((item) => item.key === activeKey) || navItems[0];
-    const visibleNavItems = navItems.filter((item) => {
-        if (!isFeaturePathEnabled(`/website/${item.key}`)) return false;
-        if (!hasAction(item.key === "members" ? "member.manage" : "site.configure")) return false;
-        if (item.key === "webhook") {
-            return activeKey === "webhook";
-        }
-        if (item.key === "privacy") {
-            return getRes().feature_personal_data_enabled === true;
-        }
+type SettingsItem = {
+    key: AdminSettingsPage;
+    text: string;
+    summary: string;
+    group: string;
+    iconKey: AdminDashboardRouteIconKey;
+    path: string;
+};
+
+export const getAdminSettingsItems = (): SettingsItem[] => {
+    const res = getRes();
+    return [
+        ...getWebsiteSettingsItems(),
+        {
+            key: "proxy",
+            text: res.system.proxy.title,
+            summary: res.system.proxy.summary,
+            group: res.website.nav.system,
+            iconKey: "link",
+            path: "/system/proxy",
+        },
+        {
+            key: "version",
+            text: res.system.version.title,
+            summary: res.system.version.summary,
+            group: res.website.nav.system,
+            iconKey: "info",
+            path: "/system/version",
+        },
+        {
+            key: "system",
+            text: res.system.title,
+            summary: res.system.summary,
+            group: res.website.nav.system,
+            iconKey: "info",
+            path: "/system",
+        },
+        {
+            key: "dev",
+            text: res.dev.title,
+            summary: res.dev.summary,
+            group: res.website.nav.system,
+            iconKey: "experiment",
+            path: "/dev",
+        },
+    ];
+};
+
+export const getVisibleSettingsItems = (activeKey?: AdminSettingsPage) =>
+    getAdminSettingsItems().filter((item) => {
+        if (!isFeaturePathEnabled(item.path) || !hasAction(actionForPath(item.path))) return false;
+        if (item.key === "dev") return isServerDevelopmentMode();
+        if (item.key === "webhook") return activeKey === "webhook";
+        if (item.key === "privacy") return getRes().feature_personal_data_enabled === true;
         return true;
     });
 
-    const navigationGroups = [
-        getRes().website.nav.site,
-        getRes().website.nav.feature,
-        getRes().websiteLab.title,
-        getRes().website.nav.system,
-    ]
-        .map((label) => ({
-            label,
-            items: visibleNavItems
-                .filter((item) => item.group === label)
-                .map((item) => ({
-                    key: item.key,
-                    label: item.text,
-                    path:
-                        item.key === "members"
-                            ? WEBSITE_ROUTES.members
-                            : item.key === "basic"
-                            ? "/website"
-                            : "/website/" + item.key,
-                    icon: renderAdminDashboardRouteIcon(item.iconKey, item.key === activeKey, 16),
-                })),
-        }))
-        .filter((group) => group.items.length > 0);
-
-    return (
-        <SettingsLayout
-            activeKey={activeKey}
-            title={activeMeta.text}
-            summary={activeMeta.summary}
-            groups={navigationGroups}
-            extra={extra}
-            replaceNavigation
-        >
-            <div style={{ maxWidth: 800, paddingBottom: activeKey === "members" ? token.padding : 0 }}>{children}</div>
-        </SettingsLayout>
-    );
+export const getSettingsEntryPath = () => {
+    const items = getVisibleSettingsItems();
+    return (items.find((item) => item.key === "basic") || items.find((item) => item.key === "system") || items[0])
+        ?.path;
 };
-
-export default WebsiteSettingsLayout;

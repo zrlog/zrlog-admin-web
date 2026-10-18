@@ -21,24 +21,8 @@ public class AdminSystemController extends Controller {
     @ResponseBody
     @RequiresAction(value = AccountAction.SYSTEM_MANAGE, descriptionKey = "system.status")
     public AdminPageDataResponse<SystemResponse> index() throws SQLException {
-        return pageData("/system");
-    }
-
-    @ResponseBody
-    @RequiresAction(value = AccountAction.SYSTEM_MANAGE, descriptionKey = "system.status")
-    public AdminPageDataResponse<SystemResponse> runtime() throws SQLException {
-        return pageData("/system/runtime");
-    }
-
-    @ResponseBody
-    @RequiresAction(value = AccountAction.SYSTEM_MANAGE, descriptionKey = "system.status")
-    public AdminPageDataResponse<SystemResponse> resources() throws SQLException {
-        return pageData("/system/resources");
-    }
-
-    private AdminPageDataResponse<SystemResponse> pageData(String path) throws SQLException {
         return new AdminPageDataResponse<>(
                 new SystemResponse(systemIOInfoVO(), serverInfo(getRequest()), ZrLogUtil.isDockerMode(), EnvKit.isNativeImage()),
-                "", AdminConstants.ADMIN_URI_BASE_PATH + path);
+                "", AdminConstants.ADMIN_URI_BASE_PATH + "/system");
     }
 }

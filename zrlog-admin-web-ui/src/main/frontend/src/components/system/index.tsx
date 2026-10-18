@@ -4,17 +4,16 @@ import { FunctionComponent, useEffect, useRef, useState } from "react";
 import { getCsrData, getTimeInfoBySearchStr } from "../../api";
 import { useAxiosBaseInstance } from "../../base/AppBase";
 import { useLocation } from "react-router";
-import SystemSettingsLayout, { SystemInfoPage } from "./SystemSettingsLayout";
+import AdminSettingsLayout from "../common/AdminSettingsLayout";
 
 type SystemProps = {
     data: SystemData;
     offline: boolean;
-    activePage?: SystemInfoPage;
 };
 
 const SYSTEM_REFRESH_INTERVAL = 5000;
 
-const System: FunctionComponent<SystemProps> = ({ data, offline, activePage = "overview" }) => {
+const System: FunctionComponent<SystemProps> = ({ data, offline }) => {
     const [state, setState] = useState<SystemData>(data);
 
     const axiosInstance = useAxiosBaseInstance();
@@ -24,7 +23,7 @@ const System: FunctionComponent<SystemProps> = ({ data, offline, activePage = "o
     const location = useLocation();
 
     useEffect(() => {
-        if (offline || activePage === "runtime") return;
+        if (offline) return;
         let active = true;
 
         const scheduleNext = () => {
@@ -38,11 +37,7 @@ const System: FunctionComponent<SystemProps> = ({ data, offline, activePage = "o
                 scheduleNext();
                 return;
             }
-            getCsrData(
-                activePage === "resources" ? "/system/resources" : "/system",
-                getTimeInfoBySearchStr(location.search),
-                axiosInstance
-            )
+            getCsrData("/system", getTimeInfoBySearchStr(location.search), axiosInstance)
                 .then(({ data }) => {
                     if (active) {
                         setState(data);
@@ -59,16 +54,16 @@ const System: FunctionComponent<SystemProps> = ({ data, offline, activePage = "o
                 clearTimeout(timer.current);
             }
         };
-    }, [axiosInstance, location.search, offline, activePage]);
+    }, [axiosInstance, location.search, offline]);
 
     useEffect(() => {
         setState(data);
     }, [data]);
 
     return (
-        <SystemSettingsLayout activeKey={activePage}>
-            <ServerInfo data={state} page={activePage} />
-        </SystemSettingsLayout>
+        <AdminSettingsLayout activeKey="system">
+            <ServerInfo data={state} />
+        </AdminSettingsLayout>
     );
 };
 
