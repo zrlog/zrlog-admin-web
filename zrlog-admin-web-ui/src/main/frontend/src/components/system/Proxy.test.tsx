@@ -5,7 +5,6 @@ import { afterEach, beforeEach, expect, jest, test } from "@jest/globals";
 import ProxySettings, { ProxyData, validProxyUrl, validNoProxy } from "./Proxy";
 
 jest.mock("@zrlog/ui/antd/Input", () => require("antd/lib/input"));
-jest.mock("@zrlog/ui/antd/Tag", () => require("antd/lib/tag"));
 jest.mock("../common/AdminSettingsLayout", () => ({ children }: any) => <div>{children}</div>);
 const mockPost = jest.fn<Promise<any>, any[]>();
 const mockAxios = { post: mockPost };
@@ -64,6 +63,7 @@ afterEach(() => {
     act(() => root.unmount());
     container.remove();
     jest.restoreAllMocks();
+    jest.useRealTimers();
     globals.forEach((key, index) => {
         const descriptor = descriptors[index];
         if (descriptor) Object.defineProperty(globalThis, key, descriptor);
@@ -80,8 +80,8 @@ test("file settings remain editable while environment priority is explained", as
     await render({ ...data, source: "environment", httpVariable: "HTTP_PROXY" });
     expect((container.querySelector("#url") as HTMLInputElement).disabled).toBe(false);
     expect((container.querySelector("#noProxy") as HTMLInputElement).disabled).toBe(false);
-    expect(container.textContent).toContain("HTTP_PROXY takes priority");
-    expect(container.textContent).toContain("You can still save the file");
+    expect(container.textContent).toContain("HTTP_PROXY overrides this setting");
+    expect(container.textContent).toContain("Remove it and restart ZrLog");
     expect(button("Save configuration").disabled).toBe(false);
     await render({
         ...data,
@@ -91,7 +91,7 @@ test("file settings remain editable while environment priority is explained", as
         noProxyVariable: "no_proxy",
     });
     expect(button("Save configuration").disabled).toBe(false);
-    expect(container.textContent).toContain("no_proxy takes priority");
+    expect(container.textContent).toContain("no_proxy overrides this setting");
 });
 
 test("saving shows pending restart while preserving the active configuration", async () => {
@@ -99,9 +99,9 @@ test("saving shows pending restart while preserving the active configuration", a
     await render();
     await act(async () => Simulate.submit(container.querySelector("form")!));
     expect(mockPost).toHaveBeenCalledWith("/api/admin/system/proxy", { url: data.url, noProxy: data.noProxy });
-    expect(container.textContent).toContain("Settings saved; restart required");
-    expect(container.textContent).toContain("No application proxy");
-    expect(mockSuccess).toHaveBeenCalledTimes(1);
+    expect(container.textContent).toContain("Proxy settings saved; restart ZrLog to apply");
+    expect(container.textContent).toContain("No proxy set here");
+    expect(mockSuccess).toHaveBeenCalledWith("Proxy settings saved; restart ZrLog to apply");
 });
 
 test("connection and save failures remain visible and preserve form values", async () => {
@@ -113,7 +113,9 @@ test("connection and save failures remain visible and preserve form values", asy
         { url: data.url, noProxy: data.noProxy },
         { timeout: 15000 }
     );
-    expect(container.querySelector('.ant-alert-error[role="alert"]')?.textContent).toContain("Connection test failed");
+    expect(container.querySelector('.ant-alert-error[role="alert"]')?.textContent).toContain(
+        "Could not connect to the ZrLog website"
+    );
     mockPost.mockRejectedValue(new Error("disk unavailable"));
     await act(async () => Simulate.submit(container.querySelector("form")!));
     expect(container.querySelector('.ant-alert-error[role="alert"]')?.textContent).toContain("Could not save");
@@ -163,10 +165,18 @@ test("page data refresh preserves an unsaved proxy draft", async () => {
 });
 
 test("invalid input stays a field error without sending a connection test", async () => {
+    jest.useFakeTimers();
     await render({ ...data, url: "http://proxy.example/path/.." });
     await act(async () => Simulate.click(button("Test connection")));
+    for (
+        let elapsed = 0;
+        elapsed < 1000 && !container.querySelector("#url_help .ant-form-item-explain-error");
+        elapsed += 50
+    ) {
+        await act(async () => jest.advanceTimersByTime(50));
+    }
     expect(mockPost).not.toHaveBeenCalled();
-    expect(container.textContent).toContain("Enter an HTTP proxy URL");
+    expect(container.textContent).toContain("Enter an address in http://host:port format");
     expect(container.querySelector('.ant-alert-error[role="alert"]')).toBeNull();
     expect(button("Test connection").disabled).toBe(false);
 });

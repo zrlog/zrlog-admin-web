@@ -1,6 +1,5 @@
-import { Alert, Button, Descriptions, Flex, Form, Space, Typography, theme } from "antd";
+import { Alert, Button, Descriptions, Flex, Form, Typography, theme } from "antd";
 import Input from "@zrlog/ui/antd/Input";
-import Tag from "@zrlog/ui/antd/Tag";
 import { useUiApp } from "@zrlog/ui/feedback";
 import { useEffect, useRef, useState } from "react";
 import { useAxiosBaseInstance } from "../../base/AppBase";
@@ -101,7 +100,7 @@ const ProxySettings = ({ data, offline }: { data: ProxyData; offline: boolean })
             setSettings(response.data.data);
             form.setFieldsValue(response.data.data);
             dirty.current = false;
-            message.success(text.saved);
+            message.success(response.data.data.restartRequired ? text.pending : text.saved);
         } catch {
             if (mounted.current) setFailure(text.failed);
         } finally {
@@ -174,7 +173,7 @@ const ProxySettings = ({ data, offline }: { data: ProxyData; offline: boolean })
                 </SettingsSection>
                 <SettingsSection title={text.configuration} divided>
                     <Flex vertical gap={token.margin}>
-                        <Alert type="info" showIcon title={text.restartHint} description={text.recoveryHint} />
+                        <Alert type="info" showIcon title={text.restartHint} />
                         {!settings.writable && <Alert type="warning" showIcon title={text.readOnly} />}
                         {failure && <Alert type="error" showIcon title={failure} role="alert" />}
                         <Form
@@ -188,18 +187,11 @@ const ProxySettings = ({ data, offline }: { data: ProxyData; offline: boolean })
                         >
                             <Form.Item
                                 name="url"
-                                label={
-                                    <Space wrap>
-                                        {text.url}
-                                        <Tag>{text.localFile}</Tag>
-                                    </Space>
-                                }
+                                label={text.url}
                                 extra={
                                     <>
                                         {text.urlHint}
-                                        {proxyVariables.map((variable) => (
-                                            <div key={variable}>{hint(variable)}</div>
-                                        ))}
+                                        {proxyVariables.length > 0 && <div>{hint(proxyVariables.join(" / "))}</div>}
                                     </>
                                 }
                                 rules={[
@@ -219,12 +211,7 @@ const ProxySettings = ({ data, offline }: { data: ProxyData; offline: boolean })
                             </Form.Item>
                             <Form.Item
                                 name="noProxy"
-                                label={
-                                    <Space wrap>
-                                        {text.noProxy}
-                                        <Tag>{text.localFile}</Tag>
-                                    </Space>
-                                }
+                                label={text.noProxy}
                                 extra={
                                     <>
                                         {text.noProxyHint}
@@ -271,20 +258,18 @@ const ProxySettings = ({ data, offline }: { data: ProxyData; offline: boolean })
                         </Form>
                     </Flex>
                 </SettingsSection>
-                <SettingsSection title={text.manualSetup} divided>
-                    <Typography.Text code>conf/proxy.properties</Typography.Text>
-                    <pre style={{ overflowX: "auto", whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
-                        {
-                            "network.proxy.url=http://proxy.example.com:3128\nnetwork.proxy.noProxy=.example.com,*.internal"
-                        }
-                    </pre>
-                    <Typography.Text code>HTTP_PROXY</Typography.Text>
-                    {" / "}
-                    <Typography.Text code>HTTPS_PROXY</Typography.Text>
-                    {" / "}
-                    <Typography.Text code>NO_PROXY</Typography.Text>
-                    <Typography.Paragraph type="secondary">{text.precedenceHint}</Typography.Paragraph>
-                </SettingsSection>
+                <details>
+                    <summary style={{ cursor: "pointer", color: token.colorLink }}>{text.manualSetup}</summary>
+                    <div style={{ marginTop: token.marginSM }}>
+                        <Typography.Paragraph type="secondary">{text.recoveryHint}</Typography.Paragraph>
+                        <pre style={{ overflowX: "auto", whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
+                            {
+                                "network.proxy.url=http://proxy.example.com:3128\nnetwork.proxy.noProxy=.example.com,*.internal"
+                            }
+                        </pre>
+                        <Typography.Paragraph type="secondary">{text.precedenceHint}</Typography.Paragraph>
+                    </div>
+                </details>
             </Flex>
         </AdminSettingsLayout>
     );
