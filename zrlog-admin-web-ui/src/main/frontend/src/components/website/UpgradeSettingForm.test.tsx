@@ -19,6 +19,8 @@ jest.mock("../../utils/responsive-form", () => ({
 }));
 const mockGet = jest.fn<Promise<any>, any[]>();
 const mockAxios = { get: mockGet };
+let mockCanUpgrade = true;
+jest.mock("../../utils/account-access", () => ({ hasAction: () => mockCanUpgrade }));
 jest.mock("../../base/AppBase", () => ({ useAxiosBaseInstance: () => mockAxios }));
 jest.mock("../../utils/constants", () => ({ getRes: () => require("../../i18n/admin").getAdminI18n("en_US") }));
 
@@ -72,6 +74,7 @@ beforeEach(() => {
     jest.spyOn(window, "getComputedStyle").mockImplementation((element) => computedStyle(element));
     submit.mockReset();
     mockGet.mockReset();
+    mockCanUpgrade = true;
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -147,5 +150,15 @@ test("offline data keeps the mode visible and cannot submit", async () => {
     expect(container.textContent).toContain("Docker image repository");
     await save();
     expect(submit).not.toHaveBeenCalled();
+    expect(mockGet).not.toHaveBeenCalled();
+});
+
+test("site configuration permission alone does not expose the system upgrade action", async () => {
+    mockCanUpgrade = false;
+    await render({ ...data, dockerMode: false, dockerSettings: undefined });
+    expect(container.textContent).not.toContain("Check for Updates");
+    expect(container.querySelectorAll('button[type="submit"]')).toHaveLength(1);
+    await save();
+    expect(submit).toHaveBeenCalledTimes(1);
     expect(mockGet).not.toHaveBeenCalled();
 });

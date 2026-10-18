@@ -399,7 +399,7 @@ test.each([
     expect(container.textContent).toContain("Package build environment");
     expect(container.textContent).toContain("Current release changes");
     expect(container.querySelector(`nav a[href="/blog/admin/system/version${suffix}"]`)).toBeNull();
-    if (!mobile) expect(container.textContent).toContain("Build Information");
+    expect(container.querySelector("h2")?.textContent).toBe("Build Information");
     await act(async () =>
         Array.from(container.querySelectorAll<HTMLAnchorElement>("a"))
             .find((item) => item.textContent === "Back to System Information")!
@@ -416,7 +416,7 @@ test.each([
         "Set the update check interval and whether preview versions are included"
     );
     expect(container.querySelector('nav a[href^="/blog/admin/upgrade"]')).toBeNull();
-    if (!mobile) expect(container.textContent).toContain("Upgrade Wizard");
+    expect(container.querySelector("h2")?.textContent).toBe("Upgrade Wizard");
     await act(async () =>
         Array.from(container.querySelectorAll<HTMLAnchorElement>("a"))
             .find((item) => item.textContent === "Back to Update Settings")!

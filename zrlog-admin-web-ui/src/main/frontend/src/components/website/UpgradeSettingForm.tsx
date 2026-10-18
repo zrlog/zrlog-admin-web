@@ -18,6 +18,7 @@ import UpgradeContent from "../upgrade-content";
 import { useResponsiveFormLayout } from "../../utils/responsive-form";
 import DockerRepositorySetting from "./DockerRepositorySetting";
 import WebsiteSubmitBar from "./WebsiteSubmitBar";
+import { hasAction } from "../../utils/account-access";
 
 const layout = {
     labelCol: { span: 8 },
@@ -38,6 +39,7 @@ const UpgradeSettingForm = ({
     onSubmit: (data: Upgrade) => void;
 }) => {
     const dockerMode = data.dockerMode === true;
+    const canUpgrade = hasAction("system.manage");
     const [repositoryLoading, setRepositoryLoading] = useState(false);
     const [checking, setChecking] = useState<boolean>(false);
     const { modal } = useUiApp();
@@ -58,7 +60,7 @@ const UpgradeSettingForm = ({
     };
 
     const checkNewVersion = async () => {
-        if (checking) {
+        if (checking || !canUpgrade || offline || offlineData) {
             return;
         }
         setChecking(true);
@@ -143,20 +145,22 @@ const UpgradeSettingForm = ({
             }}
         >
             {contextHolder}
-            <Row style={checkRowStyle}>
-                <Col xs={24}>
-                    <Button
-                        type="dashed"
-                        disabled={offline || offlineData}
-                        loading={checking}
-                        onClick={checkNewVersion}
-                        block={narrow}
-                        style={{ float: narrow ? undefined : "right" }}
-                    >
-                        {getRes().upgrade.check}
-                    </Button>
-                </Col>
-            </Row>
+            {canUpgrade && (
+                <Row style={checkRowStyle}>
+                    <Col xs={24}>
+                        <Button
+                            type="dashed"
+                            disabled={offline || offlineData}
+                            loading={checking}
+                            onClick={checkNewVersion}
+                            block={narrow}
+                            style={{ float: narrow ? undefined : "right" }}
+                        >
+                            {getRes().upgrade.check}
+                        </Button>
+                    </Col>
+                </Row>
+            )}
             <Form.Item
                 name="autoUpgradeVersion"
                 label={getRes().websiteUpgrade.autoCheckCycle}

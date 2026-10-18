@@ -22,7 +22,7 @@ describe("account permission and cache boundary", () => {
         expect(actionForPath("/user/preferences/appearance")).toBe("account.self");
         expect(actionForPath("/user/applications/authorize?request_id=example")).toBe("oauth.grant.manage");
         expect(actionForPath("/system/proxy.html?v=1")).toBe("system.manage");
-        for (const path of ["/system", "/dev"]) {
+        for (const path of ["/system", "/dev", "/upgrade"]) {
             expect(actionForPath(path)).toBe("system.manage");
             expect(actionForPath(path + ".html?v=1")).toBe("system.manage");
         }

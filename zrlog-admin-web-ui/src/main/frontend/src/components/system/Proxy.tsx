@@ -2,7 +2,7 @@ import { Alert, Button, Descriptions, Flex, Form, Space, Typography, theme } fro
 import Input from "@zrlog/ui/antd/Input";
 import Tag from "@zrlog/ui/antd/Tag";
 import { useUiApp } from "@zrlog/ui/feedback";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAxiosBaseInstance } from "../../base/AppBase";
 import { getRes } from "../../utils/constants";
 import SettingsSection from "../common/SettingsSection";
@@ -26,6 +26,9 @@ export type ProxyData = {
 
 export const validProxyUrl = (value: string) => {
     if (!value.trim()) return true;
+    // Check the original syntax before URL normalizes paths, backslashes and empty credentials.
+    const host = "(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)*[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.?";
+    if (!new RegExp(`^http://(?:${host}|\\[[a-f0-9:.]+\\])(?::[0-9]+)?/?$`, "i").test(value.trim())) return false;
     try {
         const url = new URL(value.trim());
         return (
@@ -68,42 +71,64 @@ const ProxySettings = ({ data, offline }: { data: ProxyData; offline: boolean })
     const [saving, setSaving] = useState(false);
     const [testing, setTesting] = useState(false);
     const [failure, setFailure] = useState("");
+    const pending = useRef(false);
+    const dirty = useRef(false);
+    const mounted = useRef(false);
+    useEffect(() => {
+        mounted.current = true;
+        return () => {
+            mounted.current = false;
+        };
+    }, []);
     useEffect(() => {
         setSettings(data);
-        form.setFieldsValue(data);
+        if (!dirty.current && !pending.current) form.setFieldsValue(data);
     }, [data, form]);
     const readOnly = offline || !settings.writable;
+    const busy = saving || testing;
     const hint = (variable: string) => text.environmentHint.replace("{name}", variable);
     const proxyVariables = [settings.httpVariable, settings.httpsVariable].filter(Boolean);
 
     const save = async (values: { url: string; noProxy: string }) => {
+        if (readOnly || pending.current) return;
+        pending.current = true;
         setFailure("");
         setSaving(true);
         try {
             const response = await axios.post("/api/admin/system/proxy", values);
-            if (response.data.error) throw new Error();
+            if (!mounted.current) return;
+            if (response.data.error || !response.data.data) throw new Error();
             setSettings(response.data.data);
             form.setFieldsValue(response.data.data);
+            dirty.current = false;
             message.success(text.saved);
         } catch {
-            setFailure(text.failed);
+            if (mounted.current) setFailure(text.failed);
         } finally {
-            setSaving(false);
+            pending.current = false;
+            if (mounted.current) setSaving(false);
         }
     };
 
     const test = async () => {
-        const values = await form.validateFields();
-        setFailure("");
+        if (offline || pending.current) return;
+        pending.current = true;
         setTesting(true);
         try {
-            const response = await axios.post("/api/admin/system/proxy/test", values, { timeout: 15000 });
-            if (response.data.error || !response.data.data) throw new Error();
-            message.success(text.testSuccess);
-        } catch {
-            setFailure(text.testFailed);
+            const values = await form.validateFields();
+            if (!mounted.current) return;
+            setFailure("");
+            try {
+                const response = await axios.post("/api/admin/system/proxy/test", values, { timeout: 15000 });
+                if (!mounted.current) return;
+                if (response.data.error || !response.data.data) throw new Error();
+                message.success(text.testSuccess);
+            } catch {
+                if (mounted.current) setFailure(text.testFailed);
+            }
         } finally {
-            setTesting(false);
+            pending.current = false;
+            if (mounted.current) setTesting(false);
         }
     };
 
@@ -152,7 +177,15 @@ const ProxySettings = ({ data, offline }: { data: ProxyData; offline: boolean })
                         <Alert type="info" showIcon title={text.restartHint} description={text.recoveryHint} />
                         {!settings.writable && <Alert type="warning" showIcon title={text.readOnly} />}
                         {failure && <Alert type="error" showIcon title={failure} role="alert" />}
-                        <Form form={form} layout="vertical" initialValues={data} onFinish={save}>
+                        <Form
+                            form={form}
+                            layout="vertical"
+                            initialValues={data}
+                            onFinish={save}
+                            onValuesChange={() => {
+                                dirty.current = true;
+                            }}
+                        >
                             <Form.Item
                                 name="url"
                                 label={
@@ -179,7 +212,7 @@ const ProxySettings = ({ data, offline }: { data: ProxyData; offline: boolean })
                                 ]}
                             >
                                 <Input
-                                    disabled={readOnly}
+                                    disabled={readOnly || busy}
                                     maxLength={2048}
                                     placeholder="http://proxy.example.com:3128"
                                 />
@@ -209,15 +242,14 @@ const ProxySettings = ({ data, offline }: { data: ProxyData; offline: boolean })
                                     },
                                 ]}
                             >
-                                <Input disabled={readOnly} maxLength={4096} placeholder=".example.com,*.internal" />
+                                <Input
+                                    disabled={readOnly || busy}
+                                    maxLength={4096}
+                                    placeholder=".example.com,*.internal"
+                                />
                             </Form.Item>
                             <Flex wrap gap="small">
-                                <Button
-                                    type="primary"
-                                    htmlType="submit"
-                                    loading={saving}
-                                    disabled={readOnly || testing}
-                                >
+                                <Button type="primary" htmlType="submit" loading={saving} disabled={readOnly || busy}>
                                     {text.save}
                                 </Button>
                                 <Button
@@ -225,7 +257,7 @@ const ProxySettings = ({ data, offline }: { data: ProxyData; offline: boolean })
                                         void test().catch(() => undefined);
                                     }}
                                     loading={testing}
-                                    disabled={offline || saving}
+                                    disabled={offline || busy}
                                 >
                                     {text.test}
                                 </Button>

@@ -31,7 +31,10 @@ const data: ProxyData = {
 };
 let root: Root;
 let container: HTMLDivElement;
+const globals = ["IS_REACT_ACT_ENVIRONMENT", "ResizeObserver", "MessageChannel", "matchMedia"];
+let descriptors: Array<PropertyDescriptor | undefined>;
 beforeEach(() => {
+    descriptors = globals.map((key) => Object.getOwnPropertyDescriptor(globalThis, key));
     (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
     (globalThis as any).ResizeObserver = class {
         observe = jest.fn();
@@ -61,8 +64,11 @@ afterEach(() => {
     act(() => root.unmount());
     container.remove();
     jest.restoreAllMocks();
-    delete (globalThis as any).IS_REACT_ACT_ENVIRONMENT;
-    delete (globalThis as any).MessageChannel;
+    globals.forEach((key, index) => {
+        const descriptor = descriptors[index];
+        if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+        else Reflect.deleteProperty(globalThis, key);
+    });
 });
 const render = async (value = data) => {
     await act(async () => root.render(<ProxySettings data={value} offline={false} />));
@@ -119,6 +125,50 @@ test("read-only storage prevents saving but permits a connection test", async ()
     expect(button("Save configuration").disabled).toBe(true);
     expect(button("Test connection").disabled).toBe(false);
     expect(container.textContent).toContain("read-only");
+    await act(async () => Simulate.submit(container.querySelector("form")!));
+    expect(mockPost).not.toHaveBeenCalled();
+});
+
+test.each(["save", "test"])("%s locks the submitted values and prevents overlapping requests", async (action) => {
+    let resolve!: (value: unknown) => void;
+    mockPost.mockReturnValue(
+        new Promise((done) => {
+            resolve = done;
+        })
+    );
+    await render();
+    await act(async () => {
+        if (action === "save") Simulate.submit(container.querySelector("form")!);
+        else Simulate.click(button("Test connection"));
+    });
+    expect((container.querySelector("#url") as HTMLInputElement).disabled).toBe(true);
+    expect((container.querySelector("#noProxy") as HTMLInputElement).disabled).toBe(true);
+    await act(async () => {
+        Simulate.submit(container.querySelector("form")!);
+        Simulate.click(button("Test connection"));
+    });
+    expect(mockPost).toHaveBeenCalledTimes(1);
+    await act(async () => resolve({ data: { error: 0, data: action === "save" ? data : true } }));
+    expect((container.querySelector("#url") as HTMLInputElement).disabled).toBe(false);
+    expect(mockSuccess).toHaveBeenCalledTimes(1);
+});
+
+test("page data refresh preserves an unsaved proxy draft", async () => {
+    await render();
+    const input = container.querySelector("#url") as HTMLInputElement;
+    await act(async () => Simulate.change(input, { target: { value: "http://new-proxy.example:3128" } } as any));
+    await render({ ...data, noProxy: ".refreshed.example" });
+    expect(input.value).toBe("http://new-proxy.example:3128");
+    expect((container.querySelector("#noProxy") as HTMLInputElement).value).toBe(data.noProxy);
+});
+
+test("invalid input stays a field error without sending a connection test", async () => {
+    await render({ ...data, url: "http://proxy.example/path/.." });
+    await act(async () => Simulate.click(button("Test connection")));
+    expect(mockPost).not.toHaveBeenCalled();
+    expect(container.textContent).toContain("Enter an HTTP proxy URL");
+    expect(container.querySelector('.ant-alert-error[role="alert"]')).toBeNull();
+    expect(button("Test connection").disabled).toBe(false);
 });
 
 test("proxy URLs reject credentials and destination URLs", () => {
@@ -129,6 +179,14 @@ test("proxy URLs reject credentials and destination URLs", () => {
         "http://proxy/path",
         "http://proxy:0",
         "http://proxy:65536",
+        "http://@proxy.example",
+        "http://proxy.example?",
+        "http://proxy.example#",
+        "http://proxy.example/path/..",
+        "http://proxy.example\\path\\..",
+        "http://proxy.\nexample",
+        "http://-proxy.example",
+        "http://proxy_name.example",
     ]) {
         expect(validProxyUrl(value)).toBe(false);
     }

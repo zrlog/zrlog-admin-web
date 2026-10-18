@@ -22,7 +22,7 @@ public class AdminProxyServiceTest {
     @Rule public TemporaryFolder temporary = new TemporaryFolder();
 
     @Test
-    public void connectionTestUsesPendingProxyAndKeepsDiskAndGlobalPolicyUnchanged() throws Exception {
+    public void connectionTestUsesSuppliedProxyAndKeepsDiskAndGlobalPolicyUnchanged() throws Exception {
         String previousRoot = System.getProperty("sws.root.path");
         ProxySelector previousSelector = ProxySelector.getDefault();
         String previousHost = System.getProperty("https.proxyHost");
@@ -42,10 +42,13 @@ public class AdminProxyServiceTest {
             });
             worker.setDaemon(true);
             worker.start();
-            NetworkProxy.Settings pending = NetworkProxy.preview("http://127.0.0.1:" + socket.getLocalPort(), "");
+            // Resolve a local fixture independently of the CI process's HTTP(S)_PROXY and NO_PROXY.
+            NetworkProxy.save("http://127.0.0.1:" + socket.getLocalPort(), "");
+            NetworkProxy.Settings pending = NetworkProxy.fileSettings();
+            byte[] previousFile = Files.readAllBytes(NetworkProxy.configFile());
             assertFalse(new AdminProxyService().testConnection(pending));
             assertEquals("CONNECT www.zrlog.com:443 HTTP/1.1", received.get(3, TimeUnit.SECONDS));
-            assertFalse(Files.exists(NetworkProxy.configFile()));
+            assertArrayEquals(previousFile, Files.readAllBytes(NetworkProxy.configFile()));
             assertSame(previousSelector, ProxySelector.getDefault());
             assertEquals(previousHost, System.getProperty("https.proxyHost"));
             worker.join(3000);

@@ -44,6 +44,7 @@ const RESTART_CHECK_TIMEOUT_MS = 10 * 60 * 1000;
 
 type UpgradeState = {
     phase: "review" | "execution";
+    online: boolean;
     manualMessageHtml: string;
     progressItems: UpgradeProgressItem[];
 };
@@ -85,6 +86,7 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
 
     const [state, setState] = useState<UpgradeState>({
         phase: "review",
+        online: initialData.onlineUpgradable,
         manualMessageHtml: "",
         progressItems: [],
     });
@@ -378,6 +380,7 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
         let terminalFailure = false;
         let receivedProgress = false;
         setDockerPending(true);
+        setState((previous) => ({ ...previous, online: true }));
         setDockerRetry(false);
         const options = {
             signal: controller.signal,
@@ -530,7 +533,7 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
 
     const showExecution = state.phase === "execution" || dockerPending;
     const hasExecutionOutput = state.progressItems.length > 0 || !!state.manualMessageHtml;
-    const executionTitle = data.onlineUpgradable ? getRes().upgrade.execute : getRes().upgrade.manualTitle;
+    const executionTitle = state.online ? getRes().upgrade.execute : getRes().upgrade.manualTitle;
     const stepProgress = getUpgradeStepProgress(state.progressItems);
     const progressFailed = state.progressItems.some((item) => item.status === "error");
 
@@ -705,6 +708,7 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
             return {
                 ...prevState,
                 phase: "execution",
+                online: data.onlineUpgradable || !!data.dockerUpdaterAvailable,
                 manualMessageHtml: "",
                 progressItems: [],
             };
@@ -865,7 +869,7 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, 
                         <Title level={4} style={{ marginTop: 0 }}>
                             {executionTitle}
                         </Title>
-                        {data.onlineUpgradable && (
+                        {state.online && (
                             <div style={{ marginBottom: token.marginSM }}>
                                 <div>
                                     {getRes()

@@ -78,15 +78,17 @@ public class AdminProxyControllerTest {
     public void savesLocalFileAndRejectsInvalidInputWithoutLosingSavedSettings() throws Exception {
         try (InMemoryZrLogDatabase database = InMemoryZrLogDatabase.open()) {
             database.loadAdminWebModules();
-            // Change the running policy, including when other test classes already initialized it.
-            String proxyUrl = NetworkProxy.initialize().getUrl().equals("http://proxy.example:3128")
+            NetworkProxy.Settings active = NetworkProxy.initialize();
+            String proxyUrl = active.getUrl().equals("http://proxy.example:3128")
                     ? "http://proxy.example:3129" : "http://proxy.example:3128";
             AdminProxyController controller = new AdminProxyController();
             set(controller, "request", request(HttpMethod.POST,
                     "{\"url\":\"" + proxyUrl + "\",\"noProxy\":\".internal.example\"}"));
             var saved = controller.index().getData();
             assertEquals(proxyUrl, saved.getUrl());
-            assertTrue(saved.isRestartRequired());
+            // Environment overrides may make a file edit ineffective. Saving must never apply it live.
+            assertSame(active, NetworkProxy.initialize());
+            assertEquals(active.getUrl(), saved.getActiveUrl());
             byte[] previousFile = Files.readAllBytes(NetworkProxy.configFile());
             assertTrue(new String(previousFile, StandardCharsets.ISO_8859_1).contains("network.proxy.url"));
             set(controller, "request", request(HttpMethod.POST,

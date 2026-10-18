@@ -438,8 +438,10 @@ describe("Docker upgrade interaction and recovery", () => {
     it("shows recovery while the saved task is loading without version metadata", async () => {
         saveDockerUpgrade(request);
         mockSubscribe.mockReturnValue(deferred().promise);
-        await render({ data: { ...page(), upgrade: false, version: null } });
+        await render({ data: { ...page(), upgrade: false, onlineUpgradable: false, version: null } });
         expect(container.textContent).toContain("Checking the existing update task");
+        expect(container.querySelector('[role="progressbar"]')).not.toBeNull();
+        expect(container.textContent).not.toContain("Manual Update Instructions");
         expect(container.textContent).not.toContain("No update is waiting to be installed");
         expect(container.querySelector('input[type="checkbox"]')).toBeNull();
         expect(mockUpgrade).not.toHaveBeenCalled();

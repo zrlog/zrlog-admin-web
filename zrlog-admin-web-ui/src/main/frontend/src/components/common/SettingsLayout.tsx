@@ -31,6 +31,8 @@ const SettingsLayout = ({
     const screens = Grid.useBreakpoint();
     const { token } = theme.useToken();
     const compact = screens.md !== true;
+    const showTitle =
+        !compact || !groups.some((group) => group.items.some((item) => item.key === activeKey && item.label === title));
     const border = `${token.lineWidth}px ${token.lineType} ${token.colorBorderSecondary}`;
     const height = compact ? undefined : "var(--admin-content-height)";
     const options = groups.map((group) => ({
@@ -155,19 +157,21 @@ const SettingsLayout = ({
                 }}
             >
                 <div style={{ marginBottom: token.marginLG }}>
-                    {(!compact || extra) && (
+                    {(showTitle || extra) && (
                         <div
                             style={{
                                 display: "flex",
                                 alignItems: "center",
-                                justifyContent: compact ? "flex-end" : "space-between",
+                                justifyContent: showTitle ? "space-between" : "flex-end",
                                 flexWrap: "wrap",
                                 gap: token.marginSM,
                                 marginBottom: token.marginXS,
                             }}
                         >
-                            {!compact && (
-                                <div style={{ fontSize: token.fontSizeHeading5, fontWeight: 600 }}>{title}</div>
+                            {showTitle && (
+                                <h2 style={{ fontSize: token.fontSizeHeading5, fontWeight: 600, margin: 0 }}>
+                                    {title}
+                                </h2>
                             )}
                             {extra}
                         </div>
