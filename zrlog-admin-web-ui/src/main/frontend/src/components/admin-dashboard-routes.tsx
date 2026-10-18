@@ -721,8 +721,8 @@ export const createAdminDashboardRoutes = (
         ],
     },
     {
-        // Developer review surface: direct access only, no navigation/search entry or static export.
-        paths: ["dev/ui"],
+        // Developer review surface: direct access only, including the generated static page.
+        paths: buildUriPaths("dev/ui"),
         lazy: DevUiAsync,
         fallback: LightweightFallback,
     },

@@ -92,6 +92,88 @@ public class AdminPageServiceTest {
     }
 
     @Test
+    public void shouldGenerateProxyAndDeveloperShellsWithPublicResourcesOnly() throws Throwable {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            db.loadAdminWebModules();
+            AccountAuthorizationTest.login(db, 1, "owner");
+            for (String contextPath : java.util.List.of("", "/blog")) {
+                AdminConstants.adminResource = new AdminResourceImpl(contextPath);
+                for (String page : java.util.List.of("/admin/system/proxy", "/admin/dev", "/admin/dev/ui")) {
+                    assertTrue(AdminConstants.adminResource.getAdminStaticCacheUris().contains(contextPath + page));
+                    HttpRequest request = (HttpRequest) Proxy.newProxyInstance(getClass().getClassLoader(),
+                            new Class[]{HttpRequest.class}, (proxy, method, args) -> {
+                                if (method.getName().equals("getHeader")) {
+                                    if ("User-Agent".equals(args[0])) return com.zrlog.plugin.BaseStaticSitePlugin.STATIC_USER_AGENT;
+                                    if ("Host".equals(args[0])) return "localhost:18080";
+                                }
+                                if (method.getName().equals("getScheme")) return "http";
+                                return method.invoke(request(page, contextPath), args);
+                            });
+                    String rendered = new AdminPageService().buildHtml(request, response(), html(
+                            "<html><head><base href=\"/\"><link rel=\"manifest\" href=\"/admin/manifest.json\">"
+                                    + "<script src=\"/admin/static/app.js\"></script></head>"
+                                    + "<body><div id=\"__SS_DATA__\"></div></body></html>"));
+                    Document document = Jsoup.parse(rendered);
+                    com.google.gson.JsonObject data = com.google.gson.JsonParser.parseString(
+                            document.getElementById("__SS_DATA__").text()).getAsJsonObject();
+                    assertEquals(AdminConstants.getAdminDocumentTitleByUri(page), document.title());
+                    assertEquals(contextPath + "/", document.selectFirst("base").attr("href"));
+                    assertEquals(contextPath + "/admin/static/app.js", document.selectFirst("script").attr("src"));
+                    assertTrue(data.getAsJsonObject("resourceInfo").get("staticPage").getAsBoolean());
+                    assertFalse(data.has("user"));
+                    assertFalse(data.has("data"));
+                    assertFalse(data.has("key"));
+                }
+            }
+        }
+    }
+
+    @Test
+    public void shouldInjectUiReviewReadinessAndPersonalAppearanceIntoTheFirstPage() throws Throwable {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            db.loadAdminWebModules();
+            RequestConfig config = new RequestConfig();
+            config.setRouter(com.zrlog.common.Constants.zrLogConfig.getServerConfig().getRouter());
+            String page = "/admin/dev/ui";
+            AdminPageService service = new AdminPageService();
+            for (String contextPath : java.util.List.of("", "/blog")) {
+                AdminConstants.adminResource = new AdminResourceImpl(contextPath);
+                for (String role : java.util.List.of("owner", "admin")) {
+                    AccountAuthorizationTest.login(db, 1, role);
+                    new UserPreferenceService().updateBody("{\"language\":\"en_US\",\"appearance\":{"
+                            + "\"theme\":\"antd\",\"darkMode\":true,\"compactMode\":true,\"colorPrimary\":\"#00875a\"}}");
+                    Document document = Jsoup.parse(service.buildHtml(request(page, contextPath, config), response(),
+                            html("<html><head><base href=\"/\"></head><body><pre id=\"__SS_DATA__\"></pre></body></html>")));
+                    com.google.gson.JsonObject data = com.google.gson.JsonParser.parseString(
+                            document.getElementById("__SS_DATA__").text()).getAsJsonObject();
+                    assertTrue(data.get("data").getAsBoolean());
+                    assertEquals(1, data.getAsJsonObject("user").get("userId").getAsInt());
+                    assertEquals(AdminTokenThreadLocal.getUser().getSessionId(), data.get("key").getAsString());
+                    com.google.gson.JsonObject resource = data.getAsJsonObject("resourceInfo");
+                    assertEquals("antd", resource.get("admin_theme").getAsString());
+                    assertEquals("en_US", resource.get("lang").getAsString());
+                    assertEquals("#00875a", resource.get("admin_color_primary").getAsString());
+                    assertTrue(resource.get("admin_darkMode").getAsBoolean());
+                    assertTrue(resource.get("admin_compactMode").getAsBoolean());
+                    assertFalse(resource.get("staticPage").getAsBoolean());
+                    assertTrue(document.body().hasClass("dark"));
+                    assertEquals(contextPath + "/", document.selectFirst("base").attr("href"));
+                    assertEquals(AdminConstants.getAdminDocumentTitleByUri(page), document.title());
+                    assertEquals(Boolean.TRUE, service.serverSide(page,
+                            request("/admin/ssJson", contextPath, config), response()).getData());
+                }
+                for (String role : java.util.List.of("editor", "author", "contributor")) {
+                    AccountAuthorizationTest.login(db, 1, role);
+                    for (String uri : java.util.List.of(page, "/admin/ssJson")) {
+                        org.junit.Assert.assertThrows(com.zrlog.admin.business.exception.PermissionErrorException.class,
+                                () -> service.serverSide(page, request(uri, contextPath, config), response()));
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
     public void shouldRewriteAdminHtmlForNormalPage() throws Throwable {
         String html = new AdminPageService().buildHtml(
                 request("/admin/index", "/blog"),

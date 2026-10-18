@@ -97,7 +97,11 @@ const ConfiguredAppContent = ({ appState, basePath, onInit }: ConfiguredAppConte
 };
 
 const ConfigProviderApp = () => {
-    const [appState, setState] = useState<AppState>(gAppState);
+    const [appState, setState] = useState<AppState>(() => {
+        // SsData has read the server payload before this render, but not at module import time.
+        gAppState = getDefaultAppState();
+        return gAppState;
+    });
 
     const updateOnlineStatus = () => {
         setState((prevState) => {

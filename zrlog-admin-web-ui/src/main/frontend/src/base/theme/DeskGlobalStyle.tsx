@@ -61,7 +61,8 @@ body.light .sidebar-rail.ant-menu .ant-menu-item:hover,
               background: rgba(255, 253, 248, 0.88) !important;
               border-color: ${token.colorBorder};
             }
-body.light .sidebar-rail.ant-menu .ant-menu-item-selected {
+body.light .sidebar-rail.ant-menu .ant-menu-item-selected,
+            body.light .sidebar-rail.ant-menu .ant-menu-item-selected:hover {
               background: ${token.colorText} !important;
               border-color: ${token.colorText};
               box-shadow: 4px 4px 0 rgba(23, 32, 51, 0.09);
@@ -77,10 +78,16 @@ body.light .sidebar-panel.ant-menu {
 body.light .sidebar-panel-main.ant-menu .ant-menu-item-group + .ant-menu-item-group::before {
               border-top-style: dashed;
             }
-body.light .sidebar-panel.ant-menu .ant-menu-item-selected {
+body.light .sidebar-panel.ant-menu .ant-menu-item-selected,
+            body.light .sidebar-panel.ant-menu .ant-menu-item-selected:hover {
               background: rgba(23, 32, 51, 0.08) !important;
               border-color: ${token.colorText};
               box-shadow: inset 3px 0 0 ${token.colorText};
+            }
+body.light .sidebar-panel.ant-menu .ant-menu-item-selected .anticon,
+            body.light .sidebar-panel.ant-menu .ant-menu-item-selected .menu-title,
+            body.light .sidebar-panel.ant-menu .ant-menu-item-selected > .ant-menu-title-content > a {
+              color: ${token.colorText} !important;
             }
 body.light .sidebar-panel-footer.ant-menu {
               background: rgba(255, 253, 248, 0.92);

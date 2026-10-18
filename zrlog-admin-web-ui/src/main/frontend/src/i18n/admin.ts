@@ -326,7 +326,7 @@ const zhCN = {
     "value": "值",
     "dev": {
         "title": "开发工具",
-        "summary": "查看运行缓存与开发锁，管理开发模式。",
+        "summary": "查看运行缓存与开发锁，管理开发模式",
         "devMode": "开发模式",
         "devModeTip": "通过 system 参数 sws.run.mode 控制当前运行模式",
         "enableDevModeSuccess": "开发模式已开启",
@@ -2414,7 +2414,7 @@ const enUS: AdminI18nResource = {
     "value": "Value",
     "dev": {
         "title": "Developer tools",
-        "summary": "Inspect runtime caches and development locks, and manage development mode.",
+        "summary": "Inspect runtime caches and development locks, and manage development mode",
         "devMode": "Dev Mode",
         "devModeTip": "Controls the current run mode through the sws.run.mode system parameter",
         "enableDevModeSuccess": "Dev mode enabled",

@@ -28,24 +28,29 @@ describe("developer UI review route", () => {
         const dev = routes.find((route) => route.paths.includes("dev"));
         expect(review).toBeDefined();
         expect(dev).toBeDefined();
+        expect(review!.paths).toContain("dev/ui.html");
         expect(review!.lazy).not.toBe(dev!.lazy);
         expect(review!.search).toBeUndefined();
         expect(getAdminDashboardRouteSearchItems().some((item) => item.path.includes("dev/ui"))).toBe(false);
         expect(actionForPath("/dev/ui")).toBe("system.manage");
+        expect(actionForPath("/dev/ui.html")).toBe("system.manage");
         window.__SS_DATA__!.user!.actions = ["site.configure"];
         expect(hasAction(actionForPath("/dev/ui"))).toBe(false);
     });
 
-    it("hydrates from its read-only endpoint without fetching caches or locks", async () => {
-        const get = jest
-            .fn<Promise<any>, any[]>()
-            .mockResolvedValue({ data: { error: 0, data: true, documentTitle: "UI" } });
-        const data = await getCsrData("/dev/ui", 0, { get } as unknown as AxiosInstance);
-        expect(get).toHaveBeenCalledTimes(1);
-        expect(get).toHaveBeenCalledWith("/api/admin/dev/ui");
-        expect(data.data).toBe(true);
-        expect(data.documentTitle).toBe("UI");
-    });
+    it.each(["/dev/ui", "/dev/ui.html"])(
+        "hydrates %s from its read-only endpoint without fetching caches or locks",
+        async (uri) => {
+            const get = jest
+                .fn<Promise<any>, any[]>()
+                .mockResolvedValue({ data: { error: 0, data: true, documentTitle: "UI" } });
+            const data = await getCsrData(uri, 0, { get } as unknown as AxiosInstance);
+            expect(get).toHaveBeenCalledTimes(1);
+            expect(get).toHaveBeenCalledWith("/api/admin/dev/ui");
+            expect(data.data).toBe(true);
+            expect(data.documentTitle).toBe("UI");
+        }
+    );
 
     it("shows developer tools in search only when the server enables development mode and the user has permission", () => {
         const devVisible = () => getAdminDashboardRouteSearchItems().some((item) => item.path === "/dev");

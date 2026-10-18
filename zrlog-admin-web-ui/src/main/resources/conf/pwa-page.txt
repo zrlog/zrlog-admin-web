@@ -32,8 +32,11 @@ admin/website/members
 admin/plugin
 admin/upgrade
 admin/system
+admin/system/proxy
 admin/system/upgrade
 admin/system/version
+admin/dev
+admin/dev/ui
 admin/403
 admin/404
 admin/500

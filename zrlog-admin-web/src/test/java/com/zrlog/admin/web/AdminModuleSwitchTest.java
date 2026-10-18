@@ -82,11 +82,14 @@ public class AdminModuleSwitchTest {
             assertEquals(ui, router.getMethod("/admin/system/version", HttpMethod.GET) != null);
             assertEquals(admin, router.getMethod("/api/admin/system/version", HttpMethod.GET) != null);
             assertEquals(ui, router.getMethod("/admin/dev", HttpMethod.GET) != null);
+            assertEquals(ui, router.getMethod("/admin/dev/ui", HttpMethod.GET) != null);
             if (ui) {
-                assertTrue(com.zrlog.admin.business.AdminConstants.adminResource.getAdminPageUris().stream()
-                        .noneMatch(uri -> uri.endsWith("/admin/dev")));
-                assertTrue(com.zrlog.admin.business.AdminConstants.adminResource.getAdminCacheableApiUris().stream()
-                        .noneMatch(uri -> uri.endsWith("/api/admin/dev")));
+                for (String page : java.util.List.of("/admin/system/proxy", "/admin/dev", "/admin/dev/ui")) {
+                    assertTrue(com.zrlog.admin.business.AdminConstants.adminResource.getAdminPageUris().stream()
+                            .anyMatch(uri -> uri.endsWith(page)));
+                    assertFalse(com.zrlog.admin.business.AdminConstants.adminResource.getAdminCacheableApiUris()
+                            .contains("/api" + page));
+                }
             }
             assertEquals(admin, router.getMethod("/api/admin/system/proxy", HttpMethod.GET) != null);
             assertEquals(ai, config.getWebSetup(ArticleAssistant.class) != null);
