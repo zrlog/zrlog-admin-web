@@ -7,15 +7,13 @@ import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.data.util.WebSiteUtils;
 import com.zrlog.model.UserPasskey;
 import com.zrlog.plugin.BaseStaticSitePlugin;
-import org.junit.Test;
-
 import java.io.InputStream;
 import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-
+import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
@@ -27,7 +25,7 @@ public class AdminResourceImplTest {
     public void shouldExposeAdminResourceUrisAndBuildServiceWorkerUrls() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             db.putWebsite("admin_static_resource_base_url", "https://cdn.example.com");
-            AdminResourceImpl resource = new AdminResourceImpl("/blog");
+            AdminResourceImpl resource = new AdminResourceImpl("/blog", () -> 0L);
 
             Set<String> pageUris = resource.getAdminPageUris();
             Set<String> cacheUris = resource.getAdminStaticCacheUris();
@@ -87,7 +85,7 @@ public class AdminResourceImplTest {
             webhook.setEnabled(true); new WebhookService().updateConfig(webhook);
             db.putWebsite("feature_personal_data_enabled", true);
             db.putWebsite("admin_static_resource_base_url", "https://cdn.example.com");
-            AdminResourceImpl resource = new AdminResourceImpl("/blog");
+            AdminResourceImpl resource = new AdminResourceImpl("/blog", () -> 0L);
 
             AdminResourceInfoResponse response = resource.adminResourceInfo(request("Browser"));
             AdminResourceInfoResponse staticResponse =

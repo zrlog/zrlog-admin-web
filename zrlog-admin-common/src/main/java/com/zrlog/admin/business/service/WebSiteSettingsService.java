@@ -11,17 +11,23 @@ import com.zrlog.admin.business.type.AdminAuditAction;
 import com.zrlog.business.rest.base.UpgradeWebSiteInfo;
 import com.zrlog.business.updater.AutoUpgradeVersionType;
 import com.zrlog.business.updater.UpdateVersionInfoPlugin;
+import com.zrlog.common.CacheService;
 import com.zrlog.common.Constants;
 import com.zrlog.common.cache.vo.BaseDataInitVO;
 import com.zrlog.model.WebSite;
 import com.zrlog.util.BlogBuildInfoUtil;
 import com.zrlog.util.I18nUtil;
-
 import java.io.InputStream;
 import java.sql.SQLException;
 import java.util.Map;
 
 public class WebSiteSettingsService {
+
+    private final CacheService cacheService;
+
+    public WebSiteSettingsService(CacheService cacheService) {
+        this.cacheService = cacheService;
+    }
 
     public VersionResponse version(Map<String, Object> backendMessages) {
         return version(UpdateVersionInfoPlugin.getCurrentChangeLog(backendMessages));
@@ -52,7 +58,7 @@ public class WebSiteSettingsService {
                 webSite.updateByKV(entry.getKey(), toWebsiteValue(entry.getValue()));
             }
         }
-        BaseDataInitVO initData = Constants.zrLogConfig.getCacheService().getInitData();
+        BaseDataInitVO initData = cacheService.getInitData();
         if (initData != null) {
             initData.setWebSite(new WebSite().getPublicWebSite());
         }

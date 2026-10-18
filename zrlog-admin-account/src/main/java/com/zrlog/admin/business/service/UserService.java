@@ -1,6 +1,5 @@
 package com.zrlog.admin.business.service;
 
-import com.hibegin.common.util.*;
 import com.hibegin.http.server.api.HttpRequest;
 import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.dto.UserLoginDTO;
@@ -23,19 +22,14 @@ import com.zrlog.common.exception.ArgsException;
 import com.zrlog.model.User;
 import com.zrlog.util.I18nUtil;
 import com.zrlog.util.ZrLogUtil;
-
 import java.sql.SQLException;
+import com.hibegin.common.util.*;
+
 import java.util.*;
 
 public class UserService {
 
-    private final CacheService cacheService;
-    private final MfaService mfaService;
-
-    public UserService() {
-        this.cacheService = Constants.zrLogConfig.getCacheService();
-        this.mfaService = new MfaService();
-    }
+    private final MfaService mfaService = new MfaService();
 
     public UpdateRecordResponse updatePassword(int currentUserId, UpdatePasswordRequest updatePasswordRequest) throws SQLException {
         if (ZrLogUtil.isPreviewMode()) {
@@ -71,7 +65,7 @@ public class UserService {
         return userInfoByUser;
     }
 
-    public UserInfoResponse getUserInfoWithCache(int userId, String sessionId) throws SQLException {
+    public UserInfoResponse getUserInfoWithCache(int userId, String sessionId, CacheService cacheService) throws SQLException {
         UserBasicDTO userInfoById = cacheService.getUserInfoById((long) userId);
         boolean mfaEnabled = mfaService.isMfaEnabled(userId);
         UserInfoResponse result = new UserInfoResponse(userInfoById.getUserName(),
@@ -156,7 +150,6 @@ public class UserService {
         userLoginDTO.setId(userId);
         return userLoginDTO;
     }
-
 
     public UserBasicInfoResponse update(int userId, UpdateAdminRequest updateAdminRequest, HttpRequest request) throws SQLException {
         if (ZrLogUtil.isPreviewMode()) {

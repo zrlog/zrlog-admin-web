@@ -2,22 +2,19 @@ package com.zrlog.admin.business.service;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-import com.hibegin.common.util.*;
 import com.hibegin.http.server.api.HttpRequest;
 import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.rest.response.AdminResourceInfoResponse;
 import com.zrlog.admin.util.AdminWebTools;
 import com.zrlog.admin.util.ManifestUtils;
-import com.zrlog.common.CacheService;
-import com.zrlog.common.Constants;
-import com.zrlog.plugin.BaseStaticSitePlugin;
-
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.*;
 import java.util.stream.Collectors;
+import com.hibegin.common.util.*;
+
+import java.util.*;
 
 public class AdminResourceImpl implements AdminResource {
 
@@ -28,7 +25,10 @@ public class AdminResourceImpl implements AdminResource {
     private final String basePath;
     private final String contextPath;
 
-    public AdminResourceImpl(String contextPath) {
+    private final java.util.function.LongSupplier siteVersion;
+
+    public AdminResourceImpl(String contextPath, java.util.function.LongSupplier siteVersion) {
+        this.siteVersion = siteVersion;
         this.basePath = contextPath + "/";
         this.contextPath = contextPath;
         this.pageUris = wrapperUris(getUris("/conf/pwa-page.txt"));
@@ -66,7 +66,6 @@ public class AdminResourceImpl implements AdminResource {
         return cacheUris;
     }
 
-
     @Override
     public ByteArrayInputStream renderServiceWorker(HttpRequest request) {
         Set<String> realUris = new LinkedHashSet<>();
@@ -80,11 +79,7 @@ public class AdminResourceImpl implements AdminResource {
 
     @Override
     public String getStaticResourceBuildId() {
-        CacheService cacheService = Constants.zrLogConfig.getCacheService();
-        if (Objects.isNull(cacheService)) {
-            return Math.abs(fileBuildId) + "";
-        }
-        return Math.abs(fileBuildId + cacheService.getWebSiteVersion()) + "";
+        return Math.abs(fileBuildId + siteVersion.getAsLong()) + "";
     }
 
     private Set<String> getUris(String resourceName) {
@@ -95,7 +90,6 @@ public class AdminResourceImpl implements AdminResource {
         String strVendors = IOUtil.getStringInputStream(textIn);
         return new LinkedHashSet<>(Arrays.asList(strVendors.split("\n")));
     }
-
 
     private Set<String> wrapperUris(Set<String> uris) {
         Set<String> cacheUris = new LinkedHashSet<>();

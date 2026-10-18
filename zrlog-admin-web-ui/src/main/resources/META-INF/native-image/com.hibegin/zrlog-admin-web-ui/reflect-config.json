@@ -17,7 +17,7 @@
   {
     "name": "com.zrlog.admin.web.controller.page.AdminPageController",
     "methods": [
-      {"name": "<init>", "parameterTypes": []},
+      {"name": "<init>", "parameterTypes": ["com.zrlog.admin.business.service.AdminPageService"]},
       {"name": "index", "parameterTypes": []},
       {"name": "logout", "parameterTypes": []},
       {"name": "ssJson", "parameterTypes": []}

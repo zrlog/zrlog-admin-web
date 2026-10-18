@@ -1,31 +1,24 @@
 package com.zrlog.admin;
 
-import com.hibegin.common.dao.DataSourceWrapper;
 import com.hibegin.http.server.WebServerBuilder;
 import com.hibegin.http.server.util.PathUtil;
 import com.hibegin.http.server.web.MethodInterceptor;
 import com.zrlog.admin.web.token.AdminTokenService;
-import com.zrlog.business.plugin.CacheManagerPlugin;
-import com.zrlog.business.plugin.PluginCorePluginImpl;
-import com.zrlog.business.service.DbUpgradeService;
 import com.zrlog.common.Constants;
 import com.zrlog.common.TokenService;
 import com.zrlog.common.Updater;
+import com.zrlog.common.UpdaterTypeEnum;
 import com.zrlog.common.ZrLogConfig;
 import com.zrlog.common.adapter.UpdaterHosts;
-import com.zrlog.common.UpdaterTypeEnum;
-import com.zrlog.updater.spi.UpdateProviders;
-import com.zrlog.data.cache.CacheServiceImpl;
 import com.zrlog.plugin.IPlugin;
 import com.zrlog.plugin.Plugins;
-import com.zrlog.web.WebSetup;
+import com.zrlog.updater.spi.UpdateProviders;
 import com.zrlog.web.WebSetupContext;
 import com.zrlog.web.WebSetupLoader;
-
+import com.zrlog.web.WebSiteInfoProvider;
 import java.io.File;
 import java.util.List;
 import java.util.Objects;
-
 import static com.zrlog.common.Constants.getZrLogHome;
 
 public class Application {
@@ -60,35 +53,24 @@ class DevZrLogConfig extends ZrLogConfig {
         super(port, updater, contextPath);
         webSetups.addAll(WebSetupLoader.load(
                 new WebSetupContext(this, dbPropertiesFile, installLockFile, contextPath, updater),
-                provider -> provider.name().equals("admin") || provider.name().startsWith("admin-")));
-        this.webSetups.forEach(WebSetup::setup);
+                provider -> provider.name().equals("data") || provider.name().equals("services")
+                        || provider.name().equals("admin") || provider.name().startsWith("admin-")));
+        initializeWebSetups();
         serverConfig.getInterceptors().add(MethodInterceptor.class);
     }
 
     @Override
-    public DataSourceWrapper configDatabase() throws Exception {
-        this.dataSource = super.configDatabase();
-        if (Objects.nonNull(dataSource)) {
-            cacheService = new CacheServiceImpl();
-            new DbUpgradeService(this.dataSource, this.cacheService.getCurrentSqlVersion()).tryDoUpgrade();
-        }
-        return dataSource;
-    }
-
-    @Override
     protected TokenService initTokenService() {
-        if (Objects.isNull(cacheService)) {
+        if (!isInstalled()) {
             return null;
         }
-        long sessionTimeout = this.cacheService.getPublicWebSiteInfo().getSession_timeout();
+        long sessionTimeout = getWebSetup(WebSiteInfoProvider.class).getPublicWebSiteInfo().getSession_timeout();
         return new AdminTokenService(sessionTimeout);
     }
 
     @Override
     public List<IPlugin> getBasePluginList() {
         Plugins basePlugins = new Plugins();
-        basePlugins.add(new PluginCorePluginImpl(dbPropertiesFile, serverConfig.getContextPath()));
-        basePlugins.add(new CacheManagerPlugin(this));
         return basePlugins;
     }
 }

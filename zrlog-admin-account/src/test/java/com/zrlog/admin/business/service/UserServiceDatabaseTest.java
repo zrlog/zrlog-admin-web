@@ -14,10 +14,8 @@ import com.zrlog.admin.business.rest.response.UserBasicInfoResponse;
 import com.zrlog.admin.business.rest.response.UserInfoResponse;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.common.exception.ArgsException;
-import org.junit.Test;
-
 import java.util.Map;
-
+import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -71,7 +69,7 @@ public class UserServiceDatabaseTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             db.execute("update user set mfaEnabled=?, mfaSecret=? where userId=?", 1, "JBSWY3DPEHPK3PXP", 1);
 
-            UserInfoResponse response = new UserService().getUserInfoWithCache(1, "session-key");
+            UserInfoResponse response = new UserService().getUserInfoWithCache(1, "session-key", db.cacheService());
 
             assertEquals("admin", response.getUserName());
             assertEquals("/avatar.png", response.getHeader());
@@ -90,8 +88,8 @@ public class UserServiceDatabaseTest {
             db.execute("update user set preferences=? where userId=1",
                     "{\"language\":\"en_US\",\"appearance\":{\"darkMode\":false}}");
             UserService service = new UserService();
-            UserInfoResponse owner = service.getUserInfoWithCache(1, "owner-session");
-            UserInfoResponse writer = service.getUserInfoWithCache(2, "writer-session");
+            UserInfoResponse owner = service.getUserInfoWithCache(1, "owner-session", db.cacheService());
+            UserInfoResponse writer = service.getUserInfoWithCache(2, "writer-session", db.cacheService());
             assertEquals("en_US", owner.getLanguage());
             assertEquals("zh_CN", writer.getLanguage());
             assertEquals("antd", owner.getAppearance().theme);
@@ -105,9 +103,9 @@ public class UserServiceDatabaseTest {
                     .getUserBasicInfoResponse().getLanguage());
 
             db.putWebsite("admin_theme", "desk");
-            assertEquals("desk", service.getUserInfoWithCache(1, "owner-session").getAppearance().theme);
+            assertEquals("desk", service.getUserInfoWithCache(1, "owner-session", db.cacheService()).getAppearance().theme);
             new UserPreferenceService().updateBody("{}", "appearance");
-            UserInfoResponse reset = service.getUserInfoWithCache(1, "owner-session");
+            UserInfoResponse reset = service.getUserInfoWithCache(1, "owner-session", db.cacheService());
             assertEquals("zh_CN", reset.getLanguage());
             assertTrue(reset.getAppearance().darkMode);
             assertEquals("desk", reset.getAppearance().theme);

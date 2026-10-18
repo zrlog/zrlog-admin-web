@@ -1,11 +1,14 @@
 package com.zrlog.admin.business.service;
 
-import com.zrlog.admin.business.ai.service.AIConversationService;
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 import com.hibegin.common.dao.dto.PageRequestImpl;
 import com.hibegin.http.server.api.HttpRequest;
+import com.zrlog.admin.business.ai.service.AIConversationService;
 import com.zrlog.admin.business.exception.ArticleMissingTitleException;
 import com.zrlog.admin.business.exception.ArticleMissingTypeException;
 import com.zrlog.admin.business.exception.UpdateArticleExpireException;
+import com.zrlog.admin.business.rest.request.ArticleVersionRollbackRequest;
 import com.zrlog.admin.business.rest.request.CreateArticleRequest;
 import com.zrlog.admin.business.rest.request.UpdateArticleRequest;
 import com.zrlog.admin.business.rest.response.AIResponseEntry;
@@ -15,19 +18,14 @@ import com.zrlog.admin.business.rest.response.ArticleStatusCountResponse;
 import com.zrlog.admin.business.rest.response.CreateOrUpdateArticleResponse;
 import com.zrlog.admin.business.rest.response.LoadEditArticleResponse;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
-import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.common.exception.ArgsException;
-import com.zrlog.admin.business.rest.request.ArticleVersionRollbackRequest;
-import com.google.gson.Gson;
-import com.google.gson.JsonObject;
-import org.junit.Test;
-
+import com.zrlog.common.vo.AdminTokenVO;
 import java.lang.reflect.Proxy;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executor;
-
+import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -44,7 +42,7 @@ public class AdminArticleServiceDatabaseTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             UserPreferenceService preferences = new UserPreferenceService();
             preferences.updateBody("{\"editor\":{\"autoDigestLength\":0,\"linkPreviewEnabled\":true,\"publishCheckEnabled\":false,\"coverAspectRatio\":\"1:1\",\"autoSaveInterval\":10}}", "writing");
-            AdminArticleService service = new AdminArticleService();
+            AdminArticleService service = new AdminArticleService(db.cacheService());
             com.zrlog.admin.business.rest.response.ArticleGlobalResponse editor = service.loadDetailById("", request()).getData();
             assertEquals(Boolean.TRUE, editor.getLinkPreviewEnabled());
             assertEquals(Boolean.FALSE, editor.getPublishCheckEnabled());
@@ -65,7 +63,7 @@ public class AdminArticleServiceDatabaseTest {
     @Test
     public void shouldCreateAndLoadArticleThroughRealDao() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-            AdminArticleService service = new AdminArticleService();
+            AdminArticleService service = new AdminArticleService(db.cacheService());
             AIConversationService conversationService = new AIConversationService();
             assertTrue(conversationService.saveAIMessage(List.of(new AIResponseEntry.AIContentEntry("user", "draft")), -1L));
 
@@ -98,7 +96,7 @@ public class AdminArticleServiceDatabaseTest {
             db.putWebsite("ai_base_url", "http://127.0.0.1:18081/v1");
             db.putWebsite("ai_api_key", "");
 
-            AdminArticleService service = new AdminArticleService();
+            AdminArticleService service = new AdminArticleService(db.cacheService());
 
             assertEquals(Boolean.TRUE, ((com.zrlog.admin.business.rest.response.AIArticleGlobalResponse) service.loadDetailById("", request()).getData()).getAiConfigured());
 
@@ -110,7 +108,7 @@ public class AdminArticleServiceDatabaseTest {
     @Test
     public void shouldPreserveUnsavedDraftAiMessagesForIndependentCreate() throws Exception {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
-            AdminArticleService service = new AdminArticleService();
+            AdminArticleService service = new AdminArticleService(ignored.cacheService());
             AIConversationService conversationService = new AIConversationService();
             assertTrue(conversationService.saveAIMessage(List.of(new AIResponseEntry.AIContentEntry("user", "draft")), 0L));
             CreateArticleRequest request = article("Imported draft", "imported-draft");
@@ -126,7 +124,7 @@ public class AdminArticleServiceDatabaseTest {
     @Test
     public void shouldUpdateArticleAndRecordReversePatchThroughRealDao() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-            AdminArticleService service = new AdminArticleService();
+            AdminArticleService service = new AdminArticleService(db.cacheService());
             CreateOrUpdateArticleResponse created = service.create(token(), article("First Title", "first"));
             UpdateArticleRequest update = updateArticle(created.getLogId().intValue(), 0, "Second Title", "second");
 
@@ -153,7 +151,7 @@ public class AdminArticleServiceDatabaseTest {
     @Test
     public void shouldClearStickyWhenPublishedArticleBecomesPrivate() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-            AdminArticleService service = new AdminArticleService();
+            AdminArticleService service = new AdminArticleService(db.cacheService());
             CreateOrUpdateArticleResponse created = service.create(token(), article("Pinned", "pinned"));
             CreateOrUpdateArticleResponse other =
                     service.create(token(), article("Pinned Other", "pinned-other"));
@@ -175,7 +173,7 @@ public class AdminArticleServiceDatabaseTest {
     @Test
     public void shouldCountAndPageArticleStatusesThroughRealDao() throws Exception {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
-            AdminArticleService service = new AdminArticleService();
+            AdminArticleService service = new AdminArticleService(ignored.cacheService());
             service.create(token(), article("Published", "published"));
             service.create(token(), article("Private", "private", true, false));
             service.create(token(), article("Draft", "draft", false, true));
@@ -199,7 +197,7 @@ public class AdminArticleServiceDatabaseTest {
     @Test
     public void shouldDeleteArticleAndRemovePersistedAiMessageThroughRealDao() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-            AdminArticleService service = new AdminArticleService();
+            AdminArticleService service = new AdminArticleService(db.cacheService());
             AIConversationService conversationService = new AIConversationService();
             CreateOrUpdateArticleResponse created = service.create(token(), article("Delete Me", "delete-me"));
             assertTrue(conversationService.saveAIMessage(List.of(new AIResponseEntry.AIContentEntry("user", "keep")), created.getLogId()));
@@ -214,7 +212,7 @@ public class AdminArticleServiceDatabaseTest {
     @Test
     public void shouldRejectExpiredArticleVersionAgainstRealDao() throws Exception {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
-            AdminArticleService service = new AdminArticleService();
+            AdminArticleService service = new AdminArticleService(ignored.cacheService());
             CreateOrUpdateArticleResponse created = service.create(token(), article("Versioned", "versioned"));
             UpdateArticleRequest staleUpdate = updateArticle(created.getLogId().intValue(), -1, "Stale", "stale");
 
@@ -225,7 +223,7 @@ public class AdminArticleServiceDatabaseTest {
     @Test
     public void shouldRejectMissingRequiredArticleFieldsBeforeWritingDao() throws Exception {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
-            AdminArticleService service = new AdminArticleService();
+            AdminArticleService service = new AdminArticleService(ignored.cacheService());
             CreateArticleRequest missingTitle = article("", "missing-title");
             CreateArticleRequest missingType = article("Missing Type", "missing-type");
             missingType.setTypeId(0L);
@@ -238,7 +236,7 @@ public class AdminArticleServiceDatabaseTest {
     @Test
     public void shouldBuildRecentArticleActivityDataFromRealReleaseTimes() throws Exception {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
-            AdminArticleService service = new AdminArticleService();
+            AdminArticleService service = new AdminArticleService(ignored.cacheService());
             service.create(token(), article("Activity One", "activity-one"));
             service.create(token(), article("Activity Two", "activity-two"));
 
@@ -253,7 +251,7 @@ public class AdminArticleServiceDatabaseTest {
     @Test
     public void arrangementCanBeCreatedLoadedPreservedChangedAndCleared() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-            AdminArticleService service = new AdminArticleService();
+            AdminArticleService service = new AdminArticleService(db.cacheService());
             CreateArticleRequest create = article("Toolbox", "toolbox");
             create.setArrange_plugin("retro-runtime");
             int id = service.create(token(), create).getLogId().intValue();
@@ -285,7 +283,7 @@ public class AdminArticleServiceDatabaseTest {
     @Test
     public void arrangementHistoryRestoresPluginAndLegacyDefault() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-            AdminArticleService service = new AdminArticleService();
+            AdminArticleService service = new AdminArticleService(db.cacheService());
             int id = service.create(token(), article("Layout", "layout")).getLogId().intValue();
             assertNull(db.scalar("select arrange_plugin from log where logId=?", id));
             assertEquals("", service.loadDetail("layout", request()).getArrange_plugin());
@@ -293,18 +291,18 @@ public class AdminArticleServiceDatabaseTest {
             update.setEditorType("markdown");
             update.setArrange_plugin("retro-runtime");
             service.update(token(), update);
-            ArticleVersionService versions = new ArticleVersionService(service);
-            assertEquals(List.of("arrange_plugin"), versions.compare(id, 0, 1, request()).getChangedFields());
-            assertEquals("", versions.loadVersion(id, 0, request()).getArrange_plugin());
+            ArticleVersionService versions = new ArticleVersionService();
+            assertEquals(List.of("arrange_plugin"), versions.compare(id, 0, 1, request(), service).getChangedFields());
+            assertEquals("", versions.loadVersion(id, 0, request(), service).getArrange_plugin());
             ArticleVersionRollbackRequest rollback = new ArticleVersionRollbackRequest();
             rollback.setLogId(id);
             rollback.setVersion(1);
             rollback.setTargetVersion(0);
-            versions.rollback(token(), rollback, request());
+            versions.rollback(token(), rollback, request(), service);
             assertEquals("", service.loadDetail("layout", request()).getArrange_plugin());
             rollback.setVersion(2);
             rollback.setTargetVersion(1);
-            versions.rollback(token(), rollback, request());
+            versions.rollback(token(), rollback, request(), service);
             assertEquals("retro-runtime", service.loadDetail("layout", request()).getArrange_plugin());
             assertEquals(Integer.valueOf(3), service.loadDetail("layout", request()).getVersion());
         }
@@ -313,7 +311,7 @@ public class AdminArticleServiceDatabaseTest {
     @Test
     public void invalidArrangementIsRejectedBeforePersisting() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-            AdminArticleService service = new AdminArticleService();
+            AdminArticleService service = new AdminArticleService(db.cacheService());
             int id = service.create(token(), article("Valid", "valid")).getLogId().intValue();
             for (String invalid : List.of("../widget", "<plugin>", "a/b", "a\\b", "a b", " a", "a\n", "a".repeat(65))) {
                 CreateArticleRequest create = article("Invalid", "invalid");

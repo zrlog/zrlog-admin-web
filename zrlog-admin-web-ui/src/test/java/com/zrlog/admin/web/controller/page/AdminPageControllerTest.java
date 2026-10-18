@@ -6,14 +6,13 @@ import com.hibegin.http.server.web.Controller;
 import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
 import com.zrlog.admin.business.rest.response.ServerSideDataResponse;
+import com.zrlog.admin.business.service.AdminPageService;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.common.Constants;
-import org.junit.Test;
-
 import java.lang.reflect.Field;
 import java.lang.reflect.Proxy;
 import java.util.Map;
-
+import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
@@ -47,7 +46,7 @@ public class AdminPageControllerTest {
 
     private static AdminPageController controller(String uri, Map<String, String> params, HttpResponse response)
             throws Exception {
-        AdminPageController controller = new AdminPageController();
+        AdminPageController controller = new AdminPageController(new AdminPageService(new InMemoryZrLogDatabase.TestCacheService()));
         Field requestField = Controller.class.getDeclaredField("request");
         requestField.setAccessible(true);
         requestField.set(controller, request(uri, params));

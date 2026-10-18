@@ -2,12 +2,10 @@ package com.zrlog.admin.business;
 
 import com.hibegin.common.util.StringUtils;
 import com.zrlog.admin.business.service.AdminResource;
-import com.zrlog.common.CacheService;
 import com.zrlog.common.Constants;
 import com.zrlog.common.vo.PublicWebSiteInfo;
 import com.zrlog.data.util.WebSiteUtils;
 import com.zrlog.util.I18nUtil;
-
 import java.util.*;
 
 public class AdminConstants {
@@ -85,7 +83,6 @@ public class AdminConstants {
 
     public static AdminResource adminResource;
 
-
     public static String getAdminDocumentTitleByUri(String uri) {
         String realUri = com.zrlog.admin.web.config.AdminAccountPages.titleUri(uri);
         String key = TITLE_MAP.get(realUri);
@@ -105,15 +102,8 @@ public class AdminConstants {
     }
 
     public static PublicWebSiteInfo getPublicWebSiteInfo() {
-        if (Objects.isNull(Constants.zrLogConfig)) {
-            return WebSiteUtils.fillDefaultInfo(new PublicWebSiteInfo());
-        }
-
-        CacheService cacheService = Constants.zrLogConfig.getCacheService();
-        if (Objects.isNull(cacheService)) {
-            return WebSiteUtils.fillDefaultInfo(new PublicWebSiteInfo());
-        }
-        return cacheService.getPublicWebSiteInfo();
+        return Objects.requireNonNullElseGet(Constants.getPublicWebSiteInfo(),
+                () -> WebSiteUtils.fillDefaultInfo(new PublicWebSiteInfo()));
     }
 
     public static String getAdminTitle(String startTitle) {

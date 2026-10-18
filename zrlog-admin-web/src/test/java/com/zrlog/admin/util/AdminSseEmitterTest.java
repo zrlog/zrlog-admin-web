@@ -1,15 +1,15 @@
 package com.zrlog.admin.util;
 
 import com.hibegin.http.server.api.HttpResponse;
-import org.junit.Test;
-
+import com.zrlog.admin.business.service.AdminArticleService;
+import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
-
+import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -59,7 +59,7 @@ public class AdminSseEmitterTest {
     }
 
     @Test public void sseWorkerCannotLoseDelegatedPublicationRestrictions() throws Exception {
-        try (var db = com.zrlog.admin.support.InMemoryZrLogDatabase.open()) {
+        try (var db = InMemoryZrLogDatabase.open()) {
             CapturedResponse response = new CapturedResponse();
             var identity = new com.zrlog.admin.business.security.OAuthModels.Identity();
             identity.permissions = java.util.List.of("article.create"); identity.permissionMode = "custom";
@@ -68,7 +68,7 @@ public class AdminSseEmitterTest {
                     var request = new com.zrlog.admin.business.rest.request.CreateArticleRequest();
                     request.setTitle("Must not publish"); request.setTypeId(1L); request.setRubbish(false); request.setContent("content");
                     org.junit.Assert.assertThrows(com.zrlog.admin.business.exception.PermissionErrorException.class,
-                            () -> new com.zrlog.admin.business.service.AdminArticleService().create(com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser(), request));
+                            () -> new AdminArticleService(db.cacheService()).create(com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser(), request));
                     emitter.send("checked", true);
                 });
                 return null;

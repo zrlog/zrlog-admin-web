@@ -9,15 +9,13 @@ import com.zrlog.business.rest.base.UpgradeWebSiteInfo;
 import com.zrlog.business.updater.UpdateVersionInfoPlugin;
 import com.zrlog.common.Constants;
 import com.zrlog.common.exception.ArgsException;
-import com.zrlog.updater.spi.DockerControl;
 import com.zrlog.common.updater.docker.DockerUpdaterProtocol;
-import org.junit.Test;
-
+import com.zrlog.updater.spi.DockerControl;
 import java.lang.reflect.Proxy;
 import java.sql.SQLException;
-import java.util.List;
 import java.util.ArrayList;
-
+import java.util.List;
+import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class UpgradeSettingsServiceTest {
@@ -29,7 +27,7 @@ public class UpgradeSettingsServiceTest {
             plugin();
             db.putWebsite("upgradePackageSource", "github");
             Client client = new Client();
-            UpgradeSettingsService service = service(client, true, new WebSiteSettingsService());
+            UpgradeSettingsService service = service(client, true, new WebSiteSettingsService(new InMemoryZrLogDatabase.TestCacheService()));
             UpgradeSettingsRequest input = new Gson().fromJson("{\"autoUpgradeVersion\":-1,\"upgradePreview\":true,"
                     + "\"upgradePackageSource\":\"dl\",\"dockerRepository\":\"" + ALIYUN + "\",\"dockerMode\":false}", UpgradeSettingsRequest.class);
             service.save(input, request());
@@ -53,7 +51,7 @@ public class UpgradeSettingsServiceTest {
         try (var db = InMemoryZrLogDatabase.open()) {
             plugin(); db.putWebsite("autoUpgradeVersion", 86400);
             Client client = new Client();
-            var service = service(client, true, new WebSiteSettingsService());
+            var service = service(client, true, new WebSiteSettingsService(new InMemoryZrLogDatabase.TestCacheService()));
             assertThrows(ArgsException.class, () -> service.save(input("unlisted.example/zrlog"), request()));
             assertEquals("86400", value(db, "autoUpgradeVersion"));
             assertTrue(client.saves.isEmpty());
@@ -68,7 +66,7 @@ public class UpgradeSettingsServiceTest {
         try (var db = InMemoryZrLogDatabase.open()) {
             plugin();
             Client client = new Client(); client.failRead = true;
-            var service = service(client, true, new WebSiteSettingsService());
+            var service = service(client, true, new WebSiteSettingsService(new InMemoryZrLogDatabase.TestCacheService()));
             service.save(input(null), request());
             assertEquals("-1", value(db, "autoUpgradeVersion"));
             assertEquals(0, client.reads);
@@ -83,7 +81,7 @@ public class UpgradeSettingsServiceTest {
     @Test public void restoresPreviousUpdaterSettingsWhenWebsiteWriteFails() throws Exception {
         try (var db = InMemoryZrLogDatabase.open()) {
             plugin(); Client client = new Client();
-            var service = service(client, true, new WebSiteSettingsService() {
+            var service = service(client, true, new WebSiteSettingsService(new InMemoryZrLogDatabase.TestCacheService()) {
                 @Override public void updateUpgrade(UpgradeWebSiteInfo settings, HttpRequest request) throws SQLException {
                     throw new SQLException("test failure");
                 }
@@ -98,7 +96,7 @@ public class UpgradeSettingsServiceTest {
     @Test public void packageModeNeverContactsUpdaterAndRejectsDockerWrites() throws Exception {
         try (var db = InMemoryZrLogDatabase.open()) {
             plugin(); Client client = new Client();
-            var service = service(client, false, new WebSiteSettingsService());
+            var service = service(client, false, new WebSiteSettingsService(new InMemoryZrLogDatabase.TestCacheService()));
             var input = input(null); input.setUpgradePackageSource("github");
             service.save(input, request());
             assertEquals("github", service.read(null).getUpgradePackageSource());
@@ -111,7 +109,7 @@ public class UpgradeSettingsServiceTest {
 
     @Test public void missingPluginAndInsufficientPermissionFailBeforeRemoteWrites() throws Exception {
         try (var db = InMemoryZrLogDatabase.open()) {
-            Client client = new Client(); var service = service(client, true, new WebSiteSettingsService());
+            Client client = new Client(); var service = service(client, true, new WebSiteSettingsService(new InMemoryZrLogDatabase.TestCacheService()));
             assertThrows(IllegalStateException.class, () -> service.save(input(ALIYUN), request()));
             assertEquals(0, client.reads);
             plugin(); db.execute("update user set role = 'editor' where userId = 1");

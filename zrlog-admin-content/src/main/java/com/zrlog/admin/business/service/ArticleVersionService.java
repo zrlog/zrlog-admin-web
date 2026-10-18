@@ -17,11 +17,10 @@ import com.zrlog.common.exception.NotFindDbEntryException;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.model.Log;
 import com.zrlog.model.LogVersion;
-
 import java.lang.reflect.Type;
 import java.sql.SQLException;
-import java.util.*;
 import java.util.stream.Collectors;
+import java.util.*;
 
 public class ArticleVersionService {
 
@@ -32,17 +31,6 @@ public class ArticleVersionService {
             "title", "content", "markdown", "digest", "keywords", "alias", "thumbnail", "arrange_plugin",
             "typeId", "canComment", "recommended", "privacy", "rubbish", "editorType"
     );
-
-    private final AdminArticleService adminArticleService;
-    private final LogVersion logVersion = new LogVersion();
-
-    public ArticleVersionService() {
-        this(new AdminArticleService());
-    }
-
-    public ArticleVersionService(AdminArticleService adminArticleService) {
-        this.adminArticleService = adminArticleService;
-    }
 
     public void recordReversePatch(Map<String, Object> oldLog, Map<String, Object> newLog, Integer userId) throws SQLException {
         if (oldLog == null || newLog == null) {
@@ -57,7 +45,7 @@ public class ArticleVersionService {
         if (patch.isEmpty()) {
             return;
         }
-        logVersion.savePatch(
+        new LogVersion().savePatch(
                 logId,
                 articleVersion,
                 GSON.toJson(patch),
@@ -73,7 +61,7 @@ public class ArticleVersionService {
         List<ArticleVersionResponse> responses = new ArrayList<>();
         responses.add(loadCurrentVersion(logId));
 
-        List<Map<String, Object>> rows = logVersion.findVersionList(logId);
+        List<Map<String, Object>> rows = new LogVersion().findVersionList(logId);
         for (Map<String, Object> row : rows) {
             ArticleVersionResponse item = new ArticleVersionResponse();
             item.setVersion(toInteger(row.get("from_version")));
@@ -111,7 +99,7 @@ public class ArticleVersionService {
         return currentVersion;
     }
 
-    public ArticleVersionCompareResponse compare(Integer logId, Integer fromVersion, Integer toVersion, HttpRequest request) throws SQLException {
+    public ArticleVersionCompareResponse compare(Integer logId, Integer fromVersion, Integer toVersion, HttpRequest request, AdminArticleService adminArticleService) throws SQLException {
         LoadEditArticleResponse current = adminArticleService.loadDetail(logId.toString(), request);
         LoadEditArticleResponse from = loadVersion(logId, fromVersion, current);
         LoadEditArticleResponse to = loadVersion(logId, toVersion, current);
@@ -126,18 +114,18 @@ public class ArticleVersionService {
         return response;
     }
 
-    public CreateOrUpdateArticleResponse rollback(AdminTokenVO user, ArticleVersionRollbackRequest request, HttpRequest req) throws SQLException {
+    public CreateOrUpdateArticleResponse rollback(AdminTokenVO user, ArticleVersionRollbackRequest request, HttpRequest req, AdminArticleService adminArticleService) throws SQLException {
         if (request.getLogId() == null || request.getVersion() == null || request.getTargetVersion() == null) {
             throw new ArgsException("logId/version/targetVersion");
         }
-        LoadEditArticleResponse target = loadVersion(request.getLogId(), request.getTargetVersion(), req);
+        LoadEditArticleResponse target = loadVersion(request.getLogId(), request.getTargetVersion(), req, adminArticleService);
         UpdateArticleRequest updateArticleRequest = BeanUtil.convert(target, UpdateArticleRequest.class);
         updateArticleRequest.setLogId(request.getLogId());
         updateArticleRequest.setVersion(request.getVersion());
         return adminArticleService.update(user, updateArticleRequest);
     }
 
-    public LoadEditArticleResponse loadVersion(Integer logId, Integer targetVersion, HttpRequest request) throws SQLException {
+    public LoadEditArticleResponse loadVersion(Integer logId, Integer targetVersion, HttpRequest request, AdminArticleService adminArticleService) throws SQLException {
         return loadVersion(logId, targetVersion, adminArticleService.loadDetail(logId.toString(), request));
     }
 
@@ -151,7 +139,7 @@ public class ArticleVersionService {
         if (Objects.equals(current.getVersion(), targetVersion)) {
             return current;
         }
-        List<Map<String, Object>> rows = logVersion.findReversePatchesGreaterThanVersion(logId, targetVersion);
+        List<Map<String, Object>> rows = new LogVersion().findReversePatchesGreaterThanVersion(logId, targetVersion);
         LoadEditArticleResponse snapshot = cloneArticle(current);
         for (Map<String, Object> row : rows) {
             Integer version = toInteger(row.get("article_version"));

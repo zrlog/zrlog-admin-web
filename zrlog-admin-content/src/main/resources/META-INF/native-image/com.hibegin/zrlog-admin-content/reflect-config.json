@@ -2,7 +2,7 @@
   {
     "name": "com.zrlog.admin.web.controller.api.AdminArticleController",
     "methods": [
-      {"name": "<init>", "parameterTypes": []},
+      {"name": "<init>", "parameterTypes": ["com.zrlog.admin.business.service.AdminArticleService", "com.zrlog.admin.business.service.ArticlePublishingService"]},
       {"name": "articleEdit", "parameterTypes": []},
       {"name": "create", "parameterTypes": []},
       {"name": "delete", "parameterTypes": []},
@@ -24,7 +24,7 @@
   {
     "name": "com.zrlog.admin.web.controller.api.AdminArticleVersionController",
     "methods": [
-      {"name": "<init>", "parameterTypes": []},
+      {"name": "<init>", "parameterTypes": ["com.zrlog.admin.business.service.AdminArticleService", "com.zrlog.common.CacheService"]},
       {"name": "compare", "parameterTypes": []},
       {"name": "index", "parameterTypes": []},
       {"name": "rollback", "parameterTypes": []}

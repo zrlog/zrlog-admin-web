@@ -23,9 +23,9 @@ public class ArticlePublishingRuntimeTest {
         try (URLClassLoader loader = new URLClassLoader(classpath, ClassLoader.getPlatformClassLoader())) {
             assertThrows(ClassNotFoundException.class, () -> loader.loadClass("com.zrlog.blog.polyglot.markdown.MarkdownJsRenderer"));
             Class<?> service = loader.loadClass(ArticlePublishingService.class.getName());
-            var constructor = service.getDeclaredConstructor(loader.loadClass(AdminArticleService.class.getName()));
+            var constructor = service.getDeclaredConstructor(loader.loadClass(AdminArticleService.class.getName()), loader.loadClass("com.zrlog.common.CacheService"));
             constructor.setAccessible(true);
-            Object instance = constructor.newInstance(new Object[]{null});
+            Object instance = constructor.newInstance(new Object[]{null, null});
             Class<?> request = loader.loadClass("com.zrlog.admin.business.rest.request.CreateArticleRequest");
             Object body = request.getConstructor().newInstance();
             request.getMethod("setEditorType", String.class).invoke(body, "markdown");

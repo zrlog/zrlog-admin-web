@@ -8,12 +8,12 @@ import com.zrlog.admin.business.security.MemberModels;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.annotation.RequiresAction;
 import com.zrlog.admin.web.controller.ai.AICommentController;
-import com.zrlog.admin.web.interceptor.AdminInternalAiInterceptor;
 import com.zrlog.admin.web.interceptor.AdminInterceptor;
+import com.zrlog.admin.web.interceptor.AdminInternalAiInterceptor;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.vo.AdminTokenVO;
-import com.zrlog.data.security.*;
 import org.junit.Test;
+import com.zrlog.data.security.*;
 import java.util.*;
 import static org.junit.Assert.*;
 
@@ -79,7 +79,7 @@ public class AccountAuthorizationTest {
         try(InMemoryZrLogDatabase db=InMemoryZrLogDatabase.open()) {
             db.execute("insert into user(userId,userName,role) values(?,?,?)",2,"writer","author");
             login(db,1,"owner");
-            AdminArticleService service=new AdminArticleService();
+            AdminArticleService service=new AdminArticleService(db.cacheService());
             CreateArticleRequest create=new CreateArticleRequest();create.setTitle("Private");create.setTypeId(1L);create.setPrivacy(true);create.setRubbish(true);create.setContent("secret");
             long id=service.create(AdminTokenThreadLocal.getUser(),create).getLogId();
             login(db,2,"editor");

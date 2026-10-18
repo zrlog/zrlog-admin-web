@@ -1,13 +1,28 @@
 package com.zrlog.admin.web;
 
+import com.hibegin.http.server.config.ServerConfig;
+import com.hibegin.http.server.di.SwsBindings;
 import com.hibegin.http.server.web.Router;
 import com.zrlog.admin.business.AdminConstants;
+import com.zrlog.admin.business.service.AdminArticleService;
+import com.zrlog.admin.business.service.ArticlePublishingService;
+import com.zrlog.admin.business.service.ContentToolService;
+import com.zrlog.common.CacheService;
 import com.zrlog.admin.web.controller.api.*;
 
 public class ContentWebSetup implements com.zrlog.web.WebSetup {
     private final Router router;
-    public ContentWebSetup(Router router) { this.router = router; }
+    private final SwsBindings bindings;
+    public ContentWebSetup(ServerConfig config) {
+        this.router = config.getRouter();
+        this.bindings = config.getBindings();
+    }
     @Override public void setup() {
+        bindings.singleton(AdminArticleService.class, r -> new AdminArticleService(r.get(CacheService.class)))
+                .singleton(ArticlePublishingService.class, r -> new ArticlePublishingService(r.get(AdminArticleService.class), r.get(CacheService.class)))
+                .singleton(ContentToolService.class, r -> new ContentToolService(r.get(ArticlePublishingService.class)))
+                .controller(AdminArticleVersionController.class, (r, request, response) -> new AdminArticleVersionController(r.get(AdminArticleService.class), r.get(CacheService.class)))
+                .controller(AdminArticleController.class, (r, request, response) -> new AdminArticleController(r.get(AdminArticleService.class), r.get(ArticlePublishingService.class)));
         router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/link", LinkController.class);
         router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/link-preview", LinkPreviewController.class);
         router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/comment", CommentController.class);

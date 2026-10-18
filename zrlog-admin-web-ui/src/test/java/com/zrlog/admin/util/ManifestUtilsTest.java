@@ -10,12 +10,11 @@ import com.zrlog.common.vo.PublicWebSiteInfo;
 import com.zrlog.plugin.BaseStaticSitePlugin;
 import com.zrlog.plugin.IPlugin;
 import com.zrlog.plugin.Plugins;
-import org.junit.Test;
-
-import javax.sql.DataSource;
+import com.zrlog.web.WebSiteInfoProvider;
 import java.lang.reflect.Proxy;
 import java.util.List;
-
+import javax.sql.DataSource;
+import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -100,6 +99,16 @@ public class ManifestUtilsTest {
     }
 
     private static class TestZrLogConfig extends ZrLogConfig {
+        private CacheService cacheService;
+
+        @Override
+        public <T> T getWebSetup(Class<T> capability) {
+            if (capability == WebSiteInfoProvider.class) {
+                return capability.cast((WebSiteInfoProvider) cacheService::getPublicWebSiteInfo);
+            }
+            return super.getWebSetup(capability);
+        }
+
 
         TestZrLogConfig(PublicWebSiteInfo publicWebSiteInfo) {
             super(18080, null, "");

@@ -11,23 +11,28 @@ import com.zrlog.admin.util.BackendServerUrl;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.ZrLogUtil;
-import java.util.*;
 import java.util.function.Supplier;
+import java.util.*;
 
 /** Shared tool dispatch; callers bind a trusted, revalidated account before each operation. */
 public final class ContentToolProvider implements ToolProvider {
     private final Set<String> scopes;
     private final HttpRequest request;
     private final String language;
-    private final ContentToolService content;
+    private final Supplier<ContentToolService> content;
     private final Supplier<AttachmentStorage> storage;
 
     public ContentToolProvider(Set<String> scopes, HttpRequest request, String language) {
-        this(scopes, request, language, new ContentToolService(), AttachmentStorage::current);
+        this(scopes, request, language, () -> request.getServerConfig().getBindings().build().get(ContentToolService.class), AttachmentStorage::current);
     }
 
     public ContentToolProvider(Set<String> scopes, HttpRequest request, String language,
                                ContentToolService content, Supplier<AttachmentStorage> storage) {
+        this(scopes, request, language, () -> content, storage);
+    }
+
+    private ContentToolProvider(Set<String> scopes, HttpRequest request, String language,
+                                Supplier<ContentToolService> content, Supplier<AttachmentStorage> storage) {
         this.scopes = Set.copyOf(scopes);
         this.request = request;
         this.language = language;
@@ -50,10 +55,10 @@ public final class ContentToolProvider implements ToolProvider {
         Tool tool = ContentToolCatalog.tools(language).stream().filter(t -> t.name.equals(name)).findFirst().orElseThrow(PermissionErrorException::new);
         ContentToolCatalog.validate(tool,args,language);
         switch (name) {
-            case "get_article": return content.details(args.get("id").getAsInt(),scopes);
+            case "get_article": return content.get().details(args.get("id").getAsInt(),scopes);
             case "list_categories": case "list_tags":
-                return content.taxonomy(name.equals("list_categories"),args.has("offset")?args.get("offset").getAsInt():0,args.has("limit")?args.get("limit").getAsInt():50);
-            case "create_article": case "update_article": case "publish_article": return content.save(name,args,scopes,request);
+                return content.get().taxonomy(name.equals("list_categories"),args.has("offset")?args.get("offset").getAsInt():0,args.has("limit")?args.get("limit").getAsInt():50);
+            case "create_article": case "update_article": case "publish_article": return content.get().save(name,args,scopes,request);
             case "upload_attachment": return upload(args);
             default: throw new PermissionErrorException();
         }

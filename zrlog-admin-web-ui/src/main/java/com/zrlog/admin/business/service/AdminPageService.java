@@ -11,26 +11,30 @@ import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
 import com.zrlog.admin.business.rest.response.ServerSideDataResponse;
 import com.zrlog.admin.business.rest.response.UserInfoResponse;
 import com.zrlog.admin.util.AdminWebTools;
-import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.admin.web.config.AdminAccountPages;
+import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.blog.web.util.WebTools;
+import com.zrlog.common.CacheService;
 import com.zrlog.common.TokenService;
 import com.zrlog.common.rest.response.StandardResponse;
 import com.zrlog.common.vo.PublicWebSiteInfo;
 import com.zrlog.plugin.BaseStaticSitePlugin;
 import com.zrlog.util.I18nUtil;
+import java.io.InputStream;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.Objects;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
-import java.io.InputStream;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.util.Map;
-import java.util.Objects;
-
 public class AdminPageService {
+    private final CacheService cacheService;
+
+    public AdminPageService(CacheService cacheService) {
+        this.cacheService = cacheService;
+    }
 
     public String buildHtml(HttpRequest request, HttpResponse httpResponse, InputStream htmlInputStream) throws Throwable {
         Document document = Jsoup.parse(IOUtil.getStringInputStream(htmlInputStream));
@@ -117,7 +121,7 @@ public class AdminPageService {
         if (Objects.isNull(AdminTokenThreadLocal.getUser()) || BaseStaticSitePlugin.isStaticPluginRequest(request)) {
             return new ServerSideDataResponse<>(null, resourceInfo, null, null, AdminConstants.getAdminDocumentTitleByUri(request.getUri()));
         }
-        UserInfoResponse userInfo = new UserService().getUserInfoWithCache(AdminTokenThreadLocal.getUserId(), AdminTokenThreadLocal.getUser().getSessionId());
+        UserInfoResponse userInfo = new UserService().getUserInfoWithCache(AdminTokenThreadLocal.getUserId(), AdminTokenThreadLocal.getUser().getSessionId(), cacheService);
         new UserPreferenceService().apply(resourceInfo, userInfo.getLanguage(), userInfo.getAppearance());
         Method method = request.getRequestConfig().getRouter().getMethod(AdminAccountPages.apiUri(uri), request.getMethod());
         // Disabled features have no API route; retain the shell so the UI can render its 404 page.

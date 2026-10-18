@@ -1,8 +1,5 @@
 package com.zrlog.admin.web.controller.ai;
 
-import com.zrlog.admin.web.annotation.RequiresAction;
-import com.zrlog.data.security.AccountAction;
-
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.ResponseBody;
 import com.zrlog.admin.business.ai.service.AIConfigService;
@@ -14,15 +11,22 @@ import com.zrlog.admin.business.rest.response.AIWebSiteInfoResponse;
 import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
 import com.zrlog.admin.business.rest.response.OptimizeAiPromptResponse;
 import com.zrlog.admin.business.rest.response.OptimizeWebsiteDescriptionResponse;
+import com.zrlog.admin.business.service.WebSiteSettingsService;
 import com.zrlog.admin.web.annotation.RequestLock;
+import com.zrlog.admin.web.annotation.RequiresAction;
 import com.zrlog.common.controller.BaseController;
 import com.zrlog.common.rest.response.ApiStandardResponse;
+import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.I18nUtil;
-
 import java.io.IOException;
 import java.sql.SQLException;
 
 public class AIWebSiteController extends BaseController {
+    private final WebSiteSettingsService settingsService;
+
+    public AIWebSiteController(WebSiteSettingsService settingsService) {
+        this.settingsService = settingsService;
+    }
 
     @RequestLock(onlyOnPostMethod = true)
     @ResponseBody
@@ -46,7 +50,7 @@ public class AIWebSiteController extends BaseController {
     @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "website.ai")
     public AdminPageDataResponse<AIWebSiteInfoResponse> ai() throws SQLException {
         if (isPost()) {
-            new AIConfigService().updateAi(getRequestBodyWithNullCheck(AIWebSiteInfo.class), request);
+            new AIConfigService().updateAi(getRequestBodyWithNullCheck(AIWebSiteInfo.class), request, settingsService);
         }
         return page(new AIConfigService().aiResponse());
     }

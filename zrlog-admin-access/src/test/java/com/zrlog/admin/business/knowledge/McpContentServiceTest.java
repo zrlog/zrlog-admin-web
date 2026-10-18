@@ -1,26 +1,29 @@
 package com.zrlog.admin.business.knowledge;
 
-import com.google.gson.*;
 import com.hibegin.http.server.api.HttpRequest;
 import com.zrlog.admin.business.content.AttachmentStorage;
 import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.exception.UpdateArticleExpireException;
-import com.zrlog.admin.business.knowledge.ContentToolModels.*;
-import com.zrlog.admin.business.security.PersonalTokenModels;
 import com.zrlog.admin.business.security.OAuthException;
-import com.zrlog.admin.business.service.*;
+import com.zrlog.admin.business.security.PersonalTokenModels;
+import com.zrlog.admin.business.service.AdminArticleService;
+import com.zrlog.admin.business.service.ArticlePublishingService;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
-import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.admin.util.AdminLanguageContext;
+import com.zrlog.admin.web.token.AdminTokenThreadLocal;
+import com.zrlog.common.CacheService;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.util.I18nUtil;
+import java.lang.reflect.Proxy;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
-import java.lang.reflect.Proxy;
+import com.google.gson.*;
+import com.zrlog.admin.business.knowledge.ContentToolModels.*;
+import com.zrlog.admin.business.service.*;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
 import static org.junit.Assert.*;
 
 @RunWith(Parameterized.class)
@@ -55,13 +58,17 @@ public class McpContentServiceTest {
             catch (java.sql.SQLException e) { throw new RuntimeException(e); }
         },request(),language,content,()->storage);
     }
-    private McpContentService tools(String token) { return tools(token,"en_US",new ContentToolService(request -> {}),null); }
+    private McpContentService tools(String token) { return tools(token,"en_US",new ContentToolService(publishing(new InMemoryZrLogDatabase.TestCacheService()), request -> {}),null); }
+    private ArticlePublishingService publishing(CacheService cache) {
+        return new ArticlePublishingService(
+                new AdminArticleService(cache), cache);
+    }
     private Set<String> names(McpContentService tools) throws Exception { return tools.definitions("en_US").stream().map(t->t.name).collect(Collectors.toSet()); }
 
     @Test public void createsPatchesAndPublishesThroughVersionAuditAndCacheServices() throws Exception {
         try(InMemoryZrLogDatabase db=open()) {
             AtomicInteger refreshes=new AtomicInteger();
-            McpContentService tools=tools(token(),"en_US",new ContentToolService(request->refreshes.incrementAndGet()),null);
+            McpContentService tools=tools(token(),"en_US",new ContentToolService(publishing(new InMemoryZrLogDatabase.TestCacheService()), request->refreshes.incrementAndGet()),null);
             var browser=AdminTokenThreadLocal.getUser();
             SavedArticle saved=(SavedArticle)tools.call("create_article",args(CREATE));
             assertEquals("draft",saved.status);assertEquals(0,saved.version);assertEquals(0,refreshes.get());
@@ -94,7 +101,7 @@ public class McpContentServiceTest {
     }
     @Test public void keepsSuccessfulSaveWhenStaticRefreshFailsAndAllowsExplicitDirectPublication() throws Exception {
         try(InMemoryZrLogDatabase db=open()) {
-            McpContentService tools=tools(token(),"zh_CN",new ContentToolService(request->{throw new IllegalStateException("internal detail");}),null);
+            McpContentService tools=tools(token(),"zh_CN",new ContentToolService(publishing(new InMemoryZrLogDatabase.TestCacheService()), request->{throw new IllegalStateException("internal detail");}),null);
             JsonObject input=args(CREATE);input.addProperty("status","published");
             JsonObject rpc=new JsonObject();rpc.addProperty("jsonrpc","2.0");rpc.addProperty("id",1);rpc.addProperty("method","tools/call");
             JsonObject params=new JsonObject();params.addProperty("name","create_article");params.add("arguments",input);rpc.add("params",params);
@@ -202,7 +209,7 @@ public class McpContentServiceTest {
                     uploaded.add(bytes);return request.getContextPath()+"/attached/users/1/file.png";
                 }
             };
-            String token=token("asset.upload");McpContentService tools=tools(token,"en_US",new ContentToolService(),storage);
+            String token=token("asset.upload");McpContentService tools=tools(token,"en_US",new ContentToolService(new ArticlePublishingService(new AdminArticleService(db.cacheService()), db.cacheService())),storage);
             assertEquals(Set.of("upload_attachment"),names(tools));
             Attachment result=(Attachment)tools.call("upload_attachment",args("{\"filename\":\"cover.png\",\"data\":\"aGVsbG8=\"}"));
             assertEquals("/sub/attached/users/1/file.png",result.url);assertEquals(5,result.size);assertArrayEquals("hello".getBytes(),uploaded.get(0));
@@ -225,7 +232,7 @@ public class McpContentServiceTest {
                     assertEquals(language.equals("zh_CN"),tool.description.codePoints().anyMatch(c->c>=0x4e00&&c<=0x9fff));
                     for(var property:tool.inputSchema.getAsJsonObject("properties").entrySet()) assertFalse(property.getValue().getAsJsonObject().get("description").getAsString().isBlank());
                 }
-                McpContentService tools=tools(token("article.read"),language,new ContentToolService(),null);
+                McpContentService tools=tools(token("article.read"),language,new ContentToolService(new ArticlePublishingService(new AdminArticleService(db.cacheService()), db.cacheService())),null);
                 JsonObject result=new McpService(language).handle("{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\",\"params\":{\"name\":\"publish_article\",\"arguments\":{\"id\":1,\"version\":0}}}",tools).body.getAsJsonObject("result");
                 assertTrue(result.get("isError").getAsBoolean());
                 assertEquals("ADMIN_PERMISSION_DENIED",result.getAsJsonObject("structuredContent").get("code").getAsString());

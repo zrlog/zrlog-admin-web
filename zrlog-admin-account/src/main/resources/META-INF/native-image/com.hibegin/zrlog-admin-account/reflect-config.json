@@ -18,8 +18,7 @@
   {
     "name": "com.zrlog.admin.web.controller.api.AdminUserController",
     "methods": [
-      {"name": "<init>", "parameterTypes": []},
-      {"name": "<init>", "parameterTypes": ["com.hibegin.http.server.api.HttpRequest", "com.hibegin.http.server.api.HttpResponse"]},
+      {"name": "<init>", "parameterTypes": ["com.zrlog.admin.business.service.UserService", "com.zrlog.common.CacheService"]},
       {"name": "disableMfa", "parameterTypes": []},
       {"name": "enableMfa", "parameterTypes": []},
       {"name": "index", "parameterTypes": []},

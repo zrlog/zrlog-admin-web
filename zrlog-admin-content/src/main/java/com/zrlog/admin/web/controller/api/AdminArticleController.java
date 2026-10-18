@@ -1,43 +1,47 @@
 package com.zrlog.admin.web.controller.api;
 
-import com.zrlog.admin.web.annotation.RequiresAction;
-import com.zrlog.data.security.AccountAction;
-
 import com.hibegin.common.dao.dto.Direction;
 import com.hibegin.common.dao.dto.OrderBy;
 import com.hibegin.common.dao.dto.PageRequest;
 import com.hibegin.common.dao.dto.PageRequestImpl;
-import com.zrlog.admin.business.rest.base.UserPreferences;
 import com.hibegin.common.util.StringUtils;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.RequestMethod;
 import com.hibegin.http.annotation.ResponseBody;
-import com.zrlog.admin.business.exception.PermissionErrorException;
-import com.zrlog.admin.business.rest.request.*;
-import com.zrlog.admin.business.rest.response.*;
-import com.zrlog.admin.business.service.*;
 import com.zrlog.admin.business.content.ArticleAssistant;
+import com.zrlog.admin.business.exception.PermissionErrorException;
+import com.zrlog.admin.business.rest.base.UserPreferences;
 import com.zrlog.admin.util.AdminSseEmitter;
 import com.zrlog.admin.util.AdminStaticSiteSsePublisher;
 import com.zrlog.admin.web.annotation.RefreshCache;
+import com.zrlog.admin.web.annotation.RequiresAction;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.business.plugin.type.StaticSiteType;
 import com.zrlog.business.util.ControllerUtil;
 import com.zrlog.common.controller.BaseController;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.vo.AdminTokenVO;
+import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.ZrLogUtil;
-
 import java.io.IOException;
 import java.sql.SQLException;
-import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
+import com.zrlog.admin.business.rest.request.*;
+import com.zrlog.admin.business.rest.response.*;
+import com.zrlog.admin.business.service.*;
+
+import java.util.*;
 
 public class AdminArticleController extends BaseController {
 
-    private final AdminArticleService articleService = new AdminArticleService();
-    private final ArticlePublishingService publishingService = new ArticlePublishingService();
+    private final AdminArticleService articleService;
+
+    public AdminArticleController(AdminArticleService articleService, ArticlePublishingService publishingService) {
+        this.articleService = articleService;
+        this.publishingService = publishingService;
+    }
+    private final ArticlePublishingService publishingService;
 
     @RefreshCache(async = true, updateStaticSites = StaticSiteType.BLOG)
     @ResponseBody

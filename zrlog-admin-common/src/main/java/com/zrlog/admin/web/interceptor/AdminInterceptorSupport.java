@@ -12,10 +12,10 @@ import com.zrlog.admin.util.AdminStaticSiteSsePublisher;
 import com.zrlog.admin.web.annotation.RefreshCache;
 import com.zrlog.business.plugin.type.StaticSiteType;
 import com.zrlog.business.util.CacheUtils;
+import com.zrlog.common.CacheService;
 import com.zrlog.common.Constants;
 import com.zrlog.common.TokenService;
 import com.zrlog.common.vo.AdminFullTokenVO;
-
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.List;
@@ -49,7 +49,7 @@ final class AdminInterceptorSupport {
             return;
         }
         boolean async = annotation.async() && !EnvKit.isFaaSMode();
-        CacheUtils.updateCache(async, request, Arrays.asList(annotation.updateStaticSites()));
+        CacheUtils.updateCache(request.getServerConfig().getBindings().build().get(CacheService.class), async, request, Arrays.asList(annotation.updateStaticSites()));
     }
 
     private static boolean isSseRefreshCacheRequest(HttpRequest request, Method method) {
@@ -76,7 +76,7 @@ final class AdminInterceptorSupport {
                 "refresh-cache-" + request.getUri(),
                 siteTypes,
                 emitter -> emitter.send("response", invoke),
-                () -> CacheUtils.updateCacheSynchronouslyOrThrow(request, siteTypes),
+                () -> CacheUtils.updateCacheSynchronouslyOrThrow(request.getServerConfig().getBindings().build().get(CacheService.class), request, siteTypes),
                 emitter -> emitter.send("refresh-complete", invoke)
         );
     }

@@ -3,21 +3,23 @@ package com.zrlog.admin.web;
 import com.hibegin.http.server.api.Interceptor;
 import com.hibegin.http.server.web.Router;
 import com.zrlog.admin.business.AdminConstants;
+import com.zrlog.admin.business.service.AdminPageService;
 import com.zrlog.admin.business.service.AdminResource;
 import com.zrlog.admin.business.service.AdminResourceImpl;
 import com.zrlog.admin.util.AdminUiNativeImageUtils;
 import com.zrlog.admin.web.config.AdminAccountPages;
 import com.zrlog.admin.web.controller.api.AdminStaticSiteController;
+import com.zrlog.admin.web.controller.page.AdminManifestController;
 import com.zrlog.admin.web.controller.page.AdminPageController;
 import com.zrlog.admin.web.controller.page.AdminTemplatePageController;
-import com.zrlog.admin.web.controller.page.AdminManifestController;
-import com.zrlog.admin.web.interceptor.*;
 import com.zrlog.admin.web.plugin.AdminStaticResourcePlugin;
 import com.zrlog.business.service.TemplateInfoHelper;
+import com.zrlog.common.CacheService;
 import com.zrlog.common.ZrLogConfig;
 import com.zrlog.plugin.Plugins;
 import com.zrlog.web.WebSetup;
 import java.util.List;
+import com.zrlog.admin.web.interceptor.*;
 
 /** React pages, PWA and static publishing; the API can run without this provider. */
 public class AdminUiWebSetup implements WebSetup {
@@ -28,12 +30,16 @@ public class AdminUiWebSetup implements WebSetup {
     public AdminUiWebSetup(ZrLogConfig config, String contextPath) {
         this.config = config;
         this.contextPath = contextPath;
-        this.resources = new AdminResourceImpl(contextPath);
+        this.resources = new AdminResourceImpl(contextPath, () -> config.isInstalled()
+                ? config.getServerConfig().getBindings().build().get(CacheService.class).getWebSiteVersion() : 0L);
         AdminConstants.adminResource = resources;
         if (config.getServerConfig().isNativeImageAgent()) AdminUiNativeImageUtils.reg(resources);
     }
 
     @Override public void setup() {
+        config.getServerConfig().getBindings()
+                .singleton(AdminPageService.class, r -> new AdminPageService(r.get(CacheService.class)))
+                .controller(AdminPageController.class, (r, request, response) -> new AdminPageController(r.get(AdminPageService.class)));
         List<Class<? extends Interceptor>> interceptors = config.getServerConfig().getInterceptors();
         interceptors.addAll(interceptors.indexOf(AdminLoginInterceptor.class), List.of(
                 PwaInterceptor.class, AdminPwaInterceptor.class,

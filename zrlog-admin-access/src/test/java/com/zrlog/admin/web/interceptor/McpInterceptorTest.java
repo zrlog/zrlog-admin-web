@@ -252,8 +252,12 @@ public class McpInterceptorTest {
         Map<String, String> headers = new HashMap<>(Map.of("Authorization", "Bearer " + token, "Accept", "application/json, text/event-stream",
                 "Content-Type", "application/json", "Accept-Language", "fr-FR", "MCP-Protocol-Version", "2025-11-25"));
         if (userAgent != null) headers.put("User-Agent", userAgent);
+        var serverConfig = new com.hibegin.http.server.config.ServerConfig();
+        serverConfig.getBindings().instance(com.zrlog.common.CacheService.class, new InMemoryZrLogDatabase.TestCacheService());
+        new com.zrlog.admin.web.ContentWebSetup(serverConfig).setup();
         HttpRequest request = (HttpRequest) Proxy.newProxyInstance(McpInterceptorTest.class.getClassLoader(), new Class[]{HttpRequest.class}, (proxy, invoked, args) -> {
             switch (invoked.getName()) {
+                case "getServerConfig": return serverConfig;
                 case "getUri": return "/mcp";
                 case "getMethod": return HttpMethod.POST;
                 case "getContextPath": return "";

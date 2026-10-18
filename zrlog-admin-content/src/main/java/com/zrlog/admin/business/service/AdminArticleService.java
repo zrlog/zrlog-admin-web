@@ -1,20 +1,19 @@
 package com.zrlog.admin.business.service;
 
-import com.zrlog.admin.business.content.ArticleAssistant;
 import com.hibegin.common.dao.ResultValueConvertUtils;
 import com.hibegin.common.dao.dto.PageData;
 import com.hibegin.common.dao.dto.PageRequest;
-import com.hibegin.common.util.*;
 import com.hibegin.http.server.api.HttpRequest;
 import com.zrlog.admin.business.AdminConstants;
+import com.zrlog.admin.business.content.ArticleAssistant;
 import com.zrlog.admin.business.exception.ArticleMissingTitleException;
 import com.zrlog.admin.business.exception.ArticleMissingTypeException;
 import com.zrlog.admin.business.exception.UpdateArticleExpireException;
 import com.zrlog.admin.business.rest.base.UserPreferences;
 import com.zrlog.admin.business.rest.request.CreateArticleRequest;
 import com.zrlog.admin.business.rest.request.UpdateArticleRequest;
-import com.zrlog.admin.business.rest.response.*;
 import com.zrlog.business.plugin.StaticSitePlugin;
+import com.zrlog.common.CacheService;
 import com.zrlog.common.Constants;
 import com.zrlog.common.cache.dto.TypeDTO;
 import com.zrlog.common.exception.NotFindDbEntryException;
@@ -31,13 +30,9 @@ import com.zrlog.util.I18nUtil;
 import com.zrlog.util.ParseUtil;
 import com.zrlog.util.ThreadUtils;
 import com.zrlog.util.ZrLogUtil;
-import org.jsoup.Jsoup;
-import org.jsoup.safety.Safelist;
-
+import java.sql.SQLException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.sql.SQLException;
-import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
@@ -45,8 +40,20 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import org.jsoup.Jsoup;
+import org.jsoup.safety.Safelist;
+import com.hibegin.common.util.*;
+import com.zrlog.admin.business.rest.response.*;
+
+import java.util.*;
 
 public class AdminArticleService {
+
+    private final CacheService cacheService;
+
+    public AdminArticleService(CacheService cacheService) {
+        this.cacheService = cacheService;
+    }
 
     public int resolveAdminPageSize(int requestedSize) {
         if (requestedSize > 0) {
@@ -56,7 +63,7 @@ public class AdminArticleService {
     }
 
     private static final Logger LOGGER = LoggerUtil.getLogger(AdminArticleService.class);
-    private final ArticleVersionService articleVersionService = new ArticleVersionService(this);
+    private final ArticleVersionService articleVersionService = new ArticleVersionService();
 
     private Lock getWriteLock(Integer logId) {
         // Existing articles share a lock across accounts; creation shares the max-id allocation lock.
@@ -183,7 +190,6 @@ public class AdminArticleService {
                 && !ResultValueConvertUtils.toBoolean(log.get("privacy"))
                 && !ResultValueConvertUtils.toBoolean(log.get("rubbish"));
     }
-
 
     private Map<String, Object> getLog(AdminTokenVO adminTokenVO, CreateArticleRequest createArticleRequest,
                                        Map<String, Object> oldLog) throws SQLException {
@@ -355,7 +361,7 @@ public class AdminArticleService {
                 return new Log().adminFind(pageRequest, keywords, typeAlias, status, authorId, privateOwnerId);
             }, executorService);
             CompletableFuture<List<TypeDTO>> listCompletableFuture = CompletableFuture.supplyAsync(() -> {
-                return Constants.zrLogConfig.getCacheService().getArticleTypes();
+                return cacheService.getArticleTypes();
             }, executorService);
             // 统计各状态数量
             CompletableFuture<ArticleStatusCountResponse> countFuture = CompletableFuture.supplyAsync(() -> getStatusCounts(authorId, privateOwnerId), executorService);
@@ -412,8 +418,8 @@ public class AdminArticleService {
         int draftContextId = -AccountPermissionService.current().getUserId();
         ArticleGlobalResponse response = new ArticleGlobalResponse();
         response.setArticle(StringUtils.isNotEmpty(id) ? loadDetail(id, request) : new LoadEditArticleResponse());
-        response.setTags(Constants.zrLogConfig.getCacheService().getTags());
-        response.setTypes(Constants.zrLogConfig.getCacheService().getArticleTypes());
+        response.setTags(cacheService.getTags());
+        response.setTypes(cacheService.getArticleTypes());
         UserPreferences.Editor editor = new UserPreferenceService().effective().editor;
         response.setLinkPreviewEnabled(editor.linkPreviewEnabled);
         response.setPublishCheckEnabled(editor.publishCheckEnabled);

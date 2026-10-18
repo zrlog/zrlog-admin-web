@@ -9,19 +9,17 @@ import com.zrlog.admin.business.service.AdminArticleService;
 import com.zrlog.admin.business.service.ArticlePublishingService;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.controller.ai.AIArticleController;
+import com.zrlog.admin.web.interceptor.AdminLoginInterceptor;
+import com.zrlog.admin.web.interceptor.BearerTokenInterceptor;
 import com.zrlog.admin.web.interceptor.McpInterceptor;
 import com.zrlog.admin.web.interceptor.OAuthInterceptor;
-import com.zrlog.admin.web.interceptor.BearerTokenInterceptor;
-import com.zrlog.admin.web.interceptor.AdminLoginInterceptor;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.Constants;
-import org.junit.Test;
-
 import java.lang.reflect.Proxy;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.TimeUnit;
-
+import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class AdminModuleSwitchTest {
@@ -149,8 +147,8 @@ public class AdminModuleSwitchTest {
             assertEquals(access, capabilities.access);
             assertEquals(mcp, capabilities.mcp);
             assertEquals(assets, capabilities.assets);
-            var saved = new ArticlePublishingService().create(AdminTokenThreadLocal.getUser(), article, request);
-            var detail = new AdminArticleService().loadDetailById(saved.getLogId().toString(), request);
+            var saved = new ArticlePublishingService(new AdminArticleService(db.cacheService()), db.cacheService()).create(AdminTokenThreadLocal.getUser(), article, request);
+            var detail = new AdminArticleService(db.cacheService()).loadDetailById(saved.getLogId().toString(), request);
             // The same article tools serve MCP without AI, and internal AI without external access.
             var knowledge = new com.zrlog.admin.business.knowledge.KnowledgeService(
                     com.zrlog.admin.business.service.AccountPermissionService::current,
@@ -170,7 +168,7 @@ public class AdminModuleSwitchTest {
             assertEquals("Independent content", detail.getData().getArticle().getTitle());
             if (!ai) assertSame(ArticleAssistant.PublishProgress.NONE,
                     ArticleAssistant.current().beginPublishCheck(detail.getData(), article, null));
-            assertTrue(new AdminArticleService().delete(saved.getLogId()));
+            assertTrue(new AdminArticleService(db.cacheService()).delete(saved.getLogId()));
         }
     }
 }

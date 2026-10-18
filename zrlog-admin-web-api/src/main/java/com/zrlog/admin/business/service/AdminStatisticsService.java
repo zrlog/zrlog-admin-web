@@ -4,10 +4,9 @@ import com.hibegin.common.util.LoggerUtil;
 import com.zrlog.admin.business.rest.response.StatisticsInfoResponse;
 import com.zrlog.admin.util.ServerInfo;
 import com.zrlog.admin.util.ServerInfoUtils;
-import com.zrlog.common.Constants;
+import com.zrlog.common.CacheService;
 import com.zrlog.model.Comment;
 import com.zrlog.model.Log;
-
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -21,6 +20,12 @@ import java.util.logging.Logger;
 
 public class AdminStatisticsService {
 
+    private final CacheService cacheService;
+
+    public AdminStatisticsService(CacheService cacheService) {
+        this.cacheService = cacheService;
+    }
+
     private static final Logger LOGGER = LoggerUtil.getLogger(AdminStatisticsService.class);
 
     public CompletableFuture<StatisticsInfoResponse> statisticsInfo(Executor executor) {
@@ -32,10 +37,10 @@ public class AdminStatisticsService {
             StatisticsInfoResponse info = new StatisticsInfoResponse();
             List<CompletableFuture<Void>> futures = new ArrayList<>();
             futures.add(CompletableFuture.runAsync(() -> {
-                info.setTypeData(Constants.zrLogConfig.getCacheService().getArticleTypes());
+                info.setTypeData(cacheService.getArticleTypes());
             }, executor));
             futures.add(CompletableFuture.runAsync(() -> {
-                info.setTagData(Constants.zrLogConfig.getCacheService().getTags());
+                info.setTagData(cacheService.getTags());
             }, executor));
             futures.add(CompletableFuture.runAsync(() -> fillCommentCounts(info), executor));
             futures.add(CompletableFuture.runAsync(() -> fillArticleCounts(info), executor));

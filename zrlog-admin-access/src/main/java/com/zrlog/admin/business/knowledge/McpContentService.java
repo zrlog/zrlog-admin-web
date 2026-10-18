@@ -13,9 +13,9 @@ import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.data.security.AccountAction;
 import java.net.URI;
-import java.util.*;
-import java.util.function.Supplier;
 import java.util.concurrent.Callable;
+import java.util.function.Supplier;
+import java.util.*;
 
 /** Reauthenticates each operation and binds the same account actions used by ordinary admin APIs. */
 public final class McpContentService implements ToolProvider {
@@ -25,7 +25,7 @@ public final class McpContentService implements ToolProvider {
     private final ContentToolService content;
     private final Supplier<AttachmentStorage> storage;
     public McpContentService(Supplier<Identity> authenticate, HttpRequest request, String language) {
-        this(authenticate,request,language,new ContentToolService(),AttachmentStorage::current);
+        this(authenticate,request,language,request.getServerConfig().getBindings().build().get(ContentToolService.class),AttachmentStorage::current);
     }
     public McpContentService(Supplier<Identity> authenticate, HttpRequest request, String language,
                              ContentToolService content, Supplier<AttachmentStorage> storage) {

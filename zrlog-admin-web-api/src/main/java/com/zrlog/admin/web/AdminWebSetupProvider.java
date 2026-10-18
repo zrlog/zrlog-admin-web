@@ -17,6 +17,9 @@ public class AdminWebSetupProvider implements WebSetupProvider {
     }
 
     @Override
+    public java.util.Set<String> requiredModules() { return java.util.Set.of("data", "services"); }
+
+    @Override
     public WebSetup create(WebSetupContext context) {
         return new AdminWebSetup(context.getZrLogConfig());
     }

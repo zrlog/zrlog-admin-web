@@ -18,7 +18,7 @@
   {
     "name": "com.zrlog.admin.web.controller.ai.AIWebSiteController",
     "methods": [
-      {"name": "<init>", "parameterTypes": []},
+      {"name": "<init>", "parameterTypes": ["com.zrlog.admin.business.service.WebSiteSettingsService"]},
       {"name": "ai", "parameterTypes": []},
       {"name": "optimizeAiPrompt", "parameterTypes": []},
       {"name": "optimizeDescription", "parameterTypes": []}

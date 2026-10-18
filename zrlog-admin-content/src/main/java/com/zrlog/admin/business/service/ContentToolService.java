@@ -4,7 +4,6 @@ import com.google.gson.JsonObject;
 import com.hibegin.http.server.api.HttpRequest;
 import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.exception.UpdateArticleExpireException;
-import com.zrlog.admin.business.knowledge.ContentToolModels.*;
 import com.zrlog.admin.business.rest.request.CreateArticleRequest;
 import com.zrlog.admin.business.rest.request.UpdateArticleRequest;
 import com.zrlog.admin.business.rest.response.CreateOrUpdateArticleResponse;
@@ -12,21 +11,25 @@ import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.data.security.ArticleAccess;
-import com.zrlog.model.Type;
 import com.zrlog.model.Tag;
+import com.zrlog.model.Type;
 import com.zrlog.util.I18nUtil;
 import com.zrlog.util.ZrLogUtil;
 import java.sql.SQLException;
-import java.util.*;
 import java.util.function.Consumer;
+import com.zrlog.admin.business.knowledge.ContentToolModels.*;
+import java.util.*;
 
 /** Content operations for tools, using the existing publishing, audit and version chain. */
 public final class ContentToolService {
-    private final ArticlePublishingService publishing = new ArticlePublishingService();
+    private final ArticlePublishingService publishing;
     private final Consumer<HttpRequest> refresh;
 
-    public ContentToolService() { this(request -> new ArticlePublishingService().updateBlogCacheWithStaticSyncNotice(request)); }
-    public ContentToolService(Consumer<HttpRequest> refresh) { this.refresh = refresh; }
+    public ContentToolService(ArticlePublishingService publishing) { this(publishing, publishing::updateBlogCacheWithStaticSyncNotice); }
+    public ContentToolService(ArticlePublishingService publishing, Consumer<HttpRequest> refresh) {
+        this.publishing = publishing;
+        this.refresh = refresh;
+    }
 
     public ArticleDetails details(int id, Set<String> scopes) throws SQLException {
         AccountPermissionService.require(AccountAction.ARTICLE_READ);

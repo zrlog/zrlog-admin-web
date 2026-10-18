@@ -215,8 +215,12 @@ public class AIChatToolParityTest {
     }
 
     private static HttpRequest request() {
+        var serverConfig = new com.hibegin.http.server.config.ServerConfig();
+        serverConfig.getBindings().instance(com.zrlog.common.CacheService.class, new InMemoryZrLogDatabase.TestCacheService());
+        new com.zrlog.admin.web.ContentWebSetup(serverConfig).setup();
         return (HttpRequest) Proxy.newProxyInstance(AIChatToolParityTest.class.getClassLoader(), new Class[]{HttpRequest.class}, (proxy, method, args) -> {
             switch (method.getName()) {
+                case "getServerConfig": return serverConfig;
                 case "getUri": return "/api/admin/article/ai";
                 case "getContextPath": return "";
                 case "getRemoteHost": return "127.0.0.1";

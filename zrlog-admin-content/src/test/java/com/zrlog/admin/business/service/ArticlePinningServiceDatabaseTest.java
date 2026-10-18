@@ -8,8 +8,6 @@ import com.zrlog.admin.business.rest.response.ArticlePinningResponse;
 import com.zrlog.admin.business.rest.response.CreateOrUpdateArticleResponse;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.common.vo.AdminTokenVO;
-import org.junit.Test;
-
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
@@ -17,7 +15,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.stream.Collectors;
-
+import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
@@ -141,7 +139,7 @@ public class ArticlePinningServiceDatabaseTest {
         request.setPrivacy(privacy);
         request.setRubbish(rubbish);
         request.setEditorType("markdown");
-        CreateOrUpdateArticleResponse response = new AdminArticleService().create(token(), request);
+        CreateOrUpdateArticleResponse response = new AdminArticleService(new InMemoryZrLogDatabase.TestCacheService()).create(token(), request);
         return response.getLogId();
     }
 

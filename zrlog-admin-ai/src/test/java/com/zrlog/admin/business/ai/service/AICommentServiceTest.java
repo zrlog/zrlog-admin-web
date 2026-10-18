@@ -2,20 +2,20 @@ package com.zrlog.admin.business.ai.service;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import com.hibegin.http.HttpMethod;
+import com.hibegin.http.annotation.RequestMethod;
 import com.zrlog.admin.business.ai.exception.AIResponseException;
 import com.zrlog.admin.business.ai.model.AIProviderType;
 import com.zrlog.admin.business.rest.base.AIWebSiteInfo;
 import com.zrlog.admin.business.rest.request.AnalyzeCommentRequest;
-import com.zrlog.admin.business.rest.response.AnalyzeCommentResponse;
 import com.zrlog.admin.business.rest.response.AIResponseEntry;
+import com.zrlog.admin.business.rest.response.AnalyzeCommentResponse;
 import com.zrlog.admin.web.controller.ai.AICommentController;
 import com.zrlog.common.exception.ArgsException;
-import com.hibegin.http.annotation.RequestMethod;
-import com.hibegin.http.HttpMethod;
-import org.junit.Test;
 import java.net.http.HttpRequest;
 import java.time.Duration;
 import java.util.List;
+import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class AICommentServiceTest {
@@ -62,7 +62,7 @@ public class AICommentServiceTest {
     }
     @Test public void registersInternalRouteAndNativePromptResources() throws Exception {
         com.hibegin.http.server.config.ServerConfig config = new com.hibegin.http.server.config.ServerConfig();
-        new com.zrlog.admin.web.AIWebSetup(config.getRouter()).setup();
+        new com.zrlog.admin.web.AIWebSetup(config).setup();
         assertEquals(AICommentController.class.getMethod("analyze"), config.getRouter().getMethod("/api/admin/internal/ai/comment/analyze", HttpMethod.POST));
         assertTrue(com.zrlog.admin.util.AiNativeImageUtils.resources().contains("/ai/comment-review/prompt_zh_CN.md"));
         assertNotNull(getClass().getResource("/ai/comment-review/prompt_zh_CN.md"));

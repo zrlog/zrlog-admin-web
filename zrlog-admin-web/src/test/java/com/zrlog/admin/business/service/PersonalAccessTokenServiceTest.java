@@ -5,12 +5,12 @@ import com.google.gson.JsonParser;
 import com.zrlog.admin.business.knowledge.KnowledgeModels;
 import com.zrlog.admin.business.knowledge.KnowledgeService;
 import com.zrlog.admin.business.security.OAuthException;
-import com.zrlog.admin.business.security.PersonalTokenModels.*;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.data.security.AccountAccess;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+import com.zrlog.admin.business.security.PersonalTokenModels.*;
 import java.util.*;
 import static org.junit.Assert.*;
 
@@ -152,7 +152,7 @@ public class PersonalAccessTokenServiceTest {
                 assertEquals(List.of("article.create"), service.create(general("custom", "article.create")).info.permissions);
                 var create = new com.zrlog.admin.business.rest.request.CreateArticleRequest();
                 create.setTitle("No publication"); create.setContent("body"); create.setTypeId(1L); create.setRubbish(false);
-                assertThrows(com.zrlog.admin.business.exception.PermissionErrorException.class, () -> new AdminArticleService().create(com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser(), create));
+                assertThrows(com.zrlog.admin.business.exception.PermissionErrorException.class, () -> new AdminArticleService(db.cacheService()).create(com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser(), create));
                 var member = new com.zrlog.admin.business.security.MemberModels.Create();
                 member.userName = "limited"; member.password = "long-password-123"; member.role = "admin";
                 assertThrows(com.zrlog.admin.business.exception.PermissionErrorException.class, () -> new MemberService().create(member));

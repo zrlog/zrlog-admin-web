@@ -5,17 +5,16 @@ import com.hibegin.http.server.api.HttpResponse;
 import com.hibegin.http.server.web.Controller;
 import com.zrlog.admin.business.rest.response.ArticleVersionCompareResponse;
 import com.zrlog.admin.business.rest.response.ArticleVersionResponse;
+import com.zrlog.admin.business.service.AdminArticleService;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.model.LogVersion;
-import org.junit.Test;
-
 import java.lang.reflect.Field;
 import java.lang.reflect.Proxy;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
-
+import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -75,7 +74,7 @@ public class AdminArticleVersionControllerDatabaseTest {
     }
 
     private static AdminArticleVersionController controller(Map<String, String> params) throws Exception {
-        AdminArticleVersionController controller = new AdminArticleVersionController();
+        AdminArticleVersionController controller = new AdminArticleVersionController(new AdminArticleService(new InMemoryZrLogDatabase.TestCacheService()), new InMemoryZrLogDatabase.TestCacheService());
         Field requestField = Controller.class.getDeclaredField("request");
         requestField.setAccessible(true);
         requestField.set(controller, request(params));

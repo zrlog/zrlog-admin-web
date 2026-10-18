@@ -5,19 +5,19 @@ import com.zrlog.admin.business.rest.request.UpgradeSettingsRequest;
 import com.zrlog.admin.business.rest.response.UpgradeSettingsResponse;
 import com.zrlog.business.rest.base.UpgradeWebSiteInfo;
 import com.zrlog.common.exception.ArgsException;
-import com.zrlog.updater.spi.DockerControl;
 import com.zrlog.common.updater.docker.DockerUpdaterProtocol;
 import com.zrlog.data.security.AccountAction;
+import com.zrlog.updater.spi.DockerControl;
 import com.zrlog.util.ZrLogUtil;
-
 import java.sql.SQLException;
 
 /** Aggregates the existing website settings and the private updater protocol. */
 public class UpgradeSettingsService {
     private final WebSiteSettingsService settingsService;
 
-    public UpgradeSettingsService() { this(new WebSiteSettingsService()); }
-    public UpgradeSettingsService(WebSiteSettingsService settingsService) { this.settingsService = settingsService; }
+    public UpgradeSettingsService(WebSiteSettingsService settingsService) {
+        this.settingsService = settingsService;
+    }
 
     public UpgradeSettingsResponse read(String requestedChannel) throws SQLException {
         UpgradeSettingsResponse response = new UpgradeSettingsResponse(new WebSiteService().upgradeWebSiteInfo(), isDockerMode());

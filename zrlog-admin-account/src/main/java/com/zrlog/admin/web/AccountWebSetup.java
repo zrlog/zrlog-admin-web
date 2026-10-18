@@ -1,13 +1,23 @@
 package com.zrlog.admin.web;
 
+import com.hibegin.http.server.config.ServerConfig;
+import com.hibegin.http.server.di.SwsBindings;
 import com.hibegin.http.server.web.Router;
 import com.zrlog.admin.business.AdminConstants;
+import com.zrlog.admin.business.service.UserService;
+import com.zrlog.common.CacheService;
 import com.zrlog.admin.web.controller.api.*;
 
 public class AccountWebSetup implements com.zrlog.web.WebSetup {
     private final Router router;
-    public AccountWebSetup(Router router) { this.router = router; }
+    private final SwsBindings bindings;
+    public AccountWebSetup(ServerConfig config) {
+        this.router = config.getRouter();
+        this.bindings = config.getBindings();
+    }
     @Override public void setup() {
+        bindings.singleton(UserService.class, r -> new UserService())
+                .controller(AdminUserController.class, (r, request, response) -> new AdminUserController(r.get(UserService.class), r.get(CacheService.class)));
         router.addMapper("/api/admin/access", AccessController.class);
         router.addMapper("/api/admin/members", MemberController.class);
         router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/passkey/authentication/options",

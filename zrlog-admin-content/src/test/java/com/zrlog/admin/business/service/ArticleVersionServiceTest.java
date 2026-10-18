@@ -6,17 +6,15 @@ import com.zrlog.admin.business.rest.request.UpdateArticleRequest;
 import com.zrlog.admin.business.rest.response.ArticleVersionCompareResponse;
 import com.zrlog.admin.business.rest.response.CreateOrUpdateArticleResponse;
 import com.zrlog.admin.business.rest.response.LoadEditArticleResponse;
+import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.vo.AdminTokenVO;
-import org.junit.Test;
-
-import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.sql.SQLException;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-
+import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
@@ -135,9 +133,9 @@ public class ArticleVersionServiceTest {
     @Test
     public void shouldCompareCurrentVersionWithoutLoadingReversePatches() throws Exception {
         FakeAdminArticleService fake = fakeArticleService(article(5, 3, "Current"));
-        ArticleVersionService service = newService(fake);
+        ArticleVersionService service = newService();
 
-        ArticleVersionCompareResponse response = service.compare(5, 3, 3, null);
+        ArticleVersionCompareResponse response = service.compare(5, 3, 3, null, fake);
 
         assertEquals(Integer.valueOf(3), response.getFromVersion());
         assertEquals(Integer.valueOf(3), response.getToVersion());
@@ -150,13 +148,13 @@ public class ArticleVersionServiceTest {
     @Test
     public void shouldRollbackToCurrentVersionThroughInjectedArticleService() throws Exception {
         FakeAdminArticleService fake = fakeArticleService(article(6, 4, "Rollback"));
-        ArticleVersionService service = newService(fake);
+        ArticleVersionService service = newService();
         ArticleVersionRollbackRequest request = new ArticleVersionRollbackRequest();
         request.setLogId(6);
         request.setVersion(5);
         request.setTargetVersion(4);
 
-        CreateOrUpdateArticleResponse response = service.rollback(null, request, null);
+        CreateOrUpdateArticleResponse response = service.rollback(null, request, null, fake);
 
         assertEquals(Long.valueOf(6), response.getLogId());
         assertEquals(Integer.valueOf(6), fake.updatedRequest.getLogId());
@@ -172,7 +170,7 @@ public class ArticleVersionServiceTest {
         request.setLogId(1);
         request.setVersion(1);
 
-        assertThrows(ArgsException.class, () -> service.rollback(null, request, null));
+        assertThrows(ArgsException.class, () -> service.rollback(null, request, null, fakeArticleService(null)));
     }
 
     private static LoadEditArticleResponse article(Integer logId, Integer version, String title) {
@@ -203,51 +201,21 @@ public class ArticleVersionServiceTest {
         return method;
     }
 
-    private static ArticleVersionService newService() throws Exception {
-        return newService(null);
-    }
-
-    private static ArticleVersionService newService(AdminArticleService adminArticleService) throws Exception {
-        ArticleVersionService service = allocate(ArticleVersionService.class);
-        if (adminArticleService != null) {
-            setField(service, "adminArticleService", adminArticleService);
-        }
-        return service;
+    private static ArticleVersionService newService() {
+        return new ArticleVersionService();
     }
 
     private static FakeAdminArticleService fakeArticleService(LoadEditArticleResponse current) throws Exception {
-        FakeAdminArticleService fake = allocate(FakeAdminArticleService.class);
-        setField(fake, "current", current);
+        FakeAdminArticleService fake = new FakeAdminArticleService();
+        fake.current = current;
         return fake;
     }
 
-    @SuppressWarnings("unchecked")
-    private static <T> T allocate(Class<T> type) throws Exception {
-        return (T) unsafe().allocateInstance(type);
-    }
-
-    private static sun.misc.Unsafe unsafe() throws Exception {
-        Field field = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
-        field.setAccessible(true);
-        return (sun.misc.Unsafe) field.get(null);
-    }
-
-    private static void setField(Object target, String name, Object value) throws Exception {
-        Class<?> type = target.getClass();
-        while (type != null) {
-            try {
-                Field field = type.getDeclaredField(name);
-                field.setAccessible(true);
-                field.set(target, value);
-                return;
-            } catch (NoSuchFieldException e) {
-                type = type.getSuperclass();
-            }
-        }
-        throw new NoSuchFieldException(name);
-    }
-
     private static class FakeAdminArticleService extends AdminArticleService {
+        private FakeAdminArticleService() {
+            super(new InMemoryZrLogDatabase.TestCacheService());
+        }
+
 
         private LoadEditArticleResponse current;
         private String loadedId;

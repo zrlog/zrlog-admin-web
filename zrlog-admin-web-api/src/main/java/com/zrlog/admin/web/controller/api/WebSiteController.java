@@ -1,8 +1,5 @@
 package com.zrlog.admin.web.controller.api;
 
-import com.zrlog.admin.web.annotation.RequiresAction;
-import com.zrlog.data.security.AccountAction;
-
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.ResponseBody;
 import com.zrlog.admin.business.AdminConstants;
@@ -13,27 +10,32 @@ import com.zrlog.admin.business.rest.base.BlogWebSiteInfo;
 import com.zrlog.admin.business.rest.base.ContentProtectorWebSiteInfo;
 import com.zrlog.admin.business.rest.base.FeatureLabWebSiteInfo;
 import com.zrlog.admin.business.rest.base.OtherWebSiteInfo;
+import com.zrlog.admin.business.rest.request.UpgradeSettingsRequest;
 import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
+import com.zrlog.admin.business.rest.response.UpgradeSettingsResponse;
 import com.zrlog.admin.business.rest.response.VersionResponse;
+import com.zrlog.admin.business.service.UpgradeSettingsService;
 import com.zrlog.admin.business.service.WebSiteService;
 import com.zrlog.admin.business.service.WebSiteSettingsService;
 import com.zrlog.admin.web.annotation.RefreshCache;
 import com.zrlog.admin.web.annotation.RequestLock;
+import com.zrlog.admin.web.annotation.RequiresAction;
 import com.zrlog.business.plugin.type.StaticSiteType;
-import com.zrlog.admin.business.rest.request.UpgradeSettingsRequest;
-import com.zrlog.admin.business.rest.response.UpgradeSettingsResponse;
-import com.zrlog.admin.business.service.UpgradeSettingsService;
 import com.zrlog.business.updater.UpdateVersionInfoPlugin;
 import com.zrlog.common.controller.BaseController;
+import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.I18nUtil;
-
 import java.sql.SQLException;
 import java.util.Map;
 
 public class WebSiteController extends BaseController {
 
     private final WebSiteService webSiteService = new WebSiteService();
-    private final WebSiteSettingsService settingsService = new WebSiteSettingsService();
+    private final WebSiteSettingsService settingsService;
+
+    public WebSiteController(WebSiteSettingsService settingsService) {
+        this.settingsService = settingsService;
+    }
 
     @ResponseBody
     @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "website.version")
@@ -148,7 +150,7 @@ public class WebSiteController extends BaseController {
         return page(upgradeSettings.read(isPost() ? null : request.getParaToStr("channel")));
     }
 
-    protected UpgradeSettingsService upgradeSettingsService() { return new UpgradeSettingsService(); }
+    protected UpgradeSettingsService upgradeSettingsService() { return new UpgradeSettingsService(settingsService); }
 
     private boolean isPost() {
         return request.getMethod() == HttpMethod.POST;

@@ -1,31 +1,28 @@
 package com.zrlog.admin.web.controller.api;
 
-import com.zrlog.admin.web.annotation.RequiresAction;
-import com.zrlog.data.security.AccountAction;
-
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.RequestMethod;
 import com.hibegin.http.annotation.ResponseBody;
-import com.hibegin.http.server.api.HttpRequest;
-import com.hibegin.http.server.api.HttpResponse;
 import com.zrlog.admin.business.exception.AdminAuthException;
-import com.zrlog.admin.business.rest.request.*;
-import com.zrlog.admin.business.rest.response.*;
 import com.zrlog.admin.business.service.AdminAuditService;
 import com.zrlog.admin.business.service.MfaService;
 import com.zrlog.admin.business.service.PasskeyService;
 import com.zrlog.admin.business.service.UserService;
 import com.zrlog.admin.business.type.AdminAuditAction;
 import com.zrlog.admin.web.annotation.RefreshCache;
+import com.zrlog.admin.web.annotation.RequiresAction;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.business.plugin.type.StaticSiteType;
+import com.zrlog.common.CacheService;
 import com.zrlog.common.controller.BaseController;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.common.vo.AdminTokenVO;
+import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.I18nUtil;
-
 import java.sql.SQLException;
 import java.util.Objects;
+import com.zrlog.admin.business.rest.request.*;
+import com.zrlog.admin.business.rest.response.*;
 
 public class AdminUserController extends BaseController {
 
@@ -33,15 +30,11 @@ public class AdminUserController extends BaseController {
     private final MfaService mfaService;
     private final PasskeyService passkeyService;
 
-    public AdminUserController() {
-        this.userService = new UserService();
-        this.mfaService = new MfaService();
-        this.passkeyService = new PasskeyService();
-    }
+    private final CacheService cacheService;
 
-    public AdminUserController(HttpRequest request, HttpResponse response) {
-        super(request, response);
-        this.userService = new UserService();
+    public AdminUserController(UserService userService, CacheService cacheService) {
+        this.userService = userService;
+        this.cacheService = cacheService;
         this.mfaService = new MfaService();
         this.passkeyService = new PasskeyService();
     }
@@ -89,7 +82,7 @@ public class AdminUserController extends BaseController {
         if (Objects.isNull(adminTokenVO)) {
             throw new AdminAuthException();
         }
-        return new AdminPageDataResponse<>(userService.getUserInfoWithCache(adminTokenVO.getUserId(), adminTokenVO.getSessionId()), "", request.getUri());
+        return new AdminPageDataResponse<>(userService.getUserInfoWithCache(adminTokenVO.getUserId(), adminTokenVO.getSessionId(), cacheService), "", request.getUri());
     }
 
     @RefreshCache(updateStaticSites = StaticSiteType.BLOG)

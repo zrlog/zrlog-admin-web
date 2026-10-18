@@ -1,34 +1,31 @@
 package com.zrlog.admin.web.controller.api;
 
-import com.zrlog.admin.web.annotation.RequiresAction;
-import com.zrlog.data.security.AccountAction;
-
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.RequestMethod;
 import com.hibegin.http.annotation.ResponseBody;
-import com.zrlog.admin.business.dto.UserLoginDTO;
-import com.zrlog.admin.business.rest.request.LoginRequest;
-import com.zrlog.admin.business.rest.request.PasskeyAuthenticationVerifyRequest;
 import com.zrlog.admin.business.rest.request.FirstUseChecklistRequest;
-import com.zrlog.admin.business.rest.response.*;
-import com.zrlog.admin.business.service.*;
 import com.zrlog.admin.business.type.AdminAuditAction;
 import com.zrlog.admin.web.annotation.RefreshCache;
+import com.zrlog.admin.web.annotation.RequiresAction;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
-import com.zrlog.business.exception.MissingInstallException;
 import com.zrlog.business.plugin.type.StaticSiteType;
-import com.zrlog.common.Constants;
 import com.zrlog.common.controller.BaseController;
 import com.zrlog.common.rest.response.ApiStandardResponse;
+import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.I18nUtil;
-
-import java.io.IOException;
 import java.sql.SQLException;
+import com.zrlog.admin.business.rest.response.*;
+import com.zrlog.admin.business.service.*;
+
 import java.util.*;
 
 public class AdminController extends BaseController {
 
-    private final AdminDashboardService dashboardService = new AdminDashboardService();
+    private final AdminDashboardService dashboardService;
+
+    public AdminController(AdminDashboardService dashboardService) {
+        this.dashboardService = dashboardService;
+    }
 
     /**
      * 触发更新缓存
@@ -40,7 +37,6 @@ public class AdminController extends BaseController {
         new AdminAuditService().record(request, AdminAuditAction.REFRESH_CACHE);
         return new UpdateRecordResponse();
     }
-
 
     @ResponseBody
     @RequiresAction(value = AccountAction.SESSION, descriptionKey = "admin.error")

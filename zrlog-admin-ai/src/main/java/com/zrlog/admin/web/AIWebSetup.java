@@ -1,27 +1,28 @@
 package com.zrlog.admin.web;
 
-import com.hibegin.http.server.web.Router;
 import com.hibegin.common.util.LoggerUtil;
 import com.hibegin.common.util.StringUtils;
+import com.hibegin.http.server.web.Router;
 import com.zrlog.admin.business.AdminConstants;
-import com.zrlog.admin.business.content.ArticleAssistant;
 import com.zrlog.admin.business.ai.service.AIConversationService;
 import com.zrlog.admin.business.ai.service.AIPublishCheckService;
 import com.zrlog.admin.business.ai.service.AIPublishCheckService.PublishCheckTask;
+import com.zrlog.admin.business.content.ArticleAssistant;
 import com.zrlog.admin.business.rest.base.AIWebSiteInfoWithAIMessages;
 import com.zrlog.admin.business.rest.request.CreateArticleRequest;
-import com.zrlog.admin.business.rest.response.*;
+import com.zrlog.admin.business.service.WebSiteSettingsService;
+import com.zrlog.admin.util.AdminSseEmitter;
 import com.zrlog.admin.web.controller.ai.AIArticleController;
 import com.zrlog.admin.web.controller.ai.AIWebSiteController;
-import com.zrlog.admin.util.AdminSseEmitter;
 import com.zrlog.util.I18nUtil;
 import java.io.IOException;
 import java.util.Objects;
-import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import com.zrlog.admin.business.rest.response.*;
+import java.util.concurrent.*;
 
 public class AIWebSetup implements ArticleAssistant {
     private static final Logger LOGGER = LoggerUtil.getLogger(AIWebSetup.class);
@@ -29,8 +30,15 @@ public class AIWebSetup implements ArticleAssistant {
     private final Router router;
     private final AIPublishCheckService publishingService = new AIPublishCheckService();
 
-    public AIWebSetup(Router router) { this.router = router; }
-    @Override public void setup() { registerRoutes(router); }
+    private final com.hibegin.http.server.di.SwsBindings bindings;
+    public AIWebSetup(com.hibegin.http.server.config.ServerConfig config) {
+        this.router = config.getRouter();
+        this.bindings = config.getBindings();
+    }
+    @Override public void setup() {
+        bindings.controller(AIWebSiteController.class, (r, request, response) -> new AIWebSiteController(r.get(WebSiteSettingsService.class)));
+        registerRoutes(router);
+    }
 
     @Override public void articleCreated(long articleId, int userId) {
         try { new AIConversationService().migrateDraftAIMessageToArticle(articleId, -(long) userId); }

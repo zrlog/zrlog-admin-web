@@ -2,7 +2,7 @@
   {
     "name": "com.zrlog.admin.web.controller.api.AdminController",
     "methods": [
-      {"name": "<init>", "parameterTypes": []},
+      {"name": "<init>", "parameterTypes": ["com.zrlog.admin.business.service.AdminDashboardService"]},
       {"name": "dismissFirstUseChecklist", "parameterTypes": []},
       {"name": "error", "parameterTypes": []},
       {"name": "index", "parameterTypes": []},
@@ -89,7 +89,7 @@
   {
     "name": "com.zrlog.admin.web.controller.api.WebSiteController",
     "methods": [
-      {"name": "<init>", "parameterTypes": []},
+      {"name": "<init>", "parameterTypes": ["com.zrlog.admin.business.service.WebSiteSettingsService"]},
       {"name": "admin", "parameterTypes": []},
       {"name": "articleEdit", "parameterTypes": []},
       {"name": "basic", "parameterTypes": []},

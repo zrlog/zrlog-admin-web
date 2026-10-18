@@ -41,16 +41,25 @@ public class AIApprovalTest {
         final List<String> replies;
         final List<JsonObject> requests = new ArrayList<>();
         Model(String... replies) {
-            super((HttpRequest) Proxy.newProxyInstance(AIApprovalTest.class.getClassLoader(), new Class[]{HttpRequest.class}, (proxy, method, args) -> {
+            super(modelRequest());
+            this.replies = List.of(replies);
+        }
+        private static HttpRequest modelRequest() {
+            var config = new com.hibegin.http.server.config.ServerConfig();
+            var cache = new InMemoryZrLogDatabase.TestCacheService();
+            config.getBindings().instance(com.zrlog.admin.business.service.ContentToolService.class,
+                    new com.zrlog.admin.business.service.ContentToolService(new com.zrlog.admin.business.service.ArticlePublishingService(
+                            new com.zrlog.admin.business.service.AdminArticleService(cache), cache)));
+            return (HttpRequest) Proxy.newProxyInstance(AIApprovalTest.class.getClassLoader(), new Class[]{HttpRequest.class}, (proxy, method, args) -> {
                 switch (method.getName()) {
+                    case "getServerConfig": return config;
                     case "getUri": return "/api/admin/article/ai";
                     case "getContextPath": return "";
                     case "getRemoteHost": return "127.0.0.1";
                     case "getHeaderMap": case "getParamMap": return Map.of();
                     default: return null;
                 }
-            }));
-            this.replies = List.of(replies);
+            });
         }
         String start() throws Exception {
             return start(7);

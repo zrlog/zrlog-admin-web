@@ -10,10 +10,9 @@ import com.zrlog.admin.business.rest.response.AIWebSiteInfoResponse;
 import com.zrlog.admin.business.service.WebSiteSettingsService;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.model.WebSite;
-
 import java.sql.SQLException;
-import java.util.*;
 import java.util.stream.Collectors;
+import java.util.*;
 
 public class AIConfigService {
 
@@ -37,9 +36,9 @@ public class AIConfigService {
         return ResultBeanUtils.convert(webSiteByNameIn, clazz);
     }
 
-    public void updateAi(AIWebSiteInfo settings, HttpRequest request) throws SQLException {
+    public void updateAi(AIWebSiteInfo settings, HttpRequest request, WebSiteSettingsService settingsService) throws SQLException {
         mergeRetainedApiKeys(settings, ai());
-        new WebSiteSettingsService().update(settings, request);
+        settingsService.update(settings, request);
     }
 
     public AIWebSiteInfoResponse aiResponse() {

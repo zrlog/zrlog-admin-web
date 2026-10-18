@@ -2,13 +2,11 @@ package com.zrlog.admin.business.service;
 
 import com.zrlog.admin.business.rest.response.StatisticsInfoResponse;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
-import com.zrlog.test.support.TestLogCapture;
 import com.zrlog.common.cache.dto.TagDTO;
-import org.junit.Test;
-
+import com.zrlog.test.support.TestLogCapture;
 import java.util.concurrent.Executor;
 import java.util.logging.Level;
-
+import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -28,7 +26,7 @@ public class AdminStatisticsServiceDatabaseTest {
             insertComment(db, 3, "DATEADD('DAY', -1, CURRENT_TIMESTAMP)");
             db.cacheService().getTags().add(tag("zrlog", 3L));
 
-            StatisticsInfoResponse response = new AdminStatisticsService()
+            StatisticsInfoResponse response = new AdminStatisticsService(db.cacheService())
                     .statisticsInfo(DIRECT_EXECUTOR, false)
                     .get();
 
@@ -56,7 +54,7 @@ public class AdminStatisticsServiceDatabaseTest {
 
             StatisticsInfoResponse response;
             try (TestLogCapture logs = TestLogCapture.forClass(AdminStatisticsService.class)) {
-                response = new AdminStatisticsService()
+                response = new AdminStatisticsService(db.cacheService())
                         .statisticsInfo(DIRECT_EXECUTOR, false)
                         .get();
 

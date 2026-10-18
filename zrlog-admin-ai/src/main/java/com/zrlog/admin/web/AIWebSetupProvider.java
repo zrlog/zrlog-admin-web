@@ -10,7 +10,7 @@ public class AIWebSetupProvider implements WebSetupProvider {
     @Override public int order() { return 140; }
     @Override public Set<String> requiredModules() { return Set.of("admin", "admin-content", "admin-assets"); }
     @Override public WebSetup create(WebSetupContext context) {
-        return new AIWebSetup(context.getZrLogConfig().getServerConfig().getRouter());
+        return new AIWebSetup(context.getZrLogConfig().getServerConfig());
     }
 
 }

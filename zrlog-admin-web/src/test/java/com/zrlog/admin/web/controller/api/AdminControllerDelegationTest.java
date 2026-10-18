@@ -1,15 +1,18 @@
 package com.zrlog.admin.web.controller.api;
 
-import com.hibegin.http.HttpMethod;
 import com.hibegin.common.dao.dto.PageData;
 import com.hibegin.common.dao.dto.PageRequest;
 import com.hibegin.common.util.PasswordHashUtils;
 import com.hibegin.common.util.SecurityUtils;
+import com.hibegin.http.HttpMethod;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
 import com.hibegin.http.server.config.ServerConfig;
 import com.hibegin.http.server.web.Controller;
 import com.zrlog.admin.business.exception.AdminAuthException;
+import com.zrlog.admin.business.rest.request.PersonalDataPreviewRequest;
+import com.zrlog.admin.business.rest.request.ReadCommentRequest;
+import com.zrlog.admin.business.rest.request.TagManageRequest;
 import com.zrlog.admin.business.rest.response.AdminAuditLogEntryResponse;
 import com.zrlog.admin.business.rest.response.AdminDashboardAuditTrailDataResponse;
 import com.zrlog.admin.business.rest.response.AdminDashboardCardResponse;
@@ -20,9 +23,6 @@ import com.zrlog.admin.business.rest.response.AdminDashboardWelcomeDataResponse;
 import com.zrlog.admin.business.rest.response.AdminManifestResponse;
 import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
 import com.zrlog.admin.business.rest.response.ArticleActivityData;
-import com.zrlog.admin.business.rest.request.PersonalDataPreviewRequest;
-import com.zrlog.admin.business.rest.request.ReadCommentRequest;
-import com.zrlog.admin.business.rest.request.TagManageRequest;
 import com.zrlog.admin.business.rest.response.DeleteResponse;
 import com.zrlog.admin.business.rest.response.ErrorPageResponse;
 import com.zrlog.admin.business.rest.response.IndexResponse;
@@ -39,13 +39,17 @@ import com.zrlog.admin.business.rest.response.TagManagementPreviewResponse;
 import com.zrlog.admin.business.rest.response.UpdateRecordResponse;
 import com.zrlog.admin.business.rest.response.UserBasicInfoResponse;
 import com.zrlog.admin.business.rest.response.UserInfoResponse;
+import com.zrlog.admin.business.service.AdminArticleService;
 import com.zrlog.admin.business.service.AdminCommentService;
 import com.zrlog.admin.business.service.AdminDashboardService;
+import com.zrlog.admin.business.service.AdminStatisticsService;
 import com.zrlog.admin.business.service.LinkPreviewService;
 import com.zrlog.admin.business.service.MessageCenterService;
 import com.zrlog.admin.business.service.MfaService;
 import com.zrlog.admin.business.service.PersonalDataService;
 import com.zrlog.admin.business.service.TagManagementService;
+import com.zrlog.admin.business.service.UserService;
+import com.zrlog.admin.business.service.WebSiteSettingsService;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.support.MfaTestCodeGenerator;
 import com.zrlog.admin.support.UploadFallbackZrLogConfig;
@@ -61,10 +65,6 @@ import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.data.dto.CommentDTO;
 import com.zrlog.util.BlogBuildInfoUtil;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-
 import java.io.ByteArrayInputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -76,7 +76,9 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -377,7 +379,7 @@ public class AdminControllerDelegationTest {
 
     @Test
     public void shouldRejectUserInfoRequestsWithoutAdminToken() throws Exception {
-        AdminUserController controller = new AdminUserController();
+        AdminUserController controller = new AdminUserController(new UserService(), new InMemoryZrLogDatabase.TestCacheService());
         setControllerRequest(controller, request(HttpMethod.GET, "/api/admin/user", Map.of(), Map.of(), null));
 
         assertThrows(AdminAuthException.class, controller::index);
@@ -398,7 +400,7 @@ public class AdminControllerDelegationTest {
 
     @Test
     public void shouldDelegateMfaStatusLookupUsingThreadLocalUserIdFallback() throws Exception {
-        AdminUserController controller = new AdminUserController();
+        AdminUserController controller = new AdminUserController(new UserService(), new InMemoryZrLogDatabase.TestCacheService());
         FakeMfaService service = new FakeMfaService();
         MfaStatusResponse status = new MfaStatusResponse();
         status.setAccountName("admin");
@@ -416,7 +418,7 @@ public class AdminControllerDelegationTest {
     public void shouldHandleUserProfilePasswordAndMfaThroughRealUserTable() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             setAdminToken();
-            AdminUserController controller = new AdminUserController();
+            AdminUserController controller = new AdminUserController(new UserService(), db.cacheService());
             db.execute("update user set password=? where userId=?",
                     PasswordHashUtils.hash(SecurityUtils.md5("old-password")), 1);
 
@@ -481,7 +483,7 @@ public class AdminControllerDelegationTest {
 
     @Test
     public void shouldReturnSimpleAdminControllerPageResponses() throws Exception {
-        AdminController controller = new AdminController();
+        AdminController controller = new AdminController(new AdminDashboardService(new AdminStatisticsService(new InMemoryZrLogDatabase.TestCacheService()), new AdminArticleService(new InMemoryZrLogDatabase.TestCacheService())));
         setControllerRequest(controller, request(HttpMethod.GET, "/api/admin/error",
                 Map.of("message", "not found"), Map.of(), null));
 
@@ -596,9 +598,9 @@ public class AdminControllerDelegationTest {
             }
         };
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-            WebSiteController controller = new WebSiteController() {
+            WebSiteController controller = new WebSiteController(new WebSiteSettingsService(db.cacheService())) {
                 @Override protected com.zrlog.admin.business.service.UpgradeSettingsService upgradeSettingsService() {
-                    return new com.zrlog.admin.business.service.UpgradeSettingsService() {
+                    return new com.zrlog.admin.business.service.UpgradeSettingsService(new WebSiteSettingsService(db.cacheService())) {
                         @Override protected boolean isDockerMode() { return true; }
                         @Override protected com.zrlog.updater.spi.DockerControl dockerClient() { return client; }
                     };
@@ -684,7 +686,7 @@ public class AdminControllerDelegationTest {
             throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             setAdminToken();
-            AdminController controller = new AdminController();
+            AdminController controller = new AdminController(new AdminDashboardService(new AdminStatisticsService(db.cacheService()), new AdminArticleService(db.cacheService())));
             setControllerRequest(controller, request(HttpMethod.GET, "/api/admin/manifest", Map.of(),
                     Map.of("User-Agent", "Browser"), null));
 
@@ -730,7 +732,7 @@ public class AdminControllerDelegationTest {
     public void shouldLoadAdminIndexDashboardThroughRealTables() throws Exception {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
             setAdminToken();
-            AdminController controller = new AdminController();
+            AdminController controller = new AdminController(new AdminDashboardService(new AdminStatisticsService(ignored.cacheService()), new AdminArticleService(ignored.cacheService())));
             setControllerRequest(controller, request(HttpMethod.GET, "/api/admin", Map.of(), Map.of(), null));
 
             AdminPageDataResponse<IndexResponse> response = controller.index();
@@ -752,7 +754,7 @@ public class AdminControllerDelegationTest {
 
     @Test
     public void shouldAttachDashboardCardDataByCardId() throws Exception {
-        AdminDashboardService service = new AdminDashboardService();
+        AdminDashboardService service = new AdminDashboardService(new AdminStatisticsService(new InMemoryZrLogDatabase.TestCacheService()), new AdminArticleService(new InMemoryZrLogDatabase.TestCacheService()));
         AdminDashboardConfigResponse config = new AdminDashboardConfigResponse();
         AdminDashboardCardResponse welcome = card("welcome");
         AdminDashboardCardResponse quickAction = card("quickAction");
@@ -794,7 +796,7 @@ public class AdminControllerDelegationTest {
 
     @Test
     public void shouldResolveDashboardCardEnabledState() throws Exception {
-        AdminDashboardService service = new AdminDashboardService();
+        AdminDashboardService service = new AdminDashboardService(new AdminStatisticsService(new InMemoryZrLogDatabase.TestCacheService()), new AdminArticleService(new InMemoryZrLogDatabase.TestCacheService()));
         Method method = AdminDashboardService.class.getDeclaredMethod("isCardEnabled", AdminDashboardConfigResponse.class,
                 String.class);
         method.setAccessible(true);

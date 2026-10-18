@@ -1,37 +1,35 @@
 package com.zrlog.admin.web.controller.api;
 
-import com.zrlog.admin.web.controller.ai.AIWebSiteController;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
 import com.hibegin.http.server.web.Controller;
 import com.zrlog.admin.business.ai.model.AIProviderType;
-import com.zrlog.admin.business.rest.base.ArticleEditWebSiteInfo;
 import com.zrlog.admin.business.rest.base.AdminWebSiteInfo;
+import com.zrlog.admin.business.rest.base.ArticleEditWebSiteInfo;
 import com.zrlog.admin.business.rest.base.BasicWebSiteInfo;
 import com.zrlog.admin.business.rest.base.BlogWebSiteInfo;
 import com.zrlog.admin.business.rest.base.ContentProtectorWebSiteInfo;
 import com.zrlog.admin.business.rest.base.FeatureLabWebSiteInfo;
 import com.zrlog.admin.business.rest.base.OtherWebSiteInfo;
+import com.zrlog.admin.business.rest.request.CreateArticleRequest;
+import com.zrlog.admin.business.rest.request.UpdateArticleRequest;
 import com.zrlog.admin.business.rest.response.AIWebSiteInfoResponse;
 import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
 import com.zrlog.admin.business.rest.response.VersionResponse;
-import com.zrlog.admin.business.rest.request.CreateArticleRequest;
-import com.zrlog.admin.business.rest.request.UpdateArticleRequest;
 import com.zrlog.admin.business.service.AdminArticleService;
 import com.zrlog.admin.business.service.AdminResourceService;
-import com.zrlog.admin.web.token.AdminTokenThreadLocal;
+import com.zrlog.admin.business.service.WebSiteSettingsService;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
+import com.zrlog.admin.web.controller.ai.AIWebSiteController;
+import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.exception.ArgsException;
-import com.zrlog.business.rest.base.UpgradeWebSiteInfo;
-import org.junit.Test;
-
 import java.io.ByteArrayInputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
-
+import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -49,7 +47,7 @@ public class WebSiteControllerDatabaseTest {
             assertFalse(controller(HttpMethod.GET, labUri, null).lab().getData().getFeature_article_arrangement_enabled());
             assertFalse(resources.adminResourceInfo(editorRequest).getFeature_article_arrangement_enabled());
 
-            AdminArticleService articles = new AdminArticleService();
+            AdminArticleService articles = new AdminArticleService(db.cacheService());
             CreateArticleRequest create = new CreateArticleRequest();
             create.setTitle("Layout visibility");
             create.setAlias("layout-visibility");
@@ -404,7 +402,7 @@ public class WebSiteControllerDatabaseTest {
     }
 
     private static AIWebSiteController aiController(HttpMethod method, String uri, String body) throws Exception {
-        AIWebSiteController controller = new AIWebSiteController();
+        AIWebSiteController controller = new AIWebSiteController(new WebSiteSettingsService(new InMemoryZrLogDatabase.TestCacheService()));
         setControllerField(controller, "request", request(method, uri, body));
         setControllerField(controller, "response", response());
         return controller;
@@ -459,6 +457,10 @@ public class WebSiteControllerDatabaseTest {
     }
 
     private static class TestWebSiteController extends WebSiteController {
+        public TestWebSiteController() {
+            super(new WebSiteSettingsService(new InMemoryZrLogDatabase.TestCacheService()));
+        }
+
 
         @Override
         protected String getCurrentChangeLog(Map<String, Object> backendMessages) {

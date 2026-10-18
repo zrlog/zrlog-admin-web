@@ -10,15 +10,15 @@ import com.hibegin.http.HttpMethod;
 import com.hibegin.http.server.api.HttpRequest;
 import com.zrlog.admin.business.rest.request.AdminDashboardCardRequest;
 import com.zrlog.admin.business.rest.request.AdminDashboardConfigRequest;
+import com.zrlog.admin.business.rest.response.AdminDashboardAuditTrailDataResponse;
 import com.zrlog.admin.business.rest.response.AdminDashboardCardConfigResponse;
 import com.zrlog.admin.business.rest.response.AdminDashboardCardResponse;
 import com.zrlog.admin.business.rest.response.AdminDashboardConfigResponse;
-import com.zrlog.admin.business.rest.response.FirstUseChecklistResponse;
-import com.zrlog.admin.business.rest.response.AdminDashboardAuditTrailDataResponse;
 import com.zrlog.admin.business.rest.response.AdminDashboardDataInsightsResponse;
 import com.zrlog.admin.business.rest.response.AdminDashboardQuickActionDataResponse;
 import com.zrlog.admin.business.rest.response.AdminDashboardWelcomeDataResponse;
 import com.zrlog.admin.business.rest.response.ArticleActivityData;
+import com.zrlog.admin.business.rest.response.FirstUseChecklistResponse;
 import com.zrlog.admin.business.rest.response.IndexResponse;
 import com.zrlog.admin.business.rest.response.StatisticsInfoResponse;
 import com.zrlog.business.plugin.PluginCorePlugin;
@@ -26,23 +26,22 @@ import com.zrlog.business.service.WebsiteKvService;
 import com.zrlog.common.Constants;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.vo.AdminTokenVO;
-import com.zrlog.util.I18nUtil;
 import com.zrlog.util.BlogBuildInfoUtil;
+import com.zrlog.util.I18nUtil;
 import com.zrlog.util.ThreadUtils;
-
 import java.io.InputStream;
 import java.lang.reflect.Type;
 import java.net.URI;
 import java.sql.SQLException;
-import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
+import java.util.*;
 
 public class AdminDashboardService {
 
@@ -71,12 +70,16 @@ public class AdminDashboardService {
 
     private final WebsiteKvService kvService = new WebsiteKvService();
     private final long surfacePreloadTimeoutMillis;
+    private final AdminStatisticsService statisticsService;
+    private final AdminArticleService articleService;
 
-    public AdminDashboardService() {
-        this(DEFAULT_SURFACE_PRELOAD_TIMEOUT_MILLIS);
+    public AdminDashboardService(AdminStatisticsService statisticsService, AdminArticleService articleService) {
+        this(statisticsService, articleService, DEFAULT_SURFACE_PRELOAD_TIMEOUT_MILLIS);
     }
 
-    AdminDashboardService(long surfacePreloadTimeoutMillis) {
+    AdminDashboardService(AdminStatisticsService statisticsService, AdminArticleService articleService, long surfacePreloadTimeoutMillis) {
+        this.statisticsService = statisticsService;
+        this.articleService = articleService;
         this.surfacePreloadTimeoutMillis = surfacePreloadTimeoutMillis <= 0
                 ? DEFAULT_SURFACE_PRELOAD_TIMEOUT_MILLIS : surfacePreloadTimeoutMillis;
     }
@@ -111,9 +114,9 @@ public class AdminDashboardService {
         ExecutorService executor = ThreadUtils.newFixedThreadPool(20);
         try {
             CompletableFuture<StatisticsInfoResponse> statistics =
-                    new AdminStatisticsService().statisticsInfo(executor, auditTrailEnabled);
+                    statisticsService.statisticsInfo(executor, auditTrailEnabled);
             CompletableFuture<List<ArticleActivityData>> activity = activityEnabled
-                    ? new AdminArticleService().activityDataList(executor)
+                    ? articleService.activityDataList(executor)
                     : CompletableFuture.completedFuture(Collections.emptyList());
             CompletableFuture.allOf(statistics, activity).join();
             attachCardData(config, statistics.join(),

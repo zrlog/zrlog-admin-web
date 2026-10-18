@@ -20,7 +20,7 @@ import com.zrlog.common.vo.PublicWebSiteInfo;
 import com.zrlog.plugin.IPlugin;
 import com.zrlog.plugin.Plugins;
 import com.zrlog.test.support.ZrLogTestDatabase;
-
+import com.zrlog.web.WebSiteInfoProvider;
 import java.io.InputStream;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -121,7 +121,7 @@ public class InMemoryZrLogDatabase implements AutoCloseable {
         private final List<TagDTO> tags = new ArrayList<>();
         private int refreshCount;
 
-        private TestCacheService() {
+        public TestCacheService() {
             publicInfo.setTitle("ZrLog Test");
             publicInfo.setHost("localhost:18080");
             publicInfo.setLanguage(Constants.DEFAULT_LANGUAGE);
@@ -189,12 +189,22 @@ public class InMemoryZrLogDatabase implements AutoCloseable {
     private static class TestZrLogConfig extends ZrLogConfig {
 
         private final DataSourceWrapper testDataSource;
+        private final CacheService cacheService;
+
+        @Override
+        public <T> T getWebSetup(Class<T> capability) {
+            if (capability == WebSiteInfoProvider.class) {
+                return capability.cast((WebSiteInfoProvider) cacheService::getPublicWebSiteInfo);
+            }
+            return super.getWebSetup(capability);
+        }
 
         private TestZrLogConfig(DataSourceWrapper dataSource, CacheService cacheService) {
             super(18080, null, "");
             this.testDataSource = dataSource;
             this.dataSource = dataSource;
             this.cacheService = cacheService;
+            serverConfig.getBindings().instance(CacheService.class, cacheService);
             var context = new com.zrlog.web.WebSetupContext(this, dbPropertiesFile, installLockFile, "", null);
             java.util.ServiceLoader.load(com.zrlog.web.WebSetupProvider.class).forEach(provider -> {
                 if (provider.name().startsWith("admin-")) this.webSetups.add(provider.create(context));
@@ -205,8 +215,11 @@ public class InMemoryZrLogDatabase implements AutoCloseable {
             this.webSetups.clear();
             this.webSetups.addAll(com.zrlog.web.WebSetupLoader.load(new com.zrlog.web.WebSetupContext(
                     this, dbPropertiesFile, installLockFile, "", null),
-                    provider -> provider.name().equals("admin") || provider.name().startsWith("admin-")));
-            this.webSetups.forEach(com.zrlog.web.WebSetup::setup);
+                    provider -> provider.name().equals("data") || provider.name().equals("services")
+                            || provider.name().equals("admin") || provider.name().startsWith("admin-")));
+            // The fixture owns its counting cache; retain real module discovery and routes.
+            this.webSetups.stream().filter(setup -> !(setup instanceof com.zrlog.data.web.DataWebSetup))
+                    .forEach(com.zrlog.web.WebSetup::setup);
         }
 
         @Override

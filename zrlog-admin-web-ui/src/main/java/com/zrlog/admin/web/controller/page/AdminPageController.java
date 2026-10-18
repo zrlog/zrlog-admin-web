@@ -1,23 +1,25 @@
 package com.zrlog.admin.web.controller.page;
 
-import com.zrlog.admin.web.annotation.RequiresAction;
-import com.zrlog.data.security.AccountAction;
-
 import com.hibegin.http.annotation.ResponseBody;
 import com.hibegin.http.server.web.Controller;
 import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
 import com.zrlog.admin.business.rest.response.ServerSideDataResponse;
 import com.zrlog.admin.business.service.AdminPageService;
+import com.zrlog.admin.web.annotation.RequiresAction;
 import com.zrlog.common.Constants;
+import com.zrlog.data.security.AccountAction;
 import com.zrlog.plugin.BaseStaticSitePlugin;
-
 import java.io.InputStream;
 import java.util.Objects;
 
 public class AdminPageController extends Controller {
 
-    private final AdminPageService adminPageService = new AdminPageService();
+    private final AdminPageService adminPageService;
+
+    public AdminPageController(AdminPageService adminPageService) {
+        this.adminPageService = adminPageService;
+    }
 
     @RequiresAction(value = AccountAction.SESSION, descriptionKey = "admin.page")
     public void index() throws Throwable {
@@ -38,7 +40,6 @@ public class AdminPageController extends Controller {
         }
         renderIndex();
     }
-
 
     private void renderIndex() throws Throwable {
         InputStream inputStream = AdminPageController.class.getResourceAsStream(AdminConstants.ADMIN_HTML_PAGE);
