@@ -63,7 +63,7 @@ public class AdminProxyControllerTest {
     @Test
     public void unsupportedVerbsDoNotReadOrWriteConfiguration() throws Exception {
         AtomicInteger status = new AtomicInteger();
-        AdminProxyController controller = new AdminProxyController(new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
+        AdminProxyController controller = new AdminProxyController(new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), () -> "test"));
         HttpRequest request = (HttpRequest) Proxy.newProxyInstance(getClass().getClassLoader(), new Class[]{HttpRequest.class},
                 (proxy, method, args) -> method.getName().equals("getMethod") ? HttpMethod.DELETE : null);
         HttpResponse response = (HttpResponse) Proxy.newProxyInstance(getClass().getClassLoader(), new Class[]{HttpResponse.class},
@@ -84,7 +84,7 @@ public class AdminProxyControllerTest {
             NetworkProxy.Settings active = NetworkProxy.initialize();
             String proxyUrl = active.getUrl().equals("http://proxy.example:3128")
                     ? "http://proxy.example:3129" : "http://proxy.example:3128";
-            AdminProxyController controller = new AdminProxyController(new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(database.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
+            AdminProxyController controller = new AdminProxyController(new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(database.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(database.resources())));
             set(controller, "request", request(HttpMethod.POST,
                     "{\"url\":\"" + proxyUrl + "\",\"noProxy\":\".internal.example\"}"));
             var saved = controller.index().getData();

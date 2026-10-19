@@ -2,7 +2,6 @@ package com.zrlog.admin.web;
 
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.server.api.HttpRequest;
-import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.service.AdminResourceService;
 import com.zrlog.admin.business.service.UserService;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
@@ -21,7 +20,7 @@ public class AdminApiWithoutUiTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             db.loadAdminWebModules();
             var router = db.config().getServerConfig().getRouter();
-            assertNull(AdminConstants.adminResource);
+            assertNull(db.config().getWebSetup(com.zrlog.admin.business.service.AdminResourceProvider.class));
             assertNull(router.getMethod("/admin", HttpMethod.GET));
             assertNull(router.getMethod("/api/admin/manifest", HttpMethod.GET));
             assertNotNull(router.getMethod("/api/admin/login", HttpMethod.POST));

@@ -3,8 +3,6 @@ package com.zrlog.admin.support;
 import com.hibegin.common.dao.DataSourceWrapper;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.config.ServerConfig;
-import com.zrlog.admin.business.AdminConstants;
-import com.zrlog.admin.business.rest.response.AdminResourceInfoResponse;
 import com.zrlog.admin.business.service.AdminResource;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.CacheService;
@@ -33,7 +31,7 @@ public class InMemoryZrLogDatabase implements AutoCloseable {
 
     private final ZrLogTestDatabase database;
     private final TestZrLogConfig config;
-    private final AdminResource previousAdminResource = AdminConstants.adminResource;
+    private final AdminResource resources = new TestAdminResource();
     private final AdminTokenVO previousToken = AdminTokenThreadLocal.getUser();
     private final TestCacheService cacheService = new TestCacheService();
 
@@ -41,7 +39,6 @@ public class InMemoryZrLogDatabase implements AutoCloseable {
         this.database = database;
         try {
             config = new TestZrLogConfig(database.dataSource(), cacheService);
-            AdminConstants.adminResource = new TestAdminResource();
             seedBaseData();
             AdminTokenVO token = new AdminTokenVO();
             token.setUserId(1);
@@ -74,6 +71,7 @@ public class InMemoryZrLogDatabase implements AutoCloseable {
     public DataSourceWrapper dataSource() { return database.dataSource(); }
     public TestCacheService cacheService() { return cacheService; }
     public ZrLogConfig config() { return config; }
+    public AdminResource resources() { return resources; }
     public boolean execute(String sql, Object... params) throws SQLException { return database.execute(sql, params); }
     public Object scalar(String sql, Object... params) throws SQLException { return database.scalar(sql, params); }
     public Map<String, Object> queryOne(String sql, Object... params) throws SQLException { return database.queryOne(sql, params); }
@@ -92,7 +90,6 @@ public class InMemoryZrLogDatabase implements AutoCloseable {
     @Override public void close() throws Exception {
         try { database.close(); }
         finally {
-            AdminConstants.adminResource = previousAdminResource;
             setToken(previousToken);
         }
     }
@@ -284,9 +281,5 @@ public class InMemoryZrLogDatabase implements AutoCloseable {
             return "test";
         }
 
-        @Override
-        public AdminResourceInfoResponse adminResourceInfo(HttpRequest request) {
-            return new AdminResourceInfoResponse();
-        }
     }
 }

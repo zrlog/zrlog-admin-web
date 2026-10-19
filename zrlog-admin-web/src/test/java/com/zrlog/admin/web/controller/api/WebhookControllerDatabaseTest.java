@@ -125,7 +125,7 @@ public class WebhookControllerDatabaseTest {
 
     private WebhookController controller(HttpMethod method, Map<String, String> headers,
                                                 Map<String, String> params, String body) throws Exception {
-        WebhookController controller = new WebhookController(new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
+        WebhookController controller = new WebhookController(new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), () -> "test"));
         Field requestField = Controller.class.getDeclaredField("request");
         requestField.setAccessible(true);
         requestField.set(controller, request(method, headers, params, body));

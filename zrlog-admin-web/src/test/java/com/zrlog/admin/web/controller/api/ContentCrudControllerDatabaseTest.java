@@ -121,19 +121,19 @@ public class ContentCrudControllerDatabaseTest {
     }
 
     private TypeController typeController(Map<String, String> params, String body) throws Exception {
-        TypeController controller = new TypeController(new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)), com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig));
+        TypeController controller = new TypeController(new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), () -> "test"), com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig));
         setControllerFields(controller, params, body, "/api/admin/type");
         return controller;
     }
 
     private BlogNavController blogNavController(Map<String, String> params, String body) throws Exception {
-        BlogNavController controller = new BlogNavController(new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
+        BlogNavController controller = new BlogNavController(new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), () -> "test"));
         setControllerFields(controller, params, body, "/api/admin/nav");
         return controller;
     }
 
     private LinkController linkController(Map<String, String> params, String body) throws Exception {
-        LinkController controller = new LinkController(new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
+        LinkController controller = new LinkController(new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), () -> "test"));
         setControllerFields(controller, params, body, "/api/admin/link");
         return controller;
     }

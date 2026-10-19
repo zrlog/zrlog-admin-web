@@ -1,7 +1,6 @@
 package com.zrlog.admin.business;
 
 import com.hibegin.common.util.StringUtils;
-import com.zrlog.admin.business.service.AdminResource;
 import com.zrlog.common.vo.PublicWebSiteInfo;
 import com.zrlog.util.I18nUtil;
 
@@ -79,8 +78,6 @@ public class AdminConstants {
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/dev", "admin.dev.manage");
         TITLE_MAP.put(ADMIN_URI_BASE_PATH + "/dev/ui", "admin.dev.ui.manage");
     }
-
-    public static AdminResource adminResource;
 
     public static String getAdminDocumentTitleByUri(String uri, PublicWebSiteInfo publicWebSiteInfo) {
         String realUri = com.zrlog.admin.web.config.AdminAccountPages.titleUri(uri);

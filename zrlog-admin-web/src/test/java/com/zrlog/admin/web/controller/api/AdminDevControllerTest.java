@@ -122,7 +122,7 @@ public class AdminDevControllerTest {
 
     private AdminDevController controller(Map<String, String> params, ServerConfig serverConfig)
             throws Exception {
-        AdminDevController controller = new AdminDevController(new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
+        AdminDevController controller = new AdminDevController(new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), () -> "test"));
         Field requestField = Controller.class.getDeclaredField("request");
         requestField.setAccessible(true);
         requestField.set(controller, request(params, serverConfig));

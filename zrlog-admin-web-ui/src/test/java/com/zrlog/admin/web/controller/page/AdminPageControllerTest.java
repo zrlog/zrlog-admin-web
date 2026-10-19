@@ -51,7 +51,14 @@ public class AdminPageControllerTest {
 
     private AdminPageController controller(String uri, Map<String, String> params, HttpResponse response)
             throws Exception {
-        AdminPageController controller = new AdminPageController(new AdminPageService(new InMemoryZrLogDatabase.TestCacheService(), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)), com.zrlog.admin.business.AdminConstants.adminResource, com.zrlog.admin.support.ApplicationServicesFixture.staticResourceUrl()), applicationConfig == null ? null : applicationConfig.getTokenService(), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
+        var site = com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig);
+        var pages = new com.zrlog.admin.business.service.AdminPageDataFactory(site, () -> "test");
+        var resources = new com.zrlog.admin.business.service.AdminResourceService(
+                com.zrlog.admin.business.rest.response.AdminResourceInfoResponse.Capabilities::new,
+                new com.zrlog.admin.business.service.FeatureLabService(() -> true), site, () -> "");
+        AdminPageController controller = new AdminPageController(
+                new AdminPageService(new InMemoryZrLogDatabase.TestCacheService(), pages, resources, () -> "test"),
+                applicationConfig == null ? null : applicationConfig.getTokenService(), pages);
         Field requestField = Controller.class.getDeclaredField("request");
         requestField.setAccessible(true);
         requestField.set(controller, request(uri, params));

@@ -44,8 +44,8 @@ public class AdminUiWebSetup implements WebSetup, AdminResourceProvider {
         this.contextPath = contextPath;
         this.resources = new AdminResourceImpl(contextPath, () -> config.isInstalled()
                 ? config.getServerConfig().getBindings().build().get(CacheService.class).getWebSiteVersion() : 0L,
-                () -> config.getServerConfig().getBindings().build().get(AdminResourceService.class));
-        AdminConstants.adminResource = resources;
+                request -> config.getServerConfig().getBindings().build().get(AdminResourceService.class)
+                        .staticResourceBaseUrl(request));
         if (config.getServerConfig().isNativeImageAgent()) AdminUiNativeImageUtils.reg(resources);
     }
 
@@ -62,8 +62,8 @@ public class AdminUiWebSetup implements WebSetup, AdminResourceProvider {
                 .interceptor(AdminStaticResourceInterceptor.class, r -> new AdminStaticResourceInterceptor(() -> config.getPlugin(AdminStaticResourcePlugin.class)))
                 .controller(AdminTemplatePageController.class, (r, request, response) -> new AdminTemplatePageController(r.get(TemplateService.class), () -> Boolean.TRUE.equals(r.get(CacheService.class).getPublicWebSiteInfo().getGenerator_html_status())))
                 .interceptor(AdminPluginInterceptor.class, r -> new AdminPluginInterceptor(() -> r.get(TokenService.class), () -> config.getPlugin(PluginCorePlugin.class), config::isInstalled))
-                .singleton(AdminPageService.class, r -> new AdminPageService(r.get(CacheService.class), r.get(AdminPageDataFactory.class), resources,
-                        r.get(AdminResourceService.class)::staticResourceBaseUrl))
+                .singleton(AdminPageService.class, r -> new AdminPageService(r.get(CacheService.class), r.get(AdminPageDataFactory.class),
+                        r.get(AdminResourceService.class), resources::getStaticResourceBuildId))
                 .controller(AdminManifestController.class, (r, request, response) -> new AdminManifestController(r.get(CacheService.class)::getPublicWebSiteInfo))
                 .controller(AdminPageController.class, (r, request, response) -> new AdminPageController(r.get(AdminPageService.class), r.get(TokenService.class), r.get(AdminPageDataFactory.class)));
         List<Class<? extends Interceptor>> interceptors = config.getServerConfig().getInterceptors();

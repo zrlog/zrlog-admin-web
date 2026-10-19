@@ -1,6 +1,5 @@
 package com.zrlog.admin.web.plugin;
 
-import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.business.plugin.type.StaticSiteType;
 import org.junit.Test;
@@ -23,7 +22,7 @@ public class AdminStaticResourcePluginTest {
             context.init();
             AdminStaticResourcePlugin plugin = new AdminStaticResourcePlugin(
                     new com.zrlog.business.plugin.StaticSiteRenderer(config.getRequestConfig(), config.getResponseConfig(), context),
-                    database.cacheService()::getPublicWebSiteInfo, AdminConstants.adminResource, "/blog");
+                    database.cacheService()::getPublicWebSiteInfo, database.resources(), "/blog");
             try {
                 assertFalse(plugin.autoStart());
                 assertFalse(plugin.isStarted());

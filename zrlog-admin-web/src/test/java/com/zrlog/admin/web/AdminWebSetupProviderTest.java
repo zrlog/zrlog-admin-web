@@ -69,7 +69,7 @@ public class AdminWebSetupProviderTest {
                 config.getServerConfig().getRouter().getMethod("/admin/dev/ui", HttpMethod.GET));
         assertEquals(AdminDevController.class.getMethod("ui"),
                 config.getServerConfig().getRouter().getMethod("/api/admin/dev/ui", HttpMethod.GET));
-        assertTrue(AdminConstants.adminResource.getAdminPageUris().contains("/blog/admin/dev/ui"));
+        assertTrue(ui.getAdminResource().getAdminPageUris().contains("/blog/admin/dev/ui"));
         List<IPlugin> plugins = setup.getPlugins();
         plugins.addAll(ui.getPlugins());
 

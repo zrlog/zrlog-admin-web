@@ -28,7 +28,7 @@ public class AdminSystemAndStaticSiteControllerTest {
     @Test
     public void shouldReturnSystemPageDataWithServerInfo() throws Exception {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
-            AdminSystemController controller = new AdminSystemController(com.zrlog.admin.support.RuntimeInfoFixture.from(ignored.config()), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(ignored.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
+            AdminSystemController controller = new AdminSystemController(com.zrlog.admin.support.RuntimeInfoFixture.from(ignored.config()), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(ignored.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(ignored.resources())));
             setControllerFields(controller, request("/api/admin/system", Map.of()), response());
 
             AdminPageDataResponse<SystemResponse> response = controller.index();
@@ -48,7 +48,7 @@ public class AdminSystemAndStaticSiteControllerTest {
     @Test
     public void shouldReportAdminStaticSiteSyncedWhenStaticSiteIsDisabled() throws Exception {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
-            AdminStaticSiteController controller = new AdminStaticSiteController(com.zrlog.admin.support.ApplicationServicesFixture.cacheRefresh(null, ignored.config()), com.zrlog.admin.support.ApplicationServicesFixture.publisher(null, ignored.config()), () -> ignored.config().getPlugin(com.zrlog.admin.web.plugin.AdminStaticResourcePlugin.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(ignored.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
+            AdminStaticSiteController controller = new AdminStaticSiteController(com.zrlog.admin.support.ApplicationServicesFixture.cacheRefresh(null, ignored.config()), com.zrlog.admin.support.ApplicationServicesFixture.publisher(null, ignored.config()), () -> ignored.config().getPlugin(com.zrlog.admin.web.plugin.AdminStaticResourcePlugin.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(ignored.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(ignored.resources())));
             setControllerFields(controller, request("/api/admin/static-site", Map.of()), response());
 
             AdminPageDataResponse<AdminStaticSiteSyncResponse> response = controller.index();
@@ -62,7 +62,7 @@ public class AdminSystemAndStaticSiteControllerTest {
     public void shouldRenderAdminStaticSiteSyncSuccessWhenStaticSiteIsDisabled() throws Exception {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
             ResponseRecorder recorder = new ResponseRecorder();
-            AdminStaticSiteController controller = new AdminStaticSiteController(com.zrlog.admin.support.ApplicationServicesFixture.cacheRefresh(null, ignored.config()), com.zrlog.admin.support.ApplicationServicesFixture.publisher(null, ignored.config()), () -> ignored.config().getPlugin(com.zrlog.admin.web.plugin.AdminStaticResourcePlugin.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(ignored.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
+            AdminStaticSiteController controller = new AdminStaticSiteController(com.zrlog.admin.support.ApplicationServicesFixture.cacheRefresh(null, ignored.config()), com.zrlog.admin.support.ApplicationServicesFixture.publisher(null, ignored.config()), () -> ignored.config().getPlugin(com.zrlog.admin.web.plugin.AdminStaticResourcePlugin.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(ignored.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(ignored.resources())));
             setControllerFields(controller, request("/api/admin/static-site/sync", Map.of()), recorder.response());
 
             controller.startSync();
@@ -78,7 +78,7 @@ public class AdminSystemAndStaticSiteControllerTest {
     public void shouldRejectAdminStaticSiteRequestsWhenEnabledPluginIsMissing() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             db.cacheService().getPublicWebSiteInfo().setGenerator_html_status(true);
-            AdminStaticSiteController controller = new AdminStaticSiteController(com.zrlog.admin.support.ApplicationServicesFixture.cacheRefresh(null, db.config()), com.zrlog.admin.support.ApplicationServicesFixture.publisher(null, db.config()), () -> db.config().getPlugin(com.zrlog.admin.web.plugin.AdminStaticResourcePlugin.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
+            AdminStaticSiteController controller = new AdminStaticSiteController(com.zrlog.admin.support.ApplicationServicesFixture.cacheRefresh(null, db.config()), com.zrlog.admin.support.ApplicationServicesFixture.publisher(null, db.config()), () -> db.config().getPlugin(com.zrlog.admin.web.plugin.AdminStaticResourcePlugin.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(db.resources())));
             setControllerFields(controller, request("/api/admin/static-site", Map.of()), response());
 
             assertThrows(NotFindResourceException.class, controller::index);

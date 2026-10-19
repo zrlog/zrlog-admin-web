@@ -32,18 +32,12 @@ public class UserServiceDatabaseTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             var uris = new java.util.HashSet<String>(java.util.Set.of("/api/admin/site-a"));
             var users = new UserService(() -> uris);
-            var previousResources = com.zrlog.admin.business.AdminConstants.adminResource;
-            try {
-                com.zrlog.admin.business.AdminConstants.adminResource = null;
-                var first = users.getBasicUserInfo(1, "first");
-                assertEquals(java.util.Set.of("/api/admin/site-a"), first.getCacheableApiUris());
-                uris.clear();
-                uris.add("/api/admin/site-b");
-                assertEquals(java.util.Set.of("/api/admin/site-b"), users.getBasicUserInfo(1, "second").getCacheableApiUris());
-                assertEquals(java.util.Set.of("/api/admin/site-a"), first.getCacheableApiUris());
-            } finally {
-                com.zrlog.admin.business.AdminConstants.adminResource = previousResources;
-            }
+            var first = users.getBasicUserInfo(1, "first");
+            assertEquals(java.util.Set.of("/api/admin/site-a"), first.getCacheableApiUris());
+            uris.clear();
+            uris.add("/api/admin/site-b");
+            assertEquals(java.util.Set.of("/api/admin/site-b"), users.getBasicUserInfo(1, "second").getCacheableApiUris());
+            assertEquals(java.util.Set.of("/api/admin/site-a"), first.getCacheableApiUris());
         }
     }
 

@@ -27,18 +27,19 @@ import java.io.InputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Objects;
+import java.util.function.Supplier;
 
 public class AdminPageService {
     private final CacheService cacheService;
     private final AdminPageDataFactory pages;
-    private final AdminResource resources;
-    private final java.util.function.Function<HttpRequest, String> staticResourceUrl;
+    private final AdminResourceService resources;
+    private final Supplier<String> buildId;
 
-    public AdminPageService(CacheService cacheService, AdminPageDataFactory pages, AdminResource resources,
-                            java.util.function.Function<HttpRequest, String> staticResourceUrl) {
-        this.staticResourceUrl = staticResourceUrl;
+    public AdminPageService(CacheService cacheService, AdminPageDataFactory pages, AdminResourceService resources,
+                            Supplier<String> buildId) {
+        this.buildId = Objects.requireNonNull(buildId);
         this.pages = pages;
-        this.resources = resources;
+        this.resources = Objects.requireNonNull(resources);
         this.cacheService = cacheService;
     }
 
@@ -61,7 +62,7 @@ public class AdminPageService {
                 first.attr("content", publicWebSiteInfo.getAdmin_color_primary());
             }
         }
-        String adminStaticResourceHostByWebSite = staticResourceUrl.apply(request);
+        String adminStaticResourceHostByWebSite = resources.staticResourceBaseUrl(request);
 
         Elements manifest = document.head().select("link[rel=manifest]");
         if (!manifest.isEmpty()) {
@@ -119,7 +120,7 @@ public class AdminPageService {
         } else {
             newUrl = link.attr("href").replaceFirst("/", WebTools.getHomeUrl(request));
         }
-        link.attr("href", newUrl + "?v=" + resources.getStaticResourceBuildId());
+        link.attr("href", newUrl + "?v=" + buildId.get());
     }
 
     public ServerSideDataResponse<Object> serverSide(String uri, HttpRequest request, HttpResponse response) throws Throwable {

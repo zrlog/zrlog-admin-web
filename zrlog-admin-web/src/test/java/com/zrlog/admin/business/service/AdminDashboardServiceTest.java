@@ -127,7 +127,7 @@ public class AdminDashboardServiceTest {
 
     @Test
     public void shouldConvertDashboardCardRequestsToResponses() throws Exception {
-        AdminDashboardService service = new AdminDashboardService(new AdminStatisticsService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.admin.support.RuntimeInfoFixture.from(applicationConfig)), new AdminArticleService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(applicationConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource))), () -> applicationConfig.getPlugin(com.zrlog.business.plugin.PluginCorePlugin.class));
+        AdminDashboardService service = new AdminDashboardService(new AdminStatisticsService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.admin.support.RuntimeInfoFixture.from(applicationConfig)), new AdminArticleService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(applicationConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), () -> "test")), () -> applicationConfig.getPlugin(com.zrlog.business.plugin.PluginCorePlugin.class));
         AdminDashboardCardRequest request = new AdminDashboardCardRequest();
         request.setKind("plugin");
         request.setId("reminder");
@@ -163,7 +163,7 @@ public class AdminDashboardServiceTest {
 
     @Test
     public void shouldFillDashboardRefreshConfigWithDefaults() throws Exception {
-        AdminDashboardService service = new AdminDashboardService(new AdminStatisticsService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.admin.support.RuntimeInfoFixture.from(applicationConfig)), new AdminArticleService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(applicationConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource))), () -> applicationConfig.getPlugin(com.zrlog.business.plugin.PluginCorePlugin.class));
+        AdminDashboardService service = new AdminDashboardService(new AdminStatisticsService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.admin.support.RuntimeInfoFixture.from(applicationConfig)), new AdminArticleService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(applicationConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), () -> "test")), () -> applicationConfig.getPlugin(com.zrlog.business.plugin.PluginCorePlugin.class));
         AdminDashboardConfigResponse target = new AdminDashboardConfigResponse();
         AdminDashboardConfigResponse source = new AdminDashboardConfigResponse();
         source.setAutoRefreshEnabled(true);
@@ -184,7 +184,7 @@ public class AdminDashboardServiceTest {
 
     @Test
     public void shouldMergeDefaultDashboardCardsWithSavedOverrides() throws Exception {
-        AdminDashboardService service = new AdminDashboardService(new AdminStatisticsService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.admin.support.RuntimeInfoFixture.from(applicationConfig)), new AdminArticleService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(applicationConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource))), () -> applicationConfig.getPlugin(com.zrlog.business.plugin.PluginCorePlugin.class));
+        AdminDashboardService service = new AdminDashboardService(new AdminStatisticsService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.admin.support.RuntimeInfoFixture.from(applicationConfig)), new AdminArticleService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(applicationConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), () -> "test")), () -> applicationConfig.getPlugin(com.zrlog.business.plugin.PluginCorePlugin.class));
         AdminDashboardCardConfigResponse welcome = cardConfig("welcome", false, 90);
         AdminDashboardCardConfigResponse localDraft = cardConfig("localDraft", false, 5);
         AdminDashboardCardConfigResponse unknown = cardConfig("unknown", false, 1);
@@ -204,7 +204,7 @@ public class AdminDashboardServiceTest {
 
     @Test
     public void shouldMergePluginPanelsAndFillMissingStandardFields() throws Exception {
-        AdminDashboardService service = new AdminDashboardService(new AdminStatisticsService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.admin.support.RuntimeInfoFixture.from(applicationConfig)), new AdminArticleService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(applicationConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource))), () -> applicationConfig.getPlugin(com.zrlog.business.plugin.PluginCorePlugin.class));
+        AdminDashboardService service = new AdminDashboardService(new AdminStatisticsService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.admin.support.RuntimeInfoFixture.from(applicationConfig)), new AdminArticleService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(applicationConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), () -> "test")), () -> applicationConfig.getPlugin(com.zrlog.business.plugin.PluginCorePlugin.class));
         AdminDashboardCardResponse standard = panel("reminder", "surface", 20);
         standard.setTitle("Reminder");
         standard.setSurfaceUrl("/admin/plugins/reminder/surface");
@@ -235,7 +235,7 @@ public class AdminDashboardServiceTest {
 
     @Test
     public void shouldExtractItemsClearRuntimeDataAndBuildDashboardItems() throws Exception {
-        AdminDashboardService service = new AdminDashboardService(new AdminStatisticsService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.admin.support.RuntimeInfoFixture.from(applicationConfig)), new AdminArticleService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(applicationConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource))), () -> applicationConfig.getPlugin(com.zrlog.business.plugin.PluginCorePlugin.class));
+        AdminDashboardService service = new AdminDashboardService(new AdminStatisticsService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.admin.support.RuntimeInfoFixture.from(applicationConfig)), new AdminArticleService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(applicationConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), () -> "test")), () -> applicationConfig.getPlugin(com.zrlog.business.plugin.PluginCorePlugin.class));
         AdminDashboardCardResponse cardItem = new AdminDashboardCardResponse();
         cardItem.setKind("card");
         cardItem.setId("welcome");
@@ -293,7 +293,7 @@ public class AdminDashboardServiceTest {
 
     @Test
     public void shouldValidatePluginMetadataEntriesAndUrls() throws Exception {
-        AdminDashboardService service = new AdminDashboardService(new AdminStatisticsService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.admin.support.RuntimeInfoFixture.from(applicationConfig)), new AdminArticleService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(applicationConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource))), () -> applicationConfig.getPlugin(com.zrlog.business.plugin.PluginCorePlugin.class));
+        AdminDashboardService service = new AdminDashboardService(new AdminStatisticsService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.admin.support.RuntimeInfoFixture.from(applicationConfig)), new AdminArticleService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(applicationConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), () -> "test")), () -> applicationConfig.getPlugin(com.zrlog.business.plugin.PluginCorePlugin.class));
 
         assertTrue(service.hasEntry(List.of("/surface", "other"), "surface"));
         assertTrue(service.hasEntry(List.of("surfaceAction?scope=dashboard"), "surfaceAction"));
@@ -323,7 +323,7 @@ public class AdminDashboardServiceTest {
             applicationConfig = db.config();
             FakePluginCorePlugin plugin = new FakePluginCorePlugin();
             db.config().getAllPlugins().add(plugin);
-            AdminDashboardService service = new AdminDashboardService(new AdminStatisticsService(db.cacheService(), com.zrlog.admin.support.RuntimeInfoFixture.from(db.config())), new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(db.config(), com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource))), () -> db.config().getPlugin(com.zrlog.business.plugin.PluginCorePlugin.class));
+            AdminDashboardService service = new AdminDashboardService(new AdminStatisticsService(db.cacheService(), com.zrlog.admin.support.RuntimeInfoFixture.from(db.config())), new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(db.config(), com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(db.resources()))), () -> db.config().getPlugin(com.zrlog.business.plugin.PluginCorePlugin.class));
             AdminDashboardConfigRequest request = new AdminDashboardConfigRequest();
             request.setAutoRefreshEnabled(true);
             request.setAutoRefreshIntervalSeconds(20);
@@ -363,7 +363,7 @@ public class AdminDashboardServiceTest {
                             + "\"type\":\"surface\",\"surfaceUrl\":\"/admin/plugins/missing/surface\","
                             + "\"actionUrl\":\"/admin/plugins/missing/surfaceAction\"}],"
                             + "\"autoRefreshEnabled\":true,\"autoRefreshIntervalSeconds\":5}");
-            AdminDashboardConfigResponse config = new AdminDashboardService(new AdminStatisticsService(db.cacheService(), com.zrlog.admin.support.RuntimeInfoFixture.from(db.config())), new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(db.config(), com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource))), () -> db.config().getPlugin(com.zrlog.business.plugin.PluginCorePlugin.class)).getConfig(null, token(), true);
+            AdminDashboardConfigResponse config = new AdminDashboardService(new AdminStatisticsService(db.cacheService(), com.zrlog.admin.support.RuntimeInfoFixture.from(db.config())), new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(db.config(), com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(db.resources()))), () -> db.config().getPlugin(com.zrlog.business.plugin.PluginCorePlugin.class)).getConfig(null, token(), true);
             AdminDashboardCardResponse pluginItem = findDashboardItem(config.getCards(), "missing");
 
             assertEquals(Boolean.TRUE, config.getAutoRefreshEnabled());
@@ -374,7 +374,7 @@ public class AdminDashboardServiceTest {
             assertNotNull(pluginItem.getError());
 
             db.putWebsite(AdminDashboardService.DASHBOARD_CONFIG_KEY, "{bad json");
-            AdminDashboardConfigResponse fallback = new AdminDashboardService(new AdminStatisticsService(db.cacheService(), com.zrlog.admin.support.RuntimeInfoFixture.from(db.config())), new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(db.config(), com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource))), () -> db.config().getPlugin(com.zrlog.business.plugin.PluginCorePlugin.class)).getConfig(null, token());
+            AdminDashboardConfigResponse fallback = new AdminDashboardService(new AdminStatisticsService(db.cacheService(), com.zrlog.admin.support.RuntimeInfoFixture.from(db.config())), new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(db.config(), com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(db.resources()))), () -> db.config().getPlugin(com.zrlog.business.plugin.PluginCorePlugin.class)).getConfig(null, token());
 
             assertEquals(7, fallback.getCards().size());
             assertNotNull(findDashboardItem(fallback.getCards(), "welcome"));
@@ -385,7 +385,7 @@ public class AdminDashboardServiceTest {
     public void shouldOnlyExposePendingFirstUseChecklistAndPersistDismissal() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
-            AdminDashboardService service = new AdminDashboardService(new AdminStatisticsService(db.cacheService(), com.zrlog.admin.support.RuntimeInfoFixture.from(db.config())), new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(db.config(), com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource))), () -> db.config().getPlugin(com.zrlog.business.plugin.PluginCorePlugin.class));
+            AdminDashboardService service = new AdminDashboardService(new AdminStatisticsService(db.cacheService(), com.zrlog.admin.support.RuntimeInfoFixture.from(db.config())), new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(db.config(), com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(db.resources()))), () -> db.config().getPlugin(com.zrlog.business.plugin.PluginCorePlugin.class));
 
             assertNull(service.getFirstUseChecklist());
 
@@ -417,7 +417,7 @@ public class AdminDashboardServiceTest {
                                 + "\"actionUrl\":\"/admin/plugins/reminder/surfaceAction\"}]}");
 
                 long start = System.nanoTime();
-                AdminDashboardConfigResponse config = new AdminDashboardService(new AdminStatisticsService(db.cacheService(), com.zrlog.admin.support.RuntimeInfoFixture.from(db.config())), new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(db.config(), com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource))), 50, () -> db.config().getPlugin(com.zrlog.business.plugin.PluginCorePlugin.class)).getConfig(null, token(), true);
+                AdminDashboardConfigResponse config = new AdminDashboardService(new AdminStatisticsService(db.cacheService(), com.zrlog.admin.support.RuntimeInfoFixture.from(db.config())), new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(db.config(), com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(db.resources()))), 50, () -> db.config().getPlugin(com.zrlog.business.plugin.PluginCorePlugin.class)).getConfig(null, token(), true);
                 long elapsedMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
                 AdminDashboardCardResponse pluginItem = findDashboardItem(config.getCards(), "reminder");
 

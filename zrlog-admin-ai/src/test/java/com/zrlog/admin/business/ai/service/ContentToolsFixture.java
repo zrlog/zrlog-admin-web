@@ -16,7 +16,7 @@ final class ContentToolsFixture {
     static ContentToolFactory from(ZrLogConfig config) {
         var cache = new InMemoryZrLogDatabase.TestCacheService();
         var articles = new AdminArticleService(cache,
-                ApplicationServicesFixture.capability(config, ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(config), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
+                ApplicationServicesFixture.capability(config, ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(config), () -> "test"));
         var publishing = new ArticlePublishingService(articles,
                 ApplicationServicesFixture.cacheRefresh(cache, config), markdown -> null);
         return new ContentToolFactory(new ContentToolService(publishing),

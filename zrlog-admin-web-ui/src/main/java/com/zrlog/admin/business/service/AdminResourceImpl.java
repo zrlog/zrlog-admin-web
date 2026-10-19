@@ -5,7 +5,6 @@ import com.google.gson.reflect.TypeToken;
 import com.hibegin.common.util.*;
 import com.hibegin.http.server.api.HttpRequest;
 import com.zrlog.admin.business.AdminConstants;
-import com.zrlog.admin.business.rest.response.AdminResourceInfoResponse;
 import com.zrlog.admin.util.ManifestUtils;
 
 import java.io.ByteArrayInputStream;
@@ -13,6 +12,8 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.*;
+import java.util.function.Function;
+import java.util.function.LongSupplier;
 import java.util.stream.Collectors;
 
 public class AdminResourceImpl implements AdminResource {
@@ -24,13 +25,13 @@ public class AdminResourceImpl implements AdminResource {
     private final String basePath;
     private final String contextPath;
 
-    private final java.util.function.LongSupplier siteVersion;
-    private final java.util.function.Supplier<AdminResourceService> resources;
+    private final LongSupplier siteVersion;
+    private final Function<HttpRequest, String> staticResourceUrl;
 
-    public AdminResourceImpl(String contextPath, java.util.function.LongSupplier siteVersion,
-                             java.util.function.Supplier<AdminResourceService> resources) {
-        this.siteVersion = siteVersion;
-        this.resources = Objects.requireNonNull(resources);
+    public AdminResourceImpl(String contextPath, LongSupplier siteVersion,
+                             Function<HttpRequest, String> staticResourceUrl) {
+        this.siteVersion = Objects.requireNonNull(siteVersion);
+        this.staticResourceUrl = Objects.requireNonNull(staticResourceUrl);
         this.basePath = contextPath + "/";
         this.contextPath = contextPath;
         this.pageUris = wrapperUris(getUris("/conf/pwa-page.txt"));
@@ -71,7 +72,7 @@ public class AdminResourceImpl implements AdminResource {
     @Override
     public ByteArrayInputStream renderServiceWorker(HttpRequest request) {
         Set<String> realUris = new LinkedHashSet<>();
-        String adminResourceUrl = resources.get().staticResourceBaseUrl(request);
+        String adminResourceUrl = staticResourceUrl.apply(request);
         String withoutContextPath = adminResourceUrl.substring(0, adminResourceUrl.length() - contextPath.length());
         // HTML embeds account identity and article data, so only precache static assets.
         staticUris.forEach(uri -> realUris.add(withoutContextPath + uri));
@@ -129,10 +130,5 @@ public class AdminResourceImpl implements AdminResource {
     @Override
     public Set<String> getAdminCacheableApiUris() {
         return apiUris;
-    }
-
-    @Override
-    public AdminResourceInfoResponse adminResourceInfo(HttpRequest request) {
-        return resources.get().adminResourceInfo(request);
     }
 }

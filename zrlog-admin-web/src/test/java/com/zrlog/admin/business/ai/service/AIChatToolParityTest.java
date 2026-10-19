@@ -229,7 +229,7 @@ public class AIChatToolParityTest {
                 .instance(com.zrlog.business.service.CacheRefreshService.class,
                         com.zrlog.admin.support.ApplicationServicesFixture.cacheRefresh(cache, applicationConfig));
         serverConfig.getBindings().instance(com.zrlog.admin.util.BackendServerUrl.class, com.zrlog.admin.support.ApplicationServicesFixture.backend(applicationConfig));
-        serverConfig.getBindings().instance(com.zrlog.admin.business.service.AdminPageDataFactory.class, new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
+        serverConfig.getBindings().instance(com.zrlog.admin.business.service.AdminPageDataFactory.class, new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), () -> "test"));
         new com.zrlog.admin.web.ContentWebSetup(serverConfig, com.zrlog.admin.support.ApplicationServicesFixture.capability(applicationConfig, com.zrlog.admin.business.content.ArticleAssistant.class), com.zrlog.admin.support.ApplicationServicesFixture.capability(applicationConfig, com.zrlog.admin.business.content.AttachmentStorage.class)).setup();
         return serverConfig.getBindings().build().get(com.zrlog.admin.business.knowledge.ContentToolFactory.class);
     }

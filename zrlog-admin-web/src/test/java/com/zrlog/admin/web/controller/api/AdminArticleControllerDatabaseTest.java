@@ -566,7 +566,7 @@ public class AdminArticleControllerDatabaseTest {
     public void shouldShortCircuitPublishCheckAndEmitReadyStatesWithoutCallingAi() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
-            ArticlePublishingService publishingService = new ArticlePublishingService(new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(db.config(), com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource))), com.zrlog.admin.support.ApplicationServicesFixture.cacheRefresh(db.cacheService(), db.config()), markdown -> null);
+            ArticlePublishingService publishingService = new ArticlePublishingService(new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(db.config(), com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(db.resources()))), com.zrlog.admin.support.ApplicationServicesFixture.cacheRefresh(db.cacheService(), db.config()), markdown -> null);
             CreateArticleRequest request = new CreateArticleRequest();
             request.setTransparentPublish(true);
             request.setRubbish(false);
@@ -574,7 +574,7 @@ public class AdminArticleControllerDatabaseTest {
             AIArticleGlobalResponse global = new AIArticleGlobalResponse();
             global.setPublishCheckEnabled(false);
             global.setAiConfigured(true);
-            AdminPageDataResponse<ArticleGlobalResponse> detail = new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)).response(global);
+            AdminPageDataResponse<ArticleGlobalResponse> detail = new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(db.resources())).response(global);
 
             assertTrue(publishingService.shouldUseTransparentPublishStream(request));
             assertNull(new AIPublishCheckService().startPublishCheck(detail.getData(), request));
@@ -783,7 +783,7 @@ public class AdminArticleControllerDatabaseTest {
             global.setArticle(article);
             global.setPublishCheckEnabled(true);
             global.setAiConfigured(true);
-            AdminPageDataResponse<ArticleGlobalResponse> detail = new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)).response(global);
+            AdminPageDataResponse<ArticleGlobalResponse> detail = new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(db.resources())).response(global);
 
             PublishCheckTask task = new AIPublishCheckService().startPublishCheck(detail.getData(), request);
 
@@ -874,8 +874,8 @@ public class AdminArticleControllerDatabaseTest {
 
     private AdminArticleController controller(com.zrlog.common.CacheService cache, Map<String, String> params, String body,
                                                      ResponseRecorder response, com.zrlog.business.service.MarkdownRenderer renderer) throws Exception {
-        AdminArticleService articles = new AdminArticleService(cache, com.zrlog.admin.support.ApplicationServicesFixture.capability(applicationConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
-        AdminArticleController controller = new AdminArticleController(articles, new ArticlePublishingService(articles, com.zrlog.admin.support.ApplicationServicesFixture.cacheRefresh(cache, applicationConfig), renderer), com.zrlog.admin.support.ApplicationServicesFixture.publisher(null, applicationConfig), com.zrlog.admin.support.ApplicationServicesFixture.capability(applicationConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
+        AdminArticleService articles = new AdminArticleService(cache, com.zrlog.admin.support.ApplicationServicesFixture.capability(applicationConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), () -> "test"));
+        AdminArticleController controller = new AdminArticleController(articles, new ArticlePublishingService(articles, com.zrlog.admin.support.ApplicationServicesFixture.cacheRefresh(cache, applicationConfig), renderer), com.zrlog.admin.support.ApplicationServicesFixture.publisher(null, applicationConfig), com.zrlog.admin.support.ApplicationServicesFixture.capability(applicationConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), () -> "test"));
         setControllerField(controller, "request", request(params, body));
         setControllerField(controller, "response", response.response());
         return controller;

@@ -28,7 +28,7 @@ public class AdminResourceImplTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             db.putWebsite("admin_static_resource_base_url", "https://cdn.example.com");
             var resources = new com.zrlog.admin.business.service.AdminResourceService(com.zrlog.admin.business.rest.response.AdminResourceInfoResponse.Capabilities::new, new com.zrlog.admin.business.service.FeatureLabService(() -> true), com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), () -> new com.zrlog.model.WebSite().getStringValueByName("admin_static_resource_base_url"));
-            AdminResourceImpl resource = new AdminResourceImpl("/blog", () -> 0L, () -> resources);
+            AdminResourceImpl resource = new AdminResourceImpl("/blog", () -> 0L, resources::staticResourceBaseUrl);
 
             Set<String> pageUris = resource.getAdminPageUris();
             Set<String> cacheUris = resource.getAdminStaticCacheUris();
@@ -89,14 +89,13 @@ public class AdminResourceImplTest {
             db.putWebsite("feature_personal_data_enabled", true);
             db.putWebsite("admin_static_resource_base_url", "https://cdn.example.com");
             var resources = new com.zrlog.admin.business.service.AdminResourceService(com.zrlog.admin.business.rest.response.AdminResourceInfoResponse.Capabilities::new, new com.zrlog.admin.business.service.FeatureLabService(() -> true), com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), () -> new com.zrlog.model.WebSite().getStringValueByName("admin_static_resource_base_url"));
-            AdminResourceImpl resource = new AdminResourceImpl("/blog", () -> 0L, () -> resources);
 
-            AdminResourceInfoResponse response = resource.adminResourceInfo(request("Browser"));
+            AdminResourceInfoResponse response = resources.adminResourceInfo(request("Browser"));
             AdminResourceInfoResponse staticResponse =
-                    resource.adminResourceInfo(request(BaseStaticSitePlugin.STATIC_USER_AGENT));
-            AdminResourceInfoResponse trustedCrossOriginResponse = resource.adminResourceInfo(
+                    resources.adminResourceInfo(request(BaseStaticSitePlugin.STATIC_USER_AGENT));
+            AdminResourceInfoResponse trustedCrossOriginResponse = resources.adminResourceInfo(
                     request("Browser", "https://localhost:18080", "faas.example.com"));
-            AdminResourceInfoResponse untrustedCrossOriginResponse = resource.adminResourceInfo(
+            AdminResourceInfoResponse untrustedCrossOriginResponse = resources.adminResourceInfo(
                     request("Browser", "https://evil.example.com", "faas.example.com"));
 
             assertEquals("ZrLog Test", response.getWebsiteTitle());
@@ -122,13 +121,13 @@ public class AdminResourceImplTest {
             assertTrue(passkeys.save(1, "other-credential-hash", "other-credential-id", "public-key",
                     0, "internal", "Other origin passkey", "aaguid", true, false,
                     "https://localhost:18080", "localhost", System.currentTimeMillis()));
-            assertEquals(true, resource.adminResourceInfo(request("Browser")).getPasskeyLoginEnabled());
-            assertEquals(true, resource.adminResourceInfo(request(BaseStaticSitePlugin.STATIC_USER_AGENT))
+            assertEquals(true, resources.adminResourceInfo(request("Browser")).getPasskeyLoginEnabled());
+            assertEquals(true, resources.adminResourceInfo(request(BaseStaticSitePlugin.STATIC_USER_AGENT))
                     .getPasskeyLoginEnabled());
-            assertEquals(true, resource.adminResourceInfo(
+            assertEquals(true, resources.adminResourceInfo(
                     request("Browser", "https://localhost:18080", "faas.example.com"))
                     .getPasskeyLoginEnabled());
-            assertEquals(true, resource.adminResourceInfo(
+            assertEquals(true, resources.adminResourceInfo(
                     request("Browser", "https://evil.example.com", "faas.example.com"))
                     .getPasskeyLoginEnabled());
             assertTrue(passkeys.save(1, "credential-hash", "credential-id", "public-key",
@@ -138,12 +137,12 @@ public class AdminResourceImplTest {
             long otherPasskeyId = ((Number) passkeys.findByCredentialIdHash("other-credential-hash").get("id"))
                     .longValue();
             assertTrue(passkeys.deleteByIdAndUserId(otherPasskeyId, 1));
-            assertEquals(true, resource.adminResourceInfo(request("Browser")).getPasskeyLoginEnabled());
+            assertEquals(true, resources.adminResourceInfo(request("Browser")).getPasskeyLoginEnabled());
 
             long passkeyId = ((Number) passkeys.findByCredentialIdHash("credential-hash").get("id")).longValue();
             assertTrue(passkeys.deleteByIdAndUserId(passkeyId, 1));
-            assertEquals(false, resource.adminResourceInfo(request("Browser")).getPasskeyLoginEnabled());
-            assertEquals(false, resource.adminResourceInfo(request(BaseStaticSitePlugin.STATIC_USER_AGENT))
+            assertEquals(false, resources.adminResourceInfo(request("Browser")).getPasskeyLoginEnabled());
+            assertEquals(false, resources.adminResourceInfo(request(BaseStaticSitePlugin.STATIC_USER_AGENT))
                     .getPasskeyLoginEnabled());
         }
     }

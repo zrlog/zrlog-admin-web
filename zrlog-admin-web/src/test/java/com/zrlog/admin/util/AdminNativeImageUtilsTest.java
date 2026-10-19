@@ -3,7 +3,6 @@ package com.zrlog.admin.util;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.util.NativeImageUtils;
 import com.zrlog.admin.business.AdminConstants;
-import com.zrlog.admin.business.rest.response.AdminResourceInfoResponse;
 import com.zrlog.admin.business.service.AdminResource;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.google.gson.JsonElement;
@@ -146,9 +145,5 @@ public class AdminNativeImageUtilsTest {
             return "test-build";
         }
 
-        @Override
-        public AdminResourceInfoResponse adminResourceInfo(HttpRequest request) {
-            return null;
-        }
     }
 }

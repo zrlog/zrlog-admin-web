@@ -222,7 +222,7 @@ public class TemplateControllerTest {
 
     private TemplateController controller(Map<String, String> params, String body, File file,
                                                  ResponseRecorder response) throws Exception {
-        TemplateController controller = new TemplateController(new com.zrlog.admin.business.service.TemplateService(new com.zrlog.admin.support.InMemoryZrLogDatabase.TestCacheService(), () -> null, () -> null), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
+        TemplateController controller = new TemplateController(new com.zrlog.admin.business.service.TemplateService(new com.zrlog.admin.support.InMemoryZrLogDatabase.TestCacheService(), () -> null, () -> null), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), () -> "test"));
         setControllerField(controller, "request", request(params, body, file));
         setControllerField(controller, "response", response.response());
         return controller;

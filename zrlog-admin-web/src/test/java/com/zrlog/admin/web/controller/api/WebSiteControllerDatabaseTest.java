@@ -52,7 +52,7 @@ public class WebSiteControllerDatabaseTest {
             assertFalse(controller(HttpMethod.GET, labUri, null).lab().getData().getFeature_article_arrangement_enabled());
             assertFalse(resources.adminResourceInfo(editorRequest).getFeature_article_arrangement_enabled());
 
-            AdminArticleService articles = new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(db.config(), com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
+            AdminArticleService articles = new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(db.config(), com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(db.resources())));
             CreateArticleRequest create = new CreateArticleRequest();
             create.setTitle("Layout visibility");
             create.setAlias("layout-visibility");
@@ -420,7 +420,7 @@ public class WebSiteControllerDatabaseTest {
     }
 
     private AIWebSiteController aiController(HttpMethod method, String uri, String body) throws Exception {
-        AIWebSiteController controller = new AIWebSiteController(new WebSiteSettingsService(new InMemoryZrLogDatabase.TestCacheService(), applicationConfig == null ? null : applicationConfig.getTokenService(), () -> applicationConfig == null ? null : applicationConfig.getPlugin(com.zrlog.business.updater.UpdateVersionInfoPlugin.class)), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
+        AIWebSiteController controller = new AIWebSiteController(new WebSiteSettingsService(new InMemoryZrLogDatabase.TestCacheService(), applicationConfig == null ? null : applicationConfig.getTokenService(), () -> applicationConfig == null ? null : applicationConfig.getPlugin(com.zrlog.business.updater.UpdateVersionInfoPlugin.class)), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), () -> "test"));
         setControllerField(controller, "request", request(method, uri, body));
         setControllerField(controller, "response", response());
         return controller;
@@ -476,7 +476,7 @@ public class WebSiteControllerDatabaseTest {
 
     private static class TestWebSiteController extends WebSiteController {
         public TestWebSiteController(com.zrlog.common.ZrLogConfig config) {
-            super(new WebSiteSettingsService(new InMemoryZrLogDatabase.TestCacheService(), config == null ? null : config.getTokenService(), () -> config == null ? null : config.getPlugin(com.zrlog.business.updater.UpdateVersionInfoPlugin.class)), new com.zrlog.admin.business.service.UpgradeSettingsService(new WebSiteSettingsService(new InMemoryZrLogDatabase.TestCacheService(), config == null ? null : config.getTokenService(), () -> config == null ? null : config.getPlugin(com.zrlog.business.updater.UpdateVersionInfoPlugin.class)), () -> com.zrlog.common.adapter.UpdaterHosts.dockerControl(config == null ? null : config.getUpdater())), new com.zrlog.admin.business.service.FeatureLabService(() -> true), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(config), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
+            super(new WebSiteSettingsService(new InMemoryZrLogDatabase.TestCacheService(), config == null ? null : config.getTokenService(), () -> config == null ? null : config.getPlugin(com.zrlog.business.updater.UpdateVersionInfoPlugin.class)), new com.zrlog.admin.business.service.UpgradeSettingsService(new WebSiteSettingsService(new InMemoryZrLogDatabase.TestCacheService(), config == null ? null : config.getTokenService(), () -> config == null ? null : config.getPlugin(com.zrlog.business.updater.UpdateVersionInfoPlugin.class)), () -> com.zrlog.common.adapter.UpdaterHosts.dockerControl(config == null ? null : config.getUpdater())), new com.zrlog.admin.business.service.FeatureLabService(() -> true), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(config), () -> "test"));
         }
 
 

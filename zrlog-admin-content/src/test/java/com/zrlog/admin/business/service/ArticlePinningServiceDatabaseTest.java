@@ -147,7 +147,7 @@ public class ArticlePinningServiceDatabaseTest {
         request.setPrivacy(privacy);
         request.setRubbish(rubbish);
         request.setEditorType("markdown");
-        CreateOrUpdateArticleResponse response = new AdminArticleService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(applicationConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource))).create(token(), request);
+        CreateOrUpdateArticleResponse response = new AdminArticleService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(applicationConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), () -> "test")).create(token(), request);
         return response.getLogId();
     }
 

@@ -3,7 +3,6 @@ package com.zrlog.admin.web;
 import com.hibegin.common.dao.DataSourceWrapper;
 import com.hibegin.common.util.EnvKit;
 import com.hibegin.http.server.api.Interceptor;
-import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.rest.response.AdminResourceInfoResponse;
 import com.zrlog.admin.business.service.AdminArticleService;
 import com.zrlog.admin.business.service.AdminDashboardService;
@@ -63,7 +62,6 @@ public class AdminWebSetup implements WebSetup, TokenServiceProvider {
         this.zrLogConfig = zrLogConfig;
         this.sessionTokens = new AdminTokenService(
                 WebSiteUtils.DEFAULT_SESSION_TIMEOUT / 60000, zrLogConfig::isInstalled, this::staticHtmlEnabled);
-        AdminConstants.adminResource = null;
         if (zrLogConfig.getServerConfig().isNativeImageAgent()) {
             //register
             AdminNativeImageUtils.reg();
