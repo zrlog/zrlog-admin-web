@@ -33,7 +33,8 @@ public class ArticleCoverUtils {
         return IOUtil.getByteByInputStream(new FileInputStream(fileHandler.getT().getPath()));
     }
 
-    public static String getFirstImgUrl(String htmlContent, HttpRequest httpRequest, AdminTokenVO adminTokenVO) {
+    public static String getFirstImgUrl(String htmlContent, HttpRequest httpRequest, AdminTokenVO adminTokenVO,
+                                        UploadService uploadService) {
         if (StringUtils.isEmpty(htmlContent)) {
             return "";
         }
@@ -67,7 +68,7 @@ public class ArticleCoverUtils {
             //创建文件夹，避免保存失败
             thumbnailFile.getParentFile().mkdirs();
             IOUtil.writeBytesToFile(bytes, thumbnailFile);
-            return new UploadService().getCloudUrl(path, thumbnailFile.getPath(), httpRequest,
+            return uploadService.getCloudUrl(path, thumbnailFile.getPath(), httpRequest,
                     adminTokenVO).getUrl() + "?h=" + height + "&w=" + width;
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "", e);

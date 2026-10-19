@@ -2,99 +2,266 @@
   {
     "name": "com.zrlog.admin.web.controller.api.AdminArticleController",
     "methods": [
-      {"name": "<init>", "parameterTypes": ["com.zrlog.admin.business.service.AdminArticleService", "com.zrlog.admin.business.service.ArticlePublishingService"]},
-      {"name": "articleEdit", "parameterTypes": []},
-      {"name": "create", "parameterTypes": []},
-      {"name": "delete", "parameterTypes": []},
-      {"name": "detail", "parameterTypes": []},
-      {"name": "index", "parameterTypes": []},
-      {"name": "update", "parameterTypes": []}
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "com.zrlog.admin.business.service.AdminArticleService",
+          "com.zrlog.admin.business.service.ArticlePublishingService",
+          "com.zrlog.admin.util.AdminStaticSiteSsePublisher",
+          "java.util.function.Supplier",
+          "com.zrlog.admin.business.service.AdminPageDataFactory"
+        ]
+      },
+      {
+        "name": "articleEdit",
+        "parameterTypes": []
+      },
+      {
+        "name": "create",
+        "parameterTypes": []
+      },
+      {
+        "name": "delete",
+        "parameterTypes": []
+      },
+      {
+        "name": "detail",
+        "parameterTypes": []
+      },
+      {
+        "name": "index",
+        "parameterTypes": []
+      },
+      {
+        "name": "update",
+        "parameterTypes": []
+      }
     ]
   },
   {
     "name": "com.zrlog.admin.web.controller.api.AdminArticlePinningController",
     "methods": [
-      {"name": "<init>", "parameterTypes": []},
-      {"name": "index", "parameterTypes": []},
-      {"name": "move", "parameterTypes": []},
-      {"name": "pin", "parameterTypes": []},
-      {"name": "unpin", "parameterTypes": []}
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      },
+      {
+        "name": "index",
+        "parameterTypes": []
+      },
+      {
+        "name": "move",
+        "parameterTypes": []
+      },
+      {
+        "name": "pin",
+        "parameterTypes": []
+      },
+      {
+        "name": "unpin",
+        "parameterTypes": []
+      }
     ]
   },
   {
     "name": "com.zrlog.admin.web.controller.api.AdminArticleVersionController",
     "methods": [
-      {"name": "<init>", "parameterTypes": ["com.zrlog.admin.business.service.AdminArticleService", "com.zrlog.common.CacheService"]},
-      {"name": "compare", "parameterTypes": []},
-      {"name": "index", "parameterTypes": []},
-      {"name": "rollback", "parameterTypes": []}
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "com.zrlog.admin.business.service.AdminArticleService",
+          "com.zrlog.business.service.CacheRefreshService"
+        ]
+      },
+      {
+        "name": "compare",
+        "parameterTypes": []
+      },
+      {
+        "name": "index",
+        "parameterTypes": []
+      },
+      {
+        "name": "rollback",
+        "parameterTypes": []
+      }
     ]
   },
   {
     "name": "com.zrlog.admin.web.controller.api.AdminTagController",
     "methods": [
-      {"name": "<init>", "parameterTypes": []},
-      {"name": "delete", "parameterTypes": []},
-      {"name": "index", "parameterTypes": []},
-      {"name": "merge", "parameterTypes": []},
-      {"name": "preview", "parameterTypes": []},
-      {"name": "rename", "parameterTypes": []}
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "com.zrlog.admin.business.service.AdminPageDataFactory",
+          "java.util.function.Supplier"
+        ]
+      },
+      {
+        "name": "delete",
+        "parameterTypes": []
+      },
+      {
+        "name": "index",
+        "parameterTypes": []
+      },
+      {
+        "name": "merge",
+        "parameterTypes": []
+      },
+      {
+        "name": "preview",
+        "parameterTypes": []
+      },
+      {
+        "name": "rename",
+        "parameterTypes": []
+      }
     ]
   },
   {
     "name": "com.zrlog.admin.web.controller.api.BlogNavController",
     "methods": [
-      {"name": "<init>", "parameterTypes": []},
-      {"name": "add", "parameterTypes": []},
-      {"name": "delete", "parameterTypes": []},
-      {"name": "index", "parameterTypes": []},
-      {"name": "update", "parameterTypes": []}
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "com.zrlog.admin.business.service.AdminPageDataFactory"
+        ]
+      },
+      {
+        "name": "add",
+        "parameterTypes": []
+      },
+      {
+        "name": "delete",
+        "parameterTypes": []
+      },
+      {
+        "name": "index",
+        "parameterTypes": []
+      },
+      {
+        "name": "update",
+        "parameterTypes": []
+      }
     ]
   },
   {
     "name": "com.zrlog.admin.web.controller.api.CommentController",
     "methods": [
-      {"name": "<init>", "parameterTypes": []},
-      {"name": "delete", "parameterTypes": []},
-      {"name": "index", "parameterTypes": []},
-      {"name": "read", "parameterTypes": []},
-      {"name": "readAll", "parameterTypes": []}
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "com.zrlog.admin.business.service.AdminPageDataFactory"
+        ]
+      },
+      {
+        "name": "delete",
+        "parameterTypes": []
+      },
+      {
+        "name": "index",
+        "parameterTypes": []
+      },
+      {
+        "name": "read",
+        "parameterTypes": []
+      },
+      {
+        "name": "readAll",
+        "parameterTypes": []
+      }
     ]
   },
   {
     "name": "com.zrlog.admin.web.controller.api.LinkController",
     "methods": [
-      {"name": "<init>", "parameterTypes": []},
-      {"name": "add", "parameterTypes": []},
-      {"name": "delete", "parameterTypes": []},
-      {"name": "index", "parameterTypes": []},
-      {"name": "update", "parameterTypes": []}
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "com.zrlog.admin.business.service.AdminPageDataFactory"
+        ]
+      },
+      {
+        "name": "add",
+        "parameterTypes": []
+      },
+      {
+        "name": "delete",
+        "parameterTypes": []
+      },
+      {
+        "name": "index",
+        "parameterTypes": []
+      },
+      {
+        "name": "update",
+        "parameterTypes": []
+      }
     ]
   },
   {
     "name": "com.zrlog.admin.web.controller.api.LinkPreviewController",
     "methods": [
-      {"name": "<init>", "parameterTypes": []},
-      {"name": "index", "parameterTypes": []}
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      },
+      {
+        "name": "index",
+        "parameterTypes": []
+      }
     ]
   },
   {
     "name": "com.zrlog.admin.web.controller.api.PersonalDataController",
     "methods": [
-      {"name": "<init>", "parameterTypes": []},
-      {"name": "exportComments", "parameterTypes": []},
-      {"name": "index", "parameterTypes": []},
-      {"name": "preview", "parameterTypes": []}
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "com.zrlog.admin.business.service.AdminPageDataFactory"
+        ]
+      },
+      {
+        "name": "exportComments",
+        "parameterTypes": []
+      },
+      {
+        "name": "index",
+        "parameterTypes": []
+      },
+      {
+        "name": "preview",
+        "parameterTypes": []
+      }
     ]
   },
   {
     "name": "com.zrlog.admin.web.controller.api.TypeController",
     "methods": [
-      {"name": "<init>", "parameterTypes": []},
-      {"name": "add", "parameterTypes": []},
-      {"name": "delete", "parameterTypes": []},
-      {"name": "index", "parameterTypes": []},
-      {"name": "update", "parameterTypes": []}
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "com.zrlog.admin.business.service.AdminPageDataFactory",
+          "java.util.function.Supplier"
+        ]
+      },
+      {
+        "name": "add",
+        "parameterTypes": []
+      },
+      {
+        "name": "delete",
+        "parameterTypes": []
+      },
+      {
+        "name": "index",
+        "parameterTypes": []
+      },
+      {
+        "name": "update",
+        "parameterTypes": []
+      }
     ]
   }
 ]

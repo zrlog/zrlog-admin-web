@@ -1,62 +1,75 @@
 package com.zrlog.admin.web.controller.api;
 
-import com.zrlog.admin.web.annotation.RequiresAction;
-import com.zrlog.data.security.AccountAction;
-
 import com.hibegin.http.annotation.ResponseBody;
 import com.hibegin.http.server.execption.NotFindResourceException;
 import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
 import com.zrlog.admin.business.rest.response.AdminStaticSiteSyncResponse;
 import com.zrlog.admin.business.service.AdminAuditService;
+import com.zrlog.admin.business.service.AdminPageDataFactory;
 import com.zrlog.admin.business.service.MessageCenterOperationService;
 import com.zrlog.admin.business.type.AdminAuditAction;
 import com.zrlog.admin.util.AdminStaticSiteSsePublisher;
 import com.zrlog.admin.web.annotation.RequestLock;
+import com.zrlog.admin.web.annotation.RequiresAction;
 import com.zrlog.admin.web.plugin.AdminStaticResourcePlugin;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
-import com.zrlog.business.plugin.StaticSitePlugin;
 import com.zrlog.business.plugin.type.StaticSiteType;
-import com.zrlog.business.util.CacheUtils;
-import com.zrlog.common.Constants;
+import com.zrlog.business.service.CacheRefreshService;
 import com.zrlog.common.controller.BaseController;
 import com.zrlog.common.rest.response.ApiStandardResponse;
+import com.zrlog.data.security.AccountAction;
 
 import java.io.IOException;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Supplier;
 
 public class AdminStaticSiteController extends BaseController {
+    private final AdminPageDataFactory pages;
+
+    private final CacheRefreshService cacheRefresh;
+    private final AdminStaticSiteSsePublisher staticSitePublisher;
+    private final Supplier<AdminStaticResourcePlugin> staticSite;
+
+    public AdminStaticSiteController(CacheRefreshService cacheRefresh, AdminStaticSiteSsePublisher staticSitePublisher,
+                                     Supplier<AdminStaticResourcePlugin> staticSite, AdminPageDataFactory pages) {
+        this.pages = pages;
+        this.cacheRefresh = cacheRefresh;
+        this.staticSitePublisher = staticSitePublisher;
+        this.staticSite = staticSite;
+    }
+
 
     @ResponseBody
     @RequestLock
     @RequiresAction(value = AccountAction.SYSTEM_MANAGE, descriptionKey = "system.syncAdmin")
     public void startSync() throws IOException {
-        if (StaticSitePlugin.isDisabled()) {
+        if (cacheRefresh.isStaticSiteDisabled()) {
             // 静态化未启用时，只通知浏览器刷新缓存状态。
             response.renderJson(new ApiStandardResponse<>(new AdminStaticSiteSyncResponse(true)));
             return;
         }
-        AdminStaticResourcePlugin adminStaticResourcePlugin = Constants.zrLogConfig.getPlugin(AdminStaticResourcePlugin.class);
+        AdminStaticResourcePlugin adminStaticResourcePlugin = staticSite.get();
         if (Objects.isNull(adminStaticResourcePlugin)) {
             throw new NotFindResourceException("plugin not found");
         }
         List<StaticSiteType> siteTypes = List.of(StaticSiteType.ADMIN);
         if (!isSseRequest()) {
-            boolean synced = CacheUtils.refreshStaticSiteCache(request, siteTypes);
+            boolean synced = cacheRefresh.refreshStaticSiteCache(request, siteTypes);
             new MessageCenterOperationService().recordStaticSiteSync(siteTypes, synced);
             new AdminAuditService().record(request, AdminAuditAction.SYNC_ADMIN_STATIC_SITE);
             response.renderJson(new ApiStandardResponse<>(new AdminStaticSiteSyncResponse(synced)));
             return;
         }
         AtomicBoolean synced = new AtomicBoolean(false);
-        AdminStaticSiteSsePublisher.write(
+        staticSitePublisher.write(
                 response,
                 "admin-static-site-sync",
                 siteTypes,
                 emitter -> {
                 },
-                () -> synced.set(CacheUtils.refreshStaticSiteCache(request, siteTypes)),
+                () -> synced.set(cacheRefresh.refreshStaticSiteCache(request, siteTypes)),
                 emitter -> {
                     new MessageCenterOperationService().recordStaticSiteSync(siteTypes, synced.get());
                     new AdminAuditService().record(request, AdminAuditAction.SYNC_ADMIN_STATIC_SITE);
@@ -73,13 +86,13 @@ public class AdminStaticSiteController extends BaseController {
     @ResponseBody
     @RequiresAction(value = AccountAction.SYSTEM_MANAGE, descriptionKey = "system.adminSyncStatus")
     public AdminPageDataResponse<AdminStaticSiteSyncResponse> index() {
-        if (StaticSitePlugin.isDisabled()) {
-            return new AdminPageDataResponse<>(new AdminStaticSiteSyncResponse(true), "", request.getUri());
+        if (cacheRefresh.isStaticSiteDisabled()) {
+            return pages.response(new AdminStaticSiteSyncResponse(true), "", request.getUri());
         }
-        AdminStaticResourcePlugin adminStaticResourcePlugin = Constants.zrLogConfig.getPlugin(AdminStaticResourcePlugin.class);
+        AdminStaticResourcePlugin adminStaticResourcePlugin = staticSite.get();
         if (Objects.isNull(adminStaticResourcePlugin)) {
             throw new NotFindResourceException("plugin not found");
         }
-        return new AdminPageDataResponse<>(new AdminStaticSiteSyncResponse(adminStaticResourcePlugin.isSynchronized(AdminTokenThreadLocal.getUserProtocol())), "", request.getUri());
+        return pages.response(new AdminStaticSiteSyncResponse(adminStaticResourcePlugin.isSynchronized(AdminTokenThreadLocal.getUserProtocol())), "", request.getUri());
     }
 }

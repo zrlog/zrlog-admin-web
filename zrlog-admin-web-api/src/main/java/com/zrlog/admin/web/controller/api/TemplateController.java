@@ -1,29 +1,27 @@
 package com.zrlog.admin.web.controller.api;
 
-import com.zrlog.admin.web.annotation.RequiresAction;
-import com.zrlog.data.security.AccountAction;
-
 import com.hibegin.common.util.EnvKit;
 import com.hibegin.common.util.StringUtils;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.RequestMethod;
 import com.hibegin.http.annotation.ResponseBody;
 import com.hibegin.http.server.web.cookie.Cookie;
-import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.rest.request.UpdateTemplateConfigRequest;
 import com.zrlog.admin.business.rest.response.*;
+import com.zrlog.admin.business.service.AdminPageDataFactory;
 import com.zrlog.admin.business.service.TemplateService;
 import com.zrlog.admin.util.AdminTemplateUtils;
 import com.zrlog.admin.web.annotation.RefreshCache;
 import com.zrlog.admin.web.annotation.RequestLock;
+import com.zrlog.admin.web.annotation.RequiresAction;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.business.plugin.type.StaticSiteType;
 import com.zrlog.common.controller.BaseController;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.common.vo.TemplateVO;
+import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.I18nUtil;
-import com.zrlog.util.TemplateHelper;
 
 import java.io.File;
 import java.io.IOException;
@@ -33,9 +31,16 @@ import java.util.List;
 import java.util.Objects;
 
 public class TemplateController extends BaseController {
+    private final AdminPageDataFactory pages;
 
 
-    private final TemplateService templateService = new TemplateService();
+
+    private final TemplateService templateService;
+
+    public TemplateController(TemplateService templateService, AdminPageDataFactory pages) {
+        this.pages = pages;
+        this.templateService = templateService;
+    }
 
 
     @RefreshCache(updateStaticSites = StaticSiteType.BLOG)
@@ -119,7 +124,7 @@ public class TemplateController extends BaseController {
     @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "template.readConfig")
     public AdminPageDataResponse<TemplateVO> configParams() throws IOException {
         String template = AdminTemplateUtils.loadTemplatePathByRequestInfo(this);
-        return new AdminPageDataResponse<>(templateService.loadTemplateConfig(template, request), "", request.getUri());
+        return pages.response(templateService.loadTemplateConfig(template, request), "", request.getUri());
     }
 
     @ResponseBody
@@ -132,7 +137,7 @@ public class TemplateController extends BaseController {
     @ResponseBody
     @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "template.list")
     public AdminPageDataResponse<List<TemplateEntryResponse>> index() throws IOException {
-        return new AdminPageDataResponse<>(templateService.getAllTemplates(TemplateHelper.getTemplatePath(getRequest())),
+        return pages.response(templateService.getAllTemplates(templateService.getTemplatePath(getRequest())),
                 "", request.getUri());
     }
 
@@ -150,6 +155,6 @@ public class TemplateController extends BaseController {
         }
         TemplateDownloadResponse downloadResponse = templateService.templateCenter(
                 AdminTokenThreadLocal.getUserProtocol(), host, request.getContextPath());
-        return new AdminPageDataResponse<>(downloadResponse, "", request.getUri());
+        return pages.response(downloadResponse, "", request.getUri());
     }
 }

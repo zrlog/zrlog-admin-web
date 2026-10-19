@@ -20,7 +20,7 @@ public class MessageCenterServiceDatabaseTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             seedUnreadComment(db);
 
-            List<MessageCenterNoticeResponse> notices = new MessageCenterService().listNotices();
+            List<MessageCenterNoticeResponse> notices = new MessageCenterService(com.zrlog.admin.support.ApplicationServicesFixture.upgradeNotices(com.zrlog.common.Constants.zrLogConfig)).listNotices();
             Map<String, Object> statusRow = db.queryOne("select value from website where name=?",
                     "admin_cache:message_center_status");
             MessageCenterStatusResponse status = new Gson().fromJson(statusRow.get("value").toString(),

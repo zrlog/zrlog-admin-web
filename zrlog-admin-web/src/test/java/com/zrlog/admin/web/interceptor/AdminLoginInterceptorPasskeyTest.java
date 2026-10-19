@@ -10,7 +10,7 @@ import static org.junit.Assert.assertTrue;
 
 public class AdminLoginInterceptorPasskeyTest {
 
-    private final AdminLoginInterceptor interceptor = new AdminLoginInterceptor();
+    private final AdminLoginInterceptor interceptor = new AdminLoginInterceptor(() -> com.zrlog.common.Constants.zrLogConfig.getTokenService());
 
     @Test
     public void shouldAllowOnlyPasskeyAuthenticationEndpointsWithoutLogin() {

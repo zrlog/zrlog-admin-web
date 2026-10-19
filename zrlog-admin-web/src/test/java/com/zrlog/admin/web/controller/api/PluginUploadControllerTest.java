@@ -7,7 +7,7 @@ import com.zrlog.admin.business.security.PersonalTokenModels;
 import com.zrlog.admin.business.service.OAuthService;
 import com.zrlog.admin.business.service.PersonalAccessTokenService;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
-import com.zrlog.admin.web.config.AdminRouters;
+import com.zrlog.admin.web.AdminWebSetup;
 import com.zrlog.admin.web.interceptor.BearerTokenInterceptor;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.business.plugin.PluginCorePlugin;
@@ -32,7 +32,7 @@ public class PluginUploadControllerTest {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
             var config = Constants.zrLogConfig;
             config.getServerConfig().setContextPath("/sub");
-            AdminRouters.configAdminRoute(config.getServerConfig().getRouter());
+            new AdminWebSetup(config).setup();
             assertNull(config.getServerConfig().getRouter().getMethod(PATH, HttpMethod.GET));
             AtomicInteger forwarded = new AtomicInteger();
             byte[] body = "multipart plugin bytes".getBytes(StandardCharsets.UTF_8);
@@ -67,7 +67,7 @@ public class PluginUploadControllerTest {
         create.name = permission;
         create.permissionMode = "custom";
         create.permissions = List.of(permission);
-        return new PersonalAccessTokenService(new OAuthService().mcpResource()).create(create).token;
+        return new PersonalAccessTokenService(new OAuthService(com.zrlog.admin.support.ApplicationServicesFixture.backend(com.zrlog.common.Constants.zrLogConfig)::configured, com.zrlog.admin.support.ApplicationServicesFixture.available(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.web.McpWebSetup.class)).mcpResource()).create(create).token;
     }
 
     private int call(String token, byte[] body) throws Exception {
@@ -96,7 +96,7 @@ public class PluginUploadControllerTest {
                     if (method.getName().equals("write") && args.length > 1 && args[1] instanceof Integer) status.set((Integer) args[1]);
                     return null;
                 });
-        new BearerTokenInterceptor().doInterceptor(request, response);
+        new BearerTokenInterceptor(() -> com.zrlog.admin.support.ApplicationServicesFixture.dispatcher(null, com.zrlog.common.Constants.zrLogConfig), new com.zrlog.admin.business.service.OAuthService(com.zrlog.admin.support.ApplicationServicesFixture.backend(com.zrlog.common.Constants.zrLogConfig)::configured, com.zrlog.admin.support.ApplicationServicesFixture.available(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.web.McpWebSetup.class))).doInterceptor(request, response);
         return status.get();
     }
 }

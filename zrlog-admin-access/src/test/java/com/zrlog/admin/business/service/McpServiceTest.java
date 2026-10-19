@@ -5,12 +5,14 @@ import com.zrlog.admin.business.knowledge.*;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.data.security.AccountAccess;
 import org.junit.Test;
+
 import java.util.*;
+
 import static org.junit.Assert.*;
 
 public class McpServiceTest {
     private final McpService service = new McpService(() -> "我的博客");
-    private KnowledgeService knowledge() { return new KnowledgeService(()->{try{return AccountAccess.load(1);}catch(Exception e){throw new RuntimeException(e);}},Set.of("articles:read"),()->"https://blog.example"); }
+    private KnowledgeService knowledge() { return new KnowledgeService(()->{try{return AccountAccess.load(1);}catch(Exception e){throw new RuntimeException(e);}},Set.of("articles:read"),()->"https://blog.example", () -> false); }
     private McpService.Reply request(String method,String params) throws Exception { return service.handle("{\"jsonrpc\":\"2.0\",\"id\":\"client-1\",\"method\":\""+method+"\",\"params\":"+params+"}",knowledge()); }
     @Test public void negotiatesVersionsAdvertisesOnlyImplementedToolsAndAcceptsNotifications() throws Exception {
         for(String version:List.of("2025-03-26","2025-06-18","2025-11-25","2099-01-01")) {

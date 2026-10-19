@@ -52,7 +52,7 @@ public class AIReferenceServiceTest {
             article(db, 2, 1, true, false);
             article(db, 3, 1, false, true);
             article(db, 4, 2, false, false);
-            AIReferenceService service = new AIReferenceService();
+            AIReferenceService service = new AIReferenceService(ContentToolsFixture.from(com.zrlog.common.Constants.zrLogConfig));
             scope("own_public");
             assertEquals(List.of(1L), service.search("Same").articles.stream().map(hit -> hit.id).collect(java.util.stream.Collectors.toList()));
             var settings = new UserPreferenceService().assistant(AdminTokenThreadLocal.getUser());
@@ -80,7 +80,7 @@ public class AIReferenceServiceTest {
             AIFileModels.Input second = new AIFileModels.Input(); second.name = "same.txt"; second.data = "Yg==";
             request.files = List.of(first, second);
             request.doValid();
-            var result = new AIReferenceService().resolve(request, new UserPreferenceService().assistant(AdminTokenThreadLocal.getUser()));
+            var result = new AIReferenceService(ContentToolsFixture.from(com.zrlog.common.Constants.zrLogConfig)).resolve(request, new UserPreferenceService().assistant(AdminTokenThreadLocal.getUser()));
             assertEquals(Integer.valueOf(1), result.get(0).fileIndex);
             assertEquals("same.txt", result.get(0).fileName);
             request.files = List.of(first);
@@ -96,7 +96,7 @@ public class AIReferenceServiceTest {
             article(db, 2, 1, false, false);
             db.execute("update log set markdown=? where logId=2", "Referenced content ".repeat(400));
             List<JsonObject> requests = new ArrayList<>();
-            AIChatService model = new AIChatService() {
+            AIChatService model = new AIChatService(null, ContentToolsFixture.from(com.zrlog.common.Constants.zrLogConfig)) {
                 @Override protected AIProviderResponses.Choice complete(AIWebSiteInfo info, String body, AIChatStreamReader.Progress progress) throws IOException {
                     requests.add(JsonParser.parseString(body).getAsJsonObject());
                     return new Gson().fromJson("{\"finish_reason\":\"stop\",\"message\":{\"content\":\"Summary\"}}", AIProviderResponses.Choice.class);

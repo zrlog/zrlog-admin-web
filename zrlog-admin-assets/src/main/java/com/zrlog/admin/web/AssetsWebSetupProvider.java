@@ -1,8 +1,10 @@
 package com.zrlog.admin.web;
 
+import com.zrlog.business.plugin.PluginCorePlugin;
 import com.zrlog.web.WebSetup;
 import com.zrlog.web.WebSetupContext;
 import com.zrlog.web.WebSetupProvider;
+
 import java.util.Set;
 
 public class AssetsWebSetupProvider implements WebSetupProvider {
@@ -10,6 +12,7 @@ public class AssetsWebSetupProvider implements WebSetupProvider {
     @Override public int order() { return 130; }
     @Override public Set<String> requiredModules() { return Set.of("admin", "admin-account", "admin-content"); }
     @Override public WebSetup create(WebSetupContext context) {
-        return new AssetsWebSetup(context.getZrLogConfig().getServerConfig());
+        return new AssetsWebSetup(context.getZrLogConfig().getServerConfig(),
+                () -> context.getZrLogConfig().getPlugin(PluginCorePlugin.class));
     }
 }

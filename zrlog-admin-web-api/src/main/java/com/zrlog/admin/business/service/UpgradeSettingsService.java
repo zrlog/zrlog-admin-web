@@ -9,13 +9,17 @@ import com.zrlog.common.updater.docker.DockerUpdaterProtocol;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.updater.spi.DockerControl;
 import com.zrlog.util.ZrLogUtil;
+
 import java.sql.SQLException;
+import java.util.function.Supplier;
 
 /** Aggregates the existing website settings and the private updater protocol. */
 public class UpgradeSettingsService {
     private final WebSiteSettingsService settingsService;
+    private final Supplier<DockerControl> docker;
 
-    public UpgradeSettingsService(WebSiteSettingsService settingsService) {
+    public UpgradeSettingsService(WebSiteSettingsService settingsService, Supplier<DockerControl> docker) {
+        this.docker = docker;
         this.settingsService = settingsService;
     }
 
@@ -71,7 +75,7 @@ public class UpgradeSettingsService {
     }
 
     protected boolean isDockerMode() { return ZrLogUtil.isDockerMode(); }
-    protected DockerControl dockerClient() { return com.zrlog.common.adapter.UpdaterHosts.dockerControl(); }
+    protected DockerControl dockerClient() { return docker.get(); }
     protected void requireDockerPermission() { AccountPermissionService.require(AccountAction.SYSTEM_MANAGE); }
     private String channel(Boolean preview) { return Boolean.TRUE.equals(preview) ? "preview" : "release"; }
 }

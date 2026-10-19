@@ -4,7 +4,6 @@ import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.util.PathUtil;
 import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.rest.response.UploadFileResponse;
-import com.zrlog.admin.support.UploadFallbackZrLogConfig;
 import com.zrlog.common.Constants;
 import org.junit.After;
 import org.junit.Rule;
@@ -41,9 +40,9 @@ public class UploadServiceTest {
 
     @Test
     public void shouldFallbackToLocalUrlWhenPluginCoreIsUnavailable() {
-        Constants.zrLogConfig = new UploadFallbackZrLogConfig();
+        Constants.zrLogConfig = null;
 
-        UploadFileResponse response = new UploadService().getCloudUrl(
+        UploadFileResponse response = new UploadService(() -> null).getCloudUrl(
                 "/attached/a.png", "/tmp/a.png", request("/blog"), null);
 
         assertEquals("/blog/attached/a.png", response.getUrl());
@@ -52,9 +51,9 @@ public class UploadServiceTest {
     @Test
     public void shouldSaveBytesWithNormalizedExtension() throws Exception {
         withRootPath();
-        Constants.zrLogConfig = new UploadFallbackZrLogConfig();
+        Constants.zrLogConfig = null;
 
-        UploadFileResponse response = new UploadService().saveBytes(
+        UploadFileResponse response = new UploadService(() -> null).saveBytes(
                 "hello".getBytes(StandardCharsets.UTF_8), "", "image", request("/blog"), null);
         String uri = response.getUrl().substring("/blog".length());
         File file = PathUtil.getStaticFile(uri);
@@ -67,9 +66,9 @@ public class UploadServiceTest {
     @Test
     public void shouldSaveThumbnailBytesWithStableMd5Name() throws Exception {
         withRootPath();
-        Constants.zrLogConfig = new UploadFallbackZrLogConfig();
+        Constants.zrLogConfig = null;
 
-        UploadFileResponse response = new UploadService().saveThumbnailBytes(
+        UploadFileResponse response = new UploadService(() -> null).saveThumbnailBytes(
                 "abc".getBytes(StandardCharsets.UTF_8), "jpg", request(""), null);
         String uri = response.getUrl();
         File file = PathUtil.getStaticFile(uri);
@@ -82,7 +81,7 @@ public class UploadServiceTest {
 
     @Test
     public void shouldNormalizeExtensions() throws Exception {
-        UploadService service = new UploadService();
+        UploadService service = new UploadService(() -> null);
 
         assertEquals("png", service.normalizeExtension(null));
         assertEquals("png", service.normalizeExtension(" "));
@@ -91,7 +90,7 @@ public class UploadServiceTest {
 
     @Test
     public void shouldNormalizeTemporaryUploadDirectories() throws Exception {
-        UploadService service = new UploadService();
+        UploadService service = new UploadService(() -> null);
 
         assertEquals("/", service.normalizeTemporaryDir(AdminConstants.ADMIN_DB_ATTACHED_TMP));
         assertEquals("/", service.normalizeTemporaryDir(AdminConstants.ADMIN_DB_ATTACHED_TMP + "/"));
@@ -105,7 +104,7 @@ public class UploadServiceTest {
     public void shouldBuildTemporaryUriUnderAdminDbAttachmentRoot() throws Exception {
         File file = temporaryFolder.newFile("cover.PNG");
         Files.writeString(file.toPath(), "image", StandardCharsets.UTF_8);
-        UploadService service = new UploadService();
+        UploadService service = new UploadService(() -> null);
 
         String rootUri = service.buildTemporaryUri(AdminConstants.ADMIN_DB_ATTACHED_TMP, file);
         String nestedUri = service.buildTemporaryUri(AdminConstants.ADMIN_DB_ATTACHED_TMP + "/article-cover", file);

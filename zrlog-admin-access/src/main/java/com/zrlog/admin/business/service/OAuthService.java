@@ -7,6 +7,7 @@ import com.zrlog.admin.business.security.SecurityStore;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.util.ZrLogUtil;
+
 import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -14,6 +15,7 @@ import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.sql.*;
 import java.util.*;
+import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -29,19 +31,22 @@ public final class OAuthService {
     private static final SecureRandom RANDOM = new SecureRandom();
     private final SecurityStore store = new SecurityStore();
     private final Supplier<String> configuredIssuer;
-    public OAuthService() { this(OAuthService::configuredSiteIssuer); }
-    private static String configuredSiteIssuer() {
-        try { return com.zrlog.admin.util.BackendServerUrl.configured(); }
-        catch (IllegalArgumentException e) { throw new OAuthException("invalid_request"); }
-    }
+    private final BooleanSupplier mcpEnabled;
     static String configuredIssuer(String backendUrl, String blogHost, String contextPath) {
         try { return com.zrlog.admin.util.BackendServerUrl.resolve(backendUrl, blogHost, contextPath); }
         catch (IllegalArgumentException e) { throw new OAuthException("invalid_request"); }
     }
-    public OAuthService(Supplier<String> issuer) { configuredIssuer = issuer; }
+    public OAuthService(Supplier<String> issuer, BooleanSupplier mcpEnabled) {
+        this.configuredIssuer = Objects.requireNonNull(issuer);
+        this.mcpEnabled = Objects.requireNonNull(mcpEnabled);
+    }
+
+    public boolean isMcpEnabled() { return mcpEnabled.getAsBoolean(); }
 
     public String issuer() {
-        String value = Objects.toString(configuredIssuer.get(), "").replaceAll("/+$", "");
+        String value;
+        try { value = Objects.toString(configuredIssuer.get(), "").replaceAll("/+$", ""); }
+        catch (IllegalArgumentException e) { throw new OAuthException("invalid_request"); }
         URI uri = safeUri(value);
         if (uri.getRawQuery() != null || uri.getRawFragment() != null) throw new OAuthException("invalid_request");
         return value;
@@ -51,7 +56,7 @@ public final class OAuthService {
     public String mcpResource() { return issuer() + "/mcp"; }
     public static final List<String> MCP_SCOPES = List.of("articles:read", "articles:read_drafts", "articles:read_private", "articles:all", "articles:write", "articles:publish", "assets:write", "taxonomy:read", "offline_access");
     private void requireResource(String resource) {
-        if (!resource().equals(resource) && !(com.zrlog.admin.web.McpWebSetup.enabled() && mcpResource().equals(resource)) && !adminResource().equals(resource)) throw new OAuthException("invalid_target");
+        if (!resource().equals(resource) && !(isMcpEnabled() && mcpResource().equals(resource)) && !adminResource().equals(resource)) throw new OAuthException("invalid_target");
     }
     public ResourceMetadata mcpResourceMetadata() {
         ResourceMetadata m = new ResourceMetadata(); m.resource = mcpResource(); m.authorization_servers = List.of(issuer()); m.scopes_supported = MCP_SCOPES; return m;
@@ -381,7 +386,7 @@ public final class OAuthService {
     public Page page() throws SQLException {
         AccountAccess account = AccountPermissionService.current();
         return store.withSession(c -> {
-            Page page = new Page(); page.administrator = com.zrlog.data.security.AccountAction.OAUTH_CLIENT_MANAGE.allowed(account); page.issuer = issuer(); page.resource = resource(); page.mcpResource = com.zrlog.admin.web.McpWebSetup.enabled() ? mcpResource() : null;
+            Page page = new Page(); page.administrator = com.zrlog.data.security.AccountAction.OAUTH_CLIENT_MANAGE.allowed(account); page.issuer = issuer(); page.resource = resource(); page.mcpResource = isMcpEnabled() ? mcpResource() : null;
             page.clients = new ArrayList<>();
             if (page.administrator) for (Map<String,Object> row : store.list(c, "select * from oauth_client where enabled=?", true)) page.clients.add(client(c, (String) row.get("clientId")));
             page.personalTokenPermissions = PersonalAccessTokenService.availablePermissions(account);

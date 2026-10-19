@@ -7,13 +7,15 @@ import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.data.util.WebSiteUtils;
 import com.zrlog.model.UserPasskey;
 import com.zrlog.plugin.BaseStaticSitePlugin;
+import org.junit.Test;
+
 import java.io.InputStream;
 import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-import org.junit.Test;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
@@ -25,7 +27,9 @@ public class AdminResourceImplTest {
     public void shouldExposeAdminResourceUrisAndBuildServiceWorkerUrls() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             db.putWebsite("admin_static_resource_base_url", "https://cdn.example.com");
-            AdminResourceImpl resource = new AdminResourceImpl("/blog", () -> 0L);
+            var resources = new com.zrlog.admin.business.service.AdminResourceService(com.zrlog.admin.business.rest.response.AdminResourceInfoResponse.Capabilities::new, new com.zrlog.admin.business.service.FeatureLabService(() -> true), com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), () -> new com.zrlog.model.WebSite().getStringValueByName("admin_static_resource_base_url"));
+            AdminResourceImpl resource = new AdminResourceImpl("/blog", () -> 0L, () -> resources);
+            com.zrlog.common.Constants.zrLogConfig = null;
 
             Set<String> pageUris = resource.getAdminPageUris();
             Set<String> cacheUris = resource.getAdminStaticCacheUris();
@@ -80,12 +84,14 @@ public class AdminResourceImplTest {
     public void shouldBuildAdminResourceInfoFromRealWebsiteAndFeatureTables() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             db.putWebsite("feature_webhook_enabled", true); // Obsolete menu-only flag must not enable receiving.
-            assertFalse(new FeatureLabService().featureLab().getFeature_webhook_enabled());
+            assertFalse(new com.zrlog.admin.business.service.FeatureLabService(() -> true).featureLab().getFeature_webhook_enabled());
             var webhook = new com.zrlog.admin.business.rest.request.WebhookConfigRequest();
             webhook.setEnabled(true); new WebhookService().updateConfig(webhook);
             db.putWebsite("feature_personal_data_enabled", true);
             db.putWebsite("admin_static_resource_base_url", "https://cdn.example.com");
-            AdminResourceImpl resource = new AdminResourceImpl("/blog", () -> 0L);
+            var resources = new com.zrlog.admin.business.service.AdminResourceService(com.zrlog.admin.business.rest.response.AdminResourceInfoResponse.Capabilities::new, new com.zrlog.admin.business.service.FeatureLabService(() -> true), com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), () -> new com.zrlog.model.WebSite().getStringValueByName("admin_static_resource_base_url"));
+            AdminResourceImpl resource = new AdminResourceImpl("/blog", () -> 0L, () -> resources);
+            com.zrlog.common.Constants.zrLogConfig = null;
 
             AdminResourceInfoResponse response = resource.adminResourceInfo(request("Browser"));
             AdminResourceInfoResponse staticResponse =

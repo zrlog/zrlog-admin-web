@@ -1,37 +1,50 @@
 package com.zrlog.admin.web.controller.api;
 
-import com.zrlog.admin.web.annotation.RequiresAction;
-import com.zrlog.data.security.AccountAction;
-
-import com.hibegin.http.annotation.ResponseBody;
-import com.hibegin.http.annotation.RequestMethod;
 import com.hibegin.http.HttpMethod;
-import com.zrlog.updater.spi.DockerControl;
-import com.zrlog.common.updater.docker.DockerUpdaterProtocol;
-import com.zrlog.util.ZrLogUtil;
+import com.hibegin.http.annotation.RequestMethod;
+import com.hibegin.http.annotation.ResponseBody;
 import com.zrlog.admin.business.rest.request.ExecuteUpgradeRequest;
 import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
 import com.zrlog.admin.business.service.AdminAuditService;
-import com.zrlog.admin.business.service.AdminStaticService;
+import com.zrlog.admin.business.service.AdminPageDataFactory;
 import com.zrlog.admin.business.service.DockerUpgradeProgressService;
 import com.zrlog.admin.business.service.MessageCenterOperationService;
 import com.zrlog.admin.business.type.AdminAuditAction;
 import com.zrlog.admin.util.AdminSseEmitter;
+import com.zrlog.admin.web.annotation.RequiresAction;
 import com.zrlog.business.rest.response.CheckVersionResponse;
 import com.zrlog.business.rest.response.PreCheckVersionResponse;
 import com.zrlog.business.rest.response.UpgradeProcessResponse;
+import com.zrlog.business.service.UpgradeService;
 import com.zrlog.business.updater.UpdateVersionInfoPlugin;
 import com.zrlog.common.Constants;
 import com.zrlog.common.controller.BaseController;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.common.updater.UpgradeProgressListener;
+import com.zrlog.common.updater.docker.DockerUpdaterProtocol;
+import com.zrlog.data.security.AccountAction;
+import com.zrlog.updater.spi.DockerControl;
 import com.zrlog.util.I18nUtil;
+import com.zrlog.util.ZrLogUtil;
 
 import java.io.IOException;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Supplier;
 
 public class UpgradeController extends BaseController {
+    private final AdminPageDataFactory pages;
+
+    private final UpgradeService upgrades;
+    private final Supplier<UpdateVersionInfoPlugin> updatePlugin;
+    private final Supplier<DockerControl> docker;
+
+    public UpgradeController(UpgradeService upgrades, Supplier<UpdateVersionInfoPlugin> updatePlugin, Supplier<DockerControl> docker, AdminPageDataFactory pages) {
+        this.pages = pages;
+        this.upgrades = upgrades;
+        this.updatePlugin = updatePlugin;
+        this.docker = docker;
+    }
 
 
     @ResponseBody
@@ -41,8 +54,8 @@ public class UpgradeController extends BaseController {
         // Keep the public check fresh; page rendering and task recovery can use cached metadata.
         boolean apiCheck = request.getUri().endsWith("/api" + Constants.ADMIN_URI_BASE_PATH + "/upgrade");
         boolean fetch = "true".equals(request.getParaToStr("fetch", apiCheck ? "true" : "false"));
-        PreCheckVersionResponse preCheckVersionResponse = AdminStaticService.getInstance().getUpgradeService().preUpgradeVersion(fetch, Constants.zrLogConfig.getPlugin(UpdateVersionInfoPlugin.class));
-        return new AdminPageDataResponse<>(preCheckVersionResponse,
+        PreCheckVersionResponse preCheckVersionResponse = upgrades.preUpgradeVersion(fetch, updatePlugin.get());
+        return pages.response(preCheckVersionResponse,
                 Objects.equals(preCheckVersionResponse.getUpgrade(), true) ? "" : I18nUtil.getAdminBackendStringFromRes("admin.upgrade.version.notFound"), request.getUri());
     }
 
@@ -52,7 +65,7 @@ public class UpgradeController extends BaseController {
     public ApiStandardResponse<CheckVersionResponse> notice() {
         boolean fetch = Objects.equals("true", request.getParaToStr("fetch", "false"));
         return new ApiStandardResponse<>(
-                AdminStaticService.getInstance().getUpgradeService().getCheckVersionResponse(fetch, Constants.zrLogConfig.getPlugin(UpdateVersionInfoPlugin.class)),
+                upgrades.getCheckVersionResponse(fetch, updatePlugin.get()),
                 ""
         );
     }
@@ -74,12 +87,12 @@ public class UpgradeController extends BaseController {
             }
             return;
         }
-        UpdateVersionInfoPlugin plugin = Constants.zrLogConfig.getPlugin(UpdateVersionInfoPlugin.class);
+        UpdateVersionInfoPlugin plugin = updatePlugin.get();
         Map<String, Object> backend = I18nUtil.getBackend();
         if (!isSseRequest()) {
             UpgradeProcessResponse upgradeProcessResponse;
             try {
-                upgradeProcessResponse = AdminStaticService.getInstance().getUpgradeService()
+                upgradeProcessResponse = upgrades
                         .doUpgrade(plugin, UpgradeProgressListener.NONE, backend);
                 new MessageCenterOperationService().recordUpgradeResult(upgradeProcessResponse);
             } catch (RuntimeException e) {
@@ -94,7 +107,7 @@ public class UpgradeController extends BaseController {
         AdminSseEmitter.write(response, "admin-upgrade", "sse-error", emitter -> {
             UpgradeProcessResponse upgradeProcessResponse;
             try {
-                upgradeProcessResponse = AdminStaticService.getInstance().getUpgradeService()
+                upgradeProcessResponse = upgrades
                         .doUpgrade(plugin, emitter::send, backend);
                 new MessageCenterOperationService().recordUpgradeResult(upgradeProcessResponse);
             } catch (Exception e) {
@@ -140,7 +153,7 @@ public class UpgradeController extends BaseController {
 
     protected DockerControl dockerClient() {
         if (!ZrLogUtil.isDockerMode()) { throw new IllegalStateException("Docker updater requires Docker mode"); }
-        return com.zrlog.common.adapter.UpdaterHosts.dockerControl();
+        return docker.get();
     }
 
     private boolean isSseRequest() {

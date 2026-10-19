@@ -3,8 +3,12 @@ package com.zrlog.admin.web.controller.api;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.RequestMethod;
 import com.hibegin.http.annotation.ResponseBody;
+import com.zrlog.admin.business.account.AvatarStorage;
 import com.zrlog.admin.business.exception.AdminAuthException;
+import com.zrlog.admin.business.rest.request.*;
+import com.zrlog.admin.business.rest.response.*;
 import com.zrlog.admin.business.service.AdminAuditService;
+import com.zrlog.admin.business.service.AdminPageDataFactory;
 import com.zrlog.admin.business.service.MfaService;
 import com.zrlog.admin.business.service.PasskeyService;
 import com.zrlog.admin.business.service.UserService;
@@ -19,24 +23,29 @@ import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.I18nUtil;
+
 import java.sql.SQLException;
 import java.util.Objects;
-import com.zrlog.admin.business.rest.request.*;
-import com.zrlog.admin.business.rest.response.*;
+import java.util.function.Supplier;
 
 public class AdminUserController extends BaseController {
+    private final AdminPageDataFactory pages;
+
 
     private final UserService userService;
     private final MfaService mfaService;
     private final PasskeyService passkeyService;
 
     private final CacheService cacheService;
+    private final Supplier<AvatarStorage> avatarStorage;
 
-    public AdminUserController(UserService userService, CacheService cacheService) {
+    public AdminUserController(UserService userService, CacheService cacheService, Supplier<AvatarStorage> avatarStorage, AdminPageDataFactory pages, PasskeyService passkeyService) {
+        this.passkeyService = passkeyService;
+        this.pages = pages;
         this.userService = userService;
         this.cacheService = cacheService;
+        this.avatarStorage = Objects.requireNonNull(avatarStorage);
         this.mfaService = new MfaService();
-        this.passkeyService = new PasskeyService();
     }
 
     @ResponseBody
@@ -46,14 +55,14 @@ public class AdminUserController extends BaseController {
         if (Objects.isNull(adminTokenVO)) {
             throw new AdminAuthException();
         }
-        return new AdminPageDataResponse<>(userService.getBasicUserInfo(adminTokenVO.getUserId(), adminTokenVO.getSessionId()), "", request.getUri());
+        return pages.response(userService.getBasicUserInfo(adminTokenVO.getUserId(), adminTokenVO.getSessionId()), "", request.getUri());
     }
 
     @ResponseBody
     @RequestMethod(method = HttpMethod.GET)
     @RequiresAction(value = AccountAction.ACCOUNT_SELF, descriptionKey = "account.preferences")
     public AdminPageDataResponse<UserPreferencesResponse> preferences() throws SQLException {
-        return new AdminPageDataResponse<>(new com.zrlog.admin.business.service.UserPreferenceService().current(), "", request.getUri());
+        return pages.response(new com.zrlog.admin.business.service.UserPreferenceService().current(), "", request.getUri());
     }
 
     @ResponseBody
@@ -82,7 +91,7 @@ public class AdminUserController extends BaseController {
         if (Objects.isNull(adminTokenVO)) {
             throw new AdminAuthException();
         }
-        return new AdminPageDataResponse<>(userService.getUserInfoWithCache(adminTokenVO.getUserId(), adminTokenVO.getSessionId(), cacheService), "", request.getUri());
+        return pages.response(userService.getUserInfoWithCache(adminTokenVO.getUserId(), adminTokenVO.getSessionId(), cacheService), "", request.getUri());
     }
 
     @RefreshCache(updateStaticSites = StaticSiteType.BLOG)
@@ -91,7 +100,7 @@ public class AdminUserController extends BaseController {
     @RequiresAction(value = AccountAction.ACCOUNT_SELF, descriptionKey = "account.updateProfile")
     public UpdateRecordResponse update() throws SQLException {
         UpdateAdminRequest updateAdminRequest = getRequestBodyWithNullCheck(UpdateAdminRequest.class);
-        userService.update(AdminTokenThreadLocal.getUserId(), updateAdminRequest, getRequest());
+        userService.update(AdminTokenThreadLocal.getUserId(), updateAdminRequest, getRequest(), avatarStorage.get());
         new AdminAuditService().record(request, AdminAuditAction.UPDATE_PROFILE);
         UpdateRecordResponse updateRecordResponse = new UpdateRecordResponse(true);
         updateRecordResponse.setMessage(I18nUtil.getAdminBackendStringFromRes("admin.user.update.success"));
@@ -111,7 +120,7 @@ public class AdminUserController extends BaseController {
     @ResponseBody
     @RequiresAction(value = AccountAction.ACCOUNT_SELF, descriptionKey = "account.mfa")
     public AdminPageDataResponse<MfaStatusResponse> mfa() throws SQLException {
-        return new AdminPageDataResponse<>(mfaService.getMfaStatus(AdminTokenThreadLocal.getUserId()), "", request.getUri());
+        return pages.response(mfaService.getMfaStatus(AdminTokenThreadLocal.getUserId(), cacheService.getPublicWebSiteInfo().getTitle()), "", request.getUri());
     }
 
     @ResponseBody
@@ -147,7 +156,7 @@ public class AdminUserController extends BaseController {
     passkeyRegistrationOptions() throws SQLException {
         PasskeyRegistrationOptionsRequest body = getRequestBodyWithNullCheck(PasskeyRegistrationOptionsRequest.class);
         return new ApiStandardResponse<>(
-                passkeyService.startRegistration(AdminTokenThreadLocal.getUserId(), body, getRequest()));
+                passkeyService.startRegistration(AdminTokenThreadLocal.getUserId(), body, getRequest(), cacheService.getPublicWebSiteInfo().getTitle()));
     }
 
     @RefreshCache(updateStaticSites = StaticSiteType.ADMIN)

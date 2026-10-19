@@ -11,6 +11,10 @@ import com.hibegin.http.annotation.ResponseBody;
 import com.zrlog.admin.business.content.ArticleAssistant;
 import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.rest.base.UserPreferences;
+import com.zrlog.admin.business.rest.request.*;
+import com.zrlog.admin.business.rest.response.*;
+import com.zrlog.admin.business.service.*;
+import com.zrlog.admin.business.service.AdminPageDataFactory;
 import com.zrlog.admin.util.AdminSseEmitter;
 import com.zrlog.admin.util.AdminStaticSiteSsePublisher;
 import com.zrlog.admin.web.annotation.RefreshCache;
@@ -23,25 +27,30 @@ import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.ZrLogUtil;
+
 import java.io.IOException;
 import java.sql.SQLException;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
-import com.zrlog.admin.business.rest.request.*;
-import com.zrlog.admin.business.rest.response.*;
-import com.zrlog.admin.business.service.*;
-
-import java.util.*;
 
 public class AdminArticleController extends BaseController {
+    private final AdminPageDataFactory pages;
+
 
     private final AdminArticleService articleService;
+    private final java.util.function.Supplier<ArticleAssistant> assistant;
 
-    public AdminArticleController(AdminArticleService articleService, ArticlePublishingService publishingService) {
+    public AdminArticleController(AdminArticleService articleService, ArticlePublishingService publishingService,
+                                  AdminStaticSiteSsePublisher staticSitePublisher, java.util.function.Supplier<ArticleAssistant> assistant, AdminPageDataFactory pages) {
+        this.pages = pages;
+        this.assistant = Objects.requireNonNull(assistant);
         this.articleService = articleService;
+        this.staticSitePublisher = staticSitePublisher;
         this.publishingService = publishingService;
     }
     private final ArticlePublishingService publishingService;
+    private final AdminStaticSiteSsePublisher staticSitePublisher;
 
     @RefreshCache(async = true, updateStaticSites = StaticSiteType.BLOG)
     @ResponseBody
@@ -129,7 +138,7 @@ public class AdminArticleController extends BaseController {
         List<StaticSiteType> siteTypes = List.of(StaticSiteType.BLOG);
         AtomicReference<ArticleAssistant.PublishProgress> progressRef =
                 new AtomicReference<>(ArticleAssistant.PublishProgress.NONE);
-        AdminStaticSiteSsePublisher.write(
+        staticSitePublisher.write(
                 response,
                 "transparent-publish",
                 "publish-error",
@@ -137,7 +146,7 @@ public class AdminArticleController extends BaseController {
                 siteTypes,
                 emitter -> {
                     AdminPageDataResponse<ArticleGlobalResponse> detail = publishStartWriter.write(emitter);
-                    progressRef.set(ArticleAssistant.current().beginPublishCheck(detail.getData(), body, emitter));
+                    progressRef.set(Objects.requireNonNullElse(assistant.get(), ArticleAssistant.NONE).beginPublishCheck(detail.getData(), body, emitter));
                 },
                 () -> publishingService.updateBlogCacheWithStaticSyncNotice(request),
                 emitter -> progressRef.get().progress(emitter),
@@ -180,7 +189,7 @@ public class AdminArticleController extends BaseController {
         }
         ArticlePageData pageData = articleService.adminPage(page, key, types, status, request);
         pageData.setColumns(preferences.columns);
-        return new AdminPageDataResponse<>(pageData, "", request.getUri());
+        return pages.response(pageData, "", request.getUri());
     }
 
     @ResponseBody
@@ -201,7 +210,7 @@ public class AdminArticleController extends BaseController {
     @Deprecated
     @RequiresAction(value = AccountAction.ARTICLE_READ, articleQuery = true, descriptionKey = "article.detail")
     public AdminPageDataResponse<LoadEditArticleResponse> detail() throws SQLException {
-        return new AdminPageDataResponse<>(articleService.loadDetail(getParamWithEmptyCheck("id"), request));
+        return pages.response(articleService.loadDetail(getParamWithEmptyCheck("id"), request));
     }
 
 }

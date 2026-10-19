@@ -18,9 +18,14 @@ public class AdminStaticResourcePluginTest {
 
     @Test
     public void shouldExposeAdminStaticPluginStateWhenStaticSiteIsDisabled() throws Exception {
-        try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
+        try (InMemoryZrLogDatabase database = InMemoryZrLogDatabase.open()) {
+            var config = Constants.zrLogConfig;
+            var context = new com.hibegin.http.server.ApplicationContext(config.getServerConfig());
+            context.init();
             AdminStaticResourcePlugin plugin = new AdminStaticResourcePlugin(
-                    Constants.zrLogConfig, AdminConstants.adminResource, "/blog");
+                    new com.zrlog.business.plugin.StaticSiteRenderer(config.getRequestConfig(), config.getResponseConfig(), context),
+                    database.cacheService()::getPublicWebSiteInfo, AdminConstants.adminResource, "/blog");
+            Constants.zrLogConfig = null;
             try {
                 assertFalse(plugin.autoStart());
                 assertFalse(plugin.isStarted());

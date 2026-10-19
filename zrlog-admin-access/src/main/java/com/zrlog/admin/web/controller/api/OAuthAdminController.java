@@ -1,32 +1,38 @@
 package com.zrlog.admin.web.controller.api;
 
-import com.zrlog.admin.web.annotation.RequiresAction;
-import com.zrlog.data.security.AccountAction;
-
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.RequestMethod;
 import com.hibegin.http.annotation.ResponseBody;
-import com.zrlog.admin.business.security.OAuthModels.*;
-import com.zrlog.admin.business.service.OAuthService;
 import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
+import com.zrlog.admin.business.security.OAuthModels.*;
+import com.zrlog.admin.business.service.AdminPageDataFactory;
+import com.zrlog.admin.business.service.OAuthService;
+import com.zrlog.admin.web.annotation.RequiresAction;
 import com.zrlog.common.controller.BaseController;
 import com.zrlog.common.rest.response.ApiStandardResponse;
+import com.zrlog.data.security.AccountAction;
+
 import java.sql.SQLException;
 
 public class OAuthAdminController extends BaseController {
+    private final AdminPageDataFactory pages;
+
     private void audit(com.zrlog.admin.business.type.AdminAuditAction action) { new com.zrlog.admin.business.service.AdminAuditService().record(request, action); }
-    private final OAuthService service = new OAuthService();
+    private final OAuthService service;
+
+    public OAuthAdminController(OAuthService service, AdminPageDataFactory pages) {
+        this.pages = pages; this.service = service; }
     @ResponseBody @RequestMethod(method = HttpMethod.GET)
     @RequiresAction(value = AccountAction.OAUTH_GRANT_MANAGE, descriptionKey = "oauth.list")
-    public AdminPageDataResponse<Page> index() throws SQLException { return new AdminPageDataResponse<>(service.page(), "", request.getUri()); }
+    public AdminPageDataResponse<Page> index() throws SQLException { return pages.response(service.page(), "", request.getUri()); }
     @ResponseBody @RequestMethod(method = HttpMethod.GET)
     @RequiresAction(value = AccountAction.OAUTH_CLIENT_MANAGE, descriptionKey = "oauth.list")
-    public AdminPageDataResponse<Page> clients() throws SQLException { return new AdminPageDataResponse<>(service.page(), "", request.getUri()); }
+    public AdminPageDataResponse<Page> clients() throws SQLException { return pages.response(service.page(), "", request.getUri()); }
     @ResponseBody @RequestMethod(method = HttpMethod.GET)
     @RequiresAction(value = AccountAction.OAUTH_GRANT_MANAGE, descriptionKey = "oauth.consent")
     public AdminPageDataResponse<Consent> consent() throws SQLException {
         response.addHeader("Cache-Control", "no-store");
-        return new AdminPageDataResponse<>(service.consent(getParamWithEmptyCheck("request_id")), "", request.getUri());
+        return pages.response(service.consent(getParamWithEmptyCheck("request_id")), "", request.getUri());
     }
     @ResponseBody @RequestMethod(method = HttpMethod.POST)
     @RequiresAction(value = AccountAction.OAUTH_GRANT_MANAGE, descriptionKey = "oauth.decide")

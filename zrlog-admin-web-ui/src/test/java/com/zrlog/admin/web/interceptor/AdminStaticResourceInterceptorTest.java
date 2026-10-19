@@ -33,7 +33,7 @@ public class AdminStaticResourceInterceptorTest {
     public void shouldRenderAdminMainJsWithJavascriptContentType() throws Exception {
         ResponseRecorder response = new ResponseRecorder();
 
-        new AdminStaticResourceInterceptor().doInterceptor(
+        new AdminStaticResourceInterceptor(() -> com.zrlog.common.Constants.zrLogConfig.getPlugin(com.zrlog.admin.web.plugin.AdminStaticResourcePlugin.class)).doInterceptor(
                 request("/admin/static/js/main.missing.js", new ServerConfig(), requestConfig(new Router())),
                 response.response());
 
@@ -50,7 +50,7 @@ public class AdminStaticResourceInterceptorTest {
         router.addMapper("/admin/static/fallback", StaticFallbackController.class, "index");
 
         withConfig(new TestZrLogConfig(), () ->
-                new AdminStaticResourceInterceptor().doInterceptor(
+                new AdminStaticResourceInterceptor(() -> com.zrlog.common.Constants.zrLogConfig.getPlugin(com.zrlog.admin.web.plugin.AdminStaticResourcePlugin.class)).doInterceptor(
                         request("/admin/static/fallback", serverConfig, requestConfig(router)), response.response()));
 
         assertEquals("fallback", ((ApiStandardResponse<?>) response.rendered).getData());

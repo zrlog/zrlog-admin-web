@@ -1,8 +1,8 @@
 package com.zrlog.admin.business.service;
 
+import com.zrlog.admin.business.rest.response.TemplateEntryResponse;
 import com.zrlog.admin.business.rest.response.UpdateRecordResponse;
 import com.zrlog.admin.business.rest.response.UploadTemplateResponse;
-import com.zrlog.admin.business.rest.response.TemplateEntryResponse;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.util.AdminLanguageContext;
 import com.zrlog.common.Constants;
@@ -26,8 +26,8 @@ import java.util.zip.ZipOutputStream;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 public class TemplateServiceTest {
@@ -42,7 +42,7 @@ public class TemplateServiceTest {
                 db.cacheService().getPublicWebSiteInfo().setTemplate(Constants.getDefaultTemplatePath());
                 String templatePath = createLocalTemplate("local-theme");
                 db.putWebsite(templatePath + "_setting", "{\"accent\":\"db-blue\"}");
-                TemplateService service = new TemplateService();
+                TemplateService service = new TemplateService(db.cacheService(), () -> null, () -> null);
 
                 List<TemplateEntryResponse> templates = service.getAllTemplates(templatePath);
                 BaseTemplateVO local = templates.stream()
@@ -78,7 +78,7 @@ public class TemplateServiceTest {
                         "configForm.accent.label=\\u5f3a\\u8c03\\u8272\n"
                                 + "configForm.accent.placeholder=\\u9009\\u62e9\\u989c\\u8272\n");
                 db.putWebsite(templatePath + "_setting", "{\"accent\":\"db-blue\"}");
-                TemplateService service = new TemplateService();
+                TemplateService service = new TemplateService(db.cacheService(), () -> null, () -> null);
                 for (String language : List.of("en_US", "zh_CN", "en_US")) {
                     try (AdminLanguageContext ignored = AdminLanguageContext.open(language)) {
                         TemplateVO config = service.loadTemplateConfig(templatePath);
@@ -106,7 +106,7 @@ public class TemplateServiceTest {
             try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
                 String templatePath = createLocalTemplate("active-local-theme");
                 db.cacheService().getPublicWebSiteInfo().setTemplate(templatePath);
-                List<TemplateEntryResponse> entries = new TemplateService().getAllTemplates(templatePath);
+                List<TemplateEntryResponse> entries = new TemplateService(db.cacheService(), () -> null, () -> null).getAllTemplates(templatePath);
                 TemplateEntryResponse local = entries.stream().filter(entry -> templatePath.equals(entry.getTemplate()))
                         .findFirst().orElseThrow();
                 TemplateEntryResponse bundled = entries.stream()
@@ -131,7 +131,7 @@ public class TemplateServiceTest {
             try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
                 db.cacheService().getPublicWebSiteInfo().setTemplate(Constants.getDefaultTemplatePath());
                 String templatePath = createLocalTemplate("sanitize-theme");
-                TemplateService service = new TemplateService();
+                TemplateService service = new TemplateService(db.cacheService(), () -> null, () -> null);
                 Map<String, Object> settings = new LinkedHashMap<>();
                 settings.put("accent", "<b>blue</b><script>bad()</script>");
                 settings.put("customCss", "<style>.card{color:red}</style><script>bad()</script>");
@@ -165,7 +165,7 @@ public class TemplateServiceTest {
         withRootPath(() -> {
             File zipFile = createThemeZip(Map.of("index.ftl", "<html>new</html>"));
 
-            UploadTemplateResponse response = new TemplateService().upload("uploaded-theme", false, zipFile);
+            UploadTemplateResponse response = new TemplateService(new com.zrlog.admin.support.InMemoryZrLogDatabase.TestCacheService(), () -> null, () -> null).upload("uploaded-theme", false, zipFile);
 
             File installed = new File(temporaryFolder.getRoot(),
                     "static/include/templates/uploaded-theme/index.ftl");
@@ -193,7 +193,7 @@ public class TemplateServiceTest {
             File zipFile = createThemeZip(Map.of(
                     "index.ftl", "<html>replacement</html>",
                     "assets/theme.css", "new-content"));
-            TemplateService service = new TemplateService();
+            TemplateService service = new TemplateService(new com.zrlog.admin.support.InMemoryZrLogDatabase.TestCacheService(), () -> null, () -> null);
 
             UploadTemplateResponse rejected = service.upload("replace-theme", false, zipFile);
             assertEquals(1, rejected.getError());
@@ -215,7 +215,7 @@ public class TemplateServiceTest {
         withRootPath(() -> {
             File zipFile = createThemeZip(Map.of("../outside.txt", "outside"));
 
-            UploadTemplateResponse response = new TemplateService().upload("unsafe-theme", false, zipFile);
+            UploadTemplateResponse response = new TemplateService(new com.zrlog.admin.support.InMemoryZrLogDatabase.TestCacheService(), () -> null, () -> null).upload("unsafe-theme", false, zipFile);
 
             assertEquals(1, response.getError());
             assertFalse(new File(temporaryFolder.getRoot(), "static/include/outside.txt").exists());
@@ -228,7 +228,7 @@ public class TemplateServiceTest {
         withRootPath(() -> {
             File zipFile = createZip(Map.of("index.ftl", "<html></html>"));
 
-            UploadTemplateResponse response = new TemplateService().upload("missing-metadata", false, zipFile);
+            UploadTemplateResponse response = new TemplateService(new com.zrlog.admin.support.InMemoryZrLogDatabase.TestCacheService(), () -> null, () -> null).upload("missing-metadata", false, zipFile);
 
             assertEquals(1, response.getError());
             assertFalse(new File(temporaryFolder.getRoot(), "static/include/templates/missing-metadata").exists());

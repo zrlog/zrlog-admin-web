@@ -10,7 +10,6 @@ import com.zrlog.admin.business.knowledge.KnowledgeService;
 import com.zrlog.admin.business.rest.base.UserPreferences;
 import com.zrlog.admin.business.service.AccountPermissionService;
 import com.zrlog.admin.business.service.UserPreferenceService;
-import com.zrlog.admin.util.BackendServerUrl;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.data.security.AccountAction;
@@ -22,11 +21,15 @@ import java.util.List;
 
 /** Explicit references use the same account and preference boundary as assistant knowledge tools. */
 public final class AIReferenceService {
+    private final com.zrlog.admin.business.knowledge.ContentToolFactory tools;
+
+    public AIReferenceService(com.zrlog.admin.business.knowledge.ContentToolFactory tools) { this.tools = tools; }
+
     private KnowledgeService knowledge(UserPreferences.Assistant settings) {
         if (!AccountAction.ARTICLE_ASSIST.allowed(AccountPermissionService.current())
                 || "off".equals(settings.knowledgeScope)) throw new PermissionErrorException();
-        return new KnowledgeService(AccountPermissionService::current, AIChatService.scopes(settings),
-                BackendServerUrl::configured, I18nUtil.getCurrentLocale());
+        return java.util.Objects.requireNonNull(tools, "Content tools are required for article references")
+                .knowledge(AIChatService.scopes(settings), I18nUtil.getCurrentLocale());
     }
 
     public SearchResult search(String query) throws SQLException {

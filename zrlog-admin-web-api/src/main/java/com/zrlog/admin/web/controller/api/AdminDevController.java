@@ -1,8 +1,5 @@
 package com.zrlog.admin.web.controller.api;
 
-import com.zrlog.admin.web.annotation.RequiresAction;
-import com.zrlog.data.security.AccountAction;
-
 import com.hibegin.common.util.EnvKit;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.RequestMethod;
@@ -12,23 +9,32 @@ import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
 import com.zrlog.admin.business.rest.response.DevInfoResponse;
 import com.zrlog.admin.business.rest.response.UpdateRecordResponse;
 import com.zrlog.admin.business.service.AdminAuditService;
+import com.zrlog.admin.business.service.AdminPageDataFactory;
 import com.zrlog.admin.business.service.WebsiteCacheService;
 import com.zrlog.admin.business.type.AdminAuditAction;
 import com.zrlog.admin.util.DevKit;
+import com.zrlog.admin.web.annotation.RequiresAction;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.common.vo.LockVO;
+import com.zrlog.data.security.AccountAction;
 import com.zrlog.data.util.DistributedLockManager;
 
 import java.util.List;
 
 public class AdminDevController extends Controller {
+    public AdminDevController(AdminPageDataFactory pages) {
+        this.pages = pages;
+    }
+
+    private final AdminPageDataFactory pages;
+
 
     @ResponseBody
     @RequestMethod(method = HttpMethod.GET)
     @RequiresAction(value = AccountAction.SYSTEM_MANAGE, descriptionKey = "system.development")
     public AdminPageDataResponse<Boolean> ui() {
         // A ready marker for page hydration; component fixtures live entirely in the browser.
-        return new AdminPageDataResponse<>(Boolean.TRUE, "", "/admin/dev/ui");
+        return pages.response(Boolean.TRUE, "", "/admin/dev/ui");
     }
 
     @ResponseBody
@@ -52,7 +58,7 @@ public class AdminDevController extends Controller {
         devInfoResponse.setLocks(DistributedLockManager.getInstance().getLocks());
         devInfoResponse.setCacheEntries(new WebsiteCacheService().listEntries());
         devInfoResponse.setDevMode(EnvKit.isDevMode());
-        return new AdminPageDataResponse<>(devInfoResponse, "", getRequest().getUri());
+        return pages.response(devInfoResponse, "", getRequest().getUri());
     }
 
     @ResponseBody

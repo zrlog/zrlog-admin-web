@@ -1,19 +1,18 @@
 package com.zrlog.admin.web.controller.page;
 
-import com.zrlog.admin.web.annotation.RequiresAction;
-import com.zrlog.data.security.AccountAction;
-
 import com.hibegin.common.util.FileUtils;
 import com.hibegin.http.annotation.RequestMethod;
 import com.hibegin.http.server.util.MimeTypeUtil;
 import com.hibegin.http.server.util.PathUtil;
 import com.zrlog.admin.business.service.TemplateService;
 import com.zrlog.admin.util.AdminTemplateUtils;
+import com.zrlog.admin.web.annotation.RequiresAction;
 import com.zrlog.business.service.TemplateInfoHelper;
 import com.zrlog.business.template.util.TemplateDownloadUtils;
 import com.zrlog.common.Constants;
 import com.zrlog.common.controller.BaseController;
 import com.zrlog.common.vo.TemplateVO;
+import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.ZrLogUtil;
 
 import java.io.IOException;
@@ -23,6 +22,15 @@ import java.util.Objects;
 import static com.zrlog.util.CrossUtils.cross;
 
 public class AdminTemplatePageController extends BaseController {
+    private final TemplateService templateService;
+
+    private final java.util.function.BooleanSupplier staticHtml;
+
+    public AdminTemplatePageController(TemplateService templateService, java.util.function.BooleanSupplier staticHtml) {
+        this.staticHtml = java.util.Objects.requireNonNull(staticHtml);
+        this.templateService = templateService;
+    }
+
 
 
     @RequestMethod
@@ -36,9 +44,9 @@ public class AdminTemplatePageController extends BaseController {
     @RequestMethod
     @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "template.previewImage")
     public void previewImage() {
-        cross(request, response);
+        cross(request, response, staticHtml.getAsBoolean());
         String templateName = AdminTemplateUtils.loadTemplatePathByRequestInfo(this);
-        TemplateVO templateVO = new TemplateService().loadTemplateConfig(templateName);
+        TemplateVO templateVO = templateService.loadTemplateConfig(templateName);
         if (Objects.isNull(templateVO)) {
             response.renderCode(404);
             return;

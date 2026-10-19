@@ -1,8 +1,8 @@
 package com.zrlog.admin.business.knowledge;
 
 import com.google.gson.*;
-import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.knowledge.McpModels.*;
+
 import java.util.*;
 import java.util.function.Supplier;
 
@@ -15,8 +15,6 @@ public final class McpService {
     private final String language;
     private final KnowledgeMessages messages;
 
-    public McpService() { this("en_US"); }
-    public McpService(String language) { this(() -> AdminConstants.getPublicWebSiteInfo().getTitle(), language); }
     public McpService(Supplier<String> websiteTitle) { this(websiteTitle, "en_US"); }
     public McpService(Supplier<String> websiteTitle, String language) {
         this.websiteTitle = websiteTitle; this.language = language; this.messages = new KnowledgeMessages(language);

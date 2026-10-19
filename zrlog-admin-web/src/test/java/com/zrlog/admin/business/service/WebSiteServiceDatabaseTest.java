@@ -1,10 +1,10 @@
 package com.zrlog.admin.business.service;
 
-import com.zrlog.admin.business.rest.base.FeatureLabWebSiteInfo;
 import com.zrlog.admin.business.rest.base.AdminWebSiteInfo;
 import com.zrlog.admin.business.rest.base.ArticleEditWebSiteInfo;
 import com.zrlog.admin.business.rest.base.BasicWebSiteInfo;
 import com.zrlog.admin.business.rest.base.BlogWebSiteInfo;
+import com.zrlog.admin.business.rest.base.FeatureLabWebSiteInfo;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.data.util.WebSiteUtils;
 import org.junit.Test;
@@ -78,7 +78,7 @@ public class WebSiteServiceDatabaseTest {
             db.putWebsite(WebSiteService.FEATURE_ARTICLE_EXTENSION_FILTER_ENABLED_KEY, true);
             db.putWebsite(WebSiteService.FEATURE_WEBHOOK_ENABLED_KEY, false);
             db.putWebsite(WebSiteService.FEATURE_PERSONAL_DATA_ENABLED_KEY, true);
-            FeatureLabWebSiteInfo featureLab = new FeatureLabService().featureLab();
+            FeatureLabWebSiteInfo featureLab = new com.zrlog.admin.business.service.FeatureLabService(() -> true).featureLab();
 
             assertEquals(Boolean.TRUE, featureLab.getFeature_resource_reference_enabled());
             assertEquals(Boolean.TRUE, featureLab.getFeature_article_extension_filter_enabled());

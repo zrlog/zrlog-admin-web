@@ -115,19 +115,19 @@ public class ContentCrudControllerDatabaseTest {
     }
 
     private static TypeController typeController(Map<String, String> params, String body) throws Exception {
-        TypeController controller = new TypeController();
+        TypeController controller = new TypeController(new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)), com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig));
         setControllerFields(controller, params, body, "/api/admin/type");
         return controller;
     }
 
     private static BlogNavController blogNavController(Map<String, String> params, String body) throws Exception {
-        BlogNavController controller = new BlogNavController();
+        BlogNavController controller = new BlogNavController(new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
         setControllerFields(controller, params, body, "/api/admin/nav");
         return controller;
     }
 
     private static LinkController linkController(Map<String, String> params, String body) throws Exception {
-        LinkController controller = new LinkController();
+        LinkController controller = new LinkController(new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
         setControllerFields(controller, params, body, "/api/admin/link");
         return controller;
     }

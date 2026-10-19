@@ -11,11 +11,13 @@ import com.zrlog.common.Constants;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.updater.docker.DockerUpdaterProtocol;
 import com.zrlog.updater.spi.DockerControl;
+import org.junit.Test;
+
 import java.lang.reflect.Proxy;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
-import org.junit.Test;
+
 import static org.junit.Assert.*;
 
 public class UpgradeSettingsServiceTest {
@@ -27,7 +29,7 @@ public class UpgradeSettingsServiceTest {
             plugin();
             db.putWebsite("upgradePackageSource", "github");
             Client client = new Client();
-            UpgradeSettingsService service = service(client, true, new WebSiteSettingsService(new InMemoryZrLogDatabase.TestCacheService()));
+            UpgradeSettingsService service = service(client, true, new WebSiteSettingsService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.common.Constants.zrLogConfig == null ? null : com.zrlog.common.Constants.zrLogConfig.getTokenService(), () -> com.zrlog.common.Constants.zrLogConfig == null ? null : com.zrlog.common.Constants.zrLogConfig.getPlugin(com.zrlog.business.updater.UpdateVersionInfoPlugin.class)));
             UpgradeSettingsRequest input = new Gson().fromJson("{\"autoUpgradeVersion\":-1,\"upgradePreview\":true,"
                     + "\"upgradePackageSource\":\"dl\",\"dockerRepository\":\"" + ALIYUN + "\",\"dockerMode\":false}", UpgradeSettingsRequest.class);
             service.save(input, request());
@@ -51,7 +53,7 @@ public class UpgradeSettingsServiceTest {
         try (var db = InMemoryZrLogDatabase.open()) {
             plugin(); db.putWebsite("autoUpgradeVersion", 86400);
             Client client = new Client();
-            var service = service(client, true, new WebSiteSettingsService(new InMemoryZrLogDatabase.TestCacheService()));
+            var service = service(client, true, new WebSiteSettingsService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.common.Constants.zrLogConfig == null ? null : com.zrlog.common.Constants.zrLogConfig.getTokenService(), () -> com.zrlog.common.Constants.zrLogConfig == null ? null : com.zrlog.common.Constants.zrLogConfig.getPlugin(com.zrlog.business.updater.UpdateVersionInfoPlugin.class)));
             assertThrows(ArgsException.class, () -> service.save(input("unlisted.example/zrlog"), request()));
             assertEquals("86400", value(db, "autoUpgradeVersion"));
             assertTrue(client.saves.isEmpty());
@@ -66,7 +68,7 @@ public class UpgradeSettingsServiceTest {
         try (var db = InMemoryZrLogDatabase.open()) {
             plugin();
             Client client = new Client(); client.failRead = true;
-            var service = service(client, true, new WebSiteSettingsService(new InMemoryZrLogDatabase.TestCacheService()));
+            var service = service(client, true, new WebSiteSettingsService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.common.Constants.zrLogConfig == null ? null : com.zrlog.common.Constants.zrLogConfig.getTokenService(), () -> com.zrlog.common.Constants.zrLogConfig == null ? null : com.zrlog.common.Constants.zrLogConfig.getPlugin(com.zrlog.business.updater.UpdateVersionInfoPlugin.class)));
             service.save(input(null), request());
             assertEquals("-1", value(db, "autoUpgradeVersion"));
             assertEquals(0, client.reads);
@@ -81,7 +83,7 @@ public class UpgradeSettingsServiceTest {
     @Test public void restoresPreviousUpdaterSettingsWhenWebsiteWriteFails() throws Exception {
         try (var db = InMemoryZrLogDatabase.open()) {
             plugin(); Client client = new Client();
-            var service = service(client, true, new WebSiteSettingsService(new InMemoryZrLogDatabase.TestCacheService()) {
+            var service = service(client, true, new WebSiteSettingsService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.common.Constants.zrLogConfig == null ? null : com.zrlog.common.Constants.zrLogConfig.getTokenService(), () -> com.zrlog.common.Constants.zrLogConfig == null ? null : com.zrlog.common.Constants.zrLogConfig.getPlugin(com.zrlog.business.updater.UpdateVersionInfoPlugin.class)) {
                 @Override public void updateUpgrade(UpgradeWebSiteInfo settings, HttpRequest request) throws SQLException {
                     throw new SQLException("test failure");
                 }
@@ -96,7 +98,7 @@ public class UpgradeSettingsServiceTest {
     @Test public void packageModeNeverContactsUpdaterAndRejectsDockerWrites() throws Exception {
         try (var db = InMemoryZrLogDatabase.open()) {
             plugin(); Client client = new Client();
-            var service = service(client, false, new WebSiteSettingsService(new InMemoryZrLogDatabase.TestCacheService()));
+            var service = service(client, false, new WebSiteSettingsService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.common.Constants.zrLogConfig == null ? null : com.zrlog.common.Constants.zrLogConfig.getTokenService(), () -> com.zrlog.common.Constants.zrLogConfig == null ? null : com.zrlog.common.Constants.zrLogConfig.getPlugin(com.zrlog.business.updater.UpdateVersionInfoPlugin.class)));
             var input = input(null); input.setUpgradePackageSource("github");
             service.save(input, request());
             assertEquals("github", service.read(null).getUpgradePackageSource());
@@ -109,7 +111,7 @@ public class UpgradeSettingsServiceTest {
 
     @Test public void missingPluginAndInsufficientPermissionFailBeforeRemoteWrites() throws Exception {
         try (var db = InMemoryZrLogDatabase.open()) {
-            Client client = new Client(); var service = service(client, true, new WebSiteSettingsService(new InMemoryZrLogDatabase.TestCacheService()));
+            Client client = new Client(); var service = service(client, true, new WebSiteSettingsService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.common.Constants.zrLogConfig == null ? null : com.zrlog.common.Constants.zrLogConfig.getTokenService(), () -> com.zrlog.common.Constants.zrLogConfig == null ? null : com.zrlog.common.Constants.zrLogConfig.getPlugin(com.zrlog.business.updater.UpdateVersionInfoPlugin.class)));
             assertThrows(IllegalStateException.class, () -> service.save(input(ALIYUN), request()));
             assertEquals(0, client.reads);
             plugin(); db.execute("update user set role = 'editor' where userId = 1");
@@ -120,13 +122,13 @@ public class UpgradeSettingsServiceTest {
     }
 
     private static void plugin() {
-        Constants.zrLogConfig.getAllPlugins().add(new UpdateVersionInfoPlugin() {
+        Constants.zrLogConfig.getAllPlugins().add(new UpdateVersionInfoPlugin(com.zrlog.admin.support.ApplicationServicesFixture.upgradeNotices(com.zrlog.common.Constants.zrLogConfig), () -> "zh_CN", com.zrlog.common.Constants.zrLogConfig == null ? null : com.zrlog.common.Constants.zrLogConfig.getUpdater()) {
             @Override public boolean start() { return true; }
             @Override public boolean stop() { return true; }
         });
     }
     private static UpgradeSettingsService service(Client client, boolean docker, WebSiteSettingsService settings) {
-        return new UpgradeSettingsService(settings) {
+        return new UpgradeSettingsService(settings, () -> com.zrlog.common.adapter.UpdaterHosts.dockerControl(com.zrlog.common.Constants.zrLogConfig == null ? null : com.zrlog.common.Constants.zrLogConfig.getUpdater())) {
             @Override protected boolean isDockerMode() { return docker; }
             @Override protected DockerControl dockerClient() { return client; }
         };

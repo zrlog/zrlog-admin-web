@@ -29,14 +29,14 @@ public class TagManagementService {
 
     private static final int PREVIEW_LIMIT = 10;
 
-    public PageData<TagManagementEntryResponse> find(String homeUrl, PageRequest pageRequest, String key) throws SQLException {
+    public PageData<TagManagementEntryResponse> find(String homeUrl, PageRequest pageRequest, String key, boolean staticHtml) throws SQLException {
         List<TagManagementEntryResponse> allTags = new Tag().findAll().stream()
                 .filter(tag -> StringUtils.isEmpty(key) || tag.getText().toLowerCase(Locale.ROOT)
                         .contains(key.toLowerCase(Locale.ROOT)))
                 .sorted(Comparator
                         .comparing((TagDTO tag) -> Objects.requireNonNullElse(tag.getCount(), 0L)).reversed()
                         .thenComparing(TagDTO::getText, Comparator.nullsLast(String::compareToIgnoreCase)))
-                .map(tag -> toEntry(homeUrl, tag))
+                .map(tag -> toEntry(homeUrl, tag, staticHtml))
                 .collect(Collectors.toList());
         long page = Math.max(1L, pageRequest.getPage());
         long size = pageRequest.getSize() <= 0 ? 10L : pageRequest.getSize();
@@ -53,12 +53,12 @@ public class TagManagementService {
         return pageData;
     }
 
-    private TagManagementEntryResponse toEntry(String homeUrl, TagDTO tag) {
+    private TagManagementEntryResponse toEntry(String homeUrl, TagDTO tag, boolean staticHtml) {
         TagManagementEntryResponse response = new TagManagementEntryResponse();
         response.setId(tag.getId());
         response.setText(tag.getText());
         response.setCount(tag.getCount());
-        String suffix = Constants.isStaticHtmlStatus() ? ".html" : "";
+        String suffix = staticHtml ? ".html" : "";
         response.setUrl(homeUrl + UrlEncodeUtils.encodeUrl(Constants.getArticleUri() + "tag/" + tag.getText()) + suffix);
         return response;
     }

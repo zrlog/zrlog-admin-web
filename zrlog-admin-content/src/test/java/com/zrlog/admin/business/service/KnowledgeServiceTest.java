@@ -6,7 +6,9 @@ import com.zrlog.admin.business.knowledge.KnowledgeModels.*;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.data.security.AccountAccess;
 import org.junit.Test;
+
 import java.util.*;
+
 import static org.junit.Assert.*;
 
 @org.junit.runner.RunWith(org.junit.runners.Parameterized.class)
@@ -17,7 +19,7 @@ public class KnowledgeServiceTest {
     public KnowledgeServiceTest(boolean sqlite) { this.sqlite = sqlite; }
     private InMemoryZrLogDatabase database() throws Exception { return sqlite ? InMemoryZrLogDatabase.openSqlite() : InMemoryZrLogDatabase.open(); }
     private KnowledgeService service(int user, Set<String> scopes) {
-        return new KnowledgeService(() -> { try { return AccountAccess.load(user); } catch(Exception e) { throw new RuntimeException(e); } }, scopes, () -> "https://blog.example/sub");
+        return new KnowledgeService(() -> { try { return AccountAccess.load(user); } catch(Exception e) { throw new RuntimeException(e); } }, scopes, () -> "https://blog.example/sub", () -> false);
     }
     private void seed(InMemoryZrLogDatabase db) throws Exception {
         db.execute("insert into user(userId,userName,role) values(?,?,?)", 2,"writer","author");
@@ -45,6 +47,20 @@ public class KnowledgeServiceTest {
                     }
                 }
             }
+        }
+    }
+    @Test public void sourceUrlsFollowInjectedStaticModeWithoutGlobalConfig() throws Exception {
+        try (InMemoryZrLogDatabase db = database()) {
+            seed(db);
+            var staticHtml = new java.util.concurrent.atomic.AtomicBoolean(false);
+            KnowledgeService service = new KnowledgeService(() -> {
+                try { return AccountAccess.load(1); } catch (Exception e) { throw new RuntimeException(e); }
+            }, Set.of("articles:read", "articles:read_drafts"), () -> "https://blog.example/sub", staticHtml::get);
+            com.zrlog.common.Constants.zrLogConfig = null;
+            assertEquals("https://blog.example/sub/article-1", read(service, 1).source.url);
+            staticHtml.set(true);
+            assertEquals("https://blog.example/sub/article-1.html", read(service, 1).source.url);
+            assertEquals("https://blog.example/sub/admin/article-edit?previewMode=true&id=2", read(service, 2).source.url);
         }
     }
     @Test public void literalSearchBoundedInputsAndChunkedContent() throws Exception {

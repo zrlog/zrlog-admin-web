@@ -1,20 +1,40 @@
 package com.zrlog.admin.business.ai.service;
 
-import com.zrlog.admin.business.rest.response.ScoreArticleResponse;
+import com.zrlog.admin.business.rest.request.CreateArticleRequest;
+import com.zrlog.admin.business.rest.request.GenerateArticleFieldRequest;
 import com.zrlog.admin.business.rest.response.AIArticleGlobalResponse;
 import com.zrlog.admin.business.rest.response.LoadEditArticleResponse;
 import com.zrlog.admin.business.rest.response.PublishCheckResponse;
-import com.zrlog.admin.business.rest.request.CreateArticleRequest;
-import com.zrlog.admin.business.rest.request.GenerateArticleFieldRequest;
+import com.zrlog.admin.business.rest.response.ScoreArticleResponse;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.util.AdminLanguageContext;
 import com.zrlog.util.I18nUtil;
+import org.junit.Test;
+
 import java.lang.reflect.Method;
 import java.util.*;
-import org.junit.Test;
+
 import static org.junit.Assert.*;
 
 public class AIPublishCheckServiceTest {
+    @Test public void publishCheckUsesTheSameSiteSnapshotWithoutGlobalConfig() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            var service = new AIPublishCheckService();
+            var context = new GenerateArticleFieldRequest();
+            com.zrlog.common.Constants.zrLogConfig = null;
+            db.putWebsite("generator_html_status", "1");
+            db.putWebsite("host", "blog.example");
+            service.fillPublishCheckContext(context);
+            assertTrue(context.getStaticSiteEnabled());
+            assertTrue(context.getStaticSitePluginEnabled());
+            db.putWebsite("host", "");
+            service.fillPublishCheckContext(context);
+            assertFalse(context.getStaticSitePluginEnabled());
+            db.putWebsite("generator_html_status", "0");
+            service.fillPublishCheckContext(context);
+            assertFalse(context.getStaticSiteEnabled());
+        }
+    }
     @Test public void publishWorkerUsesTheRequestLanguageEvenWhenTheSiteAndLaterRequestDiffer() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             db.cacheService().getPublicWebSiteInfo().setLanguage("zh_CN");

@@ -2,6 +2,7 @@ package com.zrlog.admin.web.interceptor;
 
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.io.LengthByteArrayInputStream;
+import com.hibegin.http.server.api.HandleAbleInterceptor;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
 import com.zrlog.admin.business.AdminConstants;
@@ -9,28 +10,33 @@ import com.zrlog.admin.business.exception.PasskeyVerificationException;
 import com.zrlog.admin.business.service.PasskeyRequestContext;
 import com.zrlog.admin.web.token.AdminTokenService;
 import com.zrlog.common.Constants;
-import com.zrlog.util.CrossUtils;
 
 import java.util.Objects;
 
 /**
  * 支持自动处理后台的跨域请求
  */
-public class AdminCrossOriginInterceptor extends AdminInterceptor {
+public class AdminCrossOriginInterceptor implements HandleAbleInterceptor {
+
+    @Override
+    public boolean isHandleAble(HttpRequest request) {
+        return AdminMethodInterceptor.isAdminRequest(request);
+    }
 
     private static final String ADMIN_API_BASE_PATH = "/api" + AdminConstants.ADMIN_URI_BASE_PATH;
     private static final String PUBLIC_PASSKEY_API_PATH_PREFIX = ADMIN_API_BASE_PATH + "/passkey/";
     private static final String ACCOUNT_PASSKEY_API_PATH_PREFIX = ADMIN_API_BASE_PATH + "/account-security/passkey";
-    private final PasskeyRequestContext passkeyRequestContext = new PasskeyRequestContext();
+    private final PasskeyRequestContext passkeyRequestContext;
+
+    public AdminCrossOriginInterceptor(PasskeyRequestContext passkeyRequestContext) {
+        this.passkeyRequestContext = Objects.requireNonNull(passkeyRequestContext);
+    }
 
     @Override
     public boolean doInterceptor(HttpRequest request, HttpResponse response) {
         boolean passkeyRequest = isPasskeyRequest(request.getUri());
         if (passkeyRequest || Constants.API_PUBLIC_ADMIN_RESOURCE.equals(request.getUri())) {
             response.addHeader("Vary", "Origin");
-        }
-        if (!CrossUtils.isEnableOrigin(request)) {
-            return true;
         }
         String origin = request.getHeader("Origin");
         if (Objects.isNull(origin)) {

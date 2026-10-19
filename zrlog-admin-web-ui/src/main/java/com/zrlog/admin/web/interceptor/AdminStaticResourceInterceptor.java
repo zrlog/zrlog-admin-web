@@ -16,11 +16,15 @@ import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.InputStream;
 import java.util.Objects;
+import java.util.function.Supplier;
 
 public class AdminStaticResourceInterceptor implements HandleAbleInterceptor {
 
 
-    public AdminStaticResourceInterceptor() {
+    private final Supplier<AdminStaticResourcePlugin> staticSite;
+
+    public AdminStaticResourceInterceptor(Supplier<AdminStaticResourcePlugin> staticSite) {
+        this.staticSite = Objects.requireNonNull(staticSite);
     }
 
     private boolean isAdminMainJs(String uri) {
@@ -52,7 +56,7 @@ public class AdminStaticResourceInterceptor implements HandleAbleInterceptor {
             response.write(new ByteArrayInputStream(geAdminMainJsContent(request.getUri()).getBytes()), 200);
             return false;
         }
-        AdminStaticResourcePlugin staticSitePlugin = Constants.zrLogConfig.getPlugin(AdminStaticResourcePlugin.class);
+        AdminStaticResourcePlugin staticSitePlugin = staticSite.get();
         if (Objects.nonNull(staticSitePlugin)) {
             File cacheFile = staticSitePlugin.loadCacheFile(request);
             if (cacheFile.isFile() && cacheFile.exists()) {

@@ -20,12 +20,14 @@ import com.zrlog.admin.business.rest.response.LoadEditArticleResponse;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.vo.AdminTokenVO;
+import org.junit.Test;
+
 import java.lang.reflect.Proxy;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executor;
-import org.junit.Test;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -42,7 +44,7 @@ public class AdminArticleServiceDatabaseTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             UserPreferenceService preferences = new UserPreferenceService();
             preferences.updateBody("{\"editor\":{\"autoDigestLength\":0,\"linkPreviewEnabled\":true,\"publishCheckEnabled\":false,\"coverAspectRatio\":\"1:1\",\"autoSaveInterval\":10}}", "writing");
-            AdminArticleService service = new AdminArticleService(db.cacheService());
+            AdminArticleService service = new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
             com.zrlog.admin.business.rest.response.ArticleGlobalResponse editor = service.loadDetailById("", request()).getData();
             assertEquals(Boolean.TRUE, editor.getLinkPreviewEnabled());
             assertEquals(Boolean.FALSE, editor.getPublishCheckEnabled());
@@ -63,7 +65,7 @@ public class AdminArticleServiceDatabaseTest {
     @Test
     public void shouldCreateAndLoadArticleThroughRealDao() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-            AdminArticleService service = new AdminArticleService(db.cacheService());
+            AdminArticleService service = new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
             AIConversationService conversationService = new AIConversationService();
             assertTrue(conversationService.saveAIMessage(List.of(new AIResponseEntry.AIContentEntry("user", "draft")), -1L));
 
@@ -96,7 +98,7 @@ public class AdminArticleServiceDatabaseTest {
             db.putWebsite("ai_base_url", "http://127.0.0.1:18081/v1");
             db.putWebsite("ai_api_key", "");
 
-            AdminArticleService service = new AdminArticleService(db.cacheService());
+            AdminArticleService service = new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
 
             assertEquals(Boolean.TRUE, ((com.zrlog.admin.business.rest.response.AIArticleGlobalResponse) service.loadDetailById("", request()).getData()).getAiConfigured());
 
@@ -108,7 +110,7 @@ public class AdminArticleServiceDatabaseTest {
     @Test
     public void shouldPreserveUnsavedDraftAiMessagesForIndependentCreate() throws Exception {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
-            AdminArticleService service = new AdminArticleService(ignored.cacheService());
+            AdminArticleService service = new AdminArticleService(ignored.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
             AIConversationService conversationService = new AIConversationService();
             assertTrue(conversationService.saveAIMessage(List.of(new AIResponseEntry.AIContentEntry("user", "draft")), 0L));
             CreateArticleRequest request = article("Imported draft", "imported-draft");
@@ -124,7 +126,7 @@ public class AdminArticleServiceDatabaseTest {
     @Test
     public void shouldUpdateArticleAndRecordReversePatchThroughRealDao() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-            AdminArticleService service = new AdminArticleService(db.cacheService());
+            AdminArticleService service = new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
             CreateOrUpdateArticleResponse created = service.create(token(), article("First Title", "first"));
             UpdateArticleRequest update = updateArticle(created.getLogId().intValue(), 0, "Second Title", "second");
 
@@ -151,7 +153,7 @@ public class AdminArticleServiceDatabaseTest {
     @Test
     public void shouldClearStickyWhenPublishedArticleBecomesPrivate() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-            AdminArticleService service = new AdminArticleService(db.cacheService());
+            AdminArticleService service = new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
             CreateOrUpdateArticleResponse created = service.create(token(), article("Pinned", "pinned"));
             CreateOrUpdateArticleResponse other =
                     service.create(token(), article("Pinned Other", "pinned-other"));
@@ -173,7 +175,7 @@ public class AdminArticleServiceDatabaseTest {
     @Test
     public void shouldCountAndPageArticleStatusesThroughRealDao() throws Exception {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
-            AdminArticleService service = new AdminArticleService(ignored.cacheService());
+            AdminArticleService service = new AdminArticleService(ignored.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
             service.create(token(), article("Published", "published"));
             service.create(token(), article("Private", "private", true, false));
             service.create(token(), article("Draft", "draft", false, true));
@@ -197,7 +199,7 @@ public class AdminArticleServiceDatabaseTest {
     @Test
     public void shouldDeleteArticleAndRemovePersistedAiMessageThroughRealDao() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-            AdminArticleService service = new AdminArticleService(db.cacheService());
+            AdminArticleService service = new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
             AIConversationService conversationService = new AIConversationService();
             CreateOrUpdateArticleResponse created = service.create(token(), article("Delete Me", "delete-me"));
             assertTrue(conversationService.saveAIMessage(List.of(new AIResponseEntry.AIContentEntry("user", "keep")), created.getLogId()));
@@ -212,7 +214,7 @@ public class AdminArticleServiceDatabaseTest {
     @Test
     public void shouldRejectExpiredArticleVersionAgainstRealDao() throws Exception {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
-            AdminArticleService service = new AdminArticleService(ignored.cacheService());
+            AdminArticleService service = new AdminArticleService(ignored.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
             CreateOrUpdateArticleResponse created = service.create(token(), article("Versioned", "versioned"));
             UpdateArticleRequest staleUpdate = updateArticle(created.getLogId().intValue(), -1, "Stale", "stale");
 
@@ -223,7 +225,7 @@ public class AdminArticleServiceDatabaseTest {
     @Test
     public void shouldRejectMissingRequiredArticleFieldsBeforeWritingDao() throws Exception {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
-            AdminArticleService service = new AdminArticleService(ignored.cacheService());
+            AdminArticleService service = new AdminArticleService(ignored.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
             CreateArticleRequest missingTitle = article("", "missing-title");
             CreateArticleRequest missingType = article("Missing Type", "missing-type");
             missingType.setTypeId(0L);
@@ -236,7 +238,7 @@ public class AdminArticleServiceDatabaseTest {
     @Test
     public void shouldBuildRecentArticleActivityDataFromRealReleaseTimes() throws Exception {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
-            AdminArticleService service = new AdminArticleService(ignored.cacheService());
+            AdminArticleService service = new AdminArticleService(ignored.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
             service.create(token(), article("Activity One", "activity-one"));
             service.create(token(), article("Activity Two", "activity-two"));
 
@@ -251,7 +253,7 @@ public class AdminArticleServiceDatabaseTest {
     @Test
     public void arrangementCanBeCreatedLoadedPreservedChangedAndCleared() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-            AdminArticleService service = new AdminArticleService(db.cacheService());
+            AdminArticleService service = new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
             CreateArticleRequest create = article("Toolbox", "toolbox");
             create.setArrange_plugin("retro-runtime");
             int id = service.create(token(), create).getLogId().intValue();
@@ -283,7 +285,7 @@ public class AdminArticleServiceDatabaseTest {
     @Test
     public void arrangementHistoryRestoresPluginAndLegacyDefault() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-            AdminArticleService service = new AdminArticleService(db.cacheService());
+            AdminArticleService service = new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
             int id = service.create(token(), article("Layout", "layout")).getLogId().intValue();
             assertNull(db.scalar("select arrange_plugin from log where logId=?", id));
             assertEquals("", service.loadDetail("layout", request()).getArrange_plugin());
@@ -311,7 +313,7 @@ public class AdminArticleServiceDatabaseTest {
     @Test
     public void invalidArrangementIsRejectedBeforePersisting() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-            AdminArticleService service = new AdminArticleService(db.cacheService());
+            AdminArticleService service = new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
             int id = service.create(token(), article("Valid", "valid")).getLogId().intValue();
             for (String invalid : List.of("../widget", "<plugin>", "a/b", "a\\b", "a b", " a", "a\n", "a".repeat(65))) {
                 CreateArticleRequest create = article("Invalid", "invalid");

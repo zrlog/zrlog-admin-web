@@ -31,7 +31,7 @@ public class FileManagerServiceTest {
     @Test
     public void shouldResolveAllowedFileManagerPaths() throws Exception {
         withRootPath(() -> {
-            FileManagerService service = new FileManagerService();
+            FileManagerService service = new FileManagerService(new com.zrlog.admin.business.service.UploadService(() -> null), new com.zrlog.admin.business.service.FileManagerReferenceService(""));
 
             assertEquals(PathUtil.getStaticFile("/attached").getCanonicalFile(),
                     service.resolveAndValidate(null).getCanonicalFile());
@@ -53,7 +53,7 @@ public class FileManagerServiceTest {
 
     @Test
     public void shouldExposeDirectoryActionsForWritableRoots() {
-        FileManagerService service = new FileManagerService();
+        FileManagerService service = new FileManagerService(new com.zrlog.admin.business.service.UploadService(() -> null), new com.zrlog.admin.business.service.FileManagerReferenceService(""));
 
         assertEquals(List.of(FileDirectoryAction.UPLOAD, FileDirectoryAction.MKDIR),
                 service.getDirectoryActions("/attached"));
@@ -69,7 +69,7 @@ public class FileManagerServiceTest {
 
     @Test
     public void shouldDecorateFileEntriesWithAccessAndActions() throws Exception {
-        FileManagerService service = new FileManagerService();
+        FileManagerService service = new FileManagerService(new com.zrlog.admin.business.service.UploadService(() -> null), new com.zrlog.admin.business.service.FileManagerReferenceService(""));
 
         assertTrue(service.search("").isEmpty());
 
@@ -128,7 +128,7 @@ public class FileManagerServiceTest {
     @Test
     public void shouldCreateRenameDeleteAndReadAttachedFiles() throws Exception {
         withRootPath(() -> {
-            FileManagerService service = new FileManagerService();
+            FileManagerService service = new FileManagerService(new com.zrlog.admin.business.service.UploadService(() -> null), new com.zrlog.admin.business.service.FileManagerReferenceService(""));
 
             assertTrue(service.mkdir("/attached/docs"));
             assertTrue(service.mkdir("/attached/docs"));
@@ -152,7 +152,7 @@ public class FileManagerServiceTest {
     @Test
     public void shouldRejectInvalidOrExistingReuploadTargets() throws Exception {
         withRootPath(() -> {
-            FileManagerService service = new FileManagerService();
+            FileManagerService service = new FileManagerService(new com.zrlog.admin.business.service.UploadService(() -> null), new com.zrlog.admin.business.service.FileManagerReferenceService(""));
             File upload = temporaryFolder.newFile("upload.png");
             File existing = PathUtil.getStaticFile("/attached/existing.png");
             assertTrue(existing.getParentFile().mkdirs());
@@ -168,7 +168,7 @@ public class FileManagerServiceTest {
     @Test
     public void shouldReadAndDeleteDbTempFilesThroughRealWebsiteTable() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-            FileManagerService service = new FileManagerService();
+            FileManagerService service = new FileManagerService(new com.zrlog.admin.business.service.UploadService(() -> null), new com.zrlog.admin.business.service.FileManagerReferenceService(""));
             DbFileService dbFileService = new DbFileService();
             String filePath = AdminConstants.ADMIN_DB_ATTACHED_TMP + "/docs/a.txt";
             String dirPath = AdminConstants.ADMIN_DB_ATTACHED_TMP + "/docs";
@@ -200,7 +200,7 @@ public class FileManagerServiceTest {
                 Files.writeString(new File(imageDir, "a.png").toPath(), "image", StandardCharsets.UTF_8);
                 Files.writeString(new File(imageDir, "notes.txt").toPath(), "notes", StandardCharsets.UTF_8);
 
-                FileManagerService service = new FileManagerService();
+                FileManagerService service = new FileManagerService(new com.zrlog.admin.business.service.UploadService(() -> null), new com.zrlog.admin.business.service.FileManagerReferenceService(""));
                 List<FileEntryVO> attachedEntries = service.list("/attached/images");
                 FileEntryVO referencedImage = findByName(attachedEntries, "a.png");
                 List<FileEntryVO> externalDomains = service.list(FileManagerService.EXTERNAL_ROOT);
@@ -238,7 +238,7 @@ public class FileManagerServiceTest {
                                 + "<img src=\"https://cdn.example.com/assets/a.png\"></p>",
                         "");
 
-                FileManagerService service = new FileManagerService();
+                FileManagerService service = new FileManagerService(new com.zrlog.admin.business.service.UploadService(() -> null), new com.zrlog.admin.business.service.FileManagerReferenceService(""));
 
                 assertTrue(service.list(FileManagerService.EXTERNAL_ROOT).isEmpty());
                 assertTrue(service.listBrokenLocalResourceReferences("").isEmpty());
@@ -250,7 +250,7 @@ public class FileManagerServiceTest {
     @Test
     public void shouldProtectLargeTextPreview() throws Exception {
         withRootPath(() -> {
-            FileManagerService service = new FileManagerService();
+            FileManagerService service = new FileManagerService(new com.zrlog.admin.business.service.UploadService(() -> null), new com.zrlog.admin.business.service.FileManagerReferenceService(""));
             File file = PathUtil.getStaticFile("/attached/large.txt");
             assertTrue(file.getParentFile().mkdirs());
             Files.write(file.toPath(), new byte[1024 * 1024 + 1]);

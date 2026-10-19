@@ -1,65 +1,29 @@
 package com.zrlog.admin.web.interceptor;
 
-import com.hibegin.http.HttpMethod;
-import com.hibegin.http.server.api.HandleAbleInterceptor;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
-import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.util.AdminWebTools;
-import com.zrlog.admin.web.annotation.RequestLock;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
-import com.zrlog.common.Constants;
-import com.zrlog.common.exception.ResourceLockedException;
+import com.zrlog.common.TokenService;
 import com.zrlog.common.vo.AdminFullTokenVO;
-import com.zrlog.data.service.DistributedLock;
 import com.zrlog.plugin.BaseStaticSitePlugin;
-import com.zrlog.util.BlogBuildInfoUtil;
 
 import java.lang.reflect.Method;
 import java.util.Objects;
-import java.util.concurrent.locks.Lock;
+import java.util.function.BooleanSupplier;
+import java.util.function.Supplier;
 
 /**
  * 负责全部后台请求的处理（/admin/plugins/*,/api/admin/plugins/* 除外）
  */
-public class AdminInterceptor implements HandleAbleInterceptor {
+public class AdminInterceptor extends AdminMethodInterceptor {
+    protected final Supplier<TokenService> tokenService;
+    private final BooleanSupplier installed;
 
-    private Lock getLock(Method method, HttpRequest request) {
-        if (Objects.isNull(method)) {
-            return null;
-        }
-        RequestLock annotation = method.getAnnotation(RequestLock.class);
-        if (Objects.isNull(annotation)) {
-            return null;
-        }
-        if (annotation.onlyOnPostMethod() && request.getMethod() != HttpMethod.POST) {
-            return null;
-        }
-        String userFlag = "";
-        if (Objects.nonNull(AdminTokenThreadLocal.getUser())) {
-            userFlag = AdminTokenThreadLocal.getUser().getSessionId();
-        }
-        return new DistributedLock("request-lock-" + BlogBuildInfoUtil.getBuildId() + request.getUri() + "-" + userFlag);
-    }
-
-    protected Method getMethod(HttpRequest request) {
-        return request.getServerConfig().getRouter().getMethod(request.getUri(), request.getMethod());
-    }
-
-    protected void doMethodInterceptor(HttpRequest request, HttpResponse response, Method method) throws Exception {
-        Lock lock = getLock(method, request);
-        if (Objects.nonNull(lock)) {
-            if (!lock.tryLock()) {
-                throw new ResourceLockedException();
-            }
-        }
-        try {
-            AdminInterceptorSupport.doRefreshAwareMethodInterceptor(request, response, method);
-        } finally {
-            if (Objects.nonNull(lock)) {
-                lock.unlock();
-            }
-        }
+    public AdminInterceptor(Supplier<TokenService> tokenService, Supplier<AdminActionDispatcher> dispatcher, BooleanSupplier installed) {
+        super(dispatcher);
+        this.tokenService = Objects.requireNonNull(tokenService);
+        this.installed = Objects.requireNonNull(installed);
     }
 
     /**
@@ -70,12 +34,12 @@ public class AdminInterceptor implements HandleAbleInterceptor {
         try {
             Method method = getMethod(request);
             if (Objects.nonNull(method) && !BaseStaticSitePlugin.isStaticPluginRequest(request)) {
-                AdminFullTokenVO adminTokenVO = AdminInterceptorSupport.getAdminToken(request);
+                AdminFullTokenVO adminTokenVO = AdminInterceptorSupport.getAdminToken(tokenService.get(), request);
                 if (adminTokenVO == null) {
-                    AdminWebTools.blockUnLoginRequestHandler(request, response);
+                    AdminWebTools.blockUnLoginRequestHandler(request, response, installed.getAsBoolean());
                     return false;
                 }
-                Constants.zrLogConfig.getTokenService().refreshAdminToken(adminTokenVO, request, response);
+                tokenService.get().refreshAdminToken(adminTokenVO, request, response);
             }
 
             if (!BaseStaticSitePlugin.isStaticPluginRequest(request)) {
@@ -99,11 +63,4 @@ public class AdminInterceptor implements HandleAbleInterceptor {
         }
     }
 
-    @Override
-    public boolean isHandleAble(HttpRequest request) {
-        if (Objects.equals(request.getUri(), AdminConstants.ADMIN_URI_BASE_PATH) || Objects.equals(request.getUri(), "/api" + AdminConstants.ADMIN_URI_BASE_PATH)) {
-            return true;
-        }
-        return request.getUri().startsWith(AdminConstants.ADMIN_URI_BASE_PATH + "/") || request.getUri().startsWith("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/");
-    }
 }

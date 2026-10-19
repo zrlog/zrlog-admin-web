@@ -14,11 +14,17 @@ import com.zrlog.common.rest.response.ApiStandardResponse;
 import java.io.IOException;
 
 public class AICommentController extends BaseController {
+    private final PluginTokenValidator pluginTokens;
+
+    public AICommentController(PluginTokenValidator pluginTokens) {
+        this.pluginTokens = pluginTokens;
+    }
+
     @ResponseBody
     @RequestMethod(method = HttpMethod.POST)
     @RequestLock(onlyOnPostMethod = true)
     public ApiStandardResponse<AnalyzeCommentResponse> analyze() throws IOException, InterruptedException {
-        PluginTokenValidator.validate(request);
+        pluginTokens.validate(request);
         return new ApiStandardResponse<>(new AICommentService().analyze(getRequestBodyWithNullCheck(AnalyzeCommentRequest.class)));
     }
 }

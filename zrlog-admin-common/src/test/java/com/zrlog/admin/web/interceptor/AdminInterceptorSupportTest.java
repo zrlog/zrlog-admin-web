@@ -40,13 +40,13 @@ public class AdminInterceptorSupportTest {
     @Test
     public void shouldReturnNullAdminTokenWhenBlogIsNotInstalled() throws Exception {
         withConfig(new TestZrLogConfig(false, tokenService(new AdminFullTokenVO())), () ->
-                assertNull(AdminInterceptorSupport.getAdminToken(request())));
+                assertNull(AdminInterceptorSupport.getAdminToken(Constants.zrLogConfig.isInstalled() ? Constants.zrLogConfig.getTokenService() : null, request())));
     }
 
     @Test
     public void shouldReturnNullAdminTokenWhenTokenServiceIsMissing() throws Exception {
         withConfig(new TestZrLogConfig(true, null), () ->
-                assertNull(AdminInterceptorSupport.getAdminToken(request())));
+                assertNull(AdminInterceptorSupport.getAdminToken(Constants.zrLogConfig.isInstalled() ? Constants.zrLogConfig.getTokenService() : null, request())));
     }
 
     @Test
@@ -54,7 +54,7 @@ public class AdminInterceptorSupportTest {
         AdminFullTokenVO token = new AdminFullTokenVO();
 
         withConfig(new TestZrLogConfig(true, tokenService(token)), () ->
-                assertSame(token, AdminInterceptorSupport.getAdminToken(request())));
+                assertSame(token, AdminInterceptorSupport.getAdminToken(Constants.zrLogConfig.isInstalled() ? Constants.zrLogConfig.getTokenService() : null, request())));
     }
 
     @Test
@@ -63,7 +63,7 @@ public class AdminInterceptorSupportTest {
         RequestConfig requestConfig = requestConfig();
         Method method = RefreshController.class.getDeclaredMethod("plain");
 
-        AdminInterceptorSupport.doRefreshAwareMethodInterceptor(
+        com.zrlog.admin.support.ApplicationServicesFixture.dispatcher(null, com.zrlog.common.Constants.zrLogConfig).dispatch(
                 request("/plain", HttpMethod.GET, Map.of(), requestConfig), response.response(), method);
 
         assertEquals("plain", ((ApiStandardResponse<?>) response.rendered).getData());
@@ -75,7 +75,7 @@ public class AdminInterceptorSupportTest {
         RequestConfig requestConfig = requestConfig();
         Method method = RefreshController.class.getDeclaredMethod("refreshPostOnly");
 
-        AdminInterceptorSupport.doRefreshAwareMethodInterceptor(
+        com.zrlog.admin.support.ApplicationServicesFixture.dispatcher(null, com.zrlog.common.Constants.zrLogConfig).dispatch(
                 request("/refreshPostOnly", HttpMethod.GET, Map.of(), requestConfig), response.response(), method);
 
         assertEquals("refresh", ((ApiStandardResponse<?>) response.rendered).getData());
@@ -87,7 +87,7 @@ public class AdminInterceptorSupportTest {
         RequestConfig requestConfig = requestConfig();
         Method method = RefreshController.class.getDeclaredMethod("refreshPostOnly");
 
-        AdminInterceptorSupport.doRefreshAwareMethodInterceptor(
+        com.zrlog.admin.support.ApplicationServicesFixture.dispatcher(null, com.zrlog.common.Constants.zrLogConfig).dispatch(
                 request("/refreshPostOnly", HttpMethod.GET, Map.of("Accept", "text/event-stream"), requestConfig),
                 response.response(), method);
 

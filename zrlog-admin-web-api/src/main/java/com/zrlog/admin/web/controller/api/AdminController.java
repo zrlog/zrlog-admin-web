@@ -4,6 +4,9 @@ import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.RequestMethod;
 import com.hibegin.http.annotation.ResponseBody;
 import com.zrlog.admin.business.rest.request.FirstUseChecklistRequest;
+import com.zrlog.admin.business.rest.response.*;
+import com.zrlog.admin.business.service.*;
+import com.zrlog.admin.business.service.AdminPageDataFactory;
 import com.zrlog.admin.business.type.AdminAuditAction;
 import com.zrlog.admin.web.annotation.RefreshCache;
 import com.zrlog.admin.web.annotation.RequiresAction;
@@ -13,17 +16,18 @@ import com.zrlog.common.controller.BaseController;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.I18nUtil;
-import java.sql.SQLException;
-import com.zrlog.admin.business.rest.response.*;
-import com.zrlog.admin.business.service.*;
 
+import java.sql.SQLException;
 import java.util.*;
 
 public class AdminController extends BaseController {
+    private final AdminPageDataFactory pages;
+
 
     private final AdminDashboardService dashboardService;
 
-    public AdminController(AdminDashboardService dashboardService) {
+    public AdminController(AdminDashboardService dashboardService, AdminPageDataFactory pages) {
+        this.pages = pages;
         this.dashboardService = dashboardService;
     }
 
@@ -41,20 +45,20 @@ public class AdminController extends BaseController {
     @ResponseBody
     @RequiresAction(value = AccountAction.SESSION, descriptionKey = "admin.error")
     public AdminPageDataResponse<ErrorPageResponse> error() {
-        return new AdminPageDataResponse<>(new ErrorPageResponse(request.getParaToStr("message", "")), "", request.getUri());
+        return pages.response(new ErrorPageResponse(request.getParaToStr("message", "")), "", request.getUri());
     }
 
     @ResponseBody
     @RequiresAction(value = AccountAction.PLUGIN_MANAGE, descriptionKey = "plugin.list")
     public AdminPageDataResponse<PluginInfoResponse> plugin() {
         String page = getRequest().getParaToStr("page", "");
-        return new AdminPageDataResponse<>(new PluginInfoResponse("admin/plugins/" + page), "", request.getUri());
+        return pages.response(new PluginInfoResponse("admin/plugins/" + page), "", request.getUri());
     }
 
     @ResponseBody
     @RequiresAction(value = AccountAction.DASHBOARD_READ, descriptionKey = "dashboard.read")
     public AdminPageDataResponse<IndexResponse> index() throws SQLException {
-        return new AdminPageDataResponse<>(dashboardService.loadIndex(request, AdminTokenThreadLocal.getUser()),
+        return pages.response(dashboardService.loadIndex(request, AdminTokenThreadLocal.getUser()),
                 "", request.getUri());
     }
 

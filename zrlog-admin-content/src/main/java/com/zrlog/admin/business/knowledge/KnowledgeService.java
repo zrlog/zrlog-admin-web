@@ -3,14 +3,14 @@ package com.zrlog.admin.business.knowledge;
 import com.google.gson.*;
 import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.knowledge.KnowledgeModels.*;
-import com.zrlog.admin.util.BackendServerUrl;
-import com.zrlog.common.Constants;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.ArticleAccess;
 import com.zrlog.model.Log;
 import org.jsoup.Jsoup;
+
 import java.sql.SQLException;
 import java.util.*;
+import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
 /** The one read boundary used by the internal assistant and remote MCP transport. */
@@ -18,15 +18,14 @@ public final class KnowledgeService implements ToolProvider {
     private final Supplier<AccountAccess> actor;
     private final Set<String> scopes;
     private final Supplier<String> siteUrl;
+    private final BooleanSupplier staticHtml;
     private final KnowledgeMessages messages;
-    public KnowledgeService(Supplier<AccountAccess> actor, Set<String> scopes) {
-        this(actor, scopes, BackendServerUrl::configured);
+    public KnowledgeService(Supplier<AccountAccess> actor, Set<String> scopes, Supplier<String> siteUrl, BooleanSupplier staticHtml) {
+        this(actor, scopes, siteUrl, staticHtml, "en_US");
     }
-    public KnowledgeService(Supplier<AccountAccess> actor, Set<String> scopes, Supplier<String> siteUrl) {
-        this(actor, scopes, siteUrl, "en_US");
-    }
-    public KnowledgeService(Supplier<AccountAccess> actor, Set<String> scopes, Supplier<String> siteUrl, String language) {
+    public KnowledgeService(Supplier<AccountAccess> actor, Set<String> scopes, Supplier<String> siteUrl, BooleanSupplier staticHtml, String language) {
         this.actor = actor; this.scopes = Set.copyOf(scopes); this.siteUrl = siteUrl;
+        this.staticHtml = Objects.requireNonNull(staticHtml);
         this.messages = new KnowledgeMessages(language);
     }
     @Override public List<Tool> definitions(String language) { return tools(language); }
@@ -140,6 +139,6 @@ public final class KnowledgeService implements ToolProvider {
         source.updatedAt = Objects.toString(row.get("last_update_date"), "");
         String alias = Objects.toString(row.get("alias"), "");
         String key = alias.isBlank() ? Long.toString(source.id) : java.net.URLEncoder.encode(alias, java.nio.charset.StandardCharsets.UTF_8).replace("+", "%20");
-        source.url = siteUrl.get() + (source.draft || source.privateArticle ? "/admin/article-edit?previewMode=true&id=" + source.id : "/" + key + (Constants.isStaticHtmlStatus() ? ".html" : ""));
+        source.url = siteUrl.get() + (source.draft || source.privateArticle ? "/admin/article-edit?previewMode=true&id=" + source.id : "/" + key + (staticHtml.getAsBoolean() ? ".html" : ""));
     }
 }

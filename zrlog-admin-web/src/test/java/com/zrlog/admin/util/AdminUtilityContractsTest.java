@@ -1,16 +1,13 @@
 package com.zrlog.admin.util;
 
+import com.hibegin.common.dao.DataSourceWrapper;
+import com.hibegin.common.dao.DatabaseConnectPoolInfo;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.config.ServerConfig;
 import com.hibegin.http.server.util.PathUtil;
-import com.hibegin.common.dao.DatabaseConnectPoolInfo;
-import com.hibegin.common.dao.DataSourceWrapper;
 import com.zrlog.common.Constants;
-import com.zrlog.common.TokenService;
 import com.zrlog.common.ZrLogConfig;
 import com.zrlog.common.controller.BaseController;
-import com.zrlog.plugin.IPlugin;
-import com.zrlog.plugin.Plugins;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -19,8 +16,6 @@ import java.lang.reflect.Proxy;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import javax.sql.DataSource;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -34,16 +29,17 @@ public class AdminUtilityContractsTest {
     @Test
     public void shouldBuildServerInfoFromRequestServerConfig() throws Exception {
         ZrLogConfig previousConfig = Constants.zrLogConfig;
+        String previousRoot = PathUtil.getRootPath();
         try {
             String rootPath = temporaryFolder.newFolder("zrlog-root").getAbsolutePath();
             PathUtil.setRootPath(rootPath);
-            Constants.zrLogConfig = new NotInstalledConfig();
+            Constants.zrLogConfig = null;
             ServerConfig serverConfig = new ServerConfig()
                     .setApplicationName("custom-admin")
                     .setApplicationVersion("1.2.3");
 
             Map<String, String> infoByKey = new HashMap<>();
-            SystemInfoUtils.serverInfo(request(serverConfig))
+            new SystemInfoUtils(() -> false, AdminUtilityContractsTest::dataSource, () -> null, () -> "test uptime").serverInfo(request(serverConfig))
                     .forEach(info -> infoByKey.put(info.getKey(), info.getValue()));
 
             assertEquals(rootPath, infoByKey.get("runPath"));
@@ -53,25 +49,29 @@ public class AdminUtilityContractsTest {
             assertTrue(infoByKey.containsKey("programInfo"));
         } finally {
             Constants.zrLogConfig = previousConfig;
+            PathUtil.setRootPath(previousRoot);
         }
     }
 
     @Test
     public void shouldReturnSystemIoInfoWithDatabasePoolSummary() throws Exception {
         ZrLogConfig previousConfig = Constants.zrLogConfig;
+        String previousRoot = PathUtil.getRootPath();
         try {
             PathUtil.setRootPath(temporaryFolder.newFolder("zrlog-root").getAbsolutePath());
-            Constants.zrLogConfig = new NotInstalledConfig();
+            Constants.zrLogConfig = null;
 
-            List<ServerInfo> infos = SystemInfoUtils.systemIOInfoVO();
+            List<ServerInfo> infos = new SystemInfoUtils(() -> false, AdminUtilityContractsTest::dataSource, () -> null, () -> "test uptime").systemIOInfoVO();
             Map<String, String> infoByKey = new HashMap<>();
             infos.forEach(info -> infoByKey.put(info.getKey(), info.getValue()));
 
             assertFalse(infos.isEmpty());
             assertTrue(infoByKey.containsKey("usedMemorySpace"));
             assertEquals("2 / 5", infoByKey.get("dbConnectSize"));
+            assertEquals("test uptime", infoByKey.get("uptime"));
         } finally {
             Constants.zrLogConfig = previousConfig;
+            PathUtil.setRootPath(previousRoot);
         }
     }
 
@@ -110,33 +110,6 @@ public class AdminUtilityContractsTest {
                     }
                     return null;
                 });
-    }
-
-    private static class NotInstalledConfig extends ZrLogConfig {
-
-        NotInstalledConfig() {
-            super(18080, null, "");
-        }
-
-        @Override
-        public boolean isInstalled() {
-            return false;
-        }
-
-        @Override
-        protected TokenService initTokenService() {
-            return null;
-        }
-
-        @Override
-        public List<IPlugin> getBasePluginList() {
-            return new Plugins();
-        }
-
-        @Override
-        public DataSource getDataSource() {
-            return dataSource();
-        }
     }
 
     private static DataSourceWrapper dataSource() {

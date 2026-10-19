@@ -3,10 +3,11 @@ package com.zrlog.admin.business.service;
 import com.hibegin.common.util.LoggerUtil;
 import com.zrlog.admin.business.rest.response.StatisticsInfoResponse;
 import com.zrlog.admin.util.ServerInfo;
-import com.zrlog.admin.util.ServerInfoUtils;
+import com.zrlog.admin.util.SystemInfoUtils;
 import com.zrlog.common.CacheService;
 import com.zrlog.model.Comment;
 import com.zrlog.model.Log;
+
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -21,9 +22,11 @@ import java.util.logging.Logger;
 public class AdminStatisticsService {
 
     private final CacheService cacheService;
+    private final SystemInfoUtils systemInfo;
 
-    public AdminStatisticsService(CacheService cacheService) {
+    public AdminStatisticsService(CacheService cacheService, SystemInfoUtils systemInfo) {
         this.cacheService = cacheService;
+        this.systemInfo = systemInfo;
     }
 
     private static final Logger LOGGER = LoggerUtil.getLogger(AdminStatisticsService.class);
@@ -50,7 +53,7 @@ public class AdminStatisticsService {
                 }, executor));
             }
             futures.add(CompletableFuture.runAsync(() -> {
-                List<ServerInfo> serverInfos = ServerInfoUtils.getServerInfos2();
+                List<ServerInfo> serverInfos = systemInfo.systemIOInfoVO();
                 for (ServerInfo serverInfo : serverInfos) {
                     if ("usedCacheSpace".equals(serverInfo.getKey())) {
                         info.setUsedCacheSpace(serverInfo.getValue());

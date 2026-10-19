@@ -6,10 +6,17 @@ import com.hibegin.http.server.api.HttpResponse;
 import com.hibegin.http.server.web.MethodInterceptor;
 import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
+import com.zrlog.common.TokenService;
 
 import java.util.Objects;
+import java.util.function.Supplier;
 
 public class AdminLoginInterceptor implements HandleAbleInterceptor {
+    protected final Supplier<TokenService> tokenService;
+
+    public AdminLoginInterceptor(Supplier<TokenService> tokenService) {
+        this.tokenService = Objects.requireNonNull(tokenService);
+    }
 
     private static final String PASSKEY_AUTHENTICATION_OPTIONS =
             "/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/passkey/authentication/options";
@@ -21,7 +28,7 @@ public class AdminLoginInterceptor implements HandleAbleInterceptor {
         try {
             String uri = request.getUri();
             if (AdminConstants.ADMIN_LOGIN_URI_PATH.equals(uri)) {
-                if (Objects.isNull(AdminInterceptorSupport.getAdminToken(request))) {
+                if (Objects.isNull(AdminInterceptorSupport.getAdminToken(tokenService.get(), request))) {
                     new MethodInterceptor().doInterceptor(request, response);
                 } else {
                     response.redirect(AdminConstants.ADMIN_URI_BASE_PATH + AdminConstants.INDEX_URI_PATH);

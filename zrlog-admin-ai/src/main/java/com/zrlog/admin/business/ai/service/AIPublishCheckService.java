@@ -1,27 +1,26 @@
 package com.zrlog.admin.business.ai.service;
 
-import com.zrlog.admin.business.service.WebSiteService;
-import com.zrlog.admin.business.service.MessageCenterOperationService;
-import com.zrlog.admin.business.rest.response.AIArticleGlobalResponse;
-import com.zrlog.admin.util.AdminLanguageContext;
-import com.zrlog.util.I18nUtil;
-
-import com.zrlog.admin.business.ai.service.AIConversationService;
 import com.hibegin.common.util.LoggerUtil;
 import com.hibegin.common.util.StringUtils;
 import com.zrlog.admin.business.ai.exception.AIMessageSaveException;
+import com.zrlog.admin.business.ai.service.AIConversationService;
 import com.zrlog.admin.business.ai.service.AIWritingSkillService;
 import com.zrlog.admin.business.rest.base.BlogWebSiteInfo;
 import com.zrlog.admin.business.rest.request.CreateArticleRequest;
 import com.zrlog.admin.business.rest.request.GenerateArticleFieldRequest;
+import com.zrlog.admin.business.rest.response.AIArticleGlobalResponse;
 import com.zrlog.admin.business.rest.response.AIResponseEntry;
 import com.zrlog.admin.business.rest.response.ArticleGlobalResponse;
 import com.zrlog.admin.business.rest.response.PublishCheckResponse;
 import com.zrlog.admin.business.rest.response.PublishCheckToolPayload;
+import com.zrlog.admin.business.rest.response.ScoreArticleResponse;
+import com.zrlog.admin.business.service.MessageCenterOperationService;
+import com.zrlog.admin.business.service.WebSiteService;
+import com.zrlog.admin.util.AdminLanguageContext;
 import com.zrlog.business.plugin.StaticSitePlugin;
+import com.zrlog.util.I18nUtil;
 
 import java.util.*;
-import com.zrlog.admin.business.rest.response.ScoreArticleResponse;
 import java.util.Objects;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
@@ -56,7 +55,7 @@ public class AIPublishCheckService {
     public void fillPublishCheckContext(GenerateArticleFieldRequest context) {
         BlogWebSiteInfo blog = new WebSiteService().blogWebSiteInfo();
         context.setStaticSiteEnabled(blog.getGenerator_html_status());
-        context.setStaticSitePluginEnabled(!StaticSitePlugin.isDisabled());
+        context.setStaticSitePluginEnabled(!StaticSitePlugin.isDisabled(Boolean.TRUE.equals(blog.getGenerator_html_status()), blog.getHost()));
     }
 
     public void recordPublishCheckError(Long articleId, String articleTitle, String message) {

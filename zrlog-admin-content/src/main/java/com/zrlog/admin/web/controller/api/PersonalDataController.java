@@ -1,8 +1,5 @@
 package com.zrlog.admin.web.controller.api;
 
-import com.zrlog.admin.web.annotation.RequiresAction;
-import com.zrlog.data.security.AccountAction;
-
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.ResponseBody;
 import com.zrlog.admin.business.rest.request.PersonalDataPreviewRequest;
@@ -10,23 +7,32 @@ import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
 import com.zrlog.admin.business.rest.response.PersonalDataCommentExportResponse;
 import com.zrlog.admin.business.rest.response.PersonalDataPreviewResponse;
 import com.zrlog.admin.business.service.AdminAuditService;
+import com.zrlog.admin.business.service.AdminPageDataFactory;
 import com.zrlog.admin.business.service.PersonalDataService;
 import com.zrlog.admin.business.type.AdminAuditAction;
+import com.zrlog.admin.web.annotation.RequiresAction;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.controller.BaseController;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.rest.response.ApiStandardResponse;
+import com.zrlog.data.security.AccountAction;
 
 import java.sql.SQLException;
 
 public class PersonalDataController extends BaseController {
+    public PersonalDataController(AdminPageDataFactory pages) {
+        this.pages = pages;
+    }
+
+    private final AdminPageDataFactory pages;
+
 
     private final PersonalDataService personalDataService = new PersonalDataService();
 
     @ResponseBody
     @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "privacy.page")
     public AdminPageDataResponse<PersonalDataPreviewResponse> index() {
-        return new AdminPageDataResponse<>(new PersonalDataPreviewResponse(), "", request.getUri());
+        return pages.response(new PersonalDataPreviewResponse(), "", request.getUri());
     }
 
     @ResponseBody

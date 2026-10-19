@@ -1,11 +1,14 @@
 package com.zrlog.admin.business.knowledge;
 
+import com.google.gson.*;
 import com.hibegin.http.server.api.HttpRequest;
 import com.zrlog.admin.business.content.AttachmentStorage;
 import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.exception.UpdateArticleExpireException;
+import com.zrlog.admin.business.knowledge.ContentToolModels.*;
 import com.zrlog.admin.business.security.OAuthException;
 import com.zrlog.admin.business.security.PersonalTokenModels;
+import com.zrlog.admin.business.service.*;
 import com.zrlog.admin.business.service.AdminArticleService;
 import com.zrlog.admin.business.service.ArticlePublishingService;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
@@ -14,16 +17,15 @@ import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.CacheService;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.util.I18nUtil;
-import java.lang.reflect.Proxy;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
-import com.google.gson.*;
-import com.zrlog.admin.business.knowledge.ContentToolModels.*;
-import com.zrlog.admin.business.service.*;
+
+import java.lang.reflect.Proxy;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
+
 import static org.junit.Assert.*;
 
 @RunWith(Parameterized.class)
@@ -49,19 +51,18 @@ public class McpContentServiceTest {
     private String token(String... permissions) throws Exception {
         PersonalTokenModels.Create body=new PersonalTokenModels.Create();body.name="MCP tools";
         body.permissionMode=permissions.length==0 ? "inherit" : "custom"; body.permissions=List.of(permissions);
-        return new PersonalAccessTokenService(new OAuthService().mcpResource()).create(body).token;
+        return new PersonalAccessTokenService(new OAuthService(com.zrlog.admin.support.ApplicationServicesFixture.backend(com.zrlog.common.Constants.zrLogConfig)::configured, com.zrlog.admin.support.ApplicationServicesFixture.available(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.web.McpWebSetup.class)).mcpResource()).create(body).token;
     }
     private McpContentService tools(String token, String language, ContentToolService content, AttachmentStorage storage) {
-        OAuthService oauth=new OAuthService();
+        OAuthService oauth=new OAuthService(com.zrlog.admin.support.ApplicationServicesFixture.backend(com.zrlog.common.Constants.zrLogConfig)::configured, com.zrlog.admin.support.ApplicationServicesFixture.available(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.web.McpWebSetup.class));
         return new McpContentService(()->{
             try { return oauth.authenticate(token,oauth.mcpResource(),Set.of()); }
             catch (java.sql.SQLException e) { throw new RuntimeException(e); }
-        },request(),language,content,()->storage);
+        },request(),language,new ContentToolFactory(content,()->storage, com.zrlog.admin.support.ApplicationServicesFixture.backend(com.zrlog.common.Constants.zrLogConfig)::configured, () -> false), com.zrlog.admin.support.ApplicationServicesFixture.backend(com.zrlog.common.Constants.zrLogConfig)::configured);
     }
     private McpContentService tools(String token) { return tools(token,"en_US",new ContentToolService(publishing(new InMemoryZrLogDatabase.TestCacheService()), request -> {}),null); }
     private ArticlePublishingService publishing(CacheService cache) {
-        return new ArticlePublishingService(
-                new AdminArticleService(cache), cache);
+        return new ArticlePublishingService(new AdminArticleService(cache, com.zrlog.admin.support.ApplicationServicesFixture.capability(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource))), com.zrlog.admin.support.ApplicationServicesFixture.cacheRefresh(cache, com.zrlog.common.Constants.zrLogConfig));
     }
     private Set<String> names(McpContentService tools) throws Exception { return tools.definitions("en_US").stream().map(t->t.name).collect(Collectors.toSet()); }
 
@@ -91,7 +92,7 @@ public class McpContentServiceTest {
             assertTrue(audit.contains("CREATE_ARTICLE"));assertTrue(audit.contains("PUBLISH_ARTICLE"));
             assertEquals("MCP", new AdminAuditService().getRecentLogs().get(0).getBrowser());
             for(int version:new int[]{0,1,99}) assertThrows(UpdateArticleExpireException.class,()->tools.call("update_article",args("{\"id\":"+saved.id+",\"version\":"+version+",\"title\":\"Stale\"}")));
-            JsonObject conflict = new McpService("en_US").handle("{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\",\"params\":{\"name\":\"publish_article\",\"arguments\":{\"id\":"+saved.id+",\"version\":0}}}",tools).body.getAsJsonObject("result");
+            JsonObject conflict = new McpService(com.zrlog.admin.support.ApplicationServicesFixture.siteTitle(com.zrlog.common.Constants.zrLogConfig), "en_US").handle("{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\",\"params\":{\"name\":\"publish_article\",\"arguments\":{\"id\":"+saved.id+",\"version\":0}}}",tools).body.getAsJsonObject("result");
             assertTrue(conflict.get("isError").getAsBoolean());
             assertEquals("ADMIN_ARTICLE_UPDATE_EXPIRED",conflict.getAsJsonObject("structuredContent").get("code").getAsString());
             assertEquals("Revised",db.scalar("select title from log where logId=?",saved.id));
@@ -105,7 +106,7 @@ public class McpContentServiceTest {
             JsonObject input=args(CREATE);input.addProperty("status","published");
             JsonObject rpc=new JsonObject();rpc.addProperty("jsonrpc","2.0");rpc.addProperty("id",1);rpc.addProperty("method","tools/call");
             JsonObject params=new JsonObject();params.addProperty("name","create_article");params.add("arguments",input);rpc.add("params",params);
-            JsonObject result=new McpService("zh_CN").handle(rpc.toString(),tools).body.getAsJsonObject("result");
+            JsonObject result=new McpService(com.zrlog.admin.support.ApplicationServicesFixture.siteTitle(com.zrlog.common.Constants.zrLogConfig), "zh_CN").handle(rpc.toString(),tools).body.getAsJsonObject("result");
             assertFalse(result.get("isError").getAsBoolean());
             JsonObject saved=result.getAsJsonObject("structuredContent");assertEquals("failed",saved.get("refreshStatus").getAsString());
             assertTrue(saved.get("warning").getAsString().contains("文章已保存"));assertFalse(saved.toString().contains("internal detail"));
@@ -148,7 +149,7 @@ public class McpContentServiceTest {
             assertEquals(auditBefore, db.scalar("select value from website where name='admin_audit_log'"));
             assertEquals("draft",((SavedArticle)tools.call("create_article",args(CREATE))).status);
             PersonalTokenModels.Create legacy=new PersonalTokenModels.Create();legacy.name="old";legacy.scopes=List.of("articles:read");
-            String old=new PersonalAccessTokenService(new OAuthService().mcpResource()).create(legacy).token;
+            String old=new PersonalAccessTokenService(new OAuthService(com.zrlog.admin.support.ApplicationServicesFixture.backend(com.zrlog.common.Constants.zrLogConfig)::configured, com.zrlog.admin.support.ApplicationServicesFixture.available(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.web.McpWebSetup.class)).mcpResource()).create(legacy).token;
             assertEquals(Set.of("search_articles","read_article","get_article"),names(tools(old)));
             assertThrows(PermissionErrorException.class,()->tools(old).call("create_article",args(CREATE)));
             assertEquals(Set.of("list_categories","list_tags"),names(tools(token("taxonomy.read"))));
@@ -209,7 +210,7 @@ public class McpContentServiceTest {
                     uploaded.add(bytes);return request.getContextPath()+"/attached/users/1/file.png";
                 }
             };
-            String token=token("asset.upload");McpContentService tools=tools(token,"en_US",new ContentToolService(new ArticlePublishingService(new AdminArticleService(db.cacheService()), db.cacheService())),storage);
+            String token=token("asset.upload");McpContentService tools=tools(token,"en_US",new ContentToolService(new ArticlePublishingService(new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource))), com.zrlog.admin.support.ApplicationServicesFixture.cacheRefresh(db.cacheService(), com.zrlog.common.Constants.zrLogConfig))),storage);
             assertEquals(Set.of("upload_attachment"),names(tools));
             Attachment result=(Attachment)tools.call("upload_attachment",args("{\"filename\":\"cover.png\",\"data\":\"aGVsbG8=\"}"));
             assertEquals("/sub/attached/users/1/file.png",result.url);assertEquals(5,result.size);assertArrayEquals("hello".getBytes(),uploaded.get(0));
@@ -232,8 +233,8 @@ public class McpContentServiceTest {
                     assertEquals(language.equals("zh_CN"),tool.description.codePoints().anyMatch(c->c>=0x4e00&&c<=0x9fff));
                     for(var property:tool.inputSchema.getAsJsonObject("properties").entrySet()) assertFalse(property.getValue().getAsJsonObject().get("description").getAsString().isBlank());
                 }
-                McpContentService tools=tools(token("article.read"),language,new ContentToolService(new ArticlePublishingService(new AdminArticleService(db.cacheService()), db.cacheService())),null);
-                JsonObject result=new McpService(language).handle("{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\",\"params\":{\"name\":\"publish_article\",\"arguments\":{\"id\":1,\"version\":0}}}",tools).body.getAsJsonObject("result");
+                McpContentService tools=tools(token("article.read"),language,new ContentToolService(new ArticlePublishingService(new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource))), com.zrlog.admin.support.ApplicationServicesFixture.cacheRefresh(db.cacheService(), com.zrlog.common.Constants.zrLogConfig))),null);
+                JsonObject result=new McpService(com.zrlog.admin.support.ApplicationServicesFixture.siteTitle(com.zrlog.common.Constants.zrLogConfig), language).handle("{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\",\"params\":{\"name\":\"publish_article\",\"arguments\":{\"id\":1,\"version\":0}}}",tools).body.getAsJsonObject("result");
                 assertTrue(result.get("isError").getAsBoolean());
                 assertEquals("ADMIN_PERMISSION_DENIED",result.getAsJsonObject("structuredContent").get("code").getAsString());
                 assertEquals(language.equals("zh_CN"),result.getAsJsonObject("structuredContent").get("error").getAsString().codePoints().anyMatch(c->c>=0x4e00&&c<=0x9fff));

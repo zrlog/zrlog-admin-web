@@ -15,11 +15,13 @@ import com.zrlog.admin.web.interceptor.McpInterceptor;
 import com.zrlog.admin.web.interceptor.OAuthInterceptor;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.Constants;
+import org.junit.Test;
+
 import java.lang.reflect.Proxy;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.TimeUnit;
-import org.junit.Test;
+
 import static org.junit.Assert.*;
 
 public class AdminModuleSwitchTest {
@@ -89,9 +91,23 @@ public class AdminModuleSwitchTest {
                             .contains("/api" + page));
                 }
             }
+            if (admin) {
+                var pages = config.getServerConfig().getBindings().build()
+                        .get(com.zrlog.admin.business.service.AdminPageDataFactory.class);
+                Constants.zrLogConfig = null;
+                try {
+                    var page = pages.response("metadata", "", "/admin/system");
+                    assertEquals("metadata", page.getData());
+                    assertTrue(page.getDocumentTitle().contains("ZrLog Test"));
+                    if (ui) assertFalse(page.getPageBuildId().isBlank());
+                    else assertEquals("", page.getPageBuildId());
+                } finally {
+                    Constants.zrLogConfig = config;
+                }
+            }
             assertEquals(admin, router.getMethod("/api/admin/system/proxy", HttpMethod.GET) != null);
             assertEquals(ai, config.getWebSetup(ArticleAssistant.class) != null);
-            assertEquals(assets, com.zrlog.admin.business.content.AttachmentStorage.current() != null);
+            assertEquals(assets, config.getWebSetup(com.zrlog.admin.business.content.AttachmentStorage.class) != null);
             assertEquals(mcp, config.getServerConfig().getInterceptors().contains(McpInterceptor.class));
             assertEquals(access, config.getServerConfig().getInterceptors().contains(OAuthInterceptor.class));
             assertEquals(access, config.getServerConfig().getInterceptors().contains(BearerTokenInterceptor.class));
@@ -113,8 +129,11 @@ public class AdminModuleSwitchTest {
             assertEquals(content, router.getMethod("/api/admin/article/create", HttpMethod.POST) != null);
             assertEquals(assets, router.getMethod("/api/admin/upload", HttpMethod.POST) != null);
             if (!admin) return;
+            var services = config.getServerConfig().getBindings().build();
+            Constants.zrLogConfig = null;
+            try {
             if (access) {
-                var oauth = new com.zrlog.admin.business.service.OAuthService(() -> "https://blog.example");
+                var oauth = services.get(com.zrlog.admin.business.service.OAuthService.class);
                 assertEquals(mcp, oauth.page().mcpResource != null);
                 var token = new com.zrlog.admin.business.security.OAuthModels.TokenRequest();
                 token.resource = oauth.mcpResource();
@@ -122,6 +141,7 @@ public class AdminModuleSwitchTest {
                 if (!mcp) assertEquals("invalid_target", assertThrows(
                         com.zrlog.admin.business.security.OAuthException.class, () -> oauth.token(token)).getOAuthError());
             }
+            } finally { Constants.zrLogConfig = config; }
             if (!content) return;
             if (ai) assertEquals(AIArticleController.class,
                     router.getMethod("/api/admin/article/ai", HttpMethod.POST).getDeclaringClass());
@@ -142,17 +162,43 @@ public class AdminModuleSwitchTest {
                         if (method.getName().equals("getHeader")) return "Host".equals(values[0]) ? "localhost:18080" : null;
                         return null;
                     });
-            var capabilities = new com.zrlog.admin.business.service.AdminResourceService().adminResourceInfo(request).getCapabilities();
-            assertEquals(ai, capabilities.ai);
-            assertEquals(access, capabilities.access);
-            assertEquals(mcp, capabilities.mcp);
-            assertEquals(assets, capabilities.assets);
-            var saved = new ArticlePublishingService(new AdminArticleService(db.cacheService()), db.cacheService()).create(AdminTokenThreadLocal.getUser(), article, request);
-            var detail = new AdminArticleService(db.cacheService()).loadDetailById(saved.getLogId().toString(), request);
+            var resources = services.get(com.zrlog.admin.business.service.AdminResourceService.class);
+            var features = services.get(com.zrlog.admin.business.service.FeatureLabService.class);
+            Constants.zrLogConfig = null;
+            try {
+                var capabilities = resources.adminResourceInfo(request).getCapabilities();
+                assertEquals(ai, capabilities.ai);
+                assertEquals(access, capabilities.access);
+                assertEquals(mcp, capabilities.mcp);
+                assertEquals(assets, capabilities.assets);
+                features.updateWebhook(true);
+                assertEquals(access, features.featureLab().getFeature_webhook_enabled());
+                features.updateWebhook(false);
+                assertFalse(features.featureLab().getFeature_webhook_enabled());
+            } finally {
+                Constants.zrLogConfig = config;
+            }
+            var articles = services.get(AdminArticleService.class);
+            var saved = services.get(ArticlePublishingService.class).create(AdminTokenThreadLocal.getUser(), article, request);
+            var detail = articles.loadDetailById(saved.getLogId().toString(), request);
+            var tools = services.get(com.zrlog.admin.business.knowledge.ContentToolFactory.class)
+                    .create(java.util.Set.of("articles:read", "articles:read_drafts"), request, "en_US");
+            Constants.zrLogConfig = null;
+            try {
+                assertEquals(assets, tools.definitions("en_US").stream().anyMatch(tool -> "upload_attachment".equals(tool.name)));
+                var arguments = new com.google.gson.JsonObject();
+                arguments.addProperty("id", saved.getLogId());
+                var toolArticle = (com.zrlog.admin.business.knowledge.ContentToolModels.ArticleDetails)
+                        tools.call("get_article", arguments);
+                assertEquals("Independent content", toolArticle.title);
+                assertEquals("draft", toolArticle.status);
+            } finally {
+                Constants.zrLogConfig = config;
+            }
             // The same article tools serve MCP without AI, and internal AI without external access.
             var knowledge = new com.zrlog.admin.business.knowledge.KnowledgeService(
                     com.zrlog.admin.business.service.AccountPermissionService::current,
-                    java.util.Set.of("articles:read", "articles:read_drafts"), () -> "https://blog.example");
+                    java.util.Set.of("articles:read", "articles:read_drafts"), () -> "https://blog.example", () -> false);
             var argsJson = new com.google.gson.JsonObject(); argsJson.addProperty("id", saved.getLogId());
             var source = (com.zrlog.admin.business.knowledge.KnowledgeModels.ArticleResult) knowledge.call("read_article", argsJson);
             assertEquals("Independent content", source.source.title);
@@ -167,8 +213,8 @@ public class AdminModuleSwitchTest {
             assertTrue(json.has("article"));
             assertEquals("Independent content", detail.getData().getArticle().getTitle());
             if (!ai) assertSame(ArticleAssistant.PublishProgress.NONE,
-                    ArticleAssistant.current().beginPublishCheck(detail.getData(), article, null));
-            assertTrue(new AdminArticleService(db.cacheService()).delete(saved.getLogId()));
+                    java.util.Objects.requireNonNullElse(config.getWebSetup(ArticleAssistant.class), ArticleAssistant.NONE).beginPublishCheck(detail.getData(), article, null));
+            assertTrue(articles.delete(saved.getLogId()));
         }
     }
 }

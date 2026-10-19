@@ -4,17 +4,17 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.zrlog.admin.business.ai.dto.AIStreamResponse;
-import com.zrlog.admin.business.ai.model.AIProviderType;
 import com.zrlog.admin.business.ai.model.AIChatModels.ChatRequest;
+import com.zrlog.admin.business.ai.model.AIProviderType;
 import com.zrlog.admin.business.rest.base.AIWebSiteInfoWithAIMessages;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import org.junit.Test;
 
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
 import java.net.Authenticator;
 import java.net.CookieHandler;
 import java.net.ProxySelector;
-import java.io.ByteArrayInputStream;
-import java.io.InputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpHeaders;
@@ -29,9 +29,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
-import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLParameters;
+import javax.net.ssl.SSLSession;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -381,7 +381,7 @@ public class AIChatServiceTest {
     private static class NoSleepAIChatService extends AIChatService {
 
         private NoSleepAIChatService(HttpClient client) {
-            super(client);
+            super(client, null, ContentToolsFixture.from(com.zrlog.common.Constants.zrLogConfig));
         }
 
         @Override

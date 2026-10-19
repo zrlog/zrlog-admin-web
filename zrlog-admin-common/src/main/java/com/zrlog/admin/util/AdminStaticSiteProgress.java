@@ -3,15 +3,21 @@ package com.zrlog.admin.util;
 import com.zrlog.admin.business.rest.response.StaticSiteProgressResponse;
 import com.zrlog.business.plugin.StaticSitePlugin;
 import com.zrlog.business.plugin.type.StaticSiteType;
-import com.zrlog.common.Constants;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 public class AdminStaticSiteProgress {
+    private final Supplier<List<StaticSitePlugin>> staticSites;
 
-    public static StaticSiteProgressResponse snapshot(List<StaticSiteType> siteTypes) {
+    public AdminStaticSiteProgress(Supplier<List<StaticSitePlugin>> staticSites) {
+        this.staticSites = Objects.requireNonNull(staticSites);
+    }
+
+
+    public StaticSiteProgressResponse snapshot(List<StaticSiteType> siteTypes) {
         int total = 0;
         int handled = 0;
         int handing = 0;
@@ -29,13 +35,13 @@ public class AdminStaticSiteProgress {
                 siteTypes.stream().map(Enum::name).collect(Collectors.toList()));
     }
 
-    public static StaticSiteProgressResponse snapshot(StaticSiteType siteType) {
+    public StaticSiteProgressResponse snapshot(StaticSiteType siteType) {
         int total = 0;
         int handled = 0;
         int handing = 0;
         int pending = 0;
         int retrying = 0;
-        for (StaticSitePlugin plugin : Constants.zrLogConfig.getPluginsByClazz(StaticSitePlugin.class)) {
+        for (StaticSitePlugin plugin : staticSites.get()) {
             if (!Objects.equals(plugin.getType(), siteType)) {
                 continue;
             }

@@ -5,24 +5,29 @@ import com.hibegin.common.util.StringUtils;
 import com.hibegin.http.server.web.Router;
 import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.ai.service.AIConversationService;
-import com.zrlog.admin.business.ai.service.AIPublishCheckService;
 import com.zrlog.admin.business.ai.service.AIPublishCheckService.PublishCheckTask;
+import com.zrlog.admin.business.ai.service.AIPublishCheckService;
 import com.zrlog.admin.business.content.ArticleAssistant;
 import com.zrlog.admin.business.rest.base.AIWebSiteInfoWithAIMessages;
 import com.zrlog.admin.business.rest.request.CreateArticleRequest;
+import com.zrlog.admin.business.rest.response.*;
+import com.zrlog.admin.business.service.AdminPageDataFactory;
+import com.zrlog.admin.business.service.UploadService;
 import com.zrlog.admin.business.service.WebSiteSettingsService;
 import com.zrlog.admin.util.AdminSseEmitter;
 import com.zrlog.admin.web.controller.ai.AIArticleController;
+import com.zrlog.admin.web.controller.ai.AICommentController;
 import com.zrlog.admin.web.controller.ai.AIWebSiteController;
+import com.zrlog.admin.web.interceptor.PluginTokenValidator;
 import com.zrlog.util.I18nUtil;
+
 import java.io.IOException;
 import java.util.Objects;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
-import com.zrlog.admin.business.rest.response.*;
-import java.util.concurrent.*;
 
 public class AIWebSetup implements ArticleAssistant {
     private static final Logger LOGGER = LoggerUtil.getLogger(AIWebSetup.class);
@@ -36,7 +41,11 @@ public class AIWebSetup implements ArticleAssistant {
         this.bindings = config.getBindings();
     }
     @Override public void setup() {
-        bindings.controller(AIWebSiteController.class, (r, request, response) -> new AIWebSiteController(r.get(WebSiteSettingsService.class)));
+        bindings.singleton(com.zrlog.admin.business.ai.service.AIReferenceService.class,
+                        r -> new com.zrlog.admin.business.ai.service.AIReferenceService(r.get(com.zrlog.admin.business.knowledge.ContentToolFactory.class)))
+                .controller(AIArticleController.class, (r, request, response) -> new AIArticleController(r.get(UploadService.class), new com.zrlog.admin.business.ai.service.AIChatService(request, r.get(com.zrlog.admin.business.knowledge.ContentToolFactory.class)), r.get(com.zrlog.admin.business.ai.service.AIReferenceService.class)))
+                .controller(AICommentController.class, (r, request, response) -> new AICommentController(r.get(PluginTokenValidator.class)))
+                .controller(AIWebSiteController.class, (r, request, response) -> new AIWebSiteController(r.get(WebSiteSettingsService.class), r.get(AdminPageDataFactory.class)));
         registerRoutes(router);
     }
 

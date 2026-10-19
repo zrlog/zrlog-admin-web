@@ -35,10 +35,10 @@ public class AdminWebToolsTest {
 
     @Test
     public void shouldRejectApiRequestWhenSiteIsMissingInstall() throws Exception {
-        Constants.zrLogConfig = new TestZrLogConfig(false);
+        Constants.zrLogConfig = null;
 
         assertThrows(MissingInstallException.class,
-                () -> AdminWebTools.blockUnLoginRequestHandler(request("/api/admin", "/blog", null), response()));
+                () -> AdminWebTools.blockUnLoginRequestHandler(request("/api/admin", "/blog", null), response(), false));
     }
 
     @Test
@@ -46,7 +46,7 @@ public class AdminWebToolsTest {
         Constants.zrLogConfig = new TestZrLogConfig(true);
 
         assertThrows(AdminAuthException.class,
-                () -> AdminWebTools.blockUnLoginRequestHandler(request("/api/admin", "/blog", null), response()));
+                () -> AdminWebTools.blockUnLoginRequestHandler(request("/api/admin", "/blog", null), response(), true));
     }
 
     @Test
@@ -54,7 +54,7 @@ public class AdminWebToolsTest {
         HttpRequest request = request("/admin", "/blog", null);
         HttpResponse response = new SimpleHttpResponse(request, new ResponseConfig());
 
-        AdminWebTools.blockUnLoginRequestHandler(request, response);
+        AdminWebTools.blockUnLoginRequestHandler(request, response, true);
 
         assertEquals("0", response.getHeader().get("Content-Length"));
     }
@@ -63,8 +63,9 @@ public class AdminWebToolsTest {
     public void shouldUseContextPathForStaticPluginAdminAssets() throws Exception {
         Constants.zrLogConfig = new TestZrLogConfig(true);
 
-        String baseUrl = AdminWebTools.getAdminStaticResourceBaseUrlByWebSite(
-                request("/admin/assets/app.js", "/blog", BaseStaticSitePlugin.STATIC_USER_AGENT));
+        String baseUrl = AdminWebTools.getAdminStaticResourceBaseUrl(
+                request("/admin/assets/app.js", "/blog", BaseStaticSitePlugin.STATIC_USER_AGENT),
+                () -> { throw new AssertionError("Static export must use local assets"); });
 
         assertEquals("/blog", baseUrl);
     }

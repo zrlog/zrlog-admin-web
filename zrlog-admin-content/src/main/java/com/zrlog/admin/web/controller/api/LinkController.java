@@ -1,8 +1,5 @@
 package com.zrlog.admin.web.controller.api;
 
-import com.zrlog.admin.web.annotation.RequiresAction;
-import com.zrlog.data.security.AccountAction;
-
 import com.hibegin.common.dao.dto.PageData;
 import com.hibegin.http.annotation.ResponseBody;
 import com.zrlog.admin.business.rest.request.CreateLinkRequest;
@@ -10,19 +7,28 @@ import com.zrlog.admin.business.rest.request.UpdateLinkRequest;
 import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
 import com.zrlog.admin.business.rest.response.DeleteResponse;
 import com.zrlog.admin.business.rest.response.UpdateRecordResponse;
+import com.zrlog.admin.business.service.AdminPageDataFactory;
 import com.zrlog.admin.business.service.LinkService;
 import com.zrlog.admin.web.annotation.RefreshCache;
 import com.zrlog.admin.web.annotation.RequestLock;
+import com.zrlog.admin.web.annotation.RequiresAction;
 import com.zrlog.business.plugin.type.StaticSiteType;
 import com.zrlog.business.util.ControllerUtil;
 import com.zrlog.common.cache.dto.LinkDTO;
 import com.zrlog.common.controller.BaseController;
 import com.zrlog.common.exception.ArgsException;
+import com.zrlog.data.security.AccountAction;
 
 import java.io.IOException;
 import java.sql.SQLException;
 
 public class LinkController extends BaseController {
+    public LinkController(AdminPageDataFactory pages) {
+        this.pages = pages;
+    }
+
+    private final AdminPageDataFactory pages;
+
 
     private final LinkService linkService = new LinkService();
 
@@ -51,7 +57,7 @@ public class LinkController extends BaseController {
     @ResponseBody
     @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "link.list")
     public AdminPageDataResponse<PageData<LinkDTO>> index() throws SQLException {
-        return new AdminPageDataResponse<>(linkService.find(ControllerUtil.unPageRequest()), "", request.getUri());
+        return pages.response(linkService.find(ControllerUtil.unPageRequest()), "", request.getUri());
     }
 
     @RefreshCache(async = true, updateStaticSites = StaticSiteType.BLOG)

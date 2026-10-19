@@ -1,17 +1,16 @@
 package com.zrlog.admin.web.controller.api;
 
-import com.zrlog.admin.web.annotation.RequiresAction;
-import com.zrlog.data.security.AccountAction;
-
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.RequestMethod;
 import com.hibegin.http.annotation.ResponseBody;
 import com.hibegin.http.server.web.Controller;
 import com.zrlog.admin.business.rest.response.UploadFileResponse;
 import com.zrlog.admin.business.service.UploadService;
+import com.zrlog.admin.web.annotation.RequiresAction;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.rest.response.ApiStandardResponse;
+import com.zrlog.data.security.AccountAction;
 
 import java.io.File;
 import java.io.IOException;
@@ -20,7 +19,11 @@ import java.sql.SQLException;
 public class UploadController extends Controller {
 
     //private static final Logger LOGGER = LoggerUtil.getLogger(UploadController.class);
-    private final UploadService uploadService = new UploadService();
+    private final UploadService uploadService;
+
+    public UploadController(UploadService uploadService) {
+        this.uploadService = uploadService;
+    }
 
     @ResponseBody
     @RequestMethod(method = HttpMethod.POST)

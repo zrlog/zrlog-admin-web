@@ -13,8 +13,8 @@ import com.zrlog.admin.business.rest.response.FileManagerResponse;
 import com.zrlog.admin.business.rest.response.FileReferenceVO;
 import com.zrlog.admin.business.rest.response.ReplaceArticleResourceUrlResponse;
 import com.zrlog.admin.business.rest.response.UploadFileResponse;
-import com.zrlog.admin.business.type.FileDirectoryAction;
 import com.zrlog.admin.business.type.AdminAuditAction;
+import com.zrlog.admin.business.type.FileDirectoryAction;
 import com.zrlog.admin.business.type.FileEntryAccess;
 import com.zrlog.admin.business.type.FileEntryAction;
 import com.zrlog.admin.business.util.FileEntryUtils;
@@ -34,7 +34,13 @@ public class FileManagerService {
     public static final String LIBRARY_ROOT = "";
     public static final String ATTACHED_ROOT = "/attached";
     public static final String EXTERNAL_ROOT = "/external";
-    private final FileManagerReferenceService referenceService = new FileManagerReferenceService();
+    private final FileManagerReferenceService referenceService;
+    private final UploadService uploadService;
+
+    public FileManagerService(UploadService uploadService, FileManagerReferenceService referenceService) {
+        this.uploadService = uploadService;
+        this.referenceService = Objects.requireNonNull(referenceService);
+    }
 
     public FileManagerResponse page(String path, String key, String resourceType) throws SQLException {
         FileManagerResponse response = new FileManagerResponse();
@@ -317,7 +323,7 @@ public class FileManagerService {
             throw new IOException("Cannot create parent directory");
         }
         FileUtils.moveOrCopyFile(uploadFile.toString(), target.toString(), true);
-        return new UploadService().getCloudUrl(path, target.toString(), request, user);
+        return uploadService.getCloudUrl(path, target.toString(), request, user);
     }
 
     public boolean delete(String path) throws SQLException {

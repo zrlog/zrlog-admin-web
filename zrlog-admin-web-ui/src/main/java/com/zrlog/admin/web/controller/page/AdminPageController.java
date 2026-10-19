@@ -5,19 +5,27 @@ import com.hibegin.http.server.web.Controller;
 import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
 import com.zrlog.admin.business.rest.response.ServerSideDataResponse;
+import com.zrlog.admin.business.service.AdminPageDataFactory;
 import com.zrlog.admin.business.service.AdminPageService;
 import com.zrlog.admin.web.annotation.RequiresAction;
 import com.zrlog.common.Constants;
+import com.zrlog.common.TokenService;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.plugin.BaseStaticSitePlugin;
+
 import java.io.InputStream;
 import java.util.Objects;
 
 public class AdminPageController extends Controller {
+    private final AdminPageDataFactory pages;
+
 
     private final AdminPageService adminPageService;
+    private final TokenService tokenService;
 
-    public AdminPageController(AdminPageService adminPageService) {
+    public AdminPageController(AdminPageService adminPageService, TokenService tokenService, AdminPageDataFactory pages) {
+        this.pages = pages;
+        this.tokenService = tokenService;
         this.adminPageService = adminPageService;
     }
 
@@ -54,11 +62,11 @@ public class AdminPageController extends Controller {
     @ResponseBody
     @RequiresAction(value = AccountAction.SESSION, descriptionKey = "admin.pageData")
     public AdminPageDataResponse<ServerSideDataResponse<Object>> ssJson() throws Throwable {
-        return new AdminPageDataResponse<>(adminPageService.serverSide(request.getParaToStr("uri"), request, response));
+        return pages.response(adminPageService.serverSide(request.getParaToStr("uri"), request, response));
     }
 
     @RequiresAction(value = AccountAction.SESSION, descriptionKey = "account.logout")
     public void logout() {
-        Constants.zrLogConfig.getTokenService().removeAdminToken(request, response);
+        tokenService.removeAdminToken(request, response);
     }
 }

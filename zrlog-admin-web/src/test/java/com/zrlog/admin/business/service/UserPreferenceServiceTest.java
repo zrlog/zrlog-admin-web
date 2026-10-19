@@ -1,5 +1,6 @@
 package com.zrlog.admin.business.service;
 
+import com.google.gson.*;
 import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.rest.response.AdminDashboardConfigResponse;
 import com.zrlog.admin.business.rest.response.UserPreferencesResponse;
@@ -7,11 +8,11 @@ import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.vo.AdminTokenVO;
-import java.util.List;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
-import com.google.gson.*;
+
+import java.util.List;
 
 import static org.junit.Assert.*;
 
@@ -38,25 +39,25 @@ public class UserPreferenceServiceTest {
             db.putWebsite("article_edit_auto_save_interval", 5);
             UserPreferenceService service = new UserPreferenceService();
             service.update(json("{\"language\":\"en_US\",\"appearance\":{\"darkMode\":true},\"articlePageSize\":40,\"editor\":{\"autoSaveInterval\":10}}"));
-            assertEquals(40, new AdminArticleService(db.cacheService()).resolveAdminPageSize(0));
-            assertEquals(7, new AdminArticleService(db.cacheService()).resolveAdminPageSize(7));
+            assertEquals(40, new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource))).resolveAdminPageSize(0));
+            assertEquals(7, new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource))).resolveAdminPageSize(7));
             assertEquals(Long.valueOf(10), service.effective().editor.autoSaveInterval);
             assertTrue(service.effective().appearance.darkMode);
             assertEquals("20", db.scalar("select value from website where name='admin_article_page_size'"));
             assertEquals(0, ((Number) db.scalar("select authVersion from user where userId=1")).intValue());
             assertEquals("admin", AccountPermissionService.current().getRole());
             login(2);
-            assertEquals(20, new AdminArticleService(db.cacheService()).resolveAdminPageSize(0));
+            assertEquals(20, new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource))).resolveAdminPageSize(0));
             service.update(json("{\"articlePageSize\":15}"));
-            assertEquals(15, new AdminArticleService(db.cacheService()).resolveAdminPageSize(0));
+            assertEquals(15, new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource))).resolveAdminPageSize(0));
             login(1);
-            assertEquals(40, new AdminArticleService(db.cacheService()).resolveAdminPageSize(0));
+            assertEquals(40, new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource))).resolveAdminPageSize(0));
             service.update(json("{}"));
-            assertEquals(20, new AdminArticleService(db.cacheService()).resolveAdminPageSize(0));
+            assertEquals(20, new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource))).resolveAdminPageSize(0));
             db.putWebsite("admin_article_page_size", 30);
-            assertEquals(30, new AdminArticleService(db.cacheService()).resolveAdminPageSize(0));
+            assertEquals(30, new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource))).resolveAdminPageSize(0));
             login(2);
-            assertEquals(15, new AdminArticleService(db.cacheService()).resolveAdminPageSize(0));
+            assertEquals(15, new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource))).resolveAdminPageSize(0));
         }
     }
 

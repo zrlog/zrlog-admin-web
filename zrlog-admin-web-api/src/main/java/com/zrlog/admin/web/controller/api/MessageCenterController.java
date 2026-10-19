@@ -1,8 +1,5 @@
 package com.zrlog.admin.web.controller.api;
 
-import com.zrlog.admin.web.annotation.RequiresAction;
-import com.zrlog.data.security.AccountAction;
-
 import com.hibegin.http.annotation.ResponseBody;
 import com.zrlog.admin.business.rest.request.ReadMessageCenterNoticeRequest;
 import com.zrlog.admin.business.rest.request.UpgradeRestartNoticeRequest;
@@ -10,15 +7,21 @@ import com.zrlog.admin.business.rest.response.MessageCenterNoticeResponse;
 import com.zrlog.admin.business.rest.response.UpdateRecordResponse;
 import com.zrlog.admin.business.service.MessageCenterOperationService;
 import com.zrlog.admin.business.service.MessageCenterService;
+import com.zrlog.admin.web.annotation.RequiresAction;
 import com.zrlog.common.controller.BaseController;
 import com.zrlog.common.rest.response.ApiStandardResponse;
+import com.zrlog.data.security.AccountAction;
 
 import java.sql.SQLException;
 import java.util.List;
 
 public class MessageCenterController extends BaseController {
 
-    private final MessageCenterService messageCenterService = new MessageCenterService();
+    private final MessageCenterService messageCenterService;
+
+    public MessageCenterController(MessageCenterService messageCenterService) {
+        this.messageCenterService = messageCenterService;
+    }
 
     @ResponseBody
     @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "notice.list")

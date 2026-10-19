@@ -11,10 +11,12 @@ import com.zrlog.plugin.BaseStaticSitePlugin;
 import com.zrlog.plugin.IPlugin;
 import com.zrlog.plugin.Plugins;
 import com.zrlog.web.WebSiteInfoProvider;
+import org.junit.Test;
+
 import java.lang.reflect.Proxy;
 import java.util.List;
 import javax.sql.DataSource;
-import org.junit.Test;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -38,9 +40,9 @@ public class ManifestUtilsTest {
     public void shouldBuildManifestFromPublicWebsiteInfo() throws Exception {
         ZrLogConfig previousConfig = Constants.zrLogConfig;
         try {
-            Constants.zrLogConfig = new TestZrLogConfig(publicWebSiteInfo(false));
+            Constants.zrLogConfig = null;
 
-            AdminManifestResponse manifest = ManifestUtils.manifest(request(null));
+            AdminManifestResponse manifest = ManifestUtils.manifest(request(null), publicWebSiteInfo(false));
 
             assertEquals("Admin Test Blog", manifest.getShort_name());
             assertTrue(manifest.getName().contains("Admin Test Blog"));
@@ -59,9 +61,9 @@ public class ManifestUtilsTest {
     public void shouldRewriteManifestStartUrlForStaticPluginRequests() throws Exception {
         ZrLogConfig previousConfig = Constants.zrLogConfig;
         try {
-            Constants.zrLogConfig = new TestZrLogConfig(publicWebSiteInfo(true));
+            Constants.zrLogConfig = null;
 
-            AdminManifestResponse manifest = ManifestUtils.manifest(request(BaseStaticSitePlugin.STATIC_USER_AGENT));
+            AdminManifestResponse manifest = ManifestUtils.manifest(request(BaseStaticSitePlugin.STATIC_USER_AGENT), publicWebSiteInfo(true));
 
             assertEquals("#000000", manifest.getBackground_color());
             assertEquals("./index.html?pwa=true", manifest.getStart_url());

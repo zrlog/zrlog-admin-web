@@ -8,6 +8,7 @@ import com.zrlog.admin.business.security.SecurityStore;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.util.ZrLogUtil;
+
 import java.sql.SQLException;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -85,7 +86,7 @@ public final class MemberService {
         AccountAccess actor = AccountPermissionService.current();
         checkMutation();
         if (body == null || body.userId == null || body.password == null || !actor.isOwner() || body.userId == actor.getUserId()) throw new PermissionErrorException();
-        new UserService().verifyCurrentCredentials(actor.getUserId(), SecurityUtils.md5(body.password), body.mfaCode);
+        new UserService(java.util.Collections::emptySet).verifyCurrentCredentials(actor.getUserId(), SecurityUtils.md5(body.password), body.mfaCode);
         store.withSession(c -> {
             if (c.isWebApi()) {
                 // Materialize eligibility before either row changes. One D1 statement transfers both roles and versions.

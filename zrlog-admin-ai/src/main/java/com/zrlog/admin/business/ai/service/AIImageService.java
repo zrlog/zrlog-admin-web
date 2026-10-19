@@ -5,17 +5,17 @@ import com.hibegin.http.server.api.HttpRequest;
 import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.ai.dto.AIStreamPayloads;
 import com.zrlog.admin.business.ai.exception.*;
+import com.zrlog.admin.business.ai.model.AIModelCapability;
 import com.zrlog.admin.business.ai.model.AIProviderRequests;
 import com.zrlog.admin.business.ai.model.AIProviderResponses;
+import com.zrlog.admin.business.ai.prompt.AIPromptVO;
+import com.zrlog.admin.business.exception.AbstractAdminBusinessException;
 import com.zrlog.admin.business.rest.base.AIWebSiteInfo;
 import com.zrlog.admin.business.rest.base.ArticleEditWebSiteInfo;
 import com.zrlog.admin.business.rest.request.ApplyArticleCoverRequest;
 import com.zrlog.admin.business.rest.request.GenerateArticleFieldRequest;
 import com.zrlog.admin.business.rest.response.GenerateArticleCoverResponse;
 import com.zrlog.admin.business.rest.response.UploadFileResponse;
-import com.zrlog.admin.business.ai.model.AIModelCapability;
-import com.zrlog.admin.business.ai.prompt.AIPromptVO;
-import com.zrlog.admin.business.exception.AbstractAdminBusinessException;
 import com.zrlog.admin.business.service.DbFileService;
 import com.zrlog.admin.business.service.UploadService;
 import com.zrlog.admin.business.service.UserPreferenceService;
@@ -68,12 +68,12 @@ public class AIImageService extends AIService {
     }
 
     public UploadFileResponse applyArticleCover(ApplyArticleCoverRequest applyRequest, HttpRequest request,
-                                                Long articleId) throws SQLException {
+                                                Long articleId, UploadService uploadService) throws SQLException {
         UploadFileResponse uploadFileResponse;
         if (applyRequest.getDataUrl().startsWith(AdminConstants.ADMIN_DB_ATTACHED_TMP)
                 || applyRequest.getDataUrl().startsWith("data:")) {
             DecodedImage decodedImage = decodeDataUrl(applyRequest.getDataUrl(), applyRequest.getExtension());
-            uploadFileResponse = new UploadService().saveThumbnailBytes(decodedImage.bytes, decodedImage.extension, request,
+            uploadFileResponse = uploadService.saveThumbnailBytes(decodedImage.bytes, decodedImage.extension, request,
                     AdminTokenThreadLocal.getUser());
         } else {
             uploadFileResponse = new UploadFileResponse(applyRequest.getDataUrl());

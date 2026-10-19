@@ -20,7 +20,6 @@ import java.io.File;
 import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
@@ -142,7 +141,7 @@ public class AdminTypeAndUtilContractTest {
     public void shouldRedirectUnLoginPageRequestsWithEncodedOriginalUri() {
         AtomicReference<String> redirect = new AtomicReference<>();
 
-        AdminWebTools.blockUnLoginRequestHandler(request("/admin", "/blog", "a=1 b=2"), response(redirect));
+        AdminWebTools.blockUnLoginRequestHandler(request("/admin", "/blog", "a=1 b=2"), response(redirect), true);
 
         assertTrue(redirect.get().startsWith(AdminConstants.ADMIN_LOGIN_URI_PATH + "?redirectFrom="));
         assertTrue(redirect.get().contains("%2Fblog%2Fadmin%2Findex"));
@@ -150,12 +149,12 @@ public class AdminTypeAndUtilContractTest {
     }
 
     @Test
-    public void shouldReturnEmptyAdminStaticBaseWhenConfigIsMissing() {
+    public void shouldKeepContextPathWithoutGlobalConfigOrCdn() {
         ZrLogConfig previousConfig = Constants.zrLogConfig;
         try {
             Constants.zrLogConfig = null;
 
-            assertEquals("", AdminWebTools.getAdminStaticResourceBaseUrlByWebSite(request("/admin", "/blog", "")));
+            assertEquals("/blog", AdminWebTools.getAdminStaticResourceBaseUrl(request("/admin", "/blog", ""), () -> ""));
         } finally {
             Constants.zrLogConfig = previousConfig;
         }

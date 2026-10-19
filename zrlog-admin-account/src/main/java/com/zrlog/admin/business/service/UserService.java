@@ -1,7 +1,8 @@
 package com.zrlog.admin.business.service;
 
+import com.hibegin.common.util.*;
 import com.hibegin.http.server.api.HttpRequest;
-import com.zrlog.admin.business.AdminConstants;
+import com.zrlog.admin.business.account.AvatarStorage;
 import com.zrlog.admin.business.dto.UserLoginDTO;
 import com.zrlog.admin.business.exception.OldPasswordException;
 import com.zrlog.admin.business.exception.PermissionErrorException;
@@ -16,18 +17,22 @@ import com.zrlog.admin.business.rest.response.UserInfoResponse;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.business.rest.response.CheckVersionResponse;
 import com.zrlog.common.CacheService;
-import com.zrlog.common.Constants;
 import com.zrlog.common.cache.dto.UserBasicDTO;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.model.User;
 import com.zrlog.util.I18nUtil;
 import com.zrlog.util.ZrLogUtil;
-import java.sql.SQLException;
-import com.hibegin.common.util.*;
 
+import java.sql.SQLException;
 import java.util.*;
 
 public class UserService {
+    private final java.util.function.Supplier<Set<String>> cacheableApiUris;
+
+    public UserService(java.util.function.Supplier<Set<String>> cacheableApiUris) {
+        this.cacheableApiUris = Objects.requireNonNull(cacheableApiUris);
+    }
+
 
     private final MfaService mfaService = new MfaService();
 
@@ -61,7 +66,7 @@ public class UserService {
         UserBasicInfoResponse userInfoByUser = getUserInfoByUser(BeanUtil.convert(byId, UserBasicDTO.class), sessionId);
         userInfoByUser.setEmail(ObjectHelpers.requireNonNullElse((String) byId.get("email"), ""));
         userInfoByUser.setMfaEnabled(mfaService.getMfaEnabled(byId));
-        userInfoByUser.setPasskeys(new PasskeyService().list(userId));
+        userInfoByUser.setPasskeys(PasskeyService.list(userId));
         return userInfoByUser;
     }
 
@@ -101,11 +106,8 @@ public class UserService {
             basicInfoResponse.setRole(com.zrlog.data.security.AccountAccess.load(userBasicDTO.getUserId().intValue()).getRole());
             fillDisplayPreferences(basicInfoResponse, userBasicDTO.getUserId().intValue());
         } catch (SQLException e) { throw new PermissionErrorException(); }
-        if (EnvKit.isFaaSMode() || AdminConstants.adminResource == null) {
-            basicInfoResponse.setCacheableApiUris(new HashSet<>());
-        } else {
-            basicInfoResponse.setCacheableApiUris(AdminConstants.adminResource.getAdminCacheableApiUris());
-        }
+        basicInfoResponse.setCacheableApiUris(EnvKit.isFaaSMode()
+                ? new HashSet<>() : new HashSet<>(cacheableApiUris.get()));
         return basicInfoResponse;
     }
 
@@ -151,16 +153,17 @@ public class UserService {
         return userLoginDTO;
     }
 
-    public UserBasicInfoResponse update(int userId, UpdateAdminRequest updateAdminRequest, HttpRequest request) throws SQLException {
+    public UserBasicInfoResponse update(int userId, UpdateAdminRequest updateAdminRequest,
+                                        HttpRequest request, AvatarStorage storage) throws SQLException {
         if (ZrLogUtil.isPreviewMode()) {
             throw new PermissionErrorException();
         }
         new User().updateEmailUserNameHeaderByUserId(updateAdminRequest.getEmail(), updateAdminRequest.getUserName(),
-                normalizeHeader(updateAdminRequest.getHeader(), request), userId);
+                normalizeHeader(updateAdminRequest.getHeader(), request, storage), userId);
         return getBasicUserInfo(userId, AdminTokenThreadLocal.getUser().getSessionId());
     }
 
-    private String normalizeHeader(String header, HttpRequest request) {
+    private String normalizeHeader(String header, HttpRequest request, AvatarStorage storage) {
         if (StringUtils.isEmpty(header) || !header.startsWith("data:image/")) {
             return header;
         }
@@ -175,7 +178,6 @@ public class UserService {
         String mimeType = meta.split(";")[0];
         String extension = toImageExtension(mimeType);
         byte[] bytes = Base64.getDecoder().decode(header.substring(commaIndex + 1));
-        var storage = com.zrlog.common.Constants.zrLogConfig.getWebSetup(com.zrlog.admin.business.account.AvatarStorage.class);
         if (storage == null) throw new PermissionErrorException();
         return storage.saveAvatar(bytes, extension, request);
     }

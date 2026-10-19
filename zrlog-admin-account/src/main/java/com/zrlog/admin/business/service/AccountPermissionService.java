@@ -6,6 +6,7 @@ import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.model.Log;
+
 import java.lang.reflect.Method;
 import java.sql.SQLException;
 import java.util.*;
@@ -44,9 +45,9 @@ public final class AccountPermissionService {
         if (!action.allowed(current())) throw new PermissionErrorException();
     }
 
-    public static void requireAdminOrigin(HttpRequest request) {
+    public static void requireAdminOrigin(HttpRequest request, com.zrlog.admin.util.BackendServerUrl backend) {
         try {
-            com.zrlog.admin.util.BackendServerUrl.requireAdminRequestOrigin(request);
+            backend.requireAdminRequestOrigin(request);
         } catch (IllegalArgumentException e) { throw new com.zrlog.admin.business.exception.AdminOriginException(); }
     }
 

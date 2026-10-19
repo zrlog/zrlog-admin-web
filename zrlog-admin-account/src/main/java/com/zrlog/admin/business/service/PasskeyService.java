@@ -16,7 +16,6 @@ import com.webauthn4j.data.client.Origin;
 import com.webauthn4j.data.client.challenge.DefaultChallenge;
 import com.webauthn4j.server.ServerProperty;
 import com.webauthn4j.verifier.exception.MaliciousCounterValueException;
-import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.dto.UserLoginDTO;
 import com.zrlog.admin.business.exception.PasskeyLimitExceededException;
 import com.zrlog.admin.business.exception.PasskeyRequestBusyException;
@@ -61,19 +60,25 @@ public class PasskeyService {
     private static final Logger LOGGER = LoggerUtil.getLogger(PasskeyService.class);
 
     private final Gson gson = new Gson();
-    private final UserService userService = new UserService();
-    private final PasskeyRequestContext requestContext = new PasskeyRequestContext();
+    private final UserService userService;
+    private final PasskeyRequestContext requestContext;
     private final int maxActiveAuthenticationChallenges;
 
-    public PasskeyService() {
-        this(MAX_ACTIVE_AUTHENTICATION_CHALLENGES);
+    public PasskeyService(java.util.function.Supplier<String> siteHost, UserService userService) {
+        this(MAX_ACTIVE_AUTHENTICATION_CHALLENGES, siteHost, userService);
     }
 
-    PasskeyService(int maxActiveAuthenticationChallenges) {
+    PasskeyService(int maxActiveAuthenticationChallenges, java.util.function.Supplier<String> siteHost, UserService userService) {
+        this.userService = Objects.requireNonNull(userService);
+        this.requestContext = new PasskeyRequestContext(siteHost);
         if (maxActiveAuthenticationChallenges <= 0) {
             throw new IllegalArgumentException("maxActiveAuthenticationChallenges must be positive");
         }
         this.maxActiveAuthenticationChallenges = maxActiveAuthenticationChallenges;
+    }
+
+    public String requestProtocol(HttpRequest request) {
+        return requestContext.resolve(request).getProtocol();
     }
 
     public PasskeyOptionsResponse<PasskeyAuthenticationOptionsResponse> startAuthentication(HttpRequest request)
@@ -145,7 +150,7 @@ public class PasskeyService {
     }
 
     public PasskeyOptionsResponse<PasskeyRegistrationOptionsResponse> startRegistration(
-            int userId, PasskeyRegistrationOptionsRequest optionsRequest, HttpRequest request) throws SQLException {
+            int userId, PasskeyRegistrationOptionsRequest optionsRequest, HttpRequest request, String siteTitle) throws SQLException {
         denyPreviewMode();
         userService.verifyCurrentCredentials(userId, optionsRequest.getPassword(), optionsRequest.getMfaCode());
         PasskeyRequestContext.Context context = requestContext.resolve(request);
@@ -166,7 +171,7 @@ public class PasskeyService {
                 .map(row -> new PasskeyCredentialDescriptor(stringValue(row, "credentialId"),
                         transportNames(stringValue(row, "transports"))))
                 .collect(Collectors.toList());
-        String rpName = Objects.toString(AdminConstants.getPublicWebSiteInfo().getTitle(), "ZrLog").trim();
+        String rpName = Objects.toString(siteTitle, "ZrLog").trim();
         if (rpName.isEmpty()) {
             rpName = "ZrLog";
         }
@@ -226,7 +231,7 @@ public class PasskeyService {
         }
     }
 
-    public List<PasskeySummaryResponse> list(int userId) throws SQLException {
+    public static List<PasskeySummaryResponse> list(int userId) throws SQLException {
         List<PasskeySummaryResponse> summaries = new ArrayList<>();
         for (Map<String, Object> row : new UserPasskey().findByUserId(userId)) {
             summaries.add(toSummary(row));
@@ -382,7 +387,7 @@ public class PasskeyService {
         return stringValue(new User().loadById(userId), "passkeyUserHandle");
     }
 
-    private PasskeySummaryResponse toSummary(Map<String, Object> row) {
+    private static PasskeySummaryResponse toSummary(Map<String, Object> row) {
         if (row == null) {
             throw new PasskeyVerificationException();
         }

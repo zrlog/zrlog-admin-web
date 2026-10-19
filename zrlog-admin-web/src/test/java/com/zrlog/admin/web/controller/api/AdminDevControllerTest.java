@@ -1,17 +1,17 @@
 package com.zrlog.admin.web.controller.api;
 
-import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.RequestMethod;
-import com.zrlog.admin.web.annotation.RequiresAction;
-import com.zrlog.data.security.AccountAction;
+import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
 import com.hibegin.http.server.config.ServerConfig;
 import com.hibegin.http.server.web.Controller;
 import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
 import com.zrlog.admin.business.rest.response.DevInfoResponse;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
+import com.zrlog.admin.web.annotation.RequiresAction;
 import com.zrlog.common.rest.response.ApiStandardResponse;
+import com.zrlog.data.security.AccountAction;
 import org.junit.After;
 import org.junit.Test;
 
@@ -87,7 +87,7 @@ public class AdminDevControllerTest {
     public void shouldSetDevModeThroughModeEndpoint() throws Exception {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
             ServerConfig config = new ServerConfig();
-            var resources = new com.zrlog.admin.business.service.AdminResourceService();
+            var resources = new com.zrlog.admin.business.service.AdminResourceService(com.zrlog.admin.business.rest.response.AdminResourceInfoResponse.Capabilities::new, new com.zrlog.admin.business.service.FeatureLabService(() -> true), com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), () -> new com.zrlog.model.WebSite().getStringValueByName("admin_static_resource_base_url"));
             assertFalse(resources.adminResourceInfo(request(Map.of(), config)).isDevMode());
             ApiStandardResponse<Boolean> enabled = controller(Map.of("enabled", "true")).mode();
 
@@ -115,7 +115,7 @@ public class AdminDevControllerTest {
 
     private static AdminDevController controller(Map<String, String> params, ServerConfig serverConfig)
             throws Exception {
-        AdminDevController controller = new AdminDevController();
+        AdminDevController controller = new AdminDevController(new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
         Field requestField = Controller.class.getDeclaredField("request");
         requestField.setAccessible(true);
         requestField.set(controller, request(params, serverConfig));

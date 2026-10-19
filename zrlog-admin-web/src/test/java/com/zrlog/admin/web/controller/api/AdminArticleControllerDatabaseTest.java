@@ -4,9 +4,9 @@ import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
 import com.hibegin.http.server.web.Controller;
 import com.zrlog.admin.business.ai.service.AIConversationService;
-import com.zrlog.admin.business.ai.service.AIPublishCheckService;
 import com.zrlog.admin.business.ai.service.AIPublishCheckService.PublishCheckPersistenceGuard;
 import com.zrlog.admin.business.ai.service.AIPublishCheckService.PublishCheckTask;
+import com.zrlog.admin.business.ai.service.AIPublishCheckService;
 import com.zrlog.admin.business.rest.request.CreateArticleRequest;
 import com.zrlog.admin.business.rest.response.AIArticleGlobalResponse;
 import com.zrlog.admin.business.rest.response.AIResponseEntry;
@@ -34,6 +34,9 @@ import com.zrlog.common.Constants;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.util.I18nUtil;
+import org.junit.After;
+import org.junit.Test;
+
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.io.PipedInputStream;
@@ -51,8 +54,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
-import org.junit.After;
-import org.junit.Test;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -543,7 +545,7 @@ public class AdminArticleControllerDatabaseTest {
     @Test
     public void shouldShortCircuitPublishCheckAndEmitReadyStatesWithoutCallingAi() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-            ArticlePublishingService publishingService = new ArticlePublishingService(new AdminArticleService(db.cacheService()), db.cacheService());
+            ArticlePublishingService publishingService = new ArticlePublishingService(new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource))), com.zrlog.admin.support.ApplicationServicesFixture.cacheRefresh(db.cacheService(), com.zrlog.common.Constants.zrLogConfig));
             CreateArticleRequest request = new CreateArticleRequest();
             request.setTransparentPublish(true);
             request.setRubbish(false);
@@ -551,7 +553,7 @@ public class AdminArticleControllerDatabaseTest {
             AIArticleGlobalResponse global = new AIArticleGlobalResponse();
             global.setPublishCheckEnabled(false);
             global.setAiConfigured(true);
-            AdminPageDataResponse<ArticleGlobalResponse> detail = new AdminPageDataResponse<>(global);
+            AdminPageDataResponse<ArticleGlobalResponse> detail = new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)).response(global);
 
             assertTrue(publishingService.shouldUseTransparentPublishStream(request));
             assertNull(new AIPublishCheckService().startPublishCheck(detail.getData(), request));
@@ -753,7 +755,7 @@ public class AdminArticleControllerDatabaseTest {
             global.setArticle(article);
             global.setPublishCheckEnabled(true);
             global.setAiConfigured(true);
-            AdminPageDataResponse<ArticleGlobalResponse> detail = new AdminPageDataResponse<>(global);
+            AdminPageDataResponse<ArticleGlobalResponse> detail = new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)).response(global);
 
             PublishCheckTask task = new AIPublishCheckService().startPublishCheck(detail.getData(), request);
 
@@ -839,8 +841,8 @@ public class AdminArticleControllerDatabaseTest {
 
     private static AdminArticleController controller(com.zrlog.common.CacheService cache, Map<String, String> params, String body,
                                                      ResponseRecorder response) throws Exception {
-        AdminArticleService articles = new AdminArticleService(cache);
-        AdminArticleController controller = new AdminArticleController(articles, new ArticlePublishingService(articles, cache));
+        AdminArticleService articles = new AdminArticleService(cache, com.zrlog.admin.support.ApplicationServicesFixture.capability(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
+        AdminArticleController controller = new AdminArticleController(articles, new ArticlePublishingService(articles, com.zrlog.admin.support.ApplicationServicesFixture.cacheRefresh(cache, com.zrlog.common.Constants.zrLogConfig)), com.zrlog.admin.support.ApplicationServicesFixture.publisher(null, com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.capability(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
         setControllerField(controller, "request", request(params, body));
         setControllerField(controller, "response", response.response());
         return controller;
@@ -848,7 +850,7 @@ public class AdminArticleControllerDatabaseTest {
 
     private static AIArticleController aiController(Map<String, String> params, String body,
                                                      ResponseRecorder response) throws Exception {
-        AIArticleController controller = new AIArticleController();
+        AIArticleController controller = new AIArticleController(new com.zrlog.admin.business.service.UploadService(() -> null), new com.zrlog.admin.business.ai.service.AIChatService(), new com.zrlog.admin.business.ai.service.AIReferenceService(null));
         setControllerField(controller, "request", request(params, body));
         setControllerField(controller, "response", response.response());
         return controller;

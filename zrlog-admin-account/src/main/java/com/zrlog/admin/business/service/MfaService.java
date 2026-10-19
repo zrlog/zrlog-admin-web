@@ -1,7 +1,6 @@
 package com.zrlog.admin.business.service;
 
 import com.hibegin.common.util.StringUtils;
-import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.exception.InvalidMfaCodeException;
 import com.zrlog.admin.business.exception.MfaCodeRequiredException;
 import com.zrlog.admin.business.rest.request.UpdateMfaRequest;
@@ -20,12 +19,12 @@ public class MfaService {
     private static final String MFA_ENABLED_COLUMN = "mfaEnabled";
     private static final String MFA_SECRET_COLUMN = "mfaSecret";
 
-    public MfaStatusResponse getMfaStatus(int userId) throws SQLException {
+    public MfaStatusResponse getMfaStatus(int userId, String siteTitle) throws SQLException {
         Map<String, Object> user = new User().loadById(userId);
         String userName = Objects.toString(user.get("userName"), "admin");
         boolean enabled = getMfaEnabled(user);
         String secret = getOrCreateMfaSecret(userId);
-        String issuer = Objects.toString(AdminConstants.getPublicWebSiteInfo().getTitle(), "ZrLog Admin");
+        String issuer = Objects.toString(siteTitle, "ZrLog Admin");
         MfaStatusResponse response = new MfaStatusResponse();
         response.setEnabled(enabled);
         response.setSecret(secret);

@@ -38,7 +38,7 @@ public class AdminStaticSiteSsePublisherTest {
             PathUtil.setRootPath(temporaryFolder.newFolder("zrlog-root").getAbsolutePath());
             Constants.zrLogConfig = new DisabledStaticConfig();
 
-            AdminStaticSiteSsePublisher.write(
+            com.zrlog.admin.support.ApplicationServicesFixture.publisher(null, com.zrlog.common.Constants.zrLogConfig).write(
                     capturedResponse.response(),
                     "static-disabled-test",
                     "static-error",
@@ -70,7 +70,7 @@ public class AdminStaticSiteSsePublisherTest {
             PathUtil.setRootPath(temporaryFolder.newFolder("zrlog-root-separated-errors").getAbsolutePath());
             Constants.zrLogConfig = new DisabledStaticConfig();
 
-            AdminStaticSiteSsePublisher.write(
+            com.zrlog.admin.support.ApplicationServicesFixture.publisher(null, com.zrlog.common.Constants.zrLogConfig).write(
                     capturedResponse.response(),
                     "static-separated-error-test",
                     "publish-error",
@@ -105,7 +105,7 @@ public class AdminStaticSiteSsePublisherTest {
             PathUtil.setRootPath(temporaryFolder.newFolder("zrlog-root-failed-refresh").getAbsolutePath());
             Constants.zrLogConfig = new DisabledStaticConfig();
 
-            AdminStaticSiteSsePublisher.write(
+            com.zrlog.admin.support.ApplicationServicesFixture.publisher(null, com.zrlog.common.Constants.zrLogConfig).write(
                     capturedResponse.response(),
                     "static-refresh-failure-test",
                     "static-error",

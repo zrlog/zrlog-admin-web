@@ -47,7 +47,7 @@ public class MemberServiceTest {
             assertEquals("", row.get("header"));
             assertEquals(0, ((Number) row.get("authVersion")).intValue());
 
-            UserService users = new UserService();
+            UserService users = new UserService(java.util.Collections::emptySet);
             String avatar = users.getBasicUserInfo(member.userId, "new-member-session").getHeader();
             String dataUriPrefix = "data:image/gif;base64,";
             assertTrue(avatar.startsWith(dataUriPrefix));

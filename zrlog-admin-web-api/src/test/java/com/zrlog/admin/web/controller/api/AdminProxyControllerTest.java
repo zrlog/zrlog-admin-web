@@ -8,9 +8,9 @@ import com.hibegin.http.server.web.Controller;
 import com.hibegin.http.server.web.Router;
 import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.service.AccountPermissionService;
+import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.annotation.RequiresAction;
 import com.zrlog.admin.web.config.AdminRouters;
-import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.NetworkProxy;
@@ -20,9 +20,9 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import java.io.ByteArrayInputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.Proxy;
-import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -61,7 +61,7 @@ public class AdminProxyControllerTest {
     @Test
     public void unsupportedVerbsDoNotReadOrWriteConfiguration() throws Exception {
         AtomicInteger status = new AtomicInteger();
-        AdminProxyController controller = new AdminProxyController();
+        AdminProxyController controller = new AdminProxyController(new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
         HttpRequest request = (HttpRequest) Proxy.newProxyInstance(getClass().getClassLoader(), new Class[]{HttpRequest.class},
                 (proxy, method, args) -> method.getName().equals("getMethod") ? HttpMethod.DELETE : null);
         HttpResponse response = (HttpResponse) Proxy.newProxyInstance(getClass().getClassLoader(), new Class[]{HttpResponse.class},
@@ -81,7 +81,7 @@ public class AdminProxyControllerTest {
             NetworkProxy.Settings active = NetworkProxy.initialize();
             String proxyUrl = active.getUrl().equals("http://proxy.example:3128")
                     ? "http://proxy.example:3129" : "http://proxy.example:3128";
-            AdminProxyController controller = new AdminProxyController();
+            AdminProxyController controller = new AdminProxyController(new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
             set(controller, "request", request(HttpMethod.POST,
                     "{\"url\":\"" + proxyUrl + "\",\"noProxy\":\".internal.example\"}"));
             var saved = controller.index().getData();

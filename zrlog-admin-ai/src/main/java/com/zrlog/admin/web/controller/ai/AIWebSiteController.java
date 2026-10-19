@@ -11,6 +11,7 @@ import com.zrlog.admin.business.rest.response.AIWebSiteInfoResponse;
 import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
 import com.zrlog.admin.business.rest.response.OptimizeAiPromptResponse;
 import com.zrlog.admin.business.rest.response.OptimizeWebsiteDescriptionResponse;
+import com.zrlog.admin.business.service.AdminPageDataFactory;
 import com.zrlog.admin.business.service.WebSiteSettingsService;
 import com.zrlog.admin.web.annotation.RequestLock;
 import com.zrlog.admin.web.annotation.RequiresAction;
@@ -18,13 +19,17 @@ import com.zrlog.common.controller.BaseController;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.I18nUtil;
+
 import java.io.IOException;
 import java.sql.SQLException;
 
 public class AIWebSiteController extends BaseController {
+    private final AdminPageDataFactory pages;
+
     private final WebSiteSettingsService settingsService;
 
-    public AIWebSiteController(WebSiteSettingsService settingsService) {
+    public AIWebSiteController(WebSiteSettingsService settingsService, AdminPageDataFactory pages) {
+        this.pages = pages;
         this.settingsService = settingsService;
     }
 
@@ -61,6 +66,6 @@ public class AIWebSiteController extends BaseController {
 
     private <T> AdminPageDataResponse<T> page(T data) {
         String message = isPost() ? I18nUtil.getAdminBackendStringFromRes("admin.common.update.success") : "";
-        return new AdminPageDataResponse<>(data, message, request.getUri());
+        return pages.response(data, message, request.getUri());
     }
 }

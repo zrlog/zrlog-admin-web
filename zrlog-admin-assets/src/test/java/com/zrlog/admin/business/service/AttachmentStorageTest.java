@@ -2,17 +2,19 @@ package com.zrlog.admin.business.service;
 
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.util.PathUtil;
-import com.zrlog.admin.business.security.DelegatedAccess;
 import com.zrlog.admin.business.exception.PermissionErrorException;
+import com.zrlog.admin.business.security.DelegatedAccess;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.AssetsWebSetup;
 import com.zrlog.common.Constants;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+
 import java.lang.reflect.Proxy;
 import java.nio.file.Files;
 import java.util.Set;
+
 import static org.junit.Assert.*;
 
 public class AttachmentStorageTest {
@@ -26,7 +28,7 @@ public class AttachmentStorageTest {
                 if(method.getName().equals("getContextPath")) return "/sub";
                 return null;
             });
-            AssetsWebSetup storage=new AssetsWebSetup(Constants.zrLogConfig.getServerConfig());
+            AssetsWebSetup storage=new AssetsWebSetup(Constants.zrLogConfig.getServerConfig(), () -> null);
             byte[] bytes="actual attachment".getBytes(java.nio.charset.StandardCharsets.UTF_8);
             String url=storage.saveAttachment(bytes,"cover.PNG",request);
             assertTrue(url,url.startsWith("/sub/attached/users/1/"));assertTrue(url.endsWith(".png"));

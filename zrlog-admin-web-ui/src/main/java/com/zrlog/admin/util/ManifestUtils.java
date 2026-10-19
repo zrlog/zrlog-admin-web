@@ -23,13 +23,12 @@ import java.util.Objects;
 
 public class ManifestUtils {
 
-    public static AdminManifestResponse manifest(HttpRequest request) throws IOException {
+    public static AdminManifestResponse manifest(HttpRequest request, PublicWebSiteInfo publicWebSiteInfo) throws IOException {
         try (InputStream inputStream = AdminPageController.class.getResourceAsStream(AdminConstants.ADMIN_PWA_MANIFEST_JSON)) {
             if (inputStream == null) {
                 return new AdminManifestResponse();
             }
             AdminManifestResponse manifest = new Gson().fromJson(IOUtil.getStringInputStream(inputStream), AdminManifestResponse.class);
-            PublicWebSiteInfo publicWebSiteInfo = AdminConstants.getPublicWebSiteInfo();
             if (StringUtils.isNotEmpty(publicWebSiteInfo.getTitle())) {
                 manifest.setShort_name(publicWebSiteInfo.getTitle());
             }

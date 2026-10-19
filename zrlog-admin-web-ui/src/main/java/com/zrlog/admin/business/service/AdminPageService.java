@@ -6,11 +6,9 @@ import com.hibegin.common.util.StringUtils;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
 import com.hibegin.http.server.web.Controller;
-import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
 import com.zrlog.admin.business.rest.response.ServerSideDataResponse;
 import com.zrlog.admin.business.rest.response.UserInfoResponse;
-import com.zrlog.admin.util.AdminWebTools;
 import com.zrlog.admin.web.config.AdminAccountPages;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.blog.web.util.WebTools;
@@ -20,19 +18,27 @@ import com.zrlog.common.rest.response.StandardResponse;
 import com.zrlog.common.vo.PublicWebSiteInfo;
 import com.zrlog.plugin.BaseStaticSitePlugin;
 import com.zrlog.util.I18nUtil;
-import java.io.InputStream;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.util.Objects;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
+import java.io.InputStream;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.Objects;
+
 public class AdminPageService {
     private final CacheService cacheService;
+    private final AdminPageDataFactory pages;
+    private final AdminResource resources;
+    private final java.util.function.Function<HttpRequest, String> staticResourceUrl;
 
-    public AdminPageService(CacheService cacheService) {
+    public AdminPageService(CacheService cacheService, AdminPageDataFactory pages, AdminResource resources,
+                            java.util.function.Function<HttpRequest, String> staticResourceUrl) {
+        this.staticResourceUrl = staticResourceUrl;
+        this.pages = pages;
+        this.resources = resources;
         this.cacheService = cacheService;
     }
 
@@ -42,11 +48,11 @@ public class AdminPageService {
         document.body().removeClass("dark");
         document.body().removeClass("light");
         Objects.requireNonNull(document.selectFirst("base")).attr("href", "/");
-        PublicWebSiteInfo publicWebSiteInfo = AdminConstants.getPublicWebSiteInfo();
+        PublicWebSiteInfo publicWebSiteInfo = cacheService.getPublicWebSiteInfo();
         document.body().addClass(Objects.equals(publicWebSiteInfo.getAdmin_darkMode(), true) ? "dark" : "light");
         Element htmlElement = document.selectFirst("html");
         if (Objects.nonNull(htmlElement)) {
-            htmlElement.attr("lang", I18nUtil.getCurrentLocale().split("_")[0]);
+            htmlElement.attr("lang", I18nUtil.getCurrentLocale(publicWebSiteInfo.getLanguage()).split("_")[0]);
         }
         Elements select = document.head().select("meta[name=theme-color]");
         if (!select.isEmpty()) {
@@ -55,7 +61,7 @@ public class AdminPageService {
                 first.attr("content", publicWebSiteInfo.getAdmin_color_primary());
             }
         }
-        String adminStaticResourceHostByWebSite = AdminWebTools.getAdminStaticResourceBaseUrlByWebSite(request);
+        String adminStaticResourceHostByWebSite = staticResourceUrl.apply(request);
 
         Elements manifest = document.head().select("link[rel=manifest]");
         if (!manifest.isEmpty()) {
@@ -113,38 +119,38 @@ public class AdminPageService {
         } else {
             newUrl = link.attr("href").replaceFirst("/", WebTools.getHomeUrl(request));
         }
-        link.attr("href", newUrl + "?v=" + AdminConstants.adminResource.getStaticResourceBuildId());
+        link.attr("href", newUrl + "?v=" + resources.getStaticResourceBuildId());
     }
 
     public ServerSideDataResponse<Object> serverSide(String uri, HttpRequest request, HttpResponse response) throws Throwable {
-        com.zrlog.admin.business.rest.response.AdminResourceInfoResponse resourceInfo = AdminConstants.adminResource.adminResourceInfo(request);
+        com.zrlog.admin.business.rest.response.AdminResourceInfoResponse resourceInfo = resources.adminResourceInfo(request);
         if (Objects.isNull(AdminTokenThreadLocal.getUser()) || BaseStaticSitePlugin.isStaticPluginRequest(request)) {
-            return new ServerSideDataResponse<>(null, resourceInfo, null, null, AdminConstants.getAdminDocumentTitleByUri(request.getUri()));
+            return new ServerSideDataResponse<>(null, resourceInfo, null, null, pages.title(request.getUri()), pages.metadata(uri));
         }
-        UserInfoResponse userInfo = new UserService().getUserInfoWithCache(AdminTokenThreadLocal.getUserId(), AdminTokenThreadLocal.getUser().getSessionId(), cacheService);
+        UserInfoResponse userInfo = new UserService(java.util.Collections::emptySet).getUserInfoWithCache(AdminTokenThreadLocal.getUserId(), AdminTokenThreadLocal.getUser().getSessionId(), cacheService);
         new UserPreferenceService().apply(resourceInfo, userInfo.getLanguage(), userInfo.getAppearance());
         Method method = request.getRequestConfig().getRouter().getMethod(AdminAccountPages.apiUri(uri), request.getMethod());
         // Disabled features have no API route; retain the shell so the UI can render its 404 page.
         if (method == null) {
             return new ServerSideDataResponse<>(userInfo, resourceInfo, null,
-                    AdminTokenThreadLocal.getUser().getSessionId(), AdminConstants.getAdminDocumentTitleByUri(uri));
+                    AdminTokenThreadLocal.getUser().getSessionId(), pages.title(uri), pages.metadata(uri));
         }
         try {
             AccountPermissionService.checkRoute(method, request);
             Controller controller = Controller.buildController(method, request, response);
             StandardResponse result = (StandardResponse) method.invoke(controller);
             if (Objects.isNull(result)) {
-                return new ServerSideDataResponse<>(userInfo, resourceInfo, new Object(), AdminTokenThreadLocal.getUser().getSessionId(), AdminConstants.getAdminDocumentTitleByUri(request.getUri()));
+                return new ServerSideDataResponse<>(userInfo, resourceInfo, new Object(), AdminTokenThreadLocal.getUser().getSessionId(), pages.title(request.getUri()), pages.metadata(uri));
             }
             if (result instanceof AdminPageDataResponse<?>) {
                 AdminPageDataResponse<?> data = (AdminPageDataResponse<?>) result;
                 return new ServerSideDataResponse<>(userInfo, resourceInfo, data.getData(), AdminTokenThreadLocal.getUser().getSessionId(),
-                        AdminAccountPages.PAGE_APIS.containsKey(uri) ? AdminConstants.getAdminDocumentTitleByUri(uri) : data.getDocumentTitle());
+                        AdminAccountPages.PAGE_APIS.containsKey(uri) ? pages.title(uri) : data.getDocumentTitle(), pages.metadata(uri));
             }
         } catch (InvocationTargetException e) {
             throw e.getTargetException();
         }
-        return new ServerSideDataResponse<>(userInfo, resourceInfo, null, AdminTokenThreadLocal.getUser().getSessionId(), AdminConstants.getAdminDocumentTitleByUri(request.getUri()));
+        return new ServerSideDataResponse<>(userInfo, resourceInfo, null, AdminTokenThreadLocal.getUser().getSessionId(), pages.title(request.getUri()), pages.metadata(uri));
     }
 
 }

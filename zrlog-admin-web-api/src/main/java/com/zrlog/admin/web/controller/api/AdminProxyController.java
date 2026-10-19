@@ -6,6 +6,7 @@ import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.rest.request.ProxySettingsRequest;
 import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
 import com.zrlog.admin.business.rest.response.ProxySettingsResponse;
+import com.zrlog.admin.business.service.AdminPageDataFactory;
 import com.zrlog.admin.business.service.AdminProxyService;
 import com.zrlog.admin.web.annotation.RequiresAction;
 import com.zrlog.common.controller.BaseController;
@@ -17,6 +18,12 @@ import com.zrlog.util.NetworkProxy;
 import java.io.IOException;
 
 public class AdminProxyController extends BaseController {
+    public AdminProxyController(AdminPageDataFactory pages) {
+        this.pages = pages;
+    }
+
+    private final AdminPageDataFactory pages;
+
     @ResponseBody
     @RequiresAction(value = AccountAction.SYSTEM_MANAGE, descriptionKey = "system.proxy")
     public AdminPageDataResponse<ProxySettingsResponse> index() throws IOException {
@@ -31,7 +38,7 @@ public class AdminProxyController extends BaseController {
             response.renderCode(405);
             return null;
         }
-        return new AdminPageDataResponse<>(new ProxySettingsResponse(NetworkProxy.initialize(), NetworkProxy.configured()),
+        return pages.response(new ProxySettingsResponse(NetworkProxy.initialize(), NetworkProxy.configured()),
                 "", AdminConstants.ADMIN_URI_BASE_PATH + "/system/proxy");
     }
 

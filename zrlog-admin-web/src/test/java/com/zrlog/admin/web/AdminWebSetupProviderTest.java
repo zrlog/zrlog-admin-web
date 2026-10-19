@@ -1,10 +1,10 @@
 package com.zrlog.admin.web;
 
-import com.hibegin.http.server.util.PathUtil;
 import com.hibegin.http.HttpMethod;
+import com.hibegin.http.server.util.PathUtil;
+import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.web.controller.api.AdminDevController;
 import com.zrlog.admin.web.controller.page.AdminPageController;
-import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.web.interceptor.AdminCrossOriginInterceptor;
 import com.zrlog.admin.web.interceptor.AdminInterceptor;
 import com.zrlog.admin.web.interceptor.AdminLoginInterceptor;
@@ -57,6 +57,7 @@ public class AdminWebSetupProviderTest {
     public void shouldConfigureAdminWebSetupRoutesInterceptorsAndPlugins() throws Exception {
         PathUtil.setRootPath(temporaryFolder.newFolder("zrlog-root").getAbsolutePath());
         NotInstalledConfig config = new NotInstalledConfig();
+        new com.zrlog.business.web.ServiceWebSetup(new WebSetupContext(config, null, null, "/blog", null)).setup();
         AdminWebSetup setup = new AdminWebSetup(config);
 
         setup.setup();

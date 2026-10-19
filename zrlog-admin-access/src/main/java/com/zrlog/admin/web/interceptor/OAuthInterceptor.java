@@ -8,6 +8,7 @@ import com.hibegin.http.server.api.HttpResponse;
 import com.zrlog.admin.business.security.OAuthException;
 import com.zrlog.admin.business.security.OAuthModels;
 import com.zrlog.admin.business.service.OAuthService;
+
 import java.io.ByteArrayInputStream;
 import java.net.URLDecoder;
 import java.nio.ByteBuffer;
@@ -16,12 +17,14 @@ import java.util.*;
 
 /** Public OAuth protocol endpoints intentionally use standard OAuth HTTP errors, without admin envelopes. */
 public class OAuthInterceptor implements HandleAbleInterceptor {
+    private final OAuthService service;
+
+    public OAuthInterceptor(OAuthService service) { this.service = Objects.requireNonNull(service); }
     @Override public boolean isHandleAble(HttpRequest request) {
         String path = request.getUri();
         return path.startsWith("/oauth/") || path.startsWith("/.well-known/oauth-") || path.equals("/api/oauth/me");
     }
     @Override public boolean doInterceptor(HttpRequest request, HttpResponse response) throws Exception {
-        OAuthService service = new OAuthService();
         response.addHeader("Cache-Control", "no-store");
         response.addHeader("Pragma", "no-cache");
         response.addHeader("Referrer-Policy", "no-referrer");
@@ -36,7 +39,7 @@ public class OAuthInterceptor implements HandleAbleInterceptor {
             } else if (path.equals(java.net.URI.create(service.resourceMetadataUrl()).getRawPath()) && request.getMethod() == HttpMethod.GET) {
                 json(response, service.resourceMetadata(), 200);
             } else if (path.equals(java.net.URI.create(service.mcpResourceMetadataUrl()).getRawPath()) && request.getMethod() == HttpMethod.GET) {
-                if (com.zrlog.admin.web.McpWebSetup.enabled()) json(response, service.mcpResourceMetadata(), 200);
+                if (service.isMcpEnabled()) json(response, service.mcpResourceMetadata(), 200);
                 else response.renderCode(404);
             } else if (path.equals("/oauth/authorize") && request.getMethod() == HttpMethod.GET) {
                 Map<String,String> p = parameters(Objects.toString(request.getQueryStr(), ""));

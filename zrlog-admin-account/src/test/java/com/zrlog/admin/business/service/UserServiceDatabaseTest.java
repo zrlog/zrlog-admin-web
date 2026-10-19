@@ -14,8 +14,10 @@ import com.zrlog.admin.business.rest.response.UserBasicInfoResponse;
 import com.zrlog.admin.business.rest.response.UserInfoResponse;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.common.exception.ArgsException;
-import java.util.Map;
 import org.junit.Test;
+
+import java.util.Map;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -23,6 +25,27 @@ import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 public class UserServiceDatabaseTest {
+
+    @Test
+    public void accountCacheMetadataComesFromInjectedResourcesWithoutGlobals() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            var uris = new java.util.HashSet<String>(java.util.Set.of("/api/admin/site-a"));
+            var users = new UserService(() -> uris);
+            var previousResources = com.zrlog.admin.business.AdminConstants.adminResource;
+            try {
+                com.zrlog.common.Constants.zrLogConfig = null;
+                com.zrlog.admin.business.AdminConstants.adminResource = null;
+                var first = users.getBasicUserInfo(1, "first");
+                assertEquals(java.util.Set.of("/api/admin/site-a"), first.getCacheableApiUris());
+                uris.clear();
+                uris.add("/api/admin/site-b");
+                assertEquals(java.util.Set.of("/api/admin/site-b"), users.getBasicUserInfo(1, "second").getCacheableApiUris());
+                assertEquals(java.util.Set.of("/api/admin/site-a"), first.getCacheableApiUris());
+            } finally {
+                com.zrlog.admin.business.AdminConstants.adminResource = previousResources;
+            }
+        }
+    }
 
     @Test
     public void shouldLoginAgainstUserTableAndUpgradeLegacyPasswordHash() throws Exception {
@@ -34,7 +57,7 @@ public class UserServiceDatabaseTest {
             request.setUserName("admin");
             request.setPassword(submittedPassword);
 
-            UserLoginDTO login = new UserService().login(request);
+            UserLoginDTO login = new UserService(java.util.Collections::emptySet).login(request);
             String upgradedPassword = String.valueOf(db.scalar("select password from user where userId=?", 1));
 
             assertEquals(Integer.valueOf(1), login.getId());
@@ -56,7 +79,7 @@ public class UserServiceDatabaseTest {
             request.setOldPassword("old-password");
             request.setNewPassword("new-password");
 
-            UpdateRecordResponse response = new UserService().updatePassword(1, request);
+            UpdateRecordResponse response = new UserService(java.util.Collections::emptySet).updatePassword(1, request);
             String updatedPassword = String.valueOf(db.scalar("select password from user where userId=?", 1));
 
             assertEquals(0, response.getError());
@@ -69,7 +92,7 @@ public class UserServiceDatabaseTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             db.execute("update user set mfaEnabled=?, mfaSecret=? where userId=?", 1, "JBSWY3DPEHPK3PXP", 1);
 
-            UserInfoResponse response = new UserService().getUserInfoWithCache(1, "session-key", db.cacheService());
+            UserInfoResponse response = new UserService(java.util.Collections::emptySet).getUserInfoWithCache(1, "session-key", db.cacheService());
 
             assertEquals("admin", response.getUserName());
             assertEquals("/avatar.png", response.getHeader());
@@ -87,7 +110,7 @@ public class UserServiceDatabaseTest {
             db.putWebsite("admin_darkMode", true);
             db.execute("update user set preferences=? where userId=1",
                     "{\"language\":\"en_US\",\"appearance\":{\"darkMode\":false}}");
-            UserService service = new UserService();
+            UserService service = new UserService(java.util.Collections::emptySet);
             UserInfoResponse owner = service.getUserInfoWithCache(1, "owner-session", db.cacheService());
             UserInfoResponse writer = service.getUserInfoWithCache(2, "writer-session", db.cacheService());
             assertEquals("en_US", owner.getLanguage());
@@ -120,7 +143,7 @@ public class UserServiceDatabaseTest {
     public void shouldRejectInvalidLoginAndPasswordUpdatesThroughRealUserTable() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             db.execute("update user set password=? where userId=?", SecurityUtils.md5("secret"), 1);
-            UserService service = new UserService();
+            UserService service = new UserService(java.util.Collections::emptySet);
 
             assertThrows(UserNameAndPasswordRequiredException.class, () -> service.login(loginRequest("", "")));
             assertThrows(UserNameOrPasswordException.class, () -> service.login(loginRequest("missing", "secret")));
@@ -141,14 +164,14 @@ public class UserServiceDatabaseTest {
     @Test
     public void shouldLoadAndUpdateUserProfileThroughRealUserDao() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-            UserService service = new UserService();
+            UserService service = new UserService(java.util.Collections::emptySet);
             UserBasicInfoResponse before = service.getBasicUserInfo(1, "session-key");
             UpdateAdminRequest request = new UpdateAdminRequest();
             request.setUserName("root");
             request.setEmail("root@example.com");
             request.setHeader("/attached/root.png");
 
-            Object updated = service.update(1, request, null);
+            Object updated = service.update(1, request, null, null);
             Map<String, Object> row = db.queryOne("select userName,email,header from user where userId=?", 1);
 
             assertEquals("admin", before.getUserName());
@@ -167,13 +190,40 @@ public class UserServiceDatabaseTest {
     @Test
     public void shouldRejectMalformedInlineHeaderBeforeUpdatingUserTable() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-            UserService service = new UserService();
+            UserService service = new UserService(java.util.Collections::emptySet);
             UpdateAdminRequest missingComma = profileRequest("data:image/png;base64");
             UpdateAdminRequest missingBase64Marker = profileRequest("data:image/png,abc");
 
-            assertThrows(ArgsException.class, () -> service.update(1, missingComma, null));
-            assertThrows(ArgsException.class, () -> service.update(1, missingBase64Marker, null));
+            assertThrows(ArgsException.class, () -> service.update(1, missingComma, null, null));
+            assertThrows(ArgsException.class, () -> service.update(1, missingBase64Marker, null, null));
             assertEquals("/avatar.png", db.queryOne("select header from user where userId=?", 1).get("header"));
+        }
+    }
+
+    @Test
+    public void profileUsesTheSuppliedAvatarStorageAndRejectsMissingStorageWithoutChangingTheUser() throws Exception {
+        try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            var config = com.zrlog.common.Constants.zrLogConfig;
+            com.zrlog.common.Constants.zrLogConfig = null;
+            try {
+                UserService service = new UserService(java.util.Collections::emptySet);
+                UpdateAdminRequest input = profileRequest("data:image/webp;base64,AQID");
+                assertThrows(com.zrlog.admin.business.exception.PermissionErrorException.class,
+                        () -> service.update(1, input, null, null));
+                assertEquals("/avatar.png", db.scalar("select header from user where userId=1"));
+                var storage = new com.zrlog.admin.business.account.AvatarStorage() {
+                    @Override public void setup() { }
+                    @Override public String saveAvatar(byte[] bytes, String extension, com.hibegin.http.server.api.HttpRequest request) {
+                        org.junit.Assert.assertArrayEquals(new byte[]{1, 2, 3}, bytes);
+                        assertEquals("webp", extension);
+                        return "https://assets.example/avatars/profile.webp";
+                    }
+                };
+                assertEquals("https://assets.example/avatars/profile.webp", service.update(1, input, null, storage).getHeader());
+                assertEquals("https://assets.example/avatars/profile.webp", db.scalar("select header from user where userId=1"));
+            } finally {
+                com.zrlog.common.Constants.zrLogConfig = config;
+            }
         }
     }
 

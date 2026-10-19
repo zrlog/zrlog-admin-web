@@ -10,7 +10,6 @@ import com.zrlog.admin.business.rest.response.UploadFileResponse;
 import com.zrlog.admin.plugin.rest.response.UploadServiceResponseEntity;
 import com.zrlog.admin.util.UploadFileUtils;
 import com.zrlog.business.plugin.PluginCorePlugin;
-import com.zrlog.common.Constants;
 import com.zrlog.common.vo.AdminTokenVO;
 
 import java.io.File;
@@ -23,7 +22,9 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.StringJoiner;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -31,6 +32,11 @@ public class UploadService {
 
     private static final Logger LOGGER = LoggerUtil.getLogger(UploadService.class);
     private final DbFileService dbFileService = new DbFileService();
+    private final Supplier<PluginCorePlugin> pluginCore;
+
+    public UploadService(Supplier<PluginCorePlugin> pluginCore) {
+        this.pluginCore = Objects.requireNonNull(pluginCore);
+    }
 
     public UploadFileResponse saveUploadedFile(File file, String dir, HttpRequest request,
                                                AdminTokenVO adminTokenVO) throws IOException, SQLException {
@@ -67,8 +73,8 @@ public class UploadService {
             uploadParams.put("fileInfo", new String[]{finalFilePath + "," + uri});
             uploadParams.put("name", new String[]{"uploadService"});
 
-            PluginCorePlugin pluginCorePlugin = Constants.zrLogConfig.getPlugin(PluginCorePlugin.class);
-            UploadServiceResponseEntity[] urls = pluginCorePlugin.requestService(request,
+            PluginCorePlugin pluginCorePlugin = pluginCore.get();
+            UploadServiceResponseEntity[] urls = pluginCorePlugin == null ? null : pluginCorePlugin.requestService(request,
                     uploadParams, adminTokenVO, UploadServiceResponseEntity[].class);
             if (urls != null && urls.length > 0) {
                 url = urls[0].getUrl();

@@ -5,13 +5,13 @@ import com.zrlog.admin.business.rest.response.FileReferenceIndexCacheVO;
 import com.zrlog.admin.business.rest.response.FileReferenceVO;
 import com.zrlog.admin.business.rest.response.ReplaceArticleResourceUrlResponse;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
-import com.zrlog.test.support.TestLogCapture;
 import com.zrlog.common.vo.AdminTokenVO;
+import com.zrlog.test.support.TestLogCapture;
 import org.junit.Test;
 
 import java.lang.reflect.Field;
-import java.util.List;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 
@@ -30,7 +30,7 @@ public class FileManagerReferenceServiceTest {
             public boolean putJson(String key, Object value) {
                 return false;
             }
-        });
+        }, "");
 
         try (TestLogCapture logs = TestLogCapture.forClass(FileManagerReferenceService.class)) {
             assertFalse(service.writeReferenceIndexCache(new FileReferenceIndexCacheVO()));
@@ -45,7 +45,7 @@ public class FileManagerReferenceServiceTest {
             public boolean remove(String key) {
                 return false;
             }
-        });
+        }, "");
 
         try (TestLogCapture logs = TestLogCapture.forClass(FileManagerReferenceService.class)) {
             assertFalse(service.clearReferenceIndexCache());
@@ -60,7 +60,7 @@ public class FileManagerReferenceServiceTest {
             public boolean putJson(String key, Object value) {
                 return true;
             }
-        });
+        }, "");
 
         assertTrue(service.writeReferenceIndexCache(new FileReferenceIndexCacheVO()));
     }

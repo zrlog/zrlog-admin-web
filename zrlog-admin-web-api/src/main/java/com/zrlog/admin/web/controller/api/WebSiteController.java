@@ -14,6 +14,7 @@ import com.zrlog.admin.business.rest.request.UpgradeSettingsRequest;
 import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
 import com.zrlog.admin.business.rest.response.UpgradeSettingsResponse;
 import com.zrlog.admin.business.rest.response.VersionResponse;
+import com.zrlog.admin.business.service.AdminPageDataFactory;
 import com.zrlog.admin.business.service.UpgradeSettingsService;
 import com.zrlog.admin.business.service.WebSiteService;
 import com.zrlog.admin.business.service.WebSiteSettingsService;
@@ -25,23 +26,32 @@ import com.zrlog.business.updater.UpdateVersionInfoPlugin;
 import com.zrlog.common.controller.BaseController;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.I18nUtil;
+
 import java.sql.SQLException;
 import java.util.Map;
 
 public class WebSiteController extends BaseController {
+    private final AdminPageDataFactory pages;
+
 
     private final WebSiteService webSiteService = new WebSiteService();
     private final WebSiteSettingsService settingsService;
+    private final UpgradeSettingsService upgradeSettings;
+    private final com.zrlog.admin.business.service.FeatureLabService features;
 
-    public WebSiteController(WebSiteSettingsService settingsService) {
+    public WebSiteController(WebSiteSettingsService settingsService, UpgradeSettingsService upgradeSettings,
+                             com.zrlog.admin.business.service.FeatureLabService features, AdminPageDataFactory pages) {
+        this.pages = pages;
+        this.upgradeSettings = upgradeSettings;
         this.settingsService = settingsService;
+        this.features = features;
     }
 
     @ResponseBody
     @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "website.version")
     public AdminPageDataResponse<VersionResponse> version() {
         VersionResponse version = settingsService.version(getCurrentChangeLog(I18nUtil.getBackend()));
-        return new AdminPageDataResponse<>(version, "", AdminConstants.ADMIN_URI_BASE_PATH + "/system/version");
+        return pages.response(version, "", AdminConstants.ADMIN_URI_BASE_PATH + "/system/version");
     }
 
     protected String getCurrentChangeLog(Map<String, Object> backendMessages) {
@@ -130,13 +140,9 @@ public class WebSiteController extends BaseController {
         if (isPost()) {
             FeatureLabWebSiteInfo settings = getRequestBodyWithNullCheck(FeatureLabWebSiteInfo.class);
             settingsService.update(settings, request);
-            var webhook = new com.zrlog.admin.business.rest.request.WebhookConfigRequest();
-            webhook.setEnabled(settings.getFeature_webhook_enabled());
-            if (com.zrlog.common.Constants.zrLogConfig.getWebSetup(com.zrlog.admin.web.AccessWebSetup.class) != null) {
-                new com.zrlog.admin.business.service.WebhookService().updateConfig(webhook);
-            }
+            features.updateWebhook(settings.getFeature_webhook_enabled());
         }
-        return page(new com.zrlog.admin.business.service.FeatureLabService().featureLab());
+        return page(features.featureLab());
     }
 
     @RequestLock(onlyOnPostMethod = true)
@@ -150,7 +156,7 @@ public class WebSiteController extends BaseController {
         return page(upgradeSettings.read(isPost() ? null : request.getParaToStr("channel")));
     }
 
-    protected UpgradeSettingsService upgradeSettingsService() { return new UpgradeSettingsService(settingsService); }
+    protected UpgradeSettingsService upgradeSettingsService() { return upgradeSettings; }
 
     private boolean isPost() {
         return request.getMethod() == HttpMethod.POST;
@@ -158,6 +164,6 @@ public class WebSiteController extends BaseController {
 
     private <T> AdminPageDataResponse<T> page(T data) {
         String message = isPost() ? I18nUtil.getAdminBackendStringFromRes("admin.common.update.success") : "";
-        return new AdminPageDataResponse<>(data, message, request.getUri());
+        return pages.response(data, message, request.getUri());
     }
 }

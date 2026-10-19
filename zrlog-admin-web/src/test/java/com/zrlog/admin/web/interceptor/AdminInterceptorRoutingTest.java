@@ -37,7 +37,7 @@ public class AdminInterceptorRoutingTest {
 
     @Test
     public void shouldMatchAdminStaticResourceRoutes() {
-        AdminStaticResourceInterceptor interceptor = new AdminStaticResourceInterceptor();
+        AdminStaticResourceInterceptor interceptor = new AdminStaticResourceInterceptor(() -> com.zrlog.common.Constants.zrLogConfig.getPlugin(com.zrlog.admin.web.plugin.AdminStaticResourcePlugin.class));
 
         assertTrue(interceptor.isHandleAble(request(AdminConstants.ADMIN_SERVICE_WORKER_JS)));
         assertTrue(interceptor.isHandleAble(request("/admin/static/js/main.123.js")));
@@ -49,7 +49,7 @@ public class AdminInterceptorRoutingTest {
 
     @Test
     public void shouldMatchAdminPluginRoutes() {
-        AdminPluginInterceptor interceptor = new AdminPluginInterceptor();
+        AdminPluginInterceptor interceptor = new AdminPluginInterceptor(() -> com.zrlog.common.Constants.zrLogConfig.getTokenService(), () -> com.zrlog.common.Constants.zrLogConfig.getPlugin(com.zrlog.business.plugin.PluginCorePlugin.class), com.zrlog.admin.support.ApplicationServicesFixture.installed(com.zrlog.common.Constants.zrLogConfig));
 
         assertTrue(interceptor.isHandleAble(request("/admin/plugins")));
         assertTrue(interceptor.isHandleAble(request("/admin/plugins/reminder")));
@@ -58,7 +58,7 @@ public class AdminInterceptorRoutingTest {
 
     @Test
     public void shouldMatchCoreAdminRoutes() {
-        AdminInterceptor interceptor = new AdminInterceptor();
+        AdminInterceptor interceptor = new AdminInterceptor(() -> com.zrlog.common.Constants.zrLogConfig.getTokenService(), () -> com.zrlog.admin.support.ApplicationServicesFixture.dispatcher(null, com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.installed(com.zrlog.common.Constants.zrLogConfig));
 
         assertTrue(interceptor.isHandleAble(request("/admin")));
         assertTrue(interceptor.isHandleAble(request("/api/admin")));
@@ -69,8 +69,8 @@ public class AdminInterceptorRoutingTest {
 
     @Test
     public void shouldMatchLoginAndRefreshRoutes() {
-        AdminLoginInterceptor loginInterceptor = new AdminLoginInterceptor();
-        AdminRefreshCacheInterceptor refreshCacheInterceptor = new AdminRefreshCacheInterceptor();
+        AdminLoginInterceptor loginInterceptor = new AdminLoginInterceptor(() -> com.zrlog.common.Constants.zrLogConfig.getTokenService());
+        AdminRefreshCacheInterceptor refreshCacheInterceptor = new AdminRefreshCacheInterceptor(() -> com.zrlog.common.Constants.zrLogConfig.getTokenService(), new com.zrlog.admin.web.interceptor.PluginTokenValidator(() -> com.zrlog.common.Constants.zrLogConfig.getPlugin(com.zrlog.business.plugin.PluginCorePlugin.class)), () -> com.zrlog.admin.support.ApplicationServicesFixture.dispatcher(null, com.zrlog.common.Constants.zrLogConfig));
 
         assertTrue(loginInterceptor.isHandleAble(request(AdminConstants.ADMIN_LOGIN_URI_PATH)));
         assertTrue(loginInterceptor.isHandleAble(request("/admin/logout")));
@@ -82,11 +82,11 @@ public class AdminInterceptorRoutingTest {
 
     @Test
     public void shouldMatchTemporaryDevAndPwaRoutes() {
-        assertTrue(new AdminTemporaryResourceInterceptor().isHandleAble(
+        assertTrue(new AdminTemporaryResourceInterceptor(() -> com.zrlog.common.Constants.zrLogConfig.getTokenService(), () -> false).isHandleAble(
                 request(AdminConstants.ADMIN_DB_ATTACHED_TMP + "/image.png")));
-        assertFalse(new AdminTemporaryResourceInterceptor().isHandleAble(request("/attached/tmp/image.png")));
-        assertTrue(new AdminDevFileInterceptor().isHandleAble(request("/admin/dev/file/tmp/a.txt")));
-        assertFalse(new AdminDevFileInterceptor().isHandleAble(request("/admin/dev")));
+        assertFalse(new AdminTemporaryResourceInterceptor(() -> com.zrlog.common.Constants.zrLogConfig.getTokenService(), () -> false).isHandleAble(request("/attached/tmp/image.png")));
+        assertTrue(new AdminDevFileInterceptor(() -> com.zrlog.common.Constants.zrLogConfig.getTokenService()).isHandleAble(request("/admin/dev/file/tmp/a.txt")));
+        assertFalse(new AdminDevFileInterceptor(() -> com.zrlog.common.Constants.zrLogConfig.getTokenService()).isHandleAble(request("/admin/dev")));
 
         PwaInterceptor pwaInterceptor = new PwaInterceptor();
         assertTrue(pwaInterceptor.isHandleAble(request(AdminConstants.FAVICON_ICO_URI_PATH)));
@@ -94,7 +94,7 @@ public class AdminInterceptorRoutingTest {
         assertTrue(pwaInterceptor.isHandleAble(request(AdminConstants.FAVICON_PNG_PWA_512_URI_PATH)));
         assertFalse(pwaInterceptor.isHandleAble(request("/admin/pwa/icon/other.png")));
 
-        AdminPwaInterceptor adminPwaInterceptor = new AdminPwaInterceptor();
+        AdminPwaInterceptor adminPwaInterceptor = new AdminPwaInterceptor(new InMemoryZrLogDatabase.TestAdminResource());
         assertTrue(adminPwaInterceptor.isHandleAble(request(AdminConstants.ADMIN_PWA_MANIFEST_JSON)));
         assertTrue(adminPwaInterceptor.isHandleAble(request(AdminConstants.ADMIN_PWA_MANIFEST_API_URI_PATH)));
         assertTrue(adminPwaInterceptor.isHandleAble(request(AdminConstants.ADMIN_SERVICE_WORKER_JS)));
@@ -106,7 +106,7 @@ public class AdminInterceptorRoutingTest {
         ResponseRecorder response = new ResponseRecorder();
 
         withConfig(new TestZrLogConfig(tokenService(null)), () ->
-                new AdminInterceptor().doInterceptor(
+                new AdminInterceptor(() -> com.zrlog.common.Constants.zrLogConfig.getTokenService(), () -> com.zrlog.admin.support.ApplicationServicesFixture.dispatcher(null, com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.installed(com.zrlog.common.Constants.zrLogConfig)).doInterceptor(
                         adminRequest(HttpMethod.GET, "/admin/interceptor/plain"), response.response()));
 
         assertTrue(response.redirected.contains("/admin/login"));
@@ -120,7 +120,7 @@ public class AdminInterceptorRoutingTest {
         ResponseRecorder response = new ResponseRecorder();
 
         withConfig(new TestZrLogConfig(tokenService(token())), () ->
-                new AdminInterceptor().doInterceptor(
+                new AdminInterceptor(() -> com.zrlog.common.Constants.zrLogConfig.getTokenService(), () -> com.zrlog.admin.support.ApplicationServicesFixture.dispatcher(null, com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.installed(com.zrlog.common.Constants.zrLogConfig)).doInterceptor(
                         adminRequest(HttpMethod.GET, "/admin/interceptor/plain"), response.response()));
 
         assertEquals("plain", ((ApiStandardResponse<?>) response.rendered).getData());
@@ -134,7 +134,7 @@ public class AdminInterceptorRoutingTest {
             ResponseRecorder response = new ResponseRecorder();
 
             withConfig(new TestZrLogConfig(tokenService(token())), () ->
-                    new AdminInterceptor().doInterceptor(
+                    new AdminInterceptor(() -> com.zrlog.common.Constants.zrLogConfig.getTokenService(), () -> com.zrlog.admin.support.ApplicationServicesFixture.dispatcher(null, com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.installed(com.zrlog.common.Constants.zrLogConfig)).doInterceptor(
                             adminRequest(HttpMethod.POST, "/admin/interceptor/locked"), response.response()));
 
             assertEquals("locked", ((ApiStandardResponse<?>) response.rendered).getData());
@@ -148,7 +148,7 @@ public class AdminInterceptorRoutingTest {
         ResponseRecorder response = new ResponseRecorder();
 
         withConfig(new TestZrLogConfig(tokenService(token())), () ->
-                new AdminInterceptor().doInterceptor(
+                new AdminInterceptor(() -> com.zrlog.common.Constants.zrLogConfig.getTokenService(), () -> com.zrlog.admin.support.ApplicationServicesFixture.dispatcher(null, com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.installed(com.zrlog.common.Constants.zrLogConfig)).doInterceptor(
                         adminRequest(HttpMethod.GET, "/admin/interceptor/postOnlyLock"), response.response()));
 
         assertEquals("postOnly", ((ApiStandardResponse<?>) response.rendered).getData());

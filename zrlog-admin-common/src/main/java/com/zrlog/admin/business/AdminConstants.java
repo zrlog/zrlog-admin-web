@@ -2,10 +2,9 @@ package com.zrlog.admin.business;
 
 import com.hibegin.common.util.StringUtils;
 import com.zrlog.admin.business.service.AdminResource;
-import com.zrlog.common.Constants;
 import com.zrlog.common.vo.PublicWebSiteInfo;
-import com.zrlog.data.util.WebSiteUtils;
 import com.zrlog.util.I18nUtil;
+
 import java.util.*;
 
 public class AdminConstants {
@@ -83,31 +82,15 @@ public class AdminConstants {
 
     public static AdminResource adminResource;
 
-    public static String getAdminDocumentTitleByUri(String uri) {
-        String realUri = com.zrlog.admin.web.config.AdminAccountPages.titleUri(uri);
-        String key = TITLE_MAP.get(realUri);
-        if (Objects.isNull(key)) {
-            return getAdminTitle("");
-        }
-        return getAdminTitle(I18nUtil.getAdminBackendStringFromRes(key));
-    }
-
     public static String getAdminDocumentTitleByUri(String uri, PublicWebSiteInfo publicWebSiteInfo) {
         String realUri = com.zrlog.admin.web.config.AdminAccountPages.titleUri(uri);
         String key = TITLE_MAP.get(realUri);
-        if (Objects.isNull(key)) {
-            return getAdminTitle("");
-        }
-        return getAdminTitle(I18nUtil.getAdminBackendStringFromRes(key), publicWebSiteInfo);
+        String title = key == null ? "" : I18nUtil.getAdminBackendStringFromRes(key, pageLanguage(publicWebSiteInfo));
+        return getAdminTitle(title, publicWebSiteInfo);
     }
 
-    public static PublicWebSiteInfo getPublicWebSiteInfo() {
-        return Objects.requireNonNullElseGet(Constants.getPublicWebSiteInfo(),
-                () -> WebSiteUtils.fillDefaultInfo(new PublicWebSiteInfo()));
-    }
-
-    public static String getAdminTitle(String startTitle) {
-        return getAdminTitle(startTitle, getPublicWebSiteInfo());
+    private static String pageLanguage(PublicWebSiteInfo site) {
+        return I18nUtil.getCurrentLocale(site.getLanguage());
     }
 
     public static String getAdminTitle(String startTitle, PublicWebSiteInfo publicWebSiteInfo) {
@@ -119,11 +102,9 @@ public class AdminConstants {
         if (StringUtils.isNotEmpty(title)) {
             sj.add(title);
         }
-        sj.add(I18nUtil.getAdminBackendStringFromRes("admin.management.title"));
+        sj.add(I18nUtil.getAdminBackendStringFromRes("admin.management.title", pageLanguage(publicWebSiteInfo)));
         return sj.toString();
     }
 
-    public static long getAutoDigestLength() {
-        return getPublicWebSiteInfo().getArticle_auto_digest_length();
-    }
+
 }

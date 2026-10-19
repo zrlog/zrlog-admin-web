@@ -5,25 +5,41 @@ import com.hibegin.common.util.LoggerUtil;
 import com.hibegin.common.util.StringUtils;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.util.PathUtil;
-import com.zrlog.common.Constants;
 import com.zrlog.util.ZrLogUtil;
 
-import javax.sql.DataSource;
+import java.io.File;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Objects;
 import java.util.Properties;
+import java.util.function.BooleanSupplier;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.sql.DataSource;
 
 public class SystemInfoUtils {
+
+    private final BooleanSupplier installed;
+    private final Supplier<DataSource> dataSource;
+    private final Supplier<File> executable;
+    private final Supplier<String> uptime;
+
+    public SystemInfoUtils(BooleanSupplier installed, Supplier<DataSource> dataSource,
+                           Supplier<File> executable, Supplier<String> uptime) {
+        this.installed = Objects.requireNonNull(installed);
+        this.dataSource = Objects.requireNonNull(dataSource);
+        this.executable = Objects.requireNonNull(executable);
+        this.uptime = Objects.requireNonNull(uptime);
+    }
 
     public static final Logger LOGGER = LoggerUtil.getLogger(SystemInfoUtils.class);
 
 
-    private static Properties getSystemProp() {
-        Properties systemProp = System.getProperties();
+    private Properties getSystemProp() {
+        Properties systemProp = new Properties();
+        systemProp.putAll(System.getProperties());
         systemProp.setProperty("zrlog.runtime.path", PathUtil.getRootPath());
         systemProp.setProperty("server.info", "SimpleWebServer/" + com.hibegin.http.server.util.ServerInfo.getVersion());
         if (StringUtils.isNotEmpty(systemProp.getProperty("os.name"))) {
@@ -34,17 +50,13 @@ public class SystemInfoUtils {
             }
             systemProp.put("docker", ZrLogUtil.isDockerMode() ? "docker" : "");
         }
-        if (Constants.zrLogConfig.isInstalled()) {
-            systemProp.put("dbServer.version", getDatabaseServerVersion());
-
+        systemProp.remove("dbServer.version");
+        if (installed.getAsBoolean()) {
+            systemProp.put("dbServer.version", getDatabaseServerVersion(dataSource.get()));
         }
         return systemProp;
     }
 
-
-    private static String getDatabaseServerVersion() {
-        return getDatabaseServerVersion(Constants.zrLogConfig.getDataSource());
-    }
 
     static String getDatabaseServerVersion(DataSource dataSource) {
         if (Objects.isNull(dataSource)) {
@@ -76,7 +88,7 @@ public class SystemInfoUtils {
     }
 
 
-    public static List<ServerInfo> serverInfo(HttpRequest httpRequest) throws SQLException {
+    public List<ServerInfo> serverInfo(HttpRequest httpRequest) throws SQLException {
         ServerInfoSnapshot snapshot = ServerInfoSnapshot.fromProperties(getSystemProp());
         String applicationName = httpRequest.getServerConfig().getApplicationName();
         if (applicationName.startsWith("zrlog")) {
@@ -88,7 +100,7 @@ public class SystemInfoUtils {
         return ServerInfoUtils.convertToServerInfos(snapshot);
     }
 
-    public static List<ServerInfo> systemIOInfoVO() {
-        return ServerInfoUtils.getServerInfos2();
+    public List<ServerInfo> systemIOInfoVO() {
+        return ServerInfoUtils.getServerInfos2(dataSource.get(), executable.get(), uptime.get());
     }
 }

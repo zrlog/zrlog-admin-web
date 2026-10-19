@@ -3,38 +3,39 @@ package com.zrlog.admin.business.ai.service;
 import com.google.gson.*;
 import com.zrlog.admin.business.ai.dto.AIStreamResponse;
 import com.zrlog.admin.business.ai.exception.*;
+import com.zrlog.admin.business.ai.model.AIChatModels.*;
 import com.zrlog.admin.business.ai.model.AIProviderRequests;
 import com.zrlog.admin.business.ai.model.AIProviderResponses;
 import com.zrlog.admin.business.ai.model.AIProviderType;
 import com.zrlog.admin.business.ai.model.OpenAIResponses;
-import com.zrlog.admin.business.knowledge.KnowledgeModels.*;
-import com.zrlog.admin.business.ai.model.AIChatModels.*;
-import com.zrlog.admin.business.rest.request.GenerateArticleFieldRequest;
-import com.zrlog.admin.business.knowledge.ContentToolCatalog;
-import com.zrlog.admin.business.knowledge.ContentToolProvider;
-import com.zrlog.admin.business.knowledge.ContentToolModels.SavedArticle;
-import com.zrlog.admin.business.knowledge.ToolProvider;
-import com.zrlog.admin.business.security.DelegatedAccess;
 import com.zrlog.admin.business.exception.AbstractAdminBusinessException;
-import com.zrlog.common.exception.ArgsException;
+import com.zrlog.admin.business.exception.PermissionErrorException;
+import com.zrlog.admin.business.knowledge.ContentToolCatalog;
+import com.zrlog.admin.business.knowledge.ContentToolFactory;
+import com.zrlog.admin.business.knowledge.ContentToolModels.SavedArticle;
+import com.zrlog.admin.business.knowledge.KnowledgeModels.*;
+import com.zrlog.admin.business.knowledge.ToolProvider;
 import com.zrlog.admin.business.rest.base.AIWebSiteInfo;
+import com.zrlog.admin.business.rest.base.AIWebSiteInfoWithAIMessages;
+import com.zrlog.admin.business.rest.base.UserPreferences;
+import com.zrlog.admin.business.rest.request.GenerateArticleFieldRequest;
+import com.zrlog.admin.business.rest.response.AIResponseEntry;
+import com.zrlog.admin.business.security.DelegatedAccess;
 import com.zrlog.admin.business.service.AccountPermissionService;
 import com.zrlog.admin.business.service.UserPreferenceService;
-import com.zrlog.admin.business.rest.base.UserPreferences;
-import com.zrlog.admin.business.rest.base.AIWebSiteInfoWithAIMessages;
-import com.zrlog.admin.business.rest.response.AIResponseEntry;
-import java.sql.SQLException;
-import com.zrlog.admin.business.exception.PermissionErrorException;
+import com.zrlog.admin.util.AdminLanguageContext;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
+import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.ArticleAccess;
-import com.zrlog.util.ThreadUtils;
 import com.zrlog.util.I18nUtil;
-import com.zrlog.admin.util.AdminLanguageContext;
+import com.zrlog.util.ThreadUtils;
+
 import java.io.*;
 import java.net.http.*;
 import java.nio.charset.StandardCharsets;
+import java.sql.SQLException;
 import java.util.*;
 import java.util.logging.Logger;
 
@@ -45,9 +46,18 @@ public class AIChatService extends AIService {
 
     private final com.hibegin.http.server.api.HttpRequest request;
 
-    public AIChatService() { this((com.hibegin.http.server.api.HttpRequest) null); }
-    public AIChatService(com.hibegin.http.server.api.HttpRequest request) { this.request = request; }
-    AIChatService(HttpClient client) { super(client); this.request = null; }
+    private final ContentToolFactory tools;
+
+    public AIChatService() { this(null, null); }
+    public AIChatService(com.hibegin.http.server.api.HttpRequest request, ContentToolFactory tools) {
+        this.request = request;
+        this.tools = tools;
+    }
+    AIChatService(HttpClient client, com.hibegin.http.server.api.HttpRequest request, ContentToolFactory tools) {
+        super(client);
+        this.request = request;
+        this.tools = tools;
+    }
 
     public AIStreamResponse startStreamResponse(String input, Long articleId)
             throws IOException, InterruptedException, SQLException {
@@ -86,7 +96,7 @@ public class AIChatService extends AIService {
         input.history = history(info.getAiMessages());
         UserPreferenceService preferences = new UserPreferenceService();
         UserPreferences.Assistant settings = preferences.assistant(token);
-        List<ResolvedReference> references = new AIReferenceService().resolve(input, settings);
+        List<ResolvedReference> references = new AIReferenceService(tools).resolve(input, settings);
         Run run = newRun(input, info, !"off".equals(settings.knowledgeScope));
         if (!references.isEmpty()) {
             for (ResolvedReference reference : references) {
@@ -272,7 +282,7 @@ public class AIChatService extends AIService {
                     || !run.preferences.equals(gson.toJson(new UserPreferenceService().assistant(token)))) throw new PermissionErrorException();
         };
         ToolProvider knowledge = !"off".equals(settings.knowledgeScope)
-                ? new ContentToolProvider(scopes(settings), request, run.language) : null;
+                ? Objects.requireNonNull(tools, "Content tools are required for an assisted conversation").create(scopes(settings), request, run.language) : null;
         PipedInputStream in = new PipedInputStream(16384);
         PipedOutputStream out = new PipedOutputStream(in);
         var task = DelegatedAccess.capture(() -> AdminTokenThreadLocal.withUser(token, () -> {

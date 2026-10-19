@@ -71,7 +71,7 @@ public class MemberHttpOriginTest {
                         default: return null;
                     }
                 });
-        MemberController controller = new MemberController();
+        MemberController controller = new MemberController(com.zrlog.admin.support.ApplicationServicesFixture.backend(com.zrlog.common.Constants.zrLogConfig), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
         var field = Controller.class.getDeclaredField("request");
         field.setAccessible(true);
         field.set(controller, request);

@@ -4,18 +4,25 @@ import com.hibegin.http.server.api.HandleAbleInterceptor;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
 import com.zrlog.admin.business.AdminConstants;
+import com.zrlog.common.TokenService;
 
 import java.util.Objects;
+import java.util.function.Supplier;
 
 public class AdminDevFileInterceptor implements HandleAbleInterceptor {
+    protected final Supplier<TokenService> tokenService;
+
+    public AdminDevFileInterceptor(Supplier<TokenService> tokenService) {
+        this.tokenService = Objects.requireNonNull(tokenService);
+    }
 
     @Override
     public boolean doInterceptor(HttpRequest request, HttpResponse response) {
-        if (Objects.isNull(AdminInterceptorSupport.getAdminToken(request))) {
+        if (Objects.isNull(AdminInterceptorSupport.getAdminToken(tokenService.get(), request))) {
             response.renderCode(403);
             return false;
         }
-        if (!com.zrlog.admin.business.service.AccountPermissionService.account(AdminInterceptorSupport.getAdminToken(request)).isAdministrator()) { response.renderCode(403); return false; }
+        if (!com.zrlog.admin.business.service.AccountPermissionService.account(AdminInterceptorSupport.getAdminToken(tokenService.get(), request)).isAdministrator()) { response.renderCode(403); return false; }
         return true;
     }
 

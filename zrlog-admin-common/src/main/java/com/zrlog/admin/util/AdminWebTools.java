@@ -7,8 +7,6 @@ import com.hibegin.http.server.api.HttpResponse;
 import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.exception.AdminAuthException;
 import com.zrlog.business.exception.MissingInstallException;
-import com.zrlog.common.Constants;
-import com.zrlog.model.WebSite;
 import com.zrlog.plugin.BaseStaticSitePlugin;
 
 import java.net.URLEncoder;
@@ -17,10 +15,10 @@ import java.util.Objects;
 
 public class AdminWebTools {
 
-    public static void blockUnLoginRequestHandler(HttpRequest request, HttpResponse response) {
+    public static void blockUnLoginRequestHandler(HttpRequest request, HttpResponse response, boolean installed) {
         String actionKey = request.getUri();
         if (actionKey.startsWith("/api")) {
-            if (!Constants.zrLogConfig.isInstalled()) {
+            if (!installed) {
                 throw new MissingInstallException();
             }
             throw new AdminAuthException();
@@ -43,14 +41,11 @@ public class AdminWebTools {
         return realUri + "?" + request.getQueryStr();
     }
 
-    public static String getAdminStaticResourceBaseUrlByWebSite(HttpRequest request) {
-        if (Objects.isNull(Constants.zrLogConfig)) {
-            return "";
-        }
+    public static String getAdminStaticResourceBaseUrl(HttpRequest request, java.util.function.Supplier<String> configuredHost) {
         if (BaseStaticSitePlugin.isStaticPluginRequest(request) || EnvKit.isDevMode()) {
             return request.getContextPath();
         }
-        String websiteHost = new WebSite().getStringValueByName("admin_static_resource_base_url");
+        String websiteHost = configuredHost.get();
         if (Objects.nonNull(websiteHost) && !websiteHost.trim().isEmpty()) {
             return websiteHost + request.getContextPath();
         }

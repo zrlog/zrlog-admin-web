@@ -2,7 +2,6 @@ package com.zrlog.admin.business.util;
 
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.util.PathUtil;
-import com.zrlog.admin.support.UploadFallbackZrLogConfig;
 import com.zrlog.common.Constants;
 import org.junit.After;
 import org.junit.Rule;
@@ -38,25 +37,25 @@ public class ArticleCoverUtilsTest {
 
     @Test
     public void shouldReturnEmptyForEmptyContent() {
-        assertEquals("", ArticleCoverUtils.getFirstImgUrl(null, null, null));
-        assertEquals("", ArticleCoverUtils.getFirstImgUrl("", null, null));
+        assertEquals("", ArticleCoverUtils.getFirstImgUrl(null, null, null, new com.zrlog.admin.business.service.UploadService(() -> null)));
+        assertEquals("", ArticleCoverUtils.getFirstImgUrl("", null, null, new com.zrlog.admin.business.service.UploadService(() -> null)));
     }
 
     @Test
     public void shouldReturnNullWhenContentHasNoImage() {
-        assertNull(ArticleCoverUtils.getFirstImgUrl("<p>no image</p>", null, null));
+        assertNull(ArticleCoverUtils.getFirstImgUrl("<p>no image</p>", null, null, new com.zrlog.admin.business.service.UploadService(() -> null)));
     }
 
     @Test
     public void shouldCreateThumbnailForFirstLocalImage() throws Exception {
         withRootPath();
-        Constants.zrLogConfig = new UploadFallbackZrLogConfig();
+        Constants.zrLogConfig = null;
         File source = PathUtil.getStaticFile("/attached/cover.png");
         source.getParentFile().mkdirs();
         Files.writeString(source.toPath(), "image", StandardCharsets.UTF_8);
 
         String url = ArticleCoverUtils.getFirstImgUrl("<p><img src=\"/attached/cover.png\"></p>",
-                request("/blog"), null);
+                request("/blog"), null, new com.zrlog.admin.business.service.UploadService(() -> null));
 
         assertEquals("/blog/attached/cover_thumbnail.png?h=-1&w=-1", url);
         assertEquals("image", Files.readString(PathUtil.getStaticFile("/attached/cover_thumbnail.png").toPath()));

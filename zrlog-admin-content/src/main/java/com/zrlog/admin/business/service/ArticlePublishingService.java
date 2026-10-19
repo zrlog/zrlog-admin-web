@@ -11,13 +11,12 @@ import com.zrlog.admin.business.rest.response.CreateOrUpdateArticleResponse;
 import com.zrlog.admin.business.rest.response.DeleteResponse;
 import com.zrlog.admin.business.type.AdminAuditAction;
 import com.zrlog.blog.polyglot.markdown.MarkdownJsRenderer;
-import com.zrlog.business.plugin.StaticSitePlugin;
 import com.zrlog.business.plugin.type.StaticSiteType;
-import com.zrlog.business.util.CacheUtils;
-import com.zrlog.common.CacheService;
+import com.zrlog.business.service.CacheRefreshService;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.data.exception.DAOException;
 import com.zrlog.util.I18nUtil;
+
 import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.List;
@@ -31,11 +30,11 @@ public class ArticlePublishingService {
 
     private final AdminArticleService articleService;
 
-    private final CacheService cacheService;
+    private final CacheRefreshService cacheRefresh;
 
-    public ArticlePublishingService(AdminArticleService articleService, CacheService cacheService) {
+    public ArticlePublishingService(AdminArticleService articleService, CacheRefreshService cacheRefresh) {
         this.articleService = articleService;
-        this.cacheService = cacheService;
+        this.cacheRefresh = cacheRefresh;
     }
 
     public void prepareRequest(CreateArticleRequest request) {
@@ -118,7 +117,7 @@ public class ArticlePublishingService {
         if (refreshCache && saveResponse.isPublicCacheRefreshRequired()) {
             // The article is already saved. Refresh public data now, but do not hold
             // the editor's acknowledgement while plugins regenerate the static site.
-            CacheUtils.updateCache(cacheService, true, request, List.of(StaticSiteType.BLOG));
+            cacheRefresh.updateCache(true, request, List.of(StaticSiteType.BLOG));
         }
         boolean saved = Objects.equals(saveResponse.getRubbish(), true)
                 || Objects.equals(saveResponse.getPrivacy(), true);
@@ -129,7 +128,7 @@ public class ArticlePublishingService {
 
     public void updateBlogCacheWithStaticSyncNotice(HttpRequest request) {
         try {
-            CacheUtils.updateCacheSynchronouslyOrThrow(cacheService, request, List.of(StaticSiteType.BLOG));
+            cacheRefresh.updateCacheSynchronouslyOrThrow(request, List.of(StaticSiteType.BLOG));
             recordBlogStaticSiteSync(true, "");
         } catch (RuntimeException e) {
             recordBlogStaticSiteSync(false, e.getMessage());
@@ -138,7 +137,7 @@ public class ArticlePublishingService {
     }
 
     private void recordBlogStaticSiteSync(boolean synced, String message) {
-        if (StaticSitePlugin.isDisabled()) {
+        if (cacheRefresh.isStaticSiteDisabled()) {
             return;
         }
         try {

@@ -2,39 +2,93 @@
   {
     "name": "com.zrlog.admin.web.controller.ai.AIArticleController",
     "methods": [
-      {"name": "<init>", "parameterTypes": []},
-      {"name": "ai", "parameterTypes": []},
-      {"name": "approveAiOperation", "parameterTypes": []},
-      {"name": "submitAiInput", "parameterTypes": []},
-      {"name": "aiRun", "parameterTypes": []},
-      {"name": "aiFile", "parameterTypes": []},
-      {"name": "aiReferences", "parameterTypes": []},
-      {"name": "applyCover", "parameterTypes": []},
-      {"name": "clearAiMessages", "parameterTypes": []},
-      {"name": "exportAiMessages", "parameterTypes": []},
-      {"name": "updateAiMessage", "parameterTypes": []}
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "com.zrlog.admin.business.service.UploadService",
+          "com.zrlog.admin.business.ai.service.AIChatService",
+          "com.zrlog.admin.business.ai.service.AIReferenceService"
+        ]
+      },
+      {
+        "name": "ai",
+        "parameterTypes": []
+      },
+      {
+        "name": "approveAiOperation",
+        "parameterTypes": []
+      },
+      {
+        "name": "submitAiInput",
+        "parameterTypes": []
+      },
+      {
+        "name": "aiRun",
+        "parameterTypes": []
+      },
+      {
+        "name": "aiFile",
+        "parameterTypes": []
+      },
+      {
+        "name": "aiReferences",
+        "parameterTypes": []
+      },
+      {
+        "name": "applyCover",
+        "parameterTypes": []
+      },
+      {
+        "name": "clearAiMessages",
+        "parameterTypes": []
+      },
+      {
+        "name": "exportAiMessages",
+        "parameterTypes": []
+      },
+      {
+        "name": "updateAiMessage",
+        "parameterTypes": []
+      }
     ]
   },
   {
     "name": "com.zrlog.admin.web.controller.ai.AIWebSiteController",
     "methods": [
-      {"name": "<init>", "parameterTypes": ["com.zrlog.admin.business.service.WebSiteSettingsService"]},
-      {"name": "ai", "parameterTypes": []},
-      {"name": "optimizeAiPrompt", "parameterTypes": []},
-      {"name": "optimizeDescription", "parameterTypes": []}
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "com.zrlog.admin.business.service.WebSiteSettingsService",
+          "com.zrlog.admin.business.service.AdminPageDataFactory"
+        ]
+      },
+      {
+        "name": "ai",
+        "parameterTypes": []
+      },
+      {
+        "name": "optimizeAiPrompt",
+        "parameterTypes": []
+      },
+      {
+        "name": "optimizeDescription",
+        "parameterTypes": []
+      }
     ]
   },
-{
-  "name": "com.zrlog.admin.web.controller.ai.AICommentController",
-  "methods": [
-    {
-      "name": "<init>",
-      "parameterTypes": []
-    },
-    {
-      "name": "analyze",
-      "parameterTypes": []
-    }
-  ]
-}
+  {
+    "name": "com.zrlog.admin.web.controller.ai.AICommentController",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "com.zrlog.admin.web.interceptor.PluginTokenValidator"
+        ]
+      },
+      {
+        "name": "analyze",
+        "parameterTypes": []
+      }
+    ]
+  }
 ]

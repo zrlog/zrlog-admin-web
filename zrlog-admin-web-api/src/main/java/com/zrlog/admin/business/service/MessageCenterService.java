@@ -11,7 +11,11 @@ import java.util.List;
 
 public class MessageCenterService {
 
-    private final UpgradeNoticeService upgradeNoticeService = new UpgradeNoticeService();
+    private final UpgradeNoticeService upgradeNoticeService;
+
+    public MessageCenterService(UpgradeNoticeService upgradeNoticeService) {
+        this.upgradeNoticeService = upgradeNoticeService;
+    }
     private final AdminCommentService adminCommentService = new AdminCommentService();
     private final WebhookService webhookService = new WebhookService();
     private final MessageCenterOperationService operationService = new MessageCenterOperationService();

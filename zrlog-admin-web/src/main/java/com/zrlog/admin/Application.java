@@ -3,9 +3,7 @@ package com.zrlog.admin;
 import com.hibegin.http.server.WebServerBuilder;
 import com.hibegin.http.server.util.PathUtil;
 import com.hibegin.http.server.web.MethodInterceptor;
-import com.zrlog.admin.web.token.AdminTokenService;
 import com.zrlog.common.Constants;
-import com.zrlog.common.TokenService;
 import com.zrlog.common.Updater;
 import com.zrlog.common.UpdaterTypeEnum;
 import com.zrlog.common.ZrLogConfig;
@@ -15,10 +13,11 @@ import com.zrlog.plugin.Plugins;
 import com.zrlog.updater.spi.UpdateProviders;
 import com.zrlog.web.WebSetupContext;
 import com.zrlog.web.WebSetupLoader;
-import com.zrlog.web.WebSiteInfoProvider;
+
 import java.io.File;
 import java.util.List;
 import java.util.Objects;
+
 import static com.zrlog.common.Constants.getZrLogHome;
 
 public class Application {
@@ -33,7 +32,8 @@ public class Application {
     public static Updater getUpdater(String[] args) {
         try {
             File jarFile = new File(PathUtil.getRootPath() + "/zrlog-starter.jar");
-            return UpdaterHosts.adapt(UpdateProviders.create(UpdaterTypeEnum.ZIP, UpdaterHosts.builder(args, jarFile).build()));
+            UpdaterHosts.ApplicationHost host = UpdaterHosts.application(args, jarFile);
+            return host.adapt(UpdateProviders.create(UpdaterTypeEnum.ZIP, host.context()));
         } catch (Throwable e) {
             return null;
         }
@@ -57,15 +57,6 @@ class DevZrLogConfig extends ZrLogConfig {
                         || provider.name().equals("admin") || provider.name().startsWith("admin-")));
         initializeWebSetups();
         serverConfig.getInterceptors().add(MethodInterceptor.class);
-    }
-
-    @Override
-    protected TokenService initTokenService() {
-        if (!isInstalled()) {
-            return null;
-        }
-        long sessionTimeout = getWebSetup(WebSiteInfoProvider.class).getPublicWebSiteInfo().getSession_timeout();
-        return new AdminTokenService(sessionTimeout);
     }
 
     @Override

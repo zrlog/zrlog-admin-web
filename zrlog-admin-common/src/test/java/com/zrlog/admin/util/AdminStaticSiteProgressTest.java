@@ -1,8 +1,8 @@
 package com.zrlog.admin.util;
 
 import com.hibegin.http.server.api.HttpRequest;
-import com.zrlog.admin.business.rest.response.StaticSiteProgressResponse;
 import com.hibegin.http.server.util.PathUtil;
+import com.zrlog.admin.business.rest.response.StaticSiteProgressResponse;
 import com.zrlog.business.plugin.StaticSitePlugin;
 import com.zrlog.business.plugin.type.StaticSiteType;
 import com.zrlog.common.Constants;
@@ -48,7 +48,7 @@ public class AdminStaticSiteProgressTest {
                     new FakeStaticSitePlugin(StaticSiteType.ADMIN, adminStates)
             ));
 
-            StaticSiteProgressResponse blogSnapshot = AdminStaticSiteProgress.snapshot(StaticSiteType.BLOG);
+            StaticSiteProgressResponse blogSnapshot = new AdminStaticSiteProgress(() -> Constants.zrLogConfig.getPluginsByClazz(StaticSitePlugin.class)).snapshot(StaticSiteType.BLOG);
             assertEquals(4, blogSnapshot.getTotal());
             assertEquals(1, blogSnapshot.getHandled());
             assertEquals(1, blogSnapshot.getHanding());
@@ -57,7 +57,7 @@ public class AdminStaticSiteProgressTest {
             assertEquals(List.of("BLOG"), blogSnapshot.getSiteTypes());
 
             StaticSiteProgressResponse allSnapshot =
-                    AdminStaticSiteProgress.snapshot(List.of(StaticSiteType.BLOG, StaticSiteType.ADMIN));
+                    new AdminStaticSiteProgress(() -> Constants.zrLogConfig.getPluginsByClazz(StaticSitePlugin.class)).snapshot(List.of(StaticSiteType.BLOG, StaticSiteType.ADMIN));
             assertEquals(5, allSnapshot.getTotal());
             assertEquals(2, allSnapshot.getHandled());
             assertEquals(List.of("BLOG", "ADMIN"), allSnapshot.getSiteTypes());
@@ -95,6 +95,9 @@ public class AdminStaticSiteProgressTest {
     }
 
     private static class FakeStaticSitePlugin implements StaticSitePlugin {
+        private final com.zrlog.common.vo.PublicWebSiteInfo site = new com.zrlog.common.vo.PublicWebSiteInfo();
+        @Override public com.zrlog.common.vo.PublicWebSiteInfo getSiteInfo() { return site; }
+
 
         private final StaticSiteType type;
         private final Map<String, HandleState> stateMap;

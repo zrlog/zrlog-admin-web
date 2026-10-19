@@ -1,28 +1,40 @@
 package com.zrlog.admin.web;
 
+import com.hibegin.http.server.ApplicationContext;
 import com.hibegin.http.server.api.Interceptor;
 import com.hibegin.http.server.web.Router;
 import com.zrlog.admin.business.AdminConstants;
+import com.zrlog.admin.business.service.AdminPageDataFactory;
 import com.zrlog.admin.business.service.AdminPageService;
 import com.zrlog.admin.business.service.AdminResource;
 import com.zrlog.admin.business.service.AdminResourceImpl;
+import com.zrlog.admin.business.service.AdminResourceProvider;
+import com.zrlog.admin.business.service.AdminResourceService;
+import com.zrlog.admin.business.service.TemplateService;
+import com.zrlog.admin.util.AdminStaticSiteSsePublisher;
 import com.zrlog.admin.util.AdminUiNativeImageUtils;
 import com.zrlog.admin.web.config.AdminAccountPages;
 import com.zrlog.admin.web.controller.api.AdminStaticSiteController;
 import com.zrlog.admin.web.controller.page.AdminManifestController;
 import com.zrlog.admin.web.controller.page.AdminPageController;
 import com.zrlog.admin.web.controller.page.AdminTemplatePageController;
+import com.zrlog.admin.web.interceptor.*;
 import com.zrlog.admin.web.plugin.AdminStaticResourcePlugin;
+import com.zrlog.business.plugin.PluginCorePlugin;
+import com.zrlog.business.plugin.StaticSiteRenderer;
+import com.zrlog.business.service.CacheRefreshService;
 import com.zrlog.business.service.TemplateInfoHelper;
 import com.zrlog.common.CacheService;
+import com.zrlog.common.TokenService;
 import com.zrlog.common.ZrLogConfig;
 import com.zrlog.plugin.Plugins;
 import com.zrlog.web.WebSetup;
+import com.zrlog.web.WebSiteInfoProvider;
+
 import java.util.List;
-import com.zrlog.admin.web.interceptor.*;
 
 /** React pages, PWA and static publishing; the API can run without this provider. */
-public class AdminUiWebSetup implements WebSetup {
+public class AdminUiWebSetup implements WebSetup, AdminResourceProvider {
     private final ZrLogConfig config;
     private final String contextPath;
     private final AdminResource resources;
@@ -31,15 +43,29 @@ public class AdminUiWebSetup implements WebSetup {
         this.config = config;
         this.contextPath = contextPath;
         this.resources = new AdminResourceImpl(contextPath, () -> config.isInstalled()
-                ? config.getServerConfig().getBindings().build().get(CacheService.class).getWebSiteVersion() : 0L);
+                ? config.getServerConfig().getBindings().build().get(CacheService.class).getWebSiteVersion() : 0L,
+                () -> config.getServerConfig().getBindings().build().get(AdminResourceService.class));
         AdminConstants.adminResource = resources;
         if (config.getServerConfig().isNativeImageAgent()) AdminUiNativeImageUtils.reg(resources);
     }
 
+    @Override public AdminResource getAdminResource() {
+        return resources;
+    }
+
     @Override public void setup() {
         config.getServerConfig().getBindings()
-                .singleton(AdminPageService.class, r -> new AdminPageService(r.get(CacheService.class)))
-                .controller(AdminPageController.class, (r, request, response) -> new AdminPageController(r.get(AdminPageService.class)));
+                .controller(AdminStaticSiteController.class, (r, request, response) -> new AdminStaticSiteController(
+                        r.get(CacheRefreshService.class), r.get(AdminStaticSiteSsePublisher.class),
+                        () -> config.getPlugin(AdminStaticResourcePlugin.class), r.get(AdminPageDataFactory.class)))
+                .interceptor(AdminPwaInterceptor.class, r -> new AdminPwaInterceptor(resources))
+                .interceptor(AdminStaticResourceInterceptor.class, r -> new AdminStaticResourceInterceptor(() -> config.getPlugin(AdminStaticResourcePlugin.class)))
+                .controller(AdminTemplatePageController.class, (r, request, response) -> new AdminTemplatePageController(r.get(TemplateService.class), () -> Boolean.TRUE.equals(r.get(CacheService.class).getPublicWebSiteInfo().getGenerator_html_status())))
+                .interceptor(AdminPluginInterceptor.class, r -> new AdminPluginInterceptor(() -> r.get(TokenService.class), () -> config.getPlugin(PluginCorePlugin.class), config::isInstalled))
+                .singleton(AdminPageService.class, r -> new AdminPageService(r.get(CacheService.class), r.get(AdminPageDataFactory.class), resources,
+                        r.get(AdminResourceService.class)::staticResourceBaseUrl))
+                .controller(AdminManifestController.class, (r, request, response) -> new AdminManifestController(r.get(CacheService.class)::getPublicWebSiteInfo))
+                .controller(AdminPageController.class, (r, request, response) -> new AdminPageController(r.get(AdminPageService.class), r.get(TokenService.class), r.get(AdminPageDataFactory.class)));
         List<Class<? extends Interceptor>> interceptors = config.getServerConfig().getInterceptors();
         interceptors.addAll(interceptors.indexOf(AdminLoginInterceptor.class), List.of(
                 PwaInterceptor.class, AdminPwaInterceptor.class,
@@ -60,7 +86,11 @@ public class AdminUiWebSetup implements WebSetup {
 
     @Override public Plugins getPlugins() {
         Plugins plugins = new Plugins();
-        plugins.add(new AdminStaticResourcePlugin(config, resources, contextPath));
+        ApplicationContext context = new ApplicationContext(config.getServerConfig());
+        context.init();
+        plugins.add(new AdminStaticResourcePlugin(new StaticSiteRenderer(config.getRequestConfig(),
+                config.getResponseConfig(), context),
+                () -> config.getWebSetup(WebSiteInfoProvider.class).getPublicWebSiteInfo(), resources, contextPath));
         return plugins;
     }
 }

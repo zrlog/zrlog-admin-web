@@ -9,7 +9,6 @@ import com.zrlog.admin.business.rest.response.FileReferenceIndexCacheVO;
 import com.zrlog.admin.business.rest.response.FileReferenceVO;
 import com.zrlog.admin.business.rest.response.ReplaceArticleResourceUrlResponse;
 import com.zrlog.admin.business.util.FileEntryUtils;
-import com.zrlog.common.Constants;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.model.Log;
 import com.zrlog.util.ParseUtil;
@@ -40,12 +39,8 @@ public class FileManagerReferenceService {
     private final String contextPath;
     private FileReferenceIndexCacheVO requestReferenceIndex;
 
-    public FileManagerReferenceService() {
-        this(new WebsiteCacheService(), getConfiguredContextPath());
-    }
-
-    FileManagerReferenceService(WebsiteCacheService cacheService) {
-        this(cacheService, getConfiguredContextPath());
+    public FileManagerReferenceService(String contextPath) {
+        this(new WebsiteCacheService(), contextPath);
     }
 
     FileManagerReferenceService(WebsiteCacheService cacheService, String contextPath) {
@@ -626,13 +621,6 @@ public class FileManagerReferenceService {
             this.toKey = toKey;
             this.prefix = prefix;
         }
-    }
-
-    private static String getConfiguredContextPath() {
-        if (Constants.zrLogConfig == null || Constants.zrLogConfig.getServerConfig() == null) {
-            return "";
-        }
-        return normalizeContextPath(Constants.zrLogConfig.getServerConfig().getContextPath());
     }
 
     private static String normalizeContextPath(String contextPath) {

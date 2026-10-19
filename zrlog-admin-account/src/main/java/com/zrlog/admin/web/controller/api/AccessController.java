@@ -6,12 +6,20 @@ import com.hibegin.http.annotation.ResponseBody;
 import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
 import com.zrlog.admin.business.security.AccessModels;
 import com.zrlog.admin.business.service.AccountPermissionService;
+import com.zrlog.admin.business.service.AdminPageDataFactory;
 import com.zrlog.admin.web.annotation.RequiresAction;
 import com.zrlog.common.controller.BaseController;
 import com.zrlog.data.security.AccountAction;
+
 import java.util.*;
 
 public class AccessController extends BaseController {
+    public AccessController(AdminPageDataFactory pages) {
+        this.pages = pages;
+    }
+
+    private final AdminPageDataFactory pages;
+
     @ResponseBody @RequestMethod(method = HttpMethod.GET)
     @RequiresAction(value = AccountAction.PERMISSION_READ, descriptionKey = "permission.inspect")
     public AdminPageDataResponse<AccessModels.Page> index() {
@@ -37,6 +45,6 @@ public class AccessController extends BaseController {
             item.routeDetails.sort(Comparator.comparing(route -> route.path));
             page.actions.add(item);
         }
-        return new AdminPageDataResponse<>(page, "", request.getUri());
+        return pages.response(page, "", request.getUri());
     }
 }

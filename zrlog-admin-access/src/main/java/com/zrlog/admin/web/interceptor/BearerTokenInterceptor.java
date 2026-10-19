@@ -5,23 +5,34 @@ import com.hibegin.http.server.api.HandleAbleInterceptor;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
 import com.hibegin.http.server.execption.HttpCodeException;
+import com.zrlog.admin.business.security.DelegatedAccess;
 import com.zrlog.admin.business.security.OAuthException;
 import com.zrlog.admin.business.security.OAuthModels;
-import com.zrlog.admin.business.security.DelegatedAccess;
 import com.zrlog.admin.business.service.AccountPermissionService;
 import com.zrlog.admin.business.service.OAuthService;
 import com.zrlog.admin.business.service.UserPreferenceService;
-import com.zrlog.admin.util.AdminLanguageContext;
 import com.zrlog.admin.business.service.WebhookService;
+import com.zrlog.admin.util.AdminLanguageContext;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.vo.AdminTokenVO;
+
 import java.io.ByteArrayInputStream;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
+import java.util.Objects;
 import java.util.Set;
+import java.util.function.Supplier;
 
 /** Bearer API adapter sharing the controller action bindings and account authorization. */
 public final class BearerTokenInterceptor implements HandleAbleInterceptor {
+    private final Supplier<AdminActionDispatcher> dispatcher;
+    private final OAuthService oauth;
+
+    public BearerTokenInterceptor(Supplier<AdminActionDispatcher> dispatcher, OAuthService oauth) {
+        this.dispatcher = Objects.requireNonNull(dispatcher);
+        this.oauth = Objects.requireNonNull(oauth);
+    }
+
     @Override public boolean isHandleAble(HttpRequest request) {
         String path = request.getUri();
         String header = request.getHeader("Authorization");
@@ -43,7 +54,6 @@ public final class BearerTokenInterceptor implements HandleAbleInterceptor {
             String authorization = request.getHeader("Authorization");
             if (authorization == null || !authorization.matches("(?i)Bearer +[^ ]+")) throw new OAuthException("invalid_token", 401);
             String token = authorization.substring(authorization.indexOf(' ') + 1).trim();
-            OAuthService oauth = new OAuthService();
             boolean notification = request.getUri().equals(WebhookService.MESSAGE_CENTER_NOTICE_ENDPOINT);
             OAuthModels.Identity identity = oauth.authenticate(token, oauth.adminResource(), Set.of());
             if (!notification && !request.getUri().startsWith("/api/admin/")) throw new OAuthException("insufficient_scope", 403);
@@ -60,7 +70,7 @@ public final class BearerTokenInterceptor implements HandleAbleInterceptor {
                 }
                 try (AdminLanguageContext ignored = AdminLanguageContext.open(new UserPreferenceService().effective(identity.userId).language)) {
                     try {
-                        new AdminInterceptor().doMethodInterceptor(request, response, method);
+                        dispatcher.get().dispatch(request, response, method);
                     } catch (Exception failure) {
                         // Render controller errors before restoring the request thread's language.
                         int status = failure instanceof HttpCodeException ? ((HttpCodeException) failure).getCode() : 500;

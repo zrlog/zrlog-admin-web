@@ -69,10 +69,11 @@ public class TagManagementServiceTest {
             db.execute("insert into tag(tagId,text,count) values(?,?,?)", 2, "java", 3);
             db.execute("insert into tag(tagId,text,count) values(?,?,?)", 3, "zrlog", 2);
 
+            com.zrlog.common.Constants.zrLogConfig = null;
             PageData<TagManagementEntryResponse> page =
-                    new TagManagementService().find("//localhost/", new PageRequestImpl(1L, 2L), "");
+                    new TagManagementService().find("//localhost/", new PageRequestImpl(1L, 2L), "", false);
             PageData<TagManagementEntryResponse> filtered =
-                    new TagManagementService().find("//localhost/", new PageRequestImpl(1L, 10L), "zr");
+                    new TagManagementService().find("//localhost/", new PageRequestImpl(1L, 10L), "zr", true);
 
             assertEquals(3, page.getTotalElements());
             assertEquals(2, page.getRows().size());
@@ -81,6 +82,7 @@ public class TagManagementServiceTest {
             assertEquals("//localhost/tag/java", page.getRows().get(0).getUrl());
             assertEquals(1, filtered.getTotalElements());
             assertEquals("zrlog", filtered.getRows().get(0).getText());
+            assertEquals("//localhost/tag/zrlog.html", filtered.getRows().get(0).getUrl());
         }
     }
 

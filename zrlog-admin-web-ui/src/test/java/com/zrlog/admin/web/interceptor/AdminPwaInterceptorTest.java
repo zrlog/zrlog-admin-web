@@ -28,11 +28,11 @@ public class AdminPwaInterceptorTest {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
             ResponseRecorder response = new ResponseRecorder();
 
-            new AdminPwaInterceptor().doInterceptor(
+            new AdminPwaInterceptor(resources()).doInterceptor(
                     request(AdminConstants.ADMIN_SERVICE_WORKER_JS, new ServerConfig()), response.response());
 
             assertTrue(response.headers.get("Content-Type").contains("javascript"));
-            assertNotNull(response.written);
+            assertEquals("const urlsToCache = [];", new String(response.written, java.nio.charset.StandardCharsets.UTF_8));
         }
     }
 
@@ -40,7 +40,7 @@ public class AdminPwaInterceptorTest {
     public void shouldRenderPackagedPwaResourceWhenPresent() throws Exception {
         ResponseRecorder response = new ResponseRecorder();
 
-        new AdminPwaInterceptor().doInterceptor(
+        new AdminPwaInterceptor(resources()).doInterceptor(
                 request(AdminResource.ADMIN_ASSET_MANIFEST_JSON, new ServerConfig()), response.response());
 
         assertTrue(response.headers.get("Content-Type").contains("json"));
@@ -52,10 +52,12 @@ public class AdminPwaInterceptorTest {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
             ResponseRecorder response = new ResponseRecorder();
             ServerConfig serverConfig = new ServerConfig();
+            serverConfig.getBindings().controller(AdminManifestController.class,
+                    (r, request, responseHandle) -> new AdminManifestController(ignored.cacheService()::getPublicWebSiteInfo));
             Router router = serverConfig.getRouter();
             router.addMapper(AdminConstants.ADMIN_PWA_MANIFEST_API_URI_PATH, AdminManifestController.class, "manifest");
 
-            new AdminPwaInterceptor().doInterceptor(
+            new AdminPwaInterceptor(resources()).doInterceptor(
                     request(AdminConstants.ADMIN_PWA_MANIFEST_JSON, serverConfig), response.response());
 
             AdminManifestResponse manifest = (AdminManifestResponse) response.renderedJson;
@@ -69,10 +71,20 @@ public class AdminPwaInterceptorTest {
     public void shouldRender404WhenPwaResourceIsMissing() throws Exception {
         ResponseRecorder response = new ResponseRecorder();
 
-        new AdminPwaInterceptor().doInterceptor(
+        new AdminPwaInterceptor(resources()).doInterceptor(
                 request("/admin/pwa/missing.json", new ServerConfig()), response.response());
 
         assertEquals(Integer.valueOf(404), response.renderedCode);
+    }
+
+    private static AdminResource resources() {
+        return (AdminResource) Proxy.newProxyInstance(AdminPwaInterceptorTest.class.getClassLoader(),
+                new Class[]{AdminResource.class}, (proxy, method, args) -> {
+                    if ("renderServiceWorker".equals(method.getName())) {
+                        return new java.io.ByteArrayInputStream("const urlsToCache = [];".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                    }
+                    throw new UnsupportedOperationException(method.getName());
+                });
     }
 
     private static HttpRequest request(String uri, ServerConfig serverConfig) {

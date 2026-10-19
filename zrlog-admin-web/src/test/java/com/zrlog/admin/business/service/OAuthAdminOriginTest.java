@@ -11,7 +11,7 @@ import static org.junit.Assert.*;
 
 public class OAuthAdminOriginTest {
     private static final String SETTING = "admin_static_resource_base_url";
-    private final OAuthService service = new OAuthService(() -> "https://api.example/sub");
+    private final OAuthService service = new OAuthService(() -> "https://api.example/sub", () -> true);
 
     @Test public void onlyBackendOriginIsTrustedWithoutAConfiguredFrontend() throws Exception {
         try (var db = InMemoryZrLogDatabase.open()) {

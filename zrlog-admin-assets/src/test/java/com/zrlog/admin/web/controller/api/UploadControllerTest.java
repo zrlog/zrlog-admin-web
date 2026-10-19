@@ -7,8 +7,8 @@ import com.hibegin.http.server.web.Controller;
 import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.rest.response.UploadFileResponse;
 import com.zrlog.admin.business.service.DbFileService;
-import com.zrlog.admin.support.UploadFallbackZrLogConfig;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
+import com.zrlog.admin.support.UploadFallbackZrLogConfig;
 import com.zrlog.common.Constants;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.rest.response.ApiStandardResponse;
@@ -25,8 +25,8 @@ import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
@@ -158,7 +158,7 @@ public class UploadControllerTest {
     }
 
     private static UploadController controller(Map<String, String> params, Map<String, File> files) throws Exception {
-        UploadController controller = new UploadController();
+        UploadController controller = new UploadController(new com.zrlog.admin.business.service.UploadService(() -> null));
         setControllerField(controller, "request", request(params, files));
         setControllerField(controller, "response", response());
         return controller;

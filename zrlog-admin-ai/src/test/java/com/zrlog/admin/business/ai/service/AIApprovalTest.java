@@ -4,8 +4,8 @@ import com.google.gson.*;
 import com.hibegin.http.server.api.HttpRequest;
 import com.zrlog.admin.business.ai.model.AIChatModels.*;
 import com.zrlog.admin.business.ai.model.AIProviderResponses;
-import com.zrlog.admin.business.rest.base.AIWebSiteInfo;
 import com.zrlog.admin.business.exception.PermissionErrorException;
+import com.zrlog.admin.business.rest.base.AIWebSiteInfo;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import org.junit.Test;
@@ -17,6 +17,7 @@ import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.*;
+
 import static org.junit.Assert.*;
 
 @RunWith(Parameterized.class)
@@ -41,18 +42,12 @@ public class AIApprovalTest {
         final List<String> replies;
         final List<JsonObject> requests = new ArrayList<>();
         Model(String... replies) {
-            super(modelRequest());
+            super(modelRequest(), ContentToolsFixture.from(com.zrlog.common.Constants.zrLogConfig));
             this.replies = List.of(replies);
         }
         private static HttpRequest modelRequest() {
-            var config = new com.hibegin.http.server.config.ServerConfig();
-            var cache = new InMemoryZrLogDatabase.TestCacheService();
-            config.getBindings().instance(com.zrlog.admin.business.service.ContentToolService.class,
-                    new com.zrlog.admin.business.service.ContentToolService(new com.zrlog.admin.business.service.ArticlePublishingService(
-                            new com.zrlog.admin.business.service.AdminArticleService(cache), cache)));
             return (HttpRequest) Proxy.newProxyInstance(AIApprovalTest.class.getClassLoader(), new Class[]{HttpRequest.class}, (proxy, method, args) -> {
                 switch (method.getName()) {
-                    case "getServerConfig": return config;
                     case "getUri": return "/api/admin/article/ai";
                     case "getContextPath": return "";
                     case "getRemoteHost": return "127.0.0.1";

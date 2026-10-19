@@ -108,7 +108,7 @@ public class WebhookControllerDatabaseTest {
                 assertThrows(PermissionErrorException.class, () -> controller(HttpMethod.POST, Map.of(), Map.of(), "{\"title\":\"Blocked\"}").messageCenterNotice());
                 return null;
             });
-            assertFalse(new com.zrlog.admin.business.service.FeatureLabService().featureLab().getFeature_webhook_enabled());
+            assertFalse(new com.zrlog.admin.business.service.FeatureLabService(() -> true).featureLab().getFeature_webhook_enabled());
             config.setEnabled(true); new WebhookService().updateConfig(config);
             identity.permissions = java.util.List.of("article.read");
             com.zrlog.admin.business.security.DelegatedAccess.withPermissions(java.util.Set.copyOf(identity.permissions), "inherit".equals(identity.permissionMode), () -> {
@@ -119,7 +119,7 @@ public class WebhookControllerDatabaseTest {
 
     private static WebhookController controller(HttpMethod method, Map<String, String> headers,
                                                 Map<String, String> params, String body) throws Exception {
-        WebhookController controller = new WebhookController();
+        WebhookController controller = new WebhookController(new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
         Field requestField = Controller.class.getDeclaredField("request");
         requestField.setAccessible(true);
         requestField.set(controller, request(method, headers, params, body));

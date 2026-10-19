@@ -9,10 +9,12 @@ import com.zrlog.admin.business.rest.response.ServerSideDataResponse;
 import com.zrlog.admin.business.service.AdminPageService;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.common.Constants;
+import org.junit.Test;
+
 import java.lang.reflect.Field;
 import java.lang.reflect.Proxy;
 import java.util.Map;
-import org.junit.Test;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
@@ -46,7 +48,7 @@ public class AdminPageControllerTest {
 
     private static AdminPageController controller(String uri, Map<String, String> params, HttpResponse response)
             throws Exception {
-        AdminPageController controller = new AdminPageController(new AdminPageService(new InMemoryZrLogDatabase.TestCacheService()));
+        AdminPageController controller = new AdminPageController(new AdminPageService(new InMemoryZrLogDatabase.TestCacheService(), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)), com.zrlog.admin.business.AdminConstants.adminResource, com.zrlog.admin.support.ApplicationServicesFixture.staticResourceUrl()), com.zrlog.common.Constants.zrLogConfig == null ? null : com.zrlog.common.Constants.zrLogConfig.getTokenService(), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
         Field requestField = Controller.class.getDeclaredField("request");
         requestField.setAccessible(true);
         requestField.set(controller, request(uri, params));

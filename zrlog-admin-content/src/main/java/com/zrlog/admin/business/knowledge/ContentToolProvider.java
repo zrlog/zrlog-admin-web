@@ -7,37 +7,30 @@ import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.knowledge.KnowledgeModels.Tool;
 import com.zrlog.admin.business.service.AccountPermissionService;
 import com.zrlog.admin.business.service.ContentToolService;
-import com.zrlog.admin.util.BackendServerUrl;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.ZrLogUtil;
-import java.util.function.Supplier;
+
 import java.util.*;
+import java.util.function.Supplier;
 
 /** Shared tool dispatch; callers bind a trusted, revalidated account before each operation. */
 public final class ContentToolProvider implements ToolProvider {
     private final Set<String> scopes;
     private final HttpRequest request;
     private final String language;
-    private final Supplier<ContentToolService> content;
+    private final ContentToolService content;
     private final Supplier<AttachmentStorage> storage;
-
-    public ContentToolProvider(Set<String> scopes, HttpRequest request, String language) {
-        this(scopes, request, language, () -> request.getServerConfig().getBindings().build().get(ContentToolService.class), AttachmentStorage::current);
-    }
+    private final KnowledgeService knowledge;
 
     public ContentToolProvider(Set<String> scopes, HttpRequest request, String language,
-                               ContentToolService content, Supplier<AttachmentStorage> storage) {
-        this(scopes, request, language, () -> content, storage);
-    }
-
-    private ContentToolProvider(Set<String> scopes, HttpRequest request, String language,
-                                Supplier<ContentToolService> content, Supplier<AttachmentStorage> storage) {
+                               ContentToolService content, Supplier<AttachmentStorage> storage, KnowledgeService knowledge) {
         this.scopes = Set.copyOf(scopes);
         this.request = request;
         this.language = language;
         this.content = content;
         this.storage = storage;
+        this.knowledge = knowledge;
     }
     @Override public List<Tool> definitions(String language) throws Exception {
         AccountAccess account = AccountPermissionService.current();
@@ -50,15 +43,15 @@ public final class ContentToolProvider implements ToolProvider {
         if (!allowed(name,account)) throw new PermissionErrorException();
         JsonObject args = arguments == null ? new JsonObject() : arguments;
         if (name.equals("search_articles") || name.equals("read_article")) {
-            return new KnowledgeService(AccountPermissionService::current,scopes,BackendServerUrl::configured,language).call(name,args);
+            return knowledge.call(name,args);
         }
         Tool tool = ContentToolCatalog.tools(language).stream().filter(t -> t.name.equals(name)).findFirst().orElseThrow(PermissionErrorException::new);
         ContentToolCatalog.validate(tool,args,language);
         switch (name) {
-            case "get_article": return content.get().details(args.get("id").getAsInt(),scopes);
+            case "get_article": return content.details(args.get("id").getAsInt(),scopes);
             case "list_categories": case "list_tags":
-                return content.get().taxonomy(name.equals("list_categories"),args.has("offset")?args.get("offset").getAsInt():0,args.has("limit")?args.get("limit").getAsInt():50);
-            case "create_article": case "update_article": case "publish_article": return content.get().save(name,args,scopes,request);
+                return content.taxonomy(name.equals("list_categories"),args.has("offset")?args.get("offset").getAsInt():0,args.has("limit")?args.get("limit").getAsInt():50);
+            case "create_article": case "update_article": case "publish_article": return content.save(name,args,scopes,request);
             case "upload_attachment": return upload(args);
             default: throw new PermissionErrorException();
         }

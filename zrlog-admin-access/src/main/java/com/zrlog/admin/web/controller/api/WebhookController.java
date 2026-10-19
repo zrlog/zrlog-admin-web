@@ -1,26 +1,32 @@
 package com.zrlog.admin.web.controller.api;
 
-import com.zrlog.admin.web.annotation.RequiresAction;
-import com.zrlog.data.security.AccountAction;
-
 import com.hibegin.common.util.StringUtils;
 import com.hibegin.http.HttpMethod;
-import com.hibegin.http.annotation.ResponseBody;
 import com.hibegin.http.annotation.RequestMethod;
+import com.hibegin.http.annotation.ResponseBody;
 import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.rest.request.WebhookConfigRequest;
 import com.zrlog.admin.business.rest.request.WebhookMessageNoticeRequest;
 import com.zrlog.admin.business.rest.response.*;
 import com.zrlog.admin.business.service.AdminAuditService;
+import com.zrlog.admin.business.service.AdminPageDataFactory;
 import com.zrlog.admin.business.service.WebhookService;
 import com.zrlog.admin.business.type.AdminAuditAction;
+import com.zrlog.admin.web.annotation.RequiresAction;
 import com.zrlog.common.controller.BaseController;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.common.rest.response.StandardResponse;
+import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.I18nUtil;
 
 public class WebhookController extends BaseController {
+    public WebhookController(AdminPageDataFactory pages) {
+        this.pages = pages;
+    }
+
+    private final AdminPageDataFactory pages;
+
 
     private final WebhookService webhookService = new WebhookService();
 
@@ -36,7 +42,7 @@ public class WebhookController extends BaseController {
                     I18nUtil.getAdminBackendStringFromRes("admin.common.update.success")
             );
         }
-        return new AdminPageDataResponse<>(webhookService.getConfigResponse(), "", request.getUri());
+        return pages.response(webhookService.getConfigResponse(), "", request.getUri());
     }
 
     @ResponseBody

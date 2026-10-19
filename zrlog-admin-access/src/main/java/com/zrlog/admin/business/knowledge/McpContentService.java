@@ -2,34 +2,34 @@ package com.zrlog.admin.business.knowledge;
 
 import com.google.gson.JsonObject;
 import com.hibegin.http.server.api.HttpRequest;
-import com.zrlog.admin.business.content.AttachmentStorage;
 import com.zrlog.admin.business.knowledge.KnowledgeModels.Tool;
 import com.zrlog.admin.business.security.DelegatedAccess;
 import com.zrlog.admin.business.security.OAuthModels.Identity;
-import com.zrlog.admin.business.service.ContentToolService;
 import com.zrlog.admin.util.AdminLanguageContext;
-import com.zrlog.admin.util.BackendServerUrl;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.data.security.AccountAction;
+
 import java.net.URI;
+import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.function.Supplier;
-import java.util.*;
 
 /** Reauthenticates each operation and binds the same account actions used by ordinary admin APIs. */
 public final class McpContentService implements ToolProvider {
     private final Supplier<Identity> authenticate;
     private final HttpRequest request;
     private final String language;
-    private final ContentToolService content;
-    private final Supplier<AttachmentStorage> storage;
-    public McpContentService(Supplier<Identity> authenticate, HttpRequest request, String language) {
-        this(authenticate,request,language,request.getServerConfig().getBindings().build().get(ContentToolService.class),AttachmentStorage::current);
-    }
+    private final ContentToolFactory tools;
+    private final Supplier<String> issuer;
+
     public McpContentService(Supplier<Identity> authenticate, HttpRequest request, String language,
-                             ContentToolService content, Supplier<AttachmentStorage> storage) {
-        this.authenticate=authenticate;this.request=request;this.language=language;this.content=content;this.storage=storage;
+                             ContentToolFactory tools, Supplier<String> issuer) {
+        this.authenticate = authenticate;
+        this.request = request;
+        this.language = language;
+        this.tools = Objects.requireNonNull(tools);
+        this.issuer = Objects.requireNonNull(issuer);
     }
     @Override public List<Tool> definitions(String language) throws Exception {
         Identity identity = authenticate.get();
@@ -40,11 +40,11 @@ public final class McpContentService implements ToolProvider {
         return asAccount(identity, () -> tools(identity).call(name, arguments));
     }
     private ContentToolProvider tools(Identity identity) {
-        return new ContentToolProvider(Set.copyOf(identity.scopes), request, language, content, storage);
+        return tools.create(Set.copyOf(identity.scopes), request, language);
     }
     private <T> T asAccount(Identity identity, Callable<T> action) throws Exception {
         AdminTokenVO token=new AdminTokenVO();token.setUserId(identity.userId);token.setAuthVersion(identity.authVersion);
-        token.setProtocol(URI.create(BackendServerUrl.configured()).getScheme());
+        token.setProtocol(URI.create(issuer.get()).getScheme());
         token.setSessionId("mcp-"+identity.userId);
         Set<String> permissions=new HashSet<>();
         if (identity.permissionMode != null) permissions.addAll(identity.permissions);

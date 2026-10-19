@@ -1,8 +1,5 @@
 package com.zrlog.admin.web.controller.api;
 
-import com.zrlog.admin.web.annotation.RequiresAction;
-import com.zrlog.data.security.AccountAction;
-
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.RequestMethod;
 import com.hibegin.http.annotation.ResponseBody;
@@ -14,14 +11,17 @@ import com.zrlog.admin.business.rest.response.FileEntryVO;
 import com.zrlog.admin.business.rest.response.FileManagerResponse;
 import com.zrlog.admin.business.rest.response.ReplaceArticleResourceUrlResponse;
 import com.zrlog.admin.business.rest.response.UploadFileResponse;
+import com.zrlog.admin.business.service.AdminPageDataFactory;
 import com.zrlog.admin.business.service.FileManagerService;
 import com.zrlog.admin.business.util.FileEntryUtils;
 import com.zrlog.admin.web.annotation.RefreshCache;
+import com.zrlog.admin.web.annotation.RequiresAction;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.business.plugin.type.StaticSiteType;
 import com.zrlog.common.controller.BaseController;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.rest.response.ApiStandardResponse;
+import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.ZrLogUtil;
 
 import java.io.File;
@@ -31,8 +31,15 @@ import java.sql.SQLException;
 import java.util.List;
 
 public class FileManagerController extends BaseController {
+    private final AdminPageDataFactory pages;
 
-    private final FileManagerService fileManagerService = new FileManagerService();
+
+    private final FileManagerService fileManagerService;
+
+    public FileManagerController(FileManagerService fileManagerService, AdminPageDataFactory pages) {
+        this.pages = pages;
+        this.fileManagerService = fileManagerService;
+    }
 
     @ResponseBody
     @RequiresAction(value = AccountAction.FILE_MANAGE, descriptionKey = "file.list")
@@ -40,7 +47,7 @@ public class FileManagerController extends BaseController {
         String path = request.getParaToStr("path", "");
         String key = request.getParaToStr("key", "");
         String resourceType = request.getParaToStr("resourceType", "");
-        return new AdminPageDataResponse<>(fileManagerService.page(path, key, resourceType), "", request.getUri());
+        return pages.response(fileManagerService.page(path, key, resourceType), "", request.getUri());
     }
 
     @ResponseBody

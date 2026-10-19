@@ -11,7 +11,7 @@ import static org.junit.Assert.assertThrows;
 
 public class PasskeyRequestContextTest {
 
-    private final PasskeyRequestContext requestContext = new PasskeyRequestContext();
+    private final PasskeyRequestContext requestContext = new PasskeyRequestContext(() -> "");
 
     @Test
     public void shouldAcceptSameOriginHttpsRequest() {

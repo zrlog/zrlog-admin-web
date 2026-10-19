@@ -10,16 +10,18 @@ import com.zrlog.admin.business.security.DelegatedAccess;
 import com.zrlog.admin.business.security.PersonalTokenModels;
 import com.zrlog.admin.business.service.*;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
+import com.zrlog.admin.util.AdminLanguageContext;
 import com.zrlog.admin.web.annotation.RequiresAction;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
-import com.zrlog.admin.util.AdminLanguageContext;
-import com.zrlog.util.I18nUtil;
 import com.zrlog.common.Constants;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.data.security.AccountAction;
+import com.zrlog.util.I18nUtil;
 import org.junit.Test;
+
 import java.lang.reflect.Proxy;
 import java.util.*;
+
 import static org.junit.Assert.*;
 
 public class BearerTokenInterceptorTest {
@@ -42,7 +44,7 @@ public class BearerTokenInterceptorTest {
             db.execute("update user set preferences=? where userId=1", "{\"language\":\"en_US\"}");
             PersonalTokenModels.Create body = new PersonalTokenModels.Create();
             body.name = "language"; body.permissionMode = "custom"; body.permissions = List.of("taxonomy.read");
-            String token = new PersonalAccessTokenService(new OAuthService().mcpResource()).create(body).token;
+            String token = new PersonalAccessTokenService(new OAuthService(com.zrlog.admin.support.ApplicationServicesFixture.backend(com.zrlog.common.Constants.zrLogConfig)::configured, com.zrlog.admin.support.ApplicationServicesFixture.available(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.web.McpWebSetup.class)).mcpResource()).create(body).token;
             AdminTokenThreadLocal.remove();
             var parent = I18nUtil.threadLocal.get();
             assertEquals("en_US", ((ApiStandardResponse<?>) call("/api/admin/test/language", token).rendered).getData());
@@ -64,7 +66,7 @@ public class BearerTokenInterceptorTest {
         try (InMemoryZrLogDatabase db=InMemoryZrLogDatabase.open()) {
             var config=Constants.zrLogConfig.getServerConfig(); config.getRouter().addMapper("/api/admin/test",TestController.class);
             PersonalTokenModels.Create body=new PersonalTokenModels.Create(); body.name="test"; body.permissionMode="custom"; body.permissions=List.of("taxonomy.read");
-            var service=new PersonalAccessTokenService(new OAuthService().mcpResource());
+            var service=new PersonalAccessTokenService(new OAuthService(com.zrlog.admin.support.ApplicationServicesFixture.backend(com.zrlog.common.Constants.zrLogConfig)::configured, com.zrlog.admin.support.ApplicationServicesFixture.available(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.web.McpWebSetup.class)).mcpResource());
             String token=service.create(body).token;
             var previous=AdminTokenThreadLocal.getUser();
             Recorder success=call("/api/admin/test/read",token);
@@ -95,7 +97,7 @@ public class BearerTokenInterceptorTest {
                 default:return method.getReturnType().isPrimitive() ? 0 : null;
             }
         });
-        Recorder recorder=new Recorder(); BearerTokenInterceptor interceptor=new BearerTokenInterceptor();
+        Recorder recorder=new Recorder(); BearerTokenInterceptor interceptor=new BearerTokenInterceptor(() -> com.zrlog.admin.support.ApplicationServicesFixture.dispatcher(null, com.zrlog.common.Constants.zrLogConfig), new com.zrlog.admin.business.service.OAuthService(com.zrlog.admin.support.ApplicationServicesFixture.backend(com.zrlog.common.Constants.zrLogConfig)::configured, com.zrlog.admin.support.ApplicationServicesFixture.available(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.web.McpWebSetup.class)));
         assertTrue(interceptor.isHandleAble(request)); assertFalse(interceptor.doInterceptor(request,recorder.response())); return recorder;
     }
     private static class Recorder {

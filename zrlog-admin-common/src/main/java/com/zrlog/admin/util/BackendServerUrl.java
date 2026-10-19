@@ -4,31 +4,39 @@ import java.net.URI;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Supplier;
 
 /** Canonical external API entry point; never add this setting to public website data. */
 public final class BackendServerUrl {
     public static final String SETTING_KEY = "backend_server_url";
 
-    private BackendServerUrl() { }
+    private final Supplier<Integer> listenerPort;
+    private final Supplier<String> contextPath;
+    private final Supplier<String> siteHost;
 
-    public static String configured() {
+    public BackendServerUrl(Supplier<Integer> listenerPort, Supplier<String> contextPath, Supplier<String> siteHost) {
+        this.listenerPort = Objects.requireNonNull(listenerPort);
+        this.contextPath = Objects.requireNonNull(contextPath);
+        this.siteHost = Objects.requireNonNull(siteHost);
+    }
+
+    public String configured() {
         return configured(false, null);
     }
 
-    private static String configured(boolean allowHttp, String requestScheme) {
+    private String configured(boolean allowHttp, String requestScheme) {
         String backend = new com.zrlog.model.WebSite().getStringValueByName(SETTING_KEY);
         if (backend == null || backend.isBlank()) backend = System.getenv("ZRLOG_BACKEND_URL");
         if (backend == null || backend.isBlank()) backend = System.getenv("DEFAULT_BACKEND_SERVER_URL");
-        var server = com.zrlog.common.Constants.zrLogConfig.getServerConfig();
-        String host = com.zrlog.util.ZrLogUtil.getBlogHostByWebSite();
+        String host = siteHost.get();
         if (host == null || host.isBlank()) {
             // A fresh local installation has no canonical host; use the configured listener, never request headers.
-            Integer port = server.getPort();
+            Integer port = listenerPort.get();
             if (port != null && port > 0 && port <= 65535) {
                 host = "localhost" + (port == 80 ? "" : ":" + port);
             }
         }
-        return resolve(backend, host, server.getContextPath(), allowHttp, requestScheme);
+        return resolve(backend, host, contextPath.get(), allowHttp, requestScheme);
     }
 
     /** A full backend URL already includes its externally visible context path. */
@@ -55,7 +63,7 @@ public final class BackendServerUrl {
     }
 
     /** Browser CSRF checks support ordinary HTTP deployments, independently of OAuth URL policy. */
-    public static void requireAdminRequestOrigin(com.hibegin.http.server.api.HttpRequest request) {
+    public void requireAdminRequestOrigin(com.hibegin.http.server.api.HttpRequest request) {
         String scheme = Objects.toString(request.getScheme(), "").toLowerCase(Locale.ROOT);
         if (!Set.of("http", "https").contains(scheme)) throw new IllegalArgumentException("Origin");
         requireAdminOrigin(request.getHeader("Origin"), configured(true, scheme), true);

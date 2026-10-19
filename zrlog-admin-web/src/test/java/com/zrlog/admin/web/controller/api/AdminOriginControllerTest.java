@@ -35,7 +35,7 @@ public class AdminOriginControllerTest {
     @Test public void configuredFrontendCanRegisterAuthorizeAndRevokeApplicationsAndTokens() throws Exception {
         try (var db = InMemoryZrLogDatabase.open()) {
             configure(db);
-            OAuthService service = new OAuthService();
+            OAuthService service = new OAuthService(com.zrlog.admin.support.ApplicationServicesFixture.backend(com.zrlog.common.Constants.zrLogConfig)::configured, com.zrlog.admin.support.ApplicationServicesFixture.available(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.web.McpWebSetup.class));
             var client = oauth(FRONTEND, Map.of("name", "Static admin application",
                     "redirectUris", List.of("https://client.example/callback"))).register().getData();
             assertNotNull(client.clientId);
@@ -79,10 +79,10 @@ public class AdminOriginControllerTest {
     @Test public void configuredFrontendCanCreateAndUpdateMembers() throws Exception {
         try (var db = InMemoryZrLogDatabase.open()) {
             configure(db);
-            var member = controller(new MemberController(), FRONTEND, Map.of("userName", "writer",
+            var member = controller(new MemberController(com.zrlog.admin.support.ApplicationServicesFixture.backend(com.zrlog.common.Constants.zrLogConfig), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource))), FRONTEND, Map.of("userName", "writer",
                     "password", "test-member-password", "role", "author")).create().getData();
             assertEquals("author", member.role);
-            var updated = controller(new MemberController(), FRONTEND, Map.of("userId", member.userId,
+            var updated = controller(new MemberController(com.zrlog.admin.support.ApplicationServicesFixture.backend(com.zrlog.common.Constants.zrLogConfig), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource))), FRONTEND, Map.of("userId", member.userId,
                     "role", "contributor", "enabled", false)).update().getData();
             assertEquals("contributor", updated.role);
             assertFalse(updated.enabled);
@@ -94,7 +94,7 @@ public class AdminOriginControllerTest {
             configure(db);
             for (String origin : List.of("https://evil.example", "https://admin.example.evil.example")) {
                 var oauth = oauth(origin, Map.of());
-                var members = controller(new MemberController(), origin, Map.of());
+                var members = controller(new MemberController(com.zrlog.admin.support.ApplicationServicesFixture.backend(com.zrlog.common.Constants.zrLogConfig), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource))), origin, Map.of());
                 for (ThrowingRunnable action : List.<ThrowingRunnable>of(oauth::register, oauth::decide,
                         oauth::revokeGrant, oauth::createPersonalToken, oauth::revokePersonalToken,
                         oauth::disableClient, members::create, members::update, members::transfer)) {
@@ -112,7 +112,7 @@ public class AdminOriginControllerTest {
     }
 
     private OAuthAdminController oauth(String origin, Object body) throws Exception {
-        return controller(new OAuthAdminController(), origin, body);
+        return controller(new OAuthAdminController(new com.zrlog.admin.business.service.OAuthService(com.zrlog.admin.support.ApplicationServicesFixture.backend(com.zrlog.common.Constants.zrLogConfig)::configured, com.zrlog.admin.support.ApplicationServicesFixture.available(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.web.McpWebSetup.class)), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource))), origin, body);
     }
 
     private <T extends Controller> T controller(T controller, String origin, Object body) throws Exception {

@@ -7,6 +7,7 @@ import com.zrlog.admin.business.knowledge.*;
 import com.zrlog.admin.business.security.*;
 import com.zrlog.admin.business.service.OAuthService;
 import com.zrlog.admin.business.service.UserPreferenceService;
+
 import java.io.ByteArrayInputStream;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -14,9 +15,18 @@ import java.util.*;
 
 /** One Streamable HTTP endpoint, JSON responses only; no browser session cookies accepted. */
 public class McpInterceptor implements HandleAbleInterceptor {
+    private final java.util.function.Supplier<ContentToolFactory> tools;
+    private final OAuthService oauth;
+    private final java.util.function.Supplier<String> siteTitle;
+
+    public McpInterceptor(java.util.function.Supplier<ContentToolFactory> tools, OAuthService oauth, java.util.function.Supplier<String> siteTitle) {
+        this.siteTitle = Objects.requireNonNull(siteTitle);
+        this.oauth = Objects.requireNonNull(oauth);
+        this.tools = Objects.requireNonNull(tools);
+    }
+
     @Override public boolean isHandleAble(HttpRequest request) { return "/mcp".equals(request.getUri()); }
     @Override public boolean doInterceptor(HttpRequest request, HttpResponse response) {
-        OAuthService oauth = new OAuthService();
         response.addHeader("Cache-Control", "no-store");
         response.addHeader("X-Content-Type-Options", "nosniff");
         response.addHeader("Access-Control-Expose-Headers", "WWW-Authenticate");
@@ -52,8 +62,8 @@ public class McpInterceptor implements HandleAbleInterceptor {
             McpContentService knowledge = new McpContentService(() -> {
                 try { return oauth.authenticate(token, oauth.mcpResource(), Set.of()); }
                 catch (java.sql.SQLException e) { throw new OAuthException("temporarily_unavailable", 503); }
-            }, request, language);
-            McpService.Reply reply = new McpService(language).handle(StandardCharsets.UTF_8.decode(buffer.asReadOnlyBuffer()).toString(), knowledge);
+            }, request, language, tools.get(), oauth::issuer);
+            McpService.Reply reply = new McpService(siteTitle, language).handle(StandardCharsets.UTF_8.decode(buffer.asReadOnlyBuffer()).toString(), knowledge);
             if (reply.body == null) response.renderCode(reply.status);
             else json(response, reply.body, reply.status);
         } catch (OAuthException e) {

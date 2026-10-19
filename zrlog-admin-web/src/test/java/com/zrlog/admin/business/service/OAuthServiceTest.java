@@ -5,8 +5,10 @@ import com.zrlog.admin.business.security.OAuthModels.*;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.interceptor.OAuthInterceptor;
 import org.junit.Test;
+
 import java.net.URI;
 import java.util.*;
+
 import static org.junit.Assert.*;
 
 @org.junit.runner.RunWith(org.junit.runners.Parameterized.class)
@@ -16,7 +18,7 @@ public class OAuthServiceTest {
     private final String backend;
     public OAuthServiceTest(String backend) { this.backend = backend; }
     private InMemoryZrLogDatabase database() throws Exception { return "webapi".equals(backend) ? InMemoryZrLogDatabase.openWebApi() : "sqlite".equals(backend) ? InMemoryZrLogDatabase.openSqlite() : InMemoryZrLogDatabase.open(); }
-    private final OAuthService service=new OAuthService(()->"https://blog.example/sub");
+    private final OAuthService service=new OAuthService(()->"https://blog.example/sub", () -> true);
     private final String verifier=OAuthService.random();
     private Client client() throws Exception {
         Client app=new Client();app.name="Test writer";app.redirectUris=List.of("http://127.0.0.1:3000/callback?app=1");return service.register(app);

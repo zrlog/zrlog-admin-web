@@ -21,9 +21,11 @@ import java.util.Objects;
  */
 public class AdminPwaInterceptor implements HandleAbleInterceptor {
 
+    private final AdminResource resources;
     private final List<String> resourceUris = new ArrayList<>();
 
-    public AdminPwaInterceptor() {
+    public AdminPwaInterceptor(AdminResource resources) {
+        this.resources = Objects.requireNonNull(resources);
         resourceUris.add(AdminResource.ADMIN_ASSET_MANIFEST_JSON);
         TemplateInfoHelper.getClassPathTemplates().forEach(clazz -> {
             if (Objects.nonNull(clazz)) {
@@ -45,7 +47,7 @@ public class AdminPwaInterceptor implements HandleAbleInterceptor {
     public boolean doInterceptor(HttpRequest request, HttpResponse response) throws Exception {
         if (Objects.equals(AdminConstants.ADMIN_SERVICE_WORKER_JS, request.getUri())) {
             response.addHeader("Content-Type", MimeTypeUtil.getMimeStrByExt(request.getUri().substring(request.getUri().lastIndexOf(".") + 1)));
-            try (InputStream inputStream = AdminConstants.adminResource.renderServiceWorker(request)) {
+            try (InputStream inputStream = resources.renderServiceWorker(request)) {
                 response.write(new ByteArrayInputStream(inputStream.readAllBytes()));
                 return false;
             }

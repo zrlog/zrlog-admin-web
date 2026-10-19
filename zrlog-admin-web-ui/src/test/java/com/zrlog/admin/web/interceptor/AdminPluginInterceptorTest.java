@@ -5,8 +5,8 @@ import com.hibegin.common.util.http.handle.CloseResponseHandle;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
-import com.zrlog.business.plugin.PluginCorePlugin;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
+import com.zrlog.business.plugin.PluginCorePlugin;
 import com.zrlog.common.Constants;
 import com.zrlog.common.TokenService;
 import com.zrlog.common.ZrLogConfig;
@@ -55,7 +55,7 @@ public class AdminPluginInterceptorTest {
     public void shouldRedirectPluginRootToSlashPath() throws Exception {
         ResponseRecorder response = new ResponseRecorder();
 
-        new AdminPluginInterceptor().doInterceptor(
+        new AdminPluginInterceptor(() -> com.zrlog.common.Constants.zrLogConfig.getTokenService(), () -> com.zrlog.common.Constants.zrLogConfig.getPlugin(com.zrlog.business.plugin.PluginCorePlugin.class), com.zrlog.admin.support.ApplicationServicesFixture.installed(com.zrlog.common.Constants.zrLogConfig)).doInterceptor(
                 request(HttpMethod.GET, "/admin/plugins"), response.response());
 
         assertEquals("/admin/plugins/", response.redirected);
@@ -66,7 +66,7 @@ public class AdminPluginInterceptorTest {
         FakePluginCorePlugin plugin = new FakePluginCorePlugin(true);
 
         withConfig(new TestZrLogConfig(tokenService(null), plugin), () ->
-                new AdminPluginInterceptor().doInterceptor(
+                new AdminPluginInterceptor(() -> com.zrlog.common.Constants.zrLogConfig.getTokenService(), () -> com.zrlog.common.Constants.zrLogConfig.getPlugin(com.zrlog.business.plugin.PluginCorePlugin.class), com.zrlog.admin.support.ApplicationServicesFixture.installed(com.zrlog.common.Constants.zrLogConfig)).doInterceptor(
                         request(HttpMethod.GET, "/admin/plugins/reminder/manifest.json"), new ResponseRecorder().response()));
 
         assertEquals("/reminder/manifest.json", plugin.lastUri);
@@ -79,7 +79,7 @@ public class AdminPluginInterceptorTest {
         ResponseRecorder response = new ResponseRecorder();
 
         withConfig(new TestZrLogConfig(tokenService(null), plugin), () ->
-                new AdminPluginInterceptor().doInterceptor(
+                new AdminPluginInterceptor(() -> com.zrlog.common.Constants.zrLogConfig.getTokenService(), () -> com.zrlog.common.Constants.zrLogConfig.getPlugin(com.zrlog.business.plugin.PluginCorePlugin.class), com.zrlog.admin.support.ApplicationServicesFixture.installed(com.zrlog.common.Constants.zrLogConfig)).doInterceptor(
                         request(HttpMethod.GET, "/admin/plugins/reminder/manifest.json"), response.response()));
 
         assertEquals(Integer.valueOf(404), response.renderedCode);
@@ -90,7 +90,7 @@ public class AdminPluginInterceptorTest {
         ResponseRecorder response = new ResponseRecorder();
 
         withConfig(new TestZrLogConfig(tokenService(null), new FakePluginCorePlugin(true)), () ->
-                new AdminPluginInterceptor().doInterceptor(
+                new AdminPluginInterceptor(() -> com.zrlog.common.Constants.zrLogConfig.getTokenService(), () -> com.zrlog.common.Constants.zrLogConfig.getPlugin(com.zrlog.business.plugin.PluginCorePlugin.class), com.zrlog.admin.support.ApplicationServicesFixture.installed(com.zrlog.common.Constants.zrLogConfig)).doInterceptor(
                         request(HttpMethod.GET, "/admin/plugins/reminder/index"), response.response()));
 
         assertTrue(response.redirected.contains("/admin/login"));
@@ -103,7 +103,7 @@ public class AdminPluginInterceptorTest {
 
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             withConfig(new TestZrLogConfig(tokenService(token()), new FakePluginCorePlugin(false)), () ->
-                new AdminPluginInterceptor().doInterceptor(
+                new AdminPluginInterceptor(() -> com.zrlog.common.Constants.zrLogConfig.getTokenService(), () -> com.zrlog.common.Constants.zrLogConfig.getPlugin(com.zrlog.business.plugin.PluginCorePlugin.class), com.zrlog.admin.support.ApplicationServicesFixture.installed(com.zrlog.common.Constants.zrLogConfig)).doInterceptor(
                         request(HttpMethod.GET, "/admin/plugins/reminder/index"), response.response()));
         }
 
@@ -116,7 +116,7 @@ public class AdminPluginInterceptorTest {
             FakePluginCorePlugin plugin = new FakePluginCorePlugin(true);
 
             withConfig(new TestZrLogConfig(tokenService(token()), plugin), () ->
-                    new AdminPluginInterceptor().doInterceptor(
+                    new AdminPluginInterceptor(() -> com.zrlog.common.Constants.zrLogConfig.getTokenService(), () -> com.zrlog.common.Constants.zrLogConfig.getPlugin(com.zrlog.business.plugin.PluginCorePlugin.class), com.zrlog.admin.support.ApplicationServicesFixture.installed(com.zrlog.common.Constants.zrLogConfig)).doInterceptor(
                             request(HttpMethod.POST, "/admin/plugins/reminder/surfaceAction"), new ResponseRecorder().response()));
 
             assertEquals("/reminder/surfaceAction", plugin.lastUri);

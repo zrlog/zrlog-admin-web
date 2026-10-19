@@ -10,11 +10,13 @@ import com.zrlog.admin.business.rest.request.CreateArticleRequest;
 import com.zrlog.admin.business.rest.request.UpdateArticleRequest;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
-import java.lang.reflect.Proxy;
-import java.util.Map;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+
+import java.lang.reflect.Proxy;
+import java.util.Map;
+
 import static org.junit.Assert.*;
 
 @RunWith(Parameterized.class)
@@ -33,7 +35,7 @@ public class ArticlePublishingServiceDatabaseTest {
     @Test
     public void recordsCreationAndPublicationButNotDraftOrPrivateUpdatesOrVersionConflicts() throws Exception {
         try (InMemoryZrLogDatabase db = open()) {
-            ArticlePublishingService publishing = new ArticlePublishingService(new AdminArticleService(db.cacheService()), db.cacheService());
+            ArticlePublishingService publishing = new ArticlePublishingService(new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource))), com.zrlog.admin.support.ApplicationServicesFixture.cacheRefresh(db.cacheService(), com.zrlog.common.Constants.zrLogConfig));
             CreateArticleRequest create = new CreateArticleRequest();
             create.setTitle("Original");
             create.setTypeId(1L);
@@ -88,7 +90,7 @@ public class ArticlePublishingServiceDatabaseTest {
             body.setTypeId(1L);
             body.setContent("Published content");
             body.setPreserveDraftAiMessages(true);
-            new ArticlePublishingService(new AdminArticleService(db.cacheService()), db.cacheService()).create(AdminTokenThreadLocal.getUser(), body, request());
+            new ArticlePublishingService(new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource))), com.zrlog.admin.support.ApplicationServicesFixture.cacheRefresh(db.cacheService(), com.zrlog.common.Constants.zrLogConfig)).create(AdminTokenThreadLocal.getUser(), body, request());
             JsonArray audit = audit(db);
             assertEquals(2, audit.size());
             assertEquals("PUBLISH_ARTICLE", audit.get(0).getAsJsonObject().get("action").getAsString());
@@ -106,7 +108,7 @@ public class ArticlePublishingServiceDatabaseTest {
                 db.execute("insert into log(logId,userId,typeId,title,rubbish,privacy,version) values(?, ?,1,'Article',true,false,0)",
                         id, id == 12 ? 2 : 1);
             }
-            ArticlePublishingService publishing = new ArticlePublishingService(new AdminArticleService(db.cacheService()), db.cacheService());
+            ArticlePublishingService publishing = new ArticlePublishingService(new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource))), com.zrlog.admin.support.ApplicationServicesFixture.cacheRefresh(db.cacheService(), com.zrlog.common.Constants.zrLogConfig));
             assertTrue(publishing.deleteArticles("10", request()).getData().getDelete());
             assertThrows(PermissionErrorException.class, () -> publishing.deleteArticles("11,12", request()));
             assertEquals(1, ((Number) db.scalar("select count(*) from log")).intValue());

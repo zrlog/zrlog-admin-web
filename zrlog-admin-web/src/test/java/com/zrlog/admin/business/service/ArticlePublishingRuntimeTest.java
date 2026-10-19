@@ -2,9 +2,9 @@ package com.zrlog.admin.business.service;
 
 import org.junit.Test;
 
-import java.net.URLClassLoader;
-import java.net.URL;
 import java.io.File;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.util.Arrays;
 
 import static org.junit.Assert.assertEquals;
@@ -23,7 +23,7 @@ public class ArticlePublishingRuntimeTest {
         try (URLClassLoader loader = new URLClassLoader(classpath, ClassLoader.getPlatformClassLoader())) {
             assertThrows(ClassNotFoundException.class, () -> loader.loadClass("com.zrlog.blog.polyglot.markdown.MarkdownJsRenderer"));
             Class<?> service = loader.loadClass(ArticlePublishingService.class.getName());
-            var constructor = service.getDeclaredConstructor(loader.loadClass(AdminArticleService.class.getName()), loader.loadClass("com.zrlog.common.CacheService"));
+            var constructor = service.getDeclaredConstructor(loader.loadClass(AdminArticleService.class.getName()), loader.loadClass("com.zrlog.business.service.CacheRefreshService"));
             constructor.setAccessible(true);
             Object instance = constructor.newInstance(new Object[]{null, null});
             Class<?> request = loader.loadClass("com.zrlog.admin.business.rest.request.CreateArticleRequest");

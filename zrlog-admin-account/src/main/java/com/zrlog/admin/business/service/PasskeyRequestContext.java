@@ -4,7 +4,6 @@ import com.hibegin.common.util.StringUtils;
 import com.hibegin.http.server.api.HttpRequest;
 import com.webauthn4j.data.client.Origin;
 import com.zrlog.admin.business.exception.PasskeyVerificationException;
-import com.zrlog.util.ZrLogUtil;
 
 import java.net.URI;
 import java.util.Arrays;
@@ -19,11 +18,7 @@ public class PasskeyRequestContext {
     private static final int MAX_REFERER_LENGTH = 2048;
     private final Supplier<String> configuredSiteHostSupplier;
 
-    public PasskeyRequestContext() {
-        this(ZrLogUtil::getBlogHostByWebSite);
-    }
-
-    PasskeyRequestContext(Supplier<String> configuredSiteHostSupplier) {
+    public PasskeyRequestContext(Supplier<String> configuredSiteHostSupplier) {
         this.configuredSiteHostSupplier = Objects.requireNonNull(configuredSiteHostSupplier);
     }
 

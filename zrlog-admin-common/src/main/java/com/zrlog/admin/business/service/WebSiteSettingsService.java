@@ -12,20 +12,26 @@ import com.zrlog.business.rest.base.UpgradeWebSiteInfo;
 import com.zrlog.business.updater.AutoUpgradeVersionType;
 import com.zrlog.business.updater.UpdateVersionInfoPlugin;
 import com.zrlog.common.CacheService;
-import com.zrlog.common.Constants;
+import com.zrlog.common.TokenService;
 import com.zrlog.common.cache.vo.BaseDataInitVO;
 import com.zrlog.model.WebSite;
 import com.zrlog.util.BlogBuildInfoUtil;
 import com.zrlog.util.I18nUtil;
+
 import java.io.InputStream;
 import java.sql.SQLException;
 import java.util.Map;
+import java.util.function.Supplier;
 
 public class WebSiteSettingsService {
 
     private final CacheService cacheService;
+    private final TokenService tokenService;
+    private final Supplier<UpdateVersionInfoPlugin> updatePlugin;
 
-    public WebSiteSettingsService(CacheService cacheService) {
+    public WebSiteSettingsService(CacheService cacheService, TokenService tokenService, Supplier<UpdateVersionInfoPlugin> updatePlugin) {
+        this.updatePlugin = updatePlugin;
+        this.tokenService = tokenService;
         this.cacheService = cacheService;
     }
 
@@ -70,12 +76,12 @@ public class WebSiteSettingsService {
             settings.setBackend_server_url(new WebSite().getStringValueByName(com.zrlog.admin.util.BackendServerUrl.SETTING_KEY));
         }
         update(settings, request);
-        Constants.zrLogConfig.getTokenService().updateSessionTimeout(settings.getSession_timeout());
+        tokenService.updateSessionTimeout(settings.getSession_timeout());
     }
 
     public void updateUpgrade(UpgradeWebSiteInfo settings, HttpRequest request) throws SQLException {
         validateUpgrade(settings);
-        UpdateVersionInfoPlugin plugin = Constants.zrLogConfig.getPlugin(UpdateVersionInfoPlugin.class);
+        UpdateVersionInfoPlugin plugin = updatePlugin.get();
         update(settings, request);
         plugin.stop();
         if (AutoUpgradeVersionType.cycle(settings.getAutoUpgradeVersion()) != AutoUpgradeVersionType.NEVER) {
@@ -89,7 +95,7 @@ public class WebSiteSettingsService {
             settings.setUpgradePackageSource(new com.zrlog.business.service.WebsiteKvService()
                     .upgradeWebSiteInfo().getUpgradePackageSource());
         }
-        UpdateVersionInfoPlugin plugin = Constants.zrLogConfig.getPlugin(UpdateVersionInfoPlugin.class);
+        UpdateVersionInfoPlugin plugin = updatePlugin.get();
         if (plugin == null) {
             throw new IllegalStateException(
                     I18nUtil.getAdminBackendStringFromRes("admin.website.upgrade.error.missingUpdatePlugin"));

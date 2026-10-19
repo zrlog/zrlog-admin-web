@@ -3,13 +3,15 @@ package com.zrlog.admin.util;
 import com.hibegin.http.server.api.HttpResponse;
 import com.zrlog.admin.business.service.AdminArticleService;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
+import org.junit.Test;
+
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
-import org.junit.Test;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -68,7 +70,7 @@ public class AdminSseEmitterTest {
                     var request = new com.zrlog.admin.business.rest.request.CreateArticleRequest();
                     request.setTitle("Must not publish"); request.setTypeId(1L); request.setRubbish(false); request.setContent("content");
                     org.junit.Assert.assertThrows(com.zrlog.admin.business.exception.PermissionErrorException.class,
-                            () -> new AdminArticleService(db.cacheService()).create(com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser(), request));
+                            () -> new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource))).create(com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser(), request));
                     emitter.send("checked", true);
                 });
                 return null;

@@ -2,6 +2,7 @@ package com.zrlog.admin.business.service;
 
 import com.zrlog.admin.business.security.OAuthException;
 import org.junit.Test;
+
 import static org.junit.Assert.*;
 
 public class OAuthServerAddressTest {
@@ -14,7 +15,7 @@ public class OAuthServerAddressTest {
                     config.setContextPath(context);
                     for (int port : new int[]{80, 8080, 18080}) {
                         config.setPort(port);
-                        OAuthService service = new OAuthService();
+                        OAuthService service = new OAuthService(com.zrlog.admin.support.ApplicationServicesFixture.backend(com.zrlog.common.Constants.zrLogConfig)::configured, com.zrlog.admin.support.ApplicationServicesFixture.available(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.web.McpWebSetup.class));
                         String origin = "http://localhost" + (port == 80 ? "" : ":" + port);
                         String issuer = origin + context;
                         var page = service.page();
@@ -36,7 +37,7 @@ public class OAuthServerAddressTest {
 
     @Test public void splitDeploymentUsesBackendForDiscoveryAndDisplayedAddresses() throws Exception {
         OAuthService service = new OAuthService(() -> OAuthService.configuredIssuer(
-                "https://xiaochun-admin.zrlog.com/", "xiaochun.zrlog.com", ""));
+                "https://xiaochun-admin.zrlog.com/", "xiaochun.zrlog.com", ""), () -> true);
         assertEquals("https://xiaochun-admin.zrlog.com", service.issuer());
         assertEquals("https://xiaochun-admin.zrlog.com/oauth/authorize", service.metadata().authorization_endpoint);
         assertEquals("https://xiaochun-admin.zrlog.com/oauth/token", service.metadata().token_endpoint);

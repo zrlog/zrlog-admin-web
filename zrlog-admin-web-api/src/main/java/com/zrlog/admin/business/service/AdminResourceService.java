@@ -4,11 +4,9 @@ import com.hibegin.common.util.EnvKit;
 import com.hibegin.common.util.LoggerUtil;
 import com.hibegin.common.util.ObjectUtil;
 import com.hibegin.http.server.api.HttpRequest;
-import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.rest.base.FeatureLabWebSiteInfo;
 import com.zrlog.admin.business.rest.response.AdminResourceInfoResponse;
 import com.zrlog.admin.util.AdminWebTools;
-import com.zrlog.common.Constants;
 import com.zrlog.common.vo.PublicWebSiteInfo;
 import com.zrlog.data.util.WebSiteUtils;
 import com.zrlog.model.UserPasskey;
@@ -16,28 +14,35 @@ import com.zrlog.plugin.BaseStaticSitePlugin;
 import com.zrlog.util.BlogBuildInfoUtil;
 import com.zrlog.util.I18nUtil;
 import com.zrlog.util.ZrLogUtil;
+
 import java.sql.SQLException;
 import java.util.Objects;
+import java.util.function.Supplier;
 import java.util.logging.Logger;
 
 public class AdminResourceService {
     private static final Logger LOGGER = LoggerUtil.getLogger(AdminResourceService.class);
+    private final Supplier<AdminResourceInfoResponse.Capabilities> capabilities;
+    private final FeatureLabService features;
+    private final Supplier<PublicWebSiteInfo> site;
+    private final Supplier<String> staticResourceHost;
+
+    public AdminResourceService(Supplier<AdminResourceInfoResponse.Capabilities> capabilities, FeatureLabService features,
+                                Supplier<PublicWebSiteInfo> site, Supplier<String> staticResourceHost) {
+        this.site = Objects.requireNonNull(site);
+        this.staticResourceHost = Objects.requireNonNull(staticResourceHost);
+        this.capabilities = Objects.requireNonNull(capabilities);
+        this.features = Objects.requireNonNull(features);
+    }
 
     public AdminResourceInfoResponse adminResourceInfo(HttpRequest request) {
-        String lang = I18nUtil.getCurrentLocale();
+        PublicWebSiteInfo publicWebSiteInfo = Objects.requireNonNullElseGet(site.get(),
+                () -> WebSiteUtils.fillDefaultInfo(new PublicWebSiteInfo()));
+        var requestLanguage = I18nUtil.threadLocal.get();
+        String lang = requestLanguage == null ? publicWebSiteInfo.getLanguage() : requestLanguage.getLocale();
         AdminResourceInfoResponse response = new AdminResourceInfoResponse();
         response.setDevMode(EnvKit.isDevMode());
-        PublicWebSiteInfo publicWebSiteInfo = AdminConstants.getPublicWebSiteInfo();
-        AdminResourceInfoResponse.Capabilities capabilities = new AdminResourceInfoResponse.Capabilities();
-        if (Constants.zrLogConfig != null) {
-            capabilities.account = Constants.zrLogConfig.getWebSetup(com.zrlog.admin.web.AccountWebSetup.class) != null;
-            capabilities.content = Constants.zrLogConfig.getWebSetup(com.zrlog.admin.web.ContentWebSetup.class) != null;
-            capabilities.assets = Constants.zrLogConfig.getWebSetup(com.zrlog.admin.web.AssetsWebSetup.class) != null;
-            capabilities.ai = Constants.zrLogConfig.getWebSetup(com.zrlog.admin.web.AIWebSetup.class) != null;
-            capabilities.access = Constants.zrLogConfig.getWebSetup(com.zrlog.admin.web.AccessWebSetup.class) != null;
-            capabilities.mcp = Constants.zrLogConfig.getWebSetup(com.zrlog.admin.web.McpWebSetup.class) != null;
-        }
-        response.setCapabilities(capabilities);
+        response.setCapabilities(capabilities.get());
         response.setCurrentVersion(BlogBuildInfoUtil.getBuildId());
         if (Objects.nonNull(publicWebSiteInfo)) {
             response.setWebsiteTitle(ObjectUtil.requireNonNullElse(publicWebSiteInfo.getTitle(), ""));
@@ -47,7 +52,7 @@ public class AdminResourceService {
             response.setAppId(ObjectUtil.requireNonNullElse(publicWebSiteInfo.getAppId(), ""));
             response.setAdmin_color_primary(ObjectUtil.requireNonNullElse(publicWebSiteInfo.getAdmin_color_primary(), WebSiteUtils.DEFAULT_COLOR_PRIMARY_COLOR));
         }
-        response.setHomeUrl(ZrLogUtil.getHomeUrlWithHost(request));
+        response.setHomeUrl(ZrLogUtil.getHomeUrlWithHost(request, publicWebSiteInfo.getHost()));
         response.setArticleRoute("");
         if (ZrLogUtil.isPreviewMode()) {
             AdminResourceInfoResponse.DefaultLoginInfo defaultLoginInfo = new AdminResourceInfoResponse.DefaultLoginInfo();
@@ -62,13 +67,17 @@ public class AdminResourceService {
         //remove
         response.setStaticPlugin(BaseStaticSitePlugin.isStaticPluginRequest(request));
         response.setSupportSse(!EnvKit.isLambda() || EnvKit.isLambdaResponseStreamEnabled());
-        response.setAdmin_static_resource_base_url(AdminWebTools.getAdminStaticResourceBaseUrlByWebSite(request));
-        FeatureLabWebSiteInfo featureLab = new FeatureLabService().featureLab();
+        response.setAdmin_static_resource_base_url(staticResourceBaseUrl(request));
+        FeatureLabWebSiteInfo featureLab = features.featureLab();
         response.setFeature_webhook_enabled(featureLab.getFeature_webhook_enabled());
         response.setFeature_personal_data_enabled(featureLab.getFeature_personal_data_enabled());
         response.setFeature_article_arrangement_enabled(featureLab.getFeature_article_arrangement_enabled());
         response.setPasskeyLoginEnabled(isPasskeyLoginEnabled());
         return response;
+    }
+
+    public String staticResourceBaseUrl(HttpRequest request) {
+        return AdminWebTools.getAdminStaticResourceBaseUrl(request, staticResourceHost);
     }
 
     private boolean isPasskeyLoginEnabled() {

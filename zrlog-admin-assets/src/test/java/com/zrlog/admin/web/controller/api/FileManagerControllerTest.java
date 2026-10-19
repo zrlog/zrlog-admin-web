@@ -237,18 +237,15 @@ public class FileManagerControllerTest {
     private static FileManagerController controller(Map<String, String> params, String body, Map<String, File> files,
                                                     FakeFileManagerService service,
                                                     ResponseRecorder responseRecorder) throws Exception {
-        FileManagerController controller = new FileManagerController();
+        FileManagerController controller = new FileManagerController(service, new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
         setControllerField(controller, "request", request(params, body, files));
         setControllerField(controller, "response", responseRecorder.response());
-        Field serviceField = FileManagerController.class.getDeclaredField("fileManagerService");
-        serviceField.setAccessible(true);
-        serviceField.set(controller, service);
         return controller;
     }
 
     private static FileManagerController realController(Map<String, String> params, ResponseRecorder responseRecorder)
             throws Exception {
-        FileManagerController controller = new FileManagerController();
+        FileManagerController controller = new FileManagerController(new com.zrlog.admin.business.service.FileManagerService(new com.zrlog.admin.business.service.UploadService(() -> null), new com.zrlog.admin.business.service.FileManagerReferenceService("")), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
         setControllerField(controller, "request", request(params));
         setControllerField(controller, "response", responseRecorder.response());
         return controller;
@@ -300,6 +297,8 @@ public class FileManagerControllerTest {
     }
 
     private static class FakeFileManagerService extends FileManagerService {
+        FakeFileManagerService() { super(new com.zrlog.admin.business.service.UploadService(() -> null), new com.zrlog.admin.business.service.FileManagerReferenceService("")); }
+
 
         private String searchKey;
         private String deletedPath;

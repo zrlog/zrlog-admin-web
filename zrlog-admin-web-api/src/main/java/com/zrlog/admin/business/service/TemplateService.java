@@ -1,28 +1,32 @@
 package com.zrlog.admin.business.service;
 
 import com.hibegin.common.util.*;
-import com.hibegin.http.server.util.PathUtil;
 import com.hibegin.http.server.api.HttpRequest;
+import com.hibegin.http.server.util.PathUtil;
 import com.zrlog.admin.business.AdminConstants;
-import com.zrlog.admin.business.rest.response.UpdateRecordResponse;
-import com.zrlog.admin.business.rest.response.UploadTemplateResponse;
 import com.zrlog.admin.business.rest.response.DeleteResponse;
 import com.zrlog.admin.business.rest.response.TemplateDownloadResponse;
 import com.zrlog.admin.business.rest.response.TemplateEntryResponse;
-import com.zrlog.theme.spi.BundledThemes;
+import com.zrlog.admin.business.rest.response.UpdateRecordResponse;
+import com.zrlog.admin.business.rest.response.UploadTemplateResponse;
 import com.zrlog.admin.business.type.AdminAuditAction;
 import com.zrlog.admin.web.controller.api.TemplateController;
+import com.zrlog.blog.web.plugin.TemplateDownloadPlugin;
+import com.zrlog.business.plugin.PluginCorePlugin;
 import com.zrlog.business.service.TemplateInfoHelper;
 import com.zrlog.business.template.HtmlTemplateProcessor;
 import com.zrlog.business.template.util.TemplateDownloadUtils;
 import com.zrlog.business.type.TemplateType;
+import com.zrlog.common.CacheService;
 import com.zrlog.common.Constants;
 import com.zrlog.common.vo.BaseTemplateVO;
 import com.zrlog.common.vo.TemplateVO;
 import com.zrlog.model.WebSite;
-import com.zrlog.util.I18nUtil;
+import com.zrlog.theme.spi.BundledThemes;
 import com.zrlog.util.BlogBuildInfoUtil;
+import com.zrlog.util.I18nUtil;
 import com.zrlog.util.StaticFileCacheUtils;
+import com.zrlog.util.TemplateHelper;
 import com.zrlog.util.ZrLogUtil;
 import org.jsoup.Jsoup;
 import org.jsoup.safety.Safelist;
@@ -41,9 +45,10 @@ import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.sql.SQLException;
 import java.util.*;
+import java.util.function.Supplier;
 import java.util.logging.Logger;
-import java.util.stream.Stream;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipException;
 import java.util.zip.ZipInputStream;
@@ -54,6 +59,21 @@ public class TemplateService {
     private static final int MAX_TEMPLATE_FILE_COUNT = 5000;
     private static final long MAX_TEMPLATE_UNCOMPRESSED_SIZE = 100L * 1024 * 1024;
     private static final int COPY_BUFFER_SIZE = 16 * 1024;
+    private final CacheService cacheService;
+    private final Supplier<PluginCorePlugin> pluginCore;
+    private final Supplier<TemplateDownloadPlugin> templateDownload;
+
+    public TemplateService(CacheService cacheService, Supplier<PluginCorePlugin> pluginCore,
+                           Supplier<TemplateDownloadPlugin> templateDownload) {
+        this.cacheService = cacheService;
+        this.pluginCore = pluginCore;
+        this.templateDownload = templateDownload;
+    }
+
+    public String getTemplatePath(HttpRequest request) {
+        return TemplateHelper.getTemplatePath(request, cacheService.getPublicWebSiteInfo().getTemplate(), templateDownload.get());
+    }
+
     private static final String SHORT_TEMPLATE_PATTERN = "[A-Za-z0-9][A-Za-z0-9._-]{0,127}";
 
     public boolean apply(String template, HttpRequest request) throws SQLException {
@@ -100,7 +120,7 @@ public class TemplateService {
     }
 
     public String previewValue(String value, HttpRequest request) {
-        return new HtmlTemplateProcessor(request, null, "/").transform(value);
+        return new HtmlTemplateProcessor(request, null, "/", pluginCore.get()).transform(value);
     }
 
     public TemplateDownloadResponse templateCenter(String protocol, String host, String contextPath) {
@@ -387,7 +407,7 @@ public class TemplateService {
     }
 
     public List<TemplateEntryResponse> getAllTemplates(String previewTemplate) throws IOException {
-        String currentTemplate = AdminConstants.getPublicWebSiteInfo().getTemplate();
+        String currentTemplate = cacheService.getPublicWebSiteInfo().getTemplate();
         if (!TemplateInfoHelper.isDefaultTemplate(currentTemplate)) {
             try {
                 TemplateDownloadUtils.installByTemplateName(currentTemplate, false);
@@ -458,7 +478,7 @@ public class TemplateService {
     }
 
     private void localizeConfig(TemplateVO template) {
-        String locale = I18nUtil.getCurrentLocale().startsWith("zh") ? "zh_CN" : "en_US";
+        String locale = I18nUtil.getCurrentLocale(cacheService.getPublicWebSiteInfo().getLanguage()).startsWith("zh") ? "zh_CN" : "en_US";
         String resource = template.getTemplate() + "/language/i18n_" + locale + ".properties";
         boolean bundled = BundledThemes.getInstance().contains(template.getTemplate());
         Path file = bundled ? null : PathUtil.getStaticFile(resource).toPath();

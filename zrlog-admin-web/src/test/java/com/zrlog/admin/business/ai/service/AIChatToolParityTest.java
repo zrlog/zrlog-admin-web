@@ -54,8 +54,8 @@ public class AIChatToolParityTest {
                     assertTrue(model.chat().contains("\"type\":\"done\""));
                     JsonArray actual = model.requests.get(0).getAsJsonArray("tools");
                     Identity identity = identity();
-                    McpContentService provider = new McpContentService(() -> identity, request(), "en_US");
-                    JsonArray expected = new McpService("en_US").handle(
+                    McpContentService provider = new McpContentService(() -> identity, request(), "en_US", tools(), com.zrlog.admin.support.ApplicationServicesFixture.backend(com.zrlog.common.Constants.zrLogConfig)::configured);
+                    JsonArray expected = new McpService(com.zrlog.admin.support.ApplicationServicesFixture.siteTitle(com.zrlog.common.Constants.zrLogConfig), "en_US").handle(
                             "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\"}", provider)
                             .body.getAsJsonObject("result").getAsJsonArray("tools");
                     assertEquals(8 + (enabled ? 1 : 0) - (role.equals("contributor") ? 1 : 0), actual.size());
@@ -214,13 +214,21 @@ public class AIChatToolParityTest {
         });
     }
 
-    private static HttpRequest request() {
+    private static com.zrlog.admin.business.knowledge.ContentToolFactory tools() {
         var serverConfig = new com.hibegin.http.server.config.ServerConfig();
-        serverConfig.getBindings().instance(com.zrlog.common.CacheService.class, new InMemoryZrLogDatabase.TestCacheService());
-        new com.zrlog.admin.web.ContentWebSetup(serverConfig).setup();
+        var cache = new InMemoryZrLogDatabase.TestCacheService();
+        serverConfig.getBindings().instance(com.zrlog.common.CacheService.class, cache)
+                .instance(com.zrlog.business.service.CacheRefreshService.class,
+                        com.zrlog.admin.support.ApplicationServicesFixture.cacheRefresh(cache, Constants.zrLogConfig));
+        serverConfig.getBindings().instance(com.zrlog.admin.util.BackendServerUrl.class, com.zrlog.admin.support.ApplicationServicesFixture.backend(com.zrlog.common.Constants.zrLogConfig));
+        serverConfig.getBindings().instance(com.zrlog.admin.business.service.AdminPageDataFactory.class, new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
+        new com.zrlog.admin.web.ContentWebSetup(serverConfig, com.zrlog.admin.support.ApplicationServicesFixture.capability(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.business.content.ArticleAssistant.class), com.zrlog.admin.support.ApplicationServicesFixture.capability(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.business.content.AttachmentStorage.class)).setup();
+        return serverConfig.getBindings().build().get(com.zrlog.admin.business.knowledge.ContentToolFactory.class);
+    }
+
+    private static HttpRequest request() {
         return (HttpRequest) Proxy.newProxyInstance(AIChatToolParityTest.class.getClassLoader(), new Class[]{HttpRequest.class}, (proxy, method, args) -> {
             switch (method.getName()) {
-                case "getServerConfig": return serverConfig;
                 case "getUri": return "/api/admin/article/ai";
                 case "getContextPath": return "";
                 case "getRemoteHost": return "127.0.0.1";
@@ -240,7 +248,7 @@ public class AIChatToolParityTest {
         final List<String> responses;
         final List<JsonObject> requests = new ArrayList<>();
         Runnable afterRequest = () -> {};
-        Model(String... responses) { super(AIChatToolParityTest.request()); this.responses = List.of(responses); }
+        Model(String... responses) { super(AIChatToolParityTest.request(), tools()); this.responses = List.of(responses); }
         String chat() throws Exception {
             return chat(0);
         }

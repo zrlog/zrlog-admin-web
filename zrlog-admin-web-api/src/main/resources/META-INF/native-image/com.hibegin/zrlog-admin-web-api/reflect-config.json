@@ -2,104 +2,293 @@
   {
     "name": "com.zrlog.admin.web.controller.api.AdminController",
     "methods": [
-      {"name": "<init>", "parameterTypes": ["com.zrlog.admin.business.service.AdminDashboardService"]},
-      {"name": "dismissFirstUseChecklist", "parameterTypes": []},
-      {"name": "error", "parameterTypes": []},
-      {"name": "index", "parameterTypes": []},
-      {"name": "indexConfig", "parameterTypes": []},
-      {"name": "plugin", "parameterTypes": []},
-      {"name": "refreshCache", "parameterTypes": []}
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "com.zrlog.admin.business.service.AdminDashboardService",
+          "com.zrlog.admin.business.service.AdminPageDataFactory"
+        ]
+      },
+      {
+        "name": "dismissFirstUseChecklist",
+        "parameterTypes": []
+      },
+      {
+        "name": "error",
+        "parameterTypes": []
+      },
+      {
+        "name": "index",
+        "parameterTypes": []
+      },
+      {
+        "name": "indexConfig",
+        "parameterTypes": []
+      },
+      {
+        "name": "plugin",
+        "parameterTypes": []
+      },
+      {
+        "name": "refreshCache",
+        "parameterTypes": []
+      }
     ]
   },
   {
     "name": "com.zrlog.admin.web.controller.api.AdminDevController",
     "methods": [
-      {"name": "<init>", "parameterTypes": []},
-      {"name": "enable", "parameterTypes": []},
-      {"name": "index", "parameterTypes": []},
-      {"name": "mode", "parameterTypes": []},
-      {"name": "releaseLocks", "parameterTypes": []},
-      {"name": "ui", "parameterTypes": []}
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "com.zrlog.admin.business.service.AdminPageDataFactory"
+        ]
+      },
+      {
+        "name": "enable",
+        "parameterTypes": []
+      },
+      {
+        "name": "index",
+        "parameterTypes": []
+      },
+      {
+        "name": "mode",
+        "parameterTypes": []
+      },
+      {
+        "name": "releaseLocks",
+        "parameterTypes": []
+      },
+      {
+        "name": "ui",
+        "parameterTypes": []
+      }
     ]
   },
   {
     "name": "com.zrlog.admin.web.controller.api.AdminProxyController",
     "methods": [
-      {"name": "<init>", "parameterTypes": []},
-      {"name": "index", "parameterTypes": []},
-      {"name": "test", "parameterTypes": []}
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "com.zrlog.admin.business.service.AdminPageDataFactory"
+        ]
+      },
+      {
+        "name": "index",
+        "parameterTypes": []
+      },
+      {
+        "name": "test",
+        "parameterTypes": []
+      }
     ]
   },
   {
     "name": "com.zrlog.admin.web.controller.api.AdminPublicController",
     "methods": [
-      {"name": "<init>", "parameterTypes": []},
-      {"name": "adminResource", "parameterTypes": []},
-      {"name": "version", "parameterTypes": []}
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "com.zrlog.admin.business.service.AdminResourceService",
+          "java.util.function.BooleanSupplier"
+        ]
+      },
+      {
+        "name": "adminResource",
+        "parameterTypes": []
+      },
+      {
+        "name": "version",
+        "parameterTypes": []
+      }
     ]
   },
   {
     "name": "com.zrlog.admin.web.controller.api.AdminSystemController",
     "methods": [
-      {"name": "<init>", "parameterTypes": []},
-      {"name": "index", "parameterTypes": []}
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "com.zrlog.admin.util.SystemInfoUtils",
+          "com.zrlog.admin.business.service.AdminPageDataFactory"
+        ]
+      },
+      {
+        "name": "index",
+        "parameterTypes": []
+      }
     ]
   },
   {
     "name": "com.zrlog.admin.web.controller.api.MessageCenterController",
     "methods": [
-      {"name": "<init>", "parameterTypes": []},
-      {"name": "index", "parameterTypes": []},
-      {"name": "read", "parameterTypes": []},
-      {"name": "upgradeRestart", "parameterTypes": []}
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "com.zrlog.admin.business.service.MessageCenterService"
+        ]
+      },
+      {
+        "name": "index",
+        "parameterTypes": []
+      },
+      {
+        "name": "read",
+        "parameterTypes": []
+      },
+      {
+        "name": "upgradeRestart",
+        "parameterTypes": []
+      }
     ]
   },
   {
     "name": "com.zrlog.admin.web.controller.api.PluginUploadController",
     "methods": [
-      {"name": "<init>", "parameterTypes": []},
-      {"name": "upload", "parameterTypes": []}
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "java.util.function.Supplier"
+        ]
+      },
+      {
+        "name": "upload",
+        "parameterTypes": []
+      }
     ]
   },
   {
     "name": "com.zrlog.admin.web.controller.api.TemplateController",
     "methods": [
-      {"name": "<init>", "parameterTypes": []},
-      {"name": "apply", "parameterTypes": []},
-      {"name": "config", "parameterTypes": []},
-      {"name": "configParams", "parameterTypes": []},
-      {"name": "delete", "parameterTypes": []},
-      {"name": "index", "parameterTypes": []},
-      {"name": "preview", "parameterTypes": []},
-      {"name": "previewConfigValue", "parameterTypes": []},
-      {"name": "templateCenter", "parameterTypes": []},
-      {"name": "upload", "parameterTypes": []}
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "com.zrlog.admin.business.service.TemplateService",
+          "com.zrlog.admin.business.service.AdminPageDataFactory"
+        ]
+      },
+      {
+        "name": "apply",
+        "parameterTypes": []
+      },
+      {
+        "name": "config",
+        "parameterTypes": []
+      },
+      {
+        "name": "configParams",
+        "parameterTypes": []
+      },
+      {
+        "name": "delete",
+        "parameterTypes": []
+      },
+      {
+        "name": "index",
+        "parameterTypes": []
+      },
+      {
+        "name": "preview",
+        "parameterTypes": []
+      },
+      {
+        "name": "previewConfigValue",
+        "parameterTypes": []
+      },
+      {
+        "name": "templateCenter",
+        "parameterTypes": []
+      },
+      {
+        "name": "upload",
+        "parameterTypes": []
+      }
     ]
   },
   {
     "name": "com.zrlog.admin.web.controller.api.UpgradeController",
     "methods": [
-      {"name": "<init>", "parameterTypes": []},
-      {"name": "doUpgrade", "parameterTypes": []},
-      {"name": "index", "parameterTypes": []},
-      {"name": "notice", "parameterTypes": []},
-      {"name": "dockerStatus", "parameterTypes": []}
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "com.zrlog.business.service.UpgradeService",
+          "java.util.function.Supplier",
+          "java.util.function.Supplier",
+          "com.zrlog.admin.business.service.AdminPageDataFactory"
+        ]
+      },
+      {
+        "name": "doUpgrade",
+        "parameterTypes": []
+      },
+      {
+        "name": "index",
+        "parameterTypes": []
+      },
+      {
+        "name": "notice",
+        "parameterTypes": []
+      },
+      {
+        "name": "dockerStatus",
+        "parameterTypes": []
+      }
     ]
   },
   {
     "name": "com.zrlog.admin.web.controller.api.WebSiteController",
     "methods": [
-      {"name": "<init>", "parameterTypes": ["com.zrlog.admin.business.service.WebSiteSettingsService"]},
-      {"name": "admin", "parameterTypes": []},
-      {"name": "articleEdit", "parameterTypes": []},
-      {"name": "basic", "parameterTypes": []},
-      {"name": "blog", "parameterTypes": []},
-      {"name": "contentProtector", "parameterTypes": []},
-      {"name": "index", "parameterTypes": []},
-      {"name": "lab", "parameterTypes": []},
-      {"name": "other", "parameterTypes": []},
-      {"name": "upgrade", "parameterTypes": []},
-      {"name": "version", "parameterTypes": []}
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "com.zrlog.admin.business.service.WebSiteSettingsService",
+          "com.zrlog.admin.business.service.UpgradeSettingsService",
+          "com.zrlog.admin.business.service.FeatureLabService",
+          "com.zrlog.admin.business.service.AdminPageDataFactory"
+        ]
+      },
+      {
+        "name": "admin",
+        "parameterTypes": []
+      },
+      {
+        "name": "articleEdit",
+        "parameterTypes": []
+      },
+      {
+        "name": "basic",
+        "parameterTypes": []
+      },
+      {
+        "name": "blog",
+        "parameterTypes": []
+      },
+      {
+        "name": "contentProtector",
+        "parameterTypes": []
+      },
+      {
+        "name": "index",
+        "parameterTypes": []
+      },
+      {
+        "name": "lab",
+        "parameterTypes": []
+      },
+      {
+        "name": "other",
+        "parameterTypes": []
+      },
+      {
+        "name": "upgrade",
+        "parameterTypes": []
+      },
+      {
+        "name": "version",
+        "parameterTypes": []
+      }
     ]
   }
 ]

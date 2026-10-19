@@ -5,13 +5,15 @@ import com.google.gson.JsonParser;
 import com.zrlog.admin.business.knowledge.KnowledgeModels;
 import com.zrlog.admin.business.knowledge.KnowledgeService;
 import com.zrlog.admin.business.security.OAuthException;
+import com.zrlog.admin.business.security.PersonalTokenModels.*;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.data.security.AccountAccess;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
-import com.zrlog.admin.business.security.PersonalTokenModels.*;
+
 import java.util.*;
+
 import static org.junit.Assert.*;
 
 @RunWith(Parameterized.class)
@@ -21,7 +23,7 @@ public class PersonalAccessTokenServiceTest {
     private final String backend;
     public PersonalAccessTokenServiceTest(String backend) { this.backend = backend; }
     private InMemoryZrLogDatabase database() throws Exception { return "webapi".equals(backend) ? InMemoryZrLogDatabase.openWebApi() : "sqlite".equals(backend) ? InMemoryZrLogDatabase.openSqlite() : InMemoryZrLogDatabase.open(); }
-    private final OAuthService oauth = new OAuthService(() -> "https://blog.example/sub");
+    private final OAuthService oauth = new OAuthService(() -> "https://blog.example/sub", () -> true);
     private final PersonalAccessTokenService service = new PersonalAccessTokenService(oauth.mcpResource());
     private Create request(String... scopes) { Create request = new Create(); request.name = "My assistant"; request.scopes = List.of(scopes); return request; }
 
@@ -152,7 +154,7 @@ public class PersonalAccessTokenServiceTest {
                 assertEquals(List.of("article.create"), service.create(general("custom", "article.create")).info.permissions);
                 var create = new com.zrlog.admin.business.rest.request.CreateArticleRequest();
                 create.setTitle("No publication"); create.setContent("body"); create.setTypeId(1L); create.setRubbish(false);
-                assertThrows(com.zrlog.admin.business.exception.PermissionErrorException.class, () -> new AdminArticleService(db.cacheService()).create(com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser(), create));
+                assertThrows(com.zrlog.admin.business.exception.PermissionErrorException.class, () -> new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource))).create(com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser(), create));
                 var member = new com.zrlog.admin.business.security.MemberModels.Create();
                 member.userName = "limited"; member.password = "long-password-123"; member.role = "admin";
                 assertThrows(com.zrlog.admin.business.exception.PermissionErrorException.class, () -> new MemberService().create(member));
@@ -166,7 +168,7 @@ public class PersonalAccessTokenServiceTest {
         KnowledgeService knowledge = new KnowledgeService(() -> {
             try { return AccountAccess.load(oauth.authenticate(token, oauth.mcpResource(), Set.of("articles:read")).userId); }
             catch (java.sql.SQLException e) { throw new RuntimeException(e); }
-        }, new HashSet<>(identity.scopes), () -> "https://blog.example/sub");
+        }, new HashSet<>(identity.scopes), () -> "https://blog.example/sub", () -> false);
         KnowledgeModels.SearchResult result = (KnowledgeModels.SearchResult) knowledge.call("search_articles", JsonParser.parseString("{}").getAsJsonObject());
         return result.articles.stream().map(hit -> hit.id).collect(java.util.stream.Collectors.toList());
     }

@@ -9,6 +9,7 @@ import com.zrlog.admin.business.type.AdminAuditAction;
 import com.zrlog.admin.util.AdminWebTools;
 import com.zrlog.business.plugin.PluginCorePlugin;
 import com.zrlog.common.Constants;
+import com.zrlog.common.TokenService;
 import com.zrlog.common.vo.AdminTokenVO;
 
 import java.io.IOException;
@@ -16,6 +17,8 @@ import java.net.URISyntaxException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.BooleanSupplier;
+import java.util.function.Supplier;
 
 /**
  * 这个类负责了对所有的插件路由的代理中转给插件服务（及 plugin-core 这个进程）
@@ -23,6 +26,16 @@ import java.util.Objects;
  * 如果想了解更多关于插件的实现可以浏览这篇文章 <a href="https://blog.zrlog.com/zrlog-plugin-dev.html">插件实现</a>
  */
 public class AdminPluginInterceptor implements HandleAbleInterceptor {
+    protected final Supplier<TokenService> tokenService;
+
+    private final Supplier<PluginCorePlugin> pluginCore;
+    private final BooleanSupplier installed;
+
+    public AdminPluginInterceptor(Supplier<TokenService> tokenService, Supplier<PluginCorePlugin> pluginCore, BooleanSupplier installed) {
+        this.tokenService = Objects.requireNonNull(tokenService);
+        this.pluginCore = Objects.requireNonNull(pluginCore);
+        this.installed = Objects.requireNonNull(installed);
+    }
 
     private static final String notGoodAdminUriPath = Constants.ADMIN_URI_BASE_PATH + "/plugins";
     private static final String adminPluginUriPath = Constants.ADMIN_URI_BASE_PATH + "/plugins/";
@@ -51,11 +64,11 @@ public class AdminPluginInterceptor implements HandleAbleInterceptor {
      */
     private void adminPermission(String target, HttpRequest request, HttpResponse response, AdminTokenVO entry) throws IOException, URISyntaxException, InterruptedException {
         if (Objects.isNull(entry)) {
-            AdminWebTools.blockUnLoginRequestHandler(request, response);
+            AdminWebTools.blockUnLoginRequestHandler(request, response, installed.getAsBoolean());
             return;
         }
         if (!com.zrlog.admin.business.service.AccountPermissionService.account(entry).isAdministrator()) { response.renderCode(403); return; }
-        if (Constants.zrLogConfig.getPlugin(PluginCorePlugin.class).accessPlugin(target.replaceFirst(adminPluginUriPath, "/"), request, response, entry)) {
+        if (pluginCore.get().accessPlugin(target.replaceFirst(adminPluginUriPath, "/"), request, response, entry)) {
             recordPluginSurfaceAction(request, target);
             return;
         }
@@ -93,7 +106,7 @@ public class AdminPluginInterceptor implements HandleAbleInterceptor {
 
     private void renderPublicPluginPwaResource(String target, HttpRequest request, HttpResponse response)
             throws IOException, URISyntaxException, InterruptedException {
-        if (Constants.zrLogConfig.getPlugin(PluginCorePlugin.class)
+        if (pluginCore.get()
                 .accessPlugin(pluginCoreUri(target), request, response, null)) {
             return;
         }
@@ -111,7 +124,7 @@ public class AdminPluginInterceptor implements HandleAbleInterceptor {
             renderPublicPluginPwaResource(target, request, response);
             return false;
         }
-        AdminTokenVO entry = Constants.zrLogConfig.getTokenService().getAdminTokenVO(request);
+        AdminTokenVO entry = AdminInterceptorSupport.getAdminToken(tokenService.get(), request);
         adminPermission(target, request, response, entry);
         return false;
     }

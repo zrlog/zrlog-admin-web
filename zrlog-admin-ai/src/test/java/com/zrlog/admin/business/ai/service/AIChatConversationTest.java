@@ -2,16 +2,18 @@ package com.zrlog.admin.business.ai.service;
 
 import com.google.gson.*;
 import com.zrlog.admin.business.ai.model.*;
+import com.zrlog.admin.business.ai.model.AIChatModels.*;
 import com.zrlog.admin.business.knowledge.*;
 import com.zrlog.admin.business.knowledge.KnowledgeModels.*;
-import com.zrlog.admin.business.ai.model.AIChatModels.*;
 import com.zrlog.admin.business.rest.base.AIWebSiteInfo;
 import com.zrlog.admin.business.service.UserPreferenceService;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.data.security.AccountAccess;
 import org.junit.Test;
+
 import java.io.*;
 import java.util.*;
+
 import static org.junit.Assert.*;
 
 public class AIChatConversationTest {
@@ -83,7 +85,7 @@ public class AIChatConversationTest {
                     new com.zrlog.admin.business.ai.exception.AIIncompleteResponseException("length"), "responseIncomplete",
                     new com.zrlog.admin.business.ai.exception.AIRequestException("private provider detail"), "providerRequestFailed",
                     new com.zrlog.admin.business.ai.exception.AIResponseException("private provider detail"), "providerResponseInvalid").entrySet()) {
-                AIChatService service = new AIChatService() {
+                AIChatService service = new AIChatService(null, ContentToolsFixture.from(com.zrlog.common.Constants.zrLogConfig)) {
                     @Override protected AIProviderResponses.Choice complete(AIWebSiteInfo info, String body, AIChatStreamReader.Progress progress) throws IOException {
                         if (failure.getKey() instanceof IOException) throw (IOException) failure.getKey();
                         throw (RuntimeException) failure.getKey();
@@ -110,12 +112,12 @@ public class AIChatConversationTest {
         assertTrue(request.toString().contains("opaque-signature"));assertTrue(request.toString().contains("provider reasoning"));
     }
     private ChatRequest input() { ChatRequest r=new ChatRequest();r.input="What is in the blog?";return r; }
-    private KnowledgeService knowledge() { return new KnowledgeService(()->{try{return AccountAccess.load(1);}catch(Exception e){throw new RuntimeException(e);}},Set.of("articles:read"),()->"https://blog.example"); }
+    private KnowledgeService knowledge() { return new KnowledgeService(()->{try{return AccountAccess.load(1);}catch(Exception e){throw new RuntimeException(e);}},Set.of("articles:read"),()->"https://blog.example", () -> false); }
     private static String tool(String name,String args) { return "{\"finish_reason\":\"tool_calls\",\"message\":{\"tool_calls\":[{\"id\":\"call-1\",\"type\":\"function\",\"function\":{\"name\":\""+name+"\",\"arguments\":"+new Gson().toJson(args)+"}}]}}"; }
     private static class Model extends AIChatService {
         final List<String> responses; final List<JsonObject> requests=new ArrayList<>();
         Runnable afterRequest = () -> {};
-        Model(String... responses){this.responses=List.of(responses);}
+        Model(String... responses){super(null, ContentToolsFixture.from(com.zrlog.common.Constants.zrLogConfig));this.responses=List.of(responses);}
         @Override protected AIProviderResponses.Choice complete(AIWebSiteInfo info,String body, AIChatStreamReader.Progress progress) throws IOException {
             requests.add(JsonParser.parseString(body).getAsJsonObject());
             afterRequest.run();
@@ -231,7 +233,7 @@ public class AIChatConversationTest {
         for (String prompt : List.of("Hello", "Rewrite this sentence: The sky is blue.", "Summarize your previous answer.")) {
             ChatRequest request = input(); request.input = prompt;
             // Any accidental database/permission lookup from the knowledge tools fails this test.
-            KnowledgeService unused = new KnowledgeService(() -> { throw new AssertionError("Unexpected retrieval"); }, Set.of("articles:read"), () -> "https://blog.example");
+            KnowledgeService unused = new KnowledgeService(() -> { throw new AssertionError("Unexpected retrieval"); }, Set.of("articles:read"), () -> "https://blog.example", () -> false);
             Model model = new Model(ANSWER);
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             model.run(request, new AIWebSiteInfo(), unused, out, () -> {});

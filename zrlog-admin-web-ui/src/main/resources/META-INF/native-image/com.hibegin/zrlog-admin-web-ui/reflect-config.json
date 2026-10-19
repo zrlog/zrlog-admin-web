@@ -2,33 +2,83 @@
   {
     "name": "com.zrlog.admin.web.controller.api.AdminStaticSiteController",
     "methods": [
-      {"name": "<init>", "parameterTypes": []},
-      {"name": "index", "parameterTypes": []},
-      {"name": "startSync", "parameterTypes": []}
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "com.zrlog.business.service.CacheRefreshService",
+          "com.zrlog.admin.util.AdminStaticSiteSsePublisher",
+          "java.util.function.Supplier",
+          "com.zrlog.admin.business.service.AdminPageDataFactory"
+        ]
+      },
+      {
+        "name": "index",
+        "parameterTypes": []
+      },
+      {
+        "name": "startSync",
+        "parameterTypes": []
+      }
     ]
   },
   {
     "name": "com.zrlog.admin.web.controller.page.AdminManifestController",
     "methods": [
-      {"name": "<init>", "parameterTypes": []},
-      {"name": "manifest", "parameterTypes": []}
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "java.util.function.Supplier"
+        ]
+      },
+      {
+        "name": "manifest",
+        "parameterTypes": []
+      }
     ]
   },
   {
     "name": "com.zrlog.admin.web.controller.page.AdminPageController",
     "methods": [
-      {"name": "<init>", "parameterTypes": ["com.zrlog.admin.business.service.AdminPageService"]},
-      {"name": "index", "parameterTypes": []},
-      {"name": "logout", "parameterTypes": []},
-      {"name": "ssJson", "parameterTypes": []}
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "com.zrlog.admin.business.service.AdminPageService",
+          "com.zrlog.common.TokenService",
+          "com.zrlog.admin.business.service.AdminPageDataFactory"
+        ]
+      },
+      {
+        "name": "index",
+        "parameterTypes": []
+      },
+      {
+        "name": "logout",
+        "parameterTypes": []
+      },
+      {
+        "name": "ssJson",
+        "parameterTypes": []
+      }
     ]
   },
   {
     "name": "com.zrlog.admin.web.controller.page.AdminTemplatePageController",
     "methods": [
-      {"name": "<init>", "parameterTypes": []},
-      {"name": "download", "parameterTypes": []},
-      {"name": "previewImage", "parameterTypes": []}
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "com.zrlog.admin.business.service.TemplateService",
+          "java.util.function.BooleanSupplier"
+        ]
+      },
+      {
+        "name": "download",
+        "parameterTypes": []
+      },
+      {
+        "name": "previewImage",
+        "parameterTypes": []
+      }
     ]
   }
 ]

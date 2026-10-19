@@ -23,25 +23,26 @@ import com.zrlog.admin.business.rest.response.IndexResponse;
 import com.zrlog.admin.business.rest.response.StatisticsInfoResponse;
 import com.zrlog.business.plugin.PluginCorePlugin;
 import com.zrlog.business.service.WebsiteKvService;
-import com.zrlog.common.Constants;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.util.BlogBuildInfoUtil;
 import com.zrlog.util.I18nUtil;
 import com.zrlog.util.ThreadUtils;
+
 import java.io.InputStream;
 import java.lang.reflect.Type;
 import java.net.URI;
 import java.sql.SQLException;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
-import java.util.*;
 
 public class AdminDashboardService {
 
@@ -72,13 +73,17 @@ public class AdminDashboardService {
     private final long surfacePreloadTimeoutMillis;
     private final AdminStatisticsService statisticsService;
     private final AdminArticleService articleService;
+    private final Supplier<PluginCorePlugin> pluginCore;
 
-    public AdminDashboardService(AdminStatisticsService statisticsService, AdminArticleService articleService) {
-        this(statisticsService, articleService, DEFAULT_SURFACE_PRELOAD_TIMEOUT_MILLIS);
+    public AdminDashboardService(AdminStatisticsService statisticsService, AdminArticleService articleService,
+                                 Supplier<PluginCorePlugin> pluginCore) {
+        this(statisticsService, articleService, DEFAULT_SURFACE_PRELOAD_TIMEOUT_MILLIS, pluginCore);
     }
 
-    AdminDashboardService(AdminStatisticsService statisticsService, AdminArticleService articleService, long surfacePreloadTimeoutMillis) {
+    AdminDashboardService(AdminStatisticsService statisticsService, AdminArticleService articleService, long surfacePreloadTimeoutMillis,
+                          Supplier<PluginCorePlugin> pluginCore) {
         this.statisticsService = statisticsService;
+        this.pluginCore = Objects.requireNonNull(pluginCore);
         this.articleService = articleService;
         this.surfacePreloadTimeoutMillis = surfacePreloadTimeoutMillis <= 0
                 ? DEFAULT_SURFACE_PRELOAD_TIMEOUT_MILLIS : surfacePreloadTimeoutMillis;
@@ -491,7 +496,7 @@ public class AdminDashboardService {
 
     private SurfaceLoadResult loadSurfaceData(String surfaceUrl, HttpRequest request, AdminTokenVO adminTokenVO) {
         try {
-            PluginCorePlugin pluginCorePlugin = Constants.zrLogConfig.getPlugin(PluginCorePlugin.class);
+            PluginCorePlugin pluginCorePlugin = pluginCore.get();
             if (pluginCorePlugin == null) {
                 return SurfaceLoadResult.error(adminMessage("admin.pluginSurface.error.coreUnavailable"));
             }
@@ -749,7 +754,7 @@ public class AdminDashboardService {
 
     private Map<String, Object> loadPluginResponse(HttpRequest request, AdminTokenVO adminTokenVO) {
         try {
-            PluginCorePlugin pluginCorePlugin = Constants.zrLogConfig.getPlugin(PluginCorePlugin.class);
+            PluginCorePlugin pluginCorePlugin = pluginCore.get();
             if (pluginCorePlugin == null) {
                 return Collections.emptyMap();
             }

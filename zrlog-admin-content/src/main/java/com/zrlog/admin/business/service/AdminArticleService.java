@@ -3,6 +3,7 @@ package com.zrlog.admin.business.service;
 import com.hibegin.common.dao.ResultValueConvertUtils;
 import com.hibegin.common.dao.dto.PageData;
 import com.hibegin.common.dao.dto.PageRequest;
+import com.hibegin.common.util.*;
 import com.hibegin.http.server.api.HttpRequest;
 import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.content.ArticleAssistant;
@@ -12,6 +13,8 @@ import com.zrlog.admin.business.exception.UpdateArticleExpireException;
 import com.zrlog.admin.business.rest.base.UserPreferences;
 import com.zrlog.admin.business.rest.request.CreateArticleRequest;
 import com.zrlog.admin.business.rest.request.UpdateArticleRequest;
+import com.zrlog.admin.business.rest.response.*;
+import com.zrlog.admin.business.service.AdminPageDataFactory;
 import com.zrlog.business.plugin.StaticSitePlugin;
 import com.zrlog.common.CacheService;
 import com.zrlog.common.Constants;
@@ -30,9 +33,13 @@ import com.zrlog.util.I18nUtil;
 import com.zrlog.util.ParseUtil;
 import com.zrlog.util.ThreadUtils;
 import com.zrlog.util.ZrLogUtil;
+import org.jsoup.Jsoup;
+import org.jsoup.safety.Safelist;
+
 import java.sql.SQLException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
@@ -40,18 +47,17 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
-import org.jsoup.Jsoup;
-import org.jsoup.safety.Safelist;
-import com.hibegin.common.util.*;
-import com.zrlog.admin.business.rest.response.*;
-
-import java.util.*;
 
 public class AdminArticleService {
+    private final AdminPageDataFactory pages;
+
 
     private final CacheService cacheService;
+    private final java.util.function.Supplier<ArticleAssistant> assistant;
 
-    public AdminArticleService(CacheService cacheService) {
+    public AdminArticleService(CacheService cacheService, java.util.function.Supplier<ArticleAssistant> assistant, AdminPageDataFactory pages) {
+        this.pages = pages;
+        this.assistant = Objects.requireNonNull(assistant);
         this.cacheService = cacheService;
     }
 
@@ -73,7 +79,7 @@ public class AdminArticleService {
     public CreateOrUpdateArticleResponse create(AdminTokenVO adminTokenVO, CreateArticleRequest createArticleRequest) throws SQLException {
         CreateOrUpdateArticleResponse response = save(adminTokenVO, createArticleRequest);
         if (!createArticleRequest.isPreserveDraftAiMessages()) {
-            ArticleAssistant.current().articleCreated(response.getLogId(), adminTokenVO.getUserId());
+            Objects.requireNonNullElse(assistant.get(), ArticleAssistant.NONE).articleCreated(response.getLogId(), adminTokenVO.getUserId());
         }
         return response;
     }
@@ -136,7 +142,7 @@ public class AdminArticleService {
             return removed;
         });
         if (deleted) {
-            ArticleAssistant.current().articleDeleted(logId);
+            Objects.requireNonNullElse(assistant.get(), ArticleAssistant.NONE).articleDeleted(logId);
         }
         return deleted;
     }
@@ -263,7 +269,7 @@ public class AdminArticleService {
         return log;
     }
 
-    private static String getAccessUrl(ArticleResponseEntry articleResponseEntry, HttpRequest request) {
+    private String getAccessUrl(ArticleResponseEntry articleResponseEntry, HttpRequest request) {
         if (articleResponseEntry.getPrivacy() || articleResponseEntry.getRubbish()) {
             return "/article-edit?previewMode=true&id=" + articleResponseEntry.getId();
         }
@@ -271,7 +277,7 @@ public class AdminArticleService {
         if (StringUtils.isNotEmpty(articleResponseEntry.getAlias())) {
             key = articleResponseEntry.getAlias();
         }
-        return ZrLogUtil.getHomeUrlWithHost(request) + Constants.getArticleUri() + key + StaticSitePlugin.getSuffix(request);
+        return ZrLogUtil.getHomeUrlWithHost(request, cacheService.getPublicWebSiteInfo().getHost()) + Constants.getArticleUri() + key + StaticSitePlugin.getSuffix(request, Boolean.TRUE.equals(cacheService.getPublicWebSiteInfo().getGenerator_html_status()));
     }
 
     /**
@@ -372,7 +378,7 @@ public class AdminArticleService {
             convert.setKey(keywords);
             convert.setStatus(status);
             convert.setStatusCounts(countFuture.join());
-            convert.setArticle_thumbnail_status(AdminConstants.getPublicWebSiteInfo().getArticle_thumbnail_status());
+            convert.setArticle_thumbnail_status(cacheService.getPublicWebSiteInfo().getArticle_thumbnail_status());
             convert.setDefaultPageSize(pageRequest.getSize());
             return convert;
         } finally {
@@ -426,13 +432,13 @@ public class AdminArticleService {
         response.setArticleCoverAspectRatio(editor.coverAspectRatio);
         response.setArticleEditAutoSaveInterval(editor.autoSaveInterval);
         Integer articleId = response.getArticle().getId();
-        response = ArticleAssistant.current().enrichEditor(response, articleId == null ? draftContextId : articleId);
-        AdminPageDataResponse<ArticleGlobalResponse> standardResponse = new AdminPageDataResponse<>(response);
+        response = Objects.requireNonNullElse(assistant.get(), ArticleAssistant.NONE).enrichEditor(response, articleId == null ? draftContextId : articleId);
+        AdminPageDataResponse<ArticleGlobalResponse> standardResponse = pages.response(response);
         StringJoiner sj = new StringJoiner(AdminConstants.ADMIN_TITLE_CHAR);
         if (Objects.nonNull(response.getArticle().getTitle())) {
             sj.add(response.getArticle().getTitle());
         }
-        sj.add(AdminConstants.getAdminDocumentTitleByUri(request.getUri()));
+        sj.add(pages.title(request.getUri()));
         standardResponse.setDocumentTitle(sj.toString());
         return standardResponse;
     }
@@ -448,7 +454,7 @@ public class AdminArticleService {
         if (articleResponseEntry.isPrivacy() || articleResponseEntry.isRubbish()) {
             return AdminConstants.ADMIN_URI_BASE_PATH + "/403?message=" + I18nUtil.getAdminBackendStringFromRes("admin.article.preview.error.forbidden");
         }
-        return ZrLogUtil.getHomeUrlWithHost(request) + Constants.getArticleUri() + key + StaticSitePlugin.getSuffix(request) + "?v=" + articleResponseEntry.getVersion();
+        return ZrLogUtil.getHomeUrlWithHost(request, cacheService.getPublicWebSiteInfo().getHost()) + Constants.getArticleUri() + key + StaticSitePlugin.getSuffix(request, Boolean.TRUE.equals(cacheService.getPublicWebSiteInfo().getGenerator_html_status())) + "?v=" + articleResponseEntry.getVersion();
     }
 
     private LoadEditArticleResponse toResponse(ArticleBasicDTO log, HttpRequest request) {
@@ -470,7 +476,7 @@ public class AdminArticleService {
     }
 
     private SocialPreviewDTO buildSocialPreview(LoadEditArticleResponse loadEditArticleResponse, HttpRequest request) {
-        PublicWebSiteInfo webSite = AdminConstants.getPublicWebSiteInfo();
+        PublicWebSiteInfo webSite = cacheService.getPublicWebSiteInfo();
         ArticleBasicDTO article = new ArticleBasicDTO();
         article.setTitle(loadEditArticleResponse.getTitle());
         article.setDigest(loadEditArticleResponse.getDigest());
@@ -482,7 +488,7 @@ public class AdminArticleService {
         String title = buildSocialPreviewTitle(loadEditArticleResponse.getTitle(), webSite);
         String url = StringUtils.isNotEmpty(loadEditArticleResponse.getPreviewUrl())
                 ? loadEditArticleResponse.getPreviewUrl()
-                : ZrLogUtil.getFullUrl(request);
+                : ZrLogUtil.getFullUrl(request, webSite.getHost());
         return SocialPreviewUtils.article(webSite, article, title, url, loadEditArticleResponse.getThumbnail());
     }
 

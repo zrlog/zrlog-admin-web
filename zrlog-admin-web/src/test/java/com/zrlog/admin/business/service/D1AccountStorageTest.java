@@ -20,7 +20,7 @@ import static org.junit.Assert.*;
 
 /** Exercises interleavings between separate autocommitted statements, without a shared process lock. */
 public class D1AccountStorageTest {
-    private final OAuthService oauth = new OAuthService(() -> "https://blog.example/sub");
+    private final OAuthService oauth = new OAuthService(() -> "https://blog.example/sub", () -> true);
     private final String verifier = OAuthService.random();
 
     private Client client() throws Exception {

@@ -21,6 +21,7 @@ import com.zrlog.plugin.IPlugin;
 import com.zrlog.plugin.Plugins;
 import com.zrlog.test.support.ZrLogTestDatabase;
 import com.zrlog.web.WebSiteInfoProvider;
+
 import java.io.InputStream;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -232,9 +233,15 @@ public class InMemoryZrLogDatabase implements AutoCloseable {
             return testDataSource;
         }
 
+        private boolean staticHtmlEnabled() {
+            return Boolean.TRUE.equals(cacheService.getPublicWebSiteInfo().getGenerator_html_status());
+        }
+
+        private final TokenService testTokens = new com.zrlog.admin.web.token.AdminTokenService(60, this::isInstalled, this::staticHtmlEnabled);
+
         @Override
         protected TokenService initTokenService() {
-            return new com.zrlog.admin.web.token.AdminTokenService(60);
+            return testTokens;
         }
 
         @Override
@@ -248,7 +255,7 @@ public class InMemoryZrLogDatabase implements AutoCloseable {
         }
     }
 
-    private static class TestAdminResource implements AdminResource {
+    public static class TestAdminResource implements AdminResource {
 
         @Override
         public java.util.Set<String> getAdminStaticResourceUris() {
