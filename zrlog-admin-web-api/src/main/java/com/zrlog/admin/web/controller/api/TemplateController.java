@@ -23,6 +23,8 @@ import com.zrlog.common.vo.TemplateVO;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.I18nUtil;
 
+import jakarta.inject.Inject;
+
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
@@ -37,6 +39,7 @@ public class TemplateController extends BaseController {
 
     private final TemplateService templateService;
 
+    @Inject
     public TemplateController(TemplateService templateService, AdminPageDataFactory pages) {
         this.pages = pages;
         this.templateService = templateService;

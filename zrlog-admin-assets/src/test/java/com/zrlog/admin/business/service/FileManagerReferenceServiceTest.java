@@ -1,12 +1,24 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+
+import com.hibegin.common.dao.DAO;
 import com.zrlog.admin.business.rest.response.FileEntryVO;
 import com.zrlog.admin.business.rest.response.FileReferenceIndexCacheVO;
 import com.zrlog.admin.business.rest.response.FileReferenceVO;
 import com.zrlog.admin.business.rest.response.ReplaceArticleResourceUrlResponse;
+import com.zrlog.admin.support.AccountServicesFixture;
+import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.common.vo.AdminTokenVO;
+import com.zrlog.model.Log;
+import com.zrlog.model.LogVersion;
 import com.zrlog.test.support.TestLogCapture;
+
 import org.junit.Test;
 
 import java.lang.reflect.Field;
@@ -15,22 +27,24 @@ import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-
 public class FileManagerReferenceServiceTest {
 
     @Test
     public void shouldReturnFalseWhenReferenceIndexCacheWriteFails() {
-        FileManagerReferenceService service = new FileManagerReferenceService(new WebsiteCacheService() {
-            @Override
-            public boolean putJson(String key, Object value) {
-                return false;
-            }
-        }, "");
+        FileManagerReferenceService service =
+                new FileManagerReferenceService(
+                        new WebsiteCacheService(ApplicationServicesFixture.websiteKv()) {
+                            @Override
+                            public boolean putJson(String key, Object value) {
+                                return false;
+                            }
+                        },
+                        "",
+                        new ArticleVersionService(
+                                AccountServicesFixture.component().permissions(),
+                                Log::new,
+                                () -> new LogVersion(DAO.getDefaultDataSource())),
+                        Log::new);
 
         try (TestLogCapture logs = TestLogCapture.forClass(FileManagerReferenceService.class)) {
             assertFalse(service.writeReferenceIndexCache(new FileReferenceIndexCacheVO()));
@@ -40,12 +54,20 @@ public class FileManagerReferenceServiceTest {
 
     @Test
     public void shouldReturnFalseWhenReferenceIndexCacheClearFails() {
-        FileManagerReferenceService service = new FileManagerReferenceService(new WebsiteCacheService() {
-            @Override
-            public boolean remove(String key) {
-                return false;
-            }
-        }, "");
+        FileManagerReferenceService service =
+                new FileManagerReferenceService(
+                        new WebsiteCacheService(ApplicationServicesFixture.websiteKv()) {
+                            @Override
+                            public boolean remove(String key) {
+                                return false;
+                            }
+                        },
+                        "",
+                        new ArticleVersionService(
+                                AccountServicesFixture.component().permissions(),
+                                Log::new,
+                                () -> new LogVersion(DAO.getDefaultDataSource())),
+                        Log::new);
 
         try (TestLogCapture logs = TestLogCapture.forClass(FileManagerReferenceService.class)) {
             assertFalse(service.clearReferenceIndexCache());
@@ -55,19 +77,35 @@ public class FileManagerReferenceServiceTest {
 
     @Test
     public void shouldReturnTrueWhenReferenceIndexCacheWriteSucceeds() {
-        FileManagerReferenceService service = new FileManagerReferenceService(new WebsiteCacheService() {
-            @Override
-            public boolean putJson(String key, Object value) {
-                return true;
-            }
-        }, "");
+        FileManagerReferenceService service =
+                new FileManagerReferenceService(
+                        new WebsiteCacheService(ApplicationServicesFixture.websiteKv()) {
+                            @Override
+                            public boolean putJson(String key, Object value) {
+                                return true;
+                            }
+                        },
+                        "",
+                        new ArticleVersionService(
+                                AccountServicesFixture.component().permissions(),
+                                Log::new,
+                                () -> new LogVersion(DAO.getDefaultDataSource())),
+                        Log::new);
 
         assertTrue(service.writeReferenceIndexCache(new FileReferenceIndexCacheVO()));
     }
 
     @Test
     public void shouldNormalizeContextPathLocalResource() {
-        FileManagerReferenceService service = new FileManagerReferenceService(new WebsiteCacheService(), "/blog");
+        FileManagerReferenceService service =
+                new FileManagerReferenceService(
+                        new WebsiteCacheService(ApplicationServicesFixture.websiteKv()),
+                        "/blog",
+                        new ArticleVersionService(
+                                AccountServicesFixture.component().permissions(),
+                                Log::new,
+                                () -> new LogVersion(DAO.getDefaultDataSource())),
+                        Log::new);
 
         assertEquals("/attached/image/a.png", service.normalizeLocalResourcePath("/blog/attached/image/a.png?v=1"));
         assertNull(service.normalizeLocalResourcePath("https://cdn.example.com/attached/image/a.png"));
@@ -75,7 +113,15 @@ public class FileManagerReferenceServiceTest {
 
     @Test
     public void shouldReplaceContextPathLocalResourceReference() {
-        FileManagerReferenceService service = new FileManagerReferenceService(new WebsiteCacheService(), "/blog");
+        FileManagerReferenceService service =
+                new FileManagerReferenceService(
+                        new WebsiteCacheService(ApplicationServicesFixture.websiteKv()),
+                        "/blog",
+                        new ArticleVersionService(
+                                AccountServicesFixture.component().permissions(),
+                                Log::new,
+                                () -> new LogVersion(DAO.getDefaultDataSource())),
+                        Log::new);
         Map<String, Object> article = new LinkedHashMap<>();
         article.put("markdown", "![cover](/blog/attached/image/a.png?v=1)");
 
@@ -87,7 +133,15 @@ public class FileManagerReferenceServiceTest {
 
     @Test
     public void shouldNormalizePathsByRemovingQueryAndHash() {
-        FileManagerReferenceService service = new FileManagerReferenceService(new WebsiteCacheService(), "/blog");
+        FileManagerReferenceService service =
+                new FileManagerReferenceService(
+                        new WebsiteCacheService(ApplicationServicesFixture.websiteKv()),
+                        "/blog",
+                        new ArticleVersionService(
+                                AccountServicesFixture.component().permissions(),
+                                Log::new,
+                                () -> new LogVersion(DAO.getDefaultDataSource())),
+                        Log::new);
 
         assertEquals("/attached/a.png", service.normalizePath("/attached/a.png?x=1#top"));
         assertEquals("/attached/a.png", service.normalizePath("/attached/a.png#top?x=1"));
@@ -95,7 +149,15 @@ public class FileManagerReferenceServiceTest {
 
     @Test
     public void shouldApplyReferenceInfoToFilesAndDirectories() {
-        FileManagerReferenceService service = new FileManagerReferenceService(new WebsiteCacheService(), "/blog");
+        FileManagerReferenceService service =
+                new FileManagerReferenceService(
+                        new WebsiteCacheService(ApplicationServicesFixture.websiteKv()),
+                        "/blog",
+                        new ArticleVersionService(
+                                AccountServicesFixture.component().permissions(),
+                                Log::new,
+                                () -> new LogVersion(DAO.getDefaultDataSource())),
+                        Log::new);
         FileReferenceVO first = reference(1, true, false);
         FileReferenceVO second = reference(2, false, true);
         Map<String, List<FileReferenceVO>> references = new LinkedHashMap<>();
@@ -121,7 +183,15 @@ public class FileManagerReferenceServiceTest {
 
     @Test
     public void shouldListExternalResourceDomainsAndDomainFilesFromRequestIndex() throws Exception {
-        FileManagerReferenceService service = new FileManagerReferenceService(new WebsiteCacheService(), "/blog");
+        FileManagerReferenceService service =
+                new FileManagerReferenceService(
+                        new WebsiteCacheService(ApplicationServicesFixture.websiteKv()),
+                        "/blog",
+                        new ArticleVersionService(
+                                AccountServicesFixture.component().permissions(),
+                                Log::new,
+                                () -> new LogVersion(DAO.getDefaultDataSource())),
+                        Log::new);
         FileReferenceIndexCacheVO index = new FileReferenceIndexCacheVO();
         Map<String, List<FileReferenceVO>> external = new LinkedHashMap<>();
         external.put("https://cdn.example.com/a.png", List.of(reference(1, true, false)));
@@ -152,7 +222,15 @@ public class FileManagerReferenceServiceTest {
 
     @Test
     public void shouldReturnMissingLocalResourceEntriesFromRequestIndex() throws Exception {
-        FileManagerReferenceService service = new FileManagerReferenceService(new WebsiteCacheService(), "/blog");
+        FileManagerReferenceService service =
+                new FileManagerReferenceService(
+                        new WebsiteCacheService(ApplicationServicesFixture.websiteKv()),
+                        "/blog",
+                        new ArticleVersionService(
+                                AccountServicesFixture.component().permissions(),
+                                Log::new,
+                                () -> new LogVersion(DAO.getDefaultDataSource())),
+                        Log::new);
         FileReferenceIndexCacheVO index = new FileReferenceIndexCacheVO();
         Map<String, List<FileReferenceVO>> local = new LinkedHashMap<>();
         local.put("/attached/__missing__/asset.png", List.of(reference(5, true, true)));
@@ -188,7 +266,15 @@ public class FileManagerReferenceServiceTest {
                             + "<img src=\"https://cdn.example.com/images/a.png\"></p>",
                     "![diagram](/blog/attached/md/diagram.png) "
                             + "[manual](https://cdn.example.com/files/manual.pdf)");
-            FileManagerReferenceService service = new FileManagerReferenceService(new WebsiteCacheService(), "/blog");
+            FileManagerReferenceService service =
+                    new FileManagerReferenceService(
+                            new WebsiteCacheService(ApplicationServicesFixture.websiteKv()),
+                            "/blog",
+                            new ArticleVersionService(
+                                    AccountServicesFixture.component().permissions(),
+                                    Log::new,
+                                    () -> new LogVersion(DAO.getDefaultDataSource())),
+                            Log::new);
 
             Map<String, List<FileReferenceVO>> local = service.buildLocalReferenceMap();
             Map<String, List<FileReferenceVO>> external = service.buildExternalReferenceMap();
@@ -207,7 +293,15 @@ public class FileManagerReferenceServiceTest {
             assertNotNull(cacheRow);
             assertTrue(String.valueOf(cacheRow.get("value")).contains("assets-article"));
 
-            FileManagerReferenceService cachedService = new FileManagerReferenceService(new WebsiteCacheService(), "/blog");
+            FileManagerReferenceService cachedService =
+                    new FileManagerReferenceService(
+                            new WebsiteCacheService(ApplicationServicesFixture.websiteKv()),
+                            "/blog",
+                            new ArticleVersionService(
+                                    AccountServicesFixture.component().permissions(),
+                                    Log::new,
+                                    () -> new LogVersion(DAO.getDefaultDataSource())),
+                            Log::new);
             assertEquals(local.keySet(), cachedService.buildLocalReferenceMap().keySet());
         }
     }
@@ -220,7 +314,15 @@ public class FileManagerReferenceServiceTest {
                     "<p>Hero <img src=\"/attached/images/a.png\"><a download href=\"/attached/images/doc.pdf\">Doc</a></p>",
                     "![asset](/attached/images/b.png)");
             db.putWebsite("admin_cache:file_manager_reference_index", "{\"stale\":true}");
-            FileManagerReferenceService service = new FileManagerReferenceService(new WebsiteCacheService(), "");
+            FileManagerReferenceService service =
+                    new FileManagerReferenceService(
+                            new WebsiteCacheService(ApplicationServicesFixture.websiteKv()),
+                            "",
+                            new ArticleVersionService(
+                                    AccountServicesFixture.component().permissions(),
+                                    Log::new,
+                                    () -> new LogVersion(DAO.getDefaultDataSource())),
+                            Log::new);
 
             ReplaceArticleResourceUrlResponse response = service.replaceArticleResourceReferences(
                     token(), "/attached/images", "/attached/media", true);
@@ -251,7 +353,15 @@ public class FileManagerReferenceServiceTest {
 
     @Test
     public void shouldReplaceLocalResourceReferencesByPrefixAcrossArticleFields() {
-        FileManagerReferenceService service = new FileManagerReferenceService(new WebsiteCacheService(), "/blog");
+        FileManagerReferenceService service =
+                new FileManagerReferenceService(
+                        new WebsiteCacheService(ApplicationServicesFixture.websiteKv()),
+                        "/blog",
+                        new ArticleVersionService(
+                                AccountServicesFixture.component().permissions(),
+                                Log::new,
+                                () -> new LogVersion(DAO.getDefaultDataSource())),
+                        Log::new);
         Map<String, Object> article = new LinkedHashMap<>();
         article.put("thumbnail", "/blog/attached/images/a.png?x=1");
         article.put("content", "<img src=\"/blog/attached/images/a.png\"><a download href=\"/blog/attached/images/doc.pdf\">doc</a>");
@@ -270,7 +380,15 @@ public class FileManagerReferenceServiceTest {
 
     @Test
     public void shouldReplaceExternalResourceReferencesByPrefixAcrossArticleFields() {
-        FileManagerReferenceService service = new FileManagerReferenceService(new WebsiteCacheService(), "");
+        FileManagerReferenceService service =
+                new FileManagerReferenceService(
+                        new WebsiteCacheService(ApplicationServicesFixture.websiteKv()),
+                        "",
+                        new ArticleVersionService(
+                                AccountServicesFixture.component().permissions(),
+                                Log::new,
+                                () -> new LogVersion(DAO.getDefaultDataSource())),
+                        Log::new);
         Map<String, Object> article = new LinkedHashMap<>();
         article.put("thumbnail", "https://cdn.example.com/assets/a.png?x=1#top");
         article.put("content", "<img src=\"https://cdn.example.com/assets/a.png\"><img src=\"https://cdn.example.com/other/a.png\">");
@@ -289,7 +407,15 @@ public class FileManagerReferenceServiceTest {
 
     @Test
     public void shouldSkipResourceReplacementWhenMatchKeyIsInvalidOrUnchanged() {
-        FileManagerReferenceService service = new FileManagerReferenceService(new WebsiteCacheService(), "");
+        FileManagerReferenceService service =
+                new FileManagerReferenceService(
+                        new WebsiteCacheService(ApplicationServicesFixture.websiteKv()),
+                        "",
+                        new ArticleVersionService(
+                                AccountServicesFixture.component().permissions(),
+                                Log::new,
+                                () -> new LogVersion(DAO.getDefaultDataSource())),
+                        Log::new);
         Map<String, Object> article = new LinkedHashMap<>();
         article.put("thumbnail", "/attached/images/a.png");
         article.put("content", "<img src=\"/attached/images/a.png\">");

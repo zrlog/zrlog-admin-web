@@ -4,12 +4,14 @@ import com.google.gson.*;
 import com.zrlog.admin.business.ai.dto.AIStreamResponse;
 import com.zrlog.admin.business.ai.exception.*;
 import com.zrlog.admin.business.ai.model.AIChatModels.*;
+import com.zrlog.admin.business.ai.model.AIFileModels;
 import com.zrlog.admin.business.ai.model.AIProviderRequests;
 import com.zrlog.admin.business.ai.model.AIProviderResponses;
 import com.zrlog.admin.business.ai.model.AIProviderType;
 import com.zrlog.admin.business.ai.model.OpenAIResponses;
 import com.zrlog.admin.business.exception.AbstractAdminBusinessException;
 import com.zrlog.admin.business.exception.PermissionErrorException;
+import com.zrlog.admin.business.exception.UpdateArticleExpireException;
 import com.zrlog.admin.business.knowledge.ContentToolCatalog;
 import com.zrlog.admin.business.knowledge.ContentToolFactory;
 import com.zrlog.admin.business.knowledge.ContentToolModels.SavedArticle;
@@ -28,9 +30,12 @@ import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.data.security.AccountAccess;
+import com.zrlog.data.security.AccountAction;
 import com.zrlog.data.security.ArticleAccess;
 import com.zrlog.util.I18nUtil;
 import com.zrlog.util.ThreadUtils;
+
+import jakarta.inject.Inject;
 
 import java.io.*;
 import java.net.http.*;
@@ -38,9 +43,22 @@ import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.util.*;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 /** The same persistent, account-scoped article conversation used by writing skills. */
 public class AIChatService extends AIService {
+    private final AIWritingToolProvider.Factory writingTools;
+    private final AIReferenceService references;
+
+    private final AIConversationService conversations;
+
+    private final UserPreferenceService userPreferenceService;
+    private final AIApprovalStore approvalStore;
+    private final AIFileService files;
+    private final AIWritingSkillService.Factory writingSkills;
+
+    private final AccountPermissionService permissionService;
+
     private static final Logger LOGGER = Logger.getLogger(AIChatService.class.getName());
     private static final Set<String> CONTINUABLE_FINISH_REASONS = Set.of("length", "max_tokens", "max_output_tokens", "max_completion_tokens");
 
@@ -48,13 +66,81 @@ public class AIChatService extends AIService {
 
     private final ContentToolFactory tools;
 
-    public AIChatService() { this(null, null); }
-    public AIChatService(com.hibegin.http.server.api.HttpRequest request, ContentToolFactory tools) {
+    public AIChatService(
+            AccountPermissionService permissionService,
+            UserPreferenceService userPreferenceService,
+            AIApprovalStore approvalStore,
+            AIFileService files,
+            AIWritingSkillService.Factory writingSkills,
+            AIConversationService conversations,
+            AIWritingToolProvider.Factory writingTools,
+            AIReferenceService references) {
+        this(
+                null,
+                null,
+                permissionService,
+                userPreferenceService,
+                approvalStore,
+                files,
+                writingSkills,
+                conversations,
+                writingTools,
+                references);
+    }
+
+    @Inject
+    public AIChatService(
+            com.hibegin.http.server.api.HttpRequest request,
+            ContentToolFactory tools,
+            AccountPermissionService permissionService,
+            UserPreferenceService userPreferenceService,
+            AIApprovalStore approvalStore,
+            AIFileService files,
+            AIWritingSkillService.Factory writingSkills,
+            AIConversationService conversations,
+            AIWritingToolProvider.Factory writingTools,
+            AIReferenceService references) {
+        this.writingTools = writingTools;
+        this.references = references;
+
+        this.conversations = conversations;
+
+        this.userPreferenceService = userPreferenceService;
+        this.approvalStore = approvalStore;
+        this.files = files;
+        this.writingSkills = writingSkills;
+
+        this.permissionService = permissionService;
+
         this.request = request;
         this.tools = tools;
     }
-    AIChatService(HttpClient client, com.hibegin.http.server.api.HttpRequest request, ContentToolFactory tools) {
+
+    AIChatService(
+            HttpClient client,
+            com.hibegin.http.server.api.HttpRequest request,
+            ContentToolFactory tools,
+            AccountPermissionService permissionService,
+            UserPreferenceService userPreferenceService,
+            AIApprovalStore approvalStore,
+            AIFileService files,
+            AIWritingSkillService.Factory writingSkills,
+            AIConversationService conversations,
+            AIWritingToolProvider.Factory writingTools,
+            AIReferenceService references) {
         super(client);
+        this.writingTools = writingTools;
+        this.references = references;
+
+        this.conversations = conversations;
+
+        this.userPreferenceService = userPreferenceService;
+        this.approvalStore = approvalStore;
+        this.files = files;
+        this.writingSkills = writingSkills;
+
+        this.permissionService = permissionService;
+
         this.request = request;
         this.tools = tools;
     }
@@ -68,12 +154,13 @@ public class AIChatService extends AIService {
                                                 GenerateArticleFieldRequest articleContext)
             throws IOException, InterruptedException, SQLException {
         AdminTokenVO token = AdminTokenThreadLocal.getUser();
-        AccountPermissionService.account(token);
+        permissionService.account(token);
         if (articleId < 0 && articleId != -(long) token.getUserId()) throw new PermissionErrorException();
         long id = articleId <= 0 ? 0 : articleId;
         authorizeArticle(token, id);
         if (tool != null && !tool.isBlank()) {
-            return new AIWritingSkillService().startStreamResponse(input, articleId, tool, articleContext);
+            return writingSkillService()
+                    .startStreamResponse(input, articleId, tool, articleContext);
         }
         ChatRequest request = new ChatRequest();
         request.input = input; request.articleId = id;
@@ -84,19 +171,19 @@ public class AIChatService extends AIService {
         input.doValid();
         AdminTokenVO token = AdminTokenThreadLocal.getUser();
         authorizeArticle(token, input.articleId);
-        AIApprovalStore store = new AIApprovalStore();
+        AIApprovalStore store = this.approvalStore;
         Run existing = store.read(token.getUserId(), input.articleId);
         if (AIApprovalStore.active(existing)) {
             existing = invalidatePending(existing);
             return stateResponse(existing);
         }
-        AIConversationService conversations = new AIConversationService().captureAccount();
+        AIConversationService conversations = this.conversations.captureAccount();
         AIWebSiteInfoWithAIMessages info = conversations.getAiMessageInfoByArticleId(conversationId(token, input.articleId));
         checkAiConfig(info);
         input.history = history(info.getAiMessages());
-        UserPreferenceService preferences = new UserPreferenceService();
+        UserPreferenceService preferences = this.userPreferenceService;
         UserPreferences.Assistant settings = preferences.assistant(token);
-        List<ResolvedReference> references = new AIReferenceService(tools).resolve(input, settings);
+        List<ResolvedReference> references = this.references.resolve(input, settings);
         Run run = newRun(input, info, !"off".equals(settings.knowledgeScope));
         if (!references.isEmpty()) {
             for (ResolvedReference reference : references) {
@@ -120,19 +207,23 @@ public class AIChatService extends AIService {
         if (articleId < 0) throw new ArgsException();
         AdminTokenVO token = AdminTokenThreadLocal.getUser();
         authorizeArticle(token, articleId);
-        return visibleRun(new AIApprovalStore().read(token.getUserId(), articleId));
+        return visibleRun(this.approvalStore.read(token.getUserId(), articleId));
     }
 
     /** Resolve only images referenced by this account's authorized editor conversation. */
-    public com.zrlog.admin.business.ai.model.AIFileModels.Attachment imageAttachment(long articleId, String fileId) throws SQLException {
+    public AIFileModels.Attachment imageAttachment(long articleId, String fileId)
+            throws SQLException {
         if (articleId < 0) throw new ArgsException();
         AdminTokenVO token = AdminTokenThreadLocal.getUser();
         authorizeArticle(token, articleId);
-        List<com.zrlog.admin.business.ai.model.AIFileModels.Attachment> files = new ArrayList<>();
-        for (var message : new AIConversationService().getAiMessageInfoByArticleId(conversationId(token, articleId)).getAiMessages()) {
+        List<AIFileModels.Attachment> files = new ArrayList<>();
+        for (var message :
+                this.conversations
+                        .getAiMessageInfoByArticleId(conversationId(token, articleId))
+                        .getAiMessages()) {
             if (message.getAttachments() != null) files.addAll(message.getAttachments());
         }
-        Run run = new AIApprovalStore().read(token.getUserId(), articleId);
+        Run run = this.approvalStore.read(token.getUserId(), articleId);
         if (run != null && !"cancelled".equals(run.status) && run.attachments != null) files.addAll(run.attachments);
         return files.stream().filter(file -> file.id != null && file.id.equals(fileId)
                         && Set.of("image/png", "image/jpeg", "image/webp").contains(Objects.toString(file.mimeType, "")))
@@ -143,14 +234,16 @@ public class AIChatService extends AIService {
         input.doValid();
         AdminTokenVO token = AdminTokenThreadLocal.getUser();
         authorizeArticle(token, input.articleId);
-        AIApprovalStore store = new AIApprovalStore();
+        AIApprovalStore store = this.approvalStore;
         Run run = store.read(token.getUserId(), input.articleId);
         if (run == null || !run.id.equals(input.runId)) throw new PermissionErrorException();
         run = invalidatePending(run);
         if (!"awaiting_approval".equals(AIApprovalStore.view(run).status)
                 || run.approval == null || !run.approval.id.equals(input.approvalId)) return stateResponse(run);
-        UserPreferences.Assistant settings = new UserPreferenceService().assistant(token);
-        AIWebSiteInfoWithAIMessages info = new AIConversationService().getAiMessageInfoByArticleId(conversationId(token, input.articleId));
+        UserPreferences.Assistant settings = this.userPreferenceService.assistant(token);
+        AIWebSiteInfoWithAIMessages info =
+                this.conversations.getAiMessageInfoByArticleId(
+                        conversationId(token, input.articleId));
         if (!sameContext(run, token, settings, info)) {
             run.error = "permission"; store.save(run, "failed"); return stateResponse(run);
         }
@@ -164,14 +257,16 @@ public class AIChatService extends AIService {
         input.doValid();
         AdminTokenVO token = AdminTokenThreadLocal.getUser();
         authorizeArticle(token, input.articleId);
-        AIApprovalStore store = new AIApprovalStore();
+        AIApprovalStore store = this.approvalStore;
         Run run = store.read(token.getUserId(), input.articleId);
         if (run == null || !run.id.equals(input.runId)) throw new PermissionErrorException();
         run = invalidatePending(run);
         if (!"awaiting_input".equals(AIApprovalStore.view(run).status) || run.interaction == null
                 || !run.interaction.id.equals(input.interactionId)) return stateResponse(run);
-        UserPreferences.Assistant settings = new UserPreferenceService().assistant(token);
-        AIWebSiteInfoWithAIMessages info = new AIConversationService().getAiMessageInfoByArticleId(conversationId(token, input.articleId));
+        UserPreferences.Assistant settings = this.userPreferenceService.assistant(token);
+        AIWebSiteInfoWithAIMessages info =
+                this.conversations.getAiMessageInfoByArticleId(
+                        conversationId(token, input.articleId));
         if (!sameContext(run, token, settings, info)) {
             run.error = "permission"; store.save(run, "failed"); return stateResponse(run);
         }
@@ -231,8 +326,10 @@ public class AIChatService extends AIService {
         RunView view = AIApprovalStore.view(run);
         if (view == null || "cancelled".equals(view.status)) return view;
         AdminTokenVO token = AdminTokenThreadLocal.getUser();
-        UserPreferences.Assistant settings = new UserPreferenceService().assistant(token);
-        AIWebSiteInfo info = new AIConversationService().getAiMessageInfoByArticleId(conversationId(token, run.articleId));
+        UserPreferences.Assistant settings = this.userPreferenceService.assistant(token);
+        AIWebSiteInfo info =
+                this.conversations.getAiMessageInfoByArticleId(
+                        conversationId(token, run.articleId));
         boolean allowed = sameContext(run, token, settings, info);
         if (allowed && run.approval != null && run.nextTool < run.toolCalls.size()) {
             AIProviderRequests.ToolCall call = run.toolCalls.get(run.nextTool);
@@ -249,7 +346,7 @@ public class AIChatService extends AIService {
     private Run invalidatePending(Run run) throws SQLException {
         if (Set.of("awaiting_approval", "awaiting_input").contains(Objects.toString(run.status, "")) && "permission".equals(visibleRun(run).error)) {
             run.error = "permission";
-            AIApprovalStore store = new AIApprovalStore();
+            AIApprovalStore store = this.approvalStore;
             try { store.save(run, "failed"); }
             catch (AIApprovalStore.Changed e) { return store.read(run.userId, run.articleId); }
         }
@@ -274,13 +371,16 @@ public class AIChatService extends AIService {
 
     private AIStreamResponse stream(Run run, AIWebSiteInfo info, UserPreferences.Assistant settings,
                                     AdminTokenVO token, String decision) throws IOException {
-        AIApprovalStore store = new AIApprovalStore();
-        AIConversationService conversations = new AIConversationService().captureAccount();
-        Runnable reauthorize = () -> {
-            authorizeArticle(token, editorArticleId(run));
-            if (run.authVersion != token.getAuthVersion()
-                    || !run.preferences.equals(gson.toJson(new UserPreferenceService().assistant(token)))) throw new PermissionErrorException();
-        };
+        AIApprovalStore store = this.approvalStore;
+        AIConversationService conversations = this.conversations.captureAccount();
+        Runnable reauthorize =
+                () -> {
+                    authorizeArticle(token, editorArticleId(run));
+                    if (run.authVersion != token.getAuthVersion()
+                            || !run.preferences.equals(
+                                    gson.toJson(this.userPreferenceService.assistant(token))))
+                        throw new PermissionErrorException();
+                };
         ToolProvider knowledge = !"off".equals(settings.knowledgeScope)
                 ? Objects.requireNonNull(tools, "Content tools are required for an assisted conversation").create(scopes(settings), request, run.language) : null;
         PipedInputStream in = new PipedInputStream(16384);
@@ -337,12 +437,14 @@ public class AIChatService extends AIService {
         return "requestFailed";
     }
 
-    private static void authorizeArticle(AdminTokenVO token, long articleId) {
-        com.zrlog.data.security.AccountAccess account = AccountPermissionService.account(token);
-        if (!com.zrlog.data.security.AccountAction.ARTICLE_ASSIST.allowed(account)) throw new PermissionErrorException();
+    private void authorizeArticle(AdminTokenVO token, long articleId) {
+        AccountAccess account = permissionService.account(token);
+        if (!AccountAction.ARTICLE_ASSIST.allowed(account)) throw new PermissionErrorException();
         if (articleId > 0) {
-            try { AccountPermissionService.article(account, articleId, false); }
-            catch (SQLException e) { throw new PermissionErrorException(); }
+            try {
+                permissionService.article(account, articleId, false);
+            } catch (SQLException e) {
+                throw new PermissionErrorException(); }
         }
     }
 
@@ -426,13 +528,19 @@ public class AIChatService extends AIService {
         for (ChatMessage message : input.history) {
             AIProviderRequests.Message previous = new AIProviderRequests.Message(message.role, message.content);
             previous.attachments = message.attachments;
-            if (previous.attachments != null) AIFileService.requireSupported(info, previous.attachments.stream().map(file -> file.name).collect(java.util.stream.Collectors.toList()));
+            if (previous.attachments != null)
+                AIFileService.requireSupported(
+                        info,
+                        previous.attachments.stream()
+                                .map(file -> file.name)
+                                .collect(Collectors.toList()));
             messages.add(previous);
         }
         int currentArticleIndex = messages.size();
         messages.add(new AIProviderRequests.Message("user", ""));
         AIProviderRequests.Message question = new AIProviderRequests.Message("user", input.input);
-        question.attachments = input.files.isEmpty() ? List.of() : new AIFileService().save(input.files, info);
+        question.attachments =
+                input.files.isEmpty() ? List.of() : this.files.save(input.files, info);
         messages.add(question);
         Run run = new Run(); run.input = input.input; run.articleId = input.articleId; run.attachments = question.attachments;
         run.editorContext = input.editorContext; run.contextRevision = input.contextRevision;
@@ -442,9 +550,9 @@ public class AIChatService extends AIService {
 
     private void execute(Run run, AIWebSiteInfo info, ToolProvider knowledge, OutputStream out,
                          Runnable reauthorize, String decision, SaveAnswer saveAnswer) throws Exception {
-        AIApprovalStore store = new AIApprovalStore();
+        AIApprovalStore store = this.approvalStore;
         List<AIProviderRequests.Message> messages = run.messages;
-        AIWritingToolProvider writing = new AIWritingToolProvider(run, writingSkillService());
+        AIWritingToolProvider writing = writingTools.create(run, writingSkillService());
         while (run.round <= 4) {
             reauthorize.run();
             store.check(run);
@@ -528,7 +636,8 @@ public class AIChatService extends AIService {
                     }
                     if (updated != null && Boolean.TRUE.equals(updated.created) && run.articleId == 0
                             && editorArticleId(run) == updated.articleId) {
-                        new AIConversationService().migrateDraftAIMessageToArticle(updated.articleId, -(long) run.userId);
+                        this.conversations.migrateDraftAIMessageToArticle(
+                                updated.articleId, -(long) run.userId);
                     }
                     if (updated != null) emit(out, updated);
                 }
@@ -583,7 +692,9 @@ public class AIChatService extends AIService {
         throw new AIResponseException("Tool limit exceeded");
     }
 
-    protected AIWritingSkillService writingSkillService() { return new AIWritingSkillService(); }
+    protected AIWritingSkillService writingSkillService() {
+        return this.writingSkills.create(conversations.captureAccount());
+    }
 
     private static long editorArticleId(Run run) {
         if (run.articleId > 0) return run.articleId;
@@ -598,13 +709,21 @@ public class AIChatService extends AIService {
     private Approval prepareApproval(String tool, JsonObject args) throws SQLException {
         Approval approval = new Approval(); approval.id = UUID.randomUUID().toString(); approval.tool = tool;
         approval.expiresAt = System.currentTimeMillis() + AIApprovalStore.APPROVAL_TTL;
-        Map<String, Object> old = approvalArticle(tool, args, scopes(new UserPreferenceService().assistant(AdminTokenThreadLocal.getUser())));
+        Map<String, Object> old =
+                approvalArticle(
+                        tool,
+                        args,
+                        scopes(
+                                this.userPreferenceService.assistant(
+                                        AdminTokenThreadLocal.getUser())));
         if (args.has("id")) {
             approval.articleId = args.get("id").getAsLong(); approval.version = args.get("version").getAsInt();
-            if (approval.version != ((Number) old.get("version")).intValue()) throw new com.zrlog.admin.business.exception.UpdateArticleExpireException();
+            if (approval.version != ((Number) old.get("version")).intValue())
+                throw new UpdateArticleExpireException();
             approval.title = Objects.toString(old.get("title"), "");
-            approval.publicImpact = !com.zrlog.data.security.AccountAccess.truth(old.get("rubbish"))
-                    && !com.zrlog.data.security.AccountAccess.truth(old.get("privacy"));
+            approval.publicImpact =
+                    !AccountAccess.truth(old.get("rubbish"))
+                            && !AccountAccess.truth(old.get("privacy"));
         } else if (args.has("title")) approval.title = args.get("title").getAsString();
         approval.publicImpact |= tool.equals("publish_article") || args.has("status") && args.get("status").getAsString().equals("published");
         for (var entry : args.entrySet()) {
@@ -612,8 +731,11 @@ public class AIChatService extends AIService {
             ApprovalChange change = new ApprovalChange(); change.field = entry.getKey();
             String before = Objects.toString(old.get(entry.getKey().equals("editorType") ? "editor_type" : entry.getKey()), "");
             String after = entry.getValue().getAsString();
-            if (entry.getKey().equals("status") && !old.isEmpty()) before = com.zrlog.data.security.AccountAccess.truth(old.get("rubbish")) ? "draft"
-                    : com.zrlog.data.security.AccountAccess.truth(old.get("privacy")) ? "private" : "published";
+            if (entry.getKey().equals("status") && !old.isEmpty())
+                before =
+                        AccountAccess.truth(old.get("rubbish"))
+                                ? "draft"
+                                : AccountAccess.truth(old.get("privacy")) ? "private" : "published";
             change.truncated = before.length() > 4000 || after.length() > 4000;
             change.before = before.substring(0, Math.min(4000, before.length())); change.after = after.substring(0, Math.min(4000, after.length()));
             approval.changes.add(change);
@@ -628,8 +750,11 @@ public class AIChatService extends AIService {
 
     private Map<String, Object> approvalArticle(String tool, JsonObject args, Set<String> scopes) throws SQLException {
         if (tool.equals("upload_attachment")) return Map.of();
-        AccountAccess account = AccountPermissionService.current();
-        Map<String, Object> old = args.has("id") ? AccountPermissionService.article(account, args.get("id").getAsLong(), false) : Map.of();
+        AccountAccess account = permissionService.current();
+        Map<String, Object> old =
+                args.has("id")
+                        ? permissionService.article(account, args.get("id").getAsLong(), false)
+                        : Map.of();
         boolean draft = old.isEmpty() || AccountAccess.truth(old.get("rubbish"));
         boolean privacy = AccountAccess.truth(old.get("privacy"));
         String status = tool.equals("publish_article") ? "published" : args.has("status") ? args.get("status").getAsString() : null;
@@ -646,12 +771,15 @@ public class AIChatService extends AIService {
             context.status = "unsaved";
             return context;
         }
-        Map<String, Object> row = AccountPermissionService.article(AccountPermissionService.current(), articleId, false);
+        Map<String, Object> row =
+                permissionService.article(permissionService.current(), articleId, false);
         context.title = Objects.toString(row.get("title"), "");
         context.version = ((Number) Objects.requireNonNullElse(row.get("version"), 0)).intValue();
         context.typeId = ((Number) Objects.requireNonNullElse(row.get("typeId"), 0)).longValue();
-        context.status = com.zrlog.data.security.AccountAccess.truth(row.get("rubbish")) ? "draft"
-                : com.zrlog.data.security.AccountAccess.truth(row.get("privacy")) ? "private" : "published";
+        context.status =
+                AccountAccess.truth(row.get("rubbish"))
+                        ? "draft"
+                        : AccountAccess.truth(row.get("privacy")) ? "private" : "published";
         return context;
     }
 
@@ -729,8 +857,12 @@ public class AIChatService extends AIService {
         long size = 0;
         for (AIProviderRequests.Message message : completion.getMessages()) if (message.attachments != null && !message.attachments.isEmpty()) {
             if (!"user".equals(message.getRole())) throw AIFileService.error("invalid");
-            AIFileService.requireSupported(info, message.attachments.stream().map(file -> file.name).collect(java.util.stream.Collectors.toList()));
-            if (storage == null) storage = new AIFileService();
+                AIFileService.requireSupported(
+                        info,
+                        message.attachments.stream()
+                                .map(file -> file.name)
+                                .collect(Collectors.toList()));
+                if (storage == null) storage = this.files;
             for (var file : message.attachments) {
                 if ((size += file.size) > AIFileService.MAX_CONTEXT_BYTES) throw AIFileService.error("size");
                 files.put(file.id, storage.dataUrl(file));

@@ -29,6 +29,10 @@ import com.zrlog.model.UserPasskey;
 import com.zrlog.model.UserPasskeyChallenge;
 import com.zrlog.util.ZrLogUtil;
 
+import jakarta.inject.Inject;
+import jakarta.inject.Named;
+import jakarta.inject.Singleton;
+
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -37,11 +41,17 @@ import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
+@Singleton
 public class PasskeyService {
+    private final jakarta.inject.Provider<User> userProvider;
+    private final jakarta.inject.Provider<UserPasskey> userPasskeyProvider;
+    private final jakarta.inject.Provider<UserPasskeyChallenge> userPasskeyChallengeProvider;
+    private final DistributedLock.Factory locks;
 
     private static final String REGISTRATION = "registration";
     private static final String AUTHENTICATION = "authentication";
@@ -64,11 +74,37 @@ public class PasskeyService {
     private final PasskeyRequestContext requestContext;
     private final int maxActiveAuthenticationChallenges;
 
-    public PasskeyService(java.util.function.Supplier<String> siteHost, UserService userService) {
-        this(MAX_ACTIVE_AUTHENTICATION_CHALLENGES, siteHost, userService);
+    @Inject
+    public PasskeyService(
+            @Named("siteHost") Supplier<String> siteHost,
+            UserService userService,
+            jakarta.inject.Provider<User> userProvider,
+            jakarta.inject.Provider<UserPasskey> userPasskeyProvider,
+            jakarta.inject.Provider<UserPasskeyChallenge> userPasskeyChallengeProvider,
+            DistributedLock.Factory locks) {
+        this(
+                MAX_ACTIVE_AUTHENTICATION_CHALLENGES,
+                siteHost,
+                userService,
+                userProvider,
+                userPasskeyProvider,
+                userPasskeyChallengeProvider,
+                locks);
     }
 
-    PasskeyService(int maxActiveAuthenticationChallenges, java.util.function.Supplier<String> siteHost, UserService userService) {
+    PasskeyService(
+            int maxActiveAuthenticationChallenges,
+            Supplier<String> siteHost,
+            UserService userService,
+            jakarta.inject.Provider<User> userProvider,
+            jakarta.inject.Provider<UserPasskey> userPasskeyProvider,
+            jakarta.inject.Provider<UserPasskeyChallenge> userPasskeyChallengeProvider,
+            DistributedLock.Factory locks) {
+        this.userProvider = userProvider;
+        this.userPasskeyProvider = userPasskeyProvider;
+        this.userPasskeyChallengeProvider = userPasskeyChallengeProvider;
+        this.locks = locks;
+
         this.userService = Objects.requireNonNull(userService);
         this.requestContext = new PasskeyRequestContext(siteHost);
         if (maxActiveAuthenticationChallenges <= 0) {
@@ -103,7 +139,7 @@ public class PasskeyService {
             if (!MessageDigest.isEqual(credentialId, decodeRequired(credential.getId()))) {
                 throw new PasskeyVerificationException();
             }
-            UserPasskey passkeyDao = new UserPasskey();
+            UserPasskey passkeyDao = this.userPasskeyProvider.get();
             Map<String, Object> stored = passkeyDao.findByCredentialIdHash(sha256Hex(credentialId));
             if (stored == null || !MessageDigest.isEqual(credentialId,
                     decodeRequired(stringValue(stored, "credentialId")))) {
@@ -114,7 +150,7 @@ public class PasskeyService {
                 throw new PasskeyVerificationException();
             }
             int userId = intValue(stored, "userId");
-            Map<String, Object> user = new User().loadById(userId);
+            Map<String, Object> user = this.userProvider.get().loadById(userId);
             byte[] expectedUserHandle = decodeRequired(stringValue(user, "passkeyUserHandle"));
             byte[] submittedUserHandle = decodeRequired(credential.getResponse().getUserHandle());
             if (!MessageDigest.isEqual(expectedUserHandle, submittedUserHandle)) {
@@ -154,11 +190,11 @@ public class PasskeyService {
         denyPreviewMode();
         userService.verifyCurrentCredentials(userId, optionsRequest.getPassword(), optionsRequest.getMfaCode());
         PasskeyRequestContext.Context context = requestContext.resolve(request);
-        List<Map<String, Object>> existing = new UserPasskey().findByUserId(userId);
+        List<Map<String, Object>> existing = this.userPasskeyProvider.get().findByUserId(userId);
         if (existing.size() >= MAX_PASSKEYS) {
             throw new PasskeyLimitExceededException();
         }
-        Map<String, Object> user = new User().loadById(userId);
+        Map<String, Object> user = this.userProvider.get().loadById(userId);
         String userHandle = getOrCreateUserHandle(userId, user);
         String userName = Objects.toString(value(user, "userName"), "admin");
         String challenge = randomBase64Url(32);
@@ -209,7 +245,7 @@ public class PasskeyService {
                     || !MessageDigest.isEqual(credentialId, decodeRequired(credential.getId()))) {
                 throw new PasskeyVerificationException();
             }
-            Map<String, Object> user = new User().loadById(userId);
+            Map<String, Object> user = this.userProvider.get().loadById(userId);
             if (!MessageDigest.isEqual(decodeRequired(consumed.state.userHandle),
                     decodeRequired(stringValue(user, "passkeyUserHandle")))) {
                 throw new PasskeyVerificationException();
@@ -231,9 +267,9 @@ public class PasskeyService {
         }
     }
 
-    public static List<PasskeySummaryResponse> list(int userId) throws SQLException {
+    public List<PasskeySummaryResponse> list(int userId) throws SQLException {
         List<PasskeySummaryResponse> summaries = new ArrayList<>();
-        for (Map<String, Object> row : new UserPasskey().findByUserId(userId)) {
+        for (Map<String, Object> row : this.userPasskeyProvider.get().findByUserId(userId)) {
             summaries.add(toSummary(row));
         }
         return summaries;
@@ -242,7 +278,7 @@ public class PasskeyService {
     public void remove(int userId, PasskeyRemoveRequest removeRequest) throws SQLException {
         denyPreviewMode();
         userService.verifyCurrentCredentials(userId, removeRequest.getPassword(), removeRequest.getMfaCode());
-        if (!new UserPasskey().deleteByIdAndUserId(removeRequest.getId(), userId)) {
+        if (!this.userPasskeyProvider.get().deleteByIdAndUserId(removeRequest.getId(), userId)) {
             throw new PasskeyVerificationException();
         }
     }
@@ -281,8 +317,10 @@ public class PasskeyService {
 
     private ConsumedChallenge consumeChallenge(String requestId, String ceremony,
                                                PasskeyRequestContext.Context context) throws SQLException {
-        Map<String, Object> row = new UserPasskeyChallenge().consume(
-                requestId, ceremony, System.currentTimeMillis());
+        Map<String, Object> row =
+                this.userPasskeyChallengeProvider
+                        .get()
+                        .consume(requestId, ceremony, System.currentTimeMillis());
         if (row == null) {
             throw new PasskeyVerificationException();
         }
@@ -308,47 +346,68 @@ public class PasskeyService {
         long now = System.currentTimeMillis();
         String requestJson = gson.toJson(state);
         if (!AUTHENTICATION.equals(ceremony)) {
-            if (!new UserPasskeyChallenge().save(
-                    requestId, ceremony, userId, requestJson, now + CHALLENGE_TTL_MS, now)) {
+            if (!this.userPasskeyChallengeProvider
+                    .get()
+                    .save(requestId, ceremony, userId, requestJson, now + CHALLENGE_TTL_MS, now)) {
                 throw new PasskeyVerificationException();
             }
             return;
         }
-        withLock(AUTHENTICATION_CHALLENGE_LOCK, () -> {
-            UserPasskeyChallenge challengeDao = new UserPasskeyChallenge();
-            challengeDao.deleteExpired(now);
-            if (challengeDao.countActive(AUTHENTICATION, now) >= maxActiveAuthenticationChallenges) {
-                throw new PasskeyRequestBusyException();
-            }
-            if (!challengeDao.insert(requestId, ceremony, userId, requestJson,
-                    now + CHALLENGE_TTL_MS, now)) {
-                throw new PasskeyVerificationException();
-            }
-            return null;
-        });
+        withLock(
+                AUTHENTICATION_CHALLENGE_LOCK,
+                () -> {
+                    UserPasskeyChallenge challengeDao = this.userPasskeyChallengeProvider.get();
+                    challengeDao.deleteExpired(now);
+                    if (challengeDao.countActive(AUTHENTICATION, now)
+                            >= maxActiveAuthenticationChallenges) {
+                        throw new PasskeyRequestBusyException();
+                    }
+                    if (!challengeDao.insert(
+                            requestId,
+                            ceremony,
+                            userId,
+                            requestJson,
+                            now + CHALLENGE_TTL_MS,
+                            now)) {
+                        throw new PasskeyVerificationException();
+                    }
+                    return null;
+                });
     }
 
     PasskeySummaryResponse persistRegistrationCredential(int userId, StoredPasskey storedPasskey,
                                                          ChallengeState state) throws SQLException {
-        return withLock(REGISTRATION_LOCK_PREFIX + userId, () -> {
-            UserPasskey passkeyDao = new UserPasskey();
-            if (passkeyDao.countByUserId(userId) >= MAX_PASSKEYS) {
-                throw new PasskeyLimitExceededException();
-            }
-            long createdAt = System.currentTimeMillis();
-            String credentialIdHash = sha256Hex(storedPasskey.credentialId);
-            if (!passkeyDao.save(userId, credentialIdHash, encode(storedPasskey.credentialId),
-                    storedPasskey.publicKeyCose, storedPasskey.signatureCount, storedPasskey.transports,
-                    normalizeName(state.name), storedPasskey.aaguid, storedPasskey.backupEligible,
-                    storedPasskey.backupState, state.origin, state.rpId, createdAt)) {
-                throw new PasskeyVerificationException();
-            }
-            return toSummary(passkeyDao.findByCredentialIdHash(credentialIdHash));
-        });
+        return withLock(
+                REGISTRATION_LOCK_PREFIX + userId,
+                () -> {
+                    UserPasskey passkeyDao = this.userPasskeyProvider.get();
+                    if (passkeyDao.countByUserId(userId) >= MAX_PASSKEYS) {
+                        throw new PasskeyLimitExceededException();
+                    }
+                    long createdAt = System.currentTimeMillis();
+                    String credentialIdHash = sha256Hex(storedPasskey.credentialId);
+                    if (!passkeyDao.save(
+                            userId,
+                            credentialIdHash,
+                            encode(storedPasskey.credentialId),
+                            storedPasskey.publicKeyCose,
+                            storedPasskey.signatureCount,
+                            storedPasskey.transports,
+                            normalizeName(state.name),
+                            storedPasskey.aaguid,
+                            storedPasskey.backupEligible,
+                            storedPasskey.backupState,
+                            state.origin,
+                            state.rpId,
+                            createdAt)) {
+                        throw new PasskeyVerificationException();
+                    }
+                    return toSummary(passkeyDao.findByCredentialIdHash(credentialIdHash));
+                });
     }
 
     private <T> T withLock(String lockKey, LockedOperation<T> operation) throws SQLException {
-        Lock lock = new DistributedLock(lockKey);
+        Lock lock = locks.create(lockKey);
         boolean locked = false;
         try {
             locked = lock.tryLock(LOCK_WAIT_SECONDS, TimeUnit.SECONDS);
@@ -382,9 +441,14 @@ public class PasskeyService {
             return current;
         }
         String candidate = randomBase64Url(32);
-        new User().execute("update user set passkeyUserHandle=? where userId=?"
-                + " and (passkeyUserHandle is null or passkeyUserHandle='')", candidate, userId);
-        return stringValue(new User().loadById(userId), "passkeyUserHandle");
+        this.userProvider
+                .get()
+                .execute(
+                        "update user set passkeyUserHandle=? where userId=?"
+                                + " and (passkeyUserHandle is null or passkeyUserHandle='')",
+                        candidate,
+                        userId);
+        return stringValue(this.userProvider.get().loadById(userId), "passkeyUserHandle");
     }
 
     private static PasskeySummaryResponse toSummary(Map<String, Object> row) {

@@ -1,9 +1,16 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
 import com.zrlog.admin.business.rest.request.PersonalDataPreviewRequest;
 import com.zrlog.admin.business.rest.response.PersonalDataCommentExportResponse;
 import com.zrlog.admin.business.rest.response.PersonalDataPreviewResponse;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
+import com.zrlog.model.Comment;
+import com.zrlog.model.User;
+
 import org.junit.Test;
 
 import java.sql.Timestamp;
@@ -12,15 +19,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-
 public class PersonalDataServiceTest {
 
     @Test
     public void shouldConvertCommentRowsToExportEntries() throws Exception {
-        PersonalDataService service = new PersonalDataService();
+        PersonalDataService service = new PersonalDataService(User::new, Comment::new);
         Map<String, Object> row = new HashMap<>();
         row.put("id", 9L);
         row.put("userComment", "hello");
@@ -57,7 +60,7 @@ public class PersonalDataServiceTest {
 
     @Test
     public void shouldConvertHelperValuesSafely() throws Exception {
-        PersonalDataService service = new PersonalDataService();
+        PersonalDataService service = new PersonalDataService(User::new, Comment::new);
 
         assertEquals(7L, service.toLong(7));
         assertEquals(0L, service.toLong("7"));
@@ -80,7 +83,7 @@ public class PersonalDataServiceTest {
                     "Alice B", "2024-02-02 11:00:00", 2);
             insertComment(db, 3, "other", "other@example.com", "https://other.example", "10.0.0.3",
                     "Other", "2024-02-03 12:00:00", 2);
-            PersonalDataService service = new PersonalDataService();
+            PersonalDataService service = new PersonalDataService(User::new, Comment::new);
 
             PersonalDataPreviewResponse preview = service.preview(request("alice@example.com"), 1);
             PersonalDataPreviewResponse adminPreview = service.preview(request("admin@example.com"), 1);

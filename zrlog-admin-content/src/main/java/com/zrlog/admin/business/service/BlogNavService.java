@@ -3,8 +3,11 @@ package com.zrlog.admin.business.service;
 import com.hibegin.common.dao.dto.PageData;
 import com.zrlog.admin.business.rest.request.CreateNavRequest;
 import com.zrlog.admin.business.rest.request.UpdateNavRequest;
+import com.zrlog.business.util.ControllerUtil;
 import com.zrlog.common.cache.dto.LogNavDTO;
 import com.zrlog.model.LogNav;
+
+import jakarta.inject.Inject;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -15,6 +18,12 @@ import java.util.Set;
 import java.util.StringJoiner;
 
 public class BlogNavService {
+    private final jakarta.inject.Provider<LogNav> logNavProvider;
+
+    @Inject
+    public BlogNavService(jakarta.inject.Provider<LogNav> logNavProvider) {
+        this.logNavProvider = logNavProvider;
+    }
 
     public boolean delete(String ids) throws SQLException {
         List<Integer> navIds = parseIds(ids);
@@ -22,7 +31,7 @@ public class BlogNavService {
             return false;
         }
         String placeholders = placeholders(navIds.size());
-        LogNav logNav = new LogNav();
+        LogNav logNav = this.logNavProvider.get();
         Object count = logNav.queryFirstObj(
                 "select count(1) from lognav where navId in (" + placeholders + ")", navIds.toArray());
         boolean allExist = count instanceof Number && ((Number) count).intValue() == navIds.size();
@@ -31,13 +40,15 @@ public class BlogNavService {
     }
 
     public PageData<LogNavDTO> find() throws SQLException {
-        PageData<LogNavDTO> page = new LogNav().find(com.zrlog.business.util.ControllerUtil.unPageRequest());
+        PageData<LogNavDTO> page = this.logNavProvider.get().find(ControllerUtil.unPageRequest());
         page.getRows().forEach(item -> item.setJumpUrl(item.getUrl()));
         return page;
     }
 
     public boolean add(CreateNavRequest request) throws SQLException {
-        return new LogNav().set("navName", request.getNavName())
+        return this.logNavProvider
+                .get()
+                .set("navName", request.getNavName())
                 .set("url", request.getUrl())
                 .set("icon", request.getIcon())
                 .set("sort", request.getSort())
@@ -45,7 +56,9 @@ public class BlogNavService {
     }
 
     public boolean update(UpdateNavRequest request) throws SQLException {
-        return new LogNav().set("navName", request.getNavName())
+        return this.logNavProvider
+                .get()
+                .set("navName", request.getNavName())
                 .set("url", request.getUrl())
                 .set("icon", request.getIcon())
                 .set("sort", Objects.requireNonNullElse(request.getSort(), 0))

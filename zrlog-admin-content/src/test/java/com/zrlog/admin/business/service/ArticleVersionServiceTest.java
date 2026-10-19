@@ -1,14 +1,27 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
+
+import com.hibegin.common.dao.DAO;
 import com.hibegin.http.server.api.HttpRequest;
 import com.zrlog.admin.business.rest.request.ArticleVersionRollbackRequest;
 import com.zrlog.admin.business.rest.request.UpdateArticleRequest;
 import com.zrlog.admin.business.rest.response.ArticleVersionCompareResponse;
 import com.zrlog.admin.business.rest.response.CreateOrUpdateArticleResponse;
 import com.zrlog.admin.business.rest.response.LoadEditArticleResponse;
+import com.zrlog.admin.support.AccountServicesFixture;
+import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.vo.AdminTokenVO;
+import com.zrlog.model.Log;
+import com.zrlog.model.LogVersion;
+
 import org.junit.Test;
 
 import java.lang.reflect.Method;
@@ -16,13 +29,6 @@ import java.sql.SQLException;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
 
 public class ArticleVersionServiceTest {
 
@@ -204,7 +210,10 @@ public class ArticleVersionServiceTest {
     }
 
     private static ArticleVersionService newService() {
-        return new ArticleVersionService();
+        return new ArticleVersionService(
+                AccountServicesFixture.component().permissions(),
+                Log::new,
+                () -> new LogVersion(DAO.getDefaultDataSource()));
     }
 
     private static FakeAdminArticleService fakeArticleService(LoadEditArticleResponse current) throws Exception {
@@ -215,8 +224,23 @@ public class ArticleVersionServiceTest {
 
     private static class FakeAdminArticleService extends AdminArticleService {
         private FakeAdminArticleService() {
-            super(new InMemoryZrLogDatabase.TestCacheService(), () -> null,
-                    new AdminPageDataFactory(() -> null, () -> ""));
+            super(
+                    new InMemoryZrLogDatabase.TestCacheService(),
+                    () -> null,
+                    new AdminPageDataFactory(
+                            () -> null,
+                            () -> "",
+                            ApplicationServicesFixture.messages(),
+                            AccountServicesFixture.component().permissions()),
+                    AccountServicesFixture.component().permissions(),
+                    AccountServicesFixture.component().preferences(),
+                    new ArticleVersionService(
+                            AccountServicesFixture.component().permissions(),
+                            Log::new,
+                            () -> new LogVersion(DAO.getDefaultDataSource())),
+                    new ArticlePinningService(Log::new, ApplicationServicesFixture.locks()),
+                    Log::new,
+                    ApplicationServicesFixture.locks());
         }
 
 

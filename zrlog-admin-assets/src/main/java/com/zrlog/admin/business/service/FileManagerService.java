@@ -1,5 +1,7 @@
 package com.zrlog.admin.business.service;
 
+import static com.zrlog.admin.business.AdminConstants.ADMIN_DB_ATTACHED_TMP;
+
 import com.hibegin.common.util.EnvKit;
 import com.hibegin.common.util.FileUtils;
 import com.hibegin.common.util.IOUtil;
@@ -21,15 +23,19 @@ import com.zrlog.admin.business.util.FileEntryUtils;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.util.I18nUtil;
 
+import jakarta.inject.Inject;
+
 import java.io.File;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static com.zrlog.admin.business.AdminConstants.ADMIN_DB_ATTACHED_TMP;
-
 public class FileManagerService {
+    private final DbFileService dbFileService;
+    private final WebSiteService webSiteService;
+    private final AdminAuditService adminAuditService;
+    private final MessageCenterOperationService messageCenterOperationService;
 
     public static final String LIBRARY_ROOT = "";
     public static final String ATTACHED_ROOT = "/attached";
@@ -37,7 +43,19 @@ public class FileManagerService {
     private final FileManagerReferenceService referenceService;
     private final UploadService uploadService;
 
-    public FileManagerService(UploadService uploadService, FileManagerReferenceService referenceService) {
+    @Inject
+    public FileManagerService(
+            UploadService uploadService,
+            FileManagerReferenceService referenceService,
+            DbFileService dbFileService,
+            WebSiteService webSiteService,
+            AdminAuditService adminAuditService,
+            MessageCenterOperationService messageCenterOperationService) {
+        this.dbFileService = dbFileService;
+        this.webSiteService = webSiteService;
+        this.adminAuditService = adminAuditService;
+        this.messageCenterOperationService = messageCenterOperationService;
+
         this.uploadService = uploadService;
         this.referenceService = Objects.requireNonNull(referenceService);
     }
@@ -61,9 +79,14 @@ public class FileManagerService {
                                                                                  HttpRequest request)
             throws SQLException {
         ReplaceArticleResourceUrlResponse response = replaceArticleResourceUrl(user, body);
-        new AdminAuditService().record(request, AdminAuditAction.REPLACE_ARTICLE_RESOURCE_URL,
+        this.adminAuditService.record(
+                request,
+                AdminAuditAction.REPLACE_ARTICLE_RESOURCE_URL,
                 body.getFromUrl() + " -> " + body.getToUrl());
-        new MessageCenterOperationService().recordReplaceArticleResourceUrl(response.getScannedArticles(), response.getUpdatedArticles(), response.getUpdatedFields());
+        this.messageCenterOperationService.recordReplaceArticleResourceUrl(
+                response.getScannedArticles(),
+                response.getUpdatedArticles(),
+                response.getUpdatedFields());
         return response;
     }
 
@@ -71,14 +94,14 @@ public class FileManagerService {
                                                                     HttpRequest request, AdminTokenVO user)
             throws IOException {
         UploadFileResponse response = reuploadMissingLocalResource(path, uploadFile, request, user);
-        new AdminAuditService().record(request, AdminAuditAction.REUPLOAD_MISSING_FILE, path);
+        this.adminAuditService.record(request, AdminAuditAction.REUPLOAD_MISSING_FILE, path);
         return response;
     }
 
     public boolean deleteAndRecord(String path, HttpRequest request) throws SQLException {
         boolean deleted = delete(path);
         if (deleted) {
-            new AdminAuditService().record(request, AdminAuditAction.DELETE_FILE, path);
+            this.adminAuditService.record(request, AdminAuditAction.DELETE_FILE, path);
         }
         return deleted;
     }
@@ -87,7 +110,8 @@ public class FileManagerService {
                                    AdminTokenVO user, HttpRequest request) throws SQLException {
         boolean renamed = rename(path, newName, syncArticleReferences, user);
         if (renamed) {
-            new AdminAuditService().record(request, AdminAuditAction.RENAME_FILE, path + " -> " + newName);
+            this.adminAuditService.record(
+                    request, AdminAuditAction.RENAME_FILE, path + " -> " + newName);
         }
         return renamed;
     }
@@ -95,7 +119,7 @@ public class FileManagerService {
     public boolean mkdirAndRecord(String path, HttpRequest request) {
         boolean created = mkdir(path);
         if (created) {
-            new AdminAuditService().record(request, AdminAuditAction.CREATE_DIRECTORY, path);
+            this.adminAuditService.record(request, AdminAuditAction.CREATE_DIRECTORY, path);
         }
         return created;
     }
@@ -119,7 +143,7 @@ public class FileManagerService {
 
 
     public List<FileEntryVO> list(String path) throws SQLException {
-        boolean referenceEnabled = new WebSiteService().isFeatureResourceReferenceEnabled();
+        boolean referenceEnabled = this.webSiteService.isFeatureResourceReferenceEnabled();
         if (Objects.equals(path, LIBRARY_ROOT)) {
             return getShortcuts().stream().filter(e -> !Objects.equals(e.getPath(), path)).collect(Collectors.toList());
         }
@@ -127,7 +151,7 @@ public class FileManagerService {
             return referenceService.getExternalResources(path, referenceEnabled, this::decorateEntry);
         }
         if (path.startsWith(ADMIN_DB_ATTACHED_TMP)) {
-            return new DbFileService().getDbFiles(path);
+            return this.dbFileService.getDbFiles(path);
         }
         Map<String, List<FileReferenceVO>> localReferenceMap = referenceEnabled
                 ? referenceService.buildLocalReferenceMap() : Collections.emptyMap();
@@ -189,7 +213,7 @@ public class FileManagerService {
     }
 
     public List<FileEntryVO> listBrokenLocalResourceReferences(String key) throws SQLException {
-        if (!new WebSiteService().isFeatureResourceReferenceEnabled()) {
+        if (!this.webSiteService.isFeatureResourceReferenceEnabled()) {
             return Collections.emptyList();
         }
         List<FileEntryVO> entries = referenceService.getMissingLocalResources(this::decorateEntry);
@@ -201,7 +225,7 @@ public class FileManagerService {
     }
 
     public boolean refreshReferenceIndex() throws SQLException {
-        if (!new WebSiteService().isFeatureResourceReferenceEnabled()) {
+        if (!this.webSiteService.isFeatureResourceReferenceEnabled()) {
             return false;
         }
         return referenceService.refreshReferenceIndex();
@@ -332,9 +356,9 @@ public class FileManagerService {
         }
         if (path.startsWith(ADMIN_DB_ATTACHED_TMP + "/")) {
             if ("directory".equals(resolveEntryType(path))) {
-                return new DbFileService().deleteByPrefix(path);
+                return this.dbFileService.deleteByPrefix(path);
             }
-            return new DbFileService().deleteByKey(path);
+            return this.dbFileService.deleteByKey(path);
         }
         File target = resolveAndValidate(path);
         return deleteRecursive(target);
@@ -397,7 +421,7 @@ public class FileManagerService {
         }
         if (path.startsWith(ADMIN_DB_ATTACHED_TMP + "/")) {
             try {
-                new DbFileService().loadDbFile(path);
+                this.dbFileService.loadDbFile(path);
                 return "file";
             } catch (Exception e) {
                 return "directory";
@@ -426,7 +450,7 @@ public class FileManagerService {
 
     public byte[] read(String path) throws IOException {
         if (path.startsWith(ADMIN_DB_ATTACHED_TMP)) {
-            return new DbFileService().loadDbFile(path);
+            return this.dbFileService.loadDbFile(path);
         }
         File target = resolveAndValidate(path);
         return IOUtil.getByteByFile(target);

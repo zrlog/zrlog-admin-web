@@ -1,15 +1,21 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.*;
+
 import com.zrlog.admin.business.security.OAuthException;
 import com.zrlog.admin.business.security.OAuthModels.*;
+import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.interceptor.OAuthInterceptor;
+
 import org.junit.Test;
 
 import java.net.URI;
 import java.util.*;
-
-import static org.junit.Assert.*;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @org.junit.runner.RunWith(org.junit.runners.Parameterized.class)
 public class OAuthServiceTest {
@@ -18,7 +24,19 @@ public class OAuthServiceTest {
     private final String backend;
     public OAuthServiceTest(String backend) { this.backend = backend; }
     private InMemoryZrLogDatabase database() throws Exception { return "webapi".equals(backend) ? InMemoryZrLogDatabase.openWebApi() : "sqlite".equals(backend) ? InMemoryZrLogDatabase.openSqlite() : InMemoryZrLogDatabase.open(); }
-    private final OAuthService service=new OAuthService(()->"https://blog.example/sub", () -> true);
+
+    private final OAuthService service =
+            new OAuthService(
+                    () -> "https://blog.example/sub",
+                    () -> true,
+                    AccountServicesFixture.component().permissions(),
+                    AccountServicesFixture.component().security(),
+                    tokenResource ->
+                            new PersonalAccessTokenService(
+                                    tokenResource,
+                                    AccountServicesFixture.component().permissions(),
+                                    AccountServicesFixture.component().security()),
+                    AccountServicesFixture.component().backend());
     private final String verifier=OAuthService.random();
     private Client client() throws Exception {
         Client app=new Client();app.name="Test writer";app.redirectUris=List.of("http://127.0.0.1:3000/callback?app=1");return service.register(app);
@@ -137,10 +155,18 @@ public class OAuthServiceTest {
     @Test public void simultaneousCodeExchangeNeverProducesTwoLiveGrants() throws Exception {
         try(InMemoryZrLogDatabase db=database()) {
             Client app=client();TokenRequest t=code(app,"articles:read");
-            java.util.concurrent.ExecutorService pool=java.util.concurrent.Executors.newFixedThreadPool(2);
-            java.util.concurrent.CountDownLatch start=new java.util.concurrent.CountDownLatch(1);
+            ExecutorService pool = Executors.newFixedThreadPool(2);
+            CountDownLatch start = new CountDownLatch(1);
             try {
-                java.util.concurrent.Callable<TokenResponse> task=()->{start.await();try{return service.token(t);}catch(OAuthException e){return null;}};
+                Callable<TokenResponse> task =
+                        () -> {
+                            start.await();
+                            try {
+                                return service.token(t);
+                            } catch (OAuthException e) {
+                                return null;
+                            }
+                        };
                 var a=pool.submit(task);var b=pool.submit(task);start.countDown();TokenResponse first=a.get(),second=b.get();
                 assertTrue((first==null) != (second==null));TokenResponse issued=first==null?second:first;
                 assertThrows(OAuthException.class,()->service.authenticate(issued.access_token,service.resource(),Set.of()));
@@ -172,8 +198,11 @@ public class OAuthServiceTest {
             assertEquals(Set.of("article.read", "taxonomy.read"), new HashSet<>(identity.permissions));
             assertThrows(OAuthException.class, () -> service.authenticate(limited.access_token, service.mcpResource(), Set.of()));
             TokenResponse inherited = approveCli(request, List.of("account:inherit", "offline_access"));
-            assertEquals(PersonalAccessTokenService.availablePermissions(AccountPermissionService.current()),
-                    service.authenticate(inherited.access_token, service.adminResource(), Set.of()).permissions);
+            assertEquals(
+                    PersonalAccessTokenService.availablePermissions(
+                            AccountServicesFixture.component().permissions().current()),
+                    service.authenticate(inherited.access_token, service.adminResource(), Set.of())
+                            .permissions);
             assertEquals(1, ((Number)db.scalar("select count(*) from oauth_client where clientId=?", OAuthService.CLI_CLIENT_ID)).intValue());
             TokenRequest refresh = new TokenRequest(); refresh.grant_type="refresh_token"; refresh.client_id=OAuthService.CLI_CLIENT_ID;
             refresh.resource=service.adminResource(); refresh.refresh_token=limited.refresh_token; refresh.scope="account:inherit";
@@ -207,10 +236,14 @@ public class OAuthServiceTest {
 
     @Test public void simultaneousFirstCliLoginsShareOneRegistration() throws Exception {
         try (InMemoryZrLogDatabase db=database()) {
-            var executor=java.util.concurrent.Executors.newFixedThreadPool(2);
+            var executor = Executors.newFixedThreadPool(2);
             try {
-                var start=new java.util.concurrent.CountDownLatch(1);
-                java.util.concurrent.Callable<String> authorize=()->{start.await();return service.authorize(cli("account:inherit offline_access"));};
+                var start = new CountDownLatch(1);
+                Callable<String> authorize =
+                        () -> {
+                            start.await();
+                            return service.authorize(cli("account:inherit offline_access"));
+                        };
                 var a=executor.submit(authorize);var b=executor.submit(authorize);start.countDown();
                 assertNotNull(a.get()); assertNotNull(b.get());
                 assertEquals(1,((Number)db.scalar("select count(*) from oauth_client where clientId=?",OAuthService.CLI_CLIENT_ID)).intValue());

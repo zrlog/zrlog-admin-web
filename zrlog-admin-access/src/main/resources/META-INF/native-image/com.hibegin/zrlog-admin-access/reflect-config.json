@@ -3,13 +3,6 @@
     "name": "com.zrlog.admin.web.controller.api.OAuthAdminController",
     "methods": [
       {
-        "name": "<init>",
-        "parameterTypes": [
-          "com.zrlog.admin.business.service.OAuthService",
-          "com.zrlog.admin.business.service.AdminPageDataFactory"
-        ]
-      },
-      {
         "name": "clients",
         "parameterTypes": []
       },
@@ -50,12 +43,6 @@
   {
     "name": "com.zrlog.admin.web.controller.api.WebhookController",
     "methods": [
-      {
-        "name": "<init>",
-        "parameterTypes": [
-          "com.zrlog.admin.business.service.AdminPageDataFactory"
-        ]
-      },
       {
         "name": "config",
         "parameterTypes": []

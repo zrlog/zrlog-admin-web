@@ -1,16 +1,20 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.*;
+
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.zrlog.admin.business.rest.response.AdminDashboardConfigResponse;
+import com.zrlog.admin.support.AccountServicesFixture;
+import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
+import com.zrlog.data.service.UserPreferenceStore;
+
 import org.junit.Test;
 
 import java.sql.SQLException;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import static org.junit.Assert.*;
 
 public class UserPreferenceConcurrencyTest {
     @Test public void personalSaveSurvivesConcurrentDashboardUpdates() throws Exception {
@@ -28,7 +32,13 @@ public class UserPreferenceConcurrencyTest {
                 if (!sql.startsWith("update user set preferences=") || competing.getAndIncrement() != 0) return;
                 db.execute("update user set preferences=? where userId=1", "{\"session\":{\"timeoutMinutes\":60},\"appearance\":{\"darkMode\":true}}");
             });
-            new UserPreferenceService().updateBody("{\"session\":{\"timeoutMinutes\":30},\"editor\":{\"autoDigestLength\":0}}", "writing");
+            new UserPreferenceService(
+                            ApplicationServicesFixture.settings(),
+                            new UserPreferenceStore(),
+                            AccountServicesFixture.component().permissions())
+                    .updateBody(
+                            "{\"session\":{\"timeoutMinutes\":30},\"editor\":{\"autoDigestLength\":0}}",
+                            "writing");
             JsonObject saved = stored(db);
             assertEquals(60, saved.getAsJsonObject("session").get("timeoutMinutes").getAsInt());
             assertTrue(saved.getAsJsonObject("appearance").get("darkMode").getAsBoolean());
@@ -49,7 +59,11 @@ public class UserPreferenceConcurrencyTest {
                 else latest.addProperty("articlePageSize", revision);
                 db.execute("update user set preferences=? where userId=1", latest.toString());
             });
-            UserPreferenceService service = new UserPreferenceService();
+            UserPreferenceService service =
+                    new UserPreferenceService(
+                            ApplicationServicesFixture.settings(),
+                            new UserPreferenceStore(),
+                            AccountServicesFixture.component().permissions());
             if (personal) service.update(json("{\"articlePageSize\":50}"));
             else {
                 AdminDashboardConfigResponse dashboard = new AdminDashboardConfigResponse();
@@ -73,8 +87,16 @@ public class UserPreferenceConcurrencyTest {
                             "{\"future\":{\"revision\":" + competingWrites.incrementAndGet() + "}}");
                 }
             });
-            SQLException error = assertThrows(SQLException.class,
-                    () -> new UserPreferenceService().update(json("{\"articlePageSize\":50}")));
+            SQLException error =
+                    assertThrows(
+                            SQLException.class,
+                            () ->
+                                    new UserPreferenceService(
+                                                    ApplicationServicesFixture.settings(),
+                                                    new UserPreferenceStore(),
+                                                    AccountServicesFixture.component()
+                                                            .permissions())
+                                            .update(json("{\"articlePageSize\":50}")));
             assertTrue(error.getMessage().contains("Concurrent account preference update"));
             JsonObject saved = stored(db);
             assertFalse(saved.has("articlePageSize"));
@@ -91,8 +113,16 @@ public class UserPreferenceConcurrencyTest {
                 }
             });
             try {
-                SQLException error = assertThrows(SQLException.class,
-                        () -> new UserPreferenceService().update(json("{\"articlePageSize\":50}")));
+                SQLException error =
+                        assertThrows(
+                                SQLException.class,
+                                () ->
+                                        new UserPreferenceService(
+                                                        ApplicationServicesFixture.settings(),
+                                                        new UserPreferenceStore(),
+                                                        AccountServicesFixture.component()
+                                                                .permissions())
+                                                .update(json("{\"articlePageSize\":50}")));
                 assertTrue(error.getCause() instanceof InterruptedException);
                 assertTrue(Thread.currentThread().isInterrupted());
             } finally { Thread.interrupted(); }
@@ -110,8 +140,17 @@ public class UserPreferenceConcurrencyTest {
                     throw unavailable;
                 }
             });
-            assertSame(unavailable, assertThrows(SQLException.class,
-                    () -> new UserPreferenceService().update(json("{\"articlePageSize\":50}"))));
+            assertSame(
+                    unavailable,
+                    assertThrows(
+                            SQLException.class,
+                            () ->
+                                    new UserPreferenceService(
+                                                    ApplicationServicesFixture.settings(),
+                                                    new UserPreferenceStore(),
+                                                    AccountServicesFixture.component()
+                                                            .permissions())
+                                            .update(json("{\"articlePageSize\":50}"))));
             assertEquals(1, writes.get());
             assertEquals(new JsonObject(), stored(db));
         }

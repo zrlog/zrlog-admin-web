@@ -13,6 +13,7 @@
         <frontendBuildOutputPath>build</frontendBuildOutputPath>
         <zrlog-install-web.version>4.0.1-SNAPSHOT</zrlog-install-web.version>
         <gpg.passphrase />
+        <dagger.version>2.60.1</dagger.version>
     </properties>
     <repositories>
         <repository>
@@ -64,6 +65,13 @@
                     <source>${java.version}</source>
                     <target>${java.version}</target>
                     <release>${java.version}</release>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>com.google.dagger</groupId>
+                            <artifactId>dagger-compiler</artifactId>
+                            <version>${dagger.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
                 </configuration>
             </plugin>
             <plugin>
@@ -192,6 +200,12 @@
         <module>zrlog-admin-web</module>
     </modules>
     <dependencies>
+        <dependency>
+            <groupId>com.hibegin</groupId>
+            <artifactId>zrlog-template-default</artifactId>
+            <version>1.0.1</version>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>com.hibegin</groupId>
             <artifactId>zrlog-test-support</artifactId>

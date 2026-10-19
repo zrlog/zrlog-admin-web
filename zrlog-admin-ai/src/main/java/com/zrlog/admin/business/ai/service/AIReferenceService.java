@@ -4,6 +4,7 @@ import com.google.gson.JsonObject;
 import com.zrlog.admin.business.ai.model.AIChatModels.ChatRequest;
 import com.zrlog.admin.business.ai.model.AIChatModels.ResolvedReference;
 import com.zrlog.admin.business.exception.PermissionErrorException;
+import com.zrlog.admin.business.knowledge.ContentToolFactory;
 import com.zrlog.admin.business.knowledge.KnowledgeModels.ArticleResult;
 import com.zrlog.admin.business.knowledge.KnowledgeModels.SearchResult;
 import com.zrlog.admin.business.knowledge.KnowledgeService;
@@ -15,28 +16,47 @@ import com.zrlog.common.exception.ArgsException;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.I18nUtil;
 
+import jakarta.inject.Inject;
+
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /** Explicit references use the same account and preference boundary as assistant knowledge tools. */
 public final class AIReferenceService {
-    private final com.zrlog.admin.business.knowledge.ContentToolFactory tools;
+    private final UserPreferenceService userPreferenceService;
 
-    public AIReferenceService(com.zrlog.admin.business.knowledge.ContentToolFactory tools) { this.tools = tools; }
+    private final AccountPermissionService permissionService;
+
+    private final ContentToolFactory tools;
+
+    @Inject
+    public AIReferenceService(
+            ContentToolFactory tools,
+            AccountPermissionService permissionService,
+            UserPreferenceService userPreferenceService) {
+        this.userPreferenceService = userPreferenceService;
+
+        this.permissionService = permissionService;
+        this.tools = tools;
+    }
 
     private KnowledgeService knowledge(UserPreferences.Assistant settings) {
-        if (!AccountAction.ARTICLE_ASSIST.allowed(AccountPermissionService.current())
+        if (!AccountAction.ARTICLE_ASSIST.allowed(permissionService.current())
                 || "off".equals(settings.knowledgeScope)) throw new PermissionErrorException();
-        return java.util.Objects.requireNonNull(tools, "Content tools are required for article references")
+        return Objects.requireNonNull(tools, "Content tools are required for article references")
                 .knowledge(AIChatService.scopes(settings), I18nUtil.getCurrentLocale());
     }
 
     public SearchResult search(String query) throws SQLException {
         if (query == null || query.length() > 200) throw new ArgsException();
-        if (!AccountAction.ARTICLE_ASSIST.allowed(AccountPermissionService.current())) throw new PermissionErrorException();
-        UserPreferences.Assistant settings = new UserPreferenceService().assistant(AdminTokenThreadLocal.getUser());
-        if ("off".equals(settings.knowledgeScope) || !AccountAction.ARTICLE_READ.allowed(AccountPermissionService.current()))
+        if (!AccountAction.ARTICLE_ASSIST.allowed(permissionService.current()))
+            throw new PermissionErrorException();
+        UserPreferences.Assistant settings =
+                this.userPreferenceService.assistant(AdminTokenThreadLocal.getUser());
+        if ("off".equals(settings.knowledgeScope)
+                || !AccountAction.ARTICLE_READ.allowed(permissionService.current()))
             return new SearchResult();
         JsonObject arguments = new JsonObject();
         arguments.addProperty("query", query);

@@ -1,17 +1,24 @@
 package com.zrlog.admin.web.controller.api;
 
+import static org.junit.Assert.*;
+
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
 import com.zrlog.admin.business.security.PersonalTokenModels;
 import com.zrlog.admin.business.service.OAuthService;
 import com.zrlog.admin.business.service.PersonalAccessTokenService;
+import com.zrlog.admin.business.service.WebhookService;
+import com.zrlog.admin.support.AccountServicesFixture;
+import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
-import com.zrlog.admin.web.AdminWebSetup;
+import com.zrlog.admin.web.McpWebSetup;
 import com.zrlog.admin.web.interceptor.BearerTokenInterceptor;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.business.plugin.PluginCorePlugin;
+import com.zrlog.common.ZrLogConfig;
 import com.zrlog.common.vo.AdminTokenVO;
+
 import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
@@ -21,11 +28,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.junit.Assert.*;
-
 public class PluginUploadControllerTest {
 
-    private com.zrlog.common.ZrLogConfig applicationConfig;
+    private ZrLogConfig applicationConfig;
     private static final String PATH = "/api/admin/plugins/upload";
 
     @Test
@@ -34,7 +39,7 @@ public class PluginUploadControllerTest {
             applicationConfig = ignored.config();
             var config = ignored.config();
             config.getServerConfig().setContextPath("/sub");
-            new AdminWebSetup(config).setup();
+            ignored.loadAdminWebModules();
             assertNull(config.getServerConfig().getRouter().getMethod(PATH, HttpMethod.GET));
             AtomicInteger forwarded = new AtomicInteger();
             byte[] body = "multipart plugin bytes".getBytes(StandardCharsets.UTF_8);
@@ -69,7 +74,27 @@ public class PluginUploadControllerTest {
         create.name = permission;
         create.permissionMode = "custom";
         create.permissions = List.of(permission);
-        return new PersonalAccessTokenService(new OAuthService(com.zrlog.admin.support.ApplicationServicesFixture.backend(applicationConfig)::configured, com.zrlog.admin.support.ApplicationServicesFixture.available(applicationConfig, com.zrlog.admin.web.McpWebSetup.class)).mcpResource()).create(create).token;
+        return new PersonalAccessTokenService(
+                        new OAuthService(
+                                        ApplicationServicesFixture.backend(applicationConfig)
+                                                ::configured,
+                                        ApplicationServicesFixture.available(
+                                                applicationConfig, McpWebSetup.class),
+                                        AccountServicesFixture.component().permissions(),
+                                        AccountServicesFixture.component().security(),
+                                        tokenResource ->
+                                                new PersonalAccessTokenService(
+                                                        tokenResource,
+                                                        AccountServicesFixture.component()
+                                                                .permissions(),
+                                                        AccountServicesFixture.component()
+                                                                .security()),
+                                        AccountServicesFixture.component().backend())
+                                .mcpResource(),
+                        AccountServicesFixture.component().permissions(),
+                        AccountServicesFixture.component().security())
+                .create(create)
+                .token;
     }
 
     private int call(String token, byte[] body) throws Exception {
@@ -98,7 +123,26 @@ public class PluginUploadControllerTest {
                     if (method.getName().equals("write") && args.length > 1 && args[1] instanceof Integer) status.set((Integer) args[1]);
                     return null;
                 });
-        new BearerTokenInterceptor(() -> com.zrlog.admin.support.ApplicationServicesFixture.dispatcher(null, applicationConfig), new com.zrlog.admin.business.service.OAuthService(com.zrlog.admin.support.ApplicationServicesFixture.backend(applicationConfig)::configured, com.zrlog.admin.support.ApplicationServicesFixture.available(applicationConfig, com.zrlog.admin.web.McpWebSetup.class))).doInterceptor(request, response);
+        new BearerTokenInterceptor(
+                        () -> ApplicationServicesFixture.dispatcher(null, applicationConfig),
+                        new OAuthService(
+                                ApplicationServicesFixture.backend(applicationConfig)::configured,
+                                ApplicationServicesFixture.available(
+                                        applicationConfig, McpWebSetup.class),
+                                AccountServicesFixture.component().permissions(),
+                                AccountServicesFixture.component().security(),
+                                tokenResource ->
+                                        new PersonalAccessTokenService(
+                                                tokenResource,
+                                                AccountServicesFixture.component().permissions(),
+                                                AccountServicesFixture.component().security()),
+                                AccountServicesFixture.component().backend()),
+                        AccountServicesFixture.component().permissions(),
+                        AccountServicesFixture.component().preferences(),
+                        new WebhookService(
+                                ApplicationServicesFixture.messages(),
+                                ApplicationServicesFixture.websiteCache()))
+                .doInterceptor(request, response);
         return status.get();
     }
 }

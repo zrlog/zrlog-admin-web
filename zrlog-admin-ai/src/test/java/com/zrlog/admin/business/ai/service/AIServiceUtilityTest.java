@@ -1,21 +1,26 @@
 package com.zrlog.admin.business.ai.service;
 
-import com.google.gson.JsonParser;
-import com.zrlog.common.exception.ArgsException;
-import org.junit.Test;
-
-import java.io.ByteArrayInputStream;
-import java.nio.charset.StandardCharsets;
-
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+
+import com.zrlog.admin.support.AccountServicesFixture;
+import com.zrlog.common.exception.ArgsException;
+
+import org.junit.Test;
+
+import java.nio.charset.StandardCharsets;
 
 public class AIServiceUtilityTest {
 
     @Test
     public void shouldResolveImageSizeExtensionMimeAndDataUrl() {
-        AIImageService service = new AIImageService();
+        AIImageService service =
+                new AIImageService(
+                        AccountServicesFixture.component().preferences(),
+                        AIServiceDependencies.config(),
+                        AIServiceDependencies.dbFiles(),
+                        AIServiceDependencies.conversations());
 
         assertEquals("1024x1024", service.resolveImageRequestSize("1:1"));
         assertEquals("1536x1024", service.resolveImageRequestSize("16:9"));
@@ -43,7 +48,12 @@ public class AIServiceUtilityTest {
 
     @Test
     public void shouldRejectInvalidDataUrl() {
-        AIImageService service = new AIImageService();
+        AIImageService service =
+                new AIImageService(
+                        AccountServicesFixture.component().preferences(),
+                        AIServiceDependencies.config(),
+                        AIServiceDependencies.dbFiles(),
+                        AIServiceDependencies.conversations());
 
         try {
             service.decodeDataUrl("data:image/png;base64", "");
@@ -56,7 +66,11 @@ public class AIServiceUtilityTest {
 
     @Test
     public void shouldExposeWritingSkillContextPolicy() {
-        AIWritingSkillService service = new AIWritingSkillService();
+        AIWritingSkillService service =
+                new AIWritingSkillService(
+                        AIServiceDependencies.conversations().captureAccount(),
+                        AIServiceDependencies.tools(),
+                        AIServiceDependencies.images());
 
         assertEquals(AIWritingSkillService.ToolContextPolicy.FULL_CONVERSATION, service.getToolContextPolicy("title"));
         assertEquals(AIWritingSkillService.ToolContextPolicy.CHAT_ONLY, service.getToolContextPolicy("seo"));

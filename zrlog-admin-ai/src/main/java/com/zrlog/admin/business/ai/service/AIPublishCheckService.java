@@ -3,8 +3,6 @@ package com.zrlog.admin.business.ai.service;
 import com.hibegin.common.util.LoggerUtil;
 import com.hibegin.common.util.StringUtils;
 import com.zrlog.admin.business.ai.exception.AIMessageSaveException;
-import com.zrlog.admin.business.ai.service.AIConversationService;
-import com.zrlog.admin.business.ai.service.AIWritingSkillService;
 import com.zrlog.admin.business.rest.base.BlogWebSiteInfo;
 import com.zrlog.admin.business.rest.request.CreateArticleRequest;
 import com.zrlog.admin.business.rest.request.GenerateArticleFieldRequest;
@@ -20,6 +18,8 @@ import com.zrlog.admin.util.AdminLanguageContext;
 import com.zrlog.business.plugin.StaticSitePlugin;
 import com.zrlog.util.I18nUtil;
 
+import jakarta.inject.Inject;
+
 import java.util.*;
 import java.util.Objects;
 import java.util.concurrent.CancellationException;
@@ -29,6 +29,26 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class AIPublishCheckService {
+    private final AIConversationService conversations;
+
+    private final AIWritingSkillService.Factory writing;
+
+    private final WebSiteService webSiteService;
+    private final MessageCenterOperationService messageCenterOperationService;
+
+    @Inject
+    public AIPublishCheckService(
+            WebSiteService webSiteService,
+            MessageCenterOperationService messageCenterOperationService,
+            AIWritingSkillService.Factory writing,
+            AIConversationService conversations) {
+        this.conversations = conversations;
+
+        this.writing = writing;
+
+        this.webSiteService = webSiteService;
+        this.messageCenterOperationService = messageCenterOperationService;
+    }
 
     private static final Logger LOGGER = LoggerUtil.getLogger(AIPublishCheckService.class);
 
@@ -41,7 +61,7 @@ public class AIPublishCheckService {
         Long articleId = Long.valueOf(detail.getArticle().getLogId());
         GenerateArticleFieldRequest context = publishCheckContext(body);
         PublishCheckPersistenceGuard guard = new PublishCheckPersistenceGuard();
-        AIConversationService conversationStore = new AIConversationService().captureAccount();
+        AIConversationService conversationStore = this.conversations.captureAccount();
         String language = I18nUtil.getCurrentLocale();
         CompletableFuture<PublishCheckResponse> future = CompletableFuture.supplyAsync(
                 () -> {
@@ -53,14 +73,15 @@ public class AIPublishCheckService {
     }
 
     public void fillPublishCheckContext(GenerateArticleFieldRequest context) {
-        BlogWebSiteInfo blog = new WebSiteService().blogWebSiteInfo();
+        BlogWebSiteInfo blog = this.webSiteService.blogWebSiteInfo();
         context.setStaticSiteEnabled(blog.getGenerator_html_status());
         context.setStaticSitePluginEnabled(!StaticSitePlugin.isDisabled(Boolean.TRUE.equals(blog.getGenerator_html_status()), blog.getHost()));
     }
 
     public void recordPublishCheckError(Long articleId, String articleTitle, String message) {
         try {
-            new MessageCenterOperationService().recordPublishCheckError(articleId, articleTitle, message);
+            this.messageCenterOperationService.recordPublishCheckError(
+                    articleId, articleTitle, message);
         } catch (Exception e) {
             LOGGER.log(Level.FINE, "Record publish check error notice failed", e);
         }
@@ -82,8 +103,10 @@ public class AIPublishCheckService {
     PublishCheckResponse buildPublishCheckPayload(Long articleId, GenerateArticleFieldRequest context,
                                                           PublishCheckPersistenceGuard guard, AIConversationService conversationStore) {
         try {
-            List<AIResponseEntry.AIContentEntry> messages = new AIWritingSkillService(conversationStore)
-                    .runToolResponseWithoutPersistence("publish-check", articleId, "publishCheck", context);
+            List<AIResponseEntry.AIContentEntry> messages =
+                    writing.create(conversationStore)
+                            .runToolResponseWithoutPersistence(
+                                    "publish-check", articleId, "publishCheck", context);
             return guard.commit(() -> {
                 if (!conversationStore.appendAIMessageEntries(messages, articleId)) {
                     throw new AIMessageSaveException();
@@ -105,7 +128,8 @@ public class AIPublishCheckService {
 
     public void recordPublishCheckSuccess(Long articleId, String articleTitle, Object payload) {
         try {
-            new MessageCenterOperationService().recordPublishCheckSuccess(articleId, articleTitle, extractScore(payload), extractItemCount(payload));
+            this.messageCenterOperationService.recordPublishCheckSuccess(
+                    articleId, articleTitle, extractScore(payload), extractItemCount(payload));
         } catch (Exception e) {
             LOGGER.log(Level.FINE, "Record publish check operation notice failed", e);
         }

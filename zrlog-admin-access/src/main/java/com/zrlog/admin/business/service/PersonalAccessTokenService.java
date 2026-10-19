@@ -1,28 +1,52 @@
 package com.zrlog.admin.business.service;
 
+import com.zrlog.admin.business.security.DelegatedAccess;
 import com.zrlog.admin.business.security.OAuthException;
 import com.zrlog.admin.business.security.OAuthModels.Identity;
-import com.zrlog.admin.business.security.DelegatedAccess;
 import com.zrlog.admin.business.security.PersonalTokenModels.*;
 import com.zrlog.admin.business.security.SecurityStore;
+import com.zrlog.common.exception.ArgsException;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.ZrLogUtil;
+
+import dagger.assisted.Assisted;
+import dagger.assisted.AssistedFactory;
+import dagger.assisted.AssistedInject;
+
 import java.sql.SQLException;
 import java.util.*;
 import java.util.stream.Collectors;
 
 /** Account-owned credentials using the account action catalog; OAuth scopes remain a protocol adapter. */
 public final class PersonalAccessTokenService {
+
+    private final AccountPermissionService permissionService;
+
     public static final String PREFIX = "zrpat_";
     public static final String LEGACY_PREFIX = "zrmcp_";
     public static final List<String> SCOPES = List.of("articles:read", "articles:read_drafts", "articles:read_private", "articles:all");
     private static final String INHERIT = "v2:inherit";
     private static final String CUSTOM = "v2:custom ";
-    private final SecurityStore store = new SecurityStore();
+    private final SecurityStore store;
     private final String resource;
 
-    public PersonalAccessTokenService(String mcpResource) { this.resource = mcpResource; }
+    @AssistedInject
+    public PersonalAccessTokenService(
+            @Assisted String mcpResource,
+            AccountPermissionService permissionService,
+            SecurityStore store) {
+        this.store = store;
+
+        this.permissionService = permissionService;
+        this.resource = mcpResource;
+    }
+
+    @AssistedFactory
+    public interface Factory {
+        PersonalAccessTokenService create(String resource);
+    }
+
     private String siteResource() { return resource.substring(0, resource.length() - "/mcp".length()); }
     public static boolean isPersonalToken(String token) {
         return token != null && (token.startsWith(PREFIX) || token.startsWith(LEGACY_PREFIX));
@@ -36,9 +60,9 @@ public final class PersonalAccessTokenService {
     }
 
     public Created create(Create request) throws SQLException {
-        AccountAccess account = AccountPermissionService.current();
+        AccountAccess account = permissionService.current();
         if (ZrLogUtil.isPreviewMode()) throw new OAuthException("access_denied", 403);
-        if (request == null) throw new com.zrlog.common.exception.ArgsException();
+        if (request == null) throw new ArgsException();
         request.doValid();
         String storedPermissions;
         boolean legacy = request.permissionMode == null;
@@ -109,7 +133,7 @@ public final class PersonalAccessTokenService {
     }
 
     public void revoke(String id) throws SQLException {
-        AccountAccess account = AccountPermissionService.current();
+        AccountAccess account = permissionService.current();
         store.withSession(c -> store.update(c, "update user_access_token set revoked=? where id=? and userId=?", true, id, account.getUserId()));
     }
 

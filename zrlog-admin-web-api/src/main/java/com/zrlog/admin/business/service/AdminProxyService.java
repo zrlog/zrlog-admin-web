@@ -2,6 +2,8 @@ package com.zrlog.admin.business.service;
 
 import com.zrlog.util.NetworkProxy;
 
+import jakarta.inject.Inject;
+
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -10,6 +12,9 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 
 public class AdminProxyService {
+    @Inject
+    public AdminProxyService() {}
+
     public boolean testConnection(NetworkProxy.Settings settings) {
         HttpClient client = HttpClient.newBuilder()
                 .proxy(settings.proxySelector())

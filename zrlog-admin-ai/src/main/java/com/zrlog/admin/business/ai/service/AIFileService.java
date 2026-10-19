@@ -1,13 +1,15 @@
 package com.zrlog.admin.business.ai.service;
 
-import com.zrlog.admin.business.ai.model.AIFileModels.*;
-import com.zrlog.admin.business.ai.model.AIProviderType;
-import com.zrlog.admin.business.rest.base.AIWebSiteInfo;
-import com.zrlog.admin.web.token.AdminTokenThreadLocal;
-import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.hibegin.http.server.util.PathUtil;
 import com.zrlog.admin.business.ai.exception.AIFileInputException;
+import com.zrlog.admin.business.ai.model.AIFileModels.*;
+import com.zrlog.admin.business.ai.model.AIProviderType;
 import com.zrlog.admin.business.exception.AdminErrorCode;
+import com.zrlog.admin.business.exception.PermissionErrorException;
+import com.zrlog.admin.business.rest.base.AIWebSiteInfo;
+import com.zrlog.admin.web.token.AdminTokenThreadLocal;
+
+import jakarta.inject.Inject;
 
 import java.io.*;
 import java.nio.ByteBuffer;
@@ -28,7 +30,9 @@ public final class AIFileService {
     private final Path root;
 
     // Runtime storage is a directory, not a bundled configuration resource.
-    public AIFileService() { this(Path.of(PathUtil.getConfPath()).toAbsolutePath().normalize().resolve("ai-input-files")); }
+    @Inject
+    public AIFileService() {
+        this(Path.of(PathUtil.getConfPath()).toAbsolutePath().normalize().resolve("ai-input-files")); }
     AIFileService(Path root) { this.root = root; }
 
     public static Capabilities capabilities(AIWebSiteInfo info) {

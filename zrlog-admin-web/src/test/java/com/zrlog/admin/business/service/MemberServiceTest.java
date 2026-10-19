@@ -1,9 +1,14 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.*;
+
 import com.hibegin.common.util.SecurityUtils;
 import com.zrlog.admin.business.rest.request.LoginRequest;
 import com.zrlog.admin.business.security.MemberModels;
+import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
+import com.zrlog.model.User;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -12,8 +17,6 @@ import java.io.InputStream;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
-
-import static org.junit.Assert.*;
 
 @RunWith(Parameterized.class)
 public class MemberServiceTest {
@@ -36,7 +39,12 @@ public class MemberServiceTest {
             create.userName = "NewWriter";
             create.password = "new-member-password";
             create.role = "author";
-            MemberModels.Member member = new MemberService().create(create);
+            MemberModels.Member member =
+                    new MemberService(
+                                    AccountServicesFixture.component().security(),
+                                    AccountServicesFixture.component().users(),
+                                    AccountServicesFixture.component().permissions())
+                            .create(create);
 
             assertTrue(member.userId > 1);
             assertEquals("newwriter", member.userName);
@@ -47,7 +55,13 @@ public class MemberServiceTest {
             assertEquals("", row.get("header"));
             assertEquals(0, ((Number) row.get("authVersion")).intValue());
 
-            UserService users = new UserService(java.util.Collections::emptySet);
+            UserService users =
+                    new UserService(
+                            java.util.Collections::emptySet,
+                            AccountServicesFixture.component().mfa(),
+                            AccountServicesFixture.component().preferences(),
+                            User::new,
+                            () -> AccountServicesFixture.component().passkeys());
             String avatar = users.getBasicUserInfo(member.userId, "new-member-session").getHeader();
             String dataUriPrefix = "data:image/gif;base64,";
             assertTrue(avatar.startsWith(dataUriPrefix));

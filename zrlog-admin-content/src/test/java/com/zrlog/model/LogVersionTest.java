@@ -1,8 +1,13 @@
 package com.zrlog.model;
 
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 import com.hibegin.common.dao.DAO;
-import com.hibegin.common.dao.DatabaseConnectPoolInfo;
 import com.hibegin.common.dao.DataSourceWrapper;
+import com.hibegin.common.dao.DatabaseConnectPoolInfo;
+
 import org.apache.commons.dbutils.QueryRunner;
 import org.apache.commons.dbutils.ResultSetHandler;
 import org.junit.Test;
@@ -15,10 +20,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-
 public class LogVersionTest {
 
     @Test
@@ -26,7 +27,7 @@ public class LogVersionTest {
         CapturingQueryRunner queryRunner = new CapturingQueryRunner();
         DataSourceWrapper previousDataSource = setDefaultDataSource(dataSource(queryRunner));
         try {
-            LogVersion logVersion = new LogVersion();
+            LogVersion logVersion = new LogVersion(DAO.getDefaultDataSource());
             Date createdAt = new Date(1_000);
 
             assertTrue(logVersion.savePatch(7, 3, "{\"diff\":true}", 9, "title", createdAt, 2));

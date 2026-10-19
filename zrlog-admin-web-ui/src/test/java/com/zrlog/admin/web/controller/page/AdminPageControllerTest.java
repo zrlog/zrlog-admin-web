@@ -1,26 +1,39 @@
 package com.zrlog.admin.web.controller.page;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+
+import com.hibegin.common.dao.DAO;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
 import com.hibegin.http.server.web.Controller;
 import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
+import com.zrlog.admin.business.rest.response.AdminResourceInfoResponse;
 import com.zrlog.admin.business.rest.response.ServerSideDataResponse;
+import com.zrlog.admin.business.service.AdminPageDataFactory;
 import com.zrlog.admin.business.service.AdminPageService;
+import com.zrlog.admin.business.service.AdminResourceService;
+import com.zrlog.admin.business.service.FeatureLabService;
+import com.zrlog.admin.business.service.WebhookService;
+import com.zrlog.admin.support.AccountServicesFixture;
+import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
+import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.Constants;
+import com.zrlog.common.ZrLogConfig;
+import com.zrlog.model.UserPasskey;
+import com.zrlog.model.WebSite;
+
 import org.junit.Test;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Proxy;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-
 public class AdminPageControllerTest {
 
-    private com.zrlog.common.ZrLogConfig applicationConfig;
+    private ZrLogConfig applicationConfig;
 
     @Test
     public void shouldRedirectAdminRootToIndexPage() throws Throwable {
@@ -36,7 +49,7 @@ public class AdminPageControllerTest {
     public void shouldReturnServerSideDataForAnonymousPageRequest() throws Throwable {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
             applicationConfig = ignored.config();
-            com.zrlog.admin.web.token.AdminTokenThreadLocal.remove();
+            AdminTokenThreadLocal.remove();
             AdminPageController controller = controller(Constants.ADMIN_URI_BASE_PATH + "/system",
                     Map.of("uri", "/system"), response());
 
@@ -51,14 +64,37 @@ public class AdminPageControllerTest {
 
     private AdminPageController controller(String uri, Map<String, String> params, HttpResponse response)
             throws Exception {
-        var site = com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig);
-        var pages = new com.zrlog.admin.business.service.AdminPageDataFactory(site, () -> "test");
-        var resources = new com.zrlog.admin.business.service.AdminResourceService(
-                com.zrlog.admin.business.rest.response.AdminResourceInfoResponse.Capabilities::new,
-                new com.zrlog.admin.business.service.FeatureLabService(() -> true), site, () -> "");
-        AdminPageController controller = new AdminPageController(
-                new AdminPageService(new InMemoryZrLogDatabase.TestCacheService(), pages, resources, () -> "test"),
-                applicationConfig == null ? null : applicationConfig.getTokenService(), pages);
+        var site = ApplicationServicesFixture.site(applicationConfig);
+        var pages =
+                new AdminPageDataFactory(
+                        site,
+                        () -> "test",
+                        ApplicationServicesFixture.messages(),
+                        AccountServicesFixture.component().permissions());
+        var resources =
+                new AdminResourceService(
+                        AdminResourceInfoResponse.Capabilities::new,
+                        new FeatureLabService(
+                                () -> true,
+                                new WebhookService(
+                                        ApplicationServicesFixture.messages(),
+                                        ApplicationServicesFixture.websiteCache()),
+                                WebSite::new),
+                        site,
+                        () -> "",
+                        () -> new UserPasskey(DAO.getDefaultDataSource()));
+        AdminPageController controller =
+                new AdminPageController(
+                        new AdminPageService(
+                                new InMemoryZrLogDatabase.TestCacheService(),
+                                pages,
+                                resources,
+                                () -> "test",
+                                AccountServicesFixture.component().permissions(),
+                                AccountServicesFixture.component().preferences(),
+                                AccountServicesFixture.component().users()),
+                        applicationConfig == null ? null : applicationConfig.getTokenService(),
+                        pages);
         Field requestField = Controller.class.getDeclaredField("request");
         requestField.setAccessible(true);
         requestField.set(controller, request(uri, params));

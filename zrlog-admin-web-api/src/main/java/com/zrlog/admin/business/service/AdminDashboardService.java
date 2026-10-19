@@ -29,6 +29,9 @@ import com.zrlog.util.BlogBuildInfoUtil;
 import com.zrlog.util.I18nUtil;
 import com.zrlog.util.ThreadUtils;
 
+import jakarta.inject.Inject;
+import jakarta.inject.Singleton;
+
 import java.io.InputStream;
 import java.lang.reflect.Type;
 import java.net.URI;
@@ -44,7 +47,9 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
+@Singleton
 public class AdminDashboardService {
+    private final UserPreferenceService userPreferenceService;
 
     public static final String DASHBOARD_CONFIG_KEY = "admin_dashboard_config";
     public static final String FIRST_USE_CHECKLIST_KEY = "admin_first_use_v4";
@@ -69,19 +74,38 @@ public class AdminDashboardService {
     }.getType();
     private static final Logger LOGGER = LoggerUtil.getLogger(AdminDashboardService.class);
 
-    private final WebsiteKvService kvService = new WebsiteKvService();
+    private final WebsiteKvService kvService;
     private final long surfacePreloadTimeoutMillis;
     private final AdminStatisticsService statisticsService;
     private final AdminArticleService articleService;
     private final Supplier<PluginCorePlugin> pluginCore;
 
-    public AdminDashboardService(AdminStatisticsService statisticsService, AdminArticleService articleService,
-                                 Supplier<PluginCorePlugin> pluginCore) {
-        this(statisticsService, articleService, DEFAULT_SURFACE_PRELOAD_TIMEOUT_MILLIS, pluginCore);
+    @Inject
+    public AdminDashboardService(
+            WebsiteKvService kvService,
+            AdminStatisticsService statisticsService,
+            AdminArticleService articleService,
+            Supplier<PluginCorePlugin> pluginCore,
+            UserPreferenceService userPreferenceService) {
+        this(
+                kvService,
+                statisticsService,
+                articleService,
+                DEFAULT_SURFACE_PRELOAD_TIMEOUT_MILLIS,
+                pluginCore,
+                userPreferenceService);
     }
 
-    AdminDashboardService(AdminStatisticsService statisticsService, AdminArticleService articleService, long surfacePreloadTimeoutMillis,
-                          Supplier<PluginCorePlugin> pluginCore) {
+    AdminDashboardService(
+            WebsiteKvService kvService,
+            AdminStatisticsService statisticsService,
+            AdminArticleService articleService,
+            long surfacePreloadTimeoutMillis,
+            Supplier<PluginCorePlugin> pluginCore,
+            UserPreferenceService userPreferenceService) {
+        this.userPreferenceService = userPreferenceService;
+
+        this.kvService = Objects.requireNonNull(kvService);
         this.statisticsService = statisticsService;
         this.pluginCore = Objects.requireNonNull(pluginCore);
         this.articleService = articleService;
@@ -184,7 +208,8 @@ public class AdminDashboardService {
     }
 
     public AdminDashboardConfigResponse getConfig(HttpRequest request, AdminTokenVO adminTokenVO, boolean preloadSurfaces) {
-        AdminDashboardConfigResponse savedConfig = new UserPreferenceService().dashboard(adminTokenVO);
+        AdminDashboardConfigResponse savedConfig =
+                this.userPreferenceService.dashboard(adminTokenVO);
         if (savedConfig == null) savedConfig = readSavedConfig();
         List<AdminDashboardCardConfigResponse> cards = mergeCards(extractCardItems(savedConfig.getCards()));
         List<AdminDashboardCardResponse> pluginPanels = mergePluginPanels(
@@ -209,7 +234,7 @@ public class AdminDashboardService {
         AdminDashboardConfigResponse config = new AdminDashboardConfigResponse();
         config.setCards(dashboardCards);
         fillRefreshConfig(config, request);
-        new UserPreferenceService().saveDashboard(adminTokenVO, config);
+        this.userPreferenceService.saveDashboard(adminTokenVO, config);
         return getConfig(httpRequest, adminTokenVO, true);
     }
 

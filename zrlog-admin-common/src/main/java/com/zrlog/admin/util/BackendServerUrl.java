@@ -1,5 +1,11 @@
 package com.zrlog.admin.util;
 
+import com.zrlog.model.WebSite;
+
+import jakarta.inject.Inject;
+import jakarta.inject.Named;
+import jakarta.inject.Singleton;
+
 import java.net.URI;
 import java.util.Locale;
 import java.util.Objects;
@@ -7,14 +13,24 @@ import java.util.Set;
 import java.util.function.Supplier;
 
 /** Canonical external API entry point; never add this setting to public website data. */
+@Singleton
 public final class BackendServerUrl {
+    private final jakarta.inject.Provider<WebSite> webSiteProvider;
+
     public static final String SETTING_KEY = "backend_server_url";
 
     private final Supplier<Integer> listenerPort;
     private final Supplier<String> contextPath;
     private final Supplier<String> siteHost;
 
-    public BackendServerUrl(Supplier<Integer> listenerPort, Supplier<String> contextPath, Supplier<String> siteHost) {
+    @Inject
+    public BackendServerUrl(
+            Supplier<Integer> listenerPort,
+            @Named("contextPath") Supplier<String> contextPath,
+            @Named("siteHost") Supplier<String> siteHost,
+            jakarta.inject.Provider<WebSite> webSiteProvider) {
+        this.webSiteProvider = webSiteProvider;
+
         this.listenerPort = Objects.requireNonNull(listenerPort);
         this.contextPath = Objects.requireNonNull(contextPath);
         this.siteHost = Objects.requireNonNull(siteHost);
@@ -25,7 +41,7 @@ public final class BackendServerUrl {
     }
 
     private String configured(boolean allowHttp, String requestScheme) {
-        String backend = new com.zrlog.model.WebSite().getStringValueByName(SETTING_KEY);
+        String backend = this.webSiteProvider.get().getStringValueByName(SETTING_KEY);
         if (backend == null || backend.isBlank()) backend = System.getenv("ZRLOG_BACKEND_URL");
         if (backend == null || backend.isBlank()) backend = System.getenv("DEFAULT_BACKEND_SERVER_URL");
         String host = siteHost.get();
@@ -69,11 +85,11 @@ public final class BackendServerUrl {
         requireAdminOrigin(request.getHeader("Origin"), configured(true, scheme), true);
     }
 
-    public static void requireAdminOrigin(String origin, String backendUrl) {
+    public void requireAdminOrigin(String origin, String backendUrl) {
         requireAdminOrigin(origin, backendUrl, false);
     }
 
-    private static void requireAdminOrigin(String origin, String backendUrl, boolean allowHttp) {
+    private void requireAdminOrigin(String origin, String backendUrl, boolean allowHttp) {
         URI supplied = URI.create(normalize(Objects.toString(origin, ""), allowHttp));
         if (supplied.getHost() == null) throw new IllegalArgumentException("Origin");
         if (!(supplied.getRawPath().isEmpty() || supplied.getRawPath().equals("/"))
@@ -81,7 +97,8 @@ public final class BackendServerUrl {
             throw new IllegalArgumentException("Origin");
         if (sameOrigin(URI.create(backendUrl), supplied)) return;
 
-        String configured = new com.zrlog.model.WebSite().getStringValueByName("admin_static_resource_base_url");
+        String configured =
+                this.webSiteProvider.get().getStringValueByName("admin_static_resource_base_url");
         if (configured != null && !configured.isBlank()) {
             try {
                 String address = normalize(configured, allowHttp);

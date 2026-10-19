@@ -18,17 +18,28 @@ import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.I18nUtil;
 
+import jakarta.inject.Inject;
+
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Objects;
 
 public class AdminArticleVersionController extends BaseController {
+    private final AdminAuditService adminAuditService;
 
     private final AdminArticleService articleService;
     private final CacheRefreshService cacheRefresh;
-    private final ArticleVersionService articleVersionService = new ArticleVersionService();
+    private final ArticleVersionService articleVersionService;
 
-    public AdminArticleVersionController(AdminArticleService articleService, CacheRefreshService cacheRefresh) {
+    @Inject
+    public AdminArticleVersionController(
+            AdminArticleService articleService,
+            CacheRefreshService cacheRefresh,
+            AdminAuditService adminAuditService,
+            ArticleVersionService articleVersionService) {
+        this.adminAuditService = adminAuditService;
+        this.articleVersionService = articleVersionService;
+
         this.articleService = articleService;
         this.cacheRefresh = cacheRefresh;
     }
@@ -71,7 +82,9 @@ public class AdminArticleVersionController extends BaseController {
     public AdminPageDataResponse<ArticleGlobalResponse> rollback() throws SQLException {
         ArticleVersionRollbackRequest body = getRequestBodyWithNullCheck(ArticleVersionRollbackRequest.class);
         CreateOrUpdateArticleResponse response = articleVersionService.rollback(AdminTokenThreadLocal.getUser(), body, request, articleService);
-        new AdminAuditService().record(request, AdminAuditAction.ROLLBACK_ARTICLE_VERSION,
+        this.adminAuditService.record(
+                request,
+                AdminAuditAction.ROLLBACK_ARTICLE_VERSION,
                 body.getLogId() + " -> v" + body.getTargetVersion());
         return toResponseByArticle(response);
     }

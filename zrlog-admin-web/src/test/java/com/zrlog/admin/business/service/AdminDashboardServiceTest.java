@@ -1,16 +1,34 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
+
+import com.hibegin.common.dao.DAO;
 import com.hibegin.common.util.http.handle.CloseResponseHandle;
 import com.hibegin.http.HttpMethod;
+import com.zrlog.admin.business.content.ArticleAssistant;
 import com.zrlog.admin.business.rest.request.AdminDashboardCardRequest;
 import com.zrlog.admin.business.rest.request.AdminDashboardConfigRequest;
 import com.zrlog.admin.business.rest.response.AdminDashboardCardConfigResponse;
 import com.zrlog.admin.business.rest.response.AdminDashboardCardResponse;
 import com.zrlog.admin.business.rest.response.AdminDashboardConfigResponse;
 import com.zrlog.admin.business.rest.response.FirstUseChecklistResponse;
+import com.zrlog.admin.support.AccountServicesFixture;
+import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
+import com.zrlog.admin.support.RuntimeInfoFixture;
 import com.zrlog.business.plugin.PluginCorePlugin;
+import com.zrlog.business.service.WebsiteKvService;
+import com.zrlog.common.ZrLogConfig;
 import com.zrlog.common.vo.AdminTokenVO;
+import com.zrlog.model.Comment;
+import com.zrlog.model.Log;
+import com.zrlog.model.LogVersion;
+
 import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
@@ -24,18 +42,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
-import javax.net.ssl.SSLSession;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
+import javax.net.ssl.SSLSession;
 
 public class AdminDashboardServiceTest {
 
-    private com.zrlog.common.ZrLogConfig applicationConfig;
+    private ZrLogConfig applicationConfig;
 
     @Test
     public void shouldFillSurfacePathsFromSafePluginName() {
@@ -127,7 +139,36 @@ public class AdminDashboardServiceTest {
 
     @Test
     public void shouldConvertDashboardCardRequestsToResponses() throws Exception {
-        AdminDashboardService service = new AdminDashboardService(new AdminStatisticsService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.admin.support.RuntimeInfoFixture.from(applicationConfig)), new AdminArticleService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(applicationConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), () -> "test")), () -> applicationConfig.getPlugin(com.zrlog.business.plugin.PluginCorePlugin.class));
+        AdminDashboardService service =
+                new AdminDashboardService(
+                        new WebsiteKvService(),
+                        new AdminStatisticsService(
+                                new InMemoryZrLogDatabase.TestCacheService(),
+                                RuntimeInfoFixture.from(applicationConfig),
+                                ApplicationServicesFixture.audit(),
+                                Log::new,
+                                Comment::new),
+                        new AdminArticleService(
+                                new InMemoryZrLogDatabase.TestCacheService(),
+                                ApplicationServicesFixture.capability(
+                                        applicationConfig, ArticleAssistant.class),
+                                new AdminPageDataFactory(
+                                        ApplicationServicesFixture.site(applicationConfig),
+                                        () -> "test",
+                                        ApplicationServicesFixture.messages(),
+                                        AccountServicesFixture.component().permissions()),
+                                AccountServicesFixture.component().permissions(),
+                                AccountServicesFixture.component().preferences(),
+                                new ArticleVersionService(
+                                        AccountServicesFixture.component().permissions(),
+                                        Log::new,
+                                        () -> new LogVersion(DAO.getDefaultDataSource())),
+                                new ArticlePinningService(
+                                        Log::new, ApplicationServicesFixture.locks()),
+                                Log::new,
+                                ApplicationServicesFixture.locks()),
+                        () -> applicationConfig.getPlugin(PluginCorePlugin.class),
+                        AccountServicesFixture.component().preferences());
         AdminDashboardCardRequest request = new AdminDashboardCardRequest();
         request.setKind("plugin");
         request.setId("reminder");
@@ -163,7 +204,36 @@ public class AdminDashboardServiceTest {
 
     @Test
     public void shouldFillDashboardRefreshConfigWithDefaults() throws Exception {
-        AdminDashboardService service = new AdminDashboardService(new AdminStatisticsService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.admin.support.RuntimeInfoFixture.from(applicationConfig)), new AdminArticleService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(applicationConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), () -> "test")), () -> applicationConfig.getPlugin(com.zrlog.business.plugin.PluginCorePlugin.class));
+        AdminDashboardService service =
+                new AdminDashboardService(
+                        new WebsiteKvService(),
+                        new AdminStatisticsService(
+                                new InMemoryZrLogDatabase.TestCacheService(),
+                                RuntimeInfoFixture.from(applicationConfig),
+                                ApplicationServicesFixture.audit(),
+                                Log::new,
+                                Comment::new),
+                        new AdminArticleService(
+                                new InMemoryZrLogDatabase.TestCacheService(),
+                                ApplicationServicesFixture.capability(
+                                        applicationConfig, ArticleAssistant.class),
+                                new AdminPageDataFactory(
+                                        ApplicationServicesFixture.site(applicationConfig),
+                                        () -> "test",
+                                        ApplicationServicesFixture.messages(),
+                                        AccountServicesFixture.component().permissions()),
+                                AccountServicesFixture.component().permissions(),
+                                AccountServicesFixture.component().preferences(),
+                                new ArticleVersionService(
+                                        AccountServicesFixture.component().permissions(),
+                                        Log::new,
+                                        () -> new LogVersion(DAO.getDefaultDataSource())),
+                                new ArticlePinningService(
+                                        Log::new, ApplicationServicesFixture.locks()),
+                                Log::new,
+                                ApplicationServicesFixture.locks()),
+                        () -> applicationConfig.getPlugin(PluginCorePlugin.class),
+                        AccountServicesFixture.component().preferences());
         AdminDashboardConfigResponse target = new AdminDashboardConfigResponse();
         AdminDashboardConfigResponse source = new AdminDashboardConfigResponse();
         source.setAutoRefreshEnabled(true);
@@ -184,7 +254,36 @@ public class AdminDashboardServiceTest {
 
     @Test
     public void shouldMergeDefaultDashboardCardsWithSavedOverrides() throws Exception {
-        AdminDashboardService service = new AdminDashboardService(new AdminStatisticsService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.admin.support.RuntimeInfoFixture.from(applicationConfig)), new AdminArticleService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(applicationConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), () -> "test")), () -> applicationConfig.getPlugin(com.zrlog.business.plugin.PluginCorePlugin.class));
+        AdminDashboardService service =
+                new AdminDashboardService(
+                        new WebsiteKvService(),
+                        new AdminStatisticsService(
+                                new InMemoryZrLogDatabase.TestCacheService(),
+                                RuntimeInfoFixture.from(applicationConfig),
+                                ApplicationServicesFixture.audit(),
+                                Log::new,
+                                Comment::new),
+                        new AdminArticleService(
+                                new InMemoryZrLogDatabase.TestCacheService(),
+                                ApplicationServicesFixture.capability(
+                                        applicationConfig, ArticleAssistant.class),
+                                new AdminPageDataFactory(
+                                        ApplicationServicesFixture.site(applicationConfig),
+                                        () -> "test",
+                                        ApplicationServicesFixture.messages(),
+                                        AccountServicesFixture.component().permissions()),
+                                AccountServicesFixture.component().permissions(),
+                                AccountServicesFixture.component().preferences(),
+                                new ArticleVersionService(
+                                        AccountServicesFixture.component().permissions(),
+                                        Log::new,
+                                        () -> new LogVersion(DAO.getDefaultDataSource())),
+                                new ArticlePinningService(
+                                        Log::new, ApplicationServicesFixture.locks()),
+                                Log::new,
+                                ApplicationServicesFixture.locks()),
+                        () -> applicationConfig.getPlugin(PluginCorePlugin.class),
+                        AccountServicesFixture.component().preferences());
         AdminDashboardCardConfigResponse welcome = cardConfig("welcome", false, 90);
         AdminDashboardCardConfigResponse localDraft = cardConfig("localDraft", false, 5);
         AdminDashboardCardConfigResponse unknown = cardConfig("unknown", false, 1);
@@ -204,7 +303,36 @@ public class AdminDashboardServiceTest {
 
     @Test
     public void shouldMergePluginPanelsAndFillMissingStandardFields() throws Exception {
-        AdminDashboardService service = new AdminDashboardService(new AdminStatisticsService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.admin.support.RuntimeInfoFixture.from(applicationConfig)), new AdminArticleService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(applicationConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), () -> "test")), () -> applicationConfig.getPlugin(com.zrlog.business.plugin.PluginCorePlugin.class));
+        AdminDashboardService service =
+                new AdminDashboardService(
+                        new WebsiteKvService(),
+                        new AdminStatisticsService(
+                                new InMemoryZrLogDatabase.TestCacheService(),
+                                RuntimeInfoFixture.from(applicationConfig),
+                                ApplicationServicesFixture.audit(),
+                                Log::new,
+                                Comment::new),
+                        new AdminArticleService(
+                                new InMemoryZrLogDatabase.TestCacheService(),
+                                ApplicationServicesFixture.capability(
+                                        applicationConfig, ArticleAssistant.class),
+                                new AdminPageDataFactory(
+                                        ApplicationServicesFixture.site(applicationConfig),
+                                        () -> "test",
+                                        ApplicationServicesFixture.messages(),
+                                        AccountServicesFixture.component().permissions()),
+                                AccountServicesFixture.component().permissions(),
+                                AccountServicesFixture.component().preferences(),
+                                new ArticleVersionService(
+                                        AccountServicesFixture.component().permissions(),
+                                        Log::new,
+                                        () -> new LogVersion(DAO.getDefaultDataSource())),
+                                new ArticlePinningService(
+                                        Log::new, ApplicationServicesFixture.locks()),
+                                Log::new,
+                                ApplicationServicesFixture.locks()),
+                        () -> applicationConfig.getPlugin(PluginCorePlugin.class),
+                        AccountServicesFixture.component().preferences());
         AdminDashboardCardResponse standard = panel("reminder", "surface", 20);
         standard.setTitle("Reminder");
         standard.setSurfaceUrl("/admin/plugins/reminder/surface");
@@ -235,7 +363,36 @@ public class AdminDashboardServiceTest {
 
     @Test
     public void shouldExtractItemsClearRuntimeDataAndBuildDashboardItems() throws Exception {
-        AdminDashboardService service = new AdminDashboardService(new AdminStatisticsService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.admin.support.RuntimeInfoFixture.from(applicationConfig)), new AdminArticleService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(applicationConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), () -> "test")), () -> applicationConfig.getPlugin(com.zrlog.business.plugin.PluginCorePlugin.class));
+        AdminDashboardService service =
+                new AdminDashboardService(
+                        new WebsiteKvService(),
+                        new AdminStatisticsService(
+                                new InMemoryZrLogDatabase.TestCacheService(),
+                                RuntimeInfoFixture.from(applicationConfig),
+                                ApplicationServicesFixture.audit(),
+                                Log::new,
+                                Comment::new),
+                        new AdminArticleService(
+                                new InMemoryZrLogDatabase.TestCacheService(),
+                                ApplicationServicesFixture.capability(
+                                        applicationConfig, ArticleAssistant.class),
+                                new AdminPageDataFactory(
+                                        ApplicationServicesFixture.site(applicationConfig),
+                                        () -> "test",
+                                        ApplicationServicesFixture.messages(),
+                                        AccountServicesFixture.component().permissions()),
+                                AccountServicesFixture.component().permissions(),
+                                AccountServicesFixture.component().preferences(),
+                                new ArticleVersionService(
+                                        AccountServicesFixture.component().permissions(),
+                                        Log::new,
+                                        () -> new LogVersion(DAO.getDefaultDataSource())),
+                                new ArticlePinningService(
+                                        Log::new, ApplicationServicesFixture.locks()),
+                                Log::new,
+                                ApplicationServicesFixture.locks()),
+                        () -> applicationConfig.getPlugin(PluginCorePlugin.class),
+                        AccountServicesFixture.component().preferences());
         AdminDashboardCardResponse cardItem = new AdminDashboardCardResponse();
         cardItem.setKind("card");
         cardItem.setId("welcome");
@@ -293,7 +450,36 @@ public class AdminDashboardServiceTest {
 
     @Test
     public void shouldValidatePluginMetadataEntriesAndUrls() throws Exception {
-        AdminDashboardService service = new AdminDashboardService(new AdminStatisticsService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.admin.support.RuntimeInfoFixture.from(applicationConfig)), new AdminArticleService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(applicationConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), () -> "test")), () -> applicationConfig.getPlugin(com.zrlog.business.plugin.PluginCorePlugin.class));
+        AdminDashboardService service =
+                new AdminDashboardService(
+                        new WebsiteKvService(),
+                        new AdminStatisticsService(
+                                new InMemoryZrLogDatabase.TestCacheService(),
+                                RuntimeInfoFixture.from(applicationConfig),
+                                ApplicationServicesFixture.audit(),
+                                Log::new,
+                                Comment::new),
+                        new AdminArticleService(
+                                new InMemoryZrLogDatabase.TestCacheService(),
+                                ApplicationServicesFixture.capability(
+                                        applicationConfig, ArticleAssistant.class),
+                                new AdminPageDataFactory(
+                                        ApplicationServicesFixture.site(applicationConfig),
+                                        () -> "test",
+                                        ApplicationServicesFixture.messages(),
+                                        AccountServicesFixture.component().permissions()),
+                                AccountServicesFixture.component().permissions(),
+                                AccountServicesFixture.component().preferences(),
+                                new ArticleVersionService(
+                                        AccountServicesFixture.component().permissions(),
+                                        Log::new,
+                                        () -> new LogVersion(DAO.getDefaultDataSource())),
+                                new ArticlePinningService(
+                                        Log::new, ApplicationServicesFixture.locks()),
+                                Log::new,
+                                ApplicationServicesFixture.locks()),
+                        () -> applicationConfig.getPlugin(PluginCorePlugin.class),
+                        AccountServicesFixture.component().preferences());
 
         assertTrue(service.hasEntry(List.of("/surface", "other"), "surface"));
         assertTrue(service.hasEntry(List.of("surfaceAction?scope=dashboard"), "surfaceAction"));
@@ -323,7 +509,36 @@ public class AdminDashboardServiceTest {
             applicationConfig = db.config();
             FakePluginCorePlugin plugin = new FakePluginCorePlugin();
             db.config().getAllPlugins().add(plugin);
-            AdminDashboardService service = new AdminDashboardService(new AdminStatisticsService(db.cacheService(), com.zrlog.admin.support.RuntimeInfoFixture.from(db.config())), new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(db.config(), com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(db.resources()))), () -> db.config().getPlugin(com.zrlog.business.plugin.PluginCorePlugin.class));
+            AdminDashboardService service =
+                    new AdminDashboardService(
+                            new WebsiteKvService(),
+                            new AdminStatisticsService(
+                                    db.cacheService(),
+                                    RuntimeInfoFixture.from(db.config()),
+                                    ApplicationServicesFixture.audit(),
+                                    Log::new,
+                                    Comment::new),
+                            new AdminArticleService(
+                                    db.cacheService(),
+                                    ApplicationServicesFixture.capability(
+                                            db.config(), ArticleAssistant.class),
+                                    new AdminPageDataFactory(
+                                            ApplicationServicesFixture.site(db.config()),
+                                            ApplicationServicesFixture.buildId(db.resources()),
+                                            ApplicationServicesFixture.messages(),
+                                            AccountServicesFixture.component().permissions()),
+                                    AccountServicesFixture.component().permissions(),
+                                    AccountServicesFixture.component().preferences(),
+                                    new ArticleVersionService(
+                                            AccountServicesFixture.component().permissions(),
+                                            Log::new,
+                                            () -> new LogVersion(DAO.getDefaultDataSource())),
+                                    new ArticlePinningService(
+                                            Log::new, ApplicationServicesFixture.locks()),
+                                    Log::new,
+                                    ApplicationServicesFixture.locks()),
+                            () -> db.config().getPlugin(PluginCorePlugin.class),
+                            AccountServicesFixture.component().preferences());
             AdminDashboardConfigRequest request = new AdminDashboardConfigRequest();
             request.setAutoRefreshEnabled(true);
             request.setAutoRefreshIntervalSeconds(20);
@@ -363,7 +578,42 @@ public class AdminDashboardServiceTest {
                             + "\"type\":\"surface\",\"surfaceUrl\":\"/admin/plugins/missing/surface\","
                             + "\"actionUrl\":\"/admin/plugins/missing/surfaceAction\"}],"
                             + "\"autoRefreshEnabled\":true,\"autoRefreshIntervalSeconds\":5}");
-            AdminDashboardConfigResponse config = new AdminDashboardService(new AdminStatisticsService(db.cacheService(), com.zrlog.admin.support.RuntimeInfoFixture.from(db.config())), new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(db.config(), com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(db.resources()))), () -> db.config().getPlugin(com.zrlog.business.plugin.PluginCorePlugin.class)).getConfig(null, token(), true);
+            AdminDashboardConfigResponse config =
+                    new AdminDashboardService(
+                                    new WebsiteKvService(),
+                                    new AdminStatisticsService(
+                                            db.cacheService(),
+                                            RuntimeInfoFixture.from(db.config()),
+                                            ApplicationServicesFixture.audit(),
+                                            Log::new,
+                                            Comment::new),
+                                    new AdminArticleService(
+                                            db.cacheService(),
+                                            ApplicationServicesFixture.capability(
+                                                    db.config(), ArticleAssistant.class),
+                                            new AdminPageDataFactory(
+                                                    ApplicationServicesFixture.site(db.config()),
+                                                    ApplicationServicesFixture.buildId(
+                                                            db.resources()),
+                                                    ApplicationServicesFixture.messages(),
+                                                    AccountServicesFixture.component()
+                                                            .permissions()),
+                                            AccountServicesFixture.component().permissions(),
+                                            AccountServicesFixture.component().preferences(),
+                                            new ArticleVersionService(
+                                                    AccountServicesFixture.component()
+                                                            .permissions(),
+                                                    Log::new,
+                                                    () ->
+                                                            new LogVersion(
+                                                                    DAO.getDefaultDataSource())),
+                                            new ArticlePinningService(
+                                                    Log::new, ApplicationServicesFixture.locks()),
+                                            Log::new,
+                                            ApplicationServicesFixture.locks()),
+                                    () -> db.config().getPlugin(PluginCorePlugin.class),
+                                    AccountServicesFixture.component().preferences())
+                            .getConfig(null, token(), true);
             AdminDashboardCardResponse pluginItem = findDashboardItem(config.getCards(), "missing");
 
             assertEquals(Boolean.TRUE, config.getAutoRefreshEnabled());
@@ -374,7 +624,42 @@ public class AdminDashboardServiceTest {
             assertNotNull(pluginItem.getError());
 
             db.putWebsite(AdminDashboardService.DASHBOARD_CONFIG_KEY, "{bad json");
-            AdminDashboardConfigResponse fallback = new AdminDashboardService(new AdminStatisticsService(db.cacheService(), com.zrlog.admin.support.RuntimeInfoFixture.from(db.config())), new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(db.config(), com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(db.resources()))), () -> db.config().getPlugin(com.zrlog.business.plugin.PluginCorePlugin.class)).getConfig(null, token());
+            AdminDashboardConfigResponse fallback =
+                    new AdminDashboardService(
+                                    new WebsiteKvService(),
+                                    new AdminStatisticsService(
+                                            db.cacheService(),
+                                            RuntimeInfoFixture.from(db.config()),
+                                            ApplicationServicesFixture.audit(),
+                                            Log::new,
+                                            Comment::new),
+                                    new AdminArticleService(
+                                            db.cacheService(),
+                                            ApplicationServicesFixture.capability(
+                                                    db.config(), ArticleAssistant.class),
+                                            new AdminPageDataFactory(
+                                                    ApplicationServicesFixture.site(db.config()),
+                                                    ApplicationServicesFixture.buildId(
+                                                            db.resources()),
+                                                    ApplicationServicesFixture.messages(),
+                                                    AccountServicesFixture.component()
+                                                            .permissions()),
+                                            AccountServicesFixture.component().permissions(),
+                                            AccountServicesFixture.component().preferences(),
+                                            new ArticleVersionService(
+                                                    AccountServicesFixture.component()
+                                                            .permissions(),
+                                                    Log::new,
+                                                    () ->
+                                                            new LogVersion(
+                                                                    DAO.getDefaultDataSource())),
+                                            new ArticlePinningService(
+                                                    Log::new, ApplicationServicesFixture.locks()),
+                                            Log::new,
+                                            ApplicationServicesFixture.locks()),
+                                    () -> db.config().getPlugin(PluginCorePlugin.class),
+                                    AccountServicesFixture.component().preferences())
+                            .getConfig(null, token());
 
             assertEquals(7, fallback.getCards().size());
             assertNotNull(findDashboardItem(fallback.getCards(), "welcome"));
@@ -385,7 +670,36 @@ public class AdminDashboardServiceTest {
     public void shouldOnlyExposePendingFirstUseChecklistAndPersistDismissal() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
-            AdminDashboardService service = new AdminDashboardService(new AdminStatisticsService(db.cacheService(), com.zrlog.admin.support.RuntimeInfoFixture.from(db.config())), new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(db.config(), com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(db.resources()))), () -> db.config().getPlugin(com.zrlog.business.plugin.PluginCorePlugin.class));
+            AdminDashboardService service =
+                    new AdminDashboardService(
+                            new WebsiteKvService(),
+                            new AdminStatisticsService(
+                                    db.cacheService(),
+                                    RuntimeInfoFixture.from(db.config()),
+                                    ApplicationServicesFixture.audit(),
+                                    Log::new,
+                                    Comment::new),
+                            new AdminArticleService(
+                                    db.cacheService(),
+                                    ApplicationServicesFixture.capability(
+                                            db.config(), ArticleAssistant.class),
+                                    new AdminPageDataFactory(
+                                            ApplicationServicesFixture.site(db.config()),
+                                            ApplicationServicesFixture.buildId(db.resources()),
+                                            ApplicationServicesFixture.messages(),
+                                            AccountServicesFixture.component().permissions()),
+                                    AccountServicesFixture.component().permissions(),
+                                    AccountServicesFixture.component().preferences(),
+                                    new ArticleVersionService(
+                                            AccountServicesFixture.component().permissions(),
+                                            Log::new,
+                                            () -> new LogVersion(DAO.getDefaultDataSource())),
+                                    new ArticlePinningService(
+                                            Log::new, ApplicationServicesFixture.locks()),
+                                    Log::new,
+                                    ApplicationServicesFixture.locks()),
+                            () -> db.config().getPlugin(PluginCorePlugin.class),
+                            AccountServicesFixture.component().preferences());
 
             assertNull(service.getFirstUseChecklist());
 
@@ -417,7 +731,46 @@ public class AdminDashboardServiceTest {
                                 + "\"actionUrl\":\"/admin/plugins/reminder/surfaceAction\"}]}");
 
                 long start = System.nanoTime();
-                AdminDashboardConfigResponse config = new AdminDashboardService(new AdminStatisticsService(db.cacheService(), com.zrlog.admin.support.RuntimeInfoFixture.from(db.config())), new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(db.config(), com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(db.resources()))), 50, () -> db.config().getPlugin(com.zrlog.business.plugin.PluginCorePlugin.class)).getConfig(null, token(), true);
+                AdminDashboardConfigResponse config =
+                        new AdminDashboardService(
+                                        new WebsiteKvService(),
+                                        new AdminStatisticsService(
+                                                db.cacheService(),
+                                                RuntimeInfoFixture.from(db.config()),
+                                                ApplicationServicesFixture.audit(),
+                                                Log::new,
+                                                Comment::new),
+                                        new AdminArticleService(
+                                                db.cacheService(),
+                                                ApplicationServicesFixture.capability(
+                                                        db.config(), ArticleAssistant.class),
+                                                new AdminPageDataFactory(
+                                                        ApplicationServicesFixture.site(
+                                                                db.config()),
+                                                        ApplicationServicesFixture.buildId(
+                                                                db.resources()),
+                                                        ApplicationServicesFixture.messages(),
+                                                        AccountServicesFixture.component()
+                                                                .permissions()),
+                                                AccountServicesFixture.component().permissions(),
+                                                AccountServicesFixture.component().preferences(),
+                                                new ArticleVersionService(
+                                                        AccountServicesFixture.component()
+                                                                .permissions(),
+                                                        Log::new,
+                                                        () ->
+                                                                new LogVersion(
+                                                                        DAO
+                                                                                .getDefaultDataSource())),
+                                                new ArticlePinningService(
+                                                        Log::new,
+                                                        ApplicationServicesFixture.locks()),
+                                                Log::new,
+                                                ApplicationServicesFixture.locks()),
+                                        50,
+                                        () -> db.config().getPlugin(PluginCorePlugin.class),
+                                        AccountServicesFixture.component().preferences())
+                                .getConfig(null, token(), true);
                 long elapsedMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
                 AdminDashboardCardResponse pluginItem = findDashboardItem(config.getCards(), "reminder");
 

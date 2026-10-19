@@ -1,5 +1,11 @@
 package com.zrlog.admin.web.controller.api;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
+
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
 import com.hibegin.http.server.web.Controller;
@@ -8,10 +14,17 @@ import com.zrlog.admin.business.rest.response.DeleteResponse;
 import com.zrlog.admin.business.rest.response.TemplateDownloadResponse;
 import com.zrlog.admin.business.rest.response.TemplateValuePreviewResponse;
 import com.zrlog.admin.business.rest.response.UploadTemplateResponse;
+import com.zrlog.admin.business.service.AdminPageDataFactory;
+import com.zrlog.admin.business.service.TemplateService;
+import com.zrlog.admin.support.AccountServicesFixture;
+import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.common.Constants;
+import com.zrlog.common.ZrLogConfig;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.rest.response.ApiStandardResponse;
+import com.zrlog.model.WebSite;
+
 import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
@@ -28,15 +41,9 @@ import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
-
 public class TemplateControllerTest {
 
-    private com.zrlog.common.ZrLogConfig applicationConfig;
+    private ZrLogConfig applicationConfig;
 
     @Rule
     public TemporaryFolder temporaryFolder = new TemporaryFolder();
@@ -222,7 +229,19 @@ public class TemplateControllerTest {
 
     private TemplateController controller(Map<String, String> params, String body, File file,
                                                  ResponseRecorder response) throws Exception {
-        TemplateController controller = new TemplateController(new com.zrlog.admin.business.service.TemplateService(new com.zrlog.admin.support.InMemoryZrLogDatabase.TestCacheService(), () -> null, () -> null), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), () -> "test"));
+        TemplateController controller =
+                new TemplateController(
+                        new TemplateService(
+                                new InMemoryZrLogDatabase.TestCacheService(),
+                                () -> null,
+                                () -> null,
+                                ApplicationServicesFixture.audit(),
+                                WebSite::new),
+                        new AdminPageDataFactory(
+                                ApplicationServicesFixture.site(applicationConfig),
+                                () -> "test",
+                                ApplicationServicesFixture.messages(),
+                                AccountServicesFixture.component().permissions()));
         setControllerField(controller, "request", request(params, body, file));
         setControllerField(controller, "response", response.response());
         return controller;

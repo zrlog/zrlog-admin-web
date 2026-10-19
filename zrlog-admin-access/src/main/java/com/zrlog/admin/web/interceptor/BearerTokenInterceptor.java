@@ -5,6 +5,7 @@ import com.hibegin.http.server.api.HandleAbleInterceptor;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
 import com.hibegin.http.server.execption.HttpCodeException;
+import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.security.DelegatedAccess;
 import com.zrlog.admin.business.security.OAuthException;
 import com.zrlog.admin.business.security.OAuthModels;
@@ -16,6 +17,8 @@ import com.zrlog.admin.util.AdminLanguageContext;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.vo.AdminTokenVO;
 
+import jakarta.inject.Inject;
+
 import java.io.ByteArrayInputStream;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
@@ -25,10 +28,26 @@ import java.util.function.Supplier;
 
 /** Bearer API adapter sharing the controller action bindings and account authorization. */
 public final class BearerTokenInterceptor implements HandleAbleInterceptor {
+    private final UserPreferenceService userPreferenceService;
+    private final WebhookService webhookService;
+
+    private final AccountPermissionService permissionService;
+
     private final Supplier<AdminActionDispatcher> dispatcher;
     private final OAuthService oauth;
 
-    public BearerTokenInterceptor(Supplier<AdminActionDispatcher> dispatcher, OAuthService oauth) {
+    @Inject
+    public BearerTokenInterceptor(
+            Supplier<AdminActionDispatcher> dispatcher,
+            OAuthService oauth,
+            AccountPermissionService permissionService,
+            UserPreferenceService userPreferenceService,
+            WebhookService webhookService) {
+        this.userPreferenceService = userPreferenceService;
+        this.webhookService = webhookService;
+
+        this.permissionService = permissionService;
+
         this.dispatcher = Objects.requireNonNull(dispatcher);
         this.oauth = Objects.requireNonNull(oauth);
     }
@@ -38,10 +57,11 @@ public final class BearerTokenInterceptor implements HandleAbleInterceptor {
         String header = request.getHeader("Authorization");
         if (header == null) return false;
         if (path.equals(WebhookService.MESSAGE_CENTER_NOTICE_ENDPOINT)) {
-            // Previously issued site-wide webhook credentials remain confined to their original endpoint.
+            // Previously issued site-wide webhook credentials remain confined to their original
+            // endpoint.
             // Legacy webhook tokens are unprefixed and share the OAuth token shape.
             // Only a currently valid legacy credential bypasses the OAuth adapter.
-            return !new WebhookService().verifyToken(header.replaceFirst("(?i)^Bearer +", ""));
+            return !this.webhookService.verifyToken(header.replaceFirst("(?i)^Bearer +", ""));
         }
         return path.equals("/api/admin") || path.startsWith("/api/admin/")
                 || path.equals("/admin") || path.startsWith("/admin/");
@@ -63,25 +83,55 @@ public final class BearerTokenInterceptor implements HandleAbleInterceptor {
             actor.setAuthVersion(identity.authVersion);
             actor.setSessionId("bearer-" + OAuthService.hash(token));
             actor.setProtocol(java.net.URI.create(oauth.issuer()).getScheme());
-            return AdminTokenThreadLocal.withUser(actor, () -> DelegatedAccess.withPermissions(java.util.Set.copyOf(identity.permissions), "inherit".equals(identity.permissionMode), () -> {
-                try { AccountPermissionService.checkRoute(method, request); }
-                catch (com.zrlog.admin.business.exception.PermissionErrorException denied) {
-                    throw new OAuthException("insufficient_scope", 403);
-                }
-                try (AdminLanguageContext ignored = AdminLanguageContext.open(new UserPreferenceService().effective(identity.userId).language)) {
-                    try {
-                        dispatcher.get().dispatch(request, response, method);
-                    } catch (Exception failure) {
-                        // Render controller errors before restoring the request thread's language.
-                        int status = failure instanceof HttpCodeException ? ((HttpCodeException) failure).getCode() : 500;
-                        var handler = request.getServerConfig().getErrorHandle(status);
-                        if (handler == null) throw failure;
-                        handler.doHandle(request, response, failure instanceof java.lang.reflect.InvocationTargetException
-                                ? ((java.lang.reflect.InvocationTargetException) failure).getTargetException() : failure);
-                    }
-                }
-                return false;
-            }));
+            return AdminTokenThreadLocal.withUser(
+                    actor,
+                    () ->
+                            DelegatedAccess.withPermissions(
+                                    Set.copyOf(identity.permissions),
+                                    "inherit".equals(identity.permissionMode),
+                                    () -> {
+                                        try {
+                                            permissionService.checkRoute(method, request);
+                                        } catch (PermissionErrorException denied) {
+                                            throw new OAuthException("insufficient_scope", 403);
+                                        }
+                                        try (AdminLanguageContext ignored =
+                                                AdminLanguageContext.open(
+                                                        this.userPreferenceService.effective(
+                                                                        identity.userId)
+                                                                .language)) {
+                                            try {
+                                                dispatcher
+                                                        .get()
+                                                        .dispatch(request, response, method);
+                                            } catch (Exception failure) {
+                                                // Render controller errors before restoring the
+                                                // request thread's language.
+                                                int status =
+                                                        failure instanceof HttpCodeException
+                                                                ? ((HttpCodeException) failure)
+                                                                        .getCode()
+                                                                : 500;
+                                                var handler =
+                                                        request.getServerConfig()
+                                                                .getErrorHandle(status);
+                                                if (handler == null) throw failure;
+                                                handler.doHandle(
+                                                        request,
+                                                        response,
+                                                        failure
+                                                                        instanceof
+                                                                        java.lang.reflect
+                                                                                .InvocationTargetException
+                                                                ? ((java.lang.reflect
+                                                                                        .InvocationTargetException)
+                                                                                failure)
+                                                                        .getTargetException()
+                                                                : failure);
+                                            }
+                                        }
+                                        return false;
+                                    }));
         } catch (OAuthException error) {
             response.addHeader("WWW-Authenticate", "Bearer error=\"" + error.getOAuthError() + "\"");
             response.setContentType("application/json;charset=UTF-8");

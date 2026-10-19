@@ -4,19 +4,25 @@ import com.zrlog.business.rest.response.UpgradeProcessResponse;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.common.updater.UpgradeProgressEvent;
 import com.zrlog.common.updater.UpgradeProgressListener;
-import com.zrlog.updater.spi.DockerControl;
 import com.zrlog.common.updater.docker.DockerUpdaterProtocol;
+import com.zrlog.updater.spi.DockerControl;
+
+import jakarta.inject.Inject;
 
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 
 /** Adapts durable updater jobs to the application's existing upgrade SSE contract. */
 public class DockerUpgradeProgressService {
+    @Inject
+    public DockerUpgradeProgressService() {}
+
     public ApiStandardResponse<UpgradeProcessResponse> watch(DockerControl client,
             DockerUpdaterProtocol.Job initial, UpgradeProgressListener listener, Map<String, Object> messages) throws Exception {
         if (initial == null) { return new ApiStandardResponse<>(null); }
         DockerUpdaterProtocol.Job job = initial;
-        long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.MINUTES.toNanos(10);
+        long deadline = System.nanoTime() + TimeUnit.MINUTES.toNanos(10);
         while (true) {
             if (job == null || !Objects.equals(initial.id, job.id) || !Objects.equals(initial.buildId, job.buildId)
                     || !Objects.equals(initial.version, job.version) || !Objects.equals(initial.channel, job.channel)) {

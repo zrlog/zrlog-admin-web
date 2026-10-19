@@ -3,38 +3,80 @@ package com.zrlog.admin.business.ai.service;
 import com.google.gson.Gson;
 import com.hibegin.common.dao.ResultBeanUtils;
 import com.hibegin.common.util.StringUtils;
+import com.zrlog.admin.business.ai.model.AIChatModels;
+import com.zrlog.admin.business.ai.model.AIFileModels;
+import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.rest.base.*;
 import com.zrlog.admin.business.rest.response.AIResponseEntry;
 import com.zrlog.admin.business.rest.response.ArticleAIMessageExportResponse;
+import com.zrlog.admin.business.security.SecurityStore;
+import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.business.service.WebsiteKvService;
+import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.model.WebSite;
+
+import jakarta.inject.Inject;
 
 import java.sql.SQLException;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.UnaryOperator;
-import com.zrlog.admin.business.security.SecurityStore;
 
 /** Account-scoped conversation storage, including legacy history migration. */
 public class AIConversationService {
+    private final SecurityStore store;
+    private final WebsiteKvService websiteKvService;
+    private final jakarta.inject.Provider<WebSite> websites;
+    private final AIFileService files;
+    private final AIApprovalStore approvals;
 
     private final Integer conversationUserId;
 
-    public AIConversationService() { this.conversationUserId = null; }
+    @Inject
+    public AIConversationService(
+            SecurityStore store,
+            WebsiteKvService websiteKvService,
+            jakarta.inject.Provider<WebSite> websites,
+            AIFileService files,
+            AIApprovalStore approvals) {
+        this.store = store;
+        this.websiteKvService = websiteKvService;
+        this.websites = websites;
+        this.files = files;
+        this.approvals = approvals;
+        this.conversationUserId = null;
+    }
 
-    private AIConversationService(Integer userId) { this.conversationUserId = userId; }
+    private AIConversationService(
+            Integer userId,
+            SecurityStore store,
+            WebsiteKvService websiteKvService,
+            jakarta.inject.Provider<WebSite> websites,
+            AIFileService files,
+            AIApprovalStore approvals) {
+        this.store = store;
+        this.websiteKvService = websiteKvService;
+        this.websites = websites;
+        this.files = files;
+        this.approvals = approvals;
+        this.conversationUserId = userId;
+    }
 
     /** Capture on the request thread before dispatching asynchronous AI work. */
-    public AIConversationService captureAccount() { return new AIConversationService(conversationUserId()); }
+    public AIConversationService captureAccount() {
+        return new AIConversationService(
+                conversationUserId(), store, websiteKvService, websites, files, approvals);
+    }
 
     private Integer conversationUserId() {
         if (conversationUserId != null) return conversationUserId;
-        com.zrlog.common.vo.AdminTokenVO token = com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser();
+        AdminTokenVO token = AdminTokenThreadLocal.getUser();
         return token == null ? null : token.getUserId();
     }
 
     private String conversationKey(Long articleId) {
         Integer userId = conversationUserId();
-        if (userId == null) throw new com.zrlog.admin.business.exception.PermissionErrorException();
+        if (userId == null) throw new PermissionErrorException();
         return "ai_chat_message_u" + userId + "_" + articleId;
     }
 
@@ -52,8 +94,7 @@ public class AIConversationService {
             return false;
         }
         // Persist stable IDs before copying, so retrying an interrupted migration is idempotent.
-        java.util.concurrent.atomic.AtomicReference<List<AIResponseEntry.AIContentEntry>> snapshot =
-                new java.util.concurrent.atomic.AtomicReference<>();
+        AtomicReference<List<AIResponseEntry.AIContentEntry>> snapshot = new AtomicReference<>();
         if (!mutateMessages(draftId, messages -> {
             if (messages.isEmpty()) return null;
             snapshot.set(messages);
@@ -80,9 +121,13 @@ public class AIConversationService {
         }
         try {
             // Article deletion is already authorized by AdminArticleService.
-            new WebSite().execute("update website set value=null,remark=? where name like ? escape '!'",
-                    UUID.randomUUID().toString(), "ai!_chat!_message!_u%!_" + articleId);
-            return new WebsiteKvService().remove(buildCacheKey(articleId));
+            this.websites
+                    .get()
+                    .execute(
+                            "update website set value=null,remark=? where name like ? escape '!'",
+                            UUID.randomUUID().toString(),
+                            "ai!_chat!_message!_u%!_" + articleId);
+            return this.websiteKvService.remove(buildCacheKey(articleId));
         } catch (SQLException e) { throw new IllegalStateException("Unable to remove article AI messages", e); }
     }
 
@@ -91,9 +136,9 @@ public class AIConversationService {
             return false;
         }
         try {
-            AIApprovalStore checkpoints = new AIApprovalStore();
-            com.zrlog.admin.business.ai.model.AIChatModels.Run run = checkpoints.read(conversationUserId(), Math.max(0, articleId));
-            List<com.zrlog.admin.business.ai.model.AIFileModels.Attachment> files = new ArrayList<>();
+            AIApprovalStore checkpoints = this.approvals;
+            AIChatModels.Run run = checkpoints.read(conversationUserId(), Math.max(0, articleId));
+            List<AIFileModels.Attachment> files = new ArrayList<>();
             for (var entry : getAiMessageInfoByArticleId(articleId).getAiMessages()) {
                 if (entry.getAttachments() != null) files.addAll(entry.getAttachments());
             }
@@ -108,13 +153,13 @@ public class AIConversationService {
             // A draft checkpoint may still reference files moved into a saved article.
             Set<String> retained = referencedFileIds();
             files.removeIf(file -> retained.contains(file.id));
-            new AIFileService().remove(files);
+            this.files.remove(files);
             return true;
         } catch (SQLException | java.io.IOException | AIApprovalStore.Changed e) { return false; }
     }
 
     private Set<String> referencedFileIds() throws SQLException {
-        SecurityStore db = new SecurityStore();
+        SecurityStore db = this.store;
         List<Map<String, Object>> rows = db.withSession(c -> db.list(c,
                 "select name,value from website where value is not null and (name like ? escape '!' or name like ? escape '!')",
                 "ai!_chat!_message!_u" + conversationUserId() + "!_%", "ai!_pending!_u" + conversationUserId() + "!_%"));
@@ -128,7 +173,7 @@ public class AIConversationService {
                 if (entries != null) for (var entry : entries) if (entry.getAttachments() != null)
                     for (var file : entry.getAttachments()) ids.add(file.id);
             } else {
-                var checkpoint = json.fromJson(value, com.zrlog.admin.business.ai.model.AIChatModels.Run.class);
+                var checkpoint = json.fromJson(value, AIChatModels.Run.class);
                 if (AIApprovalStore.active(checkpoint)) for (var message : checkpoint.messages) if (message.attachments != null)
                     for (var file : message.attachments) ids.add(file.id);
             }
@@ -152,7 +197,7 @@ public class AIConversationService {
         List<String> names = new ArrayList<>(AIConfigService.AI_WEBSITE_INFO_KEYS);
         names.add(aiMessageKey);
         if (!aiMessageKey.equals(buildCacheKey(articleId))) names.add(buildCacheKey(articleId));
-        Map<String, Object> map = AIConfigService.queryToMap(names, Map.class);
+        Map<String, Object> map = websites.get().getWebSiteByNameIn(names);
         AIWebSiteInfoWithAIMessages info = AIConfigService.normalizeAIWebSiteInfo(
                 ResultBeanUtils.convert(map, AIWebSiteInfoWithAIMessages.class));
         fillAiMessages(info, map, map.get(aiMessageKey) == null ? buildCacheKey(articleId) : aiMessageKey);
@@ -171,7 +216,7 @@ public class AIConversationService {
 
     /** Compare-and-set the website row; retries merge against the latest committed conversation. */
     private boolean mutateMessages(Long articleId, UnaryOperator<List<AIResponseEntry.AIContentEntry>> change) throws SQLException {
-        SecurityStore db = new SecurityStore();
+        SecurityStore db = this.store;
         String key = conversationKey(articleId);
         Gson json = new Gson();
         for (int attempt = 0; attempt < 8; attempt++) {

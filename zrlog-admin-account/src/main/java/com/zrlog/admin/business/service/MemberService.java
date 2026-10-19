@@ -5,26 +5,49 @@ import com.hibegin.common.util.SecurityUtils;
 import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.security.MemberModels.*;
 import com.zrlog.admin.business.security.SecurityStore;
+import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.exception.ArgsException;
+import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.data.security.AccountAccess;
+import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.ZrLogUtil;
+
+import jakarta.inject.Inject;
+import jakarta.inject.Singleton;
 
 import java.sql.SQLException;
 import java.util.*;
 import java.util.stream.Collectors;
 
+@Singleton
 public final class MemberService {
-    private final SecurityStore store = new SecurityStore();
+    private final AccountPermissionService permissionService;
+
+    private final UserService userService;
+
+    @Inject
+    public MemberService(
+            SecurityStore store,
+            UserService userService,
+            AccountPermissionService permissionService) {
+        this.permissionService = permissionService;
+
+        this.store = store;
+        this.userService = userService;
+    }
+
+    private final SecurityStore store;
+
     public Page list() throws SQLException {
-        AccountPermissionService.administrator();
+        permissionService.administrator();
         Page page = new Page();
-        page.currentRole = AccountPermissionService.current().getRole();
+        page.currentRole = permissionService.current().getRole();
         page.members = store.withSession(c -> store.list(c, "select userId,userName,email,role,enabled from user order by userId"))
                 .stream().map(MemberService::member).collect(Collectors.toList());
         return page;
     }
     public Member create(Create body) throws SQLException {
-        AccountPermissionService.administrator();
+        permissionService.administrator();
         checkMutation();
         if (body == null || body.userName == null || !body.userName.matches("[A-Za-z0-9_.-]{2,16}")) throw new ArgsException("userName");
         validateRole(body.role);
@@ -32,7 +55,7 @@ public final class MemberService {
         validatePassword(body.password);
         String name = body.userName.toLowerCase(Locale.ROOT);
         String hash = PasswordHashUtils.hash(SecurityUtils.md5(body.password));
-        AccountAccess actor = AccountPermissionService.current();
+        AccountAccess actor = permissionService.current();
         return store.withSession(c -> {
             lockMembership(c);
             if (store.one(c, "select userId from user where lower(userName)=?", name) != null) throw new ArgsException("userName");
@@ -51,42 +74,85 @@ public final class MemberService {
         });
     }
     public Member update(Update body) throws SQLException {
-        AccountPermissionService.administrator();
+        permissionService.administrator();
         checkMutation();
-        AccountAccess actor = AccountPermissionService.current();
+        AccountAccess actor = permissionService.current();
         if (body == null || body.userId == null || body.enabled == null) throw new ArgsException("userId/enabled");
         validateRole(body.role);
         if (body.password != null && !body.password.isEmpty()) validatePassword(body.password);
-        return store.withSession(c -> {
-            lockMembership(c);
-            Map<String,Object> row = store.one(c, "select * from user where userId=?", body.userId);
-            if (row == null || "owner".equals(row.get("role")) || body.userId == actor.getUserId()) throw new PermissionErrorException();
-            // Administrators cannot edit other administrators or grant their own rank.
-            if (!com.zrlog.data.security.AccountAction.ADMIN_APPOINT.allowed(actor) && ("admin".equals(row.get("role")) || "admin".equals(body.role))) throw new PermissionErrorException();
-            if (c.isWebApi()) {
-                String password = body.password == null || body.password.isEmpty() ? (String) row.get("password")
-                        : PasswordHashUtils.hash(SecurityUtils.md5(body.password));
-                if (store.update(c, "update user set role=?,enabled=?,password=?,authVersion=authVersion+1 "
-                                + "where userId=? and role=? and authVersion=? "
-                                + "and exists (select 1 from user actor where actor.userId=? and actor.role=? and actor.enabled=? and actor.authVersion=?)",
-                        body.role, body.enabled, password, body.userId, row.get("role"), row.get("authVersion"),
-                        actor.getUserId(), actor.getRole(), true, actor.getAuthVersion()) != 1) throw new PermissionErrorException();
-                // authVersion invalidates both OAuth grants and personal tokens in the same statement.
-                return member(store.one(c, "select userId,userName,email,role,enabled from user where userId=?", body.userId));
-            }
-            store.update(c, "update user set role=?,enabled=?,authVersion=authVersion+1 where userId=? and role<>?",
-                    body.role, body.enabled, body.userId, "owner");
-            if (body.password != null && !body.password.isEmpty()) store.update(c, "update user set password=? where userId=?",
-                    PasswordHashUtils.hash(SecurityUtils.md5(body.password)), body.userId);
-            store.update(c, "update oauth_grant set revoked=? where userId=?", true, body.userId);
-            return member(store.one(c, "select userId,userName,email,role,enabled from user where userId=?", body.userId));
-        });
+        return store.withSession(
+                c -> {
+                    lockMembership(c);
+                    Map<String, Object> row =
+                            store.one(c, "select * from user where userId=?", body.userId);
+                    if (row == null
+                            || "owner".equals(row.get("role"))
+                            || body.userId == actor.getUserId())
+                        throw new PermissionErrorException();
+                    // Administrators cannot edit other administrators or grant their own rank.
+                    if (!AccountAction.ADMIN_APPOINT.allowed(actor)
+                            && ("admin".equals(row.get("role")) || "admin".equals(body.role)))
+                        throw new PermissionErrorException();
+                    if (c.isWebApi()) {
+                        String password =
+                                body.password == null || body.password.isEmpty()
+                                        ? (String) row.get("password")
+                                        : PasswordHashUtils.hash(SecurityUtils.md5(body.password));
+                        if (store.update(
+                                        c,
+                                        "update user set role=?,enabled=?,password=?,authVersion=authVersion+1 "
+                                                + "where userId=? and role=? and authVersion=? "
+                                                + "and exists (select 1 from user actor where actor.userId=? and actor.role=? and actor.enabled=? and actor.authVersion=?)",
+                                        body.role,
+                                        body.enabled,
+                                        password,
+                                        body.userId,
+                                        row.get("role"),
+                                        row.get("authVersion"),
+                                        actor.getUserId(),
+                                        actor.getRole(),
+                                        true,
+                                        actor.getAuthVersion())
+                                != 1) throw new PermissionErrorException();
+                        // authVersion invalidates both OAuth grants and personal tokens in the same
+                        // statement.
+                        return member(
+                                store.one(
+                                        c,
+                                        "select userId,userName,email,role,enabled from user where userId=?",
+                                        body.userId));
+                    }
+                    store.update(
+                            c,
+                            "update user set role=?,enabled=?,authVersion=authVersion+1 where userId=? and role<>?",
+                            body.role,
+                            body.enabled,
+                            body.userId,
+                            "owner");
+                    if (body.password != null && !body.password.isEmpty())
+                        store.update(
+                                c,
+                                "update user set password=? where userId=?",
+                                PasswordHashUtils.hash(SecurityUtils.md5(body.password)),
+                                body.userId);
+                    store.update(
+                            c,
+                            "update oauth_grant set revoked=? where userId=?",
+                            true,
+                            body.userId);
+                    return member(
+                            store.one(
+                                    c,
+                                    "select userId,userName,email,role,enabled from user where userId=?",
+                                    body.userId));
+                });
     }
     public void transfer(Transfer body) throws SQLException {
-        AccountAccess actor = AccountPermissionService.current();
+        AccountAccess actor = permissionService.current();
         checkMutation();
         if (body == null || body.userId == null || body.password == null || !actor.isOwner() || body.userId == actor.getUserId()) throw new PermissionErrorException();
-        new UserService(java.util.Collections::emptySet).verifyCurrentCredentials(actor.getUserId(), SecurityUtils.md5(body.password), body.mfaCode);
+        userService.verifyCurrentCredentials(
+                actor.getUserId(), SecurityUtils.md5(body.password), body.mfaCode);
         store.withSession(c -> {
             if (c.isWebApi()) {
                 // Materialize eligibility before either row changes. One D1 statement transfers both roles and versions.
@@ -111,15 +177,18 @@ public final class MemberService {
     private void lockMembership(SecurityStore.Session c) throws SQLException {
         // A single owner row gives all member mutations a consistent lock order.
         store.lock(c, "update user set authVersion=authVersion where role=?", "owner");
-        com.zrlog.common.vo.AdminTokenVO token = com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser();
+        AdminTokenVO token = AdminTokenThreadLocal.getUser();
         AccountAccess current = AccountAccess.from(store.one(c, "select * from user where userId=?", token.getUserId()));
         if (!current.isAdministrator() || current.getAuthVersion() != token.getAuthVersion()) throw new PermissionErrorException();
     }
 
     private static void checkMutation() { if (ZrLogUtil.isPreviewMode()) throw new PermissionErrorException(); }
-    private static void validateRole(String role) {
+
+    private void validateRole(String role) {
         if (role == null || !AccountAccess.ROLES.contains(role) || "owner".equals(role)) throw new ArgsException("role");
-        if ("admin".equals(role) && !com.zrlog.data.security.AccountAction.ADMIN_APPOINT.allowed(AccountPermissionService.current())) throw new PermissionErrorException();
+        if ("admin".equals(role)
+                && !AccountAction.ADMIN_APPOINT.allowed(permissionService.current()))
+            throw new PermissionErrorException();
     }
     private static void validatePassword(String password) { if (password == null || password.length() < 12 || password.length() > 256) throw new ArgsException("password"); }
     private static Member member(Map<String,Object> row) {

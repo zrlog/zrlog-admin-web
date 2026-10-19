@@ -1,16 +1,20 @@
 package com.zrlog.admin.web.plugin;
 
-import com.zrlog.admin.support.InMemoryZrLogDatabase;
-import com.zrlog.business.plugin.type.StaticSiteType;
-import org.junit.Test;
-
-import java.util.concurrent.ExecutorService;
-
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
+
+import com.hibegin.http.server.ApplicationContext;
+import com.zrlog.admin.support.InMemoryZrLogDatabase;
+import com.zrlog.business.plugin.StaticSiteRenderer;
+import com.zrlog.business.plugin.type.StaticSiteType;
+import com.zrlog.model.WebSite;
+
+import org.junit.Test;
+
+import java.util.concurrent.ExecutorService;
 
 public class AdminStaticResourcePluginTest {
 
@@ -18,11 +22,16 @@ public class AdminStaticResourcePluginTest {
     public void shouldExposeAdminStaticPluginStateWhenStaticSiteIsDisabled() throws Exception {
         try (InMemoryZrLogDatabase database = InMemoryZrLogDatabase.open()) {
             var config = database.config();
-            var context = new com.hibegin.http.server.ApplicationContext(config.getServerConfig());
+            var context = new ApplicationContext(config.getServerConfig());
             context.init();
-            AdminStaticResourcePlugin plugin = new AdminStaticResourcePlugin(
-                    new com.zrlog.business.plugin.StaticSiteRenderer(config.getRequestConfig(), config.getResponseConfig(), context),
-                    database.cacheService()::getPublicWebSiteInfo, database.resources(), "/blog");
+            AdminStaticResourcePlugin plugin =
+                    new AdminStaticResourcePlugin(
+                            new StaticSiteRenderer(
+                                    config.getRequestConfig(), config.getResponseConfig(), context),
+                            database.cacheService()::getPublicWebSiteInfo,
+                            database.resources(),
+                            "/blog",
+                            WebSite::new);
             try {
                 assertFalse(plugin.autoStart());
                 assertFalse(plugin.isStarted());

@@ -1,5 +1,11 @@
 package com.zrlog.admin.web.controller.api;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+
+import com.hibegin.common.dao.DAO;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.RequestMethod;
 import com.hibegin.http.server.api.HttpRequest;
@@ -7,11 +13,23 @@ import com.hibegin.http.server.api.HttpResponse;
 import com.hibegin.http.server.config.ServerConfig;
 import com.hibegin.http.server.web.Controller;
 import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
+import com.zrlog.admin.business.rest.response.AdminResourceInfoResponse;
 import com.zrlog.admin.business.rest.response.DevInfoResponse;
+import com.zrlog.admin.business.service.AdminPageDataFactory;
+import com.zrlog.admin.business.service.AdminResourceService;
+import com.zrlog.admin.business.service.FeatureLabService;
+import com.zrlog.admin.business.service.WebhookService;
+import com.zrlog.admin.support.AccountServicesFixture;
+import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.annotation.RequiresAction;
+import com.zrlog.common.ZrLogConfig;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.data.security.AccountAction;
+import com.zrlog.data.util.DistributedLockManager;
+import com.zrlog.model.UserPasskey;
+import com.zrlog.model.WebSite;
+
 import org.junit.After;
 import org.junit.Test;
 
@@ -19,14 +37,9 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Proxy;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-
 public class AdminDevControllerTest {
 
-    private com.zrlog.common.ZrLogConfig applicationConfig;
+    private ZrLogConfig applicationConfig;
 
     private final String previousRunMode = System.getProperty("sws.run.mode");
 
@@ -93,7 +106,20 @@ public class AdminDevControllerTest {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
             applicationConfig = ignored.config();
             ServerConfig config = new ServerConfig();
-            var resources = new com.zrlog.admin.business.service.AdminResourceService(com.zrlog.admin.business.rest.response.AdminResourceInfoResponse.Capabilities::new, new com.zrlog.admin.business.service.FeatureLabService(() -> true), com.zrlog.admin.support.ApplicationServicesFixture.site(ignored.config()), () -> new com.zrlog.model.WebSite().getStringValueByName("admin_static_resource_base_url"));
+            var resources =
+                    new AdminResourceService(
+                            AdminResourceInfoResponse.Capabilities::new,
+                            new FeatureLabService(
+                                    () -> true,
+                                    new WebhookService(
+                                            ApplicationServicesFixture.messages(),
+                                            ApplicationServicesFixture.websiteCache()),
+                                    WebSite::new),
+                            ApplicationServicesFixture.site(ignored.config()),
+                            () ->
+                                    new WebSite()
+                                            .getStringValueByName("admin_static_resource_base_url"),
+                            () -> new UserPasskey(DAO.getDefaultDataSource()));
             assertFalse(resources.adminResourceInfo(request(Map.of(), config)).isDevMode());
             ApiStandardResponse<Boolean> enabled = controller(Map.of("enabled", "true")).mode();
 
@@ -122,7 +148,17 @@ public class AdminDevControllerTest {
 
     private AdminDevController controller(Map<String, String> params, ServerConfig serverConfig)
             throws Exception {
-        AdminDevController controller = new AdminDevController(new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), () -> "test"));
+        AdminDevController controller =
+                new AdminDevController(
+                        new AdminPageDataFactory(
+                                ApplicationServicesFixture.site(applicationConfig),
+                                () -> "test",
+                                ApplicationServicesFixture.messages(),
+                                AccountServicesFixture.component().permissions()),
+                        ApplicationServicesFixture.audit(),
+                        ApplicationServicesFixture.websiteCache(),
+                        new DistributedLockManager(
+                                WebSite::new, ApplicationServicesFixture.locks()));
         Field requestField = Controller.class.getDeclaredField("request");
         requestField.setAccessible(true);
         requestField.set(controller, request(params, serverConfig));

@@ -1,13 +1,21 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
+
 import com.zrlog.admin.business.rest.request.WebhookConfigRequest;
 import com.zrlog.admin.business.rest.request.WebhookMessageNoticeRequest;
 import com.zrlog.admin.business.rest.response.MessageCenterNoticeResponse;
 import com.zrlog.admin.business.rest.response.WebhookConfigEntry;
 import com.zrlog.admin.business.rest.response.WebhookConfigResponse;
-import com.zrlog.admin.business.rest.response.WebhookMessageNoticeEntry;
 import com.zrlog.admin.business.rest.response.WebhookMessageNoticeCreateResponse;
+import com.zrlog.admin.business.rest.response.WebhookMessageNoticeEntry;
 import com.zrlog.admin.business.rest.response.WebhookTokenResponse;
+import com.zrlog.admin.support.ApplicationServicesFixture;
+import com.zrlog.model.WebSite;
+
 import org.junit.Test;
 
 import java.lang.reflect.Field;
@@ -16,11 +24,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
 
 public class WebhookServiceTest {
 
@@ -220,6 +223,10 @@ public class WebhookServiceTest {
 
         private Map<String, Object> values;
 
+        FakeWebsiteCacheService() {
+            super(ApplicationServicesFixture.websiteKv());
+        }
+
         @Override
         @SuppressWarnings("unchecked")
         public <T> T getJson(String key, Class<T> clazz) {
@@ -244,6 +251,10 @@ public class WebhookServiceTest {
     }
 
     private static class FakeMessageCenterStateService extends MessageCenterStateService {
+
+        FakeMessageCenterStateService() {
+            super(ApplicationServicesFixture.websiteCache(), WebSite::new);
+        }
 
         private boolean changed;
         private boolean mayHaveUnread;

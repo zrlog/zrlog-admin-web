@@ -1,11 +1,8 @@
 package com.zrlog.admin.web.controller.api;
 
-import com.zrlog.admin.web.annotation.RequiresAction;
-import com.zrlog.data.security.AccountAction;
-
-import com.hibegin.http.annotation.ResponseBody;
-import com.hibegin.http.annotation.RequestMethod;
 import com.hibegin.http.HttpMethod;
+import com.hibegin.http.annotation.RequestMethod;
+import com.hibegin.http.annotation.ResponseBody;
 import com.zrlog.admin.business.rest.request.ArticlePinningRequest;
 import com.zrlog.admin.business.rest.request.MoveArticlePinningRequest;
 import com.zrlog.admin.business.rest.response.ArticlePinningResponse;
@@ -13,16 +10,28 @@ import com.zrlog.admin.business.service.AdminAuditService;
 import com.zrlog.admin.business.service.ArticlePinningService;
 import com.zrlog.admin.business.type.AdminAuditAction;
 import com.zrlog.admin.web.annotation.RefreshCache;
+import com.zrlog.admin.web.annotation.RequiresAction;
 import com.zrlog.business.plugin.type.StaticSiteType;
 import com.zrlog.common.controller.BaseController;
 import com.zrlog.common.rest.response.ApiStandardResponse;
+import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.I18nUtil;
+
+import jakarta.inject.Inject;
 
 import java.sql.SQLException;
 
 public class AdminArticlePinningController extends BaseController {
+    private final AdminAuditService adminAuditService;
 
-    private final ArticlePinningService pinningService = new ArticlePinningService();
+    @Inject
+    public AdminArticlePinningController(
+            AdminAuditService adminAuditService, ArticlePinningService pinningService) {
+        this.adminAuditService = adminAuditService;
+        this.pinningService = pinningService;
+    }
+
+    private final ArticlePinningService pinningService;
 
     @ResponseBody
     @RequiresAction(value = AccountAction.ARTICLE_PIN, descriptionKey = "article.pins")
@@ -68,7 +77,7 @@ public class AdminArticlePinningController extends BaseController {
     }
 
     private void record(String operation, Long logId) {
-        new AdminAuditService().record(request, AdminAuditAction.UPDATE_ARTICLE_PINNING,
-                operation + ": " + logId);
+        this.adminAuditService.record(
+                request, AdminAuditAction.UPDATE_ARTICLE_PINNING, operation + ": " + logId);
     }
 }

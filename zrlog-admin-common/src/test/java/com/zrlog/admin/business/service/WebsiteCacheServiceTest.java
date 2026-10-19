@@ -1,8 +1,15 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+
 import com.google.gson.reflect.TypeToken;
 import com.zrlog.admin.business.rest.response.WebsiteKvEntryResponse;
+import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.business.service.WebsiteKvService;
+
 import org.junit.Test;
 
 import java.lang.reflect.Field;
@@ -10,11 +17,6 @@ import java.lang.reflect.Type;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
 
 public class WebsiteCacheServiceTest {
 
@@ -68,7 +70,8 @@ public class WebsiteCacheServiceTest {
     }
 
     private static WebsiteCacheService service(FakeWebsiteKvService kvService) throws Exception {
-        WebsiteCacheService service = new WebsiteCacheService();
+        WebsiteCacheService service =
+                new WebsiteCacheService(ApplicationServicesFixture.websiteKv());
         Field field = WebsiteCacheService.class.getDeclaredField("kvService");
         field.setAccessible(true);
         field.set(service, kvService);

@@ -1,5 +1,12 @@
 package com.zrlog.admin.web.controller.api;
 
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
+
+import com.hibegin.common.dao.DAO;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
 import com.hibegin.http.server.web.Controller;
@@ -9,10 +16,23 @@ import com.zrlog.admin.business.rest.response.FileEntryVO;
 import com.zrlog.admin.business.rest.response.FileManagerResponse;
 import com.zrlog.admin.business.rest.response.ReplaceArticleResourceUrlResponse;
 import com.zrlog.admin.business.rest.response.UploadFileResponse;
+import com.zrlog.admin.business.service.AdminPageDataFactory;
+import com.zrlog.admin.business.service.ArticleVersionService;
+import com.zrlog.admin.business.service.DbFileService;
+import com.zrlog.admin.business.service.FileManagerReferenceService;
 import com.zrlog.admin.business.service.FileManagerService;
+import com.zrlog.admin.business.service.UploadService;
+import com.zrlog.admin.support.AccountServicesFixture;
+import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
+import com.zrlog.common.ZrLogConfig;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.rest.response.ApiStandardResponse;
+import com.zrlog.common.vo.AdminTokenVO;
+import com.zrlog.model.Log;
+import com.zrlog.model.LogVersion;
+import com.zrlog.model.WebSite;
+
 import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
@@ -25,15 +45,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
-
 public class FileManagerControllerTest {
 
-    private com.zrlog.common.ZrLogConfig applicationConfig;
+    private ZrLogConfig applicationConfig;
 
     @Test
     @SuppressWarnings("unchecked")
@@ -243,7 +257,14 @@ public class FileManagerControllerTest {
     private FileManagerController controller(Map<String, String> params, String body, Map<String, File> files,
                                                     FakeFileManagerService service,
                                                     ResponseRecorder responseRecorder) throws Exception {
-        FileManagerController controller = new FileManagerController(service, new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), () -> "test"));
+        FileManagerController controller =
+                new FileManagerController(
+                        service,
+                        new AdminPageDataFactory(
+                                ApplicationServicesFixture.site(applicationConfig),
+                                () -> "test",
+                                ApplicationServicesFixture.messages(),
+                                AccountServicesFixture.component().permissions()));
         setControllerField(controller, "request", request(params, body, files));
         setControllerField(controller, "response", responseRecorder.response());
         return controller;
@@ -251,7 +272,33 @@ public class FileManagerControllerTest {
 
     private FileManagerController realController(Map<String, String> params, ResponseRecorder responseRecorder)
             throws Exception {
-        FileManagerController controller = new FileManagerController(new com.zrlog.admin.business.service.FileManagerService(new com.zrlog.admin.business.service.UploadService(() -> null), new com.zrlog.admin.business.service.FileManagerReferenceService("")), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), () -> "test"));
+        FileManagerController controller =
+                new FileManagerController(
+                        new FileManagerService(
+                                new UploadService(
+                                        () -> null,
+                                        AccountServicesFixture.component().permissions(),
+                                        new DbFileService(
+                                                ApplicationServicesFixture.websiteKv(),
+                                                WebSite::new)),
+                                new FileManagerReferenceService(
+                                        ApplicationServicesFixture.websiteCache(),
+                                        "",
+                                        new ArticleVersionService(
+                                                AccountServicesFixture.component().permissions(),
+                                                Log::new,
+                                                () -> new LogVersion(DAO.getDefaultDataSource())),
+                                        Log::new),
+                                new DbFileService(
+                                        ApplicationServicesFixture.websiteKv(), WebSite::new),
+                                ApplicationServicesFixture.settings(),
+                                ApplicationServicesFixture.audit(),
+                                ApplicationServicesFixture.operations()),
+                        new AdminPageDataFactory(
+                                ApplicationServicesFixture.site(applicationConfig),
+                                () -> "test",
+                                ApplicationServicesFixture.messages(),
+                                AccountServicesFixture.component().permissions()));
         setControllerField(controller, "request", request(params));
         setControllerField(controller, "response", responseRecorder.response());
         return controller;
@@ -303,8 +350,26 @@ public class FileManagerControllerTest {
     }
 
     private static class FakeFileManagerService extends FileManagerService {
-        FakeFileManagerService() { super(new com.zrlog.admin.business.service.UploadService(() -> null), new com.zrlog.admin.business.service.FileManagerReferenceService("")); }
-
+        FakeFileManagerService() {
+            super(
+                    new UploadService(
+                            () -> null,
+                            AccountServicesFixture.component().permissions(),
+                            new DbFileService(
+                                    ApplicationServicesFixture.websiteKv(), WebSite::new)),
+                    new FileManagerReferenceService(
+                            ApplicationServicesFixture.websiteCache(),
+                            "",
+                            new ArticleVersionService(
+                                    AccountServicesFixture.component().permissions(),
+                                    Log::new,
+                                    () -> new LogVersion(DAO.getDefaultDataSource())),
+                            Log::new),
+                    new DbFileService(ApplicationServicesFixture.websiteKv(), WebSite::new),
+                    ApplicationServicesFixture.settings(),
+                    ApplicationServicesFixture.audit(),
+                    ApplicationServicesFixture.operations());
+        }
 
         private String searchKey;
         private String deletedPath;
@@ -341,8 +406,8 @@ public class FileManagerControllerTest {
         }
 
         @Override
-        public boolean rename(String path, String newName, boolean syncArticleReferences,
-                              com.zrlog.common.vo.AdminTokenVO user) {
+        public boolean rename(
+                String path, String newName, boolean syncArticleReferences, AdminTokenVO user) {
             renamedPath = path;
             this.newName = newName;
             this.syncArticleReferences = syncArticleReferences;
@@ -362,15 +427,15 @@ public class FileManagerControllerTest {
         }
 
         @Override
-        public UploadFileResponse reuploadMissingLocalResource(String path, File uploadFile, HttpRequest request,
-                                                               com.zrlog.common.vo.AdminTokenVO user) {
+        public UploadFileResponse reuploadMissingLocalResource(
+                String path, File uploadFile, HttpRequest request, AdminTokenVO user) {
             reuploadPath = path;
             return uploadResponse;
         }
 
         @Override
         public ReplaceArticleResourceUrlResponse replaceArticleResourceUrl(
-                com.zrlog.common.vo.AdminTokenVO user, ReplaceArticleResourceUrlRequest request) {
+                AdminTokenVO user, ReplaceArticleResourceUrlRequest request) {
             replaceRequest = request;
             return replaceResponse;
         }

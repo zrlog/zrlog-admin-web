@@ -3,13 +3,6 @@
     "name": "com.zrlog.admin.web.controller.api.FileManagerController",
     "methods": [
       {
-        "name": "<init>",
-        "parameterTypes": [
-          "com.zrlog.admin.business.service.FileManagerService",
-          "com.zrlog.admin.business.service.AdminPageDataFactory"
-        ]
-      },
-      {
         "name": "delete",
         "parameterTypes": []
       },
@@ -58,12 +51,6 @@
   {
     "name": "com.zrlog.admin.web.controller.api.UploadController",
     "methods": [
-      {
-        "name": "<init>",
-        "parameterTypes": [
-          "com.zrlog.admin.business.service.UploadService"
-        ]
-      },
       {
         "name": "index",
         "parameterTypes": []

@@ -8,6 +8,7 @@ import com.zrlog.admin.business.rest.request.LoginRequest;
 import com.zrlog.admin.business.rest.request.PasskeyAuthenticationVerifyRequest;
 import com.zrlog.admin.business.rest.response.*;
 import com.zrlog.admin.business.service.*;
+import com.zrlog.admin.business.service.AdminAuditService;
 import com.zrlog.admin.business.service.AdminPageDataFactory;
 import com.zrlog.admin.business.type.AdminAuditAction;
 import com.zrlog.admin.web.annotation.RequiresAction;
@@ -17,19 +18,31 @@ import com.zrlog.common.controller.BaseController;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.data.security.AccountAction;
 
+import jakarta.inject.Inject;
+
 import java.sql.SQLException;
 import java.util.*;
 import java.util.function.BooleanSupplier;
 
 public class AccountSessionController extends BaseController {
+    private final AdminAuditService adminAuditService;
+
     private final AdminPageDataFactory pages;
 
     private final UserService userService;
     private final TokenService tokenService;
     private final BooleanSupplier installed;
 
-    public AccountSessionController(UserService userService, TokenService tokenService,
-                                    BooleanSupplier installed, AdminPageDataFactory pages, PasskeyService passkeyService) {
+    @Inject
+    public AccountSessionController(
+            UserService userService,
+            TokenService tokenService,
+            BooleanSupplier installed,
+            AdminPageDataFactory pages,
+            PasskeyService passkeyService,
+            AdminAuditService adminAuditService) {
+        this.adminAuditService = adminAuditService;
+
         this.passkeyService = passkeyService;
         this.pages = pages;
         this.userService = userService;
@@ -49,7 +62,10 @@ public class AccountSessionController extends BaseController {
         UserLoginDTO dto = userService.login(loginRequest);
         tokenService.setAdminToken(dto.getId(), dto.getSecretKey(), dto.getUserBasicInfoResponse().getKey(),
                 Objects.equals(loginRequest.getHttps(), true) ? "https" : "http", getRequest(), getResponse());
-        new AdminAuditService().record(request, AdminAuditAction.LOGIN_SUCCESS, dto.getUserBasicInfoResponse().getUserName());
+        this.adminAuditService.record(
+                request,
+                AdminAuditAction.LOGIN_SUCCESS,
+                dto.getUserBasicInfoResponse().getUserName());
         return pages.response(dto.getUserBasicInfoResponse());
     }
 
@@ -76,7 +92,9 @@ public class AccountSessionController extends BaseController {
         String protocol = passkeyService.requestProtocol(getRequest());
         tokenService.setAdminToken(dto.getId(), dto.getSecretKey(),
                 dto.getUserBasicInfoResponse().getKey(), protocol, getRequest(), getResponse());
-        new AdminAuditService().record(request, AdminAuditAction.LOGIN_WITH_PASSKEY,
+        this.adminAuditService.record(
+                request,
+                AdminAuditAction.LOGIN_WITH_PASSKEY,
                 dto.getUserBasicInfoResponse().getUserName());
         return pages.response(dto.getUserBasicInfoResponse());
     }

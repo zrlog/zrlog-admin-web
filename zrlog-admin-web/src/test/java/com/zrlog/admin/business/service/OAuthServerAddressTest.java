@@ -1,22 +1,44 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.*;
+
 import com.zrlog.admin.business.security.OAuthException;
+import com.zrlog.admin.business.security.OAuthModels;
+import com.zrlog.admin.support.AccountServicesFixture;
+import com.zrlog.admin.support.ApplicationServicesFixture;
+import com.zrlog.admin.support.InMemoryZrLogDatabase;
+import com.zrlog.admin.web.McpWebSetup;
+
 import org.junit.Test;
 
-import static org.junit.Assert.*;
+import java.util.Arrays;
 
 public class OAuthServerAddressTest {
 
     @Test public void unconfiguredLocalSiteCanLoadApplicationPagesAndDiscovery() throws Exception {
-        try (var db = com.zrlog.admin.support.InMemoryZrLogDatabase.open()) {
+        try (var db = InMemoryZrLogDatabase.open()) {
             var config = db.config().getServerConfig();
-            for (String host : java.util.Arrays.asList(null, "", " ")) {
+            for (String host : Arrays.asList(null, "", " ")) {
                 db.cacheService().getPublicWebSiteInfo().setHost(host);
                 for (String context : java.util.List.of("", "/sub")) {
                     config.setContextPath(context);
                     for (int port : new int[]{80, 8080, 18080}) {
                         config.setPort(port);
-                        OAuthService service = new OAuthService(com.zrlog.admin.support.ApplicationServicesFixture.backend(db.config())::configured, com.zrlog.admin.support.ApplicationServicesFixture.available(db.config(), com.zrlog.admin.web.McpWebSetup.class));
+                        OAuthService service =
+                                new OAuthService(
+                                        ApplicationServicesFixture.backend(db.config())::configured,
+                                        ApplicationServicesFixture.available(
+                                                db.config(), McpWebSetup.class),
+                                        AccountServicesFixture.component().permissions(),
+                                        AccountServicesFixture.component().security(),
+                                        tokenResource ->
+                                                new PersonalAccessTokenService(
+                                                        tokenResource,
+                                                        AccountServicesFixture.component()
+                                                                .permissions(),
+                                                        AccountServicesFixture.component()
+                                                                .security()),
+                                        AccountServicesFixture.component().backend());
                         String origin = "http://localhost" + (port == 80 ? "" : ":" + port);
                         String issuer = origin + context;
                         var page = service.page();
@@ -37,8 +59,22 @@ public class OAuthServerAddressTest {
     }
 
     @Test public void splitDeploymentUsesBackendForDiscoveryAndDisplayedAddresses() throws Exception {
-        OAuthService service = new OAuthService(() -> OAuthService.configuredIssuer(
-                "https://xiaochun-admin.zrlog.com/", "xiaochun.zrlog.com", ""), () -> true);
+        OAuthService service =
+                new OAuthService(
+                        () ->
+                                OAuthService.configuredIssuer(
+                                        "https://xiaochun-admin.zrlog.com/",
+                                        "xiaochun.zrlog.com",
+                                        ""),
+                        () -> true,
+                        AccountServicesFixture.component().permissions(),
+                        AccountServicesFixture.component().security(),
+                        tokenResource ->
+                                new PersonalAccessTokenService(
+                                        tokenResource,
+                                        AccountServicesFixture.component().permissions(),
+                                        AccountServicesFixture.component().security()),
+                        AccountServicesFixture.component().backend());
         assertEquals("https://xiaochun-admin.zrlog.com", service.issuer());
         assertEquals("https://xiaochun-admin.zrlog.com/oauth/authorize", service.metadata().authorization_endpoint);
         assertEquals("https://xiaochun-admin.zrlog.com/oauth/token", service.metadata().token_endpoint);
@@ -48,15 +84,15 @@ public class OAuthServerAddressTest {
         assertEquals("https://xiaochun-admin.zrlog.com/.well-known/oauth-protected-resource/mcp", service.mcpResourceMetadataUrl());
         assertEquals("https://xiaochun-admin.zrlog.com/api/admin", service.adminResource());
         assertEquals("https://xiaochun-admin.zrlog.com/api/oauth", service.resource());
-        try (var db = com.zrlog.admin.support.InMemoryZrLogDatabase.open()) {
+        try (var db = InMemoryZrLogDatabase.open()) {
             var page = service.page();
             assertEquals(service.issuer(), page.issuer);
             assertEquals(service.mcpResource(), page.mcpResource);
             assertEquals(service.issuer() + WebhookService.MESSAGE_CENTER_NOTICE_ENDPOINT, page.notificationEndpoint);
-            var app = new com.zrlog.admin.business.security.OAuthModels.Client();
+            var app = new OAuthModels.Client();
             app.name = "MCP test"; app.redirectUris = java.util.List.of("https://chatgpt.com/connector/oauth/test");
             app = service.register(app);
-            var request = new com.zrlog.admin.business.security.OAuthModels.AuthorizationRequest();
+            var request = new OAuthModels.AuthorizationRequest();
             request.client_id = app.clientId; request.redirect_uri = app.redirectUris.get(0); request.response_type = "code";
             request.code_challenge_method = "S256"; request.code_challenge = OAuthService.hash(OAuthService.random());
             request.scope = "articles:read offline_access";

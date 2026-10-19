@@ -11,12 +11,20 @@ import com.zrlog.admin.web.interceptor.PluginTokenValidator;
 import com.zrlog.common.controller.BaseController;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 
+import jakarta.inject.Inject;
+
 import java.io.IOException;
 
 public class AICommentController extends BaseController {
+    private final AICommentService aICommentService;
+
     private final PluginTokenValidator pluginTokens;
 
-    public AICommentController(PluginTokenValidator pluginTokens) {
+    @Inject
+    public AICommentController(
+            PluginTokenValidator pluginTokens, AICommentService aICommentService) {
+        this.aICommentService = aICommentService;
+
         this.pluginTokens = pluginTokens;
     }
 
@@ -25,6 +33,8 @@ public class AICommentController extends BaseController {
     @RequestLock(onlyOnPostMethod = true)
     public ApiStandardResponse<AnalyzeCommentResponse> analyze() throws IOException, InterruptedException {
         pluginTokens.validate(request);
-        return new ApiStandardResponse<>(new AICommentService().analyze(getRequestBodyWithNullCheck(AnalyzeCommentRequest.class)));
+        return new ApiStandardResponse<>(
+                this.aICommentService.analyze(
+                        getRequestBodyWithNullCheck(AnalyzeCommentRequest.class)));
     }
 }

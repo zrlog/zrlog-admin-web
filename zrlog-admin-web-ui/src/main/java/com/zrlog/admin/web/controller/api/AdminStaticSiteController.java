@@ -19,6 +19,8 @@ import com.zrlog.common.controller.BaseController;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.data.security.AccountAction;
 
+import jakarta.inject.Inject;
+
 import java.io.IOException;
 import java.util.List;
 import java.util.Objects;
@@ -26,14 +28,26 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 
 public class AdminStaticSiteController extends BaseController {
+    private final AdminAuditService adminAuditService;
+    private final MessageCenterOperationService messageCenterOperationService;
+
     private final AdminPageDataFactory pages;
 
     private final CacheRefreshService cacheRefresh;
     private final AdminStaticSiteSsePublisher staticSitePublisher;
     private final Supplier<AdminStaticResourcePlugin> staticSite;
 
-    public AdminStaticSiteController(CacheRefreshService cacheRefresh, AdminStaticSiteSsePublisher staticSitePublisher,
-                                     Supplier<AdminStaticResourcePlugin> staticSite, AdminPageDataFactory pages) {
+    @Inject
+    public AdminStaticSiteController(
+            CacheRefreshService cacheRefresh,
+            AdminStaticSiteSsePublisher staticSitePublisher,
+            Supplier<AdminStaticResourcePlugin> staticSite,
+            AdminPageDataFactory pages,
+            AdminAuditService adminAuditService,
+            MessageCenterOperationService messageCenterOperationService) {
+        this.adminAuditService = adminAuditService;
+        this.messageCenterOperationService = messageCenterOperationService;
+
         this.pages = pages;
         this.cacheRefresh = cacheRefresh;
         this.staticSitePublisher = staticSitePublisher;
@@ -57,8 +71,8 @@ public class AdminStaticSiteController extends BaseController {
         List<StaticSiteType> siteTypes = List.of(StaticSiteType.ADMIN);
         if (!isSseRequest()) {
             boolean synced = cacheRefresh.refreshStaticSiteCache(request, siteTypes);
-            new MessageCenterOperationService().recordStaticSiteSync(siteTypes, synced);
-            new AdminAuditService().record(request, AdminAuditAction.SYNC_ADMIN_STATIC_SITE);
+            this.messageCenterOperationService.recordStaticSiteSync(siteTypes, synced);
+            this.adminAuditService.record(request, AdminAuditAction.SYNC_ADMIN_STATIC_SITE);
             response.renderJson(new ApiStandardResponse<>(new AdminStaticSiteSyncResponse(synced)));
             return;
         }
@@ -67,15 +81,17 @@ public class AdminStaticSiteController extends BaseController {
                 response,
                 "admin-static-site-sync",
                 siteTypes,
-                emitter -> {
-                },
+                emitter -> {},
                 () -> synced.set(cacheRefresh.refreshStaticSiteCache(request, siteTypes)),
                 emitter -> {
-                    new MessageCenterOperationService().recordStaticSiteSync(siteTypes, synced.get());
-                    new AdminAuditService().record(request, AdminAuditAction.SYNC_ADMIN_STATIC_SITE);
-                    emitter.send("response", new ApiStandardResponse<>(new AdminStaticSiteSyncResponse(synced.get())));
-                }
-        );
+                    this.messageCenterOperationService.recordStaticSiteSync(
+                            siteTypes, synced.get());
+                    this.adminAuditService.record(request, AdminAuditAction.SYNC_ADMIN_STATIC_SITE);
+                    emitter.send(
+                            "response",
+                            new ApiStandardResponse<>(
+                                    new AdminStaticSiteSyncResponse(synced.get())));
+                });
     }
 
     private boolean isSseRequest() {

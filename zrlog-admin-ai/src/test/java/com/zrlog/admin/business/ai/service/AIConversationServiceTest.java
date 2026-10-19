@@ -1,23 +1,32 @@
 package com.zrlog.admin.business.ai.service;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+
 import com.zrlog.admin.business.rest.base.AIWebSiteInfoWithAIMessages;
 import com.zrlog.admin.business.rest.response.AIResponseEntry;
+import com.zrlog.admin.support.AccountServicesFixture;
+import com.zrlog.admin.support.ApplicationServicesFixture;
+import com.zrlog.model.WebSite;
+
 import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-
 public class AIConversationServiceTest {
 
     @Test
     public void shouldFillAiMessagesFromSerializedCacheValue() throws Exception {
-        AIConversationService service = new AIConversationService();
+        AIConversationService service =
+                new AIConversationService(
+                        AccountServicesFixture.component().security(),
+                        ApplicationServicesFixture.websiteKv(),
+                        WebSite::new,
+                        new AIFileService(),
+                        AIServiceDependencies.approvals());
         AIWebSiteInfoWithAIMessages info = new AIWebSiteInfoWithAIMessages();
 
         service.fillAiMessages(info, Map.of("ai_chat_message_7",
@@ -34,7 +43,13 @@ public class AIConversationServiceTest {
 
     @Test
     public void shouldEnsureSystemMessageOnlyWhenMissing() {
-        AIConversationService service = new AIConversationService();
+        AIConversationService service =
+                new AIConversationService(
+                        AccountServicesFixture.component().security(),
+                        ApplicationServicesFixture.websiteKv(),
+                        WebSite::new,
+                        new AIFileService(),
+                        AIServiceDependencies.approvals());
         List<AIResponseEntry.AIContentEntry> messages = new ArrayList<>();
         messages.add(new AIResponseEntry.AIContentEntry("user", "question"));
 
@@ -49,7 +64,13 @@ public class AIConversationServiceTest {
 
     @Test
     public void shouldFillMissingAiMessageIdsAndBuildCacheKeys() throws Exception {
-        AIConversationService service = new AIConversationService();
+        AIConversationService service =
+                new AIConversationService(
+                        AccountServicesFixture.component().security(),
+                        ApplicationServicesFixture.websiteKv(),
+                        WebSite::new,
+                        new AIFileService(),
+                        AIServiceDependencies.approvals());
         AIResponseEntry.AIContentEntry existing = new AIResponseEntry.AIContentEntry("user", "existing");
         existing.setMessageId("existing-id");
         AIResponseEntry.AIContentEntry missing = new AIResponseEntry.AIContentEntry("assistant", "missing");

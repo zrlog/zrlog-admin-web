@@ -22,12 +22,21 @@ import com.zrlog.common.vo.PublicWebSiteInfo;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.ZrLogUtil;
 
+import jakarta.inject.Inject;
+
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.function.Supplier;
 
 public class TypeController extends BaseController {
-    public TypeController(AdminPageDataFactory pages, Supplier<PublicWebSiteInfo> site) {
+
+    @Inject
+    public TypeController(
+            AdminPageDataFactory pages,
+            Supplier<PublicWebSiteInfo> site,
+            ArticleTypeService articleTypeService) {
+        this.articleTypeService = articleTypeService;
+
         this.pages = pages;
         this.site = site;
     }
@@ -35,8 +44,7 @@ public class TypeController extends BaseController {
     private final AdminPageDataFactory pages;
     private final Supplier<PublicWebSiteInfo> site;
 
-
-    private final ArticleTypeService articleTypeService = new ArticleTypeService();
+    private final ArticleTypeService articleTypeService;
 
     @RefreshCache(async = true, updateStaticSites = StaticSiteType.BLOG)
     @ResponseBody

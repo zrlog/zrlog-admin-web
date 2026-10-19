@@ -3,13 +3,6 @@
     "name": "com.zrlog.admin.web.controller.api.AdminController",
     "methods": [
       {
-        "name": "<init>",
-        "parameterTypes": [
-          "com.zrlog.admin.business.service.AdminDashboardService",
-          "com.zrlog.admin.business.service.AdminPageDataFactory"
-        ]
-      },
-      {
         "name": "dismissFirstUseChecklist",
         "parameterTypes": []
       },
@@ -39,12 +32,6 @@
     "name": "com.zrlog.admin.web.controller.api.AdminDevController",
     "methods": [
       {
-        "name": "<init>",
-        "parameterTypes": [
-          "com.zrlog.admin.business.service.AdminPageDataFactory"
-        ]
-      },
-      {
         "name": "enable",
         "parameterTypes": []
       },
@@ -70,12 +57,6 @@
     "name": "com.zrlog.admin.web.controller.api.AdminProxyController",
     "methods": [
       {
-        "name": "<init>",
-        "parameterTypes": [
-          "com.zrlog.admin.business.service.AdminPageDataFactory"
-        ]
-      },
-      {
         "name": "index",
         "parameterTypes": []
       },
@@ -88,13 +69,6 @@
   {
     "name": "com.zrlog.admin.web.controller.api.AdminPublicController",
     "methods": [
-      {
-        "name": "<init>",
-        "parameterTypes": [
-          "com.zrlog.admin.business.service.AdminResourceService",
-          "java.util.function.BooleanSupplier"
-        ]
-      },
       {
         "name": "adminResource",
         "parameterTypes": []
@@ -109,13 +83,6 @@
     "name": "com.zrlog.admin.web.controller.api.AdminSystemController",
     "methods": [
       {
-        "name": "<init>",
-        "parameterTypes": [
-          "com.zrlog.admin.util.SystemInfoUtils",
-          "com.zrlog.admin.business.service.AdminPageDataFactory"
-        ]
-      },
-      {
         "name": "index",
         "parameterTypes": []
       }
@@ -124,12 +91,6 @@
   {
     "name": "com.zrlog.admin.web.controller.api.MessageCenterController",
     "methods": [
-      {
-        "name": "<init>",
-        "parameterTypes": [
-          "com.zrlog.admin.business.service.MessageCenterService"
-        ]
-      },
       {
         "name": "index",
         "parameterTypes": []
@@ -148,12 +109,6 @@
     "name": "com.zrlog.admin.web.controller.api.PluginUploadController",
     "methods": [
       {
-        "name": "<init>",
-        "parameterTypes": [
-          "java.util.function.Supplier"
-        ]
-      },
-      {
         "name": "upload",
         "parameterTypes": []
       }
@@ -162,13 +117,6 @@
   {
     "name": "com.zrlog.admin.web.controller.api.TemplateController",
     "methods": [
-      {
-        "name": "<init>",
-        "parameterTypes": [
-          "com.zrlog.admin.business.service.TemplateService",
-          "com.zrlog.admin.business.service.AdminPageDataFactory"
-        ]
-      },
       {
         "name": "apply",
         "parameterTypes": []
@@ -211,15 +159,6 @@
     "name": "com.zrlog.admin.web.controller.api.UpgradeController",
     "methods": [
       {
-        "name": "<init>",
-        "parameterTypes": [
-          "com.zrlog.business.service.UpgradeService",
-          "java.util.function.Supplier",
-          "java.util.function.Supplier",
-          "com.zrlog.admin.business.service.AdminPageDataFactory"
-        ]
-      },
-      {
         "name": "doUpgrade",
         "parameterTypes": []
       },
@@ -240,15 +179,6 @@
   {
     "name": "com.zrlog.admin.web.controller.api.WebSiteController",
     "methods": [
-      {
-        "name": "<init>",
-        "parameterTypes": [
-          "com.zrlog.admin.business.service.WebSiteSettingsService",
-          "com.zrlog.admin.business.service.UpgradeSettingsService",
-          "com.zrlog.admin.business.service.FeatureLabService",
-          "com.zrlog.admin.business.service.AdminPageDataFactory"
-        ]
-      },
       {
         "name": "admin",
         "parameterTypes": []

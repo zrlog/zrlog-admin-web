@@ -1,30 +1,36 @@
 package com.zrlog.admin.util;
 
-import com.hibegin.http.server.api.HttpRequest;
-import com.hibegin.http.server.util.NativeImageUtils;
-import com.zrlog.admin.business.AdminConstants;
-import com.zrlog.admin.business.service.AdminResource;
-import com.zrlog.admin.support.InMemoryZrLogDatabase;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
+
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.hibegin.http.server.api.HttpRequest;
+import com.hibegin.http.server.util.NativeImageUtils;
+import com.hibegin.http.server.web.Controller;
+import com.zrlog.admin.business.AdminConstants;
+import com.zrlog.admin.business.ai.model.AIModelCatalog;
+import com.zrlog.admin.business.service.AdminResource;
+import com.zrlog.admin.support.InMemoryZrLogDatabase;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
 import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 
 public class AdminNativeImageUtilsTest {
 
@@ -48,7 +54,7 @@ public class AdminNativeImageUtilsTest {
 
     @Test
     public void shouldBuildNativeImageResourceListFromAdminResource() throws Exception {
-        List<String> resources = new java.util.ArrayList<>(AdminNativeImageUtils.getResources());
+        List<String> resources = new ArrayList<>(AdminNativeImageUtils.getResources());
         resources.addAll(AdminUiNativeImageUtils.getResources(new TestAdminResource(Set.of("/admin/static/app.js"))));
 
         assertTrue(resources.contains("/admin/static/app.js"));
@@ -56,7 +62,7 @@ public class AdminNativeImageUtilsTest {
         assertTrue(resources.contains(AdminConstants.ADMIN_PWA_MANIFEST_JSON));
         assertTrue(resources.contains(AdminResource.ADMIN_ASSET_MANIFEST_JSON));
         assertTrue(resources.contains(AdminConstants.BUILD_SYSTEM_INFO_MD));
-        assertTrue(resources.contains(com.zrlog.admin.business.ai.model.AIModelCatalog.RESOURCE));
+        assertTrue(resources.contains(AIModelCatalog.RESOURCE));
         assertTrue(resources.stream().anyMatch(resource -> resource.endsWith("zh_CN.md")));
         assertTrue(resources.stream().anyMatch(resource -> resource.endsWith("en_US.md")));
     }
@@ -68,7 +74,8 @@ public class AdminNativeImageUtilsTest {
     }
 
     @Test
-    public void shouldRegisterEveryControllerRouteWithoutInvokingDatabaseDependentConstructors() throws Exception {
+    public void shouldRegisterRoutesAndCreateControllersThroughGeneratedFactories()
+            throws Exception {
         Set<String> registered = new HashSet<>();
         for (String module : List.of("account", "content", "assets", "ai", "access", "web-api", "web-ui")) {
             String path = "/META-INF/native-image/com.hibegin/zrlog-admin-" + module + "/reflect-config.json";
@@ -103,7 +110,20 @@ public class AdminNativeImageUtilsTest {
                 if (!method.getDeclaringClass().getName().startsWith("com.zrlog.admin.")) continue;
                 String controller = method.getDeclaringClass().getName();
                 assertTrue(method.toString(), registered.contains(controller + "#" + method.getName()));
-                assertTrue(controller, registered.contains(controller + "#<init>"));
+                assertFalse(controller, registered.contains(controller + "#<init>"));
+                HttpRequest request =
+                        (HttpRequest)
+                                java.lang.reflect.Proxy.newProxyInstance(
+                                        getClass().getClassLoader(),
+                                        new Class<?>[] {HttpRequest.class},
+                                        (proxy, called, args) -> {
+                                            if (called.getName().equals("getServerConfig"))
+                                                return db.config().getServerConfig();
+                                            return null;
+                                        });
+                var instance = Controller.buildController(method, request, null);
+                assertSame(request, instance.getRequest());
+                assertEquals(method.getDeclaringClass(), instance.getClass());
             }
         }
     }

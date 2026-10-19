@@ -4,8 +4,10 @@ import com.google.gson.JsonObject;
 import com.zrlog.admin.business.ai.exception.AIResponseException;
 import com.zrlog.admin.business.rest.base.AIWebSiteInfo;
 import com.zrlog.admin.business.rest.request.AnalyzeCommentRequest;
-import com.zrlog.admin.business.rest.response.AnalyzeCommentResponse;
 import com.zrlog.admin.business.rest.response.AIResponseEntry;
+import com.zrlog.admin.business.rest.response.AnalyzeCommentResponse;
+
+import jakarta.inject.Inject;
 
 import java.io.IOException;
 import java.net.http.HttpRequest;
@@ -15,9 +17,16 @@ import java.util.Set;
 
 /** Internal, advisory-only comment assistance; provider access stays in admin-ai. */
 public class AICommentService extends AIService {
+    private final AIConfigService aIConfigService;
+
+    @Inject
+    public AICommentService(AIConfigService aIConfigService) {
+        this.aIConfigService = aIConfigService;
+    }
+
     public AnalyzeCommentResponse analyze(AnalyzeCommentRequest request) throws IOException, InterruptedException {
         request.doValid();
-        return analyze(request, new AIConfigService().ai());
+        return analyze(request, this.aIConfigService.ai());
     }
 
     AnalyzeCommentResponse analyze(AnalyzeCommentRequest request, AIWebSiteInfo info) throws IOException, InterruptedException {

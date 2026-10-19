@@ -12,6 +12,8 @@ import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.data.security.AccountAction;
 
+import jakarta.inject.Inject;
+
 import java.io.File;
 import java.io.IOException;
 import java.sql.SQLException;
@@ -21,6 +23,7 @@ public class UploadController extends Controller {
     //private static final Logger LOGGER = LoggerUtil.getLogger(UploadController.class);
     private final UploadService uploadService;
 
+    @Inject
     public UploadController(UploadService uploadService) {
         this.uploadService = uploadService;
     }

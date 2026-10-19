@@ -1,22 +1,24 @@
 package com.zrlog.model;
 
-import com.zrlog.admin.support.InMemoryZrLogDatabase;
-import org.junit.Test;
-
-import java.util.Map;
-
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+import com.hibegin.common.dao.DAO;
+import com.zrlog.admin.support.InMemoryZrLogDatabase;
+
+import org.junit.Test;
+
+import java.util.Map;
+
 public class UserPasskeyDatabaseTest {
 
     @Test
     public void shouldRejectExpiredChallengeAndConsumeValidChallengeOnlyOnce() throws Exception {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
-            UserPasskeyChallenge challenges = new UserPasskeyChallenge();
+            UserPasskeyChallenge challenges = new UserPasskeyChallenge(DAO.getDefaultDataSource());
             long now = System.currentTimeMillis();
 
             assertTrue(challenges.save("expired-request", "authentication", null,
@@ -36,7 +38,7 @@ public class UserPasskeyDatabaseTest {
     @Test
     public void shouldConditionallyAdvanceSignatureCounterWithoutRollback() throws Exception {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
-            UserPasskey passkeys = new UserPasskey();
+            UserPasskey passkeys = new UserPasskey(DAO.getDefaultDataSource());
             long now = System.currentTimeMillis();
 
             assertFalse(passkeys.hasAny());

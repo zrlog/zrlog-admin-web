@@ -1,12 +1,18 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.*;
+
 import com.hibegin.common.util.PasswordHashUtils;
 import com.hibegin.common.util.SecurityUtils;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.web.Controller;
 import com.zrlog.admin.business.exception.AdminOriginException;
+import com.zrlog.admin.support.AccountServicesFixture;
+import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.controller.api.MemberController;
+import com.zrlog.common.ZrLogConfig;
+
 import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
@@ -18,11 +24,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.Assert.*;
-
 public class MemberHttpOriginTest {
 
-    private com.zrlog.common.ZrLogConfig applicationConfig;
+    private ZrLogConfig applicationConfig;
+
     @Test
     public void httpDeploymentsCanCreateEditAndTransferMembers() throws Exception {
         for (String host : List.of("192.168.1.12:8080", "blog.internal", "blog.example:8080")) {
@@ -75,7 +80,16 @@ public class MemberHttpOriginTest {
                         default: return null;
                     }
                 });
-        MemberController controller = new MemberController(com.zrlog.admin.support.ApplicationServicesFixture.backend(applicationConfig), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), () -> "test"));
+        MemberController controller =
+                new MemberController(
+                        ApplicationServicesFixture.backend(applicationConfig),
+                        new AdminPageDataFactory(
+                                ApplicationServicesFixture.site(applicationConfig),
+                                () -> "test",
+                                ApplicationServicesFixture.messages(),
+                                AccountServicesFixture.component().permissions()),
+                        AccountServicesFixture.component().members(),
+                        ApplicationServicesFixture.audit());
         var field = Controller.class.getDeclaredField("request");
         field.setAccessible(true);
         field.set(controller, request);

@@ -3,8 +3,8 @@ package com.zrlog.admin.business.ai.service;
 import com.hibegin.common.util.StringUtils;
 import com.zrlog.admin.business.ai.dto.AIStreamPayloads;
 import com.zrlog.admin.business.ai.dto.AIStreamResponse;
-import com.zrlog.admin.business.ai.exception.AIMessageSaveException;
 import com.zrlog.admin.business.ai.exception.AIIncompleteResponseException;
+import com.zrlog.admin.business.ai.exception.AIMessageSaveException;
 import com.zrlog.admin.business.ai.exception.AIRequestException;
 import com.zrlog.admin.business.ai.exception.AIResponseException;
 import com.zrlog.admin.business.ai.exception.UnsupportedAIImageGenerationException;
@@ -14,8 +14,13 @@ import com.zrlog.admin.business.rest.request.GenerateArticleFieldRequest;
 import com.zrlog.admin.business.rest.request.GenerateArticleTitleRequest;
 import com.zrlog.admin.business.rest.request.ScoreArticleRequest;
 import com.zrlog.admin.business.rest.response.*;
+import com.zrlog.admin.business.rest.response.GenerateArticleCoverResponse;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.util.I18nUtil;
+
+import dagger.assisted.Assisted;
+import dagger.assisted.AssistedFactory;
+import dagger.assisted.AssistedInject;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -24,11 +29,25 @@ import java.util.List;
 import java.util.Objects;
 
 public class AIWritingSkillService extends AIService {
+    private final AIToolService toolService;
+    private final AIImageService imageService;
 
     private final AIConversationService conversationStore;
 
-    public AIWritingSkillService() { this(new AIConversationService().captureAccount()); }
-    public AIWritingSkillService(AIConversationService conversationStore) { this.conversationStore = conversationStore; }
+    @AssistedInject
+    public AIWritingSkillService(
+            @Assisted AIConversationService conversationStore,
+            AIToolService toolService,
+            AIImageService imageService) {
+        this.toolService = toolService;
+        this.imageService = imageService;
+        this.conversationStore = conversationStore;
+    }
+
+    @AssistedFactory
+    public interface Factory {
+        AIWritingSkillService create(AIConversationService conversationStore);
+    }
 
     public AIStreamResponse startStreamResponse(String input, Long articleId, String tool,
                                                GenerateArticleFieldRequest articleContext)
@@ -102,7 +121,7 @@ public class AIWritingSkillService extends AIService {
 
     private ToolResult executeTool(String tool, GenerateArticleFieldRequest articleContext, String conversationContext)
             throws IOException, InterruptedException, SQLException {
-        AIToolService toolService = new AIToolService();
+        AIToolService toolService = this.toolService;
         switch (tool) {
             case "title": {
                 GenerateArticleTitleRequest request = toTitleRequest(articleContext);
@@ -154,8 +173,9 @@ public class AIWritingSkillService extends AIService {
                 return new ToolResult(formatReaderQuestions(response), response);
             }
             case "cover": {
-                com.zrlog.admin.business.rest.response.GenerateArticleCoverResponse response =
-                        new AIImageService().generateArticleCover(articleContext, conversationContext);
+                    GenerateArticleCoverResponse response =
+                            this.imageService.generateArticleCover(
+                                    articleContext, conversationContext);
                 return new ToolResult(I18nUtil.getAdminBackendStringFromRes("admin.ai.cover.success"),
                         new AIStreamPayloads.CoverPayload(response.getUrl()));
             }
@@ -322,7 +342,7 @@ public class AIWritingSkillService extends AIService {
     private List<AIResponseEntry.AIContentEntry> prepareMessages(String input, AIWebSiteInfoWithAIMessages info,
                                                                  String tool) {
         List<AIResponseEntry.AIContentEntry> messages = info.getAiMessages();
-        new AIConversationService().ensureSystemMessage(messages, info.getAi_prompt());
+        conversationStore.ensureSystemMessage(messages, info.getAi_prompt());
         AIResponseEntry.AIContentEntry userEntry = new AIResponseEntry.AIContentEntry("user", input);
         if (StringUtils.isNotEmpty(tool)) {
             userEntry.setTool(tool);

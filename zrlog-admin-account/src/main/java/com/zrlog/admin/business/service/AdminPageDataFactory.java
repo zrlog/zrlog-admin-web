@@ -8,16 +8,32 @@ import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.vo.PublicWebSiteInfo;
 import com.zrlog.data.util.WebSiteUtils;
 
+import jakarta.inject.Inject;
+import jakarta.inject.Named;
+import jakarta.inject.Singleton;
+
 import java.util.Objects;
 import java.util.function.Supplier;
 
 /** Assembles page metadata from the owning application at response time. */
+@Singleton
 public final class AdminPageDataFactory {
+    private final AccountPermissionService permissionService;
+
     private final Supplier<PublicWebSiteInfo> site;
     private final Supplier<String> buildId;
-    private final MessageCenterStateService messages = new MessageCenterStateService();
+    private final MessageCenterStateService messages;
 
-    public AdminPageDataFactory(Supplier<PublicWebSiteInfo> site, Supplier<String> buildId) {
+    @Inject
+    public AdminPageDataFactory(
+            Supplier<PublicWebSiteInfo> site,
+            @Named("adminBuildId") Supplier<String> buildId,
+            MessageCenterStateService messages,
+            AccountPermissionService permissionService) {
+        this.permissionService = permissionService;
+
+        this.messages = messages;
+
         this.site = Objects.requireNonNull(site);
         this.buildId = Objects.requireNonNull(buildId);
     }
@@ -36,9 +52,11 @@ public final class AdminPageDataFactory {
         if (StringUtils.isEmpty(notification)) {
             notification = Objects.requireNonNullElse(System.getenv("SYSTEM_NOTIFICATION"), "");
         }
-        MessageCenterStatusResponse status = AdminTokenThreadLocal.getUser() != null
-                && !AccountPermissionService.current().isAdministrator()
-                ? new MessageCenterStatusResponse() : messages.current();
+        MessageCenterStatusResponse status =
+                AdminTokenThreadLocal.getUser() != null
+                                && !permissionService.current().isAdministrator()
+                        ? new MessageCenterStatusResponse()
+                        : messages.current();
         return new AdminPageMetadata(Objects.requireNonNullElse(buildId.get(), ""),
                 StringUtils.isNotEmpty(uri) ? AdminConstants.getAdminDocumentTitleByUri(uri, info) : null,
                 notification, status);

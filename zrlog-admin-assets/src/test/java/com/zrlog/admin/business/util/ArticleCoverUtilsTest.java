@@ -1,7 +1,16 @@
 package com.zrlog.admin.business.util;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.util.PathUtil;
+import com.zrlog.admin.business.service.DbFileService;
+import com.zrlog.admin.business.service.UploadService;
+import com.zrlog.admin.support.AccountServicesFixture;
+import com.zrlog.admin.support.ApplicationServicesFixture;
+import com.zrlog.model.WebSite;
+
 import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
@@ -11,10 +20,6 @@ import java.io.File;
 import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
 
 public class ArticleCoverUtilsTest {
 
@@ -34,13 +39,42 @@ public class ArticleCoverUtilsTest {
 
     @Test
     public void shouldReturnEmptyForEmptyContent() {
-        assertEquals("", ArticleCoverUtils.getFirstImgUrl(null, null, null, new com.zrlog.admin.business.service.UploadService(() -> null)));
-        assertEquals("", ArticleCoverUtils.getFirstImgUrl("", null, null, new com.zrlog.admin.business.service.UploadService(() -> null)));
+        assertEquals(
+                "",
+                ArticleCoverUtils.getFirstImgUrl(
+                        null,
+                        null,
+                        null,
+                        new UploadService(
+                                () -> null,
+                                AccountServicesFixture.component().permissions(),
+                                new DbFileService(
+                                        ApplicationServicesFixture.websiteKv(), WebSite::new))));
+        assertEquals(
+                "",
+                ArticleCoverUtils.getFirstImgUrl(
+                        "",
+                        null,
+                        null,
+                        new UploadService(
+                                () -> null,
+                                AccountServicesFixture.component().permissions(),
+                                new DbFileService(
+                                        ApplicationServicesFixture.websiteKv(), WebSite::new))));
     }
 
     @Test
     public void shouldReturnNullWhenContentHasNoImage() {
-        assertNull(ArticleCoverUtils.getFirstImgUrl("<p>no image</p>", null, null, new com.zrlog.admin.business.service.UploadService(() -> null)));
+        assertNull(
+                ArticleCoverUtils.getFirstImgUrl(
+                        "<p>no image</p>",
+                        null,
+                        null,
+                        new UploadService(
+                                () -> null,
+                                AccountServicesFixture.component().permissions(),
+                                new DbFileService(
+                                        ApplicationServicesFixture.websiteKv(), WebSite::new))));
     }
 
     @Test
@@ -50,8 +84,16 @@ public class ArticleCoverUtilsTest {
         source.getParentFile().mkdirs();
         Files.writeString(source.toPath(), "image", StandardCharsets.UTF_8);
 
-        String url = ArticleCoverUtils.getFirstImgUrl("<p><img src=\"/attached/cover.png\"></p>",
-                request("/blog"), null, new com.zrlog.admin.business.service.UploadService(() -> null));
+        String url =
+                ArticleCoverUtils.getFirstImgUrl(
+                        "<p><img src=\"/attached/cover.png\"></p>",
+                        request("/blog"),
+                        null,
+                        new UploadService(
+                                () -> null,
+                                AccountServicesFixture.component().permissions(),
+                                new DbFileService(
+                                        ApplicationServicesFixture.websiteKv(), WebSite::new)));
 
         assertEquals("/blog/attached/cover_thumbnail.png?h=-1&w=-1", url);
         assertEquals("image", Files.readString(PathUtil.getStaticFile("/attached/cover_thumbnail.png").toPath()));

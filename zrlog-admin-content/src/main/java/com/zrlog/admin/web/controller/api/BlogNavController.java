@@ -19,18 +19,23 @@ import com.zrlog.common.cache.dto.LogNavDTO;
 import com.zrlog.common.controller.BaseController;
 import com.zrlog.data.security.AccountAction;
 
+import jakarta.inject.Inject;
+
 import java.io.IOException;
 import java.sql.SQLException;
 
 public class BlogNavController extends BaseController {
-    public BlogNavController(AdminPageDataFactory pages) {
+
+    @Inject
+    public BlogNavController(AdminPageDataFactory pages, BlogNavService blogNavService) {
+        this.blogNavService = blogNavService;
+
         this.pages = pages;
     }
 
     private final AdminPageDataFactory pages;
 
-
-    private final BlogNavService blogNavService = new BlogNavService();
+    private final BlogNavService blogNavService;
 
     @RefreshCache(async = true, updateStaticSites = StaticSiteType.BLOG)
     @ResponseBody

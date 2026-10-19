@@ -1,27 +1,51 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+
+import com.hibegin.common.dao.DAO;
 import com.hibegin.http.HttpMethod;
+import com.hibegin.http.HttpVersion;
 import com.hibegin.http.annotation.ResponseBody;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
 import com.hibegin.http.server.config.RequestConfig;
+import com.hibegin.http.server.config.ResponseConfig;
+import com.hibegin.http.server.impl.SimpleHttpResponse;
 import com.hibegin.http.server.web.Controller;
 import com.hibegin.http.server.web.Router;
 import com.zrlog.admin.business.AdminConstants;
+import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
 import com.zrlog.admin.business.rest.response.AdminResourceInfoResponse;
 import com.zrlog.admin.business.rest.response.ProxySettingsResponse;
 import com.zrlog.admin.business.rest.response.ServerSideDataResponse;
 import com.zrlog.admin.business.rest.response.SystemResponse;
+import com.zrlog.admin.business.rest.response.UserPreferencesResponse;
 import com.zrlog.admin.business.rest.response.VersionResponse;
+import com.zrlog.admin.business.security.MemberModels;
+import com.zrlog.admin.business.security.OAuthModels;
+import com.zrlog.admin.support.AccountServicesFixture;
+import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.annotation.RequiresAction;
+import com.zrlog.admin.web.config.AdminAccountPages;
 import com.zrlog.admin.web.controller.api.WebSiteController;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
+import com.zrlog.common.CacheService;
+import com.zrlog.common.ZrLogConfig;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.data.security.AccountAction;
+import com.zrlog.data.service.UserPreferenceStore;
+import com.zrlog.model.UserPasskey;
+import com.zrlog.model.WebSite;
+import com.zrlog.plugin.BaseStaticSitePlugin;
 import com.zrlog.util.NetworkProxy;
+
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.junit.After;
@@ -37,15 +61,9 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-
 public class AdminPageServiceTest {
 
-    private com.zrlog.common.ZrLogConfig applicationConfig;
+    private ZrLogConfig applicationConfig;
 
     private AdminResource resources;
 
@@ -80,7 +98,8 @@ public class AdminPageServiceTest {
             db.putWebsite("backend_server_url", "https://private-setting.example/sub");
             resources = new AdminResourceImpl("", () -> 0L, resourceService()::staticResourceBaseUrl);
             AdminTokenThreadLocal.remove();
-            for (String userAgent : java.util.List.of("Browser", com.zrlog.plugin.BaseStaticSitePlugin.STATIC_USER_AGENT)) {
+            for (String userAgent :
+                    java.util.List.of("Browser", BaseStaticSitePlugin.STATIC_USER_AGENT)) {
                 HttpRequest request = (HttpRequest) Proxy.newProxyInstance(getClass().getClassLoader(), new Class[]{HttpRequest.class},
                         (proxy, method, args) -> {
                             if (method.getName().equals("getHeader") && "User-Agent".equals(args[0])) return userAgent;
@@ -104,15 +123,24 @@ public class AdminPageServiceTest {
                 resources = new AdminResourceImpl(contextPath, () -> 0L, resourceService()::staticResourceBaseUrl);
                 for (String page : java.util.List.of("/admin/system/proxy", "/admin/dev", "/admin/dev/ui")) {
                     assertTrue(resources.getAdminStaticCacheUris().contains(contextPath + page));
-                    HttpRequest request = (HttpRequest) Proxy.newProxyInstance(getClass().getClassLoader(),
-                            new Class[]{HttpRequest.class}, (proxy, method, args) -> {
-                                if (method.getName().equals("getHeader")) {
-                                    if ("User-Agent".equals(args[0])) return com.zrlog.plugin.BaseStaticSitePlugin.STATIC_USER_AGENT;
-                                    if ("Host".equals(args[0])) return "localhost:18080";
-                                }
-                                if (method.getName().equals("getScheme")) return "http";
-                                return method.invoke(request(page, contextPath), args);
-                            });
+                    HttpRequest request =
+                            (HttpRequest)
+                                    Proxy.newProxyInstance(
+                                            getClass().getClassLoader(),
+                                            new Class[] {HttpRequest.class},
+                                            (proxy, method, args) -> {
+                                                if (method.getName().equals("getHeader")) {
+                                                    if ("User-Agent".equals(args[0]))
+                                                        return BaseStaticSitePlugin
+                                                                .STATIC_USER_AGENT;
+                                                    if ("Host".equals(args[0]))
+                                                        return "localhost:18080";
+                                                }
+                                                if (method.getName().equals("getScheme"))
+                                                    return "http";
+                                                return method.invoke(
+                                                        request(page, contextPath), args);
+                                            });
                     String rendered = pageService(db.cacheService()).buildHtml(request, response(), html(
                             "<html><head><base href=\"/\"><link rel=\"manifest\" href=\"/admin/manifest.json\">"
                                     + "<script src=\"/admin/static/app.js\"></script></head>"
@@ -120,7 +148,10 @@ public class AdminPageServiceTest {
                     Document document = Jsoup.parse(rendered);
                     com.google.gson.JsonObject data = com.google.gson.JsonParser.parseString(
                             document.getElementById("__SS_DATA__").text()).getAsJsonObject();
-                    assertEquals(AdminConstants.getAdminDocumentTitleByUri(page, com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()).get()), document.title());
+                    assertEquals(
+                            AdminConstants.getAdminDocumentTitleByUri(
+                                    page, ApplicationServicesFixture.site(db.config()).get()),
+                            document.title());
                     assertEquals(contextPath + "/", document.selectFirst("base").attr("href"));
                     assertEquals(contextPath + "/admin/static/app.js", document.selectFirst("script").attr("src"));
                     assertTrue(data.getAsJsonObject("resourceInfo").get("staticPage").getAsBoolean());
@@ -146,8 +177,13 @@ public class AdminPageServiceTest {
                 AdminPageService service = pageService(db.cacheService());
                 for (String role : java.util.List.of("owner", "admin")) {
                     AccountAuthorizationTest.login(db, 1, role);
-                    new UserPreferenceService().updateBody("{\"language\":\"en_US\",\"appearance\":{"
-                            + "\"theme\":\"antd\",\"darkMode\":true,\"compactMode\":true,\"colorPrimary\":\"#00875a\"}}");
+                    new UserPreferenceService(
+                                    ApplicationServicesFixture.settings(),
+                                    new UserPreferenceStore(),
+                                    AccountServicesFixture.component().permissions())
+                            .updateBody(
+                                    "{\"language\":\"en_US\",\"appearance\":{"
+                                            + "\"theme\":\"antd\",\"darkMode\":true,\"compactMode\":true,\"colorPrimary\":\"#00875a\"}}");
                     Document document = Jsoup.parse(service.buildHtml(request(page, contextPath, config), response(),
                             html("<html><head><base href=\"/\"></head><body><pre id=\"__SS_DATA__\"></pre></body></html>")));
                     com.google.gson.JsonObject data = com.google.gson.JsonParser.parseString(
@@ -166,15 +202,23 @@ public class AdminPageServiceTest {
                     assertFalse(resource.get("staticPage").getAsBoolean());
                     assertTrue(document.body().hasClass("dark"));
                     assertEquals(contextPath + "/", document.selectFirst("base").attr("href"));
-                    assertEquals(AdminConstants.getAdminDocumentTitleByUri(page, com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()).get()), document.title());
+                    assertEquals(
+                            AdminConstants.getAdminDocumentTitleByUri(
+                                    page, ApplicationServicesFixture.site(db.config()).get()),
+                            document.title());
                     assertEquals(Boolean.TRUE, service.serverSide(page,
                             request("/admin/ssJson", contextPath, config), response()).getData());
                 }
                 for (String role : java.util.List.of("editor", "author", "contributor")) {
                     AccountAuthorizationTest.login(db, 1, role);
                     for (String uri : java.util.List.of(page, "/admin/ssJson")) {
-                        org.junit.Assert.assertThrows(com.zrlog.admin.business.exception.PermissionErrorException.class,
-                                () -> service.serverSide(page, request(uri, contextPath, config), response()));
+                        org.junit.Assert.assertThrows(
+                                PermissionErrorException.class,
+                                () ->
+                                        service.serverSide(
+                                                page,
+                                                request(uri, contextPath, config),
+                                                response()));
                     }
                 }
             }
@@ -330,7 +374,7 @@ public class AdminPageServiceTest {
             assertEquals(0, empty.getAsJsonArray("passkeys").size());
 
             db.execute("insert into user(userId,userName,role) values(?,?,?)", 2, "writer", "author");
-            com.zrlog.model.UserPasskey passkeys = new com.zrlog.model.UserPasskey();
+            UserPasskey passkeys = new UserPasskey(DAO.getDefaultDataSource());
             passkeys.save(1, "own-hash", "own-credential", "own-public-key", 0, "internal",
                     "Work computer", "aaguid", true, false, "https://example.com", "example.com", 1L);
             passkeys.save(2, "other-hash", "other-credential", "other-public-key", 0, "internal",
@@ -363,44 +407,92 @@ public class AdminPageServiceTest {
             RequestConfig config = new RequestConfig();
             config.setRouter(router);
             AdminPageService service = pageService(db.cacheService());
-            for (String page : com.zrlog.admin.web.config.AdminAccountPages.PAGE_APIS.keySet()) {
-                if (page.equals(com.zrlog.admin.web.config.AdminAccountPages.AUTHORIZE)) continue;
+            for (String page : AdminAccountPages.PAGE_APIS.keySet()) {
+                if (page.equals(AdminAccountPages.AUTHORIZE)) continue;
                 ServerSideDataResponse<Object> data = service.serverSide(page, request(page, "/blog", config), response());
                 assertNotNull(page, data.getData());
-                assertEquals(AdminConstants.getAdminDocumentTitleByUri(page, com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()).get()), data.getDocumentTitle());
+                assertEquals(
+                        AdminConstants.getAdminDocumentTitleByUri(
+                                page, ApplicationServicesFixture.site(db.config()).get()),
+                        data.getDocumentTitle());
             }
-            assertTrue(service.serverSide("/admin/user/preferences/appearance", request("/admin/user/preferences/appearance", "/blog", config), response()).getData()
-                    instanceof com.zrlog.admin.business.rest.response.UserPreferencesResponse);
-            assertTrue(service.serverSide("/admin/user/applications/tokens", request("/admin/user/applications/tokens", "/blog", config), response()).getData()
-                    instanceof com.zrlog.admin.business.security.OAuthModels.Page);
-            assertTrue(service.serverSide("/admin/website/members", request("/admin/website/members", "/blog", config), response()).getData()
-                    instanceof com.zrlog.admin.business.security.MemberModels.Page);
+            assertTrue(
+                    service.serverSide(
+                                            "/admin/user/preferences/appearance",
+                                            request(
+                                                    "/admin/user/preferences/appearance",
+                                                    "/blog",
+                                                    config),
+                                            response())
+                                    .getData()
+                            instanceof UserPreferencesResponse);
+            assertTrue(
+                    service.serverSide(
+                                            "/admin/user/applications/tokens",
+                                            request(
+                                                    "/admin/user/applications/tokens",
+                                                    "/blog",
+                                                    config),
+                                            response())
+                                    .getData()
+                            instanceof OAuthModels.Page);
+            assertTrue(
+                    service.serverSide(
+                                            "/admin/website/members",
+                                            request("/admin/website/members", "/blog", config),
+                                            response())
+                                    .getData()
+                            instanceof MemberModels.Page);
             assertNotNull(router.getMethod("/api/admin/oauth/createPersonalToken", HttpMethod.POST));
-            assertEquals(com.zrlog.data.security.AccountAction.PERMISSION_READ,
+            assertEquals(
+                    AccountAction.PERMISSION_READ,
                     router.getMethod("/api/admin/access", HttpMethod.GET)
-                            .getAnnotation(com.zrlog.admin.web.annotation.RequiresAction.class).value());
+                            .getAnnotation(RequiresAction.class)
+                            .value());
             assertFalse(router.getRouterMap().containsKey("/api/admin/user/applications"));
             for (String oldPage : java.util.List.of("/admin/user/preferences", "/admin/user/applications", "/admin/user/permissions", "/admin/user/members", "/admin/members", "/admin/access", "/admin/oauth", "/admin/oauth/authorize")) {
                 assertFalse(oldPage, router.getRouterMap().containsKey(oldPage));
             }
             AccountAuthorizationTest.login(db, 1, "author");
             assertNotNull(service.serverSide("/admin/user/applications/tokens", request("/admin/user/applications/tokens", "/blog", config), response()).getData());
-            org.junit.Assert.assertThrows(com.zrlog.admin.business.exception.PermissionErrorException.class,
-                    () -> service.serverSide("/admin/website/members", request("/admin/website/members", "/blog", config), response()));
+            org.junit.Assert.assertThrows(
+                    PermissionErrorException.class,
+                    () ->
+                            service.serverSide(
+                                    "/admin/website/members",
+                                    request("/admin/website/members", "/blog", config),
+                                    response()));
             assertNotNull(service.serverSide("/admin/user/preferences/session", request("/admin/user/preferences/session", "/blog", config), response()).getData());
             assertNotNull(service.serverSide("/admin/user/preferences/writing", request("/admin/user/preferences/writing", "/blog", config), response()).getData());
             assertNotNull(service.serverSide("/admin/user/preferences/assistant", request("/admin/user/preferences/assistant", "/blog", config), response()).getData());
             assertNotNull(service.serverSide("/admin/user/applications/grants", request("/admin/user/applications/grants", "/blog", config), response()).getData());
-            org.junit.Assert.assertThrows(com.zrlog.admin.business.exception.PermissionErrorException.class,
-                    () -> service.serverSide("/admin/user/applications/clients", request("/admin/user/applications/clients", "/blog", config), response()));
-            org.junit.Assert.assertThrows(com.zrlog.admin.business.exception.PermissionErrorException.class,
-                    () -> service.serverSide("/admin/user/applications/clients", request("/admin/ssJson", "/blog", config), response()));
-            assertEquals(com.zrlog.data.security.AccountAction.OAUTH_CLIENT_MANAGE,
+            org.junit.Assert.assertThrows(
+                    PermissionErrorException.class,
+                    () ->
+                            service.serverSide(
+                                    "/admin/user/applications/clients",
+                                    request("/admin/user/applications/clients", "/blog", config),
+                                    response()));
+            org.junit.Assert.assertThrows(
+                    PermissionErrorException.class,
+                    () ->
+                            service.serverSide(
+                                    "/admin/user/applications/clients",
+                                    request("/admin/ssJson", "/blog", config),
+                                    response()));
+            assertEquals(
+                    AccountAction.OAUTH_CLIENT_MANAGE,
                     router.getMethod("/api/admin/oauth/clients", HttpMethod.GET)
-                            .getAnnotation(com.zrlog.admin.web.annotation.RequiresAction.class).value());
+                            .getAnnotation(RequiresAction.class)
+                            .value());
             // ssJson uses the same page mapping and must enforce the same member action.
-            org.junit.Assert.assertThrows(com.zrlog.admin.business.exception.PermissionErrorException.class,
-                    () -> service.serverSide("/admin/website/members", request("/admin/ssJson", "/blog", config), response()));
+            org.junit.Assert.assertThrows(
+                    PermissionErrorException.class,
+                    () ->
+                            service.serverSide(
+                                    "/admin/website/members",
+                                    request("/admin/ssJson", "/blog", config),
+                                    response()));
         }
     }
 
@@ -424,11 +516,15 @@ public class AdminPageServiceTest {
                         ProxySettingsResponse settings = (ProxySettingsResponse) response.getData();
                         assertEquals("http://proxy.example:3128", settings.getUrl());
                         assertEquals(".internal.example", settings.getNoProxy());
-                        assertEquals(AdminConstants.getAdminDocumentTitleByUri(page, com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()).get()), response.getDocumentTitle());
+                        assertEquals(
+                                AdminConstants.getAdminDocumentTitleByUri(
+                                        page, ApplicationServicesFixture.site(db.config()).get()),
+                                response.getDocumentTitle());
                     }
                     for (String role : java.util.List.of("editor", "author", "contributor")) {
                         AccountAuthorizationTest.login(db, 1, role);
-                        org.junit.Assert.assertThrows(com.zrlog.admin.business.exception.PermissionErrorException.class,
+                        org.junit.Assert.assertThrows(
+                                PermissionErrorException.class,
                                 () -> service.serverSide(page, request, response()));
                     }
                 }
@@ -449,8 +545,9 @@ public class AdminPageServiceTest {
                 assertNotNull(config.getRouter().getMethod(page, HttpMethod.GET));
                 Method api = config.getRouter().getMethod("/api" + page, HttpMethod.GET);
                 assertNotNull(api);
-                assertEquals(com.zrlog.data.security.AccountAction.SYSTEM_MANAGE,
-                        api.getAnnotation(com.zrlog.admin.web.annotation.RequiresAction.class).value());
+                assertEquals(
+                        AccountAction.SYSTEM_MANAGE,
+                        api.getAnnotation(RequiresAction.class).value());
                 for (String contextPath : java.util.List.of("", "/blog")) {
                     for (String uri : java.util.List.of(page, "/admin/ssJson")) {
                         HttpRequest request = request(uri, contextPath, config);
@@ -460,11 +557,16 @@ public class AdminPageServiceTest {
                             SystemResponse data = (SystemResponse) result.getData();
                             assertFalse(data.getServerInfos().isEmpty());
                             assertFalse(data.getServerInfos2().isEmpty());
-                            assertEquals(AdminConstants.getAdminDocumentTitleByUri(page, com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()).get()), result.getDocumentTitle());
+                            assertEquals(
+                                    AdminConstants.getAdminDocumentTitleByUri(
+                                            page,
+                                            ApplicationServicesFixture.site(db.config()).get()),
+                                    result.getDocumentTitle());
                         }
                         for (String role : java.util.List.of("editor", "author", "contributor")) {
                             AccountAuthorizationTest.login(db, 1, role);
-                            org.junit.Assert.assertThrows(com.zrlog.admin.business.exception.PermissionErrorException.class,
+                            org.junit.Assert.assertThrows(
+                                    PermissionErrorException.class,
                                     () -> service.serverSide(page, request, response()));
                         }
                     }
@@ -485,9 +587,12 @@ public class AdminPageServiceTest {
             assertNotNull(config.getRouter().getMethod(page, HttpMethod.GET));
             assertEquals(config.getRouter().getMethod("/api/admin/website/version", HttpMethod.GET),
                     config.getRouter().getMethod("/api" + page, HttpMethod.GET));
-            assertEquals(com.zrlog.data.security.AccountAction.SITE_CONFIGURE,
-                    config.getRouter().getMethod("/api" + page, HttpMethod.GET)
-                            .getAnnotation(com.zrlog.admin.web.annotation.RequiresAction.class).value());
+            assertEquals(
+                    AccountAction.SITE_CONFIGURE,
+                    config.getRouter()
+                            .getMethod("/api" + page, HttpMethod.GET)
+                            .getAnnotation(RequiresAction.class)
+                            .value());
             // Keep the real version response logic, with a local changelog instead of a public HTTP request.
             db.config().getServerConfig().getBindings().controller(OfflineVersionController.class,
                     (r, request, response) -> new OfflineVersionController(r.get(WebSiteSettingsService.class),
@@ -503,11 +608,15 @@ public class AdminPageServiceTest {
                         ServerSideDataResponse<Object> result = service.serverSide(page, request, response());
                         assertNotNull(((VersionResponse) result.getData()).getVersion());
                         assertEquals("test changelog", ((VersionResponse) result.getData()).getChangelog());
-                        assertEquals(AdminConstants.getAdminDocumentTitleByUri(page, com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()).get()), result.getDocumentTitle());
+                        assertEquals(
+                                AdminConstants.getAdminDocumentTitleByUri(
+                                        page, ApplicationServicesFixture.site(db.config()).get()),
+                                result.getDocumentTitle());
                     }
                     for (String role : java.util.List.of("editor", "author", "contributor")) {
                         AccountAuthorizationTest.login(db, 1, role);
-                        org.junit.Assert.assertThrows(com.zrlog.admin.business.exception.PermissionErrorException.class,
+                        org.junit.Assert.assertThrows(
+                                PermissionErrorException.class,
                                 () -> service.serverSide(page, request, response()));
                     }
                 }
@@ -531,10 +640,12 @@ public class AdminPageServiceTest {
                         HttpRequest request = (HttpRequest) Proxy.newProxyInstance(getClass().getClassLoader(),
                                 new Class[]{HttpRequest.class}, (proxy, method, args) ->
                                         method.getName().equals("getQueryStr") ? query : method.invoke(base, args));
-                        var response = new com.hibegin.http.server.impl.SimpleHttpResponse(request,
-                                new com.hibegin.http.server.config.ResponseConfig()) {
-                            @Override protected void send(byte[] bytes, boolean body, boolean close) { }
-                        };
+                        var response =
+                                new SimpleHttpResponse(request, new ResponseConfig()) {
+                                    @Override
+                                    protected void send(
+                                            byte[] bytes, boolean body, boolean close) {}
+                                };
                         route.invoke(Controller.buildController(route, request, response));
                         String prefix = contextPath.equals("/") ? "" : contextPath;
                         assertEquals(prefix + "/admin/system/" + page + (query.isEmpty() ? "" : "?" + query),
@@ -559,8 +670,13 @@ public class AdminPageServiceTest {
                 assertEquals(router.getMethod("/api/admin/website/upgrade", method), route);
                 assertEquals(AccountAction.SITE_CONFIGURE, route.getAnnotation(RequiresAction.class).value());
             }
-            assertEquals(AdminConstants.getAdminDocumentTitleByUri("/admin/website/upgrade", com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()).get()),
-                    AdminConstants.getAdminDocumentTitleByUri("/admin/system/upgrade", com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()).get()));
+            assertEquals(
+                    AdminConstants.getAdminDocumentTitleByUri(
+                            "/admin/website/upgrade",
+                            ApplicationServicesFixture.site(db.config()).get()),
+                    AdminConstants.getAdminDocumentTitleByUri(
+                            "/admin/system/upgrade",
+                            ApplicationServicesFixture.site(db.config()).get()));
         }
     }
 
@@ -596,23 +712,48 @@ public class AdminPageServiceTest {
         }
     }
 
-    private AdminPageService pageService(com.zrlog.common.CacheService cache) {
+    private AdminPageService pageService(CacheService cache) {
         AdminResource ownedResources = resources;
-        return new AdminPageService(cache,
-                new AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig),
-                        ownedResources::getStaticResourceBuildId),
-                resourceService(), ownedResources::getStaticResourceBuildId);
+        return new AdminPageService(
+                cache,
+                new AdminPageDataFactory(
+                        ApplicationServicesFixture.site(applicationConfig),
+                        ownedResources::getStaticResourceBuildId,
+                        ApplicationServicesFixture.messages(),
+                        AccountServicesFixture.component().permissions()),
+                resourceService(),
+                ownedResources::getStaticResourceBuildId,
+                AccountServicesFixture.component().permissions(),
+                AccountServicesFixture.component().preferences(),
+                AccountServicesFixture.component().users());
     }
 
     private AdminResourceService resourceService() {
-        var site = com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig);
+        var site = ApplicationServicesFixture.site(applicationConfig);
         if (applicationConfig != null) {
-            return new AdminResourceService(AdminResourceInfoResponse.Capabilities::new,
-                    new FeatureLabService(() -> true), site,
-                    () -> new com.zrlog.model.WebSite().getStringValueByName("admin_static_resource_base_url"));
+            return new AdminResourceService(
+                    AdminResourceInfoResponse.Capabilities::new,
+                    new FeatureLabService(
+                            () -> true,
+                            new WebhookService(
+                                    ApplicationServicesFixture.messages(),
+                                    ApplicationServicesFixture.websiteCache()),
+                            WebSite::new),
+                    site,
+                    () -> new WebSite().getStringValueByName("admin_static_resource_base_url"),
+                    () -> new UserPasskey(DAO.getDefaultDataSource()));
         }
-        return new AdminResourceService(AdminResourceInfoResponse.Capabilities::new,
-                new FeatureLabService(() -> true), site, () -> "") {
+        return new AdminResourceService(
+                AdminResourceInfoResponse.Capabilities::new,
+                new FeatureLabService(
+                        () -> true,
+                        new WebhookService(
+                                ApplicationServicesFixture.messages(),
+                                ApplicationServicesFixture.websiteCache()),
+                        WebSite::new),
+                site,
+                () -> "",
+                () -> new UserPasskey(DAO.getDefaultDataSource())) {
             @Override
             public AdminResourceInfoResponse adminResourceInfo(HttpRequest request) {
                 AdminResourceInfoResponse response = new AdminResourceInfoResponse();
@@ -632,39 +773,40 @@ public class AdminPageServiceTest {
     }
 
     private HttpRequest request(String uri, String contextPath, RequestConfig requestConfig) {
-        return (HttpRequest) Proxy.newProxyInstance(
-                AdminPageServiceTest.class.getClassLoader(),
-                new Class[]{HttpRequest.class},
-                (proxy, method, args) -> {
-                    if ("getUri".equals(method.getName())) {
-                        return uri;
-                    }
-                    if ("getContextPath".equals(method.getName())) {
-                        return contextPath;
-                    }
-                    if ("getMethod".equals(method.getName())) {
-                        return HttpMethod.GET;
-                    }
-                    if ("getHttpVersion".equals(method.getName())) {
-                        return com.hibegin.http.HttpVersion.HTTP_1_1;
-                    }
-                    if ("getHeader".equals(method.getName())) {
-                        return null;
-                    }
-                    if ("getHeaderMap".equals(method.getName())) {
-                        return Map.of();
-                    }
-                    if ("getRequestConfig".equals(method.getName())) {
-                        return requestConfig;
-                    }
-                    if ("getServerConfig".equals(method.getName())) {
-                        return applicationConfig.getServerConfig();
-                    }
-                    if ("toString".equals(method.getName())) {
-                        return "HttpRequestProxy";
-                    }
-                    return null;
-                });
+        return (HttpRequest)
+                Proxy.newProxyInstance(
+                        AdminPageServiceTest.class.getClassLoader(),
+                        new Class[] {HttpRequest.class},
+                        (proxy, method, args) -> {
+                            if ("getUri".equals(method.getName())) {
+                                return uri;
+                            }
+                            if ("getContextPath".equals(method.getName())) {
+                                return contextPath;
+                            }
+                            if ("getMethod".equals(method.getName())) {
+                                return HttpMethod.GET;
+                            }
+                            if ("getHttpVersion".equals(method.getName())) {
+                                return HttpVersion.HTTP_1_1;
+                            }
+                            if ("getHeader".equals(method.getName())) {
+                                return null;
+                            }
+                            if ("getHeaderMap".equals(method.getName())) {
+                                return Map.of();
+                            }
+                            if ("getRequestConfig".equals(method.getName())) {
+                                return requestConfig;
+                            }
+                            if ("getServerConfig".equals(method.getName())) {
+                                return applicationConfig.getServerConfig();
+                            }
+                            if ("toString".equals(method.getName())) {
+                                return "HttpRequestProxy";
+                            }
+                            return null;
+                        });
     }
 
     private static HttpResponse response() {
@@ -675,11 +817,20 @@ public class AdminPageServiceTest {
     }
 
     private RequestConfig requestConfig() {
-        applicationConfig.getServerConfig().getBindings().instance(AdminPageDataFactory.class,
-                new AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig),
-                        com.zrlog.admin.support.ApplicationServicesFixture.buildId(resources)))
-                .controller(FakePageController.class,
-                        (r, request, response) -> new FakePageController(r.get(AdminPageDataFactory.class)));
+        applicationConfig
+                .getServerConfig()
+                .getBindings()
+                .instance(
+                        AdminPageDataFactory.class,
+                        new AdminPageDataFactory(
+                                ApplicationServicesFixture.site(applicationConfig),
+                                ApplicationServicesFixture.buildId(resources),
+                                ApplicationServicesFixture.messages(),
+                                AccountServicesFixture.component().permissions()))
+                .controller(
+                        FakePageController.class,
+                        (r, request, response) ->
+                                new FakePageController(r.get(AdminPageDataFactory.class)));
         Router router = new Router();
         router.addMapper("/api/admin/ssr", FakePageController.class);
         RequestConfig requestConfig = new RequestConfig();
@@ -700,7 +851,7 @@ public class AdminPageServiceTest {
     public static class OfflineVersionController extends WebSiteController {
         public OfflineVersionController(WebSiteSettingsService settings, UpgradeSettingsService upgrades,
                                         FeatureLabService features, AdminPageDataFactory pages) {
-            super(settings, upgrades, features, pages);
+            super(settings, upgrades, features, pages, ApplicationServicesFixture.settings());
         }
 
 
@@ -724,25 +875,25 @@ public class AdminPageServiceTest {
             this.pages = pages;
         }
 
-        @com.zrlog.admin.web.annotation.RequiresAction(value = com.zrlog.data.security.AccountAction.SESSION, descriptionKey = "admin.pageData")
+        @RequiresAction(value = AccountAction.SESSION, descriptionKey = "admin.pageData")
         @ResponseBody
         public AdminPageDataResponse<String> page() {
             return pages.response("page-data", "", request.getUri());
         }
 
-        @com.zrlog.admin.web.annotation.RequiresAction(value = com.zrlog.data.security.AccountAction.SESSION, descriptionKey = "admin.pageData")
+        @RequiresAction(value = AccountAction.SESSION, descriptionKey = "admin.pageData")
         @ResponseBody
         public ApiStandardResponse<Void> plain() {
             return new ApiStandardResponse<>();
         }
 
-        @com.zrlog.admin.web.annotation.RequiresAction(value = com.zrlog.data.security.AccountAction.SESSION, descriptionKey = "admin.pageData")
+        @RequiresAction(value = AccountAction.SESSION, descriptionKey = "admin.pageData")
         @ResponseBody
         public ApiStandardResponse<Void> empty() {
             return null;
         }
 
-        @com.zrlog.admin.web.annotation.RequiresAction(value = com.zrlog.data.security.AccountAction.SESSION, descriptionKey = "admin.pageData")
+        @RequiresAction(value = AccountAction.SESSION, descriptionKey = "admin.pageData")
         @ResponseBody
         public ApiStandardResponse<Void> explode() {
             throw new IllegalStateException("boom");

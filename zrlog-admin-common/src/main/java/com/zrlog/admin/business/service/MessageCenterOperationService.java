@@ -7,10 +7,21 @@ import com.zrlog.business.plugin.type.StaticSiteType;
 import com.zrlog.business.rest.response.UpgradeProcessResponse;
 import com.zrlog.util.I18nUtil;
 
+import jakarta.inject.Inject;
+import jakarta.inject.Singleton;
+
 import java.lang.reflect.Type;
 import java.util.*;
 
+@Singleton
 public class MessageCenterOperationService {
+
+    @Inject
+    public MessageCenterOperationService(
+            MessageCenterStateService messageCenterStateService, WebsiteCacheService cacheService) {
+        this.messageCenterStateService = messageCenterStateService;
+        this.cacheService = cacheService;
+    }
 
     private static final String OPERATION_NOTICE_KEY = "message_center_operation_notices";
     private static final String OPERATION_TYPE = "operationTask";
@@ -25,8 +36,8 @@ public class MessageCenterOperationService {
     private static final Set<String> FINISH_STATUSES = Set.of("success", "warning", "error", "cancelled");
     private static final Type NOTICE_LIST_TYPE = new TypeToken<List<MessageCenterOperationNoticeEntry>>() {
     }.getType();
-    private final WebsiteCacheService cacheService = new WebsiteCacheService();
-    private final MessageCenterStateService messageCenterStateService = new MessageCenterStateService();
+    private final WebsiteCacheService cacheService;
+    private final MessageCenterStateService messageCenterStateService;
 
     public void recordReplaceArticleResourceUrl(int scannedArticles, int updatedArticles, int updatedFields) {
         long now = System.currentTimeMillis();

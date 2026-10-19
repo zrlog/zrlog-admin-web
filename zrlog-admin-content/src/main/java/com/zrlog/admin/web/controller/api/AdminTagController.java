@@ -21,13 +21,22 @@ import com.zrlog.common.vo.PublicWebSiteInfo;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.ZrLogUtil;
 
+import jakarta.inject.Inject;
+
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.Set;
 import java.util.function.Supplier;
 
 public class AdminTagController extends BaseController {
-    public AdminTagController(AdminPageDataFactory pages, Supplier<PublicWebSiteInfo> site) {
+
+    @Inject
+    public AdminTagController(
+            AdminPageDataFactory pages,
+            Supplier<PublicWebSiteInfo> site,
+            TagManagementService tagManagementService) {
+        this.tagManagementService = tagManagementService;
+
         this.pages = pages;
         this.site = site;
     }
@@ -38,7 +47,7 @@ public class AdminTagController extends BaseController {
 
     private static final Set<String> SUPPORTED_OPERATIONS = Set.of("rename", "merge", "delete");
 
-    private final TagManagementService tagManagementService = new TagManagementService();
+    private final TagManagementService tagManagementService;
 
     @ResponseBody
     @RequiresAction(value = AccountAction.TAXONOMY_READ, descriptionKey = "tag.list")

@@ -1,10 +1,14 @@
 package com.zrlog.admin.web;
 
+import static org.junit.Assert.*;
+
 import com.google.gson.Gson;
+import com.hibegin.common.dao.DataSourceWrapper;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
 import com.hibegin.http.server.web.Controller;
+import com.zrlog.admin.business.rest.response.AdminResourceInfoResponse;
 import com.zrlog.admin.business.service.AdminPageDataFactory;
 import com.zrlog.admin.business.service.AdminPageService;
 import com.zrlog.admin.business.service.AdminResource;
@@ -12,9 +16,15 @@ import com.zrlog.admin.business.service.AdminResourceProvider;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.controller.api.AdminPublicController;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
+import com.zrlog.business.web.ServiceWebSetup;
 import com.zrlog.common.CacheService;
 import com.zrlog.common.ZrLogConfig;
+import com.zrlog.data.di.DaggerDataComponent;
+import com.zrlog.data.di.DataComponent;
+import com.zrlog.plugin.IPlugin;
+import com.zrlog.web.WebSetupContext;
 import com.zrlog.web.WebSiteInfoProvider;
+
 import org.jsoup.Jsoup;
 import org.junit.Test;
 
@@ -23,23 +33,24 @@ import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
-import static org.junit.Assert.*;
-
 public class AdminResourceIsolationTest {
     @Test
     public void otherApplicationsAndSiteRefreshCannotReplaceAnApplicationsResources() throws Throwable {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             AdminTokenThreadLocal.remove();
             db.putWebsite("admin_static_resource_base_url", "https://cdn.example");
-            TestApplication first = new TestApplication("/first", "First site", 10, true);
+            TestApplication first =
+                    new TestApplication(db.dataSource(), "/first", "First site", 10, true);
             AdminResource firstResources = first.ui.getAdminResource();
             String firstVersion = firstResources.getStaticResourceBuildId();
             // Resolve the first app before creating another UI app or an API-only app.
             assertPage(first, "First site", firstVersion);
 
-            TestApplication second = new TestApplication("/second", "Second site", 100, true);
+            TestApplication second =
+                    new TestApplication(db.dataSource(), "/second", "Second site", 100, true);
             String secondVersion = second.ui.getAdminResource().getStaticResourceBuildId();
-            TestApplication apiOnly = new TestApplication("/api-only", "API site", 200, false);
+            TestApplication apiOnly =
+                    new TestApplication(db.dataSource(), "/api-only", "API site", 200, false);
             assertEquals("", apiOnly.getServerConfig().getBindings().build()
                     .get(AdminPageDataFactory.class).metadata("/admin/index").getPageBuildId());
             assertNull(apiOnly.getServerConfig().getRouter().getMethod("/admin", HttpMethod.GET));
@@ -81,8 +92,7 @@ public class AdminResourceIsolationTest {
                 document.selectFirst("script").attr("src"));
     }
 
-    private static com.zrlog.admin.business.rest.response.AdminResourceInfoResponse publicResources(
-            TestApplication app) throws Exception {
+    private static AdminResourceInfoResponse publicResources(TestApplication app) throws Exception {
         var method = AdminPublicController.class.getMethod("adminResource");
         var controller = (AdminPublicController) Controller.buildController(method, request(app), response());
         return controller.adminResource().getData();
@@ -126,13 +136,29 @@ public class AdminResourceIsolationTest {
         private final SiteCache cache;
         private final AdminUiWebSetup ui;
 
-        TestApplication(String contextPath, String title, long version, boolean withUi) {
+        TestApplication(
+                DataSourceWrapper database,
+                String contextPath,
+                String title,
+                long version,
+                boolean withUi) {
             super(18080, null, contextPath);
             this.contextPath = contextPath;
             cache = new SiteCache();
             cache.version = version;
             cache.getPublicWebSiteInfo().setTitle(title);
             getServerConfig().getBindings().instance(CacheService.class, cache);
+            dataSource = database;
+            getServerConfig()
+                    .getBindings()
+                    .instance(
+                            DataComponent.class,
+                            DaggerDataComponent.factory()
+                                    .create(() -> database, this::isInstalled));
+            new ServiceWebSetup(
+                            new WebSetupContext(
+                                    this, dbPropertiesFile, installLockFile, contextPath, null))
+                    .setup();
             new AdminWebSetup(this).setup();
             ui = withUi ? new AdminUiWebSetup(this, contextPath) : null;
             if (ui != null) ui.setup();
@@ -140,7 +166,8 @@ public class AdminResourceIsolationTest {
 
         @Override public boolean isInstalled() { return cache != null; }
 
-        @Override public java.util.List<com.zrlog.plugin.IPlugin> getBasePluginList() {
+        @Override
+        public java.util.List<IPlugin> getBasePluginList() {
             return java.util.Collections.emptyList();
         }
 

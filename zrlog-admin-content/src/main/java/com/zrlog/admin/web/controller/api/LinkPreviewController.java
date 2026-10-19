@@ -1,17 +1,23 @@
 package com.zrlog.admin.web.controller.api;
 
-import com.zrlog.admin.web.annotation.RequiresAction;
-import com.zrlog.data.security.AccountAction;
-
 import com.hibegin.http.annotation.ResponseBody;
 import com.hibegin.http.server.web.Controller;
 import com.zrlog.admin.business.rest.response.LinkPreviewResponse;
 import com.zrlog.admin.business.service.LinkPreviewService;
+import com.zrlog.admin.web.annotation.RequiresAction;
 import com.zrlog.common.rest.response.ApiStandardResponse;
+import com.zrlog.data.security.AccountAction;
+
+import jakarta.inject.Inject;
 
 public class LinkPreviewController extends Controller {
 
-    private final LinkPreviewService linkPreviewService = new LinkPreviewService();
+    @Inject
+    public LinkPreviewController(LinkPreviewService linkPreviewService) {
+        this.linkPreviewService = linkPreviewService;
+    }
+
+    private final LinkPreviewService linkPreviewService;
 
     @ResponseBody
     @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "link.preview")

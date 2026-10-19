@@ -5,14 +5,19 @@ import com.zrlog.admin.business.rest.response.AdminManifestResponse;
 import com.zrlog.admin.util.ManifestUtils;
 import com.zrlog.admin.web.annotation.RequiresAction;
 import com.zrlog.common.controller.BaseController;
+import com.zrlog.common.vo.PublicWebSiteInfo;
 import com.zrlog.data.security.AccountAction;
 
+import jakarta.inject.Inject;
+
 import java.io.IOException;
+import java.util.function.Supplier;
 
 public class AdminManifestController extends BaseController {
-    private final java.util.function.Supplier<com.zrlog.common.vo.PublicWebSiteInfo> site;
+    private final Supplier<PublicWebSiteInfo> site;
 
-    public AdminManifestController(java.util.function.Supplier<com.zrlog.common.vo.PublicWebSiteInfo> site) {
+    @Inject
+    public AdminManifestController(Supplier<PublicWebSiteInfo> site) {
         this.site = site;
     }
 

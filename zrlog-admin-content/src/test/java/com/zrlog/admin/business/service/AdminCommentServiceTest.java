@@ -1,24 +1,31 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+
 import com.zrlog.admin.business.rest.request.ReadCommentRequest;
 import com.zrlog.admin.business.rest.response.DeleteResponse;
 import com.zrlog.admin.business.rest.response.UpdateRecordResponse;
+import com.zrlog.admin.support.AccountServicesFixture;
+import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
+import com.zrlog.model.Comment;
+
 import org.junit.Test;
 
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-
 public class AdminCommentServiceTest {
 
     @Test
     public void shouldParseCommentIdsWithTrimAndStableDeduplication() throws Exception {
-        AdminCommentService service = new AdminCommentService();
+        AdminCommentService service =
+                new AdminCommentService(
+                        AccountServicesFixture.component().permissions(),
+                        ApplicationServicesFixture.messages(),
+                        Comment::new);
 
         List<Integer> ids = service.parseCommentIds(new String[]{" 3 ", "", "3", null, "2"});
         List<Integer> empty = service.parseCommentIds(new String[]{null, " "});
@@ -29,7 +36,11 @@ public class AdminCommentServiceTest {
 
     @Test
     public void shouldBuildSqlPlaceholdersForIds() throws Exception {
-        AdminCommentService service = new AdminCommentService();
+        AdminCommentService service =
+                new AdminCommentService(
+                        AccountServicesFixture.component().permissions(),
+                        ApplicationServicesFixture.messages(),
+                        Comment::new);
 
         assertEquals("", service.placeholders(0));
         assertEquals("?", service.placeholders(1));
@@ -38,7 +49,12 @@ public class AdminCommentServiceTest {
 
     @Test
     public void shouldReturnFailureWhenReadRequestIsMissing() {
-        UpdateRecordResponse response = new AdminCommentService().read(null);
+        UpdateRecordResponse response =
+                new AdminCommentService(
+                                AccountServicesFixture.component().permissions(),
+                                ApplicationServicesFixture.messages(),
+                                Comment::new)
+                        .read(null);
 
         assertEquals(1, response.getError());
     }
@@ -47,7 +63,11 @@ public class AdminCommentServiceTest {
     public void shouldManageCommentsThroughRealDatabase() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             seedComments(db);
-            AdminCommentService service = new AdminCommentService();
+            AdminCommentService service =
+                    new AdminCommentService(
+                            AccountServicesFixture.component().permissions(),
+                            ApplicationServicesFixture.messages(),
+                            Comment::new);
             ReadCommentRequest readRequest = new ReadCommentRequest();
             readRequest.setId(1L);
 

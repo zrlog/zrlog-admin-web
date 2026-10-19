@@ -1,12 +1,25 @@
 package com.zrlog.admin.web.controller.api;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+
+import com.hibegin.common.dao.DAO;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
 import com.hibegin.http.server.web.Controller;
+import com.zrlog.admin.business.ai.service.AIChatService;
 import com.zrlog.admin.business.ai.service.AIConversationService;
+import com.zrlog.admin.business.ai.service.AIFileService;
+import com.zrlog.admin.business.ai.service.AIPublishCheckService;
 import com.zrlog.admin.business.ai.service.AIPublishCheckService.PublishCheckPersistenceGuard;
 import com.zrlog.admin.business.ai.service.AIPublishCheckService.PublishCheckTask;
-import com.zrlog.admin.business.ai.service.AIPublishCheckService;
+import com.zrlog.admin.business.ai.service.AIReferenceService;
+import com.zrlog.admin.business.ai.service.AIServiceDependencies;
+import com.zrlog.admin.business.content.ArticleAssistant;
+import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.rest.request.CreateArticleRequest;
 import com.zrlog.admin.business.rest.response.AIArticleGlobalResponse;
 import com.zrlog.admin.business.rest.response.AIResponseEntry;
@@ -21,18 +34,34 @@ import com.zrlog.admin.business.rest.response.PublishCheckResponse;
 import com.zrlog.admin.business.rest.response.PublishCheckToolPayload;
 import com.zrlog.admin.business.rest.response.UploadFileResponse;
 import com.zrlog.admin.business.service.AdminArticleService;
+import com.zrlog.admin.business.service.AdminPageDataFactory;
 import com.zrlog.admin.business.service.ArticlePinningService;
 import com.zrlog.admin.business.service.ArticlePublishingService;
+import com.zrlog.admin.business.service.ArticleVersionService;
+import com.zrlog.admin.business.service.DbFileService;
 import com.zrlog.admin.business.service.MessageCenterOperationService;
+import com.zrlog.admin.business.service.UploadService;
+import com.zrlog.admin.business.service.UserPreferenceService;
+import com.zrlog.admin.support.AccountServicesFixture;
+import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.util.AdminSseEmitter;
 import com.zrlog.admin.web.AIWebSetup;
 import com.zrlog.admin.web.controller.ai.AIArticleController;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.business.plugin.PluginCorePlugin;
+import com.zrlog.business.service.MarkdownRenderer;
+import com.zrlog.common.CacheService;
+import com.zrlog.common.ZrLogConfig;
+import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.common.vo.AdminTokenVO;
+import com.zrlog.data.service.UserPreferenceStore;
+import com.zrlog.model.Log;
+import com.zrlog.model.LogVersion;
+import com.zrlog.model.WebSite;
 import com.zrlog.util.I18nUtil;
+
 import org.junit.After;
 import org.junit.Test;
 
@@ -54,15 +83,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-
 public class AdminArticleControllerDatabaseTest {
 
-    private com.zrlog.common.ZrLogConfig applicationConfig;
+    private ZrLogConfig applicationConfig;
 
     @After
     public void tearDown() {
@@ -72,8 +95,15 @@ public class AdminArticleControllerDatabaseTest {
     @Test
     public void listDefaultsRespectAccountAndExplicitQueryOverrides() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            db.loadAdminWebModules();
             applicationConfig = db.config();
-            new com.zrlog.admin.business.service.UserPreferenceService().updateBody("{\"articleList\":{\"sort\":\"click,ASC\",\"status\":\"draft\",\"columns\":[\"click\"]}}", "writing");
+            new UserPreferenceService(
+                            ApplicationServicesFixture.settings(),
+                            new UserPreferenceStore(),
+                            AccountServicesFixture.component().permissions())
+                    .updateBody(
+                            "{\"articleList\":{\"sort\":\"click,ASC\",\"status\":\"draft\",\"columns\":[\"click\"]}}",
+                            "writing");
             ArticlePageData defaults = controller(db.cacheService(), Map.of(), null, new ResponseRecorder()).index().getData();
             assertEquals("draft", defaults.getStatus());
             assertEquals(List.of("click,ASC"), defaults.getSort());
@@ -88,6 +118,7 @@ public class AdminArticleControllerDatabaseTest {
     @SuppressWarnings("unchecked")
     public void shouldCreateUpdateListAndLoadDraftArticleThroughRealDao() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            db.loadAdminWebModules();
             applicationConfig = db.config();
             setAdminToken();
             ResponseRecorder createResponse = new ResponseRecorder();
@@ -125,11 +156,17 @@ public class AdminArticleControllerDatabaseTest {
     @SuppressWarnings("unchecked")
     public void shouldPersistInjectedMarkdownRenderingAndPreserveExplicitHtml() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            db.loadAdminWebModules();
             applicationConfig = db.config();
             setAdminToken();
-            com.zrlog.business.service.MarkdownRenderer renderer = markdown -> Map.of(
-                    "# Rendered\n\nfirst line\nsecond line", "<h1>Rendered</h1>\n<p>first line<br>second line</p>\n",
-                    "## Updated\n\nnew body", "<h2>Updated</h2>\n<p>new body</p>\n").get(markdown);
+            MarkdownRenderer renderer =
+                    markdown ->
+                            Map.of(
+                                            "# Rendered\n\nfirst line\nsecond line",
+                                                    "<h1>Rendered</h1>\n<p>first line<br>second line</p>\n",
+                                            "## Updated\n\nnew body",
+                                                    "<h2>Updated</h2>\n<p>new body</p>\n")
+                                    .get(markdown);
             String markdownOnly = "{"
                     + "\"title\":\"Rendered Draft\","
                     + "\"alias\":\"rendered-draft\","
@@ -189,6 +226,7 @@ public class AdminArticleControllerDatabaseTest {
     @SuppressWarnings("unchecked")
     public void shouldCreateAndUpdatePublishedArticleWithRefreshCachePathThroughRealDao() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            db.loadAdminWebModules();
             applicationConfig = db.config();
             setAdminToken();
             ResponseRecorder createResponse = new ResponseRecorder();
@@ -221,6 +259,7 @@ public class AdminArticleControllerDatabaseTest {
     @SuppressWarnings("unchecked")
     public void shouldRefreshBlogWhenPinnedArticleMovesToDraft() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            db.loadAdminWebModules();
             applicationConfig = db.config();
             setAdminToken();
             ResponseRecorder createResponse = new ResponseRecorder();
@@ -229,7 +268,7 @@ public class AdminArticleControllerDatabaseTest {
             AdminPageDataResponse<ArticleGlobalResponse> created =
                     (AdminPageDataResponse<ArticleGlobalResponse>) createResponse.rendered;
             Long logId = Long.valueOf(created.getData().getArticle().getLogId());
-            new ArticlePinningService().pin(logId);
+            new ArticlePinningService(Log::new, ApplicationServicesFixture.locks()).pin(logId);
             int refreshCountBeforeDraft = db.cacheService().getRefreshCount();
 
             controller(db.cacheService(), Map.of(), updateBody(logId.intValue(), "Pinned Draft", "pinned-draft", true),
@@ -244,6 +283,7 @@ public class AdminArticleControllerDatabaseTest {
     @SuppressWarnings("unchecked")
     public void shouldAcknowledgeDraftSaveBeforeSlowBlogRefreshAndAllowFurtherEdits() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            db.loadAdminWebModules();
             applicationConfig = db.config();
             setAdminToken();
             ResponseRecorder createdResponse = new ResponseRecorder();
@@ -314,6 +354,7 @@ public class AdminArticleControllerDatabaseTest {
     @Test
     public void shouldCreatePublishedArticleWithTransparentPublishStreamThroughRealDao() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            db.loadAdminWebModules();
             applicationConfig = db.config();
             setAdminToken();
             ResponseRecorder response = new ResponseRecorder();
@@ -346,6 +387,7 @@ public class AdminArticleControllerDatabaseTest {
     @SuppressWarnings("unchecked")
     public void shouldRenderExistingPublishedArticleAsTransparentPublishStreamThroughRealDao() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            db.loadAdminWebModules();
             applicationConfig = db.config();
             setAdminToken();
             ResponseRecorder createResponse = new ResponseRecorder();
@@ -372,6 +414,7 @@ public class AdminArticleControllerDatabaseTest {
     @SuppressWarnings("unchecked")
     public void shouldUpdatePublishedArticleWithTransparentPublishStreamThroughRealDao() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            db.loadAdminWebModules();
             applicationConfig = db.config();
             setAdminToken();
             ResponseRecorder createResponse = new ResponseRecorder();
@@ -401,6 +444,7 @@ public class AdminArticleControllerDatabaseTest {
     @Test
     public void shouldUseWebsiteConfiguredArticlePageSizeWhenRequestSizeIsMissing() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            db.loadAdminWebModules();
             applicationConfig = db.config();
             setAdminToken();
             db.putWebsite("admin_article_page_size", 1);
@@ -418,6 +462,7 @@ public class AdminArticleControllerDatabaseTest {
     @Test
     public void shouldUseDefaultArticlePageSizeWhenWebsiteConfigIsBlank() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            db.loadAdminWebModules();
             applicationConfig = db.config();
             setAdminToken();
             db.putWebsite("admin_article_page_size", "");
@@ -435,6 +480,7 @@ public class AdminArticleControllerDatabaseTest {
     @Test
     public void shouldDeleteArticleThroughRealDao() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            db.loadAdminWebModules();
             applicationConfig = db.config();
             setAdminToken();
             ResponseRecorder createResponse = new ResponseRecorder();
@@ -453,9 +499,15 @@ public class AdminArticleControllerDatabaseTest {
     @Test
     public void shouldRecordPublishCheckNoticesThroughPublishingService() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            db.loadAdminWebModules();
             applicationConfig = db.config();
             db.putWebsite("admin_cache:message_center_operation_notices", "[]");
-            AIPublishCheckService publishingService = new AIPublishCheckService();
+            AIPublishCheckService publishingService =
+                    new AIPublishCheckService(
+                            ApplicationServicesFixture.settings(),
+                            ApplicationServicesFixture.operations(),
+                            AIServiceDependencies.writing(),
+                            AIServiceDependencies.conversations());
 
             publishingService.recordPublishCheckSuccess(7L, "Checked Article",
                     Map.of("score", 90, "items", List.of("ok")));
@@ -474,12 +526,19 @@ public class AdminArticleControllerDatabaseTest {
     @Test
     public void shouldManageArticleAiMessagesThroughRealWebsiteTable() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            db.loadAdminWebModules();
             applicationConfig = db.config();
             setAdminToken();
             AIResponseEntry.AIContentEntry message = new AIResponseEntry.AIContentEntry("user", "Check this article");
             message.setMessageType("knowledge");
-            assertTrue(new com.zrlog.admin.business.ai.service.AIConversationService()
-                    .appendAIMessageEntries(List.of(message), 9L));
+            assertTrue(
+                    new AIConversationService(
+                                    AccountServicesFixture.component().security(),
+                                    ApplicationServicesFixture.websiteKv(),
+                                    WebSite::new,
+                                    new AIFileService(),
+                                    AIServiceDependencies.approvals())
+                            .appendAIMessageEntries(List.of(message), 9L));
 
             ApiStandardResponse<Boolean> updated = aiController(Map.of("id", "9"),
                     "{\"messageId\":\"" + message.getMessageId() + "\",\"tool\":\"publishCheck\","
@@ -505,11 +564,18 @@ public class AdminArticleControllerDatabaseTest {
     @Test
     public void shouldApplyExternalCoverAndUpdateAiMessagePayloadThroughRealWebsiteTable() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            db.loadAdminWebModules();
             applicationConfig = db.config();
             setAdminToken();
             AIResponseEntry.AIContentEntry message = new AIResponseEntry.AIContentEntry("assistant", "Cover");
-            assertTrue(new com.zrlog.admin.business.ai.service.AIConversationService()
-                    .appendAIMessageEntries(List.of(message), 9L));
+            assertTrue(
+                    new AIConversationService(
+                                    AccountServicesFixture.component().security(),
+                                    ApplicationServicesFixture.websiteKv(),
+                                    WebSite::new,
+                                    new AIFileService(),
+                                    AIServiceDependencies.approvals())
+                            .appendAIMessageEntries(List.of(message), 9L));
             String messageId = message.getMessageId();
 
             ApiStandardResponse<UploadFileResponse> applied = aiController(Map.of("id", "9"),
@@ -528,24 +594,34 @@ public class AdminArticleControllerDatabaseTest {
     @Test
     public void shouldAuthorizeChatArticleFromBodyWithoutRequiringQueryId() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            db.loadAdminWebModules();
             applicationConfig = db.config();
             db.execute("update user set role='editor' where userId=1");
             db.execute("insert into user(userId,userName,role) values(?,?,?)", 2, "writer", "author");
             db.execute("insert into log(logId,userId,typeId,title,privacy,rubbish) values(?,?,?,?,?,?)",
                     9, 2, 1, "Private article", true, false);
             String body = "{\"input\":\"Read this article\",\"articleId\":9}";
-            com.zrlog.admin.business.service.AccountPermissionService.checkRoute(
-                    AIArticleController.class.getMethod("ai"), request(Map.of(), body));
-            org.junit.Assert.assertThrows(com.zrlog.admin.business.exception.PermissionErrorException.class,
+            AccountServicesFixture.component()
+                    .permissions()
+                    .checkRoute(AIArticleController.class.getMethod("ai"), request(Map.of(), body));
+            org.junit.Assert.assertThrows(
+                    PermissionErrorException.class,
                     () -> aiController(Map.of(), body, new ResponseRecorder()).ai());
-            org.junit.Assert.assertThrows(com.zrlog.common.exception.ArgsException.class,
-                    () -> aiController(Map.of(), "{\"input\":\"Hello\",\"articleId\":0}", new ResponseRecorder()).ai());
+            org.junit.Assert.assertThrows(
+                    ArgsException.class,
+                    () ->
+                            aiController(
+                                            Map.of(),
+                                            "{\"input\":\"Hello\",\"articleId\":0}",
+                                            new ResponseRecorder())
+                                    .ai());
         }
     }
 
     @Test
     public void shouldReturnAiToolConfigurationErrorAsSseResponse() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            db.loadAdminWebModules();
             applicationConfig = db.config();
             ResponseRecorder response = new ResponseRecorder();
 
@@ -565,8 +641,33 @@ public class AdminArticleControllerDatabaseTest {
     @Test
     public void shouldShortCircuitPublishCheckAndEmitReadyStatesWithoutCallingAi() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            db.loadAdminWebModules();
             applicationConfig = db.config();
-            ArticlePublishingService publishingService = new ArticlePublishingService(new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(db.config(), com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(db.resources()))), com.zrlog.admin.support.ApplicationServicesFixture.cacheRefresh(db.cacheService(), db.config()), markdown -> null);
+            ArticlePublishingService publishingService =
+                    new ArticlePublishingService(
+                            new AdminArticleService(
+                                    db.cacheService(),
+                                    ApplicationServicesFixture.capability(
+                                            db.config(), ArticleAssistant.class),
+                                    new AdminPageDataFactory(
+                                            ApplicationServicesFixture.site(db.config()),
+                                            ApplicationServicesFixture.buildId(db.resources()),
+                                            ApplicationServicesFixture.messages(),
+                                            AccountServicesFixture.component().permissions()),
+                                    AccountServicesFixture.component().permissions(),
+                                    AccountServicesFixture.component().preferences(),
+                                    new ArticleVersionService(
+                                            AccountServicesFixture.component().permissions(),
+                                            Log::new,
+                                            () -> new LogVersion(DAO.getDefaultDataSource())),
+                                    new ArticlePinningService(
+                                            Log::new, ApplicationServicesFixture.locks()),
+                                    Log::new,
+                                    ApplicationServicesFixture.locks()),
+                            ApplicationServicesFixture.cacheRefresh(db.cacheService(), db.config()),
+                            markdown -> null,
+                            ApplicationServicesFixture.audit(),
+                            ApplicationServicesFixture.operations());
             CreateArticleRequest request = new CreateArticleRequest();
             request.setTransparentPublish(true);
             request.setRubbish(false);
@@ -574,17 +675,35 @@ public class AdminArticleControllerDatabaseTest {
             AIArticleGlobalResponse global = new AIArticleGlobalResponse();
             global.setPublishCheckEnabled(false);
             global.setAiConfigured(true);
-            AdminPageDataResponse<ArticleGlobalResponse> detail = new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(db.resources())).response(global);
+            AdminPageDataResponse<ArticleGlobalResponse> detail =
+                    new AdminPageDataFactory(
+                                    ApplicationServicesFixture.site(db.config()),
+                                    ApplicationServicesFixture.buildId(db.resources()),
+                                    ApplicationServicesFixture.messages(),
+                                    AccountServicesFixture.component().permissions())
+                            .response(global);
 
             assertTrue(publishingService.shouldUseTransparentPublishStream(request));
-            assertNull(new AIPublishCheckService().startPublishCheck(detail.getData(), request));
+            assertNull(
+                    new AIPublishCheckService(
+                                    ApplicationServicesFixture.settings(),
+                                    ApplicationServicesFixture.operations(),
+                                    AIServiceDependencies.writing(),
+                                    AIServiceDependencies.conversations())
+                            .startPublishCheck(detail.getData(), request));
 
             request.setPrivacy(true);
             global.setPublishCheckEnabled(true);
             global.setAiConfigured(false);
 
             assertFalse(publishingService.shouldUseTransparentPublishStream(request));
-            assertNull(new AIPublishCheckService().startPublishCheck(detail.getData(), request));
+            assertNull(
+                    new AIPublishCheckService(
+                                    ApplicationServicesFixture.settings(),
+                                    ApplicationServicesFixture.operations(),
+                                    AIServiceDependencies.writing(),
+                                    AIServiceDependencies.conversations())
+                            .startPublishCheck(detail.getData(), request));
 
             String successPayload = emitPublishCheck(
                     CompletableFuture.completedFuture(new PublishCheckResponse(
@@ -608,6 +727,7 @@ public class AdminArticleControllerDatabaseTest {
     @Test(timeout = 5000)
     public void shouldEmitPublishCheckErrorWhenWaitTimesOut() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            db.loadAdminWebModules();
             applicationConfig = db.config();
             String payload = emitPublishCheck(new CompletableFuture<>(), true, 20);
 
@@ -620,6 +740,7 @@ public class AdminArticleControllerDatabaseTest {
     @Test(timeout = 5000)
     public void shouldPreventLatePublishCheckPersistenceAfterTimeout() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            db.loadAdminWebModules();
             applicationConfig = db.config();
             db.putWebsite("admin_cache:message_center_operation_notices", "[]");
             CountDownLatch generationStarted = new CountDownLatch(1);
@@ -628,27 +749,45 @@ public class AdminArticleControllerDatabaseTest {
             AtomicBoolean commitAttempted = new AtomicBoolean(false);
             AtomicBoolean persistenceCalled = new AtomicBoolean(false);
             PublishCheckPersistenceGuard guard = new PublishCheckPersistenceGuard();
-            CompletableFuture<PublishCheckResponse> future = CompletableFuture.supplyAsync(() -> {
-                generationStarted.countDown();
-                try {
-                    awaitIgnoringInterrupts(releaseGeneration);
-                    commitAttempted.set(true);
-                    return guard.commit(() -> {
-                        persistenceCalled.set(true);
-                        AIResponseEntry.AIContentEntry entry =
-                                new AIResponseEntry.AIContentEntry("assistant", "late AI result");
-                        entry.setMessageId("late-ai-message");
-                        new AIConversationService().appendAIMessageEntries(List.of(entry), 42L);
-                        new MessageCenterOperationService().recordPublishCheckSuccess(
-                                42L, "Late publish check", 100, 0);
-                        return publishCheckResponse();
-                    });
-                } catch (Exception e) {
-                    throw new CompletionException(e);
-                } finally {
-                    generationFinished.countDown();
-                }
-            });
+            CompletableFuture<PublishCheckResponse> future =
+                    CompletableFuture.supplyAsync(
+                            () -> {
+                                generationStarted.countDown();
+                                try {
+                                    awaitIgnoringInterrupts(releaseGeneration);
+                                    commitAttempted.set(true);
+                                    return guard.commit(
+                                            () -> {
+                                                persistenceCalled.set(true);
+                                                AIResponseEntry.AIContentEntry entry =
+                                                        new AIResponseEntry.AIContentEntry(
+                                                                "assistant", "late AI result");
+                                                entry.setMessageId("late-ai-message");
+                                                new AIConversationService(
+                                                                AccountServicesFixture.component()
+                                                                        .security(),
+                                                                ApplicationServicesFixture
+                                                                        .websiteKv(),
+                                                                WebSite::new,
+                                                                new AIFileService(),
+                                                                AIServiceDependencies.approvals())
+                                                        .appendAIMessageEntries(
+                                                                List.of(entry), 42L);
+                                                new MessageCenterOperationService(
+                                                                ApplicationServicesFixture
+                                                                        .messages(),
+                                                                ApplicationServicesFixture
+                                                                        .websiteCache())
+                                                        .recordPublishCheckSuccess(
+                                                                42L, "Late publish check", 100, 0);
+                                                return publishCheckResponse();
+                                            });
+                                } catch (Exception e) {
+                                    throw new CompletionException(e);
+                                } finally {
+                                    generationFinished.countDown();
+                                }
+                            });
             PublishCheckTask task = new PublishCheckTask(
                     future, guard, 42L, "Late publish check");
 
@@ -676,6 +815,7 @@ public class AdminArticleControllerDatabaseTest {
     @Test(timeout = 5000)
     public void shouldIgnoreLatePublishCheckFailureAfterTimeoutNotice() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            db.loadAdminWebModules();
             applicationConfig = db.config();
             db.putWebsite("admin_cache:message_center_operation_notices", "[]");
             CountDownLatch generationStarted = new CountDownLatch(1);
@@ -711,6 +851,7 @@ public class AdminArticleControllerDatabaseTest {
     @Test(timeout = 5000)
     public void shouldEmitCommittedPublishCheckWhenCommitWinsTimeoutRace() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            db.loadAdminWebModules();
             applicationConfig = db.config();
             PublishCheckPersistenceGuard guard = new PublishCheckPersistenceGuard();
             PublishCheckResponse response = guard.commit(AdminArticleControllerDatabaseTest::publishCheckResponse);
@@ -730,6 +871,7 @@ public class AdminArticleControllerDatabaseTest {
     @Test
     public void shouldSendCompletedPublishCheckOnlyOnceAcrossCompetingCallbacks() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            db.loadAdminWebModules();
             applicationConfig = db.config();
             CompletableFuture<PublishCheckResponse> future =
                     CompletableFuture.completedFuture(publishCheckResponse());
@@ -745,6 +887,7 @@ public class AdminArticleControllerDatabaseTest {
     @Test
     public void shouldRecordFailedPublishCheckOnlyOnceAcrossCompetingCallbacks() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            db.loadAdminWebModules();
             applicationConfig = db.config();
             db.putWebsite("admin_cache:message_center_operation_notices", "[]");
             CompletableFuture<PublishCheckResponse> future = new CompletableFuture<>();
@@ -771,6 +914,7 @@ public class AdminArticleControllerDatabaseTest {
     @SuppressWarnings("unchecked")
     public void shouldStartPublishCheckAndRecordConfigurationErrorThroughRealWebsiteTable() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            db.loadAdminWebModules();
             applicationConfig = db.config();
             db.putWebsite("admin_cache:message_center_operation_notices", "[]");
             AdminArticleController controller = controller(db.cacheService(), Map.of(), null, new ResponseRecorder());
@@ -783,9 +927,21 @@ public class AdminArticleControllerDatabaseTest {
             global.setArticle(article);
             global.setPublishCheckEnabled(true);
             global.setAiConfigured(true);
-            AdminPageDataResponse<ArticleGlobalResponse> detail = new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(db.resources())).response(global);
+            AdminPageDataResponse<ArticleGlobalResponse> detail =
+                    new AdminPageDataFactory(
+                                    ApplicationServicesFixture.site(db.config()),
+                                    ApplicationServicesFixture.buildId(db.resources()),
+                                    ApplicationServicesFixture.messages(),
+                                    AccountServicesFixture.component().permissions())
+                            .response(global);
 
-            PublishCheckTask task = new AIPublishCheckService().startPublishCheck(detail.getData(), request);
+            PublishCheckTask task =
+                    new AIPublishCheckService(
+                                    ApplicationServicesFixture.settings(),
+                                    ApplicationServicesFixture.operations(),
+                                    AIServiceDependencies.writing(),
+                                    AIServiceDependencies.conversations())
+                            .startPublishCheck(detail.getData(), request);
 
             assertNotNull(task);
             String payload = emitPublishCheck(task, true, null);
@@ -867,15 +1023,56 @@ public class AdminArticleControllerDatabaseTest {
                 + "}";
     }
 
-    private AdminArticleController controller(com.zrlog.common.CacheService cache, Map<String, String> params, String body,
-                                                     ResponseRecorder response) throws Exception {
+    private AdminArticleController controller(
+            CacheService cache, Map<String, String> params, String body, ResponseRecorder response)
+            throws Exception {
         return controller(cache, params, body, response, markdown -> null);
     }
 
-    private AdminArticleController controller(com.zrlog.common.CacheService cache, Map<String, String> params, String body,
-                                                     ResponseRecorder response, com.zrlog.business.service.MarkdownRenderer renderer) throws Exception {
-        AdminArticleService articles = new AdminArticleService(cache, com.zrlog.admin.support.ApplicationServicesFixture.capability(applicationConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), () -> "test"));
-        AdminArticleController controller = new AdminArticleController(articles, new ArticlePublishingService(articles, com.zrlog.admin.support.ApplicationServicesFixture.cacheRefresh(cache, applicationConfig), renderer), com.zrlog.admin.support.ApplicationServicesFixture.publisher(null, applicationConfig), com.zrlog.admin.support.ApplicationServicesFixture.capability(applicationConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), () -> "test"));
+    private AdminArticleController controller(
+            CacheService cache,
+            Map<String, String> params,
+            String body,
+            ResponseRecorder response,
+            MarkdownRenderer renderer)
+            throws Exception {
+        AdminArticleService articles =
+                new AdminArticleService(
+                        cache,
+                        ApplicationServicesFixture.capability(
+                                applicationConfig, ArticleAssistant.class),
+                        new AdminPageDataFactory(
+                                ApplicationServicesFixture.site(applicationConfig),
+                                () -> "test",
+                                ApplicationServicesFixture.messages(),
+                                AccountServicesFixture.component().permissions()),
+                        AccountServicesFixture.component().permissions(),
+                        AccountServicesFixture.component().preferences(),
+                        new ArticleVersionService(
+                                AccountServicesFixture.component().permissions(),
+                                Log::new,
+                                () -> new LogVersion(DAO.getDefaultDataSource())),
+                        new ArticlePinningService(Log::new, ApplicationServicesFixture.locks()),
+                        Log::new,
+                        ApplicationServicesFixture.locks());
+        AdminArticleController controller =
+                new AdminArticleController(
+                        articles,
+                        new ArticlePublishingService(
+                                articles,
+                                ApplicationServicesFixture.cacheRefresh(cache, applicationConfig),
+                                renderer,
+                                ApplicationServicesFixture.audit(),
+                                ApplicationServicesFixture.operations()),
+                        ApplicationServicesFixture.publisher(null, applicationConfig),
+                        ApplicationServicesFixture.capability(
+                                applicationConfig, ArticleAssistant.class),
+                        new AdminPageDataFactory(
+                                ApplicationServicesFixture.site(applicationConfig),
+                                () -> "test",
+                                ApplicationServicesFixture.messages(),
+                                AccountServicesFixture.component().permissions()),
+                        AccountServicesFixture.component().preferences());
         setControllerField(controller, "request", request(params, body));
         setControllerField(controller, "response", response.response());
         return controller;
@@ -883,7 +1080,31 @@ public class AdminArticleControllerDatabaseTest {
 
     private static AIArticleController aiController(Map<String, String> params, String body,
                                                      ResponseRecorder response) throws Exception {
-        AIArticleController controller = new AIArticleController(new com.zrlog.admin.business.service.UploadService(() -> null), new com.zrlog.admin.business.ai.service.AIChatService(), new com.zrlog.admin.business.ai.service.AIReferenceService(null));
+        AIArticleController controller =
+                new AIArticleController(
+                        new UploadService(
+                                () -> null,
+                                AccountServicesFixture.component().permissions(),
+                                new DbFileService(
+                                        ApplicationServicesFixture.websiteKv(), WebSite::new)),
+                        new AIChatService(
+                                AccountServicesFixture.component().permissions(),
+                                AccountServicesFixture.component().preferences(),
+                                AIServiceDependencies.approvals(),
+                                new AIFileService(),
+                                AIServiceDependencies.writing(),
+                                AIServiceDependencies.conversations(),
+                                AIServiceDependencies.writingTools(),
+                                AIServiceDependencies.references(null)),
+                        new AIReferenceService(
+                                null,
+                                AccountServicesFixture.component().permissions(),
+                                AccountServicesFixture.component().preferences()),
+                        AccountServicesFixture.component().permissions(),
+                        new AIFileService(),
+                        AIServiceDependencies.publishing(),
+                        AIServiceDependencies.images(),
+                        AIServiceDependencies.conversations());
         setControllerField(controller, "request", request(params, body));
         setControllerField(controller, "response", response.response());
         return controller;
@@ -906,25 +1127,27 @@ public class AdminArticleControllerDatabaseTest {
         throw new IllegalArgumentException("No method " + name);
     }
 
-    private static String emitPublishCheck(CompletableFuture<PublishCheckResponse> future, boolean wait)
+    private String emitPublishCheck(CompletableFuture<PublishCheckResponse> future, boolean wait)
             throws Exception {
         return emitPublishCheck(future, wait, null);
     }
 
-    private static String emitPublishCheck(CompletableFuture<PublishCheckResponse> future, boolean wait,
-                                           Integer timeoutMillis) throws Exception {
+    private String emitPublishCheck(
+            CompletableFuture<PublishCheckResponse> future, boolean wait, Integer timeoutMillis)
+            throws Exception {
         return emitPublishCheck(new PublishCheckTask(
                 future, new PublishCheckPersistenceGuard(), null, null), wait, timeoutMillis);
     }
 
-    private static String emitPublishCheck(PublishCheckTask task, boolean wait,
-                                           Integer timeoutMillis) throws Exception {
+    private String emitPublishCheck(PublishCheckTask task, boolean wait, Integer timeoutMillis)
+            throws Exception {
         return emitPublishCheck(task, wait, timeoutMillis, 1);
     }
 
-    private static String emitPublishCheck(PublishCheckTask task, boolean wait,
-                                           Integer timeoutMillis, int attempts) throws Exception {
-        AIWebSetup controller = new AIWebSetup(new com.hibegin.http.server.config.ServerConfig());
+    private String emitPublishCheck(
+            PublishCheckTask task, boolean wait, Integer timeoutMillis, int attempts)
+            throws Exception {
+        AIWebSetup controller = new AIWebSetup(applicationConfig.getServerConfig());
         try (PipedInputStream inputStream = new PipedInputStream();
              PipedOutputStream outputStream = new PipedOutputStream(inputStream)) {
             AdminSseEmitter emitter = new AdminSseEmitter(outputStream);

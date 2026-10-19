@@ -1,17 +1,30 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.*;
+
 import com.zrlog.admin.business.security.OAuthException;
+import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
+
 import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.List;
 
-import static org.junit.Assert.*;
-
 public class OAuthAdminOriginTest {
     private static final String SETTING = "admin_static_resource_base_url";
-    private final OAuthService service = new OAuthService(() -> "https://api.example/sub", () -> true);
+    private final OAuthService service =
+            new OAuthService(
+                    () -> "https://api.example/sub",
+                    () -> true,
+                    AccountServicesFixture.component().permissions(),
+                    AccountServicesFixture.component().security(),
+                    tokenResource ->
+                            new PersonalAccessTokenService(
+                                    tokenResource,
+                                    AccountServicesFixture.component().permissions(),
+                                    AccountServicesFixture.component().security()),
+                    AccountServicesFixture.component().backend());
 
     @Test public void onlyBackendOriginIsTrustedWithoutAConfiguredFrontend() throws Exception {
         try (var db = InMemoryZrLogDatabase.open()) {

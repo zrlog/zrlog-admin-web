@@ -1,23 +1,30 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.*;
+
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.hibegin.common.dao.DAO;
 import com.hibegin.http.server.api.HttpRequest;
+import com.zrlog.admin.business.content.ArticleAssistant;
 import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.exception.UpdateArticleExpireException;
 import com.zrlog.admin.business.rest.request.CreateArticleRequest;
 import com.zrlog.admin.business.rest.request.UpdateArticleRequest;
+import com.zrlog.admin.support.AccountServicesFixture;
+import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
+import com.zrlog.model.Log;
+import com.zrlog.model.LogVersion;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.lang.reflect.Proxy;
 import java.util.Map;
-
-import static org.junit.Assert.*;
 
 @RunWith(Parameterized.class)
 public class ArticlePublishingServiceDatabaseTest {
@@ -35,7 +42,31 @@ public class ArticlePublishingServiceDatabaseTest {
     @Test
     public void recordsCreationAndPublicationButNotDraftOrPrivateUpdatesOrVersionConflicts() throws Exception {
         try (InMemoryZrLogDatabase db = open()) {
-            ArticlePublishingService publishing = new ArticlePublishingService(new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(db.config(), com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(db.resources()))), com.zrlog.admin.support.ApplicationServicesFixture.cacheRefresh(db.cacheService(), db.config()), markdown -> null);
+            ArticlePublishingService publishing =
+                    new ArticlePublishingService(
+                            new AdminArticleService(
+                                    db.cacheService(),
+                                    ApplicationServicesFixture.capability(
+                                            db.config(), ArticleAssistant.class),
+                                    new AdminPageDataFactory(
+                                            ApplicationServicesFixture.site(db.config()),
+                                            ApplicationServicesFixture.buildId(db.resources()),
+                                            ApplicationServicesFixture.messages(),
+                                            AccountServicesFixture.component().permissions()),
+                                    AccountServicesFixture.component().permissions(),
+                                    AccountServicesFixture.component().preferences(),
+                                    new ArticleVersionService(
+                                            AccountServicesFixture.component().permissions(),
+                                            Log::new,
+                                            () -> new LogVersion(DAO.getDefaultDataSource())),
+                                    new ArticlePinningService(
+                                            Log::new, ApplicationServicesFixture.locks()),
+                                    Log::new,
+                                    ApplicationServicesFixture.locks()),
+                            ApplicationServicesFixture.cacheRefresh(db.cacheService(), db.config()),
+                            markdown -> null,
+                            ApplicationServicesFixture.audit(),
+                            ApplicationServicesFixture.operations());
             CreateArticleRequest create = new CreateArticleRequest();
             create.setTitle("Original");
             create.setTypeId(1L);
@@ -90,7 +121,31 @@ public class ArticlePublishingServiceDatabaseTest {
             body.setTypeId(1L);
             body.setContent("Published content");
             body.setPreserveDraftAiMessages(true);
-            new ArticlePublishingService(new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(db.config(), com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(db.resources()))), com.zrlog.admin.support.ApplicationServicesFixture.cacheRefresh(db.cacheService(), db.config()), markdown -> null).create(AdminTokenThreadLocal.getUser(), body, request());
+            new ArticlePublishingService(
+                            new AdminArticleService(
+                                    db.cacheService(),
+                                    ApplicationServicesFixture.capability(
+                                            db.config(), ArticleAssistant.class),
+                                    new AdminPageDataFactory(
+                                            ApplicationServicesFixture.site(db.config()),
+                                            ApplicationServicesFixture.buildId(db.resources()),
+                                            ApplicationServicesFixture.messages(),
+                                            AccountServicesFixture.component().permissions()),
+                                    AccountServicesFixture.component().permissions(),
+                                    AccountServicesFixture.component().preferences(),
+                                    new ArticleVersionService(
+                                            AccountServicesFixture.component().permissions(),
+                                            Log::new,
+                                            () -> new LogVersion(DAO.getDefaultDataSource())),
+                                    new ArticlePinningService(
+                                            Log::new, ApplicationServicesFixture.locks()),
+                                    Log::new,
+                                    ApplicationServicesFixture.locks()),
+                            ApplicationServicesFixture.cacheRefresh(db.cacheService(), db.config()),
+                            markdown -> null,
+                            ApplicationServicesFixture.audit(),
+                            ApplicationServicesFixture.operations())
+                    .create(AdminTokenThreadLocal.getUser(), body, request());
             JsonArray audit = audit(db);
             assertEquals(2, audit.size());
             assertEquals("PUBLISH_ARTICLE", audit.get(0).getAsJsonObject().get("action").getAsString());
@@ -108,7 +163,31 @@ public class ArticlePublishingServiceDatabaseTest {
                 db.execute("insert into log(logId,userId,typeId,title,rubbish,privacy,version) values(?, ?,1,'Article',true,false,0)",
                         id, id == 12 ? 2 : 1);
             }
-            ArticlePublishingService publishing = new ArticlePublishingService(new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(db.config(), com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(db.resources()))), com.zrlog.admin.support.ApplicationServicesFixture.cacheRefresh(db.cacheService(), db.config()), markdown -> null);
+            ArticlePublishingService publishing =
+                    new ArticlePublishingService(
+                            new AdminArticleService(
+                                    db.cacheService(),
+                                    ApplicationServicesFixture.capability(
+                                            db.config(), ArticleAssistant.class),
+                                    new AdminPageDataFactory(
+                                            ApplicationServicesFixture.site(db.config()),
+                                            ApplicationServicesFixture.buildId(db.resources()),
+                                            ApplicationServicesFixture.messages(),
+                                            AccountServicesFixture.component().permissions()),
+                                    AccountServicesFixture.component().permissions(),
+                                    AccountServicesFixture.component().preferences(),
+                                    new ArticleVersionService(
+                                            AccountServicesFixture.component().permissions(),
+                                            Log::new,
+                                            () -> new LogVersion(DAO.getDefaultDataSource())),
+                                    new ArticlePinningService(
+                                            Log::new, ApplicationServicesFixture.locks()),
+                                    Log::new,
+                                    ApplicationServicesFixture.locks()),
+                            ApplicationServicesFixture.cacheRefresh(db.cacheService(), db.config()),
+                            markdown -> null,
+                            ApplicationServicesFixture.audit(),
+                            ApplicationServicesFixture.operations());
             assertTrue(publishing.deleteArticles("10", request()).getData().getDelete());
             assertThrows(PermissionErrorException.class, () -> publishing.deleteArticles("11,12", request()));
             assertEquals(1, ((Number) db.scalar("select count(*) from log")).intValue());

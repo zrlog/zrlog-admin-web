@@ -1,15 +1,20 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.*;
+
 import com.google.gson.*;
+import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.knowledge.*;
 import com.zrlog.admin.business.knowledge.KnowledgeModels.*;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.data.security.AccountAccess;
+import com.zrlog.data.security.ArticleAccess;
+import com.zrlog.model.Log;
+
 import org.junit.Test;
 
 import java.util.*;
-
-import static org.junit.Assert.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @org.junit.runner.RunWith(org.junit.runners.Parameterized.class)
 public class KnowledgeServiceTest {
@@ -19,7 +24,18 @@ public class KnowledgeServiceTest {
     public KnowledgeServiceTest(boolean sqlite) { this.sqlite = sqlite; }
     private InMemoryZrLogDatabase database() throws Exception { return sqlite ? InMemoryZrLogDatabase.openSqlite() : InMemoryZrLogDatabase.open(); }
     private KnowledgeService service(int user, Set<String> scopes) {
-        return new KnowledgeService(() -> { try { return AccountAccess.load(user); } catch(Exception e) { throw new RuntimeException(e); } }, scopes, () -> "https://blog.example/sub", () -> false);
+        return new KnowledgeService(
+                () -> {
+                    try {
+                        return AccountAccess.load(user);
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                },
+                scopes,
+                () -> "https://blog.example/sub",
+                () -> false,
+                Log::new);
     }
     private void seed(InMemoryZrLogDatabase db) throws Exception {
         db.execute("insert into user(userId,userName,role) values(?,?,?)", 2,"writer","author");
@@ -40,7 +56,13 @@ public class KnowledgeServiceTest {
                     while(offset!=null) { SearchResult page=search(service,"{\"limit\":1,\"offset\":"+offset+"}"); for(Source s:page.articles) ids.add(s.id); offset=page.nextOffset; }
                     AccountAccess account=AccountAccess.load(1);
                     for(int id=1;id<=6;id++) {
-                        boolean expected=com.zrlog.data.security.ArticleAccess.canRead(account,options.scopes(),id<=3?1:2,id==2||id==5,id==3||id==6);
+                                boolean expected =
+                                        ArticleAccess.canRead(
+                                                account,
+                                                options.scopes(),
+                                                id <= 3 ? 1 : 2,
+                                                id == 2 || id == 5,
+                                                id == 3 || id == 6);
                         assertEquals(role+" id="+id,expected,ids.contains((long)id));
                         if(expected) assertEquals(id,read(service,id).source.id);
                         else { final int denied=id; assertEquals("Article unavailable",assertThrows(IllegalArgumentException.class,()->read(service,denied)).getMessage()); }
@@ -52,10 +74,20 @@ public class KnowledgeServiceTest {
     @Test public void sourceUrlsFollowInjectedStaticModeWithoutGlobalConfig() throws Exception {
         try (InMemoryZrLogDatabase db = database()) {
             seed(db);
-            var staticHtml = new java.util.concurrent.atomic.AtomicBoolean(false);
-            KnowledgeService service = new KnowledgeService(() -> {
-                try { return AccountAccess.load(1); } catch (Exception e) { throw new RuntimeException(e); }
-            }, Set.of("articles:read", "articles:read_drafts"), () -> "https://blog.example/sub", staticHtml::get);
+            var staticHtml = new AtomicBoolean(false);
+            KnowledgeService service =
+                    new KnowledgeService(
+                            () -> {
+                                try {
+                                    return AccountAccess.load(1);
+                                } catch (Exception e) {
+                                    throw new RuntimeException(e);
+                                }
+                            },
+                            Set.of("articles:read", "articles:read_drafts"),
+                            () -> "https://blog.example/sub",
+                            staticHtml::get,
+                            Log::new);
             assertEquals("https://blog.example/sub/article-1", read(service, 1).source.url);
             staticHtml.set(true);
             assertEquals("https://blog.example/sub/article-1.html", read(service, 1).source.url);
@@ -75,7 +107,7 @@ public class KnowledgeServiceTest {
             for(String args:List.of("{\"limit\":11}","{\"limit\":1.1}","{\"limit\":\"1\"}","{\"offset\":-1}","{\"query\":null}","{\"sql\":\"select\"}")) assertThrows(IllegalArgumentException.class,()->search(service,args));
             assertEquals("Article unavailable",assertThrows(IllegalArgumentException.class,()->read(service,999)).getMessage());
             db.execute("update user set enabled=? where userId=1",false);
-            assertThrows(com.zrlog.admin.business.exception.PermissionErrorException.class,()->search(service,"{}"));
+            assertThrows(PermissionErrorException.class, () -> search(service, "{}"));
         }
     }
 }

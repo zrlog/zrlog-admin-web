@@ -10,21 +10,40 @@ import com.zrlog.data.security.AccountAction;
 import com.zrlog.updater.spi.DockerControl;
 import com.zrlog.util.ZrLogUtil;
 
+import jakarta.inject.Inject;
+import jakarta.inject.Singleton;
+
 import java.sql.SQLException;
 import java.util.function.Supplier;
 
 /** Aggregates the existing website settings and the private updater protocol. */
+@Singleton
 public class UpgradeSettingsService {
+    private final WebSiteService webSiteService;
+
+    private final AccountPermissionService permissionService;
+
     private final WebSiteSettingsService settingsService;
     private final Supplier<DockerControl> docker;
 
-    public UpgradeSettingsService(WebSiteSettingsService settingsService, Supplier<DockerControl> docker) {
+    @Inject
+    public UpgradeSettingsService(
+            WebSiteSettingsService settingsService,
+            Supplier<DockerControl> docker,
+            AccountPermissionService permissionService,
+            WebSiteService webSiteService) {
+        this.webSiteService = webSiteService;
+
+        this.permissionService = permissionService;
+
         this.docker = docker;
         this.settingsService = settingsService;
     }
 
     public UpgradeSettingsResponse read(String requestedChannel) throws SQLException {
-        UpgradeSettingsResponse response = new UpgradeSettingsResponse(new WebSiteService().upgradeWebSiteInfo(), isDockerMode());
+        UpgradeSettingsResponse response =
+                new UpgradeSettingsResponse(
+                        this.webSiteService.upgradeWebSiteInfo(), isDockerMode());
         if (!response.isDockerMode()) { return response; }
         requireDockerPermission();
         String channel = requestedChannel == null ? channel(response.getUpgradePreview()) : requestedChannel;
@@ -76,6 +95,10 @@ public class UpgradeSettingsService {
 
     protected boolean isDockerMode() { return ZrLogUtil.isDockerMode(); }
     protected DockerControl dockerClient() { return docker.get(); }
-    protected void requireDockerPermission() { AccountPermissionService.require(AccountAction.SYSTEM_MANAGE); }
+
+    protected void requireDockerPermission() {
+        permissionService.require(AccountAction.SYSTEM_MANAGE);
+    }
+
     private String channel(Boolean preview) { return Boolean.TRUE.equals(preview) ? "preview" : "release"; }
 }

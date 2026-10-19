@@ -10,11 +10,20 @@ import com.zrlog.admin.business.rest.response.AIWebSiteInfoResponse;
 import com.zrlog.admin.business.service.WebSiteSettingsService;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.model.WebSite;
+
+import jakarta.inject.Inject;
+
 import java.sql.SQLException;
-import java.util.stream.Collectors;
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class AIConfigService {
+    private final jakarta.inject.Provider<WebSite> webSiteProvider;
+
+    @Inject
+    public AIConfigService(jakarta.inject.Provider<WebSite> webSiteProvider) {
+        this.webSiteProvider = webSiteProvider;
+    }
 
     public static final String AI_REASONING_ENABLED_KEY = "ai_reasoning_enabled";
     static final List<String> AI_WEBSITE_INFO_KEYS = Arrays.asList("ai_provider", "ai_model", "ai_base_url", "ai_api_key", "ai_prompt",
@@ -31,8 +40,8 @@ public class AIConfigService {
         return info;
     }
 
-    static <T> T queryToMap(List<String> names, Class<T> clazz) {
-        Map<String, Object> webSiteByNameIn = new WebSite().getWebSiteByNameIn(names);
+    <T> T queryToMap(List<String> names, Class<T> clazz) {
+        Map<String, Object> webSiteByNameIn = this.webSiteProvider.get().getWebSiteByNameIn(names);
         return ResultBeanUtils.convert(webSiteByNameIn, clazz);
     }
 

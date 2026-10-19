@@ -12,14 +12,22 @@ import com.zrlog.common.controller.BaseController;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.data.security.AccountAction;
 
+import jakarta.inject.Inject;
+
 import java.sql.SQLException;
 import java.util.List;
 
 public class MessageCenterController extends BaseController {
+    private final MessageCenterOperationService messageCenterOperationService;
 
     private final MessageCenterService messageCenterService;
 
-    public MessageCenterController(MessageCenterService messageCenterService) {
+    @Inject
+    public MessageCenterController(
+            MessageCenterService messageCenterService,
+            MessageCenterOperationService messageCenterOperationService) {
+        this.messageCenterOperationService = messageCenterOperationService;
+
         this.messageCenterService = messageCenterService;
     }
 
@@ -40,7 +48,8 @@ public class MessageCenterController extends BaseController {
     @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "notice.restart")
     public UpdateRecordResponse upgradeRestart() {
         UpgradeRestartNoticeRequest noticeRequest = getRequestBodyWithNullCheck(UpgradeRestartNoticeRequest.class);
-        new MessageCenterOperationService().recordUpgradeRestart(noticeRequest.getStatus(), noticeRequest.getBuildId());
+        this.messageCenterOperationService.recordUpgradeRestart(
+                noticeRequest.getStatus(), noticeRequest.getBuildId());
         return new UpdateRecordResponse(true);
     }
 }

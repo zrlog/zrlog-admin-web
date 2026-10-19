@@ -1,6 +1,9 @@
 package com.zrlog.model;
 
 import com.hibegin.common.dao.BasePageableDAO;
+import com.hibegin.common.dao.DataSourceWrapper;
+
+import jakarta.inject.Inject;
 
 import java.sql.SQLException;
 import java.util.List;
@@ -10,7 +13,9 @@ public class UserPasskey extends BasePageableDAO {
 
     public static final String TABLE_NAME = "user_passkey";
 
-    public UserPasskey() {
+    @Inject
+    public UserPasskey(DataSourceWrapper database) {
+        super(database);
         this.tableName = TABLE_NAME;
         this.pk = "id";
     }

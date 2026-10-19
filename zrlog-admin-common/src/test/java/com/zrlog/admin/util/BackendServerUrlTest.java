@@ -1,21 +1,24 @@
 package com.zrlog.admin.util;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
+
 import com.hibegin.http.server.api.HttpRequest;
+import com.zrlog.admin.support.ApplicationServicesFixture;
+import com.zrlog.admin.support.InMemoryZrLogDatabase;
+
 import org.junit.Test;
 
 import java.lang.reflect.Proxy;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThrows;
-
 public class BackendServerUrlTest {
 
     @Test
     public void browserOriginsSupportHttpHostsAndContextPathsWithoutWeakeningOAuth() throws Exception {
-        try (var db = com.zrlog.admin.support.InMemoryZrLogDatabase.open()) {
-            var backend = com.zrlog.admin.support.ApplicationServicesFixture.backend(db.config());
+        try (var db = InMemoryZrLogDatabase.open()) {
+            var backend = ApplicationServicesFixture.backend(db.config());
             var server = db.config().getServerConfig();
             for (String host : List.of("192.168.1.12:8080", "blog.example", "blog.example:80", "[fd00::1]:8080")) {
                 db.cacheService().getPublicWebSiteInfo().setHost(host);
@@ -30,15 +33,18 @@ public class BackendServerUrlTest {
             db.cacheService().getPublicWebSiteInfo().setHost("blog.example");
             backend.requireAdminRequestOrigin(request("http://blog.example:80", "http"));
             assertThrows(IllegalArgumentException.class, () -> BackendServerUrl.normalize("http://blog.example"));
-            assertThrows(IllegalArgumentException.class,
-                    () -> BackendServerUrl.requireAdminOrigin("http://blog.example", "http://blog.example/sub"));
+            assertThrows(
+                    IllegalArgumentException.class,
+                    () ->
+                            backend.requireAdminOrigin(
+                                    "http://blog.example", "http://blog.example/sub"));
         }
     }
 
     @Test
     public void browserOriginsUseExplicitBackendAndFrontendConfiguration() throws Exception {
-        try (var db = com.zrlog.admin.support.InMemoryZrLogDatabase.open()) {
-            var backend = com.zrlog.admin.support.ApplicationServicesFixture.backend(db.config());
+        try (var db = InMemoryZrLogDatabase.open()) {
+            var backend = ApplicationServicesFixture.backend(db.config());
             var server = db.config().getServerConfig();
             db.putWebsite(BackendServerUrl.SETTING_KEY, "http://api.internal:8080/proxy/sub");
             db.putWebsite("admin_static_resource_base_url", "http://admin.internal:3000/assets/sub");
@@ -57,8 +63,8 @@ public class BackendServerUrlTest {
 
     @Test
     public void browserOriginsRejectUntrustedAndMalformedHttpHeaders() throws Exception {
-        try (var db = com.zrlog.admin.support.InMemoryZrLogDatabase.open()) {
-            var backend = com.zrlog.admin.support.ApplicationServicesFixture.backend(db.config());
+        try (var db = InMemoryZrLogDatabase.open()) {
+            var backend = ApplicationServicesFixture.backend(db.config());
             var server = db.config().getServerConfig();
             db.cacheService().getPublicWebSiteInfo().setHost("blog.example");
             for (String origin : Arrays.asList(null, "", "null", "http://evil.example", "http://blog.example.evil.example",
@@ -92,8 +98,8 @@ public class BackendServerUrlTest {
 
     @Test
     public void explicitAddressesRemainAuthoritativeForLocalInstallations() throws Exception {
-        try (var db = com.zrlog.admin.support.InMemoryZrLogDatabase.open()) {
-            var backend = com.zrlog.admin.support.ApplicationServicesFixture.backend(db.config());
+        try (var db = InMemoryZrLogDatabase.open()) {
+            var backend = ApplicationServicesFixture.backend(db.config());
             var server = db.config().getServerConfig();
             server.setContextPath("/sub");
             db.cacheService().getPublicWebSiteInfo().setHost("blog.example");
@@ -113,11 +119,11 @@ public class BackendServerUrlTest {
 
     @Test
     public void localFallbackRequiresAValidListenerPort() throws Exception {
-        try (var db = com.zrlog.admin.support.InMemoryZrLogDatabase.open()) {
-            var backend = com.zrlog.admin.support.ApplicationServicesFixture.backend(db.config());
+        try (var db = InMemoryZrLogDatabase.open()) {
+            var backend = ApplicationServicesFixture.backend(db.config());
             var server = db.config().getServerConfig();
             db.cacheService().getPublicWebSiteInfo().setHost("");
-            for (Integer port : java.util.Arrays.asList(null, -1, 0, 65536)) {
+            for (Integer port : Arrays.asList(null, -1, 0, 65536)) {
                 server.setPort(port);
                 assertThrows(IllegalArgumentException.class, backend::configured);
             }

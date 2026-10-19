@@ -12,6 +12,8 @@ import com.zrlog.admin.web.annotation.RequiresAction;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.ZrLogUtil;
 
+import jakarta.inject.Inject;
+
 import java.sql.SQLException;
 
 public class AdminSystemController extends Controller {
@@ -20,6 +22,7 @@ public class AdminSystemController extends Controller {
 
     private final SystemInfoUtils systemInfo;
 
+    @Inject
     public AdminSystemController(SystemInfoUtils systemInfo, AdminPageDataFactory pages) {
         this.pages = pages;
         this.systemInfo = systemInfo;

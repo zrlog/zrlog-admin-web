@@ -1,10 +1,20 @@
 package com.zrlog.admin.web.controller.api;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
+
+import com.hibegin.common.dao.DAO;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
 import com.hibegin.http.server.web.Controller;
 import com.zrlog.admin.business.ai.model.AIProviderType;
+import com.zrlog.admin.business.ai.service.AIServiceDependencies;
+import com.zrlog.admin.business.content.ArticleAssistant;
+import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.rest.base.AdminWebSiteInfo;
 import com.zrlog.admin.business.rest.base.ArticleEditWebSiteInfo;
 import com.zrlog.admin.business.rest.base.BasicWebSiteInfo;
@@ -16,14 +26,35 @@ import com.zrlog.admin.business.rest.request.CreateArticleRequest;
 import com.zrlog.admin.business.rest.request.UpdateArticleRequest;
 import com.zrlog.admin.business.rest.response.AIWebSiteInfoResponse;
 import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
+import com.zrlog.admin.business.rest.response.AdminResourceInfoResponse;
 import com.zrlog.admin.business.rest.response.VersionResponse;
 import com.zrlog.admin.business.service.AdminArticleService;
+import com.zrlog.admin.business.service.AdminPageDataFactory;
 import com.zrlog.admin.business.service.AdminResourceService;
+import com.zrlog.admin.business.service.ArticlePinningService;
+import com.zrlog.admin.business.service.ArticleVersionService;
+import com.zrlog.admin.business.service.FeatureLabService;
+import com.zrlog.admin.business.service.OAuthService;
+import com.zrlog.admin.business.service.PersonalAccessTokenService;
+import com.zrlog.admin.business.service.UpgradeSettingsService;
 import com.zrlog.admin.business.service.WebSiteSettingsService;
+import com.zrlog.admin.business.service.WebhookService;
+import com.zrlog.admin.support.AccountServicesFixture;
+import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
+import com.zrlog.admin.web.McpWebSetup;
 import com.zrlog.admin.web.controller.ai.AIWebSiteController;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
+import com.zrlog.business.updater.UpdateVersionInfoPlugin;
+import com.zrlog.common.ZrLogConfig;
+import com.zrlog.common.adapter.UpdaterHosts;
 import com.zrlog.common.exception.ArgsException;
+import com.zrlog.model.Log;
+import com.zrlog.model.LogVersion;
+import com.zrlog.model.UserPasskey;
+import com.zrlog.model.WebSite;
+import com.zrlog.plugin.BaseStaticSitePlugin;
+
 import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
@@ -32,15 +63,9 @@ import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
-
 public class WebSiteControllerDatabaseTest {
 
-    private com.zrlog.common.ZrLogConfig applicationConfig;
+    private ZrLogConfig applicationConfig;
 
     @Test
     public void arrangementVisibilityIsPersistedWithoutChangingArticleDataOrBlockingWrites() throws Exception {
@@ -48,11 +73,42 @@ public class WebSiteControllerDatabaseTest {
             applicationConfig = db.config();
             String labUri = "/api/admin/website/lab";
             HttpRequest editorRequest = request(HttpMethod.GET, "/admin/article-edit", null);
-            AdminResourceService resources = new com.zrlog.admin.business.service.AdminResourceService(com.zrlog.admin.business.rest.response.AdminResourceInfoResponse.Capabilities::new, new com.zrlog.admin.business.service.FeatureLabService(() -> true), com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), () -> new com.zrlog.model.WebSite().getStringValueByName("admin_static_resource_base_url"));
+            AdminResourceService resources =
+                    new AdminResourceService(
+                            AdminResourceInfoResponse.Capabilities::new,
+                            new FeatureLabService(
+                                    () -> true,
+                                    new WebhookService(
+                                            ApplicationServicesFixture.messages(),
+                                            ApplicationServicesFixture.websiteCache()),
+                                    WebSite::new),
+                            ApplicationServicesFixture.site(db.config()),
+                            () ->
+                                    new WebSite()
+                                            .getStringValueByName("admin_static_resource_base_url"),
+                            () -> new UserPasskey(DAO.getDefaultDataSource()));
             assertFalse(controller(HttpMethod.GET, labUri, null).lab().getData().getFeature_article_arrangement_enabled());
             assertFalse(resources.adminResourceInfo(editorRequest).getFeature_article_arrangement_enabled());
 
-            AdminArticleService articles = new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(db.config(), com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(db.resources())));
+            AdminArticleService articles =
+                    new AdminArticleService(
+                            db.cacheService(),
+                            ApplicationServicesFixture.capability(
+                                    db.config(), ArticleAssistant.class),
+                            new AdminPageDataFactory(
+                                    ApplicationServicesFixture.site(db.config()),
+                                    ApplicationServicesFixture.buildId(db.resources()),
+                                    ApplicationServicesFixture.messages(),
+                                    AccountServicesFixture.component().permissions()),
+                            AccountServicesFixture.component().permissions(),
+                            AccountServicesFixture.component().preferences(),
+                            new ArticleVersionService(
+                                    AccountServicesFixture.component().permissions(),
+                                    Log::new,
+                                    () -> new LogVersion(DAO.getDefaultDataSource())),
+                            new ArticlePinningService(Log::new, ApplicationServicesFixture.locks()),
+                            Log::new,
+                            ApplicationServicesFixture.locks());
             CreateArticleRequest create = new CreateArticleRequest();
             create.setTitle("Layout visibility");
             create.setAlias("layout-visibility");
@@ -96,11 +152,22 @@ public class WebSiteControllerDatabaseTest {
             assertEquals(address, value(db, "backend_server_url"));
             assertEquals(blogHost, value(db, "host"));
             assertEquals(address, controller(HttpMethod.GET, "/api/admin/website/admin", null).admin().getData().getBackend_server_url());
-            var oauth = new com.zrlog.admin.business.service.OAuthService(com.zrlog.admin.support.ApplicationServicesFixture.backend(db.config())::configured, com.zrlog.admin.support.ApplicationServicesFixture.available(db.config(), com.zrlog.admin.web.McpWebSetup.class));
+            var oauth =
+                    new OAuthService(
+                            ApplicationServicesFixture.backend(db.config())::configured,
+                            ApplicationServicesFixture.available(db.config(), McpWebSetup.class),
+                            AccountServicesFixture.component().permissions(),
+                            AccountServicesFixture.component().security(),
+                            tokenResource ->
+                                    new PersonalAccessTokenService(
+                                            tokenResource,
+                                            AccountServicesFixture.component().permissions(),
+                                            AccountServicesFixture.component().security()),
+                            AccountServicesFixture.component().backend());
             assertEquals(address, oauth.metadata().issuer);
             assertEquals(address + "/mcp", oauth.mcpResourceMetadata().resource);
             assertEquals(address + "/api/webhook/message-center/notice", oauth.page().notificationEndpoint);
-            String publicInfo = new com.google.gson.Gson().toJson(new com.zrlog.model.WebSite().getPublicWebSite());
+            String publicInfo = new com.google.gson.Gson().toJson(new WebSite().getPublicWebSite());
             assertFalse(publicInfo.contains("backend_server_url"));
             assertFalse(publicInfo.contains("gateway.example"));
             // Old settings clients must not clear a value they do not know about.
@@ -108,7 +175,22 @@ public class WebSiteControllerDatabaseTest {
             assertEquals(address, value(db, "backend_server_url"));
             controller(HttpMethod.POST, "/api/admin/website/admin", "{\"session_timeout\":90,\"backend_server_url\":\"\"}").admin();
             assertEquals("", value(db, "backend_server_url"));
-            assertFalse(new com.zrlog.admin.business.service.OAuthService(com.zrlog.admin.support.ApplicationServicesFixture.backend(db.config())::configured, com.zrlog.admin.support.ApplicationServicesFixture.available(db.config(), com.zrlog.admin.web.McpWebSetup.class)).issuer().contains("gateway.example"));
+            assertFalse(
+                    new OAuthService(
+                                    ApplicationServicesFixture.backend(db.config())::configured,
+                                    ApplicationServicesFixture.available(
+                                            db.config(), McpWebSetup.class),
+                                    AccountServicesFixture.component().permissions(),
+                                    AccountServicesFixture.component().security(),
+                                    tokenResource ->
+                                            new PersonalAccessTokenService(
+                                                    tokenResource,
+                                                    AccountServicesFixture.component()
+                                                            .permissions(),
+                                                    AccountServicesFixture.component().security()),
+                                    AccountServicesFixture.component().backend())
+                            .issuer()
+                            .contains("gateway.example"));
         }
     }
 
@@ -138,18 +220,42 @@ public class WebSiteControllerDatabaseTest {
             applicationConfig = db.config();
             db.putWebsite("backend_server_url", "https://gateway.example/sub");
             WebSiteController staticController = controller(HttpMethod.GET, "/api/admin/website/admin", null);
-            setControllerField(staticController, "request", request(HttpMethod.GET, "/api/admin/website/admin", null,
-                    com.zrlog.plugin.BaseStaticSitePlugin.STATIC_USER_AGENT));
+            setControllerField(
+                    staticController,
+                    "request",
+                    request(
+                            HttpMethod.GET,
+                            "/api/admin/website/admin",
+                            null,
+                            BaseStaticSitePlugin.STATIC_USER_AGENT));
             String json = new com.google.gson.Gson().toJson(staticController.admin());
             assertFalse(json.contains("backend_server_url"));
             assertFalse(json.contains("gateway.example"));
             var method = WebSiteController.class.getMethod("admin");
             db.execute("update user set role=? where userId=?", "author", 1);
-            assertThrows(com.zrlog.admin.business.exception.PermissionErrorException.class,
-                    () -> com.zrlog.admin.business.service.AccountPermissionService.checkRoute(method, request(HttpMethod.GET, "/api/admin/website/admin", null)));
-            com.zrlog.admin.web.token.AdminTokenThreadLocal.remove();
-            assertThrows(com.zrlog.admin.business.exception.PermissionErrorException.class,
-                    () -> com.zrlog.admin.business.service.AccountPermissionService.checkRoute(method, request(HttpMethod.GET, "/api/admin/website/admin", null)));
+            assertThrows(
+                    PermissionErrorException.class,
+                    () ->
+                            AccountServicesFixture.component()
+                                    .permissions()
+                                    .checkRoute(
+                                            method,
+                                            request(
+                                                    HttpMethod.GET,
+                                                    "/api/admin/website/admin",
+                                                    null)));
+            AdminTokenThreadLocal.remove();
+            assertThrows(
+                    PermissionErrorException.class,
+                    () ->
+                            AccountServicesFixture.component()
+                                    .permissions()
+                                    .checkRoute(
+                                            method,
+                                            request(
+                                                    HttpMethod.GET,
+                                                    "/api/admin/website/admin",
+                                                    null)));
         }
     }
 
@@ -420,7 +526,28 @@ public class WebSiteControllerDatabaseTest {
     }
 
     private AIWebSiteController aiController(HttpMethod method, String uri, String body) throws Exception {
-        AIWebSiteController controller = new AIWebSiteController(new WebSiteSettingsService(new InMemoryZrLogDatabase.TestCacheService(), applicationConfig == null ? null : applicationConfig.getTokenService(), () -> applicationConfig == null ? null : applicationConfig.getPlugin(com.zrlog.business.updater.UpdateVersionInfoPlugin.class)), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), () -> "test"));
+        AIWebSiteController controller =
+                new AIWebSiteController(
+                        new WebSiteSettingsService(
+                                new InMemoryZrLogDatabase.TestCacheService(),
+                                applicationConfig == null
+                                        ? null
+                                        : applicationConfig.getTokenService(),
+                                () ->
+                                        applicationConfig == null
+                                                ? null
+                                                : applicationConfig.getPlugin(
+                                                        UpdateVersionInfoPlugin.class),
+                                ApplicationServicesFixture.audit(),
+                                ApplicationServicesFixture.websiteKv(),
+                                WebSite::new),
+                        new AdminPageDataFactory(
+                                ApplicationServicesFixture.site(applicationConfig),
+                                () -> "test",
+                                ApplicationServicesFixture.messages(),
+                                AccountServicesFixture.component().permissions()),
+                        AIServiceDependencies.config(),
+                        AIServiceDependencies.tools());
         setControllerField(controller, "request", request(method, uri, body));
         setControllerField(controller, "response", response());
         return controller;
@@ -475,8 +602,47 @@ public class WebSiteControllerDatabaseTest {
     }
 
     private static class TestWebSiteController extends WebSiteController {
-        public TestWebSiteController(com.zrlog.common.ZrLogConfig config) {
-            super(new WebSiteSettingsService(new InMemoryZrLogDatabase.TestCacheService(), config == null ? null : config.getTokenService(), () -> config == null ? null : config.getPlugin(com.zrlog.business.updater.UpdateVersionInfoPlugin.class)), new com.zrlog.admin.business.service.UpgradeSettingsService(new WebSiteSettingsService(new InMemoryZrLogDatabase.TestCacheService(), config == null ? null : config.getTokenService(), () -> config == null ? null : config.getPlugin(com.zrlog.business.updater.UpdateVersionInfoPlugin.class)), () -> com.zrlog.common.adapter.UpdaterHosts.dockerControl(config == null ? null : config.getUpdater())), new com.zrlog.admin.business.service.FeatureLabService(() -> true), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(config), () -> "test"));
+        public TestWebSiteController(ZrLogConfig config) {
+            super(
+                    new WebSiteSettingsService(
+                            new InMemoryZrLogDatabase.TestCacheService(),
+                            config == null ? null : config.getTokenService(),
+                            () ->
+                                    config == null
+                                            ? null
+                                            : config.getPlugin(UpdateVersionInfoPlugin.class),
+                            ApplicationServicesFixture.audit(),
+                            ApplicationServicesFixture.websiteKv(),
+                            WebSite::new),
+                    new UpgradeSettingsService(
+                            new WebSiteSettingsService(
+                                    new InMemoryZrLogDatabase.TestCacheService(),
+                                    config == null ? null : config.getTokenService(),
+                                    () ->
+                                            config == null
+                                                    ? null
+                                                    : config.getPlugin(
+                                                            UpdateVersionInfoPlugin.class),
+                                    ApplicationServicesFixture.audit(),
+                                    ApplicationServicesFixture.websiteKv(),
+                                    WebSite::new),
+                            () ->
+                                    UpdaterHosts.dockerControl(
+                                            config == null ? null : config.getUpdater()),
+                            AccountServicesFixture.component().permissions(),
+                            ApplicationServicesFixture.settings()),
+                    new FeatureLabService(
+                            () -> true,
+                            new WebhookService(
+                                    ApplicationServicesFixture.messages(),
+                                    ApplicationServicesFixture.websiteCache()),
+                            WebSite::new),
+                    new AdminPageDataFactory(
+                            ApplicationServicesFixture.site(config),
+                            () -> "test",
+                            ApplicationServicesFixture.messages(),
+                            AccountServicesFixture.component().permissions()),
+                    ApplicationServicesFixture.settings());
         }
 
 

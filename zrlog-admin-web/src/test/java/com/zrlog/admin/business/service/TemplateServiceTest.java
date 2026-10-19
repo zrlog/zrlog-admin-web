@@ -1,8 +1,15 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+
 import com.zrlog.admin.business.rest.response.TemplateEntryResponse;
 import com.zrlog.admin.business.rest.response.UpdateRecordResponse;
 import com.zrlog.admin.business.rest.response.UploadTemplateResponse;
+import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.util.AdminLanguageContext;
 import com.zrlog.common.Constants;
@@ -10,6 +17,7 @@ import com.zrlog.common.vo.BaseTemplateVO;
 import com.zrlog.common.vo.TemplateVO;
 import com.zrlog.model.WebSite;
 import com.zrlog.util.StaticFileCacheUtils;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -24,12 +32,6 @@ import java.util.UUID;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-
 public class TemplateServiceTest {
 
     @Rule
@@ -37,202 +39,327 @@ public class TemplateServiceTest {
 
     @Test
     public void shouldDiscoverLocalTemplateAndLoadConfigOverridesFromRealDatabase() throws Exception {
-        withRootPath(() -> {
-            try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-                db.cacheService().getPublicWebSiteInfo().setTemplate(Constants.getDefaultTemplatePath());
-                String templatePath = createLocalTemplate("local-theme");
-                db.putWebsite(templatePath + "_setting", "{\"accent\":\"db-blue\"}");
-                TemplateService service = new TemplateService(db.cacheService(), () -> null, () -> null);
+        withRootPath(
+                () -> {
+                    try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+                        db.cacheService()
+                                .getPublicWebSiteInfo()
+                                .setTemplate(Constants.getDefaultTemplatePath());
+                        String templatePath = createLocalTemplate("local-theme");
+                        db.putWebsite(templatePath + "_setting", "{\"accent\":\"db-blue\"}");
+                        TemplateService service =
+                                new TemplateService(
+                                        db.cacheService(),
+                                        () -> null,
+                                        () -> null,
+                                        ApplicationServicesFixture.audit(),
+                                        WebSite::new);
 
-                List<TemplateEntryResponse> templates = service.getAllTemplates(templatePath);
-                BaseTemplateVO local = templates.stream()
-                        .filter(template -> templatePath.equals(template.getTemplate()))
-                        .findFirst()
-                        .orElse(null);
-                TemplateVO config = service.loadTemplateConfig(templatePath);
+                        List<TemplateEntryResponse> templates =
+                                service.getAllTemplates(templatePath);
+                        BaseTemplateVO local =
+                                templates.stream()
+                                        .filter(
+                                                template ->
+                                                        templatePath.equals(template.getTemplate()))
+                                        .findFirst()
+                                        .orElse(null);
+                        TemplateVO config = service.loadTemplateConfig(templatePath);
 
-                assertNotNull(local);
-                assertEquals("Local Theme", local.getName());
-                assertTrue(local.isDeleteAble());
-                assertTrue(local.isConfigAble());
-                assertTrue(local.isPreview());
-                assertFalse(local.isUse());
-                assertEquals(".ftl", local.getViewType());
-                assertEquals("db-blue", config.getConfig().get("accent").getValue());
-                assertEquals(templatePath, config.getConfig().get("template").getValue());
-                assertEquals("hidden", config.getConfig().get("template").getType());
-            }
-        });
+                        assertNotNull(local);
+                        assertEquals("Local Theme", local.getName());
+                        assertTrue(local.isDeleteAble());
+                        assertTrue(local.isConfigAble());
+                        assertTrue(local.isPreview());
+                        assertFalse(local.isUse());
+                        assertEquals(".ftl", local.getViewType());
+                        assertEquals("db-blue", config.getConfig().get("accent").getValue());
+                        assertEquals(templatePath, config.getConfig().get("template").getValue());
+                        assertEquals("hidden", config.getConfig().get("template").getType());
+                    }
+                });
     }
 
     @Test
     public void shouldLocalizeThemeConfigWithoutChangingSavedValuesOrUntranslatedFields() throws Exception {
-        withRootPath(() -> {
-            try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-                String templatePath = createLocalTemplate("translated-theme");
-                File languageDir = new File(temporaryFolder.getRoot(), "static" + templatePath + "/language");
-                assertTrue(languageDir.mkdirs());
-                Files.writeString(new File(languageDir, "i18n_en_US.properties").toPath(),
-                        "configForm.accent.label=Accent color\nconfigForm.accent.placeholder=Choose a color\n");
-                Files.writeString(new File(languageDir, "i18n_zh_CN.properties").toPath(),
-                        "configForm.accent.label=\\u5f3a\\u8c03\\u8272\n"
-                                + "configForm.accent.placeholder=\\u9009\\u62e9\\u989c\\u8272\n");
-                db.putWebsite(templatePath + "_setting", "{\"accent\":\"db-blue\"}");
-                TemplateService service = new TemplateService(db.cacheService(), () -> null, () -> null);
-                for (String language : List.of("en_US", "zh_CN", "en_US")) {
-                    try (AdminLanguageContext ignored = AdminLanguageContext.open(language)) {
-                        TemplateVO config = service.loadTemplateConfig(templatePath);
-                        assertEquals(language.equals("en_US") ? "Accent color" : "强调色",
-                                config.getConfig().get("accent").getLabel());
-                        assertEquals(language.equals("en_US") ? "Choose a color" : "选择颜色",
-                                config.getConfig().get("accent").getPlaceholder());
-                        assertEquals("db-blue", config.getConfig().get("accent").getValue());
-                        assertEquals("CSS", config.getConfig().get("customCss").getLabel());
-                        assertEquals("hidden", config.getConfig().get("template").getType());
+        withRootPath(
+                () -> {
+                    try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+                        String templatePath = createLocalTemplate("translated-theme");
+                        File languageDir =
+                                new File(
+                                        temporaryFolder.getRoot(),
+                                        "static" + templatePath + "/language");
+                        assertTrue(languageDir.mkdirs());
+                        Files.writeString(
+                                new File(languageDir, "i18n_en_US.properties").toPath(),
+                                "configForm.accent.label=Accent color\nconfigForm.accent.placeholder=Choose a color\n");
+                        Files.writeString(
+                                new File(languageDir, "i18n_zh_CN.properties").toPath(),
+                                "configForm.accent.label=\\u5f3a\\u8c03\\u8272\n"
+                                        + "configForm.accent.placeholder=\\u9009\\u62e9\\u989c\\u8272\n");
+                        db.putWebsite(templatePath + "_setting", "{\"accent\":\"db-blue\"}");
+                        TemplateService service =
+                                new TemplateService(
+                                        db.cacheService(),
+                                        () -> null,
+                                        () -> null,
+                                        ApplicationServicesFixture.audit(),
+                                        WebSite::new);
+                        for (String language : List.of("en_US", "zh_CN", "en_US")) {
+                            try (AdminLanguageContext ignored =
+                                    AdminLanguageContext.open(language)) {
+                                TemplateVO config = service.loadTemplateConfig(templatePath);
+                                assertEquals(
+                                        language.equals("en_US") ? "Accent color" : "强调色",
+                                        config.getConfig().get("accent").getLabel());
+                                assertEquals(
+                                        language.equals("en_US") ? "Choose a color" : "选择颜色",
+                                        config.getConfig().get("accent").getPlaceholder());
+                                assertEquals(
+                                        "db-blue", config.getConfig().get("accent").getValue());
+                                assertEquals("CSS", config.getConfig().get("customCss").getLabel());
+                                assertEquals(
+                                        "hidden", config.getConfig().get("template").getType());
+                            }
+                        }
+                        Files.writeString(
+                                new File(languageDir, "i18n_en_US.properties").toPath(),
+                                "configForm.accent.label=\\uINVALID");
+                        try (AdminLanguageContext ignored = AdminLanguageContext.open("en_US")) {
+                            assertEquals(
+                                    "Accent",
+                                    service.loadTemplateConfig(templatePath)
+                                            .getConfig()
+                                            .get("accent")
+                                            .getLabel());
+                        }
                     }
-                }
-                Files.writeString(new File(languageDir, "i18n_en_US.properties").toPath(),
-                        "configForm.accent.label=\\uINVALID");
-                try (AdminLanguageContext ignored = AdminLanguageContext.open("en_US")) {
-                    assertEquals("Accent", service.loadTemplateConfig(templatePath).getConfig().get("accent").getLabel());
-                }
-            }
-        });
+                });
     }
 
     @Test
     public void shouldDistinguishSpiThemesFromActiveLocalThemes() throws Exception {
-        withRootPath(() -> {
-            try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-                String templatePath = createLocalTemplate("active-local-theme");
-                db.cacheService().getPublicWebSiteInfo().setTemplate(templatePath);
-                List<TemplateEntryResponse> entries = new TemplateService(db.cacheService(), () -> null, () -> null).getAllTemplates(templatePath);
-                TemplateEntryResponse local = entries.stream().filter(entry -> templatePath.equals(entry.getTemplate()))
-                        .findFirst().orElseThrow();
-                TemplateEntryResponse bundled = entries.stream()
-                        .filter(entry -> Constants.getDefaultTemplatePath().equals(entry.getTemplate()))
-                        .findFirst().orElseThrow();
-                assertTrue(local.isUse());
-                assertFalse(local.isDeleteAble());
-                assertFalse(local.isBuiltIn());
-                assertFalse(bundled.isUse());
-                assertTrue(bundled.isBuiltIn());
-                assertFalse(bundled.isDeleteAble());
-                com.google.gson.JsonObject json = new com.google.gson.Gson().toJsonTree(bundled).getAsJsonObject();
-                assertTrue(json.get("builtIn").getAsBoolean());
-                assertEquals(bundled.getName(), json.get("name").getAsString());
-            }
-        });
+        withRootPath(
+                () -> {
+                    try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+                        String templatePath = createLocalTemplate("active-local-theme");
+                        db.cacheService().getPublicWebSiteInfo().setTemplate(templatePath);
+                        List<TemplateEntryResponse> entries =
+                                new TemplateService(
+                                                db.cacheService(),
+                                                () -> null,
+                                                () -> null,
+                                                ApplicationServicesFixture.audit(),
+                                                WebSite::new)
+                                        .getAllTemplates(templatePath);
+                        TemplateEntryResponse local =
+                                entries.stream()
+                                        .filter(entry -> templatePath.equals(entry.getTemplate()))
+                                        .findFirst()
+                                        .orElseThrow();
+                        TemplateEntryResponse bundled =
+                                entries.stream()
+                                        .filter(
+                                                entry ->
+                                                        Constants.getDefaultTemplatePath()
+                                                                .equals(entry.getTemplate()))
+                                        .findFirst()
+                                        .orElseThrow();
+                        assertTrue(local.isUse());
+                        assertFalse(local.isDeleteAble());
+                        assertFalse(local.isBuiltIn());
+                        assertFalse(bundled.isUse());
+                        assertTrue(bundled.isBuiltIn());
+                        assertFalse(bundled.isDeleteAble());
+                        com.google.gson.JsonObject json =
+                                new com.google.gson.Gson().toJsonTree(bundled).getAsJsonObject();
+                        assertTrue(json.get("builtIn").getAsBoolean());
+                        assertEquals(bundled.getName(), json.get("name").getAsString());
+                    }
+                });
     }
 
     @Test
     public void shouldSanitizeAndPersistTemplateConfigThroughRealWebsiteTable() throws Exception {
-        withRootPath(() -> {
-            try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-                db.cacheService().getPublicWebSiteInfo().setTemplate(Constants.getDefaultTemplatePath());
-                String templatePath = createLocalTemplate("sanitize-theme");
-                TemplateService service = new TemplateService(db.cacheService(), () -> null, () -> null);
-                Map<String, Object> settings = new LinkedHashMap<>();
-                settings.put("accent", "<b>blue</b><script>bad()</script>");
-                settings.put("customCss", "<style>.card{color:red}</style><script>bad()</script>");
-                settings.put("layoutYml", "title: <b>keep</b>");
-                settings.put("customHtml", "<strong>keep html</strong>");
-                settings.put("stickyNav", false);
-                settings.put("pageSize", 12);
-                settings.put("unknown", "<script>ignored()</script>");
+        withRootPath(
+                () -> {
+                    try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+                        db.cacheService()
+                                .getPublicWebSiteInfo()
+                                .setTemplate(Constants.getDefaultTemplatePath());
+                        String templatePath = createLocalTemplate("sanitize-theme");
+                        TemplateService service =
+                                new TemplateService(
+                                        db.cacheService(),
+                                        () -> null,
+                                        () -> null,
+                                        ApplicationServicesFixture.audit(),
+                                        WebSite::new);
+                        Map<String, Object> settings = new LinkedHashMap<>();
+                        settings.put("accent", "<b>blue</b><script>bad()</script>");
+                        settings.put(
+                                "customCss",
+                                "<style>.card{color:red}</style><script>bad()</script>");
+                        settings.put("layoutYml", "title: <b>keep</b>");
+                        settings.put("customHtml", "<strong>keep html</strong>");
+                        settings.put("stickyNav", false);
+                        settings.put("pageSize", 12);
+                        settings.put("unknown", "<script>ignored()</script>");
 
-                UpdateRecordResponse response = service.save(templatePath, settings);
-                Map<String, Object> stored = new WebSite().getTemplateConfigMap(templatePath);
+                        UpdateRecordResponse response = service.save(templatePath, settings);
+                        Map<String, Object> stored =
+                                new WebSite().getTemplateConfigMap(templatePath);
 
-                assertNotNull(response.getMessage());
-                assertEquals("blue", stored.get("accent"));
-                assertTrue(String.valueOf(stored.get("customCss")).contains("<style>"));
-                assertFalse(String.valueOf(stored.get("customCss")).contains("<script>"));
-                assertEquals("title: <b>keep</b>", stored.get("layoutYml"));
-                assertEquals("<strong>keep html</strong>", stored.get("customHtml"));
-                assertEquals(false, stored.get("stickyNav"));
-                assertEquals(12, ((Number) stored.get("pageSize")).intValue());
-                TemplateVO reloaded = service.loadTemplateConfig(templatePath);
-                assertEquals(false, reloaded.getConfig().get("stickyNav").getValue());
-                assertEquals("<script>ignored()</script>", stored.get("unknown"));
-                assertNotNull(db.queryOne("select value from website where name=?", templatePath + "_setting"));
-            }
-        });
+                        assertNotNull(response.getMessage());
+                        assertEquals("blue", stored.get("accent"));
+                        assertTrue(String.valueOf(stored.get("customCss")).contains("<style>"));
+                        assertFalse(String.valueOf(stored.get("customCss")).contains("<script>"));
+                        assertEquals("title: <b>keep</b>", stored.get("layoutYml"));
+                        assertEquals("<strong>keep html</strong>", stored.get("customHtml"));
+                        assertEquals(false, stored.get("stickyNav"));
+                        assertEquals(12, ((Number) stored.get("pageSize")).intValue());
+                        TemplateVO reloaded = service.loadTemplateConfig(templatePath);
+                        assertEquals(false, reloaded.getConfig().get("stickyNav").getValue());
+                        assertEquals("<script>ignored()</script>", stored.get("unknown"));
+                        assertNotNull(
+                                db.queryOne(
+                                        "select value from website where name=?",
+                                        templatePath + "_setting"));
+                    }
+                });
     }
 
     @Test
     public void shouldInstallValidatedThemePackage() throws Exception {
-        withRootPath(() -> {
-            File zipFile = createThemeZip(Map.of("index.ftl", "<html>new</html>"));
+        withRootPath(
+                () -> {
+                    File zipFile = createThemeZip(Map.of("index.ftl", "<html>new</html>"));
 
-            UploadTemplateResponse response = new TemplateService(new com.zrlog.admin.support.InMemoryZrLogDatabase.TestCacheService(), () -> null, () -> null).upload("uploaded-theme", false, zipFile);
+                    UploadTemplateResponse response =
+                            new TemplateService(
+                                            new InMemoryZrLogDatabase.TestCacheService(),
+                                            () -> null,
+                                            () -> null,
+                                            ApplicationServicesFixture.audit(),
+                                            WebSite::new)
+                                    .upload("uploaded-theme", false, zipFile);
 
-            File installed = new File(temporaryFolder.getRoot(),
-                    "static/include/templates/uploaded-theme/index.ftl");
-            assertEquals(0, response.getError());
-            assertEquals("uploaded-theme", response.getData().getShortTemplate());
-            assertFalse(response.getData().isOverwritten());
-            assertEquals("<html>new</html>", Files.readString(installed.toPath()));
-        });
+                    File installed =
+                            new File(
+                                    temporaryFolder.getRoot(),
+                                    "static/include/templates/uploaded-theme/index.ftl");
+                    assertEquals(0, response.getError());
+                    assertEquals("uploaded-theme", response.getData().getShortTemplate());
+                    assertFalse(response.getData().isOverwritten());
+                    assertEquals("<html>new</html>", Files.readString(installed.toPath()));
+                });
     }
 
     @Test
     public void shouldRequireExplicitOverwriteAndRemoveStaleThemeFiles() throws Exception {
-        withRootPath(() -> {
-            createLocalTemplate("replace-theme");
-            File themeDir = new File(temporaryFolder.getRoot(), "static/include/templates/replace-theme");
-            File staleFile = new File(themeDir, "stale.txt");
-            Files.writeString(staleFile.toPath(), "stale", StandardCharsets.UTF_8);
-            File oldCss = new File(themeDir, "assets/theme.css");
-            assertTrue(oldCss.getParentFile().mkdirs());
-            Files.writeString(oldCss.toPath(), "old-content", StandardCharsets.UTF_8);
-            StaticFileCacheUtils cacheUtils = StaticFileCacheUtils.getInstance();
-            cacheUtils.refreshCacheFileMap();
-            String oldTag = cacheUtils.getFileFlagFirstByCache(
-                    "/include/templates/replace-theme/assets/theme.css");
-            File zipFile = createThemeZip(Map.of(
-                    "index.ftl", "<html>replacement</html>",
-                    "assets/theme.css", "new-content"));
-            TemplateService service = new TemplateService(new com.zrlog.admin.support.InMemoryZrLogDatabase.TestCacheService(), () -> null, () -> null);
+        withRootPath(
+                () -> {
+                    createLocalTemplate("replace-theme");
+                    File themeDir =
+                            new File(
+                                    temporaryFolder.getRoot(),
+                                    "static/include/templates/replace-theme");
+                    File staleFile = new File(themeDir, "stale.txt");
+                    Files.writeString(staleFile.toPath(), "stale", StandardCharsets.UTF_8);
+                    File oldCss = new File(themeDir, "assets/theme.css");
+                    assertTrue(oldCss.getParentFile().mkdirs());
+                    Files.writeString(oldCss.toPath(), "old-content", StandardCharsets.UTF_8);
+                    StaticFileCacheUtils cacheUtils = StaticFileCacheUtils.getInstance();
+                    cacheUtils.refreshCacheFileMap();
+                    String oldTag =
+                            cacheUtils.getFileFlagFirstByCache(
+                                    "/include/templates/replace-theme/assets/theme.css");
+                    File zipFile =
+                            createThemeZip(
+                                    Map.of(
+                                            "index.ftl", "<html>replacement</html>",
+                                            "assets/theme.css", "new-content"));
+                    TemplateService service =
+                            new TemplateService(
+                                    new InMemoryZrLogDatabase.TestCacheService(),
+                                    () -> null,
+                                    () -> null,
+                                    ApplicationServicesFixture.audit(),
+                                    WebSite::new);
 
-            UploadTemplateResponse rejected = service.upload("replace-theme", false, zipFile);
-            assertEquals(1, rejected.getError());
-            assertTrue(staleFile.exists());
+                    UploadTemplateResponse rejected =
+                            service.upload("replace-theme", false, zipFile);
+                    assertEquals(1, rejected.getError());
+                    assertTrue(staleFile.exists());
 
-            UploadTemplateResponse installed = service.upload("replace-theme", true, zipFile);
-            assertEquals(0, installed.getError());
-            assertTrue(installed.getData().isOverwritten());
-            assertFalse(staleFile.exists());
-            assertEquals("<html>replacement</html>", Files.readString(new File(themeDir, "index.ftl").toPath()));
-            assertTrue(cacheUtils.isCacheableByRequest("/include/templates/replace-theme/assets/theme.css"));
-            assertNotEquals(oldTag, cacheUtils.getFileFlagFirstByCache(
-                    "/include/templates/replace-theme/assets/theme.css"));
-        });
+                    UploadTemplateResponse installed =
+                            service.upload("replace-theme", true, zipFile);
+                    assertEquals(0, installed.getError());
+                    assertTrue(installed.getData().isOverwritten());
+                    assertFalse(staleFile.exists());
+                    assertEquals(
+                            "<html>replacement</html>",
+                            Files.readString(new File(themeDir, "index.ftl").toPath()));
+                    assertTrue(
+                            cacheUtils.isCacheableByRequest(
+                                    "/include/templates/replace-theme/assets/theme.css"));
+                    assertNotEquals(
+                            oldTag,
+                            cacheUtils.getFileFlagFirstByCache(
+                                    "/include/templates/replace-theme/assets/theme.css"));
+                });
     }
 
     @Test
     public void shouldRejectThemePackageThatEscapesInstallDirectory() throws Exception {
-        withRootPath(() -> {
-            File zipFile = createThemeZip(Map.of("../outside.txt", "outside"));
+        withRootPath(
+                () -> {
+                    File zipFile = createThemeZip(Map.of("../outside.txt", "outside"));
 
-            UploadTemplateResponse response = new TemplateService(new com.zrlog.admin.support.InMemoryZrLogDatabase.TestCacheService(), () -> null, () -> null).upload("unsafe-theme", false, zipFile);
+                    UploadTemplateResponse response =
+                            new TemplateService(
+                                            new InMemoryZrLogDatabase.TestCacheService(),
+                                            () -> null,
+                                            () -> null,
+                                            ApplicationServicesFixture.audit(),
+                                            WebSite::new)
+                                    .upload("unsafe-theme", false, zipFile);
 
-            assertEquals(1, response.getError());
-            assertFalse(new File(temporaryFolder.getRoot(), "static/include/outside.txt").exists());
-            assertFalse(new File(temporaryFolder.getRoot(), "static/include/templates/unsafe-theme").exists());
-        });
+                    assertEquals(1, response.getError());
+                    assertFalse(
+                            new File(temporaryFolder.getRoot(), "static/include/outside.txt")
+                                    .exists());
+                    assertFalse(
+                            new File(
+                                            temporaryFolder.getRoot(),
+                                            "static/include/templates/unsafe-theme")
+                                    .exists());
+                });
     }
 
     @Test
     public void shouldRejectPackageWithoutThemeMetadata() throws Exception {
-        withRootPath(() -> {
-            File zipFile = createZip(Map.of("index.ftl", "<html></html>"));
+        withRootPath(
+                () -> {
+                    File zipFile = createZip(Map.of("index.ftl", "<html></html>"));
 
-            UploadTemplateResponse response = new TemplateService(new com.zrlog.admin.support.InMemoryZrLogDatabase.TestCacheService(), () -> null, () -> null).upload("missing-metadata", false, zipFile);
+                    UploadTemplateResponse response =
+                            new TemplateService(
+                                            new InMemoryZrLogDatabase.TestCacheService(),
+                                            () -> null,
+                                            () -> null,
+                                            ApplicationServicesFixture.audit(),
+                                            WebSite::new)
+                                    .upload("missing-metadata", false, zipFile);
 
-            assertEquals(1, response.getError());
-            assertFalse(new File(temporaryFolder.getRoot(), "static/include/templates/missing-metadata").exists());
-        });
+                    assertEquals(1, response.getError());
+                    assertFalse(
+                            new File(
+                                            temporaryFolder.getRoot(),
+                                            "static/include/templates/missing-metadata")
+                                    .exists());
+                });
     }
 
     private String createLocalTemplate(String shortName) throws Exception {

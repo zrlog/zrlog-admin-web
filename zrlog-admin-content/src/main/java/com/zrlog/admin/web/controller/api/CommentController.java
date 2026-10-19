@@ -18,17 +18,22 @@ import com.zrlog.common.controller.BaseController;
 import com.zrlog.data.dto.CommentDTO;
 import com.zrlog.data.security.AccountAction;
 
+import jakarta.inject.Inject;
+
 import java.sql.SQLException;
 
 public class CommentController extends BaseController {
-    public CommentController(AdminPageDataFactory pages) {
+
+    @Inject
+    public CommentController(AdminPageDataFactory pages, AdminCommentService commentService) {
+        this.commentService = commentService;
+
         this.pages = pages;
     }
 
     private final AdminPageDataFactory pages;
 
-
-    private final AdminCommentService commentService = new AdminCommentService();
+    private final AdminCommentService commentService;
 
     @RefreshCache(updateStaticSites = StaticSiteType.BLOG)
     @ResponseBody

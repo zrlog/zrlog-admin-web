@@ -4,6 +4,7 @@ import com.hibegin.common.dao.DataSourceWrapper;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.config.ServerConfig;
 import com.zrlog.admin.business.service.AdminResource;
+import com.zrlog.admin.web.token.AdminTokenService;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.CacheService;
 import com.zrlog.common.Constants;
@@ -15,9 +16,16 @@ import com.zrlog.common.cache.dto.UserBasicDTO;
 import com.zrlog.common.cache.vo.BaseDataInitVO;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.common.vo.PublicWebSiteInfo;
+import com.zrlog.data.di.DaggerDataComponent;
+import com.zrlog.data.di.DataComponent;
+import com.zrlog.data.web.DataWebSetup;
 import com.zrlog.plugin.IPlugin;
 import com.zrlog.plugin.Plugins;
 import com.zrlog.test.support.ZrLogTestDatabase;
+import com.zrlog.web.WebSetup;
+import com.zrlog.web.WebSetupContext;
+import com.zrlog.web.WebSetupLoader;
+import com.zrlog.web.WebSetupProvider;
 import com.zrlog.web.WebSiteInfoProvider;
 
 import java.io.InputStream;
@@ -25,6 +33,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.ServiceLoader;
 
 /** Admin identity, resources and seed data on top of the shared database fixture. */
 public class InMemoryZrLogDatabase implements AutoCloseable {
@@ -201,21 +210,34 @@ public class InMemoryZrLogDatabase implements AutoCloseable {
             this.dataSource = dataSource;
             this.cacheService = cacheService;
             serverConfig.getBindings().instance(CacheService.class, cacheService);
-            var context = new com.zrlog.web.WebSetupContext(this, dbPropertiesFile, installLockFile, "", null);
-            java.util.ServiceLoader.load(com.zrlog.web.WebSetupProvider.class).forEach(provider -> {
-                if (provider.name().startsWith("admin-")) this.webSetups.add(provider.create(context));
-            });
+            var context = new WebSetupContext(this, dbPropertiesFile, installLockFile, "", null);
+            ServiceLoader.load(WebSetupProvider.class)
+                    .forEach(
+                            provider -> {
+                                if (provider.name().startsWith("admin-"))
+                                    this.webSetups.add(provider.create(context));
+                            });
         }
 
         private void webModules() {
+            serverConfig
+                    .getBindings()
+                    .instance(
+                            DataComponent.class,
+                            DaggerDataComponent.factory().create(() -> testDataSource, () -> true));
             this.webSetups.clear();
-            this.webSetups.addAll(com.zrlog.web.WebSetupLoader.load(new com.zrlog.web.WebSetupContext(
-                    this, dbPropertiesFile, installLockFile, "", null),
-                    provider -> provider.name().equals("data") || provider.name().equals("services")
-                            || provider.name().equals("admin") || provider.name().startsWith("admin-")));
+            this.webSetups.addAll(
+                    WebSetupLoader.load(
+                            new WebSetupContext(this, dbPropertiesFile, installLockFile, "", null),
+                            provider ->
+                                    provider.name().equals("data")
+                                            || provider.name().equals("services")
+                                            || provider.name().equals("admin")
+                                            || provider.name().startsWith("admin-")));
             // The fixture owns its counting cache; retain real module discovery and routes.
-            this.webSetups.stream().filter(setup -> !(setup instanceof com.zrlog.data.web.DataWebSetup))
-                    .forEach(com.zrlog.web.WebSetup::setup);
+            this.webSetups.stream()
+                    .filter(setup -> !(setup instanceof DataWebSetup))
+                    .forEach(WebSetup::setup);
         }
 
         @Override
@@ -232,7 +254,8 @@ public class InMemoryZrLogDatabase implements AutoCloseable {
             return Boolean.TRUE.equals(cacheService.getPublicWebSiteInfo().getGenerator_html_status());
         }
 
-        private final TokenService testTokens = new com.zrlog.admin.web.token.AdminTokenService(60, this::isInstalled, this::staticHtmlEnabled);
+        private final TokenService testTokens =
+                new AdminTokenService(60, this::isInstalled, this::staticHtmlEnabled);
 
         @Override
         protected TokenService initTokenService() {

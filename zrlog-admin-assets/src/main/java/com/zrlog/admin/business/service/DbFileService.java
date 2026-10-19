@@ -10,23 +10,35 @@ import com.zrlog.business.service.WebsiteKvService;
 import com.zrlog.common.exception.NotImplementException;
 import com.zrlog.model.WebSite;
 
+import jakarta.inject.Inject;
+
 import java.sql.SQLException;
 import java.util.*;
 
 public class DbFileService {
+    private final WebsiteKvService websiteKvService;
+    private final jakarta.inject.Provider<WebSite> webSiteProvider;
+
+    @Inject
+    public DbFileService(
+            WebsiteKvService websiteKvService, jakarta.inject.Provider<WebSite> webSiteProvider) {
+        this.websiteKvService = websiteKvService;
+        this.webSiteProvider = webSiteProvider;
+    }
 
     private static final String DB_FILE_PREFIX = "db_file";
 
     public UploadFileResponse toDbFile(String key, byte[] bytes) throws SQLException {
         // DB 存储
         String dbKey = DB_FILE_PREFIX + key;
-        new WebsiteKvService().putString(dbKey, Base64.getEncoder().encodeToString(bytes));
+        this.websiteKvService.putString(dbKey, Base64.getEncoder().encodeToString(bytes));
         return new UploadFileResponse(key);
     }
 
     public byte[] loadDbFile(String key) {
         String dbKey = DB_FILE_PREFIX + key;
-        Map<String, Object> webSiteMap = new WebsiteKvService().getByNames(Collections.singletonList(dbKey));
+        Map<String, Object> webSiteMap =
+                this.websiteKvService.getByNames(Collections.singletonList(dbKey));
         Object value = webSiteMap.get(dbKey);
         if (value instanceof String) {
             return Base64.getDecoder().decode((String) value);
@@ -39,7 +51,12 @@ public class DbFileService {
         if (!dbPrefix.endsWith("/")) {
             dbPrefix += "/";
         }
-        List<Map<String, Object>> records = new WebSite().queryListWithParams("SELECT `name`,length(`value`) AS `size` FROM `website` WHERE `name` LIKE ?", dbPrefix + "%");
+        List<Map<String, Object>> records =
+                this.webSiteProvider
+                        .get()
+                        .queryListWithParams(
+                                "SELECT `name`,length(`value`) AS `size` FROM `website` WHERE `name` LIKE ?",
+                                dbPrefix + "%");
         Map<String, FileEntryVO> entriesMap = new LinkedHashMap<>();
         for (Map<String, Object> record : records) {
             String name = (String) record.get("name");
@@ -81,7 +98,7 @@ public class DbFileService {
 
     public boolean deleteByKey(String path) throws SQLException {
         String dbKey = DB_FILE_PREFIX + path;
-        return new WebSite().set("name", dbKey).delete();
+        return this.webSiteProvider.get().set("name", dbKey).delete();
     }
 
     public boolean deleteByPrefix(String path) throws SQLException {
@@ -89,6 +106,8 @@ public class DbFileService {
         if (!dbPrefix.endsWith("/")) {
             dbPrefix += "/";
         }
-        return new WebSite().execute("DELETE FROM `website` WHERE `name` LIKE ?", dbPrefix + "%");
+        return this.webSiteProvider
+                .get()
+                .execute("DELETE FROM `website` WHERE `name` LIKE ?", dbPrefix + "%");
     }
 }

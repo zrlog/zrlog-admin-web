@@ -12,6 +12,9 @@ import com.zrlog.admin.business.util.FileEntryUtils;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.model.Log;
 import com.zrlog.util.ParseUtil;
+
+import jakarta.inject.Inject;
+
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -27,6 +30,8 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public class FileManagerReferenceService {
+    private final ArticleVersionService articleVersionService;
+    private final jakarta.inject.Provider<Log> logProvider;
 
     private static final Logger LOGGER = LoggerUtil.getLogger(FileManagerReferenceService.class);
     private static final Object REFERENCE_INDEX_CACHE_LOCK = new Object();
@@ -39,13 +44,16 @@ public class FileManagerReferenceService {
     private final String contextPath;
     private FileReferenceIndexCacheVO requestReferenceIndex;
 
-    public FileManagerReferenceService(String contextPath) {
-        this(new WebsiteCacheService(), contextPath);
-    }
-
-    FileManagerReferenceService(WebsiteCacheService cacheService, String contextPath) {
+    @Inject
+    public FileManagerReferenceService(
+            WebsiteCacheService cacheService,
+            String contextPath,
+            ArticleVersionService articleVersionService,
+            jakarta.inject.Provider<Log> logProvider) {
         this.cacheService = cacheService;
         this.contextPath = normalizeContextPath(contextPath);
+        this.articleVersionService = articleVersionService;
+        this.logProvider = logProvider;
     }
 
     public Map<String, List<FileReferenceVO>> buildLocalReferenceMap() throws SQLException {
@@ -143,23 +151,27 @@ public class FileManagerReferenceService {
     public ReplaceArticleResourceUrlResponse replaceArticleResourceReferences(AdminTokenVO user, String fromUrl,
                                                                               String toUrl, boolean prefix)
             throws SQLException {
-        List<Map<String, Object>> articles = new Log().queryList("logId, version, thumbnail, content, markdown, digest");
+        List<Map<String, Object>> articles =
+                this.logProvider
+                        .get()
+                        .queryList("logId, version, thumbnail, content, markdown, digest");
         ReplaceArticleResourceUrlResponse response = new ReplaceArticleResourceUrlResponse();
         response.setScannedArticles(articles.size());
-        ArticleVersionService articleVersionService = new ArticleVersionService();
+        ArticleVersionService articleVersionService = this.articleVersionService;
         for (Map<String, Object> article : articles) {
             Map<String, Object> updates = buildArticleResourceUrlUpdates(article, fromUrl, toUrl, prefix);
             if (updates.isEmpty()) {
                 continue;
             }
-            Map<String, Object> oldLog = new Log().loadById(toInt(article.get("logId")));
+            Map<String, Object> oldLog =
+                    this.logProvider.get().loadById(toInt(article.get("logId")));
             Integer nextVersion = toInt(oldLog.get("version")) + 1;
             updates.put("version", nextVersion);
             updates.put("last_update_date", new Date());
             if (updates.containsKey("content")) {
                 updates.put("plain_content", ParseUtil.getPlainSearchText(Objects.toString(updates.get("content"), "")));
             }
-            Log logDao = new Log();
+            Log logDao = this.logProvider.get();
             updates.forEach(logDao::set);
             logDao.updateById(toInt(article.get("logId")));
             Map<String, Object> newLog = new HashMap<>(oldLog);
@@ -432,7 +444,11 @@ public class FileManagerReferenceService {
     }
 
     private String buildArticleReferenceSignature() throws SQLException {
-        List<Map<String, Object>> rows = new Log().queryList("count(*) AS article_count, max(logId) AS max_log_id, max(version) AS max_version, max(last_update_date) AS max_last_update_date");
+        List<Map<String, Object>> rows =
+                this.logProvider
+                        .get()
+                        .queryList(
+                                "count(*) AS article_count, max(logId) AS max_log_id, max(version) AS max_version, max(last_update_date) AS max_last_update_date");
         if (rows.isEmpty()) {
             return "empty";
         }
@@ -444,7 +460,10 @@ public class FileManagerReferenceService {
     }
 
     private FileReferenceIndexCacheVO rebuildReferenceIndex(String signature) throws SQLException {
-        List<Map<String, Object>> articles = new Log().queryList("logId, title, alias, thumbnail, content, markdown");
+        List<Map<String, Object>> articles =
+                this.logProvider
+                        .get()
+                        .queryList("logId, title, alias, thumbnail, content, markdown");
         Map<String, Map<Integer, FileReferenceVO>> localReferenceMap = new HashMap<>();
         Map<String, Map<Integer, FileReferenceVO>> externalReferenceMap = new LinkedHashMap<>();
         for (Map<String, Object> article : articles) {

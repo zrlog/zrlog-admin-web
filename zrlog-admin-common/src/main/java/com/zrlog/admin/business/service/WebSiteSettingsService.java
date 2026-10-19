@@ -8,7 +8,9 @@ import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.rest.base.AdminWebSiteInfo;
 import com.zrlog.admin.business.rest.response.VersionResponse;
 import com.zrlog.admin.business.type.AdminAuditAction;
+import com.zrlog.admin.util.BackendServerUrl;
 import com.zrlog.business.rest.base.UpgradeWebSiteInfo;
+import com.zrlog.business.service.WebsiteKvService;
 import com.zrlog.business.updater.AutoUpgradeVersionType;
 import com.zrlog.business.updater.UpdateVersionInfoPlugin;
 import com.zrlog.common.CacheService;
@@ -18,18 +20,36 @@ import com.zrlog.model.WebSite;
 import com.zrlog.util.BlogBuildInfoUtil;
 import com.zrlog.util.I18nUtil;
 
+import jakarta.inject.Inject;
+import jakarta.inject.Singleton;
+
 import java.io.InputStream;
 import java.sql.SQLException;
 import java.util.Map;
 import java.util.function.Supplier;
 
+@Singleton
 public class WebSiteSettingsService {
+    private final AdminAuditService adminAuditService;
+    private final WebsiteKvService websiteKvService;
+    private final jakarta.inject.Provider<WebSite> webSiteProvider;
 
     private final CacheService cacheService;
     private final TokenService tokenService;
     private final Supplier<UpdateVersionInfoPlugin> updatePlugin;
 
-    public WebSiteSettingsService(CacheService cacheService, TokenService tokenService, Supplier<UpdateVersionInfoPlugin> updatePlugin) {
+    @Inject
+    public WebSiteSettingsService(
+            CacheService cacheService,
+            TokenService tokenService,
+            Supplier<UpdateVersionInfoPlugin> updatePlugin,
+            AdminAuditService adminAuditService,
+            WebsiteKvService websiteKvService,
+            jakarta.inject.Provider<WebSite> webSiteProvider) {
+        this.adminAuditService = adminAuditService;
+        this.websiteKvService = websiteKvService;
+        this.webSiteProvider = webSiteProvider;
+
         this.updatePlugin = updatePlugin;
         this.tokenService = tokenService;
         this.cacheService = cacheService;
@@ -55,25 +75,28 @@ public class WebSiteSettingsService {
     }
 
     public void update(Object settings, HttpRequest request) throws SQLException {
-        new AdminAuditService().record(request, AdminAuditAction.UPDATE_SETTING,
+        this.adminAuditService.record(
+                request,
+                AdminAuditAction.UPDATE_SETTING,
                 settingAuditContent(settings, request.getUri()));
         Map<String, Object> values = BeanUtil.convert(settings, Map.class);
         if (values != null) {
-            WebSite webSite = new WebSite();
+            WebSite webSite = this.webSiteProvider.get();
             for (Map.Entry<String, Object> entry : values.entrySet()) {
                 webSite.updateByKV(entry.getKey(), toWebsiteValue(entry.getValue()));
             }
         }
         BaseDataInitVO initData = cacheService.getInitData();
         if (initData != null) {
-            initData.setWebSite(new WebSite().getPublicWebSite());
+            initData.setWebSite(this.webSiteProvider.get().getPublicWebSite());
         }
     }
 
     public void updateAdmin(AdminWebSiteInfo settings, HttpRequest request) throws SQLException {
         // Older clients omit the new field; only an explicit empty string clears it.
         if (settings.getBackend_server_url() == null) {
-            settings.setBackend_server_url(new WebSite().getStringValueByName(com.zrlog.admin.util.BackendServerUrl.SETTING_KEY));
+            settings.setBackend_server_url(
+                    this.webSiteProvider.get().getStringValueByName(BackendServerUrl.SETTING_KEY));
         }
         update(settings, request);
         tokenService.updateSessionTimeout(settings.getSession_timeout());
@@ -92,8 +115,8 @@ public class WebSiteSettingsService {
     public void validateUpgrade(UpgradeWebSiteInfo settings) throws SQLException {
         settings.doValid();
         if (settings.getUpgradePackageSource() == null) {
-            settings.setUpgradePackageSource(new com.zrlog.business.service.WebsiteKvService()
-                    .upgradeWebSiteInfo().getUpgradePackageSource());
+            settings.setUpgradePackageSource(
+                    this.websiteKvService.upgradeWebSiteInfo().getUpgradePackageSource());
         }
         UpdateVersionInfoPlugin plugin = updatePlugin.get();
         if (plugin == null) {

@@ -6,6 +6,8 @@ import com.zrlog.admin.business.rest.request.WebhookConfigRequest;
 import com.zrlog.admin.business.rest.request.WebhookMessageNoticeRequest;
 import com.zrlog.admin.business.rest.response.*;
 
+import jakarta.inject.Inject;
+
 import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -14,6 +16,13 @@ import java.security.SecureRandom;
 import java.util.*;
 
 public class WebhookService {
+
+    @Inject
+    public WebhookService(
+            MessageCenterStateService messageCenterStateService, WebsiteCacheService cacheService) {
+        this.messageCenterStateService = messageCenterStateService;
+        this.cacheService = cacheService;
+    }
 
     public static final String MESSAGE_CENTER_NOTICE_ENDPOINT = "/api/webhook/message-center/notice";
     public static final String TOKEN_HEADER = "X-ZrLog-Webhook-Token";
@@ -25,8 +34,8 @@ public class WebhookService {
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
     private static final Type NOTICE_LIST_TYPE = new TypeToken<List<WebhookMessageNoticeEntry>>() {
     }.getType();
-    private final WebsiteCacheService cacheService = new WebsiteCacheService();
-    private final MessageCenterStateService messageCenterStateService = new MessageCenterStateService();
+    private final WebsiteCacheService cacheService;
+    private final MessageCenterStateService messageCenterStateService;
 
     public static MessageCenterNoticeResponse.WebhookMessagePayload webhookMessagePayload(WebhookMessageNoticeEntry notice) {
         MessageCenterNoticeResponse.WebhookMessagePayload payload = new MessageCenterNoticeResponse.WebhookMessagePayload();

@@ -8,6 +8,8 @@ import com.zrlog.admin.business.security.*;
 import com.zrlog.admin.business.service.OAuthService;
 import com.zrlog.admin.business.service.UserPreferenceService;
 
+import jakarta.inject.Inject;
+
 import java.io.ByteArrayInputStream;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -15,14 +17,23 @@ import java.util.*;
 
 /** One Streamable HTTP endpoint, JSON responses only; no browser session cookies accepted. */
 public class McpInterceptor implements HandleAbleInterceptor {
-    private final java.util.function.Supplier<ContentToolFactory> tools;
-    private final OAuthService oauth;
-    private final java.util.function.Supplier<String> siteTitle;
+    private final UserPreferenceService userPreferenceService;
 
-    public McpInterceptor(java.util.function.Supplier<ContentToolFactory> tools, OAuthService oauth, java.util.function.Supplier<String> siteTitle) {
-        this.siteTitle = Objects.requireNonNull(siteTitle);
+    private final McpContentService.Factory knowledge;
+    private final McpService.Factory protocol;
+    private final OAuthService oauth;
+
+    @Inject
+    public McpInterceptor(
+            McpContentService.Factory knowledge,
+            McpService.Factory protocol,
+            OAuthService oauth,
+            UserPreferenceService userPreferenceService) {
+        this.userPreferenceService = userPreferenceService;
+
+        this.knowledge = Objects.requireNonNull(knowledge);
+        this.protocol = Objects.requireNonNull(protocol);
         this.oauth = Objects.requireNonNull(oauth);
-        this.tools = Objects.requireNonNull(tools);
     }
 
     @Override public boolean isHandleAble(HttpRequest request) { return "/mcp".equals(request.getUri()); }
@@ -57,13 +68,14 @@ public class McpInterceptor implements HandleAbleInterceptor {
             if (!accept.contains("application/json") || !accept.contains("text/event-stream")) { response.renderCode(406); return false; }
             ByteBuffer buffer = request.getRequestBodyByteBuffer();
             if (buffer == null || buffer.remaining() > 6 * 1024 * 1024) { response.renderCode(413); return false; }
-            // Bearer requests have no admin session. Resolve the authenticated token owner's preferences each time.
-            language = new UserPreferenceService().effective(identity.userId).language;
-            McpContentService knowledge = new McpContentService(() -> {
+            // Bearer requests have no admin session. Resolve the authenticated token owner's
+            // preferences each time.
+            language = this.userPreferenceService.effective(identity.userId).language;
+            McpContentService content = knowledge.create(() -> {
                 try { return oauth.authenticate(token, oauth.mcpResource(), Set.of()); }
                 catch (java.sql.SQLException e) { throw new OAuthException("temporarily_unavailable", 503); }
-            }, request, language, tools.get(), oauth::issuer);
-            McpService.Reply reply = new McpService(siteTitle, language).handle(StandardCharsets.UTF_8.decode(buffer.asReadOnlyBuffer()).toString(), knowledge);
+            }, request, language);
+            McpService.Reply reply = protocol.create(language).handle(StandardCharsets.UTF_8.decode(buffer.asReadOnlyBuffer()).toString(), content);
             if (reply.body == null) response.renderCode(reply.status);
             else json(response, reply.body, reply.status);
         } catch (OAuthException e) {

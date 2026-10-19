@@ -1,27 +1,29 @@
 package com.zrlog.admin.business.service;
 
-import com.zrlog.admin.business.exception.InvalidMfaCodeException;
-import com.zrlog.admin.business.exception.MfaCodeRequiredException;
-import com.zrlog.admin.business.rest.request.UpdateMfaRequest;
-import com.zrlog.admin.business.rest.response.MfaStatusResponse;
-import com.zrlog.admin.support.InMemoryZrLogDatabase;
-import com.zrlog.admin.support.MfaTestCodeGenerator;
-import org.junit.Test;
-
-import java.util.HashMap;
-import java.util.Map;
-
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
+import com.zrlog.admin.business.exception.InvalidMfaCodeException;
+import com.zrlog.admin.business.exception.MfaCodeRequiredException;
+import com.zrlog.admin.business.rest.request.UpdateMfaRequest;
+import com.zrlog.admin.business.rest.response.MfaStatusResponse;
+import com.zrlog.admin.support.InMemoryZrLogDatabase;
+import com.zrlog.admin.support.MfaTestCodeGenerator;
+import com.zrlog.model.User;
+
+import org.junit.Test;
+
+import java.util.HashMap;
+import java.util.Map;
+
 public class MfaServiceTest {
 
     @Test
     public void shouldReadMfaEnabledAcrossStorageRepresentations() {
-        MfaService service = new MfaService();
+        MfaService service = new MfaService(User::new);
 
         assertFalse(service.getMfaEnabled(new HashMap<>()));
         assertTrue(service.getMfaEnabled(user(true)));
@@ -37,7 +39,7 @@ public class MfaServiceTest {
 
     @Test
     public void shouldSkipLoginMfaWhenDisabled() {
-        MfaService service = new MfaService();
+        MfaService service = new MfaService(User::new);
 
         service.verifyLoginMfa(new HashMap<>(), null);
         service.verifyLoginMfa(user(false), "");
@@ -46,7 +48,7 @@ public class MfaServiceTest {
 
     @Test
     public void shouldRequireLoginMfaCodeWhenEnabled() {
-        MfaService service = new MfaService();
+        MfaService service = new MfaService(User::new);
 
         assertThrows(MfaCodeRequiredException.class, () -> service.verifyLoginMfa(user(true), null));
         assertThrows(MfaCodeRequiredException.class, () -> service.verifyLoginMfa(user("1"), ""));
@@ -54,7 +56,7 @@ public class MfaServiceTest {
 
     @Test
     public void shouldRejectMissingOrInvalidLoginMfaSecret() {
-        MfaService service = new MfaService();
+        MfaService service = new MfaService(User::new);
         Map<String, Object> missingSecret = user(true);
         Map<String, Object> invalidCode = user(true);
         invalidCode.put("mfaSecret", "JBSWY3DPEHPK3PXP");
@@ -66,7 +68,7 @@ public class MfaServiceTest {
     @Test
     public void shouldCreateEnableAndDisableMfaThroughRealUserTable() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-            MfaService service = new MfaService();
+            MfaService service = new MfaService(User::new);
 
             MfaStatusResponse initial = service.getMfaStatus(1, db.cacheService().getPublicWebSiteInfo().getTitle());
             String secret = String.valueOf(db.queryOne(
@@ -98,7 +100,7 @@ public class MfaServiceTest {
     @Test
     public void shouldReturnSuccessWhenDisablingAlreadyDisabledMfaThroughRealUserTable() throws Exception {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
-            MfaService service = new MfaService();
+            MfaService service = new MfaService(User::new);
 
             assertEquals(0, service.disableMfa(1, mfaRequest("000000")).getError());
             assertFalse(service.isMfaEnabled(1));

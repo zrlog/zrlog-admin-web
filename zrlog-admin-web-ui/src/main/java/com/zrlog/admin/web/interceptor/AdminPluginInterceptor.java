@@ -4,6 +4,7 @@ import com.hibegin.http.HttpMethod;
 import com.hibegin.http.server.api.HandleAbleInterceptor;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
+import com.zrlog.admin.business.service.AccountPermissionService;
 import com.zrlog.admin.business.service.AdminAuditService;
 import com.zrlog.admin.business.type.AdminAuditAction;
 import com.zrlog.admin.util.AdminWebTools;
@@ -11,6 +12,9 @@ import com.zrlog.business.plugin.PluginCorePlugin;
 import com.zrlog.common.Constants;
 import com.zrlog.common.TokenService;
 import com.zrlog.common.vo.AdminTokenVO;
+
+import jakarta.inject.Inject;
+import jakarta.inject.Named;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -26,12 +30,26 @@ import java.util.function.Supplier;
  * 如果想了解更多关于插件的实现可以浏览这篇文章 <a href="https://blog.zrlog.com/zrlog-plugin-dev.html">插件实现</a>
  */
 public class AdminPluginInterceptor implements HandleAbleInterceptor {
+    private final AdminAuditService adminAuditService;
+
+    private final AccountPermissionService permissionService;
+
     protected final Supplier<TokenService> tokenService;
 
     private final Supplier<PluginCorePlugin> pluginCore;
     private final BooleanSupplier installed;
 
-    public AdminPluginInterceptor(Supplier<TokenService> tokenService, Supplier<PluginCorePlugin> pluginCore, BooleanSupplier installed) {
+    @Inject
+    public AdminPluginInterceptor(
+            Supplier<TokenService> tokenService,
+            Supplier<PluginCorePlugin> pluginCore,
+            @Named("installed") BooleanSupplier installed,
+            AccountPermissionService permissionService,
+            AdminAuditService adminAuditService) {
+        this.adminAuditService = adminAuditService;
+
+        this.permissionService = permissionService;
+
         this.tokenService = Objects.requireNonNull(tokenService);
         this.pluginCore = Objects.requireNonNull(pluginCore);
         this.installed = Objects.requireNonNull(installed);
@@ -67,7 +85,10 @@ public class AdminPluginInterceptor implements HandleAbleInterceptor {
             AdminWebTools.blockUnLoginRequestHandler(request, response, installed.getAsBoolean());
             return;
         }
-        if (!com.zrlog.admin.business.service.AccountPermissionService.account(entry).isAdministrator()) { response.renderCode(403); return; }
+        if (!permissionService.account(entry).isAdministrator()) {
+            response.renderCode(403);
+            return;
+        }
         if (pluginCore.get().accessPlugin(target.replaceFirst(adminPluginUriPath, "/"), request, response, entry)) {
             recordPluginSurfaceAction(request, target);
             return;
@@ -85,7 +106,7 @@ public class AdminPluginInterceptor implements HandleAbleInterceptor {
         if (!pluginPath.endsWith("/surfaceAction")) {
             return;
         }
-        new AdminAuditService().record(request, AdminAuditAction.PLUGIN_SURFACE_ACTION, pluginPath);
+        this.adminAuditService.record(request, AdminAuditAction.PLUGIN_SURFACE_ACTION, pluginPath);
     }
 
     static boolean isPluginPwaResource(String target) {

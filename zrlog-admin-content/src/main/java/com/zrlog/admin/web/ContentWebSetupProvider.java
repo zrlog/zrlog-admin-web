@@ -11,8 +11,6 @@ public class ContentWebSetupProvider implements WebSetupProvider {
     @Override public int order() { return 120; }
     @Override public Set<String> requiredModules() { return Set.of("admin", "admin-account"); }
     @Override public WebSetup create(WebSetupContext context) {
-        return new ContentWebSetup(context.getZrLogConfig().getServerConfig(),
-                () -> context.getZrLogConfig().getWebSetup(com.zrlog.admin.business.content.ArticleAssistant.class),
-                () -> context.getZrLogConfig().getWebSetup(com.zrlog.admin.business.content.AttachmentStorage.class));
+        return new ContentWebSetup(context.getZrLogConfig().getServerConfig());
     }
 }

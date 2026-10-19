@@ -3,6 +3,9 @@ package com.zrlog.admin.business.service;
 import com.hibegin.common.util.LoggerUtil;
 import com.hibegin.common.util.StringUtils;
 import com.zrlog.admin.business.rest.response.LinkPreviewResponse;
+
+import jakarta.inject.Inject;
+
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -23,6 +26,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class LinkPreviewService {
+    private final WebsiteCacheService websiteCacheService;
 
     private static final Logger LOGGER = LoggerUtil.getLogger(LinkPreviewService.class);
     private static final String CACHE_KEY = "link_preview";
@@ -37,11 +41,14 @@ public class LinkPreviewService {
 
     private final HttpSender httpSender;
 
-    public LinkPreviewService() {
-        this(defaultHttpSender());
+    @Inject
+    public LinkPreviewService(WebsiteCacheService websiteCacheService) {
+        this(defaultHttpSender(), websiteCacheService);
     }
 
-    LinkPreviewService(HttpSender httpSender) {
+    LinkPreviewService(HttpSender httpSender, WebsiteCacheService websiteCacheService) {
+        this.websiteCacheService = websiteCacheService;
+
         this.httpSender = httpSender;
     }
 
@@ -93,7 +100,8 @@ public class LinkPreviewService {
     private ArrayList<LinkPreviewCacheEntry> readCache(long now) {
         ArrayList<LinkPreviewCacheEntry> entries = new ArrayList<>();
         try {
-            LinkPreviewCacheEntry[] cachedEntries = new WebsiteCacheService().getJson(CACHE_KEY, LinkPreviewCacheEntry[].class);
+            LinkPreviewCacheEntry[] cachedEntries =
+                    this.websiteCacheService.getJson(CACHE_KEY, LinkPreviewCacheEntry[].class);
             if (cachedEntries == null) {
                 return entries;
             }
@@ -114,7 +122,7 @@ public class LinkPreviewService {
         if (entries.size() > MAX_CACHE_SIZE) {
             entries.subList(MAX_CACHE_SIZE, entries.size()).clear();
         }
-        new WebsiteCacheService().putJson(CACHE_KEY, entries);
+        this.websiteCacheService.putJson(CACHE_KEY, entries);
     }
 
     private LinkPreviewResponse fetchUncached(URI uri, int redirects, String userAgent) {

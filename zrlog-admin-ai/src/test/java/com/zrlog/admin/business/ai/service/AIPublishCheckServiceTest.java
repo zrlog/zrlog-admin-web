@@ -1,25 +1,34 @@
 package com.zrlog.admin.business.ai.service;
 
+import static org.junit.Assert.*;
+
 import com.zrlog.admin.business.rest.request.CreateArticleRequest;
 import com.zrlog.admin.business.rest.request.GenerateArticleFieldRequest;
 import com.zrlog.admin.business.rest.response.AIArticleGlobalResponse;
 import com.zrlog.admin.business.rest.response.LoadEditArticleResponse;
 import com.zrlog.admin.business.rest.response.PublishCheckResponse;
 import com.zrlog.admin.business.rest.response.ScoreArticleResponse;
+import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.util.AdminLanguageContext;
 import com.zrlog.util.I18nUtil;
+
 import org.junit.Test;
 
 import java.lang.reflect.Method;
 import java.util.*;
-
-import static org.junit.Assert.*;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 public class AIPublishCheckServiceTest {
     @Test public void publishCheckUsesTheSameSiteSnapshotWithoutGlobalConfig() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-            var service = new AIPublishCheckService();
+            var service =
+                    new AIPublishCheckService(
+                            ApplicationServicesFixture.settings(),
+                            ApplicationServicesFixture.operations(),
+                            AIServiceDependencies.writing(),
+                            AIServiceDependencies.conversations());
             var context = new GenerateArticleFieldRequest();
             db.putWebsite("generator_html_status", "1");
             db.putWebsite("host", "blog.example");
@@ -38,17 +47,30 @@ public class AIPublishCheckServiceTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             db.cacheService().getPublicWebSiteInfo().setLanguage("zh_CN");
             for (String language : List.of("en_US", "zh_CN")) {
-                var started = new java.util.concurrent.CountDownLatch(1);
-                var proceed = new java.util.concurrent.CountDownLatch(1);
-                AIPublishCheckService service = new AIPublishCheckService() {
-                    @Override PublishCheckResponse buildPublishCheckPayload(Long id, GenerateArticleFieldRequest context,
-                            PublishCheckPersistenceGuard guard, AIConversationService conversations) {
-                        started.countDown();
-                        try { assertTrue(proceed.await(5, java.util.concurrent.TimeUnit.SECONDS)); }
-                        catch (InterruptedException e) { throw new RuntimeException(e); }
-                        return new PublishCheckResponse(null, I18nUtil.getCurrentLocale(), "test", List.of());
-                    }
-                };
+                var started = new CountDownLatch(1);
+                var proceed = new CountDownLatch(1);
+                AIPublishCheckService service =
+                        new AIPublishCheckService(
+                                ApplicationServicesFixture.settings(),
+                                ApplicationServicesFixture.operations(),
+                                AIServiceDependencies.writing(),
+                                AIServiceDependencies.conversations()) {
+                            @Override
+                            PublishCheckResponse buildPublishCheckPayload(
+                                    Long id,
+                                    GenerateArticleFieldRequest context,
+                                    PublishCheckPersistenceGuard guard,
+                                    AIConversationService conversations) {
+                                started.countDown();
+                                try {
+                                    assertTrue(proceed.await(5, TimeUnit.SECONDS));
+                                } catch (InterruptedException e) {
+                                    throw new RuntimeException(e);
+                                }
+                                return new PublishCheckResponse(
+                                        null, I18nUtil.getCurrentLocale(), "test", List.of());
+                            }
+                        };
                 AIArticleGlobalResponse detail = new AIArticleGlobalResponse();
                 LoadEditArticleResponse article = new LoadEditArticleResponse(); article.setLogId(1);
                 detail.setArticle(article); detail.setAiConfigured(true); detail.setPublishCheckEnabled(true);
@@ -57,10 +79,11 @@ public class AIPublishCheckServiceTest {
                     task = service.startPublishCheck(detail, new CreateArticleRequest());
                 }
                 try {
-                    assertTrue(started.await(5, java.util.concurrent.TimeUnit.SECONDS));
+                    assertTrue(started.await(5, TimeUnit.SECONDS));
                     try (var ignored = AdminLanguageContext.open(language.equals("en_US") ? "zh_CN" : "en_US")) {
                         proceed.countDown();
-                        assertEquals(language, task.getFuture().get(5, java.util.concurrent.TimeUnit.SECONDS).getContent());
+                        assertEquals(
+                                language, task.getFuture().get(5, TimeUnit.SECONDS).getContent());
                     }
                 } finally { proceed.countDown(); }
             }
@@ -68,7 +91,12 @@ public class AIPublishCheckServiceTest {
     }
     @Test
     public void shouldExtractScoresAndItemCountsFromKnownPayloads() throws Exception {
-        AIPublishCheckService service = new AIPublishCheckService();
+        AIPublishCheckService service =
+                new AIPublishCheckService(
+                        ApplicationServicesFixture.settings(),
+                        ApplicationServicesFixture.operations(),
+                        AIServiceDependencies.writing(),
+                        AIServiceDependencies.conversations());
         Method extractScore = method("extractScore", Object.class);
         Method extractItemCount = method("extractItemCount", Object.class);
         ScoreArticleResponse response = new ScoreArticleResponse();
@@ -89,7 +117,12 @@ public class AIPublishCheckServiceTest {
 
     @Test
     public void shouldConvertIntegerLikeValues() throws Exception {
-        AIPublishCheckService service = new AIPublishCheckService();
+        AIPublishCheckService service =
+                new AIPublishCheckService(
+                        ApplicationServicesFixture.settings(),
+                        ApplicationServicesFixture.operations(),
+                        AIServiceDependencies.writing(),
+                        AIServiceDependencies.conversations());
         Method method = method("toInteger", Object.class);
 
         assertEquals(7, method.invoke(service, 7L));

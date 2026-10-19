@@ -28,6 +28,10 @@ import com.zrlog.util.I18nUtil;
 import com.zrlog.util.StaticFileCacheUtils;
 import com.zrlog.util.TemplateHelper;
 import com.zrlog.util.ZrLogUtil;
+
+import jakarta.inject.Inject;
+import jakarta.inject.Singleton;
+
 import org.jsoup.Jsoup;
 import org.jsoup.safety.Safelist;
 
@@ -53,7 +57,10 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipException;
 import java.util.zip.ZipInputStream;
 
+@Singleton
 public class TemplateService {
+    private final AdminAuditService adminAuditService;
+    private final jakarta.inject.Provider<WebSite> webSiteProvider;
 
     private static final Logger LOGGER = LoggerUtil.getLogger(TemplateController.class);
     private static final int MAX_TEMPLATE_FILE_COUNT = 5000;
@@ -63,8 +70,16 @@ public class TemplateService {
     private final Supplier<PluginCorePlugin> pluginCore;
     private final Supplier<TemplateDownloadPlugin> templateDownload;
 
-    public TemplateService(CacheService cacheService, Supplier<PluginCorePlugin> pluginCore,
-                           Supplier<TemplateDownloadPlugin> templateDownload) {
+    @Inject
+    public TemplateService(
+            CacheService cacheService,
+            Supplier<PluginCorePlugin> pluginCore,
+            Supplier<TemplateDownloadPlugin> templateDownload,
+            AdminAuditService adminAuditService,
+            jakarta.inject.Provider<WebSite> webSiteProvider) {
+        this.adminAuditService = adminAuditService;
+        this.webSiteProvider = webSiteProvider;
+
         this.cacheService = cacheService;
         this.pluginCore = pluginCore;
         this.templateDownload = templateDownload;
@@ -77,8 +92,8 @@ public class TemplateService {
     private static final String SHORT_TEMPLATE_PATTERN = "[A-Za-z0-9][A-Za-z0-9._-]{0,127}";
 
     public boolean apply(String template, HttpRequest request) throws SQLException {
-        boolean updated = new WebSite().updateByKV("template", template);
-        new AdminAuditService().record(request, AdminAuditAction.APPLY_TEMPLATE, template);
+        boolean updated = this.webSiteProvider.get().updateByKV("template", template);
+        this.adminAuditService.record(request, AdminAuditAction.APPLY_TEMPLATE, template);
         return updated;
     }
 
@@ -87,7 +102,7 @@ public class TemplateService {
                 PathUtil.getStaticPath() + Constants.TEMPLATE_BASE_PATH, shortTemplate);
         boolean deleted = file.exists() && FileUtils.deleteFile(file.toString());
         if (deleted) {
-            new AdminAuditService().record(request, AdminAuditAction.DELETE_TEMPLATE, shortTemplate);
+            this.adminAuditService.record(request, AdminAuditAction.DELETE_TEMPLATE, shortTemplate);
         }
         return new DeleteResponse(deleted);
     }
@@ -96,7 +111,9 @@ public class TemplateService {
                                                   HttpRequest request) throws IOException {
         UploadTemplateResponse response = upload(shortTemplate, overwrite, file);
         if (response.getError() == 0 && response.getData() != null) {
-            new AdminAuditService().record(request, AdminAuditAction.UPLOAD_TEMPLATE,
+            this.adminAuditService.record(
+                    request,
+                    AdminAuditAction.UPLOAD_TEMPLATE,
                     response.getData().getShortTemplate());
         }
         return response;
@@ -105,7 +122,7 @@ public class TemplateService {
     public UpdateRecordResponse saveAndRecord(String template, Map<String, Object> settings,
                                               HttpRequest request) throws SQLException, IOException {
         UpdateRecordResponse response = save(template, settings);
-        new AdminAuditService().record(request, AdminAuditAction.UPDATE_TEMPLATE_CONFIG, template);
+        this.adminAuditService.record(request, AdminAuditAction.UPDATE_TEMPLATE_CONFIG, template);
         return response;
     }
 
@@ -155,7 +172,7 @@ public class TemplateService {
                 settingMap.put(key, Jsoup.clean((String) entry.getValue(), Safelist.none()));
             }
         }
-        new WebSite().updateTemplateConfigMap(template, settingMap);
+        this.webSiteProvider.get().updateTemplateConfigMap(template, settingMap);
         UpdateRecordResponse updateRecordResponse = new UpdateRecordResponse();
         updateRecordResponse.setMessage(I18nUtil.getAdminBackendStringFromRes("admin.template.update.success"));
         return updateRecordResponse;
@@ -298,10 +315,16 @@ public class TemplateService {
             return staging;
         }
         try (Stream<Path> stream = Files.list(staging)) {
-            List<Path> candidates = stream
-                    .filter(path -> !Objects.equals(path.getFileName().toString(), "__MACOSX"))
-                    .filter(path -> !Objects.equals(path.getFileName().toString(), ".DS_Store"))
-                    .collect(java.util.stream.Collectors.toList());
+            List<Path> candidates =
+                    stream.filter(
+                                    path ->
+                                            !Objects.equals(
+                                                    path.getFileName().toString(), "__MACOSX"))
+                            .filter(
+                                    path ->
+                                            !Objects.equals(
+                                                    path.getFileName().toString(), ".DS_Store"))
+                            .collect(Collectors.toList());
             if (candidates.size() == 1 && Files.isDirectory(candidates.get(0))
                     && hasTemplateMetadata(candidates.get(0))) {
                 return candidates.get(0);
@@ -460,7 +483,8 @@ public class TemplateService {
     public TemplateVO loadTemplateConfig(String templateName) {
         TemplateVO templateVO = TemplateInfoHelper.loadTemplateVO(templateName);
         TemplateVO.TemplateConfigMap config = templateVO.getConfig();
-        Map<String, Object> dbConfig = new WebSite().getTemplateConfigMap(templateName);
+        Map<String, Object> dbConfig =
+                this.webSiteProvider.get().getTemplateConfigMap(templateName);
         config.forEach((key, value) -> {
             if (dbConfig.containsKey(key)) {
                 value.setValue(dbConfig.get(key));

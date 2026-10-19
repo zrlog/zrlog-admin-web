@@ -19,10 +19,25 @@ import com.zrlog.common.vo.LockVO;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.data.util.DistributedLockManager;
 
+import jakarta.inject.Inject;
+
 import java.util.List;
 
 public class AdminDevController extends Controller {
-    public AdminDevController(AdminPageDataFactory pages) {
+    private final AdminAuditService adminAuditService;
+    private final WebsiteCacheService websiteCacheService;
+    private final DistributedLockManager lockManager;
+
+    @Inject
+    public AdminDevController(
+            AdminPageDataFactory pages,
+            AdminAuditService adminAuditService,
+            WebsiteCacheService websiteCacheService,
+            DistributedLockManager lockManager) {
+        this.adminAuditService = adminAuditService;
+        this.websiteCacheService = websiteCacheService;
+        this.lockManager = lockManager;
+
         this.pages = pages;
     }
 
@@ -41,12 +56,12 @@ public class AdminDevController extends Controller {
     @RequestMethod
     @RequiresAction(value = AccountAction.SYSTEM_MANAGE, descriptionKey = "system.releaseLocks")
     public UpdateRecordResponse releaseLocks() throws Exception {
-        List<LockVO> lockDTOS = DistributedLockManager.getInstance().getLocks();
+        List<LockVO> lockDTOS = lockManager.getLocks();
         for (LockVO lockDTO : lockDTOS) {
-            DistributedLockManager.getInstance().releaseLock(lockDTO.getName());
+            lockManager.releaseLock(lockDTO.getName());
         }
-        new AdminAuditService().record(request, AdminAuditAction.RELEASE_DEV_LOCKS,
-                String.valueOf(lockDTOS.size()));
+        this.adminAuditService.record(
+                request, AdminAuditAction.RELEASE_DEV_LOCKS, String.valueOf(lockDTOS.size()));
         return new UpdateRecordResponse(true);
     }
 
@@ -55,8 +70,8 @@ public class AdminDevController extends Controller {
     @RequiresAction(value = AccountAction.SYSTEM_MANAGE, descriptionKey = "system.development")
     public AdminPageDataResponse<DevInfoResponse> index() throws Exception {
         DevInfoResponse devInfoResponse = new DevInfoResponse();
-        devInfoResponse.setLocks(DistributedLockManager.getInstance().getLocks());
-        devInfoResponse.setCacheEntries(new WebsiteCacheService().listEntries());
+        devInfoResponse.setLocks(lockManager.getLocks());
+        devInfoResponse.setCacheEntries(this.websiteCacheService.listEntries());
         devInfoResponse.setDevMode(EnvKit.isDevMode());
         return pages.response(devInfoResponse, "", getRequest().getUri());
     }
@@ -65,7 +80,7 @@ public class AdminDevController extends Controller {
     @RequiresAction(value = AccountAction.SYSTEM_MANAGE, descriptionKey = "system.enableDevelopment")
     public ApiStandardResponse<Void> enable() {
         setDevMode(true);
-        new AdminAuditService().record(request, AdminAuditAction.ENABLE_DEV_MODE);
+        this.adminAuditService.record(request, AdminAuditAction.ENABLE_DEV_MODE);
         return new ApiStandardResponse<>();
     }
 
@@ -74,7 +89,9 @@ public class AdminDevController extends Controller {
     public ApiStandardResponse<Boolean> mode() {
         boolean enabled = request.getParaToBool("enabled", false);
         setDevMode(enabled);
-        new AdminAuditService().record(request, enabled ? AdminAuditAction.ENABLE_DEV_MODE : AdminAuditAction.DISABLE_DEV_MODE);
+        this.adminAuditService.record(
+                request,
+                enabled ? AdminAuditAction.ENABLE_DEV_MODE : AdminAuditAction.DISABLE_DEV_MODE);
         return new ApiStandardResponse<>(EnvKit.isDevMode());
     }
 

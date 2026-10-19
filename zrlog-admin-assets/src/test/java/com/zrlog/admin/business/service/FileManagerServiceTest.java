@@ -1,12 +1,26 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
+
+import com.hibegin.common.dao.DAO;
 import com.hibegin.http.server.util.PathUtil;
 import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.rest.response.FileEntryVO;
 import com.zrlog.admin.business.type.FileDirectoryAction;
 import com.zrlog.admin.business.type.FileEntryAccess;
 import com.zrlog.admin.business.type.FileEntryAction;
+import com.zrlog.admin.support.AccountServicesFixture;
+import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
+import com.zrlog.model.Log;
+import com.zrlog.model.LogVersion;
+import com.zrlog.model.WebSite;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -16,13 +30,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.List;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
-
 public class FileManagerServiceTest {
 
     @Rule
@@ -30,30 +37,85 @@ public class FileManagerServiceTest {
 
     @Test
     public void shouldResolveAllowedFileManagerPaths() throws Exception {
-        withRootPath(() -> {
-            FileManagerService service = new FileManagerService(new com.zrlog.admin.business.service.UploadService(() -> null), new com.zrlog.admin.business.service.FileManagerReferenceService(""));
+        withRootPath(
+                () -> {
+                    FileManagerService service =
+                            new FileManagerService(
+                                    new UploadService(
+                                            () -> null,
+                                            AccountServicesFixture.component().permissions(),
+                                            new DbFileService(
+                                                    ApplicationServicesFixture.websiteKv(),
+                                                    WebSite::new)),
+                                    new FileManagerReferenceService(
+                                            ApplicationServicesFixture.websiteCache(),
+                                            "",
+                                            new ArticleVersionService(
+                                                    AccountServicesFixture.component()
+                                                            .permissions(),
+                                                    Log::new,
+                                                    () ->
+                                                            new LogVersion(
+                                                                    DAO.getDefaultDataSource())),
+                                            Log::new),
+                                    new DbFileService(
+                                            ApplicationServicesFixture.websiteKv(), WebSite::new),
+                                    ApplicationServicesFixture.settings(),
+                                    ApplicationServicesFixture.audit(),
+                                    ApplicationServicesFixture.operations());
 
-            assertEquals(PathUtil.getStaticFile("/attached").getCanonicalFile(),
-                    service.resolveAndValidate(null).getCanonicalFile());
-            assertEquals(PathUtil.getStaticFile("/attached").getCanonicalFile(),
-                    service.resolveAndValidate("").getCanonicalFile());
-            assertEquals(PathUtil.getStaticFile("/attached/a.png").getCanonicalFile(),
-                    service.resolveAndValidate("/attached/a.png").getCanonicalFile());
-            assertEquals(new File(PathUtil.getRootPath() + "/README.md").getCanonicalFile(),
-                    service.resolveAndValidate(AdminConstants.ADMIN_DEV_FILE_URI_BASE_PATH + "/README.md")
-                            .getCanonicalFile());
-            assertEquals(new File("/tmp/zrlog-test.txt").getCanonicalFile(),
-                    service.resolveAndValidate(AdminConstants.ADMIN_DEV_FILE_SYSTEM_TEMP_URI_BASE_PATH
-                            + "/zrlog-test.txt").getCanonicalFile());
+                    assertEquals(
+                            PathUtil.getStaticFile("/attached").getCanonicalFile(),
+                            service.resolveAndValidate(null).getCanonicalFile());
+                    assertEquals(
+                            PathUtil.getStaticFile("/attached").getCanonicalFile(),
+                            service.resolveAndValidate("").getCanonicalFile());
+                    assertEquals(
+                            PathUtil.getStaticFile("/attached/a.png").getCanonicalFile(),
+                            service.resolveAndValidate("/attached/a.png").getCanonicalFile());
+                    assertEquals(
+                            new File(PathUtil.getRootPath() + "/README.md").getCanonicalFile(),
+                            service.resolveAndValidate(
+                                            AdminConstants.ADMIN_DEV_FILE_URI_BASE_PATH
+                                                    + "/README.md")
+                                    .getCanonicalFile());
+                    assertEquals(
+                            new File("/tmp/zrlog-test.txt").getCanonicalFile(),
+                            service.resolveAndValidate(
+                                            AdminConstants.ADMIN_DEV_FILE_SYSTEM_TEMP_URI_BASE_PATH
+                                                    + "/zrlog-test.txt")
+                                    .getCanonicalFile());
 
-            assertThrows(IllegalArgumentException.class, () -> service.resolveAndValidate("../etc/passwd"));
-            assertThrows(IllegalArgumentException.class, () -> service.resolveAndValidate("/templates/default"));
-        });
+                    assertThrows(
+                            IllegalArgumentException.class,
+                            () -> service.resolveAndValidate("../etc/passwd"));
+                    assertThrows(
+                            IllegalArgumentException.class,
+                            () -> service.resolveAndValidate("/templates/default"));
+                });
     }
 
     @Test
     public void shouldExposeDirectoryActionsForWritableRoots() {
-        FileManagerService service = new FileManagerService(new com.zrlog.admin.business.service.UploadService(() -> null), new com.zrlog.admin.business.service.FileManagerReferenceService(""));
+        FileManagerService service =
+                new FileManagerService(
+                        new UploadService(
+                                () -> null,
+                                AccountServicesFixture.component().permissions(),
+                                new DbFileService(
+                                        ApplicationServicesFixture.websiteKv(), WebSite::new)),
+                        new FileManagerReferenceService(
+                                ApplicationServicesFixture.websiteCache(),
+                                "",
+                                new ArticleVersionService(
+                                        AccountServicesFixture.component().permissions(),
+                                        Log::new,
+                                        () -> new LogVersion(DAO.getDefaultDataSource())),
+                                Log::new),
+                        new DbFileService(ApplicationServicesFixture.websiteKv(), WebSite::new),
+                        ApplicationServicesFixture.settings(),
+                        ApplicationServicesFixture.audit(),
+                        ApplicationServicesFixture.operations());
 
         assertEquals(List.of(FileDirectoryAction.UPLOAD, FileDirectoryAction.MKDIR),
                 service.getDirectoryActions("/attached"));
@@ -69,7 +131,25 @@ public class FileManagerServiceTest {
 
     @Test
     public void shouldDecorateFileEntriesWithAccessAndActions() throws Exception {
-        FileManagerService service = new FileManagerService(new com.zrlog.admin.business.service.UploadService(() -> null), new com.zrlog.admin.business.service.FileManagerReferenceService(""));
+        FileManagerService service =
+                new FileManagerService(
+                        new UploadService(
+                                () -> null,
+                                AccountServicesFixture.component().permissions(),
+                                new DbFileService(
+                                        ApplicationServicesFixture.websiteKv(), WebSite::new)),
+                        new FileManagerReferenceService(
+                                ApplicationServicesFixture.websiteCache(),
+                                "",
+                                new ArticleVersionService(
+                                        AccountServicesFixture.component().permissions(),
+                                        Log::new,
+                                        () -> new LogVersion(DAO.getDefaultDataSource())),
+                                Log::new),
+                        new DbFileService(ApplicationServicesFixture.websiteKv(), WebSite::new),
+                        ApplicationServicesFixture.settings(),
+                        ApplicationServicesFixture.audit(),
+                        ApplicationServicesFixture.operations());
 
         assertTrue(service.search("").isEmpty());
 
@@ -127,49 +207,124 @@ public class FileManagerServiceTest {
 
     @Test
     public void shouldCreateRenameDeleteAndReadAttachedFiles() throws Exception {
-        withRootPath(() -> {
-            FileManagerService service = new FileManagerService(new com.zrlog.admin.business.service.UploadService(() -> null), new com.zrlog.admin.business.service.FileManagerReferenceService(""));
+        withRootPath(
+                () -> {
+                    FileManagerService service =
+                            new FileManagerService(
+                                    new UploadService(
+                                            () -> null,
+                                            AccountServicesFixture.component().permissions(),
+                                            new DbFileService(
+                                                    ApplicationServicesFixture.websiteKv(),
+                                                    WebSite::new)),
+                                    new FileManagerReferenceService(
+                                            ApplicationServicesFixture.websiteCache(),
+                                            "",
+                                            new ArticleVersionService(
+                                                    AccountServicesFixture.component()
+                                                            .permissions(),
+                                                    Log::new,
+                                                    () ->
+                                                            new LogVersion(
+                                                                    DAO.getDefaultDataSource())),
+                                            Log::new),
+                                    new DbFileService(
+                                            ApplicationServicesFixture.websiteKv(), WebSite::new),
+                                    ApplicationServicesFixture.settings(),
+                                    ApplicationServicesFixture.audit(),
+                                    ApplicationServicesFixture.operations());
 
-            assertTrue(service.mkdir("/attached/docs"));
-            assertTrue(service.mkdir("/attached/docs"));
-            assertFalse(service.mkdir("/admin/dev/file/docs"));
+                    assertTrue(service.mkdir("/attached/docs"));
+                    assertTrue(service.mkdir("/attached/docs"));
+                    assertFalse(service.mkdir("/admin/dev/file/docs"));
 
-            File file = PathUtil.getStaticFile("/attached/docs/a.txt");
-            Files.writeString(file.toPath(), "hello", StandardCharsets.UTF_8);
+                    File file = PathUtil.getStaticFile("/attached/docs/a.txt");
+                    Files.writeString(file.toPath(), "hello", StandardCharsets.UTF_8);
 
-            assertEquals("hello", service.readContent("/attached/docs/a.txt"));
-            assertArrayEquals("hello".getBytes(StandardCharsets.UTF_8), service.read("/attached/docs/a.txt"));
-            assertTrue(service.rename("/attached/docs/a.txt", "b.txt"));
-            assertFalse(file.exists());
-            assertTrue(PathUtil.getStaticFile("/attached/docs/b.txt").exists());
-            assertFalse(service.rename("/external/example.com/a.txt", "b.txt"));
-            assertTrue(service.delete("/attached/docs"));
-            assertFalse(PathUtil.getStaticFile("/attached/docs").exists());
-            assertFalse(service.delete("/admin/dev/file/missing.txt"));
-        });
+                    assertEquals("hello", service.readContent("/attached/docs/a.txt"));
+                    assertArrayEquals(
+                            "hello".getBytes(StandardCharsets.UTF_8),
+                            service.read("/attached/docs/a.txt"));
+                    assertTrue(service.rename("/attached/docs/a.txt", "b.txt"));
+                    assertFalse(file.exists());
+                    assertTrue(PathUtil.getStaticFile("/attached/docs/b.txt").exists());
+                    assertFalse(service.rename("/external/example.com/a.txt", "b.txt"));
+                    assertTrue(service.delete("/attached/docs"));
+                    assertFalse(PathUtil.getStaticFile("/attached/docs").exists());
+                    assertFalse(service.delete("/admin/dev/file/missing.txt"));
+                });
     }
 
     @Test
     public void shouldRejectInvalidOrExistingReuploadTargets() throws Exception {
-        withRootPath(() -> {
-            FileManagerService service = new FileManagerService(new com.zrlog.admin.business.service.UploadService(() -> null), new com.zrlog.admin.business.service.FileManagerReferenceService(""));
-            File upload = temporaryFolder.newFile("upload.png");
-            File existing = PathUtil.getStaticFile("/attached/existing.png");
-            assertTrue(existing.getParentFile().mkdirs());
-            Files.writeString(existing.toPath(), "existing", StandardCharsets.UTF_8);
+        withRootPath(
+                () -> {
+                    FileManagerService service =
+                            new FileManagerService(
+                                    new UploadService(
+                                            () -> null,
+                                            AccountServicesFixture.component().permissions(),
+                                            new DbFileService(
+                                                    ApplicationServicesFixture.websiteKv(),
+                                                    WebSite::new)),
+                                    new FileManagerReferenceService(
+                                            ApplicationServicesFixture.websiteCache(),
+                                            "",
+                                            new ArticleVersionService(
+                                                    AccountServicesFixture.component()
+                                                            .permissions(),
+                                                    Log::new,
+                                                    () ->
+                                                            new LogVersion(
+                                                                    DAO.getDefaultDataSource())),
+                                            Log::new),
+                                    new DbFileService(
+                                            ApplicationServicesFixture.websiteKv(), WebSite::new),
+                                    ApplicationServicesFixture.settings(),
+                                    ApplicationServicesFixture.audit(),
+                                    ApplicationServicesFixture.operations());
+                    File upload = temporaryFolder.newFile("upload.png");
+                    File existing = PathUtil.getStaticFile("/attached/existing.png");
+                    assertTrue(existing.getParentFile().mkdirs());
+                    Files.writeString(existing.toPath(), "existing", StandardCharsets.UTF_8);
 
-            assertThrows(IllegalArgumentException.class,
-                    () -> service.reuploadMissingLocalResource("/external/existing.png", upload, null, null));
-            assertThrows(IllegalArgumentException.class,
-                    () -> service.reuploadMissingLocalResource("/attached/existing.png", upload, null, null));
-        });
+                    assertThrows(
+                            IllegalArgumentException.class,
+                            () ->
+                                    service.reuploadMissingLocalResource(
+                                            "/external/existing.png", upload, null, null));
+                    assertThrows(
+                            IllegalArgumentException.class,
+                            () ->
+                                    service.reuploadMissingLocalResource(
+                                            "/attached/existing.png", upload, null, null));
+                });
     }
 
     @Test
     public void shouldReadAndDeleteDbTempFilesThroughRealWebsiteTable() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-            FileManagerService service = new FileManagerService(new com.zrlog.admin.business.service.UploadService(() -> null), new com.zrlog.admin.business.service.FileManagerReferenceService(""));
-            DbFileService dbFileService = new DbFileService();
+            FileManagerService service =
+                    new FileManagerService(
+                            new UploadService(
+                                    () -> null,
+                                    AccountServicesFixture.component().permissions(),
+                                    new DbFileService(
+                                            ApplicationServicesFixture.websiteKv(), WebSite::new)),
+                            new FileManagerReferenceService(
+                                    ApplicationServicesFixture.websiteCache(),
+                                    "",
+                                    new ArticleVersionService(
+                                            AccountServicesFixture.component().permissions(),
+                                            Log::new,
+                                            () -> new LogVersion(DAO.getDefaultDataSource())),
+                                    Log::new),
+                            new DbFileService(ApplicationServicesFixture.websiteKv(), WebSite::new),
+                            ApplicationServicesFixture.settings(),
+                            ApplicationServicesFixture.audit(),
+                            ApplicationServicesFixture.operations());
+            DbFileService dbFileService =
+                    new DbFileService(ApplicationServicesFixture.websiteKv(), WebSite::new);
             String filePath = AdminConstants.ADMIN_DB_ATTACHED_TMP + "/docs/a.txt";
             String dirPath = AdminConstants.ADMIN_DB_ATTACHED_TMP + "/docs";
             dbFileService.toDbFile(filePath, "db-temp".getBytes(StandardCharsets.UTF_8));
@@ -186,77 +341,178 @@ public class FileManagerServiceTest {
 
     @Test
     public void shouldListSearchAndRefreshReferenceAwareEntriesThroughRealDatabase() throws Exception {
-        withRootPath(() -> {
-            try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-                db.putWebsite(WebSiteService.FEATURE_RESOURCE_REFERENCE_ENABLED_KEY, true);
-                insertArticle(db, 21,
-                        "<p><img src=\"/attached/images/a.png\">"
-                                + "<img src=\"/attached/images/missing.png\">"
-                                + "<img src=\"https://cdn.example.com/assets/a.png\"></p>",
-                        "![local](/attached/images/markdown.png) "
-                                + "![external](https://cdn.example.com/assets/b.png)");
-                File imageDir = PathUtil.getStaticFile("/attached/images");
-                assertTrue(imageDir.mkdirs());
-                Files.writeString(new File(imageDir, "a.png").toPath(), "image", StandardCharsets.UTF_8);
-                Files.writeString(new File(imageDir, "notes.txt").toPath(), "notes", StandardCharsets.UTF_8);
+        withRootPath(
+                () -> {
+                    try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+                        db.putWebsite(WebSiteService.FEATURE_RESOURCE_REFERENCE_ENABLED_KEY, true);
+                        insertArticle(
+                                db,
+                                21,
+                                "<p><img src=\"/attached/images/a.png\">"
+                                        + "<img src=\"/attached/images/missing.png\">"
+                                        + "<img src=\"https://cdn.example.com/assets/a.png\"></p>",
+                                "![local](/attached/images/markdown.png) "
+                                        + "![external](https://cdn.example.com/assets/b.png)");
+                        File imageDir = PathUtil.getStaticFile("/attached/images");
+                        assertTrue(imageDir.mkdirs());
+                        Files.writeString(
+                                new File(imageDir, "a.png").toPath(),
+                                "image",
+                                StandardCharsets.UTF_8);
+                        Files.writeString(
+                                new File(imageDir, "notes.txt").toPath(),
+                                "notes",
+                                StandardCharsets.UTF_8);
 
-                FileManagerService service = new FileManagerService(new com.zrlog.admin.business.service.UploadService(() -> null), new com.zrlog.admin.business.service.FileManagerReferenceService(""));
-                List<FileEntryVO> attachedEntries = service.list("/attached/images");
-                FileEntryVO referencedImage = findByName(attachedEntries, "a.png");
-                List<FileEntryVO> externalDomains = service.list(FileManagerService.EXTERNAL_ROOT);
-                List<FileEntryVO> externalFiles = service.list(FileManagerService.EXTERNAL_ROOT + "/cdn.example.com");
-                List<FileEntryVO> missingResources = service.listBrokenLocalResourceReferences("");
-                List<FileEntryVO> filteredMissingResources = service.listBrokenLocalResourceReferences("missing");
-                List<FileEntryVO> searchResults = service.search("notes");
+                        FileManagerService service =
+                                new FileManagerService(
+                                        new UploadService(
+                                                () -> null,
+                                                AccountServicesFixture.component().permissions(),
+                                                new DbFileService(
+                                                        ApplicationServicesFixture.websiteKv(),
+                                                        WebSite::new)),
+                                        new FileManagerReferenceService(
+                                                ApplicationServicesFixture.websiteCache(),
+                                                "",
+                                                new ArticleVersionService(
+                                                        AccountServicesFixture.component()
+                                                                .permissions(),
+                                                        Log::new,
+                                                        () ->
+                                                                new LogVersion(
+                                                                        DAO
+                                                                                .getDefaultDataSource())),
+                                                Log::new),
+                                        new DbFileService(
+                                                ApplicationServicesFixture.websiteKv(),
+                                                WebSite::new),
+                                        ApplicationServicesFixture.settings(),
+                                        ApplicationServicesFixture.audit(),
+                                        ApplicationServicesFixture.operations());
+                        List<FileEntryVO> attachedEntries = service.list("/attached/images");
+                        FileEntryVO referencedImage = findByName(attachedEntries, "a.png");
+                        List<FileEntryVO> externalDomains =
+                                service.list(FileManagerService.EXTERNAL_ROOT);
+                        List<FileEntryVO> externalFiles =
+                                service.list(FileManagerService.EXTERNAL_ROOT + "/cdn.example.com");
+                        List<FileEntryVO> missingResources =
+                                service.listBrokenLocalResourceReferences("");
+                        List<FileEntryVO> filteredMissingResources =
+                                service.listBrokenLocalResourceReferences("missing");
+                        List<FileEntryVO> searchResults = service.search("notes");
 
-                assertNotNull(referencedImage);
-                assertTrue(referencedImage.isReferenced());
-                assertEquals(1, referencedImage.getReferenceCount());
-                assertTrue(referencedImage.getActions().contains(FileEntryAction.UPDATE_REFERENCES));
-                assertEquals(1, externalDomains.size());
-                assertEquals("cdn.example.com", externalDomains.get(0).getName());
-                assertEquals(1, externalDomains.get(0).getReferenceCount());
-                assertEquals(2, externalFiles.size());
-                assertTrue(externalFiles.get(0).getActions().contains(FileEntryAction.COPY_URL));
-                assertTrue(externalFiles.get(0).getActions().contains(FileEntryAction.SELECT));
-                assertEquals(2, missingResources.size());
-                assertEquals(1, filteredMissingResources.size());
-                assertEquals("/attached/images/missing.png", filteredMissingResources.get(0).getPath());
-                assertEquals(1, searchResults.size());
-                assertEquals("notes.txt", searchResults.get(0).getName());
-                assertTrue(service.refreshReferenceIndex());
-            }
-        });
+                        assertNotNull(referencedImage);
+                        assertTrue(referencedImage.isReferenced());
+                        assertEquals(1, referencedImage.getReferenceCount());
+                        assertTrue(
+                                referencedImage
+                                        .getActions()
+                                        .contains(FileEntryAction.UPDATE_REFERENCES));
+                        assertEquals(1, externalDomains.size());
+                        assertEquals("cdn.example.com", externalDomains.get(0).getName());
+                        assertEquals(1, externalDomains.get(0).getReferenceCount());
+                        assertEquals(2, externalFiles.size());
+                        assertTrue(
+                                externalFiles
+                                        .get(0)
+                                        .getActions()
+                                        .contains(FileEntryAction.COPY_URL));
+                        assertTrue(
+                                externalFiles.get(0).getActions().contains(FileEntryAction.SELECT));
+                        assertEquals(2, missingResources.size());
+                        assertEquals(1, filteredMissingResources.size());
+                        assertEquals(
+                                "/attached/images/missing.png",
+                                filteredMissingResources.get(0).getPath());
+                        assertEquals(1, searchResults.size());
+                        assertEquals("notes.txt", searchResults.get(0).getName());
+                        assertTrue(service.refreshReferenceIndex());
+                    }
+                });
     }
 
     @Test
     public void shouldSkipReferenceAwareEntriesWhenFeatureFlagIsDisabled() throws Exception {
-        withRootPath(() -> {
-            try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-                insertArticle(db, 22,
-                        "<p><img src=\"/attached/images/missing.png\">"
-                                + "<img src=\"https://cdn.example.com/assets/a.png\"></p>",
-                        "");
+        withRootPath(
+                () -> {
+                    try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+                        insertArticle(
+                                db,
+                                22,
+                                "<p><img src=\"/attached/images/missing.png\">"
+                                        + "<img src=\"https://cdn.example.com/assets/a.png\"></p>",
+                                "");
 
-                FileManagerService service = new FileManagerService(new com.zrlog.admin.business.service.UploadService(() -> null), new com.zrlog.admin.business.service.FileManagerReferenceService(""));
+                        FileManagerService service =
+                                new FileManagerService(
+                                        new UploadService(
+                                                () -> null,
+                                                AccountServicesFixture.component().permissions(),
+                                                new DbFileService(
+                                                        ApplicationServicesFixture.websiteKv(),
+                                                        WebSite::new)),
+                                        new FileManagerReferenceService(
+                                                ApplicationServicesFixture.websiteCache(),
+                                                "",
+                                                new ArticleVersionService(
+                                                        AccountServicesFixture.component()
+                                                                .permissions(),
+                                                        Log::new,
+                                                        () ->
+                                                                new LogVersion(
+                                                                        DAO
+                                                                                .getDefaultDataSource())),
+                                                Log::new),
+                                        new DbFileService(
+                                                ApplicationServicesFixture.websiteKv(),
+                                                WebSite::new),
+                                        ApplicationServicesFixture.settings(),
+                                        ApplicationServicesFixture.audit(),
+                                        ApplicationServicesFixture.operations());
 
-                assertTrue(service.list(FileManagerService.EXTERNAL_ROOT).isEmpty());
-                assertTrue(service.listBrokenLocalResourceReferences("").isEmpty());
-                assertFalse(service.refreshReferenceIndex());
-            }
-        });
+                        assertTrue(service.list(FileManagerService.EXTERNAL_ROOT).isEmpty());
+                        assertTrue(service.listBrokenLocalResourceReferences("").isEmpty());
+                        assertFalse(service.refreshReferenceIndex());
+                    }
+                });
     }
 
     @Test
     public void shouldProtectLargeTextPreview() throws Exception {
-        withRootPath(() -> {
-            FileManagerService service = new FileManagerService(new com.zrlog.admin.business.service.UploadService(() -> null), new com.zrlog.admin.business.service.FileManagerReferenceService(""));
-            File file = PathUtil.getStaticFile("/attached/large.txt");
-            assertTrue(file.getParentFile().mkdirs());
-            Files.write(file.toPath(), new byte[1024 * 1024 + 1]);
+        withRootPath(
+                () -> {
+                    FileManagerService service =
+                            new FileManagerService(
+                                    new UploadService(
+                                            () -> null,
+                                            AccountServicesFixture.component().permissions(),
+                                            new DbFileService(
+                                                    ApplicationServicesFixture.websiteKv(),
+                                                    WebSite::new)),
+                                    new FileManagerReferenceService(
+                                            ApplicationServicesFixture.websiteCache(),
+                                            "",
+                                            new ArticleVersionService(
+                                                    AccountServicesFixture.component()
+                                                            .permissions(),
+                                                    Log::new,
+                                                    () ->
+                                                            new LogVersion(
+                                                                    DAO.getDefaultDataSource())),
+                                            Log::new),
+                                    new DbFileService(
+                                            ApplicationServicesFixture.websiteKv(), WebSite::new),
+                                    ApplicationServicesFixture.settings(),
+                                    ApplicationServicesFixture.audit(),
+                                    ApplicationServicesFixture.operations());
+                    File file = PathUtil.getStaticFile("/attached/large.txt");
+                    assertTrue(file.getParentFile().mkdirs());
+                    Files.write(file.toPath(), new byte[1024 * 1024 + 1]);
 
-            assertEquals("File too large (max 1MB)", service.readContent("/attached/large.txt"));
-        });
+                    assertEquals(
+                            "File too large (max 1MB)", service.readContent("/attached/large.txt"));
+                });
     }
 
     private void withRootPath(ThrowingRunnable runnable) throws Exception {

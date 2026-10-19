@@ -1,17 +1,19 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 import com.zrlog.admin.business.rest.base.AdminWebSiteInfo;
 import com.zrlog.admin.business.rest.base.ArticleEditWebSiteInfo;
 import com.zrlog.admin.business.rest.base.BasicWebSiteInfo;
 import com.zrlog.admin.business.rest.base.BlogWebSiteInfo;
 import com.zrlog.admin.business.rest.base.FeatureLabWebSiteInfo;
+import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.data.util.WebSiteUtils;
-import org.junit.Test;
+import com.zrlog.model.WebSite;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import org.junit.Test;
 
 public class WebSiteServiceDatabaseTest {
 
@@ -28,7 +30,8 @@ public class WebSiteServiceDatabaseTest {
             db.putWebsite("article_thumbnail_status", true);
             db.putWebsite("system_notification", "notice");
 
-            WebSiteService service = new WebSiteService();
+            WebSiteService service =
+                    new WebSiteService(ApplicationServicesFixture.websiteKv(), WebSite::new);
             BasicWebSiteInfo basic = service.basicWebSiteInfo();
             BlogWebSiteInfo blog = service.blogWebSiteInfo();
 
@@ -56,7 +59,8 @@ public class WebSiteServiceDatabaseTest {
             db.putWebsite(WebSiteService.ARTICLE_PUBLISH_CHECK_ENABLED_KEY, false);
             db.putWebsite(WebSiteService.ARTICLE_COVER_ASPECT_RATIO_KEY, "bad");
 
-            WebSiteService service = new WebSiteService();
+            WebSiteService service =
+                    new WebSiteService(ApplicationServicesFixture.websiteKv(), WebSite::new);
             AdminWebSiteInfo admin = service.adminWebSiteInfo();
             ArticleEditWebSiteInfo articleEdit = service.articleEditWebSiteInfo();
 
@@ -78,14 +82,25 @@ public class WebSiteServiceDatabaseTest {
             db.putWebsite(WebSiteService.FEATURE_ARTICLE_EXTENSION_FILTER_ENABLED_KEY, true);
             db.putWebsite(WebSiteService.FEATURE_WEBHOOK_ENABLED_KEY, false);
             db.putWebsite(WebSiteService.FEATURE_PERSONAL_DATA_ENABLED_KEY, true);
-            FeatureLabWebSiteInfo featureLab = new com.zrlog.admin.business.service.FeatureLabService(() -> true).featureLab();
+            FeatureLabWebSiteInfo featureLab =
+                    new FeatureLabService(
+                                    () -> true,
+                                    new WebhookService(
+                                            ApplicationServicesFixture.messages(),
+                                            ApplicationServicesFixture.websiteCache()),
+                                    WebSite::new)
+                            .featureLab();
 
             assertEquals(Boolean.TRUE, featureLab.getFeature_resource_reference_enabled());
             assertEquals(Boolean.TRUE, featureLab.getFeature_article_extension_filter_enabled());
             assertEquals(Boolean.FALSE, featureLab.getFeature_webhook_enabled());
             assertEquals(Boolean.TRUE, featureLab.getFeature_personal_data_enabled());
-            assertTrue(new WebSiteService().isFeatureResourceReferenceEnabled());
-            assertTrue(new WebSiteService().isFeatureArticleExtensionFilterEnabled());
+            assertTrue(
+                    new WebSiteService(ApplicationServicesFixture.websiteKv(), WebSite::new)
+                            .isFeatureResourceReferenceEnabled());
+            assertTrue(
+                    new WebSiteService(ApplicationServicesFixture.websiteKv(), WebSite::new)
+                            .isFeatureArticleExtensionFilterEnabled());
         }
     }
 }

@@ -7,6 +7,7 @@ import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
 import com.hibegin.http.server.web.Controller;
 import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
+import com.zrlog.admin.business.rest.response.AdminResourceInfoResponse;
 import com.zrlog.admin.business.rest.response.ServerSideDataResponse;
 import com.zrlog.admin.business.rest.response.UserInfoResponse;
 import com.zrlog.admin.web.config.AdminAccountPages;
@@ -18,6 +19,10 @@ import com.zrlog.common.rest.response.StandardResponse;
 import com.zrlog.common.vo.PublicWebSiteInfo;
 import com.zrlog.plugin.BaseStaticSitePlugin;
 import com.zrlog.util.I18nUtil;
+
+import jakarta.inject.Inject;
+import jakarta.inject.Singleton;
+
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -29,14 +34,34 @@ import java.lang.reflect.Method;
 import java.util.Objects;
 import java.util.function.Supplier;
 
+@Singleton
 public class AdminPageService {
+    private final UserService userService;
+
+    private final UserPreferenceService userPreferenceService;
+
+    private final AccountPermissionService permissionService;
+
     private final CacheService cacheService;
     private final AdminPageDataFactory pages;
     private final AdminResourceService resources;
     private final Supplier<String> buildId;
 
-    public AdminPageService(CacheService cacheService, AdminPageDataFactory pages, AdminResourceService resources,
-                            Supplier<String> buildId) {
+    @Inject
+    public AdminPageService(
+            CacheService cacheService,
+            AdminPageDataFactory pages,
+            AdminResourceService resources,
+            Supplier<String> buildId,
+            AccountPermissionService permissionService,
+            UserPreferenceService userPreferenceService,
+            UserService userService) {
+        this.userService = userService;
+
+        this.userPreferenceService = userPreferenceService;
+
+        this.permissionService = permissionService;
+
         this.buildId = Objects.requireNonNull(buildId);
         this.pages = pages;
         this.resources = Objects.requireNonNull(resources);
@@ -124,12 +149,17 @@ public class AdminPageService {
     }
 
     public ServerSideDataResponse<Object> serverSide(String uri, HttpRequest request, HttpResponse response) throws Throwable {
-        com.zrlog.admin.business.rest.response.AdminResourceInfoResponse resourceInfo = resources.adminResourceInfo(request);
+        AdminResourceInfoResponse resourceInfo = resources.adminResourceInfo(request);
         if (Objects.isNull(AdminTokenThreadLocal.getUser()) || BaseStaticSitePlugin.isStaticPluginRequest(request)) {
             return new ServerSideDataResponse<>(null, resourceInfo, null, null, pages.title(request.getUri()), pages.metadata(uri));
         }
-        UserInfoResponse userInfo = new UserService(java.util.Collections::emptySet).getUserInfoWithCache(AdminTokenThreadLocal.getUserId(), AdminTokenThreadLocal.getUser().getSessionId(), cacheService);
-        new UserPreferenceService().apply(resourceInfo, userInfo.getLanguage(), userInfo.getAppearance());
+        UserInfoResponse userInfo =
+                userService.getUserInfoWithCache(
+                        AdminTokenThreadLocal.getUserId(),
+                        AdminTokenThreadLocal.getUser().getSessionId(),
+                        cacheService);
+        this.userPreferenceService.apply(
+                resourceInfo, userInfo.getLanguage(), userInfo.getAppearance());
         Method method = request.getRequestConfig().getRouter().getMethod(AdminAccountPages.apiUri(uri), request.getMethod());
         // Disabled features have no API route; retain the shell so the UI can render its 404 page.
         if (method == null) {
@@ -137,7 +167,7 @@ public class AdminPageService {
                     AdminTokenThreadLocal.getUser().getSessionId(), pages.title(uri), pages.metadata(uri));
         }
         try {
-            AccountPermissionService.checkRoute(method, request);
+            permissionService.checkRoute(method, request);
             Controller controller = Controller.buildController(method, request, response);
             StandardResponse result = (StandardResponse) method.invoke(controller);
             if (Objects.isNull(result)) {

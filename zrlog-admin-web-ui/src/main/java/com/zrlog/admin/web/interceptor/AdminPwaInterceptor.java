@@ -9,6 +9,8 @@ import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.service.AdminResource;
 import com.zrlog.business.service.TemplateInfoHelper;
 
+import jakarta.inject.Inject;
+
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.lang.reflect.Method;
@@ -24,6 +26,7 @@ public class AdminPwaInterceptor implements HandleAbleInterceptor {
     private final AdminResource resources;
     private final List<String> resourceUris = new ArrayList<>();
 
+    @Inject
     public AdminPwaInterceptor(AdminResource resources) {
         this.resources = Objects.requireNonNull(resources);
         resourceUris.add(AdminResource.ADMIN_ASSET_MANIFEST_JSON);

@@ -20,15 +20,28 @@ import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.I18nUtil;
 
+import jakarta.inject.Inject;
+
 import java.io.IOException;
 import java.sql.SQLException;
 
 public class AIWebSiteController extends BaseController {
+    private final AIConfigService aIConfigService;
+    private final AIToolService aIToolService;
+
     private final AdminPageDataFactory pages;
 
     private final WebSiteSettingsService settingsService;
 
-    public AIWebSiteController(WebSiteSettingsService settingsService, AdminPageDataFactory pages) {
+    @Inject
+    public AIWebSiteController(
+            WebSiteSettingsService settingsService,
+            AdminPageDataFactory pages,
+            AIConfigService aIConfigService,
+            AIToolService aIToolService) {
+        this.aIConfigService = aIConfigService;
+        this.aIToolService = aIToolService;
+
         this.pages = pages;
         this.settingsService = settingsService;
     }
@@ -39,7 +52,7 @@ public class AIWebSiteController extends BaseController {
     public ApiStandardResponse<OptimizeWebsiteDescriptionResponse> optimizeDescription()
             throws IOException, InterruptedException {
         OptimizeWebsiteDescriptionRequest body = getRequestBodyWithNullCheck(OptimizeWebsiteDescriptionRequest.class);
-        return new ApiStandardResponse<>(new AIToolService().optimizeWebsiteDescription(body));
+        return new ApiStandardResponse<>(this.aIToolService.optimizeWebsiteDescription(body));
     }
 
     @RequestLock(onlyOnPostMethod = true)
@@ -48,16 +61,17 @@ public class AIWebSiteController extends BaseController {
     public ApiStandardResponse<OptimizeAiPromptResponse> optimizeAiPrompt()
             throws IOException, InterruptedException {
         OptimizeAiPromptRequest body = getRequestBodyWithNullCheck(OptimizeAiPromptRequest.class);
-        return new ApiStandardResponse<>(new AIToolService().optimizeAiPrompt(body));
+        return new ApiStandardResponse<>(this.aIToolService.optimizeAiPrompt(body));
     }
 
     @ResponseBody
     @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "website.ai")
     public AdminPageDataResponse<AIWebSiteInfoResponse> ai() throws SQLException {
         if (isPost()) {
-            new AIConfigService().updateAi(getRequestBodyWithNullCheck(AIWebSiteInfo.class), request, settingsService);
+            this.aIConfigService.updateAi(
+                    getRequestBodyWithNullCheck(AIWebSiteInfo.class), request, settingsService);
         }
-        return page(new AIConfigService().aiResponse());
+        return page(this.aIConfigService.aiResponse());
     }
 
     private boolean isPost() {

@@ -1,39 +1,70 @@
 package com.zrlog.admin.business.ai.service;
 
-
-import com.zrlog.admin.business.rest.base.AIWebSiteInfoWithAIMessages;
-import com.zrlog.admin.business.rest.response.AIResponseEntry;
-import com.zrlog.admin.support.InMemoryZrLogDatabase;
-import org.junit.Test;
-
-import java.util.List;
-import java.util.Map;
-
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+
+import com.zrlog.admin.business.exception.PermissionErrorException;
+import com.zrlog.admin.business.rest.base.AIWebSiteInfoWithAIMessages;
+import com.zrlog.admin.business.rest.response.AIResponseEntry;
+import com.zrlog.admin.support.AccountServicesFixture;
+import com.zrlog.admin.support.ApplicationServicesFixture;
+import com.zrlog.admin.support.InMemoryZrLogDatabase;
+import com.zrlog.admin.web.token.AdminTokenThreadLocal;
+import com.zrlog.model.WebSite;
+
+import org.junit.Test;
+
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 public class AIConversationServiceDatabaseTest {
 
     @Test
     public void shouldIsolateAccountsAndArticlesAndCaptureIdentityForAsyncWrites() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-            AIConversationService current = new AIConversationService();
+            AIConversationService current =
+                    new AIConversationService(
+                            AccountServicesFixture.component().security(),
+                            ApplicationServicesFixture.websiteKv(),
+                            WebSite::new,
+                            new AIFileService(),
+                            AIServiceDependencies.approvals());
             AIConversationService firstAccount = current.captureAccount();
             assertTrue(current.saveAIMessage(List.of(new AIResponseEntry.AIContentEntry("user", "first account")), 7L));
-            com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser().setUserId(2);
+            AdminTokenThreadLocal.getUser().setUserId(2);
             assertTrue(current.getAiMessageInfoByArticleId(7L).getAiMessages().isEmpty());
             assertTrue(current.saveAIMessage(List.of(new AIResponseEntry.AIContentEntry("user", "second account")), 7L));
-            java.util.concurrent.CompletableFuture.runAsync(() -> {
-                try {
-                    assertTrue(firstAccount.appendAIMessageEntries(List.of(new AIResponseEntry.AIContentEntry("assistant", "async reply")), 7L));
-                } catch (Exception e) { throw new RuntimeException(e); }
-            }).get();
+            CompletableFuture.runAsync(
+                            () -> {
+                                try {
+                                    assertTrue(
+                                            firstAccount.appendAIMessageEntries(
+                                                    List.of(
+                                                            new AIResponseEntry.AIContentEntry(
+                                                                    "assistant", "async reply")),
+                                                    7L));
+                                } catch (Exception e) {
+                                    throw new RuntimeException(e);
+                                }
+                            })
+                    .get();
             assertEquals("second account", current.exportAIMessage(7L).getMessages().get(0).getContent());
             assertTrue(current.getAiMessageInfoByArticleId(8L).getAiMessages().isEmpty());
-            com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser().setUserId(1);
-            assertEquals(List.of("first account", "async reply"), new AIConversationService().exportAIMessage(7L).getMessages().stream()
-                    .filter(entry -> !"system".equals(entry.getRole())).map(AIResponseEntry.AIContentEntry::getContent).collect(java.util.stream.Collectors.toList()));
+            AdminTokenThreadLocal.getUser().setUserId(1);
+            assertEquals(
+                    List.of("first account", "async reply"),
+                    new AIConversationService(
+                                    AccountServicesFixture.component().security(),
+                                    ApplicationServicesFixture.websiteKv(),
+                                    WebSite::new,
+                                    new AIFileService(),
+                                    AIServiceDependencies.approvals())
+                            .exportAIMessage(7L).getMessages().stream()
+                                    .filter(entry -> !"system".equals(entry.getRole()))
+                                    .map(AIResponseEntry.AIContentEntry::getContent)
+                                    .collect(Collectors.toList()));
         }
     }
 
@@ -42,13 +73,28 @@ public class AIConversationServiceDatabaseTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             String legacy = "[{\"role\":\"user\",\"content\":\"old conversation\"}]";
             db.putWebsite("ai_chat_message_7", legacy);
-            AIConversationService service = new AIConversationService();
+            AIConversationService service =
+                    new AIConversationService(
+                            AccountServicesFixture.component().security(),
+                            ApplicationServicesFixture.websiteKv(),
+                            WebSite::new,
+                            new AIFileService(),
+                            AIServiceDependencies.approvals());
             assertEquals("old conversation", service.exportAIMessage(7L).getMessages().get(0).getContent());
             assertTrue(service.appendAIMessageEntries(List.of(new AIResponseEntry.AIContentEntry("assistant", "new reply")), 7L));
             assertEquals(2, service.exportAIMessage(7L).getMessages().stream().filter(entry -> !"system".equals(entry.getRole())).count());
             assertEquals(legacy, db.scalar("select value from website where name=?", "ai_chat_message_7"));
             assertTrue(service.clearAIMessage(7L));
-            assertTrue(new AIConversationService().exportAIMessage(7L).getMessages().isEmpty());
+            assertTrue(
+                    new AIConversationService(
+                                    AccountServicesFixture.component().security(),
+                                    ApplicationServicesFixture.websiteKv(),
+                                    WebSite::new,
+                                    new AIFileService(),
+                                    AIServiceDependencies.approvals())
+                            .exportAIMessage(7L)
+                            .getMessages()
+                            .isEmpty());
             db.putWebsite("ai_chat_message_-1", legacy);
             assertTrue(service.migrateDraftAIMessageToArticle(8L, -1L));
             assertEquals("old conversation", service.exportAIMessage(8L).getMessages().get(0).getContent());
@@ -59,9 +105,21 @@ public class AIConversationServiceDatabaseTest {
     @Test
     public void shouldNotWriteSharedHistoryWithoutAnAccount() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-            com.zrlog.admin.web.token.AdminTokenThreadLocal.remove();
-            org.junit.Assert.assertThrows(com.zrlog.admin.business.exception.PermissionErrorException.class,
-                    () -> new AIConversationService().saveAIMessage(List.of(new AIResponseEntry.AIContentEntry("user", "private")), 7L));
+            AdminTokenThreadLocal.remove();
+            org.junit.Assert.assertThrows(
+                    PermissionErrorException.class,
+                    () ->
+                            new AIConversationService(
+                                            AccountServicesFixture.component().security(),
+                                            ApplicationServicesFixture.websiteKv(),
+                                            WebSite::new,
+                                            new AIFileService(),
+                                            AIServiceDependencies.approvals())
+                                    .saveAIMessage(
+                                            List.of(
+                                                    new AIResponseEntry.AIContentEntry(
+                                                            "user", "private")),
+                                            7L));
             assertEquals(0L, ((Number) db.scalar("select count(*) from website where name like 'ai_chat_message_%'")).longValue());
         }
     }
@@ -73,7 +131,13 @@ public class AIConversationServiceDatabaseTest {
             db.putWebsite("ai_model", "gpt-test");
             db.putWebsite("ai_api_key", "key");
             db.putWebsite("ai_prompt", "system");
-            AIConversationService service = new AIConversationService();
+            AIConversationService service =
+                    new AIConversationService(
+                            AccountServicesFixture.component().security(),
+                            ApplicationServicesFixture.websiteKv(),
+                            WebSite::new,
+                            new AIFileService(),
+                            AIServiceDependencies.approvals());
             List<AIResponseEntry.AIContentEntry> messages =
                     List.of(new AIResponseEntry.AIContentEntry("user", "hello"));
 
@@ -95,7 +159,13 @@ public class AIConversationServiceDatabaseTest {
     public void shouldAppendAiMessagesWithoutOverwritingNewerEntriesAndDeduplicateMessageIds() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             db.putWebsite("ai_prompt", "system prompt");
-            AIConversationService service = new AIConversationService();
+            AIConversationService service =
+                    new AIConversationService(
+                            AccountServicesFixture.component().security(),
+                            ApplicationServicesFixture.websiteKv(),
+                            WebSite::new,
+                            new AIFileService(),
+                            AIServiceDependencies.approvals());
             AIResponseEntry.AIContentEntry initial = new AIResponseEntry.AIContentEntry("user", "initial");
             initial.setMessageId("initial-id");
             assertTrue(service.saveAIMessage(List.of(initial), 8L));
@@ -121,7 +191,13 @@ public class AIConversationServiceDatabaseTest {
     @Test
     public void shouldMigrateDraftAiMessagesAndRejectOtherAccountsDrafts() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-            AIConversationService service = new AIConversationService();
+            AIConversationService service =
+                    new AIConversationService(
+                            AccountServicesFixture.component().security(),
+                            ApplicationServicesFixture.websiteKv(),
+                            WebSite::new,
+                            new AIFileService(),
+                            AIServiceDependencies.approvals());
             List<AIResponseEntry.AIContentEntry> messages =
                     List.of(new AIResponseEntry.AIContentEntry("user", "draft"));
             assertTrue(service.saveAIMessage(messages, 0L));

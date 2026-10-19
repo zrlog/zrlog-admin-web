@@ -1,5 +1,10 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+
+import com.hibegin.common.dao.DAO;
 import com.hibegin.http.server.api.HttpRequest;
 import com.webauthn4j.verifier.exception.MaliciousCounterValueException;
 import com.zrlog.admin.business.exception.PasskeyLimitExceededException;
@@ -7,10 +12,14 @@ import com.zrlog.admin.business.exception.PasskeyRequestBusyException;
 import com.zrlog.admin.business.exception.PasskeyVerificationException;
 import com.zrlog.admin.business.rest.response.PasskeyOptionsResponse;
 import com.zrlog.admin.business.rest.response.PasskeySummaryResponse;
+import com.zrlog.admin.support.AccountServicesFixture;
+import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
+import com.zrlog.model.User;
 import com.zrlog.model.UserPasskey;
 import com.zrlog.model.UserPasskeyChallenge;
 import com.zrlog.test.support.TestLogCapture;
+
 import org.junit.Test;
 
 import java.lang.reflect.Proxy;
@@ -24,19 +33,29 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-
 public class PasskeyServiceCapacityTest {
 
     @Test
     public void shouldSerializeAuthenticationChallengeCleanupCountAndInsert() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             long now = System.currentTimeMillis();
-            assertTrue(new UserPasskeyChallenge().save("expired", "authentication", null,
-                    "{}", now - 1, now - 1_000));
-            PasskeyService service = new PasskeyService(1, com.zrlog.admin.support.ApplicationServicesFixture.siteHost(db.config()), new com.zrlog.admin.business.service.UserService(java.util.Collections::emptySet));
+            assertTrue(
+                    new UserPasskeyChallenge(DAO.getDefaultDataSource())
+                            .save("expired", "authentication", null, "{}", now - 1, now - 1_000));
+            PasskeyService service =
+                    new PasskeyService(
+                            1,
+                            ApplicationServicesFixture.siteHost(db.config()),
+                            new UserService(
+                                    java.util.Collections::emptySet,
+                                    AccountServicesFixture.component().mfa(),
+                                    AccountServicesFixture.component().preferences(),
+                                    User::new,
+                                    () -> AccountServicesFixture.component().passkeys()),
+                            User::new,
+                            () -> new UserPasskey(DAO.getDefaultDataSource()),
+                            () -> new UserPasskeyChallenge(DAO.getDefaultDataSource()),
+                            ApplicationServicesFixture.locks());
 
             List<Object> results = runConcurrently(
                     () -> startAuthentication(service),
@@ -54,13 +73,26 @@ public class PasskeyServiceCapacityTest {
     @Test
     public void shouldKeepConcurrentRegistrationAtPerUserLimit() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-            UserPasskey passkeyDao = new UserPasskey();
+            UserPasskey passkeyDao = new UserPasskey(DAO.getDefaultDataSource());
             for (int index = 0; index < 9; index++) {
                 assertTrue(passkeyDao.save(1, "seed-hash-" + index, "seed-id-" + index,
                         "seed-public-key", 0, "", "Seed " + index, "seed-aaguid", true, false,
                         "http://localhost:18080", "localhost", System.currentTimeMillis()));
             }
-            PasskeyService service = new PasskeyService(4, com.zrlog.admin.support.ApplicationServicesFixture.siteHost(db.config()), new com.zrlog.admin.business.service.UserService(java.util.Collections::emptySet));
+            PasskeyService service =
+                    new PasskeyService(
+                            4,
+                            ApplicationServicesFixture.siteHost(db.config()),
+                            new UserService(
+                                    java.util.Collections::emptySet,
+                                    AccountServicesFixture.component().mfa(),
+                                    AccountServicesFixture.component().preferences(),
+                                    User::new,
+                                    () -> AccountServicesFixture.component().passkeys()),
+                            User::new,
+                            () -> new UserPasskey(DAO.getDefaultDataSource()),
+                            () -> new UserPasskeyChallenge(DAO.getDefaultDataSource()),
+                            ApplicationServicesFixture.locks());
             PasskeyService.ChallengeState state = new PasskeyService.ChallengeState(
                     "challenge", "localhost", "http://localhost:18080", "user-handle", "Concurrent passkey");
 

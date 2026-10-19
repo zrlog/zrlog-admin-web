@@ -3,14 +3,28 @@ package com.zrlog.admin.business.service;
 import com.hibegin.common.dao.ResultBeanUtils;
 import com.hibegin.common.util.StringUtils;
 import com.zrlog.admin.business.rest.base.*;
+import com.zrlog.admin.util.BackendServerUrl;
 import com.zrlog.business.rest.base.UpgradeWebSiteInfo;
 import com.zrlog.business.service.WebsiteKvService;
 import com.zrlog.data.util.WebSiteUtils;
 import com.zrlog.model.WebSite;
 
+import jakarta.inject.Inject;
+import jakarta.inject.Singleton;
+
 import java.util.*;
 
+@Singleton
 public class WebSiteService {
+    private final WebsiteKvService websiteKvService;
+    private final jakarta.inject.Provider<WebSite> webSiteProvider;
+
+    @Inject
+    public WebSiteService(
+            WebsiteKvService websiteKvService, jakarta.inject.Provider<WebSite> webSiteProvider) {
+        this.websiteKvService = websiteKvService;
+        this.webSiteProvider = webSiteProvider;
+    }
 
     public static final String ARTICLE_EDITOR_LINK_PREVIEW_ENABLED_KEY = "article_editor_link_preview_enabled";
     public static final String ARTICLE_PUBLISH_CHECK_ENABLED_KEY = "article_publish_check_enabled";
@@ -26,7 +40,7 @@ public class WebSiteService {
             ARTICLE_EDITOR_LINK_PREVIEW_ENABLED_KEY, ARTICLE_PUBLISH_CHECK_ENABLED_KEY,
             ARTICLE_COVER_ASPECT_RATIO_KEY, ARTICLE_EDIT_AUTO_SAVE_INTERVAL_KEY);
     public UpgradeWebSiteInfo upgradeWebSiteInfo() {
-        return new WebsiteKvService().upgradeWebSiteInfo();
+        return this.websiteKvService.upgradeWebSiteInfo();
     }
 
     public boolean isFeatureResourceReferenceEnabled() {
@@ -50,16 +64,26 @@ public class WebSiteService {
     }
 
     public AdminWebSiteInfo adminWebSiteInfo() {
-        AdminWebSiteInfo admin = queryToMap(Arrays.asList(WebSite.admin_darkMode, WebSite.admin_compactMode,
-                WebSite.language, WebSite.admin_color_primary, WebSite.admin_theme,
-                WebSite.session_timeout, "favicon_png_pwa_512_base64",
-                "favicon_png_pwa_192_base64", "admin_static_resource_base_url", com.zrlog.admin.util.BackendServerUrl.SETTING_KEY),
-                AdminWebSiteInfo.class);
+        AdminWebSiteInfo admin =
+                queryToMap(
+                        Arrays.asList(
+                                WebSite.admin_darkMode,
+                                WebSite.admin_compactMode,
+                                WebSite.language,
+                                WebSite.admin_color_primary,
+                                WebSite.admin_theme,
+                                WebSite.session_timeout,
+                                "favicon_png_pwa_512_base64",
+                                "favicon_png_pwa_192_base64",
+                                "admin_static_resource_base_url",
+                                BackendServerUrl.SETTING_KEY),
+                        AdminWebSiteInfo.class);
         admin.setBackend_server_url(Objects.toString(admin.getBackend_server_url(), ""));
         if (StringUtils.isEmpty(admin.getAdmin_color_primary())) {
             admin.setAdmin_color_primary(WebSiteUtils.DEFAULT_COLOR_PRIMARY_COLOR);
         }
-        String pageSize = new WebSite().getStringValueByName("admin_article_page_size");
+        String pageSize =
+                this.webSiteProvider.get().getStringValueByName("admin_article_page_size");
         long parsedSize = 10;
         try {
             if (StringUtils.isNotEmpty(pageSize)) parsedSize = Long.parseLong(pageSize);
@@ -101,7 +125,7 @@ public class WebSiteService {
     }
 
     private <T> T queryToMap(List<String> names, Class<T> clazz) {
-        Map<String, Object> webSiteByNameIn = new WebSite().getWebSiteByNameIn(names);
+        Map<String, Object> webSiteByNameIn = this.webSiteProvider.get().getWebSiteByNameIn(names);
         return ResultBeanUtils.convert(webSiteByNameIn, clazz);
     }
 

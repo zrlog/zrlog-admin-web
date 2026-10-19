@@ -11,10 +11,18 @@ import com.zrlog.admin.web.annotation.RequiresAction;
 import com.zrlog.common.controller.BaseController;
 import com.zrlog.data.security.AccountAction;
 
+import jakarta.inject.Inject;
+
 import java.util.*;
 
 public class AccessController extends BaseController {
-    public AccessController(AdminPageDataFactory pages) {
+    private final AccountPermissionService permissionService;
+
+    @Inject
+    public AccessController(
+            AdminPageDataFactory pages, AccountPermissionService permissionService) {
+        this.permissionService = permissionService;
+
         this.pages = pages;
     }
 
@@ -24,7 +32,7 @@ public class AccessController extends BaseController {
     @RequiresAction(value = AccountAction.PERMISSION_READ, descriptionKey = "permission.inspect")
     public AdminPageDataResponse<AccessModels.Page> index() {
         AccessModels.Page page = new AccessModels.Page();
-        page.currentRole = AccountPermissionService.current().getRole();
+        page.currentRole = permissionService.current().getRole();
         page.roles = List.of("owner", "admin", "editor", "author", "contributor");
         page.actions = new ArrayList<>();
         for (AccountAction action : AccountAction.values()) {

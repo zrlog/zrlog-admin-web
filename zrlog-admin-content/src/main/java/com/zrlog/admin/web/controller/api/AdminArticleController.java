@@ -15,6 +15,7 @@ import com.zrlog.admin.business.rest.request.*;
 import com.zrlog.admin.business.rest.response.*;
 import com.zrlog.admin.business.service.*;
 import com.zrlog.admin.business.service.AdminPageDataFactory;
+import com.zrlog.admin.business.service.UserPreferenceService;
 import com.zrlog.admin.util.AdminSseEmitter;
 import com.zrlog.admin.util.AdminStaticSiteSsePublisher;
 import com.zrlog.admin.web.annotation.RefreshCache;
@@ -28,21 +29,34 @@ import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.ZrLogUtil;
 
+import jakarta.inject.Inject;
+
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 
 public class AdminArticleController extends BaseController {
+    private final UserPreferenceService userPreferenceService;
+
     private final AdminPageDataFactory pages;
 
 
     private final AdminArticleService articleService;
-    private final java.util.function.Supplier<ArticleAssistant> assistant;
+    private final Supplier<ArticleAssistant> assistant;
 
-    public AdminArticleController(AdminArticleService articleService, ArticlePublishingService publishingService,
-                                  AdminStaticSiteSsePublisher staticSitePublisher, java.util.function.Supplier<ArticleAssistant> assistant, AdminPageDataFactory pages) {
+    @Inject
+    public AdminArticleController(
+            AdminArticleService articleService,
+            ArticlePublishingService publishingService,
+            AdminStaticSiteSsePublisher staticSitePublisher,
+            Supplier<ArticleAssistant> assistant,
+            AdminPageDataFactory pages,
+            UserPreferenceService userPreferenceService) {
+        this.userPreferenceService = userPreferenceService;
+
         this.pages = pages;
         this.assistant = Objects.requireNonNull(assistant);
         this.articleService = articleService;
@@ -177,7 +191,8 @@ public class AdminArticleController extends BaseController {
             throws SQLException, ExecutionException, InterruptedException {
         String key = request.getParaToStr("key", "");
         String types = request.getParaToStr("types", "");
-        UserPreferences.ArticleList preferences = new UserPreferenceService().effective().articleList;
+        UserPreferences.ArticleList preferences =
+                this.userPreferenceService.effective().articleList;
         String status = request.decodeParamMap().containsKey("status") ? request.getParaToStr("status", "") : preferences.status;
         int pageSize = articleService.resolveAdminPageSize(request.getParaToInt("size", -1));
         PageRequest requested = ControllerUtil.toPageRequest(this, pageSize);

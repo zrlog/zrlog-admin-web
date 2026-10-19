@@ -9,10 +9,9 @@ import com.hibegin.http.server.WebServerBuilder;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
 import com.hibegin.http.server.util.PathUtil;
-import com.zrlog.business.plugin.CacheManagerPlugin;
+import com.zrlog.business.di.ServiceComponent;
 import com.zrlog.business.plugin.PluginCorePlugin;
 import com.zrlog.business.version.UpgradeVersionHandler;
-import com.zrlog.common.CacheService;
 import com.zrlog.common.Constants;
 import com.zrlog.common.Updater;
 import com.zrlog.common.vo.AdminTokenVO;
@@ -22,12 +21,13 @@ import com.zrlog.install.web.config.DefaultInstallConfig;
 import com.zrlog.plugin.IPlugin;
 import com.zrlog.plugin.Plugins;
 import com.zrlog.test.support.MemoryRuntime;
+
 import java.io.File;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.logging.Logger;
 import java.util.*;
+import java.util.logging.Logger;
 
 public class MemoryApplication {
 
@@ -120,7 +120,12 @@ public class MemoryApplication {
         public List<IPlugin> getBasePluginList() {
             Plugins basePlugins = new Plugins();
             basePlugins.add(new MemoryPluginCorePlugin());
-            basePlugins.add(new CacheManagerPlugin(getServerConfig().getBindings().build().get(CacheService.class)));
+            basePlugins.add(
+                    getServerConfig()
+                            .getBindings()
+                            .build()
+                            .get(ServiceComponent.class)
+                            .cacheManager());
             return basePlugins;
         }
     }

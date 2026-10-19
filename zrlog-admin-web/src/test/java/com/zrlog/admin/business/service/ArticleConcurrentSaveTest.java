@@ -1,10 +1,20 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.*;
+
+import com.hibegin.common.dao.DAO;
+import com.zrlog.admin.business.content.ArticleAssistant;
 import com.zrlog.admin.business.exception.UpdateArticleExpireException;
 import com.zrlog.admin.business.rest.request.CreateArticleRequest;
 import com.zrlog.admin.business.rest.request.UpdateArticleRequest;
+import com.zrlog.admin.support.AccountServicesFixture;
+import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
+import com.zrlog.common.ZrLogConfig;
 import com.zrlog.common.vo.AdminTokenVO;
+import com.zrlog.model.Log;
+import com.zrlog.model.LogVersion;
+
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -13,11 +23,10 @@ import java.util.Map;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static org.junit.Assert.*;
-
 public class ArticleConcurrentSaveTest {
 
-    private com.zrlog.common.ZrLogConfig applicationConfig;
+    private ZrLogConfig applicationConfig;
+
     @Test
     public void competingAccountsAllocateDistinctArticleIds() throws Exception {
         for (String backend : List.of("h2", "sqlite", "webapi")) {
@@ -27,14 +36,82 @@ public class ArticleConcurrentSaveTest {
                 CyclicBarrier start = new CyclicBarrier(2);
                 ExecutorService pool = Executors.newFixedThreadPool(2);
                 try {
-                    Future<Long> first = pool.submit(() -> {
-                        start.await(10, TimeUnit.SECONDS);
-                        return new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(db.config(), com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(db.resources()))).create(token(1), article("First")).getLogId();
-                    });
-                    Future<Long> second = pool.submit(() -> {
-                        start.await(10, TimeUnit.SECONDS);
-                        return new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(db.config(), com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(db.resources()))).create(token(2), article("Second")).getLogId();
-                    });
+                    Future<Long> first =
+                            pool.submit(
+                                    () -> {
+                                        start.await(10, TimeUnit.SECONDS);
+                                        return new AdminArticleService(
+                                                        db.cacheService(),
+                                                        ApplicationServicesFixture.capability(
+                                                                db.config(),
+                                                                ArticleAssistant.class),
+                                                        new AdminPageDataFactory(
+                                                                ApplicationServicesFixture.site(
+                                                                        db.config()),
+                                                                ApplicationServicesFixture.buildId(
+                                                                        db.resources()),
+                                                                ApplicationServicesFixture
+                                                                        .messages(),
+                                                                AccountServicesFixture.component()
+                                                                        .permissions()),
+                                                        AccountServicesFixture.component()
+                                                                .permissions(),
+                                                        AccountServicesFixture.component()
+                                                                .preferences(),
+                                                        new ArticleVersionService(
+                                                                AccountServicesFixture.component()
+                                                                        .permissions(),
+                                                                Log::new,
+                                                                () ->
+                                                                        new LogVersion(
+                                                                                DAO
+                                                                                        .getDefaultDataSource())),
+                                                        new ArticlePinningService(
+                                                                Log::new,
+                                                                ApplicationServicesFixture.locks()),
+                                                        Log::new,
+                                                        ApplicationServicesFixture.locks())
+                                                .create(token(1), article("First"))
+                                                .getLogId();
+                                    });
+                    Future<Long> second =
+                            pool.submit(
+                                    () -> {
+                                        start.await(10, TimeUnit.SECONDS);
+                                        return new AdminArticleService(
+                                                        db.cacheService(),
+                                                        ApplicationServicesFixture.capability(
+                                                                db.config(),
+                                                                ArticleAssistant.class),
+                                                        new AdminPageDataFactory(
+                                                                ApplicationServicesFixture.site(
+                                                                        db.config()),
+                                                                ApplicationServicesFixture.buildId(
+                                                                        db.resources()),
+                                                                ApplicationServicesFixture
+                                                                        .messages(),
+                                                                AccountServicesFixture.component()
+                                                                        .permissions()),
+                                                        AccountServicesFixture.component()
+                                                                .permissions(),
+                                                        AccountServicesFixture.component()
+                                                                .preferences(),
+                                                        new ArticleVersionService(
+                                                                AccountServicesFixture.component()
+                                                                        .permissions(),
+                                                                Log::new,
+                                                                () ->
+                                                                        new LogVersion(
+                                                                                DAO
+                                                                                        .getDefaultDataSource())),
+                                                        new ArticlePinningService(
+                                                                Log::new,
+                                                                ApplicationServicesFixture.locks()),
+                                                        Log::new,
+                                                        ApplicationServicesFixture.locks())
+                                                .create(token(2), article("Second"))
+                                                .getLogId();
+                                    });
                     Long firstId = first.get(30, TimeUnit.SECONDS);
                     Long secondId = second.get(30, TimeUnit.SECONDS);
                     assertNotEquals(backend, firstId, secondId);
@@ -54,7 +131,26 @@ public class ArticleConcurrentSaveTest {
             try (InMemoryZrLogDatabase db = open(backend)) {
                 applicationConfig = db.config();
                 db.execute("insert into user(userId,userName,role) values(?,?,?)", 2, "other-admin", "admin");
-                AdminArticleService service = new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(db.config(), com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(db.resources())));
+                AdminArticleService service =
+                        new AdminArticleService(
+                                db.cacheService(),
+                                ApplicationServicesFixture.capability(
+                                        db.config(), ArticleAssistant.class),
+                                new AdminPageDataFactory(
+                                        ApplicationServicesFixture.site(db.config()),
+                                        ApplicationServicesFixture.buildId(db.resources()),
+                                        ApplicationServicesFixture.messages(),
+                                        AccountServicesFixture.component().permissions()),
+                                AccountServicesFixture.component().permissions(),
+                                AccountServicesFixture.component().preferences(),
+                                new ArticleVersionService(
+                                        AccountServicesFixture.component().permissions(),
+                                        Log::new,
+                                        () -> new LogVersion(DAO.getDefaultDataSource())),
+                                new ArticlePinningService(
+                                        Log::new, ApplicationServicesFixture.locks()),
+                                Log::new,
+                                ApplicationServicesFixture.locks());
                 int id = service.create(token(1), article("Original")).getLogId().intValue();
                 CyclicBarrier start = new CyclicBarrier(2);
                 ExecutorService pool = Executors.newFixedThreadPool(2);
@@ -90,7 +186,25 @@ public class ArticleConcurrentSaveTest {
     public void versionChangedAfterReadCannotBeOverwrittenOrRecordedInHistory() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.openWebApi()) {
             applicationConfig = db.config();
-            AdminArticleService service = new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(db.config(), com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(db.resources())));
+            AdminArticleService service =
+                    new AdminArticleService(
+                            db.cacheService(),
+                            ApplicationServicesFixture.capability(
+                                    db.config(), ArticleAssistant.class),
+                            new AdminPageDataFactory(
+                                    ApplicationServicesFixture.site(db.config()),
+                                    ApplicationServicesFixture.buildId(db.resources()),
+                                    ApplicationServicesFixture.messages(),
+                                    AccountServicesFixture.component().permissions()),
+                            AccountServicesFixture.component().permissions(),
+                            AccountServicesFixture.component().preferences(),
+                            new ArticleVersionService(
+                                    AccountServicesFixture.component().permissions(),
+                                    Log::new,
+                                    () -> new LogVersion(DAO.getDefaultDataSource())),
+                            new ArticlePinningService(Log::new, ApplicationServicesFixture.locks()),
+                            Log::new,
+                            ApplicationServicesFixture.locks());
             int id = service.create(token(1), article("Original")).getLogId().intValue();
             AtomicBoolean raced = new AtomicBoolean();
             db.beforeWebApiUpdate((sql, args) -> {
@@ -114,7 +228,26 @@ public class ArticleConcurrentSaveTest {
         for (String backend : List.of("h2", "sqlite", "webapi")) {
             try (InMemoryZrLogDatabase db = open(backend)) {
                 applicationConfig = db.config();
-                AdminArticleService service = new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(db.config(), com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(db.resources())));
+                AdminArticleService service =
+                        new AdminArticleService(
+                                db.cacheService(),
+                                ApplicationServicesFixture.capability(
+                                        db.config(), ArticleAssistant.class),
+                                new AdminPageDataFactory(
+                                        ApplicationServicesFixture.site(db.config()),
+                                        ApplicationServicesFixture.buildId(db.resources()),
+                                        ApplicationServicesFixture.messages(),
+                                        AccountServicesFixture.component().permissions()),
+                                AccountServicesFixture.component().permissions(),
+                                AccountServicesFixture.component().preferences(),
+                                new ArticleVersionService(
+                                        AccountServicesFixture.component().permissions(),
+                                        Log::new,
+                                        () -> new LogVersion(DAO.getDefaultDataSource())),
+                                new ArticlePinningService(
+                                        Log::new, ApplicationServicesFixture.locks()),
+                                Log::new,
+                                ApplicationServicesFixture.locks());
                 int id = service.create(token(1), article("Original")).getLogId().intValue();
                 for (Integer version : Arrays.asList(null, -1, 1, Integer.MAX_VALUE)) {
                     assertThrows(UpdateArticleExpireException.class, () -> service.update(token(1), update(id, version, "Invalid")));
@@ -128,8 +261,29 @@ public class ArticleConcurrentSaveTest {
 
     private boolean save(CyclicBarrier start, AdminTokenVO token, UpdateArticleRequest request) throws Exception {
         start.await(10, TimeUnit.SECONDS);
-        try { new AdminArticleService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(applicationConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), () -> "test")).update(token, request); return true; }
-        catch (UpdateArticleExpireException expected) { return false; }
+        try {
+            new AdminArticleService(
+                            new InMemoryZrLogDatabase.TestCacheService(),
+                            ApplicationServicesFixture.capability(
+                                    applicationConfig, ArticleAssistant.class),
+                            new AdminPageDataFactory(
+                                    ApplicationServicesFixture.site(applicationConfig),
+                                    () -> "test",
+                                    ApplicationServicesFixture.messages(),
+                                    AccountServicesFixture.component().permissions()),
+                            AccountServicesFixture.component().permissions(),
+                            AccountServicesFixture.component().preferences(),
+                            new ArticleVersionService(
+                                    AccountServicesFixture.component().permissions(),
+                                    Log::new,
+                                    () -> new LogVersion(DAO.getDefaultDataSource())),
+                            new ArticlePinningService(Log::new, ApplicationServicesFixture.locks()),
+                            Log::new,
+                            ApplicationServicesFixture.locks())
+                    .update(token, request);
+            return true;
+        } catch (UpdateArticleExpireException expected) {
+            return false; }
     }
 
     private static InMemoryZrLogDatabase open(String backend) throws Exception {

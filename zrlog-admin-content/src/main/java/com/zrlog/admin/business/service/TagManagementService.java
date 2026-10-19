@@ -13,6 +13,8 @@ import com.zrlog.common.cache.dto.TagDTO;
 import com.zrlog.model.Log;
 import com.zrlog.model.Tag;
 
+import jakarta.inject.Inject;
+
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -26,18 +28,38 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 public class TagManagementService {
+    private final jakarta.inject.Provider<Log> logProvider;
+    private final jakarta.inject.Provider<Tag> tagProvider;
+
+    @Inject
+    public TagManagementService(
+            jakarta.inject.Provider<Log> logProvider, jakarta.inject.Provider<Tag> tagProvider) {
+        this.logProvider = logProvider;
+        this.tagProvider = tagProvider;
+    }
 
     private static final int PREVIEW_LIMIT = 10;
 
     public PageData<TagManagementEntryResponse> find(String homeUrl, PageRequest pageRequest, String key, boolean staticHtml) throws SQLException {
-        List<TagManagementEntryResponse> allTags = new Tag().findAll().stream()
-                .filter(tag -> StringUtils.isEmpty(key) || tag.getText().toLowerCase(Locale.ROOT)
-                        .contains(key.toLowerCase(Locale.ROOT)))
-                .sorted(Comparator
-                        .comparing((TagDTO tag) -> Objects.requireNonNullElse(tag.getCount(), 0L)).reversed()
-                        .thenComparing(TagDTO::getText, Comparator.nullsLast(String::compareToIgnoreCase)))
-                .map(tag -> toEntry(homeUrl, tag, staticHtml))
-                .collect(Collectors.toList());
+        List<TagManagementEntryResponse> allTags =
+                this.tagProvider.get().findAll().stream()
+                        .filter(
+                                tag ->
+                                        StringUtils.isEmpty(key)
+                                                || tag.getText()
+                                                        .toLowerCase(Locale.ROOT)
+                                                        .contains(key.toLowerCase(Locale.ROOT)))
+                        .sorted(
+                                Comparator.comparing(
+                                                (TagDTO tag) ->
+                                                        Objects.requireNonNullElse(
+                                                                tag.getCount(), 0L))
+                                        .reversed()
+                                        .thenComparing(
+                                                TagDTO::getText,
+                                                Comparator.nullsLast(String::compareToIgnoreCase)))
+                        .map(tag -> toEntry(homeUrl, tag, staticHtml))
+                        .collect(Collectors.toList());
         long page = Math.max(1L, pageRequest.getPage());
         long size = pageRequest.getSize() <= 0 ? 10L : pageRequest.getSize();
         int fromIndex = Math.toIntExact(Math.min((page - 1) * size, allTags.size()));
@@ -70,7 +92,7 @@ public class TagManagementService {
     public TagManagementPreviewResponse execute(TagManageRequest request, String operation) throws SQLException {
         TagManagementPreviewResponse preview = buildPreview(request, operation, true);
         if (preview.getUpdatedArticleCount() > 0) {
-            new Tag().refreshTag();
+            this.tagProvider.get().refreshTag();
         }
         return preview;
     }
@@ -80,14 +102,18 @@ public class TagManagementService {
         String sourceTag = normalizeTag(request.getSourceTag());
         String targetTag = normalizeTag(request.getTargetTag());
         boolean remove = Objects.equals(operation, "delete");
-        List<Map<String, Object>> rows = new Log().queryListWithParams(
-                "select logId,title,keywords from " + Log.TABLE_NAME
-                        + " where keywords is not null and keywords <> ''");
+        List<Map<String, Object>> rows =
+                this.logProvider
+                        .get()
+                        .queryListWithParams(
+                                "select logId,title,keywords from "
+                                        + Log.TABLE_NAME
+                                        + " where keywords is not null and keywords <> ''");
         TagManagementPreviewResponse response = new TagManagementPreviewResponse();
         response.setSourceTag(sourceTag);
         response.setTargetTag(remove ? "" : targetTag);
         response.setOperation(operation);
-        Log logDao = new Log();
+        Log logDao = this.logProvider.get();
         long affected = 0;
         long updated = 0;
         for (Map<String, Object> row : rows) {

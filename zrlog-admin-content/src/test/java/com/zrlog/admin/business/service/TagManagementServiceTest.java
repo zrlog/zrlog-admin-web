@@ -1,5 +1,7 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.assertEquals;
+
 import com.hibegin.common.dao.dto.PageData;
 import com.hibegin.common.dao.dto.PageRequestImpl;
 import com.zrlog.admin.business.rest.request.TagManageRequest;
@@ -7,18 +9,19 @@ import com.zrlog.admin.business.rest.response.TagManagementArticleImpactResponse
 import com.zrlog.admin.business.rest.response.TagManagementEntryResponse;
 import com.zrlog.admin.business.rest.response.TagManagementPreviewResponse;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
+import com.zrlog.model.Log;
+import com.zrlog.model.Tag;
+
 import org.junit.Test;
 
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
-
 public class TagManagementServiceTest {
 
     @Test
     public void shouldParseTagsWithTrimAndStableDeduplication() throws Exception {
-        TagManagementService service = new TagManagementService();
+        TagManagementService service = new TagManagementService(Log::new, Tag::new);
 
         assertEquals(List.of(), service.parseTags(null));
         assertEquals(List.of("java", "zrlog", "blog"), service.parseTags(" java, zrlog,java,, blog "));
@@ -26,7 +29,7 @@ public class TagManagementServiceTest {
 
     @Test
     public void shouldReplaceMergeOrRemoveTagsWithoutDuplicates() throws Exception {
-        TagManagementService service = new TagManagementService();
+        TagManagementService service = new TagManagementService(Log::new, Tag::new);
 
         List<String> merged = service.replaceTag(List.of("java", "blog", "zrlog"), "java", "blog", false);
         List<String> renamed = service.replaceTag(List.of("java", "blog", "zrlog"), "java", "server", false);
@@ -40,7 +43,7 @@ public class TagManagementServiceTest {
 
     @Test
     public void shouldBuildArticleImpactResponseFromRawRow() throws Exception {
-        TagManagementService service = new TagManagementService();
+        TagManagementService service = new TagManagementService(Log::new, Tag::new);
 
         TagManagementArticleImpactResponse response = service.toImpact(
                 Map.of("logId", 7L, "title", "Article"), "java,zrlog", "blog,zrlog");
@@ -56,7 +59,7 @@ public class TagManagementServiceTest {
 
     @Test
     public void shouldNormalizeTagValues() throws Exception {
-        TagManagementService service = new TagManagementService();
+        TagManagementService service = new TagManagementService(Log::new, Tag::new);
 
         assertEquals("", service.normalizeTag(null));
         assertEquals("java", service.normalizeTag(" java "));
@@ -70,9 +73,11 @@ public class TagManagementServiceTest {
             db.execute("insert into tag(tagId,text,count) values(?,?,?)", 3, "zrlog", 2);
 
             PageData<TagManagementEntryResponse> page =
-                    new TagManagementService().find("//localhost/", new PageRequestImpl(1L, 2L), "", false);
+                    new TagManagementService(Log::new, Tag::new)
+                            .find("//localhost/", new PageRequestImpl(1L, 2L), "", false);
             PageData<TagManagementEntryResponse> filtered =
-                    new TagManagementService().find("//localhost/", new PageRequestImpl(1L, 10L), "zr", true);
+                    new TagManagementService(Log::new, Tag::new)
+                            .find("//localhost/", new PageRequestImpl(1L, 10L), "zr", true);
 
             assertEquals(3, page.getTotalElements());
             assertEquals(2, page.getRows().size());
@@ -91,7 +96,7 @@ public class TagManagementServiceTest {
             insertArticle(db, 1, "First", "java,zrlog");
             insertArticle(db, 2, "Second", "java,blog");
             insertArticle(db, 3, "Third", "other");
-            TagManagementService service = new TagManagementService();
+            TagManagementService service = new TagManagementService(Log::new, Tag::new);
             TagManageRequest request = new TagManageRequest();
             request.setSourceTag("java");
             request.setTargetTag("server");

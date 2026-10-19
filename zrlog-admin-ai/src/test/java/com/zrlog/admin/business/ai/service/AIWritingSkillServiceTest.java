@@ -1,5 +1,10 @@
 package com.zrlog.admin.business.ai.service;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
+
 import com.google.gson.Gson;
 import com.hibegin.common.util.StringUtils;
 import com.zrlog.admin.business.ai.dto.AIStreamPayloads;
@@ -23,7 +28,10 @@ import com.zrlog.admin.business.rest.response.GenerateArticleMarkdownResponse;
 import com.zrlog.admin.business.rest.response.GenerateArticleTagsResponse;
 import com.zrlog.admin.business.rest.response.GenerateArticleTitleResponse;
 import com.zrlog.admin.business.rest.response.ScoreArticleResponse;
+import com.zrlog.admin.util.AdminLanguageContext;
 import com.zrlog.common.exception.ArgsException;
+import com.zrlog.util.I18nUtil;
+
 import org.junit.Test;
 
 import java.io.ByteArrayOutputStream;
@@ -34,36 +42,47 @@ import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
-
 public class AIWritingSkillServiceTest {
 
     private static final Gson GSON = new Gson();
 
     @Test public void translatesFailuresWithoutShowingRawDiagnostics() {
         for (String language : List.of("zh_CN", "en_US")) {
-            try (var ignored = com.zrlog.admin.util.AdminLanguageContext.open(language)) {
-                AIWritingSkillService service = new AIWritingSkillService();
+            try (var ignored = AdminLanguageContext.open(language)) {
+                AIWritingSkillService service =
+                        new AIWritingSkillService(
+                                AIServiceDependencies.conversations().captureAccount(),
+                                AIServiceDependencies.tools(),
+                                AIServiceDependencies.images());
                 AIResponseException failure = new AIResponseException("title response is invalid");
                 var payload = service.buildStreamErrorPayload(failure, null);
-                assertEquals(com.zrlog.util.I18nUtil.getAdminBackendStringFromRes("admin.ai.error.response"), payload.getMessage());
+                assertEquals(
+                        I18nUtil.getAdminBackendStringFromRes("admin.ai.error.response"),
+                        payload.getMessage());
                 assertFalse(payload.getMessage().contains("title response"));
                 assertTrue(failure.getMessage().contains("title response"));
                 assertEquals("provider_response", payload.getErrorType());
                 for (Exception error : List.of(new AIRequestException("raw provider response", 429),
                         new IOException("internal network detail"), new RuntimeException("unexpected detail"))) {
-                    assertEquals(com.zrlog.util.I18nUtil.getAdminBackendStringFromRes("admin.ai.error.request"),
+                    assertEquals(
+                            I18nUtil.getAdminBackendStringFromRes("admin.ai.error.request"),
                             service.buildStreamErrorPayload(error, null).getMessage());
                 }
-                assertEquals(com.zrlog.util.I18nUtil.getAdminBackendStringFromRes("admin.ai.error.configuration"),
-                        service.buildStreamErrorPayload(new ArgsException("ai_api_key"), null).getMessage());
-                assertEquals(com.zrlog.util.I18nUtil.getAdminBackendStringFromRes("admin.ai.error.timeout"),
-                        service.buildStreamErrorPayload(new java.net.http.HttpTimeoutException("timeout"), null).getMessage());
-                assertEquals(com.zrlog.util.I18nUtil.getAdminBackendStringFromRes("admin.article.publishCheck.error.failed"),
-                        AIErrorMessages.message(new RuntimeException("raw detail"), "admin.article.publishCheck.error.failed"));
+                assertEquals(
+                        I18nUtil.getAdminBackendStringFromRes("admin.ai.error.configuration"),
+                        service.buildStreamErrorPayload(new ArgsException("ai_api_key"), null)
+                                .getMessage());
+                assertEquals(
+                        I18nUtil.getAdminBackendStringFromRes("admin.ai.error.timeout"),
+                        service.buildStreamErrorPayload(
+                                        new java.net.http.HttpTimeoutException("timeout"), null)
+                                .getMessage());
+                assertEquals(
+                        I18nUtil.getAdminBackendStringFromRes(
+                                "admin.article.publishCheck.error.failed"),
+                        AIErrorMessages.message(
+                                new RuntimeException("raw detail"),
+                                "admin.article.publishCheck.error.failed"));
             }
         }
     }
@@ -72,8 +91,13 @@ public class AIWritingSkillServiceTest {
     public void shouldBuildIncompleteStreamErrorPayload() {
         AIWebSiteInfoWithAIMessages info = new AIWebSiteInfoWithAIMessages();
         info.setAi_model("gpt-test");
-        AIStreamPayloads.ErrorPayload payload = new AIWritingSkillService().buildStreamErrorPayload(
-                new AIIncompleteResponseException("length", 3), info);
+        AIStreamPayloads.ErrorPayload payload =
+                new AIWritingSkillService(
+                                AIServiceDependencies.conversations().captureAccount(),
+                                AIServiceDependencies.tools(),
+                                AIServiceDependencies.images())
+                        .buildStreamErrorPayload(
+                                new AIIncompleteResponseException("length", 3), info);
 
         assertEquals("incomplete_response", payload.getErrorType());
         assertEquals("length", payload.getFinishReason());
@@ -83,7 +107,11 @@ public class AIWritingSkillServiceTest {
 
     @Test
     public void shouldClassifyProviderStreamErrors() {
-        AIWritingSkillService service = new AIWritingSkillService();
+        AIWritingSkillService service =
+                new AIWritingSkillService(
+                        AIServiceDependencies.conversations().captureAccount(),
+                        AIServiceDependencies.tools(),
+                        AIServiceDependencies.images());
 
         assertEquals("provider_request",
                 service.buildStreamErrorPayload(new AIRequestException("429"), null).getErrorType());
@@ -93,7 +121,11 @@ public class AIWritingSkillServiceTest {
 
     @Test
     public void shouldClassifyUnsupportedToolStreamErrors() {
-        AIWritingSkillService service = new AIWritingSkillService();
+        AIWritingSkillService service =
+                new AIWritingSkillService(
+                        AIServiceDependencies.conversations().captureAccount(),
+                        AIServiceDependencies.tools(),
+                        AIServiceDependencies.images());
 
         assertEquals("unsupported_tool",
                 service.buildStreamErrorPayload(new UnsupportedAIToolException("x"), null).getErrorType());
@@ -109,8 +141,15 @@ public class AIWritingSkillServiceTest {
         info.setAi_image_provider(AIProviderType.OPEN_AI);
         info.setAi_image_model("gpt-image-test");
 
-        AIStreamPayloads.ErrorPayload payload = new AIWritingSkillService().buildStreamErrorPayload(
-                new UnsupportedAIImageGenerationException("model: gpt-image-test"), info, "cover");
+        AIStreamPayloads.ErrorPayload payload =
+                new AIWritingSkillService(
+                                AIServiceDependencies.conversations().captureAccount(),
+                                AIServiceDependencies.tools(),
+                                AIServiceDependencies.images())
+                        .buildStreamErrorPayload(
+                                new UnsupportedAIImageGenerationException("model: gpt-image-test"),
+                                info,
+                                "cover");
 
         assertEquals("unsupported_image_generation", payload.getErrorType());
         assertEquals("OPEN_AI", payload.getProvider());
@@ -119,7 +158,11 @@ public class AIWritingSkillServiceTest {
 
     @Test
     public void shouldMapArticleContextToToolRequests() throws Exception {
-        AIWritingSkillService service = new AIWritingSkillService();
+        AIWritingSkillService service =
+                new AIWritingSkillService(
+                        AIServiceDependencies.conversations().captureAccount(),
+                        AIServiceDependencies.tools(),
+                        AIServiceDependencies.images());
         GenerateArticleFieldRequest context = articleContext();
 
         GenerateArticleTitleRequest titleRequest = (GenerateArticleTitleRequest) invoke(service, "toTitleRequest",
@@ -140,7 +183,11 @@ public class AIWritingSkillServiceTest {
 
     @Test
     public void shouldBuildToolConversationContextByPolicy() throws Exception {
-        AIWritingSkillService service = new AIWritingSkillService();
+        AIWritingSkillService service =
+                new AIWritingSkillService(
+                        AIServiceDependencies.conversations().captureAccount(),
+                        AIServiceDependencies.tools(),
+                        AIServiceDependencies.images());
         AIResponseEntry.AIContentEntry system = new AIResponseEntry.AIContentEntry("system", "system");
         AIResponseEntry.AIContentEntry article = new AIResponseEntry.AIContentEntry("user", "article");
         article.setMessageType("articleContext");
@@ -168,7 +215,11 @@ public class AIWritingSkillServiceTest {
 
     @Test
     public void shouldRejectMissingToolArticleContextBeforeLoadingWebsiteConfig() {
-        AIWritingSkillService service = new AIWritingSkillService();
+        AIWritingSkillService service =
+                new AIWritingSkillService(
+                        AIServiceDependencies.conversations().captureAccount(),
+                        AIServiceDependencies.tools(),
+                        AIServiceDependencies.images());
 
         assertThrows(ArgsException.class, () -> service.runToolResponse("input", 1L, "score", null));
         assertThrows(ArgsException.class, () -> service.startStreamResponse("input", 1L, "score", null));
@@ -176,7 +227,11 @@ public class AIWritingSkillServiceTest {
 
     @Test
     public void shouldFormatToolResponsesForChatOutput() throws Exception {
-        AIWritingSkillService service = new AIWritingSkillService();
+        AIWritingSkillService service =
+                new AIWritingSkillService(
+                        AIServiceDependencies.conversations().captureAccount(),
+                        AIServiceDependencies.tools(),
+                        AIServiceDependencies.images());
         GenerateArticleTitleResponse titles = new GenerateArticleTitleResponse();
         titles.setTitles(List.of("One", "Two"));
         GenerateArticleTagsResponse tags = new GenerateArticleTagsResponse();
@@ -197,7 +252,7 @@ public class AIWritingSkillServiceTest {
         assertEquals("changed", invoke(service, "formatMarkdownRewrite", rewriteWithSummary));
         assertEquals("markdown", invoke(service, "formatMarkdownRewrite", rewriteWithoutSummary));
         for (String language : List.of("en_US", "zh_CN")) {
-            try (var ignored = com.zrlog.admin.util.AdminLanguageContext.open(language)) {
+            try (var ignored = AdminLanguageContext.open(language)) {
                 assertEquals((language.equals("en_US") ? "Score" : "评分")
                         + ": 88\n\nLooks good\n\n- SEO 80: Improve title", invoke(service, "formatScore", score));
             }
@@ -210,7 +265,11 @@ public class AIWritingSkillServiceTest {
 
     @Test
     public void shouldBuildAndSendStreamErrorEvents() throws Exception {
-        AIWritingSkillService service = new AIWritingSkillService();
+        AIWritingSkillService service =
+                new AIWritingSkillService(
+                        AIServiceDependencies.conversations().captureAccount(),
+                        AIServiceDependencies.tools(),
+                        AIServiceDependencies.images());
         AIWebSiteInfoWithAIMessages info = new AIWebSiteInfoWithAIMessages();
         info.setAi_provider(AIProviderType.DEEP_SEEK);
         info.setAi_model("deepseek-chat");
@@ -240,14 +299,32 @@ public class AIWritingSkillServiceTest {
             }
         };
 
-        invoke(new AIWritingSkillService(), "sendStreamError", closed, new AIResponseException("bad chunk"), null, null);
+        invoke(
+                new AIWritingSkillService(
+                        AIServiceDependencies.conversations().captureAccount(),
+                        AIServiceDependencies.tools(),
+                        AIServiceDependencies.images()),
+                "sendStreamError",
+                closed,
+                new AIResponseException("bad chunk"),
+                null,
+                null);
     }
 
     @Test
     public void shouldClassifyUnknownStreamErrorPayload() {
-        AIStreamPayloads.ErrorPayload payload = new AIWritingSkillService().buildStreamErrorPayload(new RuntimeException(), null);
-        AIStreamPayloads.ErrorPayload incomplete = new AIWritingSkillService().buildStreamErrorPayload(
-                new AIIncompleteResponseException(""), null);
+        AIStreamPayloads.ErrorPayload payload =
+                new AIWritingSkillService(
+                                AIServiceDependencies.conversations().captureAccount(),
+                                AIServiceDependencies.tools(),
+                                AIServiceDependencies.images())
+                        .buildStreamErrorPayload(new RuntimeException(), null);
+        AIStreamPayloads.ErrorPayload incomplete =
+                new AIWritingSkillService(
+                                AIServiceDependencies.conversations().captureAccount(),
+                                AIServiceDependencies.tools(),
+                                AIServiceDependencies.images())
+                        .buildStreamErrorPayload(new AIIncompleteResponseException(""), null);
 
         assertEquals("unknown", payload.getErrorType());
         assertTrue(StringUtils.isNotEmpty(payload.getMessage()));

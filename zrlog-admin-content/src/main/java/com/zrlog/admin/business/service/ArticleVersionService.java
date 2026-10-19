@@ -17,12 +17,30 @@ import com.zrlog.common.exception.NotFindDbEntryException;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.model.Log;
 import com.zrlog.model.LogVersion;
+
+import jakarta.inject.Inject;
+
 import java.lang.reflect.Type;
 import java.sql.SQLException;
-import java.util.stream.Collectors;
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class ArticleVersionService {
+    private final jakarta.inject.Provider<Log> logProvider;
+    private final jakarta.inject.Provider<LogVersion> logVersionProvider;
+
+    private final AccountPermissionService permissionService;
+
+    @Inject
+    public ArticleVersionService(
+            AccountPermissionService permissionService,
+            jakarta.inject.Provider<Log> logProvider,
+            jakarta.inject.Provider<LogVersion> logVersionProvider) {
+        this.logProvider = logProvider;
+        this.logVersionProvider = logVersionProvider;
+
+        this.permissionService = permissionService;
+    }
 
     private static final Gson GSON = new Gson();
     private static final Type PATCH_TYPE = new TypeToken<Map<String, Object>>() {
@@ -45,23 +63,24 @@ public class ArticleVersionService {
         if (patch.isEmpty()) {
             return;
         }
-        new LogVersion().savePatch(
-                logId,
-                articleVersion,
-                GSON.toJson(patch),
-                userId,
-                Objects.toString(oldLog.get("title"), ""),
-                new Date(),
-                articleVersion - 1
-        );
+        this.logVersionProvider
+                .get()
+                .savePatch(
+                        logId,
+                        articleVersion,
+                        GSON.toJson(patch),
+                        userId,
+                        Objects.toString(oldLog.get("title"), ""),
+                        new Date(),
+                        articleVersion - 1);
     }
 
     public List<ArticleVersionResponse> listVersions(Integer logId) throws SQLException {
-        AccountPermissionService.readArticle(logId);
+        permissionService.readArticle(logId);
         List<ArticleVersionResponse> responses = new ArrayList<>();
         responses.add(loadCurrentVersion(logId));
 
-        List<Map<String, Object>> rows = new LogVersion().findVersionList(logId);
+        List<Map<String, Object>> rows = this.logVersionProvider.get().findVersionList(logId);
         for (Map<String, Object> row : rows) {
             ArticleVersionResponse item = new ArticleVersionResponse();
             item.setVersion(toInteger(row.get("from_version")));
@@ -83,10 +102,14 @@ public class ArticleVersionService {
     }
 
     private ArticleVersionResponse loadCurrentVersion(Integer logId) throws SQLException {
-        Map<String, Object> row = new Log().queryFirstWithParams(
-                "select version, title, last_update_date as lastUpdateDate from " + Log.TABLE_NAME + " where logId=?",
-                logId
-        );
+        Map<String, Object> row =
+                this.logProvider
+                        .get()
+                        .queryFirstWithParams(
+                                "select version, title, last_update_date as lastUpdateDate from "
+                                        + Log.TABLE_NAME
+                                        + " where logId=?",
+                                logId);
         if (row == null || row.isEmpty()) {
             throw new NotFindDbEntryException();
         }
@@ -139,7 +162,10 @@ public class ArticleVersionService {
         if (Objects.equals(current.getVersion(), targetVersion)) {
             return current;
         }
-        List<Map<String, Object>> rows = new LogVersion().findReversePatchesGreaterThanVersion(logId, targetVersion);
+        List<Map<String, Object>> rows =
+                this.logVersionProvider
+                        .get()
+                        .findReversePatchesGreaterThanVersion(logId, targetVersion);
         LoadEditArticleResponse snapshot = cloneArticle(current);
         for (Map<String, Object> row : rows) {
             Integer version = toInteger(row.get("article_version"));

@@ -1,17 +1,44 @@
 package com.zrlog.admin.web.interceptor;
 
+import static org.junit.Assert.*;
+
 import com.google.gson.*;
+import com.hibegin.common.dao.DataSourceWrapper;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
+import com.hibegin.http.server.config.ServerConfig;
+import com.zrlog.admin.business.content.ArticleAssistant;
+import com.zrlog.admin.business.content.AttachmentStorage;
+import com.zrlog.admin.business.knowledge.ContentToolFactory;
 import com.zrlog.admin.business.security.OAuthModels.*;
 import com.zrlog.admin.business.security.PersonalTokenModels;
 import com.zrlog.admin.business.service.*;
+import com.zrlog.admin.business.service.AdminPageDataFactory;
+import com.zrlog.admin.business.service.OAuthService;
+import com.zrlog.admin.business.service.PersonalAccessTokenService;
+import com.zrlog.admin.support.AccountServicesFixture;
+import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
+import com.zrlog.admin.util.BackendServerUrl;
+import com.zrlog.admin.web.ContentWebSetup;
+import com.zrlog.admin.web.McpWebSetup;
+import com.zrlog.admin.web.di.access.DaggerAccessComponent;
+import com.zrlog.admin.web.di.account.DaggerAccountComponent;
+import com.zrlog.admin.web.token.AdminTokenService;
+import com.zrlog.admin.web.di.content.ContentComponent;
+import com.zrlog.admin.web.di.content.DaggerContentComponent;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
+import com.zrlog.business.di.DaggerServiceComponent;
+import com.zrlog.business.service.CacheRefreshService;
+import com.zrlog.common.CacheService;
+import com.zrlog.common.ZrLogConfig;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.common.vo.I18nVO;
+import com.zrlog.data.di.DaggerDataComponent;
+import com.zrlog.data.security.AccountAccess;
 import com.zrlog.util.I18nUtil;
+
 import org.junit.Test;
 
 import java.io.InputStream;
@@ -21,11 +48,10 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
-import static org.junit.Assert.*;
-
 public class McpInterceptorTest {
 
-    private com.zrlog.common.ZrLogConfig applicationConfig;
+    private ZrLogConfig applicationConfig;
+
     @Test public void followsTokenOwnerAcrossAccountsAndPreferenceChangesWithoutBrowserSession() throws Exception {
         I18nVO previous = I18nUtil.threadLocal.get();
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
@@ -102,7 +128,31 @@ public class McpInterceptorTest {
             db.execute("update user set preferences=? where userId=1", "{\"language\":\"en_US\"}");
             PersonalTokenModels.Create input = new PersonalTokenModels.Create();input.name="writer";input.permissionMode="custom";
             input.permissions=List.of("article.read","article.create","article.update","article.publish","taxonomy.read");
-            String token=new PersonalAccessTokenService(new OAuthService(com.zrlog.admin.support.ApplicationServicesFixture.backend(db.config())::configured, com.zrlog.admin.support.ApplicationServicesFixture.available(db.config(), com.zrlog.admin.web.McpWebSetup.class)).mcpResource()).create(input).token;
+            String token =
+                    new PersonalAccessTokenService(
+                                    new OAuthService(
+                                                    ApplicationServicesFixture.backend(db.config())
+                                                            ::configured,
+                                                    ApplicationServicesFixture.available(
+                                                            db.config(), McpWebSetup.class),
+                                                    AccountServicesFixture.component()
+                                                            .permissions(),
+                                                    AccountServicesFixture.component().security(),
+                                                    tokenResource ->
+                                                            new PersonalAccessTokenService(
+                                                                    tokenResource,
+                                                                    AccountServicesFixture
+                                                                            .component()
+                                                                            .permissions(),
+                                                                    AccountServicesFixture
+                                                                            .component()
+                                                                            .security()),
+                                                    AccountServicesFixture.component().backend())
+                                            .mcpResource(),
+                                    AccountServicesFixture.component().permissions(),
+                                    AccountServicesFixture.component().security())
+                            .create(input)
+                            .token;
             AdminTokenThreadLocal.remove();
             JsonObject created=call(token,"tools/call","{\"name\":\"create_article\",\"arguments\":{\"title\":\"Remote draft\",\"typeId\":1,\"status\":\"draft\",\"content\":\""+"a".repeat(20000)+"\"}}").result();
             assertFalse(created.toString(),created.get("isError").getAsBoolean());
@@ -138,7 +188,7 @@ public class McpInterceptorTest {
             assertTrue(call(token,"tools/call","{\"name\":\"update_article\",\"arguments\":{\"id\":11,\"version\":0,\"title\":\"Changed\"}}").result().get("isError").getAsBoolean());
             assertTrue(call(token,"tools/call","{\"name\":\"update_article\",\"arguments\":{\"id\":11,\"version\":0,\"status\":\"draft\"}}").result().get("isError").getAsBoolean());
             assertEquals("Live",db.scalar("select title from log where logId=11"));
-            assertFalse(com.zrlog.data.security.AccountAccess.truth(db.scalar("select rubbish from log where logId=11")));
+            assertFalse(AccountAccess.truth(db.scalar("select rubbish from log where logId=11")));
         }
     }
 
@@ -159,7 +209,34 @@ public class McpInterceptorTest {
             } else {
                 PersonalTokenModels.Create input = new PersonalTokenModels.Create();
                 input.name = "Audit writer"; input.permissionMode = "inherit";
-                token = new PersonalAccessTokenService(new OAuthService(com.zrlog.admin.support.ApplicationServicesFixture.backend(db.config())::configured, com.zrlog.admin.support.ApplicationServicesFixture.available(db.config(), com.zrlog.admin.web.McpWebSetup.class)).mcpResource()).create(input).token;
+                token =
+                        new PersonalAccessTokenService(
+                                        new OAuthService(
+                                                        ApplicationServicesFixture.backend(
+                                                                        db.config())
+                                                                ::configured,
+                                                        ApplicationServicesFixture.available(
+                                                                db.config(), McpWebSetup.class),
+                                                        AccountServicesFixture.component()
+                                                                .permissions(),
+                                                        AccountServicesFixture.component()
+                                                                .security(),
+                                                        tokenResource ->
+                                                                new PersonalAccessTokenService(
+                                                                        tokenResource,
+                                                                        AccountServicesFixture
+                                                                                .component()
+                                                                                .permissions(),
+                                                                        AccountServicesFixture
+                                                                                .component()
+                                                                                .security()),
+                                                        AccountServicesFixture.component()
+                                                                .backend())
+                                                .mcpResource(),
+                                        AccountServicesFixture.component().permissions(),
+                                        AccountServicesFixture.component().security())
+                                .create(input)
+                                .token;
             }
             AdminTokenThreadLocal.remove();
             call(token, "initialize", "{\"protocolVersion\":\"2025-11-25\",\"capabilities\":{},\"clientInfo\":{\"name\":\"initialize-only\",\"version\":\"99.0\"}}");
@@ -196,7 +273,10 @@ public class McpInterceptorTest {
                     assertEquals(client[2], entry.has("agentName") ? entry.get("agentName").getAsString() : null);
                     assertEquals(client[3], entry.has("agentVersion") ? entry.get("agentVersion").getAsString() : null);
                 }
-                var displayed = new AdminAuditService().getRecentLogs().get(0);
+                var displayed =
+                        new AdminAuditService(ApplicationServicesFixture.websiteKv())
+                                .getRecentLogs()
+                                .get(0);
                 assertEquals("MCP", displayed.getBrowser());
                 assertEquals(client[2], displayed.getAgentName());
                 assertEquals(client[3], displayed.getAgentVersion());
@@ -220,7 +300,27 @@ public class McpInterceptorTest {
     private String personalToken() throws Exception {
         PersonalTokenModels.Create request = new PersonalTokenModels.Create();
         request.name = "MCP language test"; request.scopes = List.of("articles:read");
-        return new PersonalAccessTokenService(new OAuthService(com.zrlog.admin.support.ApplicationServicesFixture.backend(applicationConfig)::configured, com.zrlog.admin.support.ApplicationServicesFixture.available(applicationConfig, com.zrlog.admin.web.McpWebSetup.class)).mcpResource()).create(request).token;
+        return new PersonalAccessTokenService(
+                        new OAuthService(
+                                        ApplicationServicesFixture.backend(applicationConfig)
+                                                ::configured,
+                                        ApplicationServicesFixture.available(
+                                                applicationConfig, McpWebSetup.class),
+                                        AccountServicesFixture.component().permissions(),
+                                        AccountServicesFixture.component().security(),
+                                        tokenResource ->
+                                                new PersonalAccessTokenService(
+                                                        tokenResource,
+                                                        AccountServicesFixture.component()
+                                                                .permissions(),
+                                                        AccountServicesFixture.component()
+                                                                .security()),
+                                        AccountServicesFixture.component().backend())
+                                .mcpResource(),
+                        AccountServicesFixture.component().permissions(),
+                        AccountServicesFixture.component().security())
+                .create(request)
+                .token;
     }
 
     private static void login(int userId) throws Exception {
@@ -231,7 +331,18 @@ public class McpInterceptorTest {
 
     private String oauthToken() throws Exception { return oauthToken("articles:read"); }
     private String oauthToken(String scopes) throws Exception {
-        OAuthService oauth = new OAuthService(com.zrlog.admin.support.ApplicationServicesFixture.backend(applicationConfig)::configured, com.zrlog.admin.support.ApplicationServicesFixture.available(applicationConfig, com.zrlog.admin.web.McpWebSetup.class));
+        OAuthService oauth =
+                new OAuthService(
+                        ApplicationServicesFixture.backend(applicationConfig)::configured,
+                        ApplicationServicesFixture.available(applicationConfig, McpWebSetup.class),
+                        AccountServicesFixture.component().permissions(),
+                        AccountServicesFixture.component().security(),
+                        tokenResource ->
+                                new PersonalAccessTokenService(
+                                        tokenResource,
+                                        AccountServicesFixture.component().permissions(),
+                                        AccountServicesFixture.component().security()),
+                        AccountServicesFixture.component().backend());
         Client client = new Client(); client.name = "MCP language test"; client.redirectUris = List.of("http://127.0.0.1:3000/callback");
         client = oauth.register(client);
         String verifier = OAuthService.random();
@@ -259,14 +370,65 @@ public class McpInterceptorTest {
         Map<String, String> headers = new HashMap<>(Map.of("Authorization", "Bearer " + token, "Accept", "application/json, text/event-stream",
                 "Content-Type", "application/json", "Accept-Language", "fr-FR", "MCP-Protocol-Version", "2025-11-25"));
         if (userAgent != null) headers.put("User-Agent", userAgent);
-        var serverConfig = new com.hibegin.http.server.config.ServerConfig();
+        var serverConfig = new ServerConfig();
         var cache = new InMemoryZrLogDatabase.TestCacheService();
-        serverConfig.getBindings().instance(com.zrlog.common.CacheService.class, cache)
-                .instance(com.zrlog.business.service.CacheRefreshService.class,
-                        com.zrlog.admin.support.ApplicationServicesFixture.cacheRefresh(cache, applicationConfig));
-        serverConfig.getBindings().instance(com.zrlog.admin.util.BackendServerUrl.class, com.zrlog.admin.support.ApplicationServicesFixture.backend(applicationConfig));
-        serverConfig.getBindings().instance(com.zrlog.admin.business.service.AdminPageDataFactory.class, new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), () -> "test"));
-        new com.zrlog.admin.web.ContentWebSetup(serverConfig, com.zrlog.admin.support.ApplicationServicesFixture.capability(applicationConfig, com.zrlog.admin.business.content.ArticleAssistant.class), com.zrlog.admin.support.ApplicationServicesFixture.capability(applicationConfig, com.zrlog.admin.business.content.AttachmentStorage.class)).setup();
+        serverConfig
+                .getBindings()
+                .instance(CacheService.class, cache)
+                .instance(
+                        CacheRefreshService.class,
+                        ApplicationServicesFixture.cacheRefresh(cache, applicationConfig));
+        serverConfig
+                .getBindings()
+                .instance(
+                        BackendServerUrl.class,
+                        ApplicationServicesFixture.backend(applicationConfig));
+        serverConfig
+                .getBindings()
+                .instance(
+                        AdminPageDataFactory.class,
+                        new AdminPageDataFactory(
+                                ApplicationServicesFixture.site(applicationConfig),
+                                () -> "test",
+                                ApplicationServicesFixture.messages(),
+                                AccountServicesFixture.component().permissions()));
+        var data =
+                DaggerDataComponent.factory()
+                        .create(
+                                () -> (DataSourceWrapper) applicationConfig.getDataSource(),
+                                () -> true);
+        var shared =
+                DaggerServiceComponent.factory()
+                        .create(
+                                data,
+                                () -> true,
+                                () -> null,
+                                () -> null,
+                                java.util.Collections::emptyList);
+        var account = DaggerAccountComponent.factory().create(
+                data, shared,
+                new AdminTokenService(60, () -> true, () -> false, data::user, data::preferences),
+                () -> true, () -> null, Collections::emptySet,
+                ApplicationServicesFixture.site(applicationConfig), () -> "test",
+                serverConfig::getPort, serverConfig::getContextPath);
+        serverConfig
+                .getBindings()
+                .instance(
+                        ContentComponent.class,
+                        DaggerContentComponent.factory()
+                                .create(
+                                        data,
+                                        shared,
+                                        account,
+                                        ApplicationServicesFixture.capability(
+                                                applicationConfig, ArticleAssistant.class),
+                                        ApplicationServicesFixture.capability(
+                                                applicationConfig, AttachmentStorage.class),
+                                        ApplicationServicesFixture.publisher(
+                                                cache, applicationConfig),
+                                        markdown -> null));
+        new ContentWebSetup(serverConfig)
+                .setup();
         HttpRequest request = (HttpRequest) Proxy.newProxyInstance(McpInterceptorTest.class.getClassLoader(), new Class[]{HttpRequest.class}, (proxy, invoked, args) -> {
             switch (invoked.getName()) {
                 case "getUri": return "/mcp";
@@ -280,7 +442,14 @@ public class McpInterceptorTest {
             }
         });
         Recorder recorder = new Recorder();
-        var interceptor = new McpInterceptor(() -> serverConfig.getBindings().build().get(com.zrlog.admin.business.knowledge.ContentToolFactory.class), new com.zrlog.admin.business.service.OAuthService(com.zrlog.admin.support.ApplicationServicesFixture.backend(applicationConfig)::configured, com.zrlog.admin.support.ApplicationServicesFixture.available(applicationConfig, com.zrlog.admin.web.McpWebSetup.class)), com.zrlog.admin.support.ApplicationServicesFixture.siteTitle(applicationConfig));
+        var interceptor = DaggerAccessComponent.factory().create(
+                data,
+                shared,
+                account,
+                ApplicationServicesFixture.available(applicationConfig, McpWebSetup.class),
+                () -> { throw new IllegalStateException("MCP must not use the OAuth dispatcher"); },
+                () -> serverConfig.getBindings().build().get(ContentToolFactory.class),
+                ApplicationServicesFixture.siteTitle(applicationConfig)).mcp();
         var config = applicationConfig;
         {
             assertFalse(interceptor.doInterceptor(request, recorder.response()));

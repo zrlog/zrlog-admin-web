@@ -6,20 +6,32 @@ import com.hibegin.common.util.StringUtils;
 import com.zrlog.admin.business.rest.response.MessageCenterStatusResponse;
 import com.zrlog.model.WebSite;
 
+import jakarta.inject.Inject;
+import jakarta.inject.Singleton;
+
 import java.sql.SQLException;
 import java.util.Objects;
 import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+@Singleton
 public class MessageCenterStateService {
+    private final jakarta.inject.Provider<WebSite> webSiteProvider;
+
+    @Inject
+    public MessageCenterStateService(
+            WebsiteCacheService cacheService, jakarta.inject.Provider<WebSite> webSiteProvider) {
+        this.cacheService = cacheService;
+        this.webSiteProvider = webSiteProvider;
+    }
 
     private static final String STATUS_KEY = "message_center_status";
     private static final String STATUS_DB_KEY = WebsiteCacheService.KEY_PREFIX + STATUS_KEY;
     private static final int UPDATE_RETRY_COUNT = 3;
     private static final Gson GSON = new Gson();
     private static final Logger LOGGER = LoggerUtil.getLogger(MessageCenterStateService.class);
-    private final WebsiteCacheService cacheService = new WebsiteCacheService();
+    private final WebsiteCacheService cacheService;
 
     public MessageCenterStatusResponse current() {
         return parseStatus(cacheService.getString(STATUS_KEY));
@@ -78,12 +90,13 @@ public class MessageCenterStateService {
             return cacheService.putJson(STATUS_KEY, next);
         }
         try {
-            return new WebSite().execute(
-                    "update website set value=? where name=? and value=?",
-                    GSON.toJson(next),
-                    STATUS_DB_KEY,
-                    expectedRaw
-            );
+            return this.webSiteProvider
+                    .get()
+                    .execute(
+                            "update website set value=? where name=? and value=?",
+                            GSON.toJson(next),
+                            STATUS_DB_KEY,
+                            expectedRaw);
         } catch (SQLException e) {
             LOGGER.log(Level.FINE, "Update message center status failed", e);
             return false;

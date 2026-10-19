@@ -4,38 +4,36 @@ import com.hibegin.http.server.config.ServerConfig;
 import com.hibegin.http.server.di.SwsBindings;
 import com.hibegin.http.server.web.Router;
 import com.zrlog.admin.business.AdminConstants;
-import com.zrlog.admin.business.account.AvatarStorage;
-import com.zrlog.admin.business.service.AdminPageDataFactory;
+import com.zrlog.admin.business.service.PasskeyService;
 import com.zrlog.admin.business.service.UserService;
 import com.zrlog.admin.web.controller.api.*;
 import com.zrlog.admin.web.controller.api.AccessController;
-import com.zrlog.common.CacheService;
-import com.zrlog.common.TokenService;
+import com.zrlog.admin.web.di.account.AccountComponent;
+import com.zrlog.web.WebSetup;
 
-import java.util.function.BooleanSupplier;
-import java.util.function.Supplier;
-
-public class AccountWebSetup implements com.zrlog.web.WebSetup {
+public class AccountWebSetup implements WebSetup {
     private final Router router;
     private final SwsBindings bindings;
-    private final BooleanSupplier installed;
-    private final Supplier<AvatarStorage> avatarStorage;
-    private final Supplier<java.util.Set<String>> cacheableApiUris;
-    public AccountWebSetup(ServerConfig config, BooleanSupplier installed, Supplier<AvatarStorage> avatarStorage, Supplier<java.util.Set<String>> cacheableApiUris) {
-        this.installed = installed;
-        this.cacheableApiUris = cacheableApiUris;
-        this.avatarStorage = avatarStorage;
+
+    public AccountWebSetup(ServerConfig config) {
         this.router = config.getRouter();
         this.bindings = config.getBindings();
     }
     @Override public void setup() {
-        bindings.singleton(UserService.class, r -> new UserService(cacheableApiUris))
-                .singleton(com.zrlog.admin.business.service.PasskeyService.class, r -> new com.zrlog.admin.business.service.PasskeyService(
-                        () -> r.get(CacheService.class).getPublicWebSiteInfo().getHost(), r.get(UserService.class)))
-                .controller(AccessController.class, (r, request, response) -> new AccessController(r.get(AdminPageDataFactory.class)))
-                .controller(MemberController.class, (r, request, response) -> new MemberController(r.get(com.zrlog.admin.util.BackendServerUrl.class), r.get(AdminPageDataFactory.class)))
-                .controller(AccountSessionController.class, (r, request, response) -> new AccountSessionController(r.get(UserService.class), r.get(TokenService.class), installed, r.get(AdminPageDataFactory.class), r.get(com.zrlog.admin.business.service.PasskeyService.class)))
-                .controller(AdminUserController.class, (r, request, response) -> new AdminUserController(r.get(UserService.class), r.get(CacheService.class), avatarStorage, r.get(AdminPageDataFactory.class), r.get(com.zrlog.admin.business.service.PasskeyService.class)));
+        bindings.singleton(UserService.class, r -> r.get(AccountComponent.class).users())
+                .singleton(PasskeyService.class, r -> r.get(AccountComponent.class).passkeys())
+                .controller(
+                        AccessController.class,
+                        (r, request, response) -> r.get(AccountComponent.class).accessController())
+                .controller(
+                        MemberController.class,
+                        (r, request, response) -> r.get(AccountComponent.class).memberController())
+                .controller(
+                        AccountSessionController.class,
+                        (r, request, response) -> r.get(AccountComponent.class).sessionController())
+                .controller(
+                        AdminUserController.class,
+                        (r, request, response) -> r.get(AccountComponent.class).userController());
         router.addMapper("/api/admin/access", AccessController.class);
         router.addMapper("/api/admin/members", MemberController.class);
         router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/passkey/authentication/options",

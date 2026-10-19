@@ -1,6 +1,9 @@
 package com.zrlog.model;
 
 import com.hibegin.common.dao.BasePageableDAO;
+import com.hibegin.common.dao.DataSourceWrapper;
+
+import jakarta.inject.Inject;
 
 import java.sql.SQLException;
 import java.util.Date;
@@ -11,7 +14,9 @@ public class LogVersion extends BasePageableDAO {
 
     public static final String TABLE_NAME = "log_version";
 
-    public LogVersion() {
+    @Inject
+    public LogVersion(DataSourceWrapper database) {
+        super(database);
         this.tableName = TABLE_NAME;
         this.pk = "id";
     }

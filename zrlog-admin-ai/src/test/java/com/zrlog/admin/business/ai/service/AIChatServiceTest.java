@@ -1,5 +1,9 @@
 package com.zrlog.admin.business.ai.service;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -7,7 +11,10 @@ import com.zrlog.admin.business.ai.dto.AIStreamResponse;
 import com.zrlog.admin.business.ai.model.AIChatModels.ChatRequest;
 import com.zrlog.admin.business.ai.model.AIProviderType;
 import com.zrlog.admin.business.rest.base.AIWebSiteInfoWithAIMessages;
+import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
+import com.zrlog.common.ZrLogConfig;
+
 import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
@@ -29,17 +36,15 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.Flow;
+
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLSession;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-
 public class AIChatServiceTest {
 
-    private com.zrlog.common.ZrLogConfig applicationConfig;
+    private ZrLogConfig applicationConfig;
 
     private static final Gson GSON = new Gson();
 
@@ -391,8 +396,19 @@ public class AIChatServiceTest {
     }
 
     private static class NoSleepAIChatService extends AIChatService {
-        private NoSleepAIChatService(com.zrlog.common.ZrLogConfig config, HttpClient client) {
-            super(client, null, ContentToolsFixture.from(config));
+        private NoSleepAIChatService(ZrLogConfig config, HttpClient client) {
+            super(
+                    client,
+                    null,
+                    ContentToolsFixture.from(config),
+                    AccountServicesFixture.component().permissions(),
+                    AccountServicesFixture.component().preferences(),
+                    AIServiceDependencies.approvals(),
+                    new AIFileService(),
+                    AIServiceDependencies.writing(),
+                    AIServiceDependencies.conversations(),
+                    AIServiceDependencies.writingTools(),
+                    AIServiceDependencies.references(ContentToolsFixture.from(config)));
         }
 
         @Override
@@ -460,12 +476,26 @@ public class AIChatServiceTest {
         public <T> HttpResponse<T> send(HttpRequest request, HttpResponse.BodyHandler<T> responseBodyHandler) {
             requests.add(request);
             java.io.ByteArrayOutputStream body = new java.io.ByteArrayOutputStream();
-            request.bodyPublisher().orElseThrow().subscribe(new java.util.concurrent.Flow.Subscriber<java.nio.ByteBuffer>() {
-                public void onSubscribe(java.util.concurrent.Flow.Subscription subscription) { subscription.request(Long.MAX_VALUE); }
-                public void onNext(java.nio.ByteBuffer buffer) { byte[] bytes = new byte[buffer.remaining()]; buffer.get(bytes); body.writeBytes(bytes); }
-                public void onError(Throwable error) { throw new AssertionError(error); }
-                public void onComplete() { }
-            });
+            request.bodyPublisher()
+                    .orElseThrow()
+                    .subscribe(
+                            new Flow.Subscriber<java.nio.ByteBuffer>() {
+                                public void onSubscribe(Flow.Subscription subscription) {
+                                    subscription.request(Long.MAX_VALUE);
+                                }
+
+                                public void onNext(java.nio.ByteBuffer buffer) {
+                                    byte[] bytes = new byte[buffer.remaining()];
+                                    buffer.get(bytes);
+                                    body.writeBytes(bytes);
+                                }
+
+                                public void onError(Throwable error) {
+                                    throw new AssertionError(error);
+                                }
+
+                                public void onComplete() {}
+                            });
             requestBodies.add(GSON.fromJson(body.toString(StandardCharsets.UTF_8), JsonObject.class));
             return (HttpResponse<T>) responses.get(index++);
         }

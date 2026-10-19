@@ -15,6 +15,7 @@ import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
 import com.zrlog.admin.business.rest.response.UpgradeSettingsResponse;
 import com.zrlog.admin.business.rest.response.VersionResponse;
 import com.zrlog.admin.business.service.AdminPageDataFactory;
+import com.zrlog.admin.business.service.FeatureLabService;
 import com.zrlog.admin.business.service.UpgradeSettingsService;
 import com.zrlog.admin.business.service.WebSiteService;
 import com.zrlog.admin.business.service.WebSiteSettingsService;
@@ -25,22 +26,32 @@ import com.zrlog.business.plugin.type.StaticSiteType;
 import com.zrlog.business.updater.UpdateVersionInfoPlugin;
 import com.zrlog.common.controller.BaseController;
 import com.zrlog.data.security.AccountAction;
+import com.zrlog.plugin.BaseStaticSitePlugin;
 import com.zrlog.util.I18nUtil;
+
+import jakarta.inject.Inject;
 
 import java.sql.SQLException;
 import java.util.Map;
 
 public class WebSiteController extends BaseController {
+
     private final AdminPageDataFactory pages;
 
-
-    private final WebSiteService webSiteService = new WebSiteService();
+    private final WebSiteService webSiteService;
     private final WebSiteSettingsService settingsService;
     private final UpgradeSettingsService upgradeSettings;
-    private final com.zrlog.admin.business.service.FeatureLabService features;
+    private final FeatureLabService features;
 
-    public WebSiteController(WebSiteSettingsService settingsService, UpgradeSettingsService upgradeSettings,
-                             com.zrlog.admin.business.service.FeatureLabService features, AdminPageDataFactory pages) {
+    @Inject
+    public WebSiteController(
+            WebSiteSettingsService settingsService,
+            UpgradeSettingsService upgradeSettings,
+            FeatureLabService features,
+            AdminPageDataFactory pages,
+            WebSiteService webSiteService) {
+        this.webSiteService = webSiteService;
+
         this.pages = pages;
         this.upgradeSettings = upgradeSettings;
         this.settingsService = settingsService;
@@ -106,7 +117,7 @@ public class WebSiteController extends BaseController {
             settingsService.updateAdmin(getRequestBodyWithNullCheck(AdminWebSiteInfo.class), request);
         }
         AdminWebSiteInfo settings = webSiteService.adminWebSiteInfo();
-        if (com.zrlog.plugin.BaseStaticSitePlugin.isStaticPluginRequest(request)) {
+        if (BaseStaticSitePlugin.isStaticPluginRequest(request)) {
             settings.setBackend_server_url(null);
         }
         return page(settings);

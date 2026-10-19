@@ -8,10 +8,14 @@ import com.hibegin.common.util.StringUtils;
 import com.hibegin.http.server.api.HttpRequest;
 import com.zrlog.admin.business.rest.response.AdminAuditLogEntryResponse;
 import com.zrlog.admin.business.type.AdminAuditAction;
+import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.blog.web.util.WebTools;
 import com.zrlog.business.service.WebsiteKvService;
 import com.zrlog.util.I18nUtil;
 import com.zrlog.util.UserAgentUtils;
+
+import jakarta.inject.Inject;
+import jakarta.inject.Singleton;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -19,7 +23,14 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
+@Singleton
 public class AdminAuditService {
+    private final WebsiteKvService websiteKvService;
+
+    @Inject
+    public AdminAuditService(WebsiteKvService websiteKvService) {
+        this.websiteKvService = websiteKvService;
+    }
 
     private static final String AUDIT_LOG_KEY = "admin_audit_log";
     private static final int MAX_LOG_SIZE = 100;
@@ -31,12 +42,12 @@ public class AdminAuditService {
 
     public void record(HttpRequest request, AdminAuditAction action, String content) {
         try {
-            WebsiteKvService kvService = new WebsiteKvService();
+            WebsiteKvService kvService = this.websiteKvService;
             String json = kvService.getString(AUDIT_LOG_KEY);
             List<AdminAuditLogEntryResponse> logs = readLogs(json);
 
             AdminAuditLogEntryResponse newLog = new AdminAuditLogEntryResponse();
-            newLog.setActorUserId(com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId());
+            newLog.setActorUserId(AdminTokenThreadLocal.getUserId());
             newLog.setTimestamp(System.currentTimeMillis());
             newLog.setIp(WebTools.getRealIp(request));
             newLog.setAction(action.name());
@@ -84,7 +95,7 @@ public class AdminAuditService {
     }
 
     public List<AdminAuditLogEntryResponse> getRecentLogs() {
-        String json = new WebsiteKvService().getString(AUDIT_LOG_KEY);
+        String json = this.websiteKvService.getString(AUDIT_LOG_KEY);
         List<AdminAuditLogEntryResponse> logs = readLogs(json);
         if (logs.isEmpty()) {
             return Collections.emptyList();

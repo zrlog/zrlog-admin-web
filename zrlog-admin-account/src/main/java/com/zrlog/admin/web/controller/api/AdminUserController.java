@@ -1,5 +1,6 @@
 package com.zrlog.admin.web.controller.api;
 
+import com.hibegin.common.util.IOUtil;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.RequestMethod;
 import com.hibegin.http.annotation.ResponseBody;
@@ -11,6 +12,7 @@ import com.zrlog.admin.business.service.AdminAuditService;
 import com.zrlog.admin.business.service.AdminPageDataFactory;
 import com.zrlog.admin.business.service.MfaService;
 import com.zrlog.admin.business.service.PasskeyService;
+import com.zrlog.admin.business.service.UserPreferenceService;
 import com.zrlog.admin.business.service.UserService;
 import com.zrlog.admin.business.type.AdminAuditAction;
 import com.zrlog.admin.web.annotation.RefreshCache;
@@ -19,16 +21,22 @@ import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.business.plugin.type.StaticSiteType;
 import com.zrlog.common.CacheService;
 import com.zrlog.common.controller.BaseController;
+import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.I18nUtil;
+
+import jakarta.inject.Inject;
 
 import java.sql.SQLException;
 import java.util.Objects;
 import java.util.function.Supplier;
 
 public class AdminUserController extends BaseController {
+    private final UserPreferenceService userPreferenceService;
+    private final AdminAuditService adminAuditService;
+
     private final AdminPageDataFactory pages;
 
 
@@ -39,13 +47,25 @@ public class AdminUserController extends BaseController {
     private final CacheService cacheService;
     private final Supplier<AvatarStorage> avatarStorage;
 
-    public AdminUserController(UserService userService, CacheService cacheService, Supplier<AvatarStorage> avatarStorage, AdminPageDataFactory pages, PasskeyService passkeyService) {
+    @Inject
+    public AdminUserController(
+            UserService userService,
+            CacheService cacheService,
+            Supplier<AvatarStorage> avatarStorage,
+            AdminPageDataFactory pages,
+            PasskeyService passkeyService,
+            MfaService mfaService,
+            UserPreferenceService userPreferenceService,
+            AdminAuditService adminAuditService) {
+        this.mfaService = mfaService;
+        this.userPreferenceService = userPreferenceService;
+        this.adminAuditService = adminAuditService;
+
         this.passkeyService = passkeyService;
         this.pages = pages;
         this.userService = userService;
         this.cacheService = cacheService;
         this.avatarStorage = Objects.requireNonNull(avatarStorage);
-        this.mfaService = new MfaService();
     }
 
     @ResponseBody
@@ -62,7 +82,7 @@ public class AdminUserController extends BaseController {
     @RequestMethod(method = HttpMethod.GET)
     @RequiresAction(value = AccountAction.ACCOUNT_SELF, descriptionKey = "account.preferences")
     public AdminPageDataResponse<UserPreferencesResponse> preferences() throws SQLException {
-        return pages.response(new com.zrlog.admin.business.service.UserPreferenceService().current(), "", request.getUri());
+        return pages.response(this.userPreferenceService.current(), "", request.getUri());
     }
 
     @ResponseBody
@@ -73,10 +93,12 @@ public class AdminUserController extends BaseController {
         String contentType = request.getHeader("Content-Type");
         if (body == null || body.remaining() > 8192 || contentType == null
                 || !contentType.split(";")[0].trim().equalsIgnoreCase("application/json")) {
-            throw new com.zrlog.common.exception.ArgsException("preferences");
+            throw new ArgsException("preferences");
         }
-        return new ApiStandardResponse<>(new com.zrlog.admin.business.service.UserPreferenceService()
-                .updateBody(com.hibegin.common.util.IOUtil.getStringInputStream(request.getInputStream()), request.getParaToStr("section")));
+        return new ApiStandardResponse<>(
+                this.userPreferenceService.updateBody(
+                        IOUtil.getStringInputStream(request.getInputStream()),
+                        request.getParaToStr("section")));
     }
 
     /**
@@ -101,7 +123,7 @@ public class AdminUserController extends BaseController {
     public UpdateRecordResponse update() throws SQLException {
         UpdateAdminRequest updateAdminRequest = getRequestBodyWithNullCheck(UpdateAdminRequest.class);
         userService.update(AdminTokenThreadLocal.getUserId(), updateAdminRequest, getRequest(), avatarStorage.get());
-        new AdminAuditService().record(request, AdminAuditAction.UPDATE_PROFILE);
+        this.adminAuditService.record(request, AdminAuditAction.UPDATE_PROFILE);
         UpdateRecordResponse updateRecordResponse = new UpdateRecordResponse(true);
         updateRecordResponse.setMessage(I18nUtil.getAdminBackendStringFromRes("admin.user.update.success"));
         return updateRecordResponse;
@@ -113,7 +135,7 @@ public class AdminUserController extends BaseController {
     public UpdateRecordResponse updatePassword() throws SQLException {
         UpdateRecordResponse response = userService.updatePassword(AdminTokenThreadLocal.getUserId(),
                 getRequestBodyWithNullCheck(UpdatePasswordRequest.class));
-        new AdminAuditService().record(request, AdminAuditAction.UPDATE_PASSWORD);
+        this.adminAuditService.record(request, AdminAuditAction.UPDATE_PASSWORD);
         return response;
     }
 
@@ -128,7 +150,7 @@ public class AdminUserController extends BaseController {
     @RequiresAction(value = AccountAction.ACCOUNT_SELF, descriptionKey = "account.enableMfa")
     public UpdateRecordResponse enableMfa() throws SQLException {
         UpdateRecordResponse response = mfaService.enableMfa(AdminTokenThreadLocal.getUserId(), getRequestBodyWithNullCheck(UpdateMfaRequest.class));
-        new AdminAuditService().record(request, AdminAuditAction.ENABLE_MFA);
+        this.adminAuditService.record(request, AdminAuditAction.ENABLE_MFA);
         return response;
     }
 
@@ -137,7 +159,7 @@ public class AdminUserController extends BaseController {
     @RequiresAction(value = AccountAction.ACCOUNT_SELF, descriptionKey = "account.disableMfa")
     public UpdateRecordResponse disableMfa() throws SQLException {
         UpdateRecordResponse response = mfaService.disableMfa(AdminTokenThreadLocal.getUserId(), getRequestBodyWithNullCheck(UpdateMfaRequest.class));
-        new AdminAuditService().record(request, AdminAuditAction.DISABLE_MFA);
+        this.adminAuditService.record(request, AdminAuditAction.DISABLE_MFA);
         return response;
     }
 
@@ -167,7 +189,8 @@ public class AdminUserController extends BaseController {
             throws SQLException {
         PasskeySummaryResponse summary = passkeyService.finishRegistration(AdminTokenThreadLocal.getUserId(),
                 getRequestBodyWithNullCheck(PasskeyRegistrationVerifyRequest.class), getRequest());
-        new AdminAuditService().record(request, AdminAuditAction.REGISTER_PASSKEY, summary.getName());
+        this.adminAuditService.record(
+                request, AdminAuditAction.REGISTER_PASSKEY, summary.getName());
         return new ApiStandardResponse<>(summary,
                 I18nUtil.getAdminBackendStringFromRes("admin.passkey.register.success"));
     }
@@ -179,7 +202,8 @@ public class AdminUserController extends BaseController {
     public ApiStandardResponse<Boolean> passkeyRemove() throws SQLException {
         PasskeyRemoveRequest body = getRequestBodyWithNullCheck(PasskeyRemoveRequest.class);
         passkeyService.remove(AdminTokenThreadLocal.getUserId(), body);
-        new AdminAuditService().record(request, AdminAuditAction.REMOVE_PASSKEY, String.valueOf(body.getId()));
+        this.adminAuditService.record(
+                request, AdminAuditAction.REMOVE_PASSKEY, String.valueOf(body.getId()));
         return new ApiStandardResponse<>(true,
                 I18nUtil.getAdminBackendStringFromRes("admin.passkey.remove.success"));
     }

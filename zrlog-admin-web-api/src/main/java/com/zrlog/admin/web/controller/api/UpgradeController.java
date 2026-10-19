@@ -27,19 +27,37 @@ import com.zrlog.updater.spi.DockerControl;
 import com.zrlog.util.I18nUtil;
 import com.zrlog.util.ZrLogUtil;
 
+import jakarta.inject.Inject;
+
 import java.io.IOException;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Supplier;
 
 public class UpgradeController extends BaseController {
+    private final DockerUpgradeProgressService dockerUpgradeProgressService;
+    private final AdminAuditService adminAuditService;
+    private final MessageCenterOperationService messageCenterOperationService;
+
     private final AdminPageDataFactory pages;
 
     private final UpgradeService upgrades;
     private final Supplier<UpdateVersionInfoPlugin> updatePlugin;
     private final Supplier<DockerControl> docker;
 
-    public UpgradeController(UpgradeService upgrades, Supplier<UpdateVersionInfoPlugin> updatePlugin, Supplier<DockerControl> docker, AdminPageDataFactory pages) {
+    @Inject
+    public UpgradeController(
+            UpgradeService upgrades,
+            Supplier<UpdateVersionInfoPlugin> updatePlugin,
+            Supplier<DockerControl> docker,
+            AdminPageDataFactory pages,
+            DockerUpgradeProgressService dockerUpgradeProgressService,
+            AdminAuditService adminAuditService,
+            MessageCenterOperationService messageCenterOperationService) {
+        this.dockerUpgradeProgressService = dockerUpgradeProgressService;
+        this.adminAuditService = adminAuditService;
+        this.messageCenterOperationService = messageCenterOperationService;
+
         this.pages = pages;
         this.upgrades = upgrades;
         this.updatePlugin = updatePlugin;
@@ -94,9 +112,9 @@ public class UpgradeController extends BaseController {
             try {
                 upgradeProcessResponse = upgrades
                         .doUpgrade(plugin, UpgradeProgressListener.NONE, backend);
-                new MessageCenterOperationService().recordUpgradeResult(upgradeProcessResponse);
+                this.messageCenterOperationService.recordUpgradeResult(upgradeProcessResponse);
             } catch (RuntimeException e) {
-                new MessageCenterOperationService().recordUpgradeError(e.getMessage());
+                this.messageCenterOperationService.recordUpgradeError(e.getMessage());
                 throw e;
             }
             recordUpgradeAudit(upgradeRequest);
@@ -104,19 +122,23 @@ public class UpgradeController extends BaseController {
                     upgradeProcessResponse));
             return;
         }
-        AdminSseEmitter.write(response, "admin-upgrade", "sse-error", emitter -> {
-            UpgradeProcessResponse upgradeProcessResponse;
-            try {
-                upgradeProcessResponse = upgrades
-                        .doUpgrade(plugin, emitter::send, backend);
-                new MessageCenterOperationService().recordUpgradeResult(upgradeProcessResponse);
-            } catch (Exception e) {
-                new MessageCenterOperationService().recordUpgradeError(e.getMessage());
-                throw e;
-            }
-            recordUpgradeAudit(upgradeRequest);
-            emitter.send("response", new ApiStandardResponse<>(upgradeProcessResponse));
-        });
+        AdminSseEmitter.write(
+                response,
+                "admin-upgrade",
+                "sse-error",
+                emitter -> {
+                    UpgradeProcessResponse upgradeProcessResponse;
+                    try {
+                        upgradeProcessResponse = upgrades.doUpgrade(plugin, emitter::send, backend);
+                        this.messageCenterOperationService.recordUpgradeResult(
+                                upgradeProcessResponse);
+                    } catch (Exception e) {
+                        this.messageCenterOperationService.recordUpgradeError(e.getMessage());
+                        throw e;
+                    }
+                    recordUpgradeAudit(upgradeRequest);
+                    emitter.send("response", new ApiStandardResponse<>(upgradeProcessResponse));
+                });
     }
 
     @ResponseBody
@@ -144,11 +166,16 @@ public class UpgradeController extends BaseController {
 
     private void streamDockerUpgrade(DockerControl client, DockerUpdaterProtocol.Job job) throws IOException {
         Map<String, Object> backend = I18nUtil.getBackend();
-        AdminSseEmitter.write(response, "admin-upgrade", "sse-error", emitter -> {
-            ApiStandardResponse<UpgradeProcessResponse> result = new DockerUpgradeProgressService()
-                    .watch(client, job, emitter::send, backend);
-            emitter.send("response", result);
-        });
+        AdminSseEmitter.write(
+                response,
+                "admin-upgrade",
+                "sse-error",
+                emitter -> {
+                    ApiStandardResponse<UpgradeProcessResponse> result =
+                            this.dockerUpgradeProgressService.watch(
+                                    client, job, emitter::send, backend);
+                    emitter.send("response", result);
+                });
     }
 
     protected DockerControl dockerClient() {
@@ -162,7 +189,9 @@ public class UpgradeController extends BaseController {
     }
 
     private void recordUpgradeAudit(ExecuteUpgradeRequest requestBody) {
-        new AdminAuditService().record(request, AdminAuditAction.EXECUTE_UPGRADE,
+        this.adminAuditService.record(
+                request,
+                AdminAuditAction.EXECUTE_UPGRADE,
                 requestBody.isUpgradeRiskAccepted() ? "upgradeRiskAccepted" : "");
     }
 

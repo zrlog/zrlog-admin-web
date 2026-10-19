@@ -2,23 +2,31 @@ package com.zrlog.admin.web;
 
 import com.hibegin.common.util.LoggerUtil;
 import com.hibegin.common.util.StringUtils;
+import com.hibegin.http.server.config.ServerConfig;
+import com.hibegin.http.server.di.SwsBindings;
 import com.hibegin.http.server.web.Router;
 import com.zrlog.admin.business.AdminConstants;
-import com.zrlog.admin.business.ai.service.AIConversationService;
+import com.zrlog.admin.business.ai.service.AIErrorMessages;
+import com.zrlog.admin.business.ai.service.AIFileService;
 import com.zrlog.admin.business.ai.service.AIPublishCheckService.PublishCheckTask;
-import com.zrlog.admin.business.ai.service.AIPublishCheckService;
+import com.zrlog.admin.business.ai.service.AIReferenceService;
 import com.zrlog.admin.business.content.ArticleAssistant;
+import com.zrlog.admin.business.knowledge.ContentToolFactory;
 import com.zrlog.admin.business.rest.base.AIWebSiteInfoWithAIMessages;
 import com.zrlog.admin.business.rest.request.CreateArticleRequest;
 import com.zrlog.admin.business.rest.response.*;
-import com.zrlog.admin.business.service.AdminPageDataFactory;
 import com.zrlog.admin.business.service.UploadService;
 import com.zrlog.admin.business.service.WebSiteSettingsService;
 import com.zrlog.admin.util.AdminSseEmitter;
 import com.zrlog.admin.web.controller.ai.AIArticleController;
 import com.zrlog.admin.web.controller.ai.AICommentController;
 import com.zrlog.admin.web.controller.ai.AIWebSiteController;
+import com.zrlog.admin.web.di.account.AccountComponent;
+import com.zrlog.admin.web.di.ai.AIComponent;
+import com.zrlog.admin.web.di.ai.DaggerAIComponent;
 import com.zrlog.admin.web.interceptor.PluginTokenValidator;
+import com.zrlog.business.di.ServiceComponent;
+import com.zrlog.data.di.DataComponent;
 import com.zrlog.util.I18nUtil;
 
 import java.io.IOException;
@@ -33,38 +41,67 @@ public class AIWebSetup implements ArticleAssistant {
     private static final Logger LOGGER = LoggerUtil.getLogger(AIWebSetup.class);
     private static final long PUBLISH_CHECK_WAIT_TIMEOUT_MILLIS = TimeUnit.SECONDS.toMillis(60);
     private final Router router;
-    private final AIPublishCheckService publishingService = new AIPublishCheckService();
 
-    private final com.hibegin.http.server.di.SwsBindings bindings;
-    public AIWebSetup(com.hibegin.http.server.config.ServerConfig config) {
+    private final SwsBindings bindings;
+
+    public AIWebSetup(ServerConfig config) {
         this.router = config.getRouter();
         this.bindings = config.getBindings();
     }
     @Override public void setup() {
-        bindings.singleton(com.zrlog.admin.business.ai.service.AIReferenceService.class,
-                        r -> new com.zrlog.admin.business.ai.service.AIReferenceService(r.get(com.zrlog.admin.business.knowledge.ContentToolFactory.class)))
-                .controller(AIArticleController.class, (r, request, response) -> new AIArticleController(r.get(UploadService.class), new com.zrlog.admin.business.ai.service.AIChatService(request, r.get(com.zrlog.admin.business.knowledge.ContentToolFactory.class)), r.get(com.zrlog.admin.business.ai.service.AIReferenceService.class)))
-                .controller(AICommentController.class, (r, request, response) -> new AICommentController(r.get(PluginTokenValidator.class)))
-                .controller(AIWebSiteController.class, (r, request, response) -> new AIWebSiteController(r.get(WebSiteSettingsService.class), r.get(AdminPageDataFactory.class)));
+        bindings.singleton(
+                        AIComponent.class,
+                        r ->
+                                DaggerAIComponent.factory()
+                                        .create(
+                                                r.get(DataComponent.class),
+                                                r.get(ServiceComponent.class),
+                                                r.get(AccountComponent.class),
+                                                r.get(ContentToolFactory.class),
+                                                r.get(UploadService.class),
+                                                r.get(WebSiteSettingsService.class),
+                                                r.get(PluginTokenValidator.class)))
+                .singleton(AIReferenceService.class, r -> r.get(AIComponent.class).references())
+                .controller(
+                        AIArticleController.class,
+                        (r, request, response) ->
+                                r.get(AIComponent.class).requests().create(request).articles())
+                .controller(
+                        AICommentController.class,
+                        (r, request, response) ->
+                                r.get(AIComponent.class).requests().create(request).comments())
+                .controller(
+                        AIWebSiteController.class,
+                        (r, request, response) ->
+                                r.get(AIComponent.class).requests().create(request).settings());
         registerRoutes(router);
     }
 
+    private AIComponent components() {
+        return bindings.build().get(AIComponent.class);
+    }
+
     @Override public void articleCreated(long articleId, int userId) {
-        try { new AIConversationService().migrateDraftAIMessageToArticle(articleId, -(long) userId); }
-        catch (Exception e) { LOGGER.log(Level.FINE, "Migrate draft article AI messages failed, articleId=" + articleId, e); }
+        try {
+            components().conversations().migrateDraftAIMessageToArticle(articleId, -(long) userId);
+        } catch (Exception e) {
+            LOGGER.log(Level.FINE, "Migrate draft article AI messages failed, articleId=" + articleId, e); }
     }
 
     @Override public void articleDeleted(long articleId) {
-        try { new AIConversationService().removeAIMessage(articleId); }
-        catch (Exception e) { LOGGER.log(Level.FINE, "Remove article AI messages failed, articleId=" + articleId, e); }
+        try {
+            components().conversations().removeAIMessage(articleId);
+        } catch (Exception e) {
+            LOGGER.log(Level.FINE, "Remove article AI messages failed, articleId=" + articleId, e); }
     }
 
     @Override public ArticleGlobalResponse enrichEditor(ArticleGlobalResponse article, long articleId) {
-        AIWebSiteInfoWithAIMessages ai = new AIConversationService().getAiMessageInfoByArticleId(articleId);
+        AIWebSiteInfoWithAIMessages ai =
+                components().conversations().getAiMessageInfoByArticleId(articleId);
         AIArticleGlobalResponse response = new AIArticleGlobalResponse(article);
         response.setAiProvider(ai.getAi_provider());
         response.setAiModel(ai.getAi_model());
-        response.setAiFileInput(com.zrlog.admin.business.ai.service.AIFileService.capabilities(ai));
+        response.setAiFileInput(AIFileService.capabilities(ai));
         response.setAiConfigured(ai.getAi_provider() != null && StringUtils.isNotEmpty(ai.getAi_model())
                 && (StringUtils.isNotEmpty(ai.getAi_api_key()) || StringUtils.isNotEmpty(ai.getAi_base_url())));
         response.setAiMessages(ai.getAiMessages().stream().filter(e -> !Objects.equals(e.getRole(), "system")).collect(Collectors.toList()));
@@ -73,7 +110,7 @@ public class AIWebSetup implements ArticleAssistant {
 
     @Override public PublishProgress beginPublishCheck(ArticleGlobalResponse article, CreateArticleRequest request,
                                                        AdminSseEmitter emitter) throws Exception {
-        PublishCheckTask task = publishingService.startPublishCheck(article, request);
+        PublishCheckTask task = components().publishing().startPublishCheck(article, request);
         if (task == null) return PublishProgress.NONE;
         emitter.send("publish-check-start", AdminSsePayloads.tool("publishCheck"));
         return new PublishProgress() {
@@ -113,11 +150,15 @@ public class AIWebSetup implements ArticleAssistant {
             while (cause instanceof CompletionException && cause.getCause() != null) {
                 cause = cause.getCause();
             }
-            String message = com.zrlog.admin.business.ai.service.AIErrorMessages.message(
-                    cause, "admin.article.publishCheck.error.failed");
+            String message =
+                    AIErrorMessages.message(cause, "admin.article.publishCheck.error.failed");
             if (publishCheckTask.getArticleId() != null) {
-                publishingService.recordPublishCheckError(
-                        publishCheckTask.getArticleId(), publishCheckTask.getArticleTitle(), message);
+                components()
+                        .publishing()
+                        .recordPublishCheckError(
+                                publishCheckTask.getArticleId(),
+                                publishCheckTask.getArticleTitle(),
+                                message);
             }
             emitter.send("publish-check-error", AdminSsePayloads.message(message));
         } catch (CancellationException e) {
@@ -143,14 +184,19 @@ public class AIWebSetup implements ArticleAssistant {
         publishCheckTask.getFuture().cancel(true);
         String message = I18nUtil.getAdminBackendStringFromRes(messageKey);
         if (publishCheckTask.getArticleId() != null) {
-            publishingService.recordPublishCheckError(
-                    publishCheckTask.getArticleId(), publishCheckTask.getArticleTitle(), message);
+            components()
+                    .publishing()
+                    .recordPublishCheckError(
+                            publishCheckTask.getArticleId(),
+                            publishCheckTask.getArticleTitle(),
+                            message);
         }
         emitter.send("publish-check-error", AdminSsePayloads.message(message));
     }
 
     private void registerRoutes(Router router) {
-        router.addMapper("/api/admin/internal/ai/comment/analyze", com.zrlog.admin.web.controller.ai.AICommentController.class, "analyze");
+        router.addMapper(
+                "/api/admin/internal/ai/comment/analyze", AICommentController.class, "analyze");
         router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/article/cover/apply", AIArticleController.class, "applyCover");
         router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/article/ai/message", AIArticleController.class, "updateAiMessage");
         router.addMapper("/api" + AdminConstants.ADMIN_URI_BASE_PATH + "/article/ai/messages/clear", AIArticleController.class, "clearAiMessages");

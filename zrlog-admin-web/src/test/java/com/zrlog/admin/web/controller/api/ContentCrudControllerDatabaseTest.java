@@ -1,16 +1,33 @@
 package com.zrlog.admin.web.controller.api;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
+
 import com.hibegin.common.dao.dto.PageData;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
 import com.hibegin.http.server.web.Controller;
 import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
 import com.zrlog.admin.business.rest.response.DeleteResponse;
+import com.zrlog.admin.business.service.AdminPageDataFactory;
+import com.zrlog.admin.business.service.ArticleTypeService;
+import com.zrlog.admin.business.service.BlogNavService;
+import com.zrlog.admin.business.service.LinkService;
+import com.zrlog.admin.support.AccountServicesFixture;
+import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
+import com.zrlog.common.ZrLogConfig;
 import com.zrlog.common.cache.dto.LinkDTO;
 import com.zrlog.common.cache.dto.LogNavDTO;
 import com.zrlog.common.cache.dto.TypeDTO;
 import com.zrlog.common.exception.ArgsException;
+import com.zrlog.model.Link;
+import com.zrlog.model.Log;
+import com.zrlog.model.LogNav;
+
 import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
@@ -19,15 +36,9 @@ import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
-
 public class ContentCrudControllerDatabaseTest {
 
-    private com.zrlog.common.ZrLogConfig applicationConfig;
+    private ZrLogConfig applicationConfig;
 
     @Test
     public void shouldManageTypesThroughRealDatabase() throws Exception {
@@ -121,19 +132,41 @@ public class ContentCrudControllerDatabaseTest {
     }
 
     private TypeController typeController(Map<String, String> params, String body) throws Exception {
-        TypeController controller = new TypeController(new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), () -> "test"), com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig));
+        TypeController controller =
+                new TypeController(
+                        new AdminPageDataFactory(
+                                ApplicationServicesFixture.site(applicationConfig),
+                                () -> "test",
+                                ApplicationServicesFixture.messages(),
+                                AccountServicesFixture.component().permissions()),
+                        ApplicationServicesFixture.site(applicationConfig),
+                        new ArticleTypeService(Log::new, com.zrlog.model.Type::new));
         setControllerFields(controller, params, body, "/api/admin/type");
         return controller;
     }
 
     private BlogNavController blogNavController(Map<String, String> params, String body) throws Exception {
-        BlogNavController controller = new BlogNavController(new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), () -> "test"));
+        BlogNavController controller =
+                new BlogNavController(
+                        new AdminPageDataFactory(
+                                ApplicationServicesFixture.site(applicationConfig),
+                                () -> "test",
+                                ApplicationServicesFixture.messages(),
+                                AccountServicesFixture.component().permissions()),
+                        new BlogNavService(LogNav::new));
         setControllerFields(controller, params, body, "/api/admin/nav");
         return controller;
     }
 
     private LinkController linkController(Map<String, String> params, String body) throws Exception {
-        LinkController controller = new LinkController(new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), () -> "test"));
+        LinkController controller =
+                new LinkController(
+                        new AdminPageDataFactory(
+                                ApplicationServicesFixture.site(applicationConfig),
+                                () -> "test",
+                                ApplicationServicesFixture.messages(),
+                                AccountServicesFixture.component().permissions()),
+                        new LinkService(Link::new));
         setControllerFields(controller, params, body, "/api/admin/link");
         return controller;
     }

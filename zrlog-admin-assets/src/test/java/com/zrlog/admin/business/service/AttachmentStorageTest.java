@@ -1,11 +1,20 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.*;
+
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.util.PathUtil;
 import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.security.DelegatedAccess;
+import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.AssetsWebSetup;
+import com.zrlog.admin.web.di.assets.AssetsComponent;
+import com.zrlog.admin.web.di.assets.DaggerAssetsComponent;
+import com.zrlog.business.di.DaggerServiceComponent;
+import com.zrlog.common.exception.ArgsException;
+import com.zrlog.data.di.DaggerDataComponent;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -13,8 +22,6 @@ import org.junit.rules.TemporaryFolder;
 import java.lang.reflect.Proxy;
 import java.nio.file.Files;
 import java.util.Set;
-
-import static org.junit.Assert.*;
 
 public class AttachmentStorageTest {
     @Rule public TemporaryFolder directory=new TemporaryFolder();
@@ -27,6 +34,29 @@ public class AttachmentStorageTest {
                 if(method.getName().equals("getContextPath")) return "/sub";
                 return null;
             });
+            var data = DaggerDataComponent.factory().create(db::dataSource, () -> true);
+            var services =
+                    DaggerServiceComponent.factory()
+                            .create(
+                                    data,
+                                    () -> true,
+                                    () -> null,
+                                    () -> null,
+                                    java.util.Collections::emptyList);
+            db.config()
+                    .getServerConfig()
+                    .getBindings()
+                    .instance(
+                            AssetsComponent.class,
+                            DaggerAssetsComponent.factory()
+                                    .create(
+                                            data,
+                                            services,
+                                            AccountServicesFixture.component(),
+                                            () -> null,
+                                            () -> db.config().getTokenService(),
+                                            () -> false,
+                                            ""));
             AssetsWebSetup storage=new AssetsWebSetup(db.config().getServerConfig(), () -> null);
             byte[] bytes="actual attachment".getBytes(java.nio.charset.StandardCharsets.UTF_8);
             String url=storage.saveAttachment(bytes,"cover.PNG",request);
@@ -35,7 +65,9 @@ public class AttachmentStorageTest {
             assertArrayEquals(bytes,Files.readAllBytes(PathUtil.getStaticFile(url.substring("/sub".length())).toPath()));
             assertThrows(PermissionErrorException.class,()->DelegatedAccess.withPermissions(Set.of("article.read"),false,
                     ()->storage.saveAttachment(bytes,"cover.png",request)));
-            assertThrows(com.zrlog.common.exception.ArgsException.class,()->storage.saveAttachment(bytes,"cover.png/escape",request));
+            assertThrows(
+                    ArgsException.class,
+                    () -> storage.saveAttachment(bytes, "cover.png/escape", request));
         } finally {
             if(previous==null) System.clearProperty("sws.root.path");else System.setProperty("sws.root.path",previous);
         }

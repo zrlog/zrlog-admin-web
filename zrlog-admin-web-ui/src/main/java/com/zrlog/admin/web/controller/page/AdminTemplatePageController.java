@@ -1,5 +1,7 @@
 package com.zrlog.admin.web.controller.page;
 
+import static com.zrlog.util.CrossUtils.cross;
+
 import com.hibegin.common.util.FileUtils;
 import com.hibegin.http.annotation.RequestMethod;
 import com.hibegin.http.server.util.MimeTypeUtil;
@@ -15,19 +17,22 @@ import com.zrlog.common.vo.TemplateVO;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.ZrLogUtil;
 
+import jakarta.inject.Inject;
+
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.Objects;
-
-import static com.zrlog.util.CrossUtils.cross;
+import java.util.function.BooleanSupplier;
 
 public class AdminTemplatePageController extends BaseController {
     private final TemplateService templateService;
 
-    private final java.util.function.BooleanSupplier staticHtml;
+    private final BooleanSupplier staticHtml;
 
-    public AdminTemplatePageController(TemplateService templateService, java.util.function.BooleanSupplier staticHtml) {
-        this.staticHtml = java.util.Objects.requireNonNull(staticHtml);
+    @Inject
+    public AdminTemplatePageController(
+            TemplateService templateService, BooleanSupplier staticHtml) {
+        this.staticHtml = Objects.requireNonNull(staticHtml);
         this.templateService = templateService;
     }
 

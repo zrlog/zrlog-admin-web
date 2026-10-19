@@ -1,16 +1,23 @@
 package com.zrlog.admin.business.ai.service;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
+
 import com.google.gson.Gson;
 import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.ai.exception.UnsupportedAIImageGenerationException;
 import com.zrlog.admin.business.rest.request.GenerateArticleFieldRequest;
 import com.zrlog.admin.business.rest.response.GenerateArticleCoverResponse;
+import com.zrlog.admin.business.service.UserPreferenceService;
+import com.zrlog.admin.support.AccountServicesFixture;
+import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
+import com.zrlog.data.service.UserPreferenceStore;
+
 import org.junit.Test;
 
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLParameters;
-import javax.net.ssl.SSLSession;
 import java.io.ByteArrayOutputStream;
 import java.net.Authenticator;
 import java.net.CookieHandler;
@@ -35,10 +42,9 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Flow;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLParameters;
+import javax.net.ssl.SSLSession;
 
 public class AIImageServiceTest {
 
@@ -48,9 +54,19 @@ public class AIImageServiceTest {
     public void personalCoverRatioOverridesSiteConfiguration() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             seedImageConfig(db, "16:9");
-            new com.zrlog.admin.business.service.UserPreferenceService().updateBody("{\"editor\":{\"coverAspectRatio\":\"1:1\"}}", "writing");
+            new UserPreferenceService(
+                            ApplicationServicesFixture.settings(),
+                            new UserPreferenceStore(),
+                            AccountServicesFixture.component().permissions())
+                    .updateBody("{\"editor\":{\"coverAspectRatio\":\"1:1\"}}", "writing");
             FakeHttpClient client = new FakeHttpClient(imageB64Response("cover".getBytes(StandardCharsets.UTF_8)));
-            new AIImageService(client).generateArticleCover(articleRequest());
+            new AIImageService(
+                            client,
+                            AccountServicesFixture.component().preferences(),
+                            AIServiceDependencies.config(),
+                            AIServiceDependencies.dbFiles(),
+                            AIServiceDependencies.conversations())
+                    .generateArticleCover(articleRequest());
             assertTrue(client.requestBodies.get(0).contains("\"size\":\"1024x1024\""));
             assertEquals("16:9", db.scalar("select value from website where name='article_cover_aspect_ratio'"));
         }
@@ -66,8 +82,14 @@ public class AIImageServiceTest {
                     imageB64Response(coverBytes)
             );
 
-            GenerateArticleCoverResponse response = new AIImageService(client)
-                    .generateArticleCover(articleRequest());
+            GenerateArticleCoverResponse response =
+                    new AIImageService(
+                                    client,
+                                    AccountServicesFixture.component().preferences(),
+                                    AIServiceDependencies.config(),
+                                    AIServiceDependencies.dbFiles(),
+                                    AIServiceDependencies.conversations())
+                            .generateArticleCover(articleRequest());
 
             assertEquals("png", response.getExtension());
             assertEquals("image/png", response.getMimeType());
@@ -92,8 +114,14 @@ public class AIImageServiceTest {
                     byteResponse(200, coverBytes, "image/webp;charset=utf-8")
             );
 
-            GenerateArticleCoverResponse response = new AIImageService(client)
-                    .generateArticleCover(articleRequest());
+            GenerateArticleCoverResponse response =
+                    new AIImageService(
+                                    client,
+                                    AccountServicesFixture.component().preferences(),
+                                    AIServiceDependencies.config(),
+                                    AIServiceDependencies.dbFiles(),
+                                    AIServiceDependencies.conversations())
+                            .generateArticleCover(articleRequest());
 
             assertEquals("webp", response.getExtension());
             assertEquals("image/webp", response.getMimeType());
@@ -116,7 +144,13 @@ public class AIImageServiceTest {
             db.putWebsite("ai_image_api_key", "");
             FakeHttpClient client = new FakeHttpClient(imageB64Response(coverBytes));
 
-            new AIImageService(client).generateArticleCover(articleRequest());
+            new AIImageService(
+                            client,
+                            AccountServicesFixture.component().preferences(),
+                            AIServiceDependencies.config(),
+                            AIServiceDependencies.dbFiles(),
+                            AIServiceDependencies.conversations())
+                    .generateArticleCover(articleRequest());
 
             HttpRequest request = client.requests.get(0);
             assertEquals("http://localhost:11434/v1/images/generations", request.uri().toString());
@@ -131,8 +165,16 @@ public class AIImageServiceTest {
             seedImageConfig(db, "1:1");
             db.putWebsite("ai_image_model", "local-image:latest");
 
-            assertThrows(UnsupportedAIImageGenerationException.class,
-                    () -> new AIImageService(new FakeHttpClient()).generateArticleCover(articleRequest()));
+            assertThrows(
+                    UnsupportedAIImageGenerationException.class,
+                    () ->
+                            new AIImageService(
+                                            new FakeHttpClient(),
+                                            AccountServicesFixture.component().preferences(),
+                                            AIServiceDependencies.config(),
+                                            AIServiceDependencies.dbFiles(),
+                                            AIServiceDependencies.conversations())
+                                    .generateArticleCover(articleRequest()));
         }
     }
 

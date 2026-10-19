@@ -11,6 +11,8 @@ import com.zrlog.admin.business.rest.request.*;
 import com.zrlog.admin.business.rest.response.*;
 import com.zrlog.common.exception.ArgsException;
 
+import jakarta.inject.Inject;
+
 import java.io.IOException;
 import java.net.http.HttpClient;
 import java.util.ArrayList;
@@ -22,6 +24,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class AIToolService extends AIService {
+    private final AIConfigService aIConfigService;
 
     private static final int REWRITE_MIN_MARKDOWN_LENGTH = 120;
     private static final int PUBLISH_CHECK_REFERENCE_LIMIT = 8;
@@ -32,16 +35,19 @@ public class AIToolService extends AIService {
     private static final Pattern BARE_URL_PATTERN = Pattern.compile("\\bhttps?://[^\\s<>\"')]+",
             Pattern.CASE_INSENSITIVE);
 
-    public AIToolService() {
+    @Inject
+    public AIToolService(AIConfigService aIConfigService) {
+        this.aIConfigService = aIConfigService;
     }
 
-    AIToolService(HttpClient client) {
+    AIToolService(HttpClient client, AIConfigService aIConfigService) {
         super(client);
+        this.aIConfigService = aIConfigService;
     }
 
     public OptimizeWebsiteDescriptionResponse optimizeWebsiteDescription(OptimizeWebsiteDescriptionRequest optimizeRequest)
             throws IOException, InterruptedException {
-        AIWebSiteInfo info = new AIConfigService().ai();
+        AIWebSiteInfo info = this.aIConfigService.ai();
         checkAiConfig(info);
         List<AIResponseEntry.AIContentEntry> messages = List.of(
                 new AIResponseEntry.AIContentEntry("system", buildWebsiteDescriptionSystemPrompt(info.getAi_prompt())),
@@ -55,7 +61,7 @@ public class AIToolService extends AIService {
 
     public OptimizeAiPromptResponse optimizeAiPrompt(OptimizeAiPromptRequest optimizeRequest)
             throws IOException, InterruptedException {
-        AIWebSiteInfo info = new AIConfigService().ai();
+        AIWebSiteInfo info = this.aIConfigService.ai();
         checkAiConfig(info);
         List<AIResponseEntry.AIContentEntry> messages = List.of(
                 new AIResponseEntry.AIContentEntry("system", loadPromptResource(AIPromptVO.getByToolKey("ai-prompt-optimize").getPromptPrefix(), AIPromptVO.getByToolKey("ai-prompt-optimize").getPromptFallback())),
@@ -70,7 +76,7 @@ public class AIToolService extends AIService {
     public GenerateArticleTitleResponse generateArticleTitles(GenerateArticleTitleRequest generateRequest,
                                                               String conversationContext)
             throws IOException, InterruptedException {
-        AIWebSiteInfo info = new AIConfigService().ai();
+        AIWebSiteInfo info = this.aIConfigService.ai();
         checkAiConfig(info);
         List<AIResponseEntry.AIContentEntry> messages = List.of(
                 new AIResponseEntry.AIContentEntry("system", loadPromptResource(AIPromptVO.getByToolKey("article-title-generate").getPromptPrefix(), AIPromptVO.getByToolKey("article-title-generate").getPromptFallback())),
@@ -85,7 +91,7 @@ public class AIToolService extends AIService {
 
     public ScoreArticleResponse scoreArticle(ScoreArticleRequest scoreRequest, String conversationContext)
             throws IOException, InterruptedException {
-        AIWebSiteInfo info = new AIConfigService().ai();
+        AIWebSiteInfo info = this.aIConfigService.ai();
         checkAiConfig(info);
         List<AIResponseEntry.AIContentEntry> messages = List.of(
                 new AIResponseEntry.AIContentEntry("system", loadPromptResource(AIPromptVO.getByToolKey("article-score").getPromptPrefix(), AIPromptVO.getByToolKey("article-score").getPromptFallback())),
@@ -211,7 +217,7 @@ public class AIToolService extends AIService {
 
     private String requestArticleFieldCompletion(GenerateArticleFieldRequest request, AIPromptVO promptVO, String conversationContext)
             throws IOException, InterruptedException {
-        AIWebSiteInfo info = new AIConfigService().ai();
+        AIWebSiteInfo info = this.aIConfigService.ai();
         checkAiConfig(info);
         List<AIResponseEntry.AIContentEntry> messages = List.of(
                 new AIResponseEntry.AIContentEntry("system", loadPromptResource(promptVO.getPromptPrefix(), promptVO.getPromptFallback())),

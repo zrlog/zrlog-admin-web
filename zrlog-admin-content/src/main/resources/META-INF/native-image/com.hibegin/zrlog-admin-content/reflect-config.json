@@ -3,16 +3,6 @@
     "name": "com.zrlog.admin.web.controller.api.AdminArticleController",
     "methods": [
       {
-        "name": "<init>",
-        "parameterTypes": [
-          "com.zrlog.admin.business.service.AdminArticleService",
-          "com.zrlog.admin.business.service.ArticlePublishingService",
-          "com.zrlog.admin.util.AdminStaticSiteSsePublisher",
-          "java.util.function.Supplier",
-          "com.zrlog.admin.business.service.AdminPageDataFactory"
-        ]
-      },
-      {
         "name": "articleEdit",
         "parameterTypes": []
       },
@@ -42,10 +32,6 @@
     "name": "com.zrlog.admin.web.controller.api.AdminArticlePinningController",
     "methods": [
       {
-        "name": "<init>",
-        "parameterTypes": []
-      },
-      {
         "name": "index",
         "parameterTypes": []
       },
@@ -67,13 +53,6 @@
     "name": "com.zrlog.admin.web.controller.api.AdminArticleVersionController",
     "methods": [
       {
-        "name": "<init>",
-        "parameterTypes": [
-          "com.zrlog.admin.business.service.AdminArticleService",
-          "com.zrlog.business.service.CacheRefreshService"
-        ]
-      },
-      {
         "name": "compare",
         "parameterTypes": []
       },
@@ -90,13 +69,6 @@
   {
     "name": "com.zrlog.admin.web.controller.api.AdminTagController",
     "methods": [
-      {
-        "name": "<init>",
-        "parameterTypes": [
-          "com.zrlog.admin.business.service.AdminPageDataFactory",
-          "java.util.function.Supplier"
-        ]
-      },
       {
         "name": "delete",
         "parameterTypes": []
@@ -123,12 +95,6 @@
     "name": "com.zrlog.admin.web.controller.api.BlogNavController",
     "methods": [
       {
-        "name": "<init>",
-        "parameterTypes": [
-          "com.zrlog.admin.business.service.AdminPageDataFactory"
-        ]
-      },
-      {
         "name": "add",
         "parameterTypes": []
       },
@@ -149,12 +115,6 @@
   {
     "name": "com.zrlog.admin.web.controller.api.CommentController",
     "methods": [
-      {
-        "name": "<init>",
-        "parameterTypes": [
-          "com.zrlog.admin.business.service.AdminPageDataFactory"
-        ]
-      },
       {
         "name": "delete",
         "parameterTypes": []
@@ -177,12 +137,6 @@
     "name": "com.zrlog.admin.web.controller.api.LinkController",
     "methods": [
       {
-        "name": "<init>",
-        "parameterTypes": [
-          "com.zrlog.admin.business.service.AdminPageDataFactory"
-        ]
-      },
-      {
         "name": "add",
         "parameterTypes": []
       },
@@ -204,10 +158,6 @@
     "name": "com.zrlog.admin.web.controller.api.LinkPreviewController",
     "methods": [
       {
-        "name": "<init>",
-        "parameterTypes": []
-      },
-      {
         "name": "index",
         "parameterTypes": []
       }
@@ -216,12 +166,6 @@
   {
     "name": "com.zrlog.admin.web.controller.api.PersonalDataController",
     "methods": [
-      {
-        "name": "<init>",
-        "parameterTypes": [
-          "com.zrlog.admin.business.service.AdminPageDataFactory"
-        ]
-      },
       {
         "name": "exportComments",
         "parameterTypes": []
@@ -239,13 +183,6 @@
   {
     "name": "com.zrlog.admin.web.controller.api.TypeController",
     "methods": [
-      {
-        "name": "<init>",
-        "parameterTypes": [
-          "com.zrlog.admin.business.service.AdminPageDataFactory",
-          "java.util.function.Supplier"
-        ]
-      },
       {
         "name": "add",
         "parameterTypes": []

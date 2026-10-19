@@ -1,5 +1,13 @@
 package com.zrlog.admin.web.controller.api;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
+
+import com.hibegin.common.dao.DAO;
 import com.hibegin.common.dao.dto.PageData;
 import com.hibegin.common.dao.dto.PageRequest;
 import com.hibegin.common.util.PasswordHashUtils;
@@ -9,6 +17,8 @@ import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
 import com.hibegin.http.server.config.ServerConfig;
 import com.hibegin.http.server.web.Controller;
+import com.zrlog.admin.business.account.AvatarStorage;
+import com.zrlog.admin.business.content.ArticleAssistant;
 import com.zrlog.admin.business.exception.AdminAuthException;
 import com.zrlog.admin.business.rest.request.PersonalDataPreviewRequest;
 import com.zrlog.admin.business.rest.request.ReadCommentRequest;
@@ -22,6 +32,7 @@ import com.zrlog.admin.business.rest.response.AdminDashboardQuickActionDataRespo
 import com.zrlog.admin.business.rest.response.AdminDashboardWelcomeDataResponse;
 import com.zrlog.admin.business.rest.response.AdminManifestResponse;
 import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
+import com.zrlog.admin.business.rest.response.AdminResourceInfoResponse;
 import com.zrlog.admin.business.rest.response.ArticleActivityData;
 import com.zrlog.admin.business.rest.response.DeleteResponse;
 import com.zrlog.admin.business.rest.response.ErrorPageResponse;
@@ -42,28 +53,64 @@ import com.zrlog.admin.business.rest.response.UserInfoResponse;
 import com.zrlog.admin.business.service.AdminArticleService;
 import com.zrlog.admin.business.service.AdminCommentService;
 import com.zrlog.admin.business.service.AdminDashboardService;
+import com.zrlog.admin.business.service.AdminPageDataFactory;
+import com.zrlog.admin.business.service.AdminResourceService;
 import com.zrlog.admin.business.service.AdminStatisticsService;
+import com.zrlog.admin.business.service.ArticlePinningService;
+import com.zrlog.admin.business.service.ArticleVersionService;
+import com.zrlog.admin.business.service.DockerUpgradeProgressService;
+import com.zrlog.admin.business.service.FeatureLabService;
 import com.zrlog.admin.business.service.LinkPreviewService;
 import com.zrlog.admin.business.service.MessageCenterService;
 import com.zrlog.admin.business.service.MfaService;
+import com.zrlog.admin.business.service.PasskeyService;
 import com.zrlog.admin.business.service.PersonalDataService;
 import com.zrlog.admin.business.service.TagManagementService;
+import com.zrlog.admin.business.service.UpgradeSettingsService;
 import com.zrlog.admin.business.service.UserService;
 import com.zrlog.admin.business.service.WebSiteSettingsService;
+import com.zrlog.admin.business.service.WebhookService;
+import com.zrlog.admin.support.AccountServicesFixture;
+import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.support.MfaTestCodeGenerator;
+import com.zrlog.admin.support.RuntimeInfoFixture;
 import com.zrlog.admin.support.UploadFallbackZrLogConfig;
+import com.zrlog.admin.test.support.DockerControlStub;
 import com.zrlog.admin.web.annotation.RefreshCache;
+import com.zrlog.admin.web.controller.page.AdminManifestController;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
+import com.zrlog.business.plugin.PluginCorePlugin;
 import com.zrlog.business.plugin.type.StaticSiteType;
 import com.zrlog.business.rest.response.CheckVersionResponse;
 import com.zrlog.business.rest.response.PreCheckVersionResponse;
 import com.zrlog.business.rest.response.UpgradeProcessResponse;
+import com.zrlog.business.service.WebsiteKvService;
+import com.zrlog.business.updater.UpdateVersionInfoPlugin;
+import com.zrlog.common.ZrLogConfig;
+import com.zrlog.common.adapter.UpdaterHosts;
+import com.zrlog.common.exception.AbstractBusinessException;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.rest.response.ApiStandardResponse;
+import com.zrlog.common.updater.docker.DockerUpdaterProtocol;
 import com.zrlog.common.vo.AdminTokenVO;
+import com.zrlog.common.vo.Version;
+import com.zrlog.common.web.ZrLogErrorHandle;
 import com.zrlog.data.dto.CommentDTO;
+import com.zrlog.data.util.DistributedLockManager;
+import com.zrlog.model.Comment;
+import com.zrlog.model.Log;
+import com.zrlog.model.LogVersion;
+import com.zrlog.model.Tag;
+import com.zrlog.model.User;
+import com.zrlog.model.UserPasskey;
+import com.zrlog.model.UserPasskeyChallenge;
+import com.zrlog.model.WebSite;
+import com.zrlog.plugin.IPlugin;
+import com.zrlog.updater.spi.DockerControl;
 import com.zrlog.util.BlogBuildInfoUtil;
+import com.zrlog.util.I18nUtil;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -79,17 +126,11 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class AdminControllerDelegationTest {
 
-    private com.zrlog.common.ZrLogConfig applicationConfig;
+    private ZrLogConfig applicationConfig;
     private String previousRunMode;
 
     @Before
@@ -106,7 +147,9 @@ public class AdminControllerDelegationTest {
 
     @Test
     public void shouldDelegateLinkPreviewRequestToService() throws Exception {
-        LinkPreviewController controller = new LinkPreviewController();
+        LinkPreviewController controller =
+                new LinkPreviewController(
+                        new LinkPreviewService(ApplicationServicesFixture.websiteCache()));
         FakeLinkPreviewService service = new FakeLinkPreviewService();
         LinkPreviewResponse preview = new LinkPreviewResponse();
         preview.setTitle("ZrLog");
@@ -125,7 +168,8 @@ public class AdminControllerDelegationTest {
     @Test
     public void shouldReturnMessageCenterNoticesFromService() throws Exception {
         FakeMessageCenterService service = new FakeMessageCenterService(applicationConfig);
-        MessageCenterController controller = new MessageCenterController(service);
+        MessageCenterController controller =
+                new MessageCenterController(service, ApplicationServicesFixture.operations());
         MessageCenterNoticeResponse notice = MessageCenterNoticeResponse.of(
                 "task", "type", "notice", 1L, MessageCenterNoticeResponse.unreadCommentPayload(2));
         service.notices = List.of(notice);
@@ -141,7 +185,8 @@ public class AdminControllerDelegationTest {
     @Test
     public void shouldMarkMessageCenterNoticeReadFromRequestBody() throws Exception {
         FakeMessageCenterService service = new FakeMessageCenterService(applicationConfig);
-        MessageCenterController controller = new MessageCenterController(service);
+        MessageCenterController controller =
+                new MessageCenterController(service, ApplicationServicesFixture.operations());
         service.markReadResult = true;
         setControllerRequest(controller, request(HttpMethod.POST, "/api/admin/message-center/read", Map.of(),
                 Map.of(), "{\"taskKey\":\"server.comment.unread\"}"));
@@ -155,7 +200,8 @@ public class AdminControllerDelegationTest {
     @Test
     public void shouldRejectInvalidMessageCenterReadBodyBeforeServiceCall() throws Exception {
         FakeMessageCenterService service = new FakeMessageCenterService(applicationConfig);
-        MessageCenterController controller = new MessageCenterController(service);
+        MessageCenterController controller =
+                new MessageCenterController(service, ApplicationServicesFixture.operations());
         setControllerRequest(controller, request(HttpMethod.POST, "/api/admin/message-center/read", Map.of(),
                 Map.of(), "{\"taskKey\":\"\"}"));
 
@@ -165,7 +211,15 @@ public class AdminControllerDelegationTest {
 
     @Test
     public void shouldRejectPersonalDataPreviewWhenMethodIsNotPost() throws Exception {
-        PersonalDataController controller = new PersonalDataController(new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), () -> "test"));
+        PersonalDataController controller =
+                new PersonalDataController(
+                        new AdminPageDataFactory(
+                                ApplicationServicesFixture.site(applicationConfig),
+                                () -> "test",
+                                ApplicationServicesFixture.messages(),
+                                AccountServicesFixture.component().permissions()),
+                        ApplicationServicesFixture.audit(),
+                        new PersonalDataService(User::new, Comment::new));
         FakePersonalDataService service = new FakePersonalDataService();
         setControllerRequest(controller, request(HttpMethod.GET, "/api/admin/personal-data/preview", Map.of(),
                 Map.of(), "{\"query\":\"user@example.com\"}"));
@@ -177,7 +231,15 @@ public class AdminControllerDelegationTest {
 
     @Test
     public void shouldCleanAndDelegatePersonalDataPreviewRequest() throws Exception {
-        PersonalDataController controller = new PersonalDataController(new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), () -> "test"));
+        PersonalDataController controller =
+                new PersonalDataController(
+                        new AdminPageDataFactory(
+                                ApplicationServicesFixture.site(applicationConfig),
+                                () -> "test",
+                                ApplicationServicesFixture.messages(),
+                                AccountServicesFixture.component().permissions()),
+                        ApplicationServicesFixture.audit(),
+                        new PersonalDataService(User::new, Comment::new));
         FakePersonalDataService service = new FakePersonalDataService();
         PersonalDataPreviewResponse preview = new PersonalDataPreviewResponse();
         preview.setQuery("user@example.com");
@@ -200,7 +262,15 @@ public class AdminControllerDelegationTest {
             setAdminToken();
             insertPersonalComment(db, 1, "export me", "export@example.com", "https://export.example",
                     "192.168.0.1", "Exporter", "2024-03-01 08:30:00", 1);
-            PersonalDataController controller = new PersonalDataController(new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(db.resources())));
+            PersonalDataController controller =
+                    new PersonalDataController(
+                            new AdminPageDataFactory(
+                                    ApplicationServicesFixture.site(db.config()),
+                                    ApplicationServicesFixture.buildId(db.resources()),
+                                    ApplicationServicesFixture.messages(),
+                                    AccountServicesFixture.component().permissions()),
+                            ApplicationServicesFixture.audit(),
+                            new PersonalDataService(User::new, Comment::new));
             setControllerRequest(controller, request(HttpMethod.GET, "/api/admin/personal-data", Map.of(), Map.of(),
                     null));
 
@@ -228,7 +298,17 @@ public class AdminControllerDelegationTest {
 
     @Test
     public void shouldDelegateCommentDeleteAndReadRequests() throws Exception {
-        CommentController controller = new CommentController(new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), () -> "test"));
+        CommentController controller =
+                new CommentController(
+                        new AdminPageDataFactory(
+                                ApplicationServicesFixture.site(applicationConfig),
+                                () -> "test",
+                                ApplicationServicesFixture.messages(),
+                                AccountServicesFixture.component().permissions()),
+                        new AdminCommentService(
+                                AccountServicesFixture.component().permissions(),
+                                ApplicationServicesFixture.messages(),
+                                Comment::new));
         FakeAdminCommentService service = new FakeAdminCommentService();
         service.deleteResponse = new DeleteResponse(true);
         service.readResponse = new UpdateRecordResponse(true);
@@ -247,7 +327,17 @@ public class AdminControllerDelegationTest {
 
     @Test
     public void shouldDelegateCommentReadAllRequest() throws Exception {
-        CommentController controller = new CommentController(new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), () -> "test"));
+        CommentController controller =
+                new CommentController(
+                        new AdminPageDataFactory(
+                                ApplicationServicesFixture.site(applicationConfig),
+                                () -> "test",
+                                ApplicationServicesFixture.messages(),
+                                AccountServicesFixture.component().permissions()),
+                        new AdminCommentService(
+                                AccountServicesFixture.component().permissions(),
+                                ApplicationServicesFixture.messages(),
+                                Comment::new));
         FakeAdminCommentService service = new FakeAdminCommentService();
         setField(controller, CommentController.class, "commentService", service);
         setControllerRequest(controller, request(HttpMethod.POST, "/api/admin/comment/readAll", Map.of(), Map.of(),
@@ -261,7 +351,15 @@ public class AdminControllerDelegationTest {
 
     @Test
     public void shouldValidateAndDelegateTagPreviewRequest() throws Exception {
-        AdminTagController controller = new AdminTagController(new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), () -> "test"), com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig));
+        AdminTagController controller =
+                new AdminTagController(
+                        new AdminPageDataFactory(
+                                ApplicationServicesFixture.site(applicationConfig),
+                                () -> "test",
+                                ApplicationServicesFixture.messages(),
+                                AccountServicesFixture.component().permissions()),
+                        ApplicationServicesFixture.site(applicationConfig),
+                        new TagManagementService(Log::new, Tag::new));
         FakeTagManagementService service = new FakeTagManagementService();
         TagManagementPreviewResponse preview = new TagManagementPreviewResponse();
         preview.setOperation("merge");
@@ -281,7 +379,15 @@ public class AdminControllerDelegationTest {
 
     @Test
     public void shouldRejectInvalidTagPreviewOperationBeforeServiceCall() throws Exception {
-        AdminTagController controller = new AdminTagController(new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), () -> "test"), com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig));
+        AdminTagController controller =
+                new AdminTagController(
+                        new AdminPageDataFactory(
+                                ApplicationServicesFixture.site(applicationConfig),
+                                () -> "test",
+                                ApplicationServicesFixture.messages(),
+                                AccountServicesFixture.component().permissions()),
+                        ApplicationServicesFixture.site(applicationConfig),
+                        new TagManagementService(Log::new, Tag::new));
         FakeTagManagementService service = new FakeTagManagementService();
         setField(controller, AdminTagController.class, "tagManagementService", service);
         setControllerRequest(controller, request(HttpMethod.POST, "/api/admin/tag/preview",
@@ -294,13 +400,29 @@ public class AdminControllerDelegationTest {
 
     @Test
     public void shouldRequireDistinctTargetTagForRenameAndMerge() throws Exception {
-        AdminTagController missingTarget = new AdminTagController(new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), () -> "test"), com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig));
+        AdminTagController missingTarget =
+                new AdminTagController(
+                        new AdminPageDataFactory(
+                                ApplicationServicesFixture.site(applicationConfig),
+                                () -> "test",
+                                ApplicationServicesFixture.messages(),
+                                AccountServicesFixture.component().permissions()),
+                        ApplicationServicesFixture.site(applicationConfig),
+                        new TagManagementService(Log::new, Tag::new));
         setField(missingTarget, AdminTagController.class, "tagManagementService", new FakeTagManagementService());
         setControllerRequest(missingTarget, request(HttpMethod.POST, "/api/admin/tag/rename", Map.of(), Map.of(),
                 "{\"sourceTag\":\"old\"}"));
         assertThrows(ArgsException.class, missingTarget::rename);
 
-        AdminTagController sameTarget = new AdminTagController(new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), () -> "test"), com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig));
+        AdminTagController sameTarget =
+                new AdminTagController(
+                        new AdminPageDataFactory(
+                                ApplicationServicesFixture.site(applicationConfig),
+                                () -> "test",
+                                ApplicationServicesFixture.messages(),
+                                AccountServicesFixture.component().permissions()),
+                        ApplicationServicesFixture.site(applicationConfig),
+                        new TagManagementService(Log::new, Tag::new));
         setField(sameTarget, AdminTagController.class, "tagManagementService", new FakeTagManagementService());
         setControllerRequest(sameTarget, request(HttpMethod.POST, "/api/admin/tag/merge", Map.of(), Map.of(),
                 "{\"sourceTag\":\"old\",\"targetTag\":\"old\"}"));
@@ -309,7 +431,15 @@ public class AdminControllerDelegationTest {
 
     @Test
     public void shouldDelegateTagDeleteWithoutTargetTag() throws Exception {
-        AdminTagController controller = new AdminTagController(new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), () -> "test"), com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig));
+        AdminTagController controller =
+                new AdminTagController(
+                        new AdminPageDataFactory(
+                                ApplicationServicesFixture.site(applicationConfig),
+                                () -> "test",
+                                ApplicationServicesFixture.messages(),
+                                AccountServicesFixture.component().permissions()),
+                        ApplicationServicesFixture.site(applicationConfig),
+                        new TagManagementService(Log::new, Tag::new));
         FakeTagManagementService service = new FakeTagManagementService();
         TagManagementPreviewResponse deleted = new TagManagementPreviewResponse();
         deleted.setOperation("delete");
@@ -327,7 +457,23 @@ public class AdminControllerDelegationTest {
 
     @Test
     public void shouldReturnPublicVersionWhenBuildIdMatches() throws Exception {
-        AdminPublicController controller = new AdminPublicController(new com.zrlog.admin.business.service.AdminResourceService(com.zrlog.admin.business.rest.response.AdminResourceInfoResponse.Capabilities::new, new com.zrlog.admin.business.service.FeatureLabService(() -> true), com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), () -> new com.zrlog.model.WebSite().getStringValueByName("admin_static_resource_base_url")), () -> false);
+        AdminPublicController controller =
+                new AdminPublicController(
+                        new AdminResourceService(
+                                AdminResourceInfoResponse.Capabilities::new,
+                                new FeatureLabService(
+                                        () -> true,
+                                        new WebhookService(
+                                                ApplicationServicesFixture.messages(),
+                                                ApplicationServicesFixture.websiteCache()),
+                                        WebSite::new),
+                                ApplicationServicesFixture.site(applicationConfig),
+                                () ->
+                                        new WebSite()
+                                                .getStringValueByName(
+                                                        "admin_static_resource_base_url"),
+                                () -> new UserPasskey(DAO.getDefaultDataSource())),
+                        () -> false);
         ResponseRecorder responseRecorder = new ResponseRecorder();
         setControllerRequest(controller, request(HttpMethod.GET, "/api/public/version",
                 Map.of("buildId", BlogBuildInfoUtil.getBuildId()), Map.of("Origin", "https://admin.example"),
@@ -343,7 +489,23 @@ public class AdminControllerDelegationTest {
 
     @Test
     public void shouldReturnEmptyPublicVersionWhenBuildIdDoesNotMatch() throws Exception {
-        AdminPublicController controller = new AdminPublicController(new com.zrlog.admin.business.service.AdminResourceService(com.zrlog.admin.business.rest.response.AdminResourceInfoResponse.Capabilities::new, new com.zrlog.admin.business.service.FeatureLabService(() -> true), com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), () -> new com.zrlog.model.WebSite().getStringValueByName("admin_static_resource_base_url")), () -> false);
+        AdminPublicController controller =
+                new AdminPublicController(
+                        new AdminResourceService(
+                                AdminResourceInfoResponse.Capabilities::new,
+                                new FeatureLabService(
+                                        () -> true,
+                                        new WebhookService(
+                                                ApplicationServicesFixture.messages(),
+                                                ApplicationServicesFixture.websiteCache()),
+                                        WebSite::new),
+                                ApplicationServicesFixture.site(applicationConfig),
+                                () ->
+                                        new WebSite()
+                                                .getStringValueByName(
+                                                        "admin_static_resource_base_url"),
+                                () -> new UserPasskey(DAO.getDefaultDataSource())),
+                        () -> false);
         setControllerRequest(controller, request(HttpMethod.GET, "/api/public/version",
                 Map.of("buildId", "old-build"), Map.of("Origin", "https://admin.example"), null));
         setControllerResponse(controller, new ResponseRecorder().response());
@@ -356,7 +518,17 @@ public class AdminControllerDelegationTest {
     @Test
     public void shouldToggleDevModeWithServerConfigMappers() throws Exception {
         ServerConfig serverConfig = new ServerConfig();
-        AdminDevController controller = new AdminDevController(new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), () -> "test"));
+        AdminDevController controller =
+                new AdminDevController(
+                        new AdminPageDataFactory(
+                                ApplicationServicesFixture.site(applicationConfig),
+                                () -> "test",
+                                ApplicationServicesFixture.messages(),
+                                AccountServicesFixture.component().permissions()),
+                        ApplicationServicesFixture.audit(),
+                        ApplicationServicesFixture.websiteCache(),
+                        new DistributedLockManager(
+                                WebSite::new, ApplicationServicesFixture.locks()));
         setControllerRequest(controller, request(HttpMethod.POST, "/api/admin/dev/mode",
                 Map.of(), Map.of(), null, serverConfig));
         Method method = AdminDevController.class.getDeclaredMethod("setDevMode", boolean.class);
@@ -376,7 +548,37 @@ public class AdminControllerDelegationTest {
 
     @Test
     public void shouldRejectUserInfoRequestsWithoutAdminToken() throws Exception {
-        AdminUserController controller = new AdminUserController(new UserService(java.util.Collections::emptySet), new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(applicationConfig, com.zrlog.admin.business.account.AvatarStorage.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), () -> "test"), new com.zrlog.admin.business.service.PasskeyService(com.zrlog.admin.support.ApplicationServicesFixture.siteHost(applicationConfig), new com.zrlog.admin.business.service.UserService(java.util.Collections::emptySet)));
+        AdminUserController controller =
+                new AdminUserController(
+                        new UserService(
+                                java.util.Collections::emptySet,
+                                AccountServicesFixture.component().mfa(),
+                                AccountServicesFixture.component().preferences(),
+                                User::new,
+                                () -> AccountServicesFixture.component().passkeys()),
+                        new InMemoryZrLogDatabase.TestCacheService(),
+                        ApplicationServicesFixture.capability(
+                                applicationConfig, AvatarStorage.class),
+                        new AdminPageDataFactory(
+                                ApplicationServicesFixture.site(applicationConfig),
+                                () -> "test",
+                                ApplicationServicesFixture.messages(),
+                                AccountServicesFixture.component().permissions()),
+                        new PasskeyService(
+                                ApplicationServicesFixture.siteHost(applicationConfig),
+                                new UserService(
+                                        java.util.Collections::emptySet,
+                                        AccountServicesFixture.component().mfa(),
+                                        AccountServicesFixture.component().preferences(),
+                                        User::new,
+                                        () -> AccountServicesFixture.component().passkeys()),
+                                User::new,
+                                () -> new UserPasskey(DAO.getDefaultDataSource()),
+                                () -> new UserPasskeyChallenge(DAO.getDefaultDataSource()),
+                                ApplicationServicesFixture.locks()),
+                        AccountServicesFixture.component().mfa(),
+                        AccountServicesFixture.component().preferences(),
+                        ApplicationServicesFixture.audit());
         setControllerRequest(controller, request(HttpMethod.GET, "/api/admin/user", Map.of(), Map.of(), null));
 
         assertThrows(AdminAuthException.class, controller::index);
@@ -397,7 +599,37 @@ public class AdminControllerDelegationTest {
 
     @Test
     public void shouldDelegateMfaStatusLookupUsingThreadLocalUserIdFallback() throws Exception {
-        AdminUserController controller = new AdminUserController(new UserService(java.util.Collections::emptySet), new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(applicationConfig, com.zrlog.admin.business.account.AvatarStorage.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), () -> "test"), new com.zrlog.admin.business.service.PasskeyService(com.zrlog.admin.support.ApplicationServicesFixture.siteHost(applicationConfig), new com.zrlog.admin.business.service.UserService(java.util.Collections::emptySet)));
+        AdminUserController controller =
+                new AdminUserController(
+                        new UserService(
+                                java.util.Collections::emptySet,
+                                AccountServicesFixture.component().mfa(),
+                                AccountServicesFixture.component().preferences(),
+                                User::new,
+                                () -> AccountServicesFixture.component().passkeys()),
+                        new InMemoryZrLogDatabase.TestCacheService(),
+                        ApplicationServicesFixture.capability(
+                                applicationConfig, AvatarStorage.class),
+                        new AdminPageDataFactory(
+                                ApplicationServicesFixture.site(applicationConfig),
+                                () -> "test",
+                                ApplicationServicesFixture.messages(),
+                                AccountServicesFixture.component().permissions()),
+                        new PasskeyService(
+                                ApplicationServicesFixture.siteHost(applicationConfig),
+                                new UserService(
+                                        java.util.Collections::emptySet,
+                                        AccountServicesFixture.component().mfa(),
+                                        AccountServicesFixture.component().preferences(),
+                                        User::new,
+                                        () -> AccountServicesFixture.component().passkeys()),
+                                User::new,
+                                () -> new UserPasskey(DAO.getDefaultDataSource()),
+                                () -> new UserPasskeyChallenge(DAO.getDefaultDataSource()),
+                                ApplicationServicesFixture.locks()),
+                        AccountServicesFixture.component().mfa(),
+                        AccountServicesFixture.component().preferences(),
+                        ApplicationServicesFixture.audit());
         FakeMfaService service = new FakeMfaService();
         MfaStatusResponse status = new MfaStatusResponse();
         status.setAccountName("admin");
@@ -416,7 +648,36 @@ public class AdminControllerDelegationTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
             setAdminToken();
-            AdminUserController controller = new AdminUserController(new UserService(java.util.Collections::emptySet), db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(db.config(), com.zrlog.admin.business.account.AvatarStorage.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(db.resources())), new com.zrlog.admin.business.service.PasskeyService(com.zrlog.admin.support.ApplicationServicesFixture.siteHost(db.config()), new com.zrlog.admin.business.service.UserService(java.util.Collections::emptySet)));
+            AdminUserController controller =
+                    new AdminUserController(
+                            new UserService(
+                                    java.util.Collections::emptySet,
+                                    AccountServicesFixture.component().mfa(),
+                                    AccountServicesFixture.component().preferences(),
+                                    User::new,
+                                    () -> AccountServicesFixture.component().passkeys()),
+                            db.cacheService(),
+                            ApplicationServicesFixture.capability(db.config(), AvatarStorage.class),
+                            new AdminPageDataFactory(
+                                    ApplicationServicesFixture.site(db.config()),
+                                    ApplicationServicesFixture.buildId(db.resources()),
+                                    ApplicationServicesFixture.messages(),
+                                    AccountServicesFixture.component().permissions()),
+                            new PasskeyService(
+                                    ApplicationServicesFixture.siteHost(db.config()),
+                                    new UserService(
+                                            java.util.Collections::emptySet,
+                                            AccountServicesFixture.component().mfa(),
+                                            AccountServicesFixture.component().preferences(),
+                                            User::new,
+                                            () -> AccountServicesFixture.component().passkeys()),
+                                    User::new,
+                                    () -> new UserPasskey(DAO.getDefaultDataSource()),
+                                    () -> new UserPasskeyChallenge(DAO.getDefaultDataSource()),
+                                    ApplicationServicesFixture.locks()),
+                            AccountServicesFixture.component().mfa(),
+                            AccountServicesFixture.component().preferences(),
+                            ApplicationServicesFixture.audit());
             db.execute("update user set password=? where userId=?",
                     PasswordHashUtils.hash(SecurityUtils.md5("old-password")), 1);
 
@@ -481,7 +742,43 @@ public class AdminControllerDelegationTest {
 
     @Test
     public void shouldReturnSimpleAdminControllerPageResponses() throws Exception {
-        AdminController controller = new AdminController(new AdminDashboardService(new AdminStatisticsService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.admin.support.RuntimeInfoFixture.from(applicationConfig)), new AdminArticleService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(applicationConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), () -> "test")), () -> applicationConfig.getPlugin(com.zrlog.business.plugin.PluginCorePlugin.class)), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), () -> "test"));
+        AdminController controller =
+                new AdminController(
+                        new AdminDashboardService(
+                                new WebsiteKvService(),
+                                new AdminStatisticsService(
+                                        new InMemoryZrLogDatabase.TestCacheService(),
+                                        RuntimeInfoFixture.from(applicationConfig),
+                                        ApplicationServicesFixture.audit(),
+                                        Log::new,
+                                        Comment::new),
+                                new AdminArticleService(
+                                        new InMemoryZrLogDatabase.TestCacheService(),
+                                        ApplicationServicesFixture.capability(
+                                                applicationConfig, ArticleAssistant.class),
+                                        new AdminPageDataFactory(
+                                                ApplicationServicesFixture.site(applicationConfig),
+                                                () -> "test",
+                                                ApplicationServicesFixture.messages(),
+                                                AccountServicesFixture.component().permissions()),
+                                        AccountServicesFixture.component().permissions(),
+                                        AccountServicesFixture.component().preferences(),
+                                        new ArticleVersionService(
+                                                AccountServicesFixture.component().permissions(),
+                                                Log::new,
+                                                () -> new LogVersion(DAO.getDefaultDataSource())),
+                                        new ArticlePinningService(
+                                                Log::new, ApplicationServicesFixture.locks()),
+                                        Log::new,
+                                        ApplicationServicesFixture.locks()),
+                                () -> applicationConfig.getPlugin(PluginCorePlugin.class),
+                                AccountServicesFixture.component().preferences()),
+                        new AdminPageDataFactory(
+                                ApplicationServicesFixture.site(applicationConfig),
+                                () -> "test",
+                                ApplicationServicesFixture.messages(),
+                                AccountServicesFixture.component().permissions()),
+                        ApplicationServicesFixture.audit());
         setControllerRequest(controller, request(HttpMethod.GET, "/api/admin/error",
                 Map.of("message", "not found"), Map.of(), null));
 
@@ -498,26 +795,58 @@ public class AdminControllerDelegationTest {
 
     @Test
     public void shouldLoadUpgradePageWithoutMetadataButKeepExplicitCheckFailure() throws Exception {
-        java.util.concurrent.atomic.AtomicInteger checks = new java.util.concurrent.atomic.AtomicInteger();
-        com.zrlog.business.updater.UpdateVersionInfoPlugin plugin = new com.zrlog.business.updater.UpdateVersionInfoPlugin(com.zrlog.admin.support.ApplicationServicesFixture.upgradeNotices(applicationConfig), () -> "zh_CN", applicationConfig == null ? null : applicationConfig.getUpdater()) {
-            @Override
-            public com.zrlog.common.vo.Version getLastVersion(boolean fetch) {
-                if (fetch) { checks.incrementAndGet(); }
-                return null;
-            }
-            @Override
-            public boolean isLastCheckFailed() { return true; }
-        };
+        AtomicInteger checks = new AtomicInteger();
+        UpdateVersionInfoPlugin plugin =
+                new UpdateVersionInfoPlugin(
+                        ApplicationServicesFixture.upgradeNotices(applicationConfig),
+                        () -> "zh_CN",
+                        applicationConfig == null ? null : applicationConfig.getUpdater()) {
+                    @Override
+                    public Version getLastVersion(boolean fetch) {
+                        if (fetch) {
+                            checks.incrementAndGet();
+                        }
+                        return null;
+                    }
+
+                    @Override
+                    public boolean isLastCheckFailed() {
+                        return true;
+                    }
+                };
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
-            applicationConfig = new UploadFallbackZrLogConfig() {
-                @Override
-                public <T extends com.zrlog.plugin.IPlugin> T getPlugin(Class<T> type) {
-                    return type.isInstance(plugin) ? type.cast(plugin) : super.getPlugin(type);
-                }
-            };
+            applicationConfig =
+                    new UploadFallbackZrLogConfig() {
+                        @Override
+                        public <T extends IPlugin> T getPlugin(Class<T> type) {
+                            return type.isInstance(plugin)
+                                    ? type.cast(plugin)
+                                    : super.getPlugin(type);
+                        }
+                    };
             setAdminToken();
-            UpgradeController controller = new UpgradeController(com.zrlog.admin.support.ApplicationServicesFixture.upgrades(applicationConfig), () -> applicationConfig == null ? null : applicationConfig.getPlugin(com.zrlog.business.updater.UpdateVersionInfoPlugin.class), () -> com.zrlog.common.adapter.UpdaterHosts.dockerControl(applicationConfig == null ? null : applicationConfig.getUpdater()), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), () -> "test"));
+            UpgradeController controller =
+                    new UpgradeController(
+                            ApplicationServicesFixture.upgrades(applicationConfig),
+                            () ->
+                                    applicationConfig == null
+                                            ? null
+                                            : applicationConfig.getPlugin(
+                                                    UpdateVersionInfoPlugin.class),
+                            () ->
+                                    UpdaterHosts.dockerControl(
+                                            applicationConfig == null
+                                                    ? null
+                                                    : applicationConfig.getUpdater()),
+                            new AdminPageDataFactory(
+                                    ApplicationServicesFixture.site(applicationConfig),
+                                    () -> "test",
+                                    ApplicationServicesFixture.messages(),
+                                    AccountServicesFixture.component().permissions()),
+                            new DockerUpgradeProgressService(),
+                            ApplicationServicesFixture.audit(),
+                            ApplicationServicesFixture.operations());
             for (String path : List.of("/admin/upgrade", "/admin/ssJson")) {
                 setControllerRequest(controller, request(HttpMethod.GET, path, Map.of(), Map.of(), null));
                 AdminPageDataResponse<PreCheckVersionResponse> page = controller.index();
@@ -530,19 +859,23 @@ public class AdminControllerDelegationTest {
             assertEquals(0, checks.get());
             for (String path : List.of("/api/admin/upgrade", "/sub/api/admin/upgrade")) {
                 setControllerRequest(controller, request(HttpMethod.GET, path, Map.of(), Map.of(), null));
-                assertThrows(com.zrlog.common.exception.AbstractBusinessException.class, controller::index);
+                assertThrows(AbstractBusinessException.class, controller::index);
             }
             setControllerRequest(controller, request(HttpMethod.GET, "/api/admin/upgrade",
                     Map.of("fetch", "true"), Map.of(), null));
-            com.zrlog.common.exception.AbstractBusinessException error =
-                    assertThrows(com.zrlog.common.exception.AbstractBusinessException.class, controller::index);
+            AbstractBusinessException error =
+                    assertThrows(AbstractBusinessException.class, controller::index);
             ResponseRecorder recorder = new ResponseRecorder();
-            new com.zrlog.common.web.ZrLogErrorHandle(500).doHandle(
-                    request(HttpMethod.GET, "/api/admin/upgrade", Map.of(), Map.of(), null),
-                    recorder.response(), error);
+            new ZrLogErrorHandle(500)
+                    .doHandle(
+                            request(HttpMethod.GET, "/api/admin/upgrade", Map.of(), Map.of(), null),
+                            recorder.response(),
+                            error);
             ApiStandardResponse<?> response = (ApiStandardResponse<?>) recorder.renderedJson;
             assertEquals(9038, response.getError());
-            assertEquals(com.zrlog.util.I18nUtil.getBackendStringFromRes("upgrade.check.failed"), response.getMessage());
+            assertEquals(
+                    I18nUtil.getBackendStringFromRes("upgrade.check.failed"),
+                    response.getMessage());
             assertFalse(response.getMessage().isBlank());
             assertEquals(3, checks.get());
         }
@@ -553,7 +886,24 @@ public class AdminControllerDelegationTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
             setAdminToken();
-            UpgradeController controller = new UpgradeController(com.zrlog.admin.support.ApplicationServicesFixture.upgrades(db.config()), () -> db.config() == null ? null : db.config().getPlugin(com.zrlog.business.updater.UpdateVersionInfoPlugin.class), () -> com.zrlog.common.adapter.UpdaterHosts.dockerControl(db.config() == null ? null : db.config().getUpdater()), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(db.resources())));
+            UpgradeController controller =
+                    new UpgradeController(
+                            ApplicationServicesFixture.upgrades(db.config()),
+                            () ->
+                                    db.config() == null
+                                            ? null
+                                            : db.config().getPlugin(UpdateVersionInfoPlugin.class),
+                            () ->
+                                    UpdaterHosts.dockerControl(
+                                            db.config() == null ? null : db.config().getUpdater()),
+                            new AdminPageDataFactory(
+                                    ApplicationServicesFixture.site(db.config()),
+                                    ApplicationServicesFixture.buildId(db.resources()),
+                                    ApplicationServicesFixture.messages(),
+                                    AccountServicesFixture.component().permissions()),
+                            new DockerUpgradeProgressService(),
+                            ApplicationServicesFixture.audit(),
+                            ApplicationServicesFixture.operations());
             setControllerRequest(controller, request(HttpMethod.GET, "/api/admin/upgrade", Map.of(), Map.of(), null));
 
             AdminPageDataResponse<PreCheckVersionResponse> index = controller.index();
@@ -591,22 +941,102 @@ public class AdminControllerDelegationTest {
 
     @Test
     public void shouldReturnDockerRepositoryFailureCodeWithoutServiceDetails() throws Exception {
-        var client = new com.zrlog.admin.test.support.DockerControlStub() {
-            @Override public com.zrlog.common.updater.docker.DockerUpdaterProtocol.SettingsResponse settings(String channel) {
-                assertEquals("preview", channel);
-                throw new RequestException(502, "metadata_unavailable");
-            }
-        };
+        var client =
+                new DockerControlStub() {
+                    @Override
+                    public DockerUpdaterProtocol.SettingsResponse settings(String channel) {
+                        assertEquals("preview", channel);
+                        throw new RequestException(502, "metadata_unavailable");
+                    }
+                };
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
-            WebSiteController controller = new WebSiteController(new WebSiteSettingsService(db.cacheService(), db.config() == null ? null : db.config().getTokenService(), () -> db.config() == null ? null : db.config().getPlugin(com.zrlog.business.updater.UpdateVersionInfoPlugin.class)), new com.zrlog.admin.business.service.UpgradeSettingsService(new WebSiteSettingsService(db.cacheService(), db.config() == null ? null : db.config().getTokenService(), () -> db.config() == null ? null : db.config().getPlugin(com.zrlog.business.updater.UpdateVersionInfoPlugin.class)), () -> com.zrlog.common.adapter.UpdaterHosts.dockerControl(db.config() == null ? null : db.config().getUpdater())), new com.zrlog.admin.business.service.FeatureLabService(() -> true), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(db.resources()))) {
-                @Override protected com.zrlog.admin.business.service.UpgradeSettingsService upgradeSettingsService() {
-                    return new com.zrlog.admin.business.service.UpgradeSettingsService(new WebSiteSettingsService(db.cacheService(), db.config() == null ? null : db.config().getTokenService(), () -> db.config() == null ? null : db.config().getPlugin(com.zrlog.business.updater.UpdateVersionInfoPlugin.class)), () -> com.zrlog.common.adapter.UpdaterHosts.dockerControl(db.config() == null ? null : db.config().getUpdater())) {
-                        @Override protected boolean isDockerMode() { return true; }
-                        @Override protected com.zrlog.updater.spi.DockerControl dockerClient() { return client; }
+            WebSiteController controller =
+                    new WebSiteController(
+                            new WebSiteSettingsService(
+                                    db.cacheService(),
+                                    db.config() == null ? null : db.config().getTokenService(),
+                                    () ->
+                                            db.config() == null
+                                                    ? null
+                                                    : db.config()
+                                                            .getPlugin(
+                                                                    UpdateVersionInfoPlugin.class),
+                                    ApplicationServicesFixture.audit(),
+                                    ApplicationServicesFixture.websiteKv(),
+                                    WebSite::new),
+                            new UpgradeSettingsService(
+                                    new WebSiteSettingsService(
+                                            db.cacheService(),
+                                            db.config() == null
+                                                    ? null
+                                                    : db.config().getTokenService(),
+                                            () ->
+                                                    db.config() == null
+                                                            ? null
+                                                            : db.config()
+                                                                    .getPlugin(
+                                                                            UpdateVersionInfoPlugin
+                                                                                    .class),
+                                            ApplicationServicesFixture.audit(),
+                                            ApplicationServicesFixture.websiteKv(),
+                                            WebSite::new),
+                                    () ->
+                                            UpdaterHosts.dockerControl(
+                                                    db.config() == null
+                                                            ? null
+                                                            : db.config().getUpdater()),
+                                    AccountServicesFixture.component().permissions(),
+                                    ApplicationServicesFixture.settings()),
+                            new FeatureLabService(
+                                    () -> true,
+                                    new WebhookService(
+                                            ApplicationServicesFixture.messages(),
+                                            ApplicationServicesFixture.websiteCache()),
+                                    WebSite::new),
+                            new AdminPageDataFactory(
+                                    ApplicationServicesFixture.site(db.config()),
+                                    ApplicationServicesFixture.buildId(db.resources()),
+                                    ApplicationServicesFixture.messages(),
+                                    AccountServicesFixture.component().permissions()),
+                            ApplicationServicesFixture.settings()) {
+                        @Override
+                        protected UpgradeSettingsService upgradeSettingsService() {
+                            return new UpgradeSettingsService(
+                                    new WebSiteSettingsService(
+                                            db.cacheService(),
+                                            db.config() == null
+                                                    ? null
+                                                    : db.config().getTokenService(),
+                                            () ->
+                                                    db.config() == null
+                                                            ? null
+                                                            : db.config()
+                                                                    .getPlugin(
+                                                                            UpdateVersionInfoPlugin
+                                                                                    .class),
+                                            ApplicationServicesFixture.audit(),
+                                            ApplicationServicesFixture.websiteKv(),
+                                            WebSite::new),
+                                    () ->
+                                            UpdaterHosts.dockerControl(
+                                                    db.config() == null
+                                                            ? null
+                                                            : db.config().getUpdater()),
+                                    AccountServicesFixture.component().permissions(),
+                                    ApplicationServicesFixture.settings()) {
+                                @Override
+                                protected boolean isDockerMode() {
+                                    return true;
+                                }
+
+                                @Override
+                                protected DockerControl dockerClient() {
+                                    return client;
+                                }
+                            };
+                        }
                     };
-                }
-            };
             setControllerRequest(controller, request(HttpMethod.GET, "/api/admin/website/upgrade",
                     Map.of("channel", "preview"), Map.of(), null));
             var response = controller.upgrade();
@@ -623,26 +1053,51 @@ public class AdminControllerDelegationTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
             setAdminToken();
-            var job = new com.zrlog.common.updater.docker.DockerUpdaterProtocol.Job();
+            var job = new DockerUpdaterProtocol.Job();
             job.id = "browser-request-1234";
             job.phase = "queued";
-            var submissions = new java.util.concurrent.atomic.AtomicInteger();
-            var client = new com.zrlog.admin.test.support.DockerControlStub() {
-                @Override public com.zrlog.common.updater.docker.DockerUpdaterProtocol.Job submit(
-                        com.zrlog.common.updater.docker.DockerUpdaterProtocol.UpgradeRequest request) {
-                    submissions.incrementAndGet();
-                    assertEquals(job.id, request.requestId);
-                    assertEquals("4.0.0-SNAPSHOT", request.version);
-                    assertEquals("preview", request.channel);
-                    return job;
-                }
-                @Override public com.zrlog.common.updater.docker.DockerUpdaterProtocol.Job status(String id) {
-                    assertEquals(job.id, id); return job;
-                }
-            };
-            UpgradeController controller = new UpgradeController(com.zrlog.admin.support.ApplicationServicesFixture.upgrades(db.config()), () -> db.config() == null ? null : db.config().getPlugin(com.zrlog.business.updater.UpdateVersionInfoPlugin.class), () -> com.zrlog.common.adapter.UpdaterHosts.dockerControl(db.config() == null ? null : db.config().getUpdater()), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(db.resources()))) {
-                @Override protected com.zrlog.updater.spi.DockerControl dockerClient() { return client; }
-            };
+            var submissions = new AtomicInteger();
+            var client =
+                    new DockerControlStub() {
+                        @Override
+                        public DockerUpdaterProtocol.Job submit(
+                                DockerUpdaterProtocol.UpgradeRequest request) {
+                            submissions.incrementAndGet();
+                            assertEquals(job.id, request.requestId);
+                            assertEquals("4.0.0-SNAPSHOT", request.version);
+                            assertEquals("preview", request.channel);
+                            return job;
+                        }
+
+                        @Override
+                        public DockerUpdaterProtocol.Job status(String id) {
+                            assertEquals(job.id, id);
+                            return job;
+                        }
+                    };
+            UpgradeController controller =
+                    new UpgradeController(
+                            ApplicationServicesFixture.upgrades(db.config()),
+                            () ->
+                                    db.config() == null
+                                            ? null
+                                            : db.config().getPlugin(UpdateVersionInfoPlugin.class),
+                            () ->
+                                    UpdaterHosts.dockerControl(
+                                            db.config() == null ? null : db.config().getUpdater()),
+                            new AdminPageDataFactory(
+                                    ApplicationServicesFixture.site(db.config()),
+                                    ApplicationServicesFixture.buildId(db.resources()),
+                                    ApplicationServicesFixture.messages(),
+                                    AccountServicesFixture.component().permissions()),
+                            new DockerUpgradeProgressService(),
+                            ApplicationServicesFixture.audit(),
+                            ApplicationServicesFixture.operations()) {
+                        @Override
+                        protected DockerControl dockerClient() {
+                            return client;
+                        }
+                    };
             String docker = ",\"docker\":{\"requestId\":\"browser-request-1234\",\"version\":\"4.0.0-SNAPSHOT\","
                     + "\"buildId\":\"1234567\",\"channel\":\"preview\"}}";
             setControllerRequest(controller, request(HttpMethod.POST, "/api/admin/upgrade/doUpgrade", Map.of(),
@@ -676,7 +1131,10 @@ public class AdminControllerDelegationTest {
                 assertTrue(stream.stream.contains("event: response\n"));
                 assertTrue(stream.stream.contains("\"finish\":true"));
                 assertFalse(stream.stream.contains("\"message\":\"\""));
-                assertTrue(stream.stream.contains(com.zrlog.util.I18nUtil.getAdminBackendStringFromRes("admin.upgrade.docker.succeeded")));
+                assertTrue(
+                        stream.stream.contains(
+                                I18nUtil.getAdminBackendStringFromRes(
+                                        "admin.upgrade.docker.succeeded")));
                 assertEquals(null, stream.renderedJson);
             }
             assertEquals(2, submissions.get());
@@ -689,11 +1147,53 @@ public class AdminControllerDelegationTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
             setAdminToken();
-            AdminController controller = new AdminController(new AdminDashboardService(new AdminStatisticsService(db.cacheService(), com.zrlog.admin.support.RuntimeInfoFixture.from(db.config())), new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(db.config(), com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(db.resources()))), () -> db.config().getPlugin(com.zrlog.business.plugin.PluginCorePlugin.class)), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(db.resources())));
+            AdminController controller =
+                    new AdminController(
+                            new AdminDashboardService(
+                                    new WebsiteKvService(),
+                                    new AdminStatisticsService(
+                                            db.cacheService(),
+                                            RuntimeInfoFixture.from(db.config()),
+                                            ApplicationServicesFixture.audit(),
+                                            Log::new,
+                                            Comment::new),
+                                    new AdminArticleService(
+                                            db.cacheService(),
+                                            ApplicationServicesFixture.capability(
+                                                    db.config(), ArticleAssistant.class),
+                                            new AdminPageDataFactory(
+                                                    ApplicationServicesFixture.site(db.config()),
+                                                    ApplicationServicesFixture.buildId(
+                                                            db.resources()),
+                                                    ApplicationServicesFixture.messages(),
+                                                    AccountServicesFixture.component()
+                                                            .permissions()),
+                                            AccountServicesFixture.component().permissions(),
+                                            AccountServicesFixture.component().preferences(),
+                                            new ArticleVersionService(
+                                                    AccountServicesFixture.component()
+                                                            .permissions(),
+                                                    Log::new,
+                                                    () ->
+                                                            new LogVersion(
+                                                                    DAO.getDefaultDataSource())),
+                                            new ArticlePinningService(
+                                                    Log::new, ApplicationServicesFixture.locks()),
+                                            Log::new,
+                                            ApplicationServicesFixture.locks()),
+                                    () -> db.config().getPlugin(PluginCorePlugin.class),
+                                    AccountServicesFixture.component().preferences()),
+                            new AdminPageDataFactory(
+                                    ApplicationServicesFixture.site(db.config()),
+                                    ApplicationServicesFixture.buildId(db.resources()),
+                                    ApplicationServicesFixture.messages(),
+                                    AccountServicesFixture.component().permissions()),
+                            ApplicationServicesFixture.audit());
             setControllerRequest(controller, request(HttpMethod.GET, "/api/admin/manifest", Map.of(),
                     Map.of("User-Agent", "Browser"), null));
 
-            var manifestController = new com.zrlog.admin.web.controller.page.AdminManifestController(db.cacheService()::getPublicWebSiteInfo);
+            var manifestController =
+                    new AdminManifestController(db.cacheService()::getPublicWebSiteInfo);
             setControllerRequest(manifestController, request(HttpMethod.GET, "/api/admin/manifest", Map.of(),
                     Map.of("User-Agent", "Browser"), null));
             AdminManifestResponse manifest = manifestController.manifest();
@@ -736,7 +1236,49 @@ public class AdminControllerDelegationTest {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
             applicationConfig = ignored.config();
             setAdminToken();
-            AdminController controller = new AdminController(new AdminDashboardService(new AdminStatisticsService(ignored.cacheService(), com.zrlog.admin.support.RuntimeInfoFixture.from(ignored.config())), new AdminArticleService(ignored.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(ignored.config(), com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(ignored.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(ignored.resources()))), () -> ignored.config().getPlugin(com.zrlog.business.plugin.PluginCorePlugin.class)), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(ignored.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(ignored.resources())));
+            AdminController controller =
+                    new AdminController(
+                            new AdminDashboardService(
+                                    new WebsiteKvService(),
+                                    new AdminStatisticsService(
+                                            ignored.cacheService(),
+                                            RuntimeInfoFixture.from(ignored.config()),
+                                            ApplicationServicesFixture.audit(),
+                                            Log::new,
+                                            Comment::new),
+                                    new AdminArticleService(
+                                            ignored.cacheService(),
+                                            ApplicationServicesFixture.capability(
+                                                    ignored.config(), ArticleAssistant.class),
+                                            new AdminPageDataFactory(
+                                                    ApplicationServicesFixture.site(
+                                                            ignored.config()),
+                                                    ApplicationServicesFixture.buildId(
+                                                            ignored.resources()),
+                                                    ApplicationServicesFixture.messages(),
+                                                    AccountServicesFixture.component()
+                                                            .permissions()),
+                                            AccountServicesFixture.component().permissions(),
+                                            AccountServicesFixture.component().preferences(),
+                                            new ArticleVersionService(
+                                                    AccountServicesFixture.component()
+                                                            .permissions(),
+                                                    Log::new,
+                                                    () ->
+                                                            new LogVersion(
+                                                                    DAO.getDefaultDataSource())),
+                                            new ArticlePinningService(
+                                                    Log::new, ApplicationServicesFixture.locks()),
+                                            Log::new,
+                                            ApplicationServicesFixture.locks()),
+                                    () -> ignored.config().getPlugin(PluginCorePlugin.class),
+                                    AccountServicesFixture.component().preferences()),
+                            new AdminPageDataFactory(
+                                    ApplicationServicesFixture.site(ignored.config()),
+                                    ApplicationServicesFixture.buildId(ignored.resources()),
+                                    ApplicationServicesFixture.messages(),
+                                    AccountServicesFixture.component().permissions()),
+                            ApplicationServicesFixture.audit());
             setControllerRequest(controller, request(HttpMethod.GET, "/api/admin", Map.of(), Map.of(), null));
 
             AdminPageDataResponse<IndexResponse> response = controller.index();
@@ -758,7 +1300,36 @@ public class AdminControllerDelegationTest {
 
     @Test
     public void shouldAttachDashboardCardDataByCardId() throws Exception {
-        AdminDashboardService service = new AdminDashboardService(new AdminStatisticsService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.admin.support.RuntimeInfoFixture.from(applicationConfig)), new AdminArticleService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(applicationConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), () -> "test")), () -> applicationConfig.getPlugin(com.zrlog.business.plugin.PluginCorePlugin.class));
+        AdminDashboardService service =
+                new AdminDashboardService(
+                        new WebsiteKvService(),
+                        new AdminStatisticsService(
+                                new InMemoryZrLogDatabase.TestCacheService(),
+                                RuntimeInfoFixture.from(applicationConfig),
+                                ApplicationServicesFixture.audit(),
+                                Log::new,
+                                Comment::new),
+                        new AdminArticleService(
+                                new InMemoryZrLogDatabase.TestCacheService(),
+                                ApplicationServicesFixture.capability(
+                                        applicationConfig, ArticleAssistant.class),
+                                new AdminPageDataFactory(
+                                        ApplicationServicesFixture.site(applicationConfig),
+                                        () -> "test",
+                                        ApplicationServicesFixture.messages(),
+                                        AccountServicesFixture.component().permissions()),
+                                AccountServicesFixture.component().permissions(),
+                                AccountServicesFixture.component().preferences(),
+                                new ArticleVersionService(
+                                        AccountServicesFixture.component().permissions(),
+                                        Log::new,
+                                        () -> new LogVersion(DAO.getDefaultDataSource())),
+                                new ArticlePinningService(
+                                        Log::new, ApplicationServicesFixture.locks()),
+                                Log::new,
+                                ApplicationServicesFixture.locks()),
+                        () -> applicationConfig.getPlugin(PluginCorePlugin.class),
+                        AccountServicesFixture.component().preferences());
         AdminDashboardConfigResponse config = new AdminDashboardConfigResponse();
         AdminDashboardCardResponse welcome = card("welcome");
         AdminDashboardCardResponse quickAction = card("quickAction");
@@ -800,7 +1371,36 @@ public class AdminControllerDelegationTest {
 
     @Test
     public void shouldResolveDashboardCardEnabledState() throws Exception {
-        AdminDashboardService service = new AdminDashboardService(new AdminStatisticsService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.admin.support.RuntimeInfoFixture.from(applicationConfig)), new AdminArticleService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(applicationConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), () -> "test")), () -> applicationConfig.getPlugin(com.zrlog.business.plugin.PluginCorePlugin.class));
+        AdminDashboardService service =
+                new AdminDashboardService(
+                        new WebsiteKvService(),
+                        new AdminStatisticsService(
+                                new InMemoryZrLogDatabase.TestCacheService(),
+                                RuntimeInfoFixture.from(applicationConfig),
+                                ApplicationServicesFixture.audit(),
+                                Log::new,
+                                Comment::new),
+                        new AdminArticleService(
+                                new InMemoryZrLogDatabase.TestCacheService(),
+                                ApplicationServicesFixture.capability(
+                                        applicationConfig, ArticleAssistant.class),
+                                new AdminPageDataFactory(
+                                        ApplicationServicesFixture.site(applicationConfig),
+                                        () -> "test",
+                                        ApplicationServicesFixture.messages(),
+                                        AccountServicesFixture.component().permissions()),
+                                AccountServicesFixture.component().permissions(),
+                                AccountServicesFixture.component().preferences(),
+                                new ArticleVersionService(
+                                        AccountServicesFixture.component().permissions(),
+                                        Log::new,
+                                        () -> new LogVersion(DAO.getDefaultDataSource())),
+                                new ArticlePinningService(
+                                        Log::new, ApplicationServicesFixture.locks()),
+                                Log::new,
+                                ApplicationServicesFixture.locks()),
+                        () -> applicationConfig.getPlugin(PluginCorePlugin.class),
+                        AccountServicesFixture.component().preferences());
         Method method = AdminDashboardService.class.getDeclaredMethod("isCardEnabled", AdminDashboardConfigResponse.class,
                 String.class);
         method.setAccessible(true);
@@ -986,6 +1586,10 @@ public class AdminControllerDelegationTest {
     }
 
     private static class FakeLinkPreviewService extends LinkPreviewService {
+        FakeLinkPreviewService() {
+            super(ApplicationServicesFixture.websiteCache());
+        }
+
         private String url;
         private String userAgent;
         private LinkPreviewResponse response;
@@ -999,7 +1603,19 @@ public class AdminControllerDelegationTest {
     }
 
     private static class FakeMessageCenterService extends MessageCenterService {
-        FakeMessageCenterService(com.zrlog.common.ZrLogConfig config) { super(com.zrlog.admin.support.ApplicationServicesFixture.upgradeNotices(config)); }
+        FakeMessageCenterService(ZrLogConfig config) {
+            super(
+                    ApplicationServicesFixture.upgradeNotices(config),
+                    new WebhookService(
+                            ApplicationServicesFixture.messages(),
+                            ApplicationServicesFixture.websiteCache()),
+                    ApplicationServicesFixture.messages(),
+                    ApplicationServicesFixture.operations(),
+                    new AdminCommentService(
+                            AccountServicesFixture.component().permissions(),
+                            ApplicationServicesFixture.messages(),
+                            Comment::new));
+        }
 
         private List<MessageCenterNoticeResponse> notices = List.of();
         private boolean markReadResult;
@@ -1018,6 +1634,10 @@ public class AdminControllerDelegationTest {
     }
 
     private static class FakePersonalDataService extends PersonalDataService {
+        FakePersonalDataService() {
+            super(User::new, Comment::new);
+        }
+
         private PersonalDataPreviewResponse response;
         private String query;
         private int userId;
@@ -1031,6 +1651,13 @@ public class AdminControllerDelegationTest {
     }
 
     private static class FakeAdminCommentService extends AdminCommentService {
+        FakeAdminCommentService() {
+            super(
+                    AccountServicesFixture.component().permissions(),
+                    ApplicationServicesFixture.messages(),
+                    Comment::new);
+        }
+
         private DeleteResponse deleteResponse;
         private UpdateRecordResponse readResponse;
         private String[] deletedIds = new String[0];
@@ -1061,6 +1688,10 @@ public class AdminControllerDelegationTest {
     }
 
     private static class FakeTagManagementService extends TagManagementService {
+        FakeTagManagementService() {
+            super(Log::new, Tag::new);
+        }
+
         private TagManagementPreviewResponse previewResponse;
         private TagManagementPreviewResponse executeResponse;
         private TagManageRequest previewRequest;
@@ -1089,6 +1720,10 @@ public class AdminControllerDelegationTest {
     }
 
     private static class FakeMfaService extends MfaService {
+        FakeMfaService() {
+            super(User::new);
+        }
+
         private MfaStatusResponse status;
         private int userId;
 

@@ -5,21 +5,37 @@ import com.zrlog.business.dto.StoredUpgradeNotice;
 import com.zrlog.business.rest.response.CheckVersionResponse;
 import com.zrlog.business.service.UpgradeNoticeService;
 
+import jakarta.inject.Inject;
+import jakarta.inject.Singleton;
+
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
+@Singleton
 public class MessageCenterService {
 
     private final UpgradeNoticeService upgradeNoticeService;
 
-    public MessageCenterService(UpgradeNoticeService upgradeNoticeService) {
+    @Inject
+    public MessageCenterService(
+            UpgradeNoticeService upgradeNoticeService,
+            WebhookService webhookService,
+            MessageCenterStateService messageCenterStateService,
+            MessageCenterOperationService operationService,
+            AdminCommentService adminCommentService) {
+        this.webhookService = webhookService;
+        this.messageCenterStateService = messageCenterStateService;
+        this.operationService = operationService;
+        this.adminCommentService = adminCommentService;
+
         this.upgradeNoticeService = upgradeNoticeService;
     }
-    private final AdminCommentService adminCommentService = new AdminCommentService();
-    private final WebhookService webhookService = new WebhookService();
-    private final MessageCenterOperationService operationService = new MessageCenterOperationService();
-    private final MessageCenterStateService messageCenterStateService = new MessageCenterStateService();
+
+    private final AdminCommentService adminCommentService;
+    private final WebhookService webhookService;
+    private final MessageCenterOperationService operationService;
+    private final MessageCenterStateService messageCenterStateService;
     private static final String VERSION_UPDATE_NOTICE_TYPE = "versionUpdate";
     private static final String COMMENT_NOTICE_TYPE = "unreadComment";
     private static final String COMMENT_NOTICE_STATUS = "notice";

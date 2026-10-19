@@ -1,19 +1,20 @@
 package com.zrlog.admin.business.service;
 
-import com.zrlog.admin.business.rest.base.ArticleEditWebSiteInfo;
-import com.zrlog.data.util.WebSiteUtils;
-import org.junit.Test;
-
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+
+import com.zrlog.admin.business.rest.base.ArticleEditWebSiteInfo;
+import com.zrlog.admin.support.ApplicationServicesFixture;
+import com.zrlog.data.util.WebSiteUtils;
+import com.zrlog.model.WebSite;
+
+import org.junit.Test;
 
 public class WebSiteServiceTest {
 
     @Test
     public void shouldNormalizeArticleEditWebsiteInfo() throws Exception {
-        WebSiteService service = new WebSiteService();
+        WebSiteService service =
+                new WebSiteService(ApplicationServicesFixture.websiteKv(), WebSite::new);
         ArticleEditWebSiteInfo invalid = new ArticleEditWebSiteInfo();
         invalid.setArticle_auto_digest_length(-2L);
         invalid.setArticle_edit_auto_save_interval(99L);

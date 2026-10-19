@@ -6,6 +6,13 @@ import com.zrlog.admin.business.knowledge.KnowledgeModels.*;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.ArticleAccess;
 import com.zrlog.model.Log;
+
+import dagger.assisted.Assisted;
+import dagger.assisted.AssistedFactory;
+import dagger.assisted.AssistedInject;
+
+import jakarta.inject.Named;
+
 import org.jsoup.Jsoup;
 
 import java.sql.SQLException;
@@ -15,19 +22,43 @@ import java.util.function.Supplier;
 
 /** The one read boundary used by the internal assistant and remote MCP transport. */
 public final class KnowledgeService implements ToolProvider {
+    private final jakarta.inject.Provider<Log> logProvider;
+
     private final Supplier<AccountAccess> actor;
     private final Set<String> scopes;
     private final Supplier<String> siteUrl;
     private final BooleanSupplier staticHtml;
     private final KnowledgeMessages messages;
-    public KnowledgeService(Supplier<AccountAccess> actor, Set<String> scopes, Supplier<String> siteUrl, BooleanSupplier staticHtml) {
-        this(actor, scopes, siteUrl, staticHtml, "en_US");
+
+    public KnowledgeService(
+            Supplier<AccountAccess> actor,
+            Set<String> scopes,
+            Supplier<String> siteUrl,
+            BooleanSupplier staticHtml,
+            jakarta.inject.Provider<Log> logProvider) {
+        this(actor, scopes, siteUrl, staticHtml, "en_US", logProvider);
     }
-    public KnowledgeService(Supplier<AccountAccess> actor, Set<String> scopes, Supplier<String> siteUrl, BooleanSupplier staticHtml, String language) {
+
+    @AssistedInject
+    public KnowledgeService(
+            @Assisted Supplier<AccountAccess> actor,
+            @Assisted Set<String> scopes,
+            @Named("backendUrl") Supplier<String> siteUrl,
+            BooleanSupplier staticHtml,
+            @Assisted String language,
+            jakarta.inject.Provider<Log> logProvider) {
+        this.logProvider = logProvider;
+
         this.actor = actor; this.scopes = Set.copyOf(scopes); this.siteUrl = siteUrl;
         this.staticHtml = Objects.requireNonNull(staticHtml);
         this.messages = new KnowledgeMessages(language);
     }
+
+    @AssistedFactory
+    public interface Factory {
+        KnowledgeService create(Supplier<AccountAccess> actor, Set<String> scopes, String language);
+    }
+
     @Override public List<Tool> definitions(String language) { return tools(language); }
     public static List<Tool> tools() {
         return tools("en_US");
@@ -106,7 +137,14 @@ public final class KnowledgeService implements ToolProvider {
             }
         }
         params.add(limit + 1); params.add(offset);
-        List<Map<String,Object>> rows = new Log().queryListWithParams("select logId,userId,title,alias,digest,rubbish,privacy,last_update_date from log" + where + " order by last_update_date desc,logId desc limit ? offset ?", params.toArray());
+        List<Map<String, Object>> rows =
+                this.logProvider
+                        .get()
+                        .queryListWithParams(
+                                "select logId,userId,title,alias,digest,rubbish,privacy,last_update_date from log"
+                                        + where
+                                        + " order by last_update_date desc,logId desc limit ? offset ?",
+                                params.toArray());
         SearchResult result = new SearchResult();
         if (rows.size() > limit && offset + limit <= 1000) result.nextOffset = offset + limit;
         for (Map<String,Object> row : rows.subList(0, Math.min(rows.size(), limit))) {
@@ -119,7 +157,14 @@ public final class KnowledgeService implements ToolProvider {
     private ArticleResult read(int id, int offset, int length) throws SQLException {
         AccountAccess account = account();
         List<Object> params = new ArrayList<>(); String where = filter(account, params); params.add(id);
-        Map<String,Object> row = new Log().queryFirstWithParams("select logId,userId,title,alias,rubbish,privacy,last_update_date,markdown,content from log" + where + " and logId=?", params.toArray());
+        Map<String, Object> row =
+                this.logProvider
+                        .get()
+                        .queryFirstWithParams(
+                                "select logId,userId,title,alias,rubbish,privacy,last_update_date,markdown,content from log"
+                                        + where
+                                        + " and logId=?",
+                                params.toArray());
         if (row == null || !ArticleAccess.canRead(account, scopes, ((Number) row.get("userId")).intValue(), AccountAccess.truth(row.get("rubbish")), AccountAccess.truth(row.get("privacy")))) throw new IllegalArgumentException(messages.get("admin.knowledge.error.articleUnavailable"));
         String content = Objects.toString(row.get("markdown"), "");
         ArticleResult result = new ArticleResult(); result.source = new Source(); fillSource(result.source, row);

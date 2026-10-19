@@ -8,6 +8,8 @@ import com.zrlog.admin.business.rest.response.PersonalDataPreviewResponse;
 import com.zrlog.model.Comment;
 import com.zrlog.model.User;
 
+import jakarta.inject.Inject;
+
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
@@ -16,6 +18,16 @@ import java.util.Map;
 import java.util.Objects;
 
 public class PersonalDataService {
+    private final jakarta.inject.Provider<User> userProvider;
+    private final jakarta.inject.Provider<Comment> commentProvider;
+
+    @Inject
+    public PersonalDataService(
+            jakarta.inject.Provider<User> userProvider,
+            jakarta.inject.Provider<Comment> commentProvider) {
+        this.userProvider = userProvider;
+        this.commentProvider = commentProvider;
+    }
 
     private static final String COMMENT_MATCH_CONDITION =
             "(lower(coalesce(userMail, '')) = ?"
@@ -27,7 +39,7 @@ public class PersonalDataService {
             throws SQLException {
         String query = request.getQuery();
         String normalizedQuery = query.toLowerCase(Locale.ROOT);
-        Comment comment = new Comment();
+        Comment comment = this.commentProvider.get();
         Map<String, Object> commentStats = comment.queryFirstWithParams(
                 "select count(1) as commentCount,"
                         + " count(distinct logId) as commentArticleCount,"
@@ -48,12 +60,20 @@ public class PersonalDataService {
     public PersonalDataCommentExportResponse exportComments(PersonalDataPreviewRequest request) throws SQLException {
         String query = request.getQuery();
         String normalizedQuery = query.toLowerCase(Locale.ROOT);
-        List<Map<String, Object>> rows = new Comment().queryListWithParams(
-                "select commentId as id,userComment,userMail,userHome,userIp,userName,commTime,logId"
-                        + " from " + Comment.TABLE_NAME
-                        + " where " + COMMENT_MATCH_CONDITION
-                        + " order by commTime desc",
-                normalizedQuery, normalizedQuery, normalizedQuery, normalizedQuery);
+        List<Map<String, Object>> rows =
+                this.commentProvider
+                        .get()
+                        .queryListWithParams(
+                                "select commentId as id,userComment,userMail,userHome,userIp,userName,commTime,logId"
+                                        + " from "
+                                        + Comment.TABLE_NAME
+                                        + " where "
+                                        + COMMENT_MATCH_CONDITION
+                                        + " order by commTime desc",
+                                normalizedQuery,
+                                normalizedQuery,
+                                normalizedQuery,
+                                normalizedQuery);
 
         PersonalDataCommentExportResponse response = new PersonalDataCommentExportResponse();
         response.setQuery(query);
@@ -86,7 +106,7 @@ public class PersonalDataService {
         if (currentUserId <= 0) {
             return;
         }
-        Map<String, Object> user = new User().loadById(currentUserId);
+        Map<String, Object> user = this.userProvider.get().loadById(currentUserId);
         if (Objects.isNull(user)) {
             return;
         }

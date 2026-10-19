@@ -12,6 +12,8 @@ import com.zrlog.plugin.BaseStaticSitePlugin;
 import com.zrlog.util.StaticFileCacheUtils;
 import com.zrlog.util.ZrLogUtil;
 
+import jakarta.inject.Inject;
+
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.InputStream;
@@ -23,6 +25,7 @@ public class AdminStaticResourceInterceptor implements HandleAbleInterceptor {
 
     private final Supplier<AdminStaticResourcePlugin> staticSite;
 
+    @Inject
     public AdminStaticResourceInterceptor(Supplier<AdminStaticResourcePlugin> staticSite) {
         this.staticSite = Objects.requireNonNull(staticSite);
     }

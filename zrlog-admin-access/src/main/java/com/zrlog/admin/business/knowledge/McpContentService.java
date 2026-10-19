@@ -10,6 +10,11 @@ import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.data.security.AccountAction;
 
+import dagger.assisted.Assisted;
+import dagger.assisted.AssistedFactory;
+import dagger.assisted.AssistedInject;
+import jakarta.inject.Named;
+
 import java.net.URI;
 import java.util.*;
 import java.util.concurrent.Callable;
@@ -23,13 +28,20 @@ public final class McpContentService implements ToolProvider {
     private final ContentToolFactory tools;
     private final Supplier<String> issuer;
 
-    public McpContentService(Supplier<Identity> authenticate, HttpRequest request, String language,
-                             ContentToolFactory tools, Supplier<String> issuer) {
+    @AssistedInject
+    public McpContentService(@Assisted Supplier<Identity> authenticate, @Assisted HttpRequest request,
+                             @Assisted String language, Supplier<ContentToolFactory> tools,
+                             @Named("mcpIssuer") Supplier<String> issuer) {
         this.authenticate = authenticate;
         this.request = request;
         this.language = language;
-        this.tools = Objects.requireNonNull(tools);
+        this.tools = Objects.requireNonNull(tools.get());
         this.issuer = Objects.requireNonNull(issuer);
+    }
+
+    @AssistedFactory
+    public interface Factory {
+        McpContentService create(Supplier<Identity> authenticate, HttpRequest request, String language);
     }
     @Override public List<Tool> definitions(String language) throws Exception {
         Identity identity = authenticate.get();

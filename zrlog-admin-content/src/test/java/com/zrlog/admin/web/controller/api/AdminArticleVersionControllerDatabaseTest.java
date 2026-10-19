@@ -1,14 +1,28 @@
 package com.zrlog.admin.web.controller.api;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
+import com.hibegin.common.dao.DAO;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
 import com.hibegin.http.server.web.Controller;
+import com.zrlog.admin.business.content.ArticleAssistant;
 import com.zrlog.admin.business.rest.response.ArticleVersionCompareResponse;
 import com.zrlog.admin.business.rest.response.ArticleVersionResponse;
 import com.zrlog.admin.business.service.AdminArticleService;
+import com.zrlog.admin.business.service.AdminPageDataFactory;
+import com.zrlog.admin.business.service.ArticlePinningService;
+import com.zrlog.admin.business.service.ArticleVersionService;
+import com.zrlog.admin.support.AccountServicesFixture;
+import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
+import com.zrlog.common.ZrLogConfig;
 import com.zrlog.common.rest.response.ApiStandardResponse;
+import com.zrlog.model.Log;
 import com.zrlog.model.LogVersion;
+
 import org.junit.Test;
 
 import java.lang.reflect.Field;
@@ -17,23 +31,25 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-
 public class AdminArticleVersionControllerDatabaseTest {
 
-    private com.zrlog.common.ZrLogConfig applicationConfig;
+    private ZrLogConfig applicationConfig;
 
     @Test
     public void shouldListAndCompareArticleVersionsThroughRealDatabase() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
             insertArticle(db);
-            new LogVersion().savePatch(10, 2,
-                    "{\"title\":{\"type\":\"value\",\"old\":\"Old Title\"},"
-                            + "\"content\":{\"type\":\"value\",\"old\":\"Old content\"}}",
-                    1, "Old Title", new Date(1000), 1);
+            new LogVersion(DAO.getDefaultDataSource())
+                    .savePatch(
+                            10,
+                            2,
+                            "{\"title\":{\"type\":\"value\",\"old\":\"Old Title\"},"
+                                    + "\"content\":{\"type\":\"value\",\"old\":\"Old content\"}}",
+                            1,
+                            "Old Title",
+                            new Date(1000),
+                            1);
 
             ApiStandardResponse<List<ArticleVersionResponse>> versions =
                     controller(Map.of("id", "10")).index();
@@ -79,7 +95,34 @@ public class AdminArticleVersionControllerDatabaseTest {
     }
 
     private AdminArticleVersionController controller(Map<String, String> params) throws Exception {
-        AdminArticleVersionController controller = new AdminArticleVersionController(new AdminArticleService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(applicationConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), () -> "test")), com.zrlog.admin.support.ApplicationServicesFixture.cacheRefresh(new InMemoryZrLogDatabase.TestCacheService(), applicationConfig));
+        AdminArticleVersionController controller =
+                new AdminArticleVersionController(
+                        new AdminArticleService(
+                                new InMemoryZrLogDatabase.TestCacheService(),
+                                ApplicationServicesFixture.capability(
+                                        applicationConfig, ArticleAssistant.class),
+                                new AdminPageDataFactory(
+                                        ApplicationServicesFixture.site(applicationConfig),
+                                        () -> "test",
+                                        ApplicationServicesFixture.messages(),
+                                        AccountServicesFixture.component().permissions()),
+                                AccountServicesFixture.component().permissions(),
+                                AccountServicesFixture.component().preferences(),
+                                new ArticleVersionService(
+                                        AccountServicesFixture.component().permissions(),
+                                        Log::new,
+                                        () -> new LogVersion(DAO.getDefaultDataSource())),
+                                new ArticlePinningService(
+                                        Log::new, ApplicationServicesFixture.locks()),
+                                Log::new,
+                                ApplicationServicesFixture.locks()),
+                        ApplicationServicesFixture.cacheRefresh(
+                                new InMemoryZrLogDatabase.TestCacheService(), applicationConfig),
+                        ApplicationServicesFixture.audit(),
+                        new ArticleVersionService(
+                                AccountServicesFixture.component().permissions(),
+                                Log::new,
+                                () -> new LogVersion(DAO.getDefaultDataSource())));
         Field requestField = Controller.class.getDeclaredField("request");
         requestField.setAccessible(true);
         requestField.set(controller, request(params));

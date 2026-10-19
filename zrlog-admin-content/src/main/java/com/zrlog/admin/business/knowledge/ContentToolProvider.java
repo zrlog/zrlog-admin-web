@@ -11,11 +11,17 @@ import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.ZrLogUtil;
 
+import dagger.assisted.Assisted;
+import dagger.assisted.AssistedFactory;
+import dagger.assisted.AssistedInject;
+
 import java.util.*;
 import java.util.function.Supplier;
 
 /** Shared tool dispatch; callers bind a trusted, revalidated account before each operation. */
 public final class ContentToolProvider implements ToolProvider {
+    private final AccountPermissionService permissionService;
+
     private final Set<String> scopes;
     private final HttpRequest request;
     private final String language;
@@ -23,8 +29,17 @@ public final class ContentToolProvider implements ToolProvider {
     private final Supplier<AttachmentStorage> storage;
     private final KnowledgeService knowledge;
 
-    public ContentToolProvider(Set<String> scopes, HttpRequest request, String language,
-                               ContentToolService content, Supplier<AttachmentStorage> storage, KnowledgeService knowledge) {
+    @AssistedInject
+    public ContentToolProvider(
+            @Assisted Set<String> scopes,
+            @Assisted HttpRequest request,
+            @Assisted String language,
+            ContentToolService content,
+            Supplier<AttachmentStorage> storage,
+            @Assisted KnowledgeService knowledge,
+            AccountPermissionService permissionService) {
+        this.permissionService = permissionService;
+
         this.scopes = Set.copyOf(scopes);
         this.request = request;
         this.language = language;
@@ -32,14 +47,24 @@ public final class ContentToolProvider implements ToolProvider {
         this.storage = storage;
         this.knowledge = knowledge;
     }
+
+    @AssistedFactory
+    public interface Factory {
+        ContentToolProvider create(
+                Set<String> scopes,
+                HttpRequest request,
+                String language,
+                KnowledgeService knowledge);
+    }
+
     @Override public List<Tool> definitions(String language) throws Exception {
-        AccountAccess account = AccountPermissionService.current();
+        AccountAccess account = permissionService.current();
         List<Tool> tools = new ArrayList<>();
         for (Tool tool : ContentToolCatalog.tools(language)) if (allowed(tool.name, account)) tools.add(tool);
         return tools;
     }
     @Override public Object call(String name, JsonObject arguments) throws Exception {
-        AccountAccess account = AccountPermissionService.current();
+        AccountAccess account = permissionService.current();
         if (!allowed(name,account)) throw new PermissionErrorException();
         JsonObject args = arguments == null ? new JsonObject() : arguments;
         if (name.equals("search_articles") || name.equals("read_article")) {

@@ -19,22 +19,42 @@ import com.zrlog.business.rest.response.CheckVersionResponse;
 import com.zrlog.common.CacheService;
 import com.zrlog.common.cache.dto.UserBasicDTO;
 import com.zrlog.common.exception.ArgsException;
+import com.zrlog.data.security.AccountAccess;
 import com.zrlog.model.User;
 import com.zrlog.util.I18nUtil;
 import com.zrlog.util.ZrLogUtil;
 
+import jakarta.inject.Inject;
+import jakarta.inject.Singleton;
+
 import java.sql.SQLException;
 import java.util.*;
+import java.util.function.Supplier;
 
+@Singleton
 public class UserService {
-    private final java.util.function.Supplier<Set<String>> cacheableApiUris;
+    private final UserPreferenceService userPreferenceService;
+    private final jakarta.inject.Provider<User> userProvider;
+    private final jakarta.inject.Provider<PasskeyService> passkeys;
 
-    public UserService(java.util.function.Supplier<Set<String>> cacheableApiUris) {
+    private final Supplier<Set<String>> cacheableApiUris;
+
+    @Inject
+    public UserService(
+            Supplier<Set<String>> cacheableApiUris,
+            MfaService mfaService,
+            UserPreferenceService userPreferenceService,
+            jakarta.inject.Provider<User> userProvider,
+            jakarta.inject.Provider<PasskeyService> passkeys) {
+        this.mfaService = mfaService;
+        this.userPreferenceService = userPreferenceService;
+        this.userProvider = userProvider;
+        this.passkeys = passkeys;
+
         this.cacheableApiUris = Objects.requireNonNull(cacheableApiUris);
     }
 
-
-    private final MfaService mfaService = new MfaService();
+    private final MfaService mfaService;
 
     public UpdateRecordResponse updatePassword(int currentUserId, UpdatePasswordRequest updatePasswordRequest) throws SQLException {
         if (ZrLogUtil.isPreviewMode()) {
@@ -44,7 +64,7 @@ public class UserService {
             return new UpdateRecordResponse(false);
         }
         if (StringUtils.isNotEmpty(updatePasswordRequest.getOldPassword()) && StringUtils.isNotEmpty(updatePasswordRequest.getNewPassword())) {
-            User user = new User();
+            User user = this.userProvider.get();
             String dbPassword = user.getPasswordByUserId(currentUserId);
             String oldPassword = normalizeSubmittedPassword(updatePasswordRequest.getOldPassword());
             if (verifyPassword(oldPassword, dbPassword)) {
@@ -62,11 +82,11 @@ public class UserService {
     }
 
     public UserBasicInfoResponse getBasicUserInfo(int userId, String sessionId) throws SQLException {
-        Map<String, Object> byId = new User().loadById(userId);
+        Map<String, Object> byId = this.userProvider.get().loadById(userId);
         UserBasicInfoResponse userInfoByUser = getUserInfoByUser(BeanUtil.convert(byId, UserBasicDTO.class), sessionId);
         userInfoByUser.setEmail(ObjectHelpers.requireNonNullElse((String) byId.get("email"), ""));
         userInfoByUser.setMfaEnabled(mfaService.getMfaEnabled(byId));
-        userInfoByUser.setPasskeys(PasskeyService.list(userId));
+        userInfoByUser.setPasskeys(passkeys.get().list(userId));
         return userInfoByUser;
     }
 
@@ -77,14 +97,15 @@ public class UserService {
                 StringUtils.isEmpty(userInfoById.getHeader()) ? getDefaultHeaderImage() : userInfoById.getHeader(),
                 sessionId, buildLastVersionPlaceholder(), mfaEnabled);
         result.setUserId(userId);
-        result.setRole(com.zrlog.data.security.AccountAccess.load(userId).getRole());
+        result.setRole(AccountAccess.from(userProvider.get().loadById(userId)).getRole());
         fillDisplayPreferences(result, userId);
         return result;
     }
 
     private void fillDisplayPreferences(UserInfoResponse response, int userId) throws SQLException {
-        // Resolve inherited defaults on each account response; the identity cache must not freeze them.
-        var preferences = new UserPreferenceService().effective(userId);
+        // Resolve inherited defaults on each account response; the identity cache must not freeze
+        // them.
+        var preferences = this.userPreferenceService.effective(userId);
         response.setLanguage(preferences.language);
         response.setAppearance(preferences.appearance);
     }
@@ -103,7 +124,12 @@ public class UserService {
         basicInfoResponse.setKey(sessionId);
         try {
             basicInfoResponse.setUserId(userBasicDTO.getUserId().intValue());
-            basicInfoResponse.setRole(com.zrlog.data.security.AccountAccess.load(userBasicDTO.getUserId().intValue()).getRole());
+            basicInfoResponse.setRole(
+                    AccountAccess.from(
+                                    userProvider
+                                            .get()
+                                            .loadById(userBasicDTO.getUserId().intValue()))
+                            .getRole());
             fillDisplayPreferences(basicInfoResponse, userBasicDTO.getUserId().intValue());
         } catch (SQLException e) { throw new PermissionErrorException(); }
         basicInfoResponse.setCacheableApiUris(EnvKit.isFaaSMode()
@@ -115,9 +141,9 @@ public class UserService {
         if (StringUtils.isEmpty(loginRequest.getUserName()) || StringUtils.isEmpty(loginRequest.getPassword())) {
             throw new UserNameAndPasswordRequiredException();
         }
-        User userDao = new User();
+        User userDao = this.userProvider.get();
         Map<String, Object> user = userDao.getUserByUserName(loginRequest.getUserName().toLowerCase());
-        if (Objects.isNull(user) || !com.zrlog.data.security.AccountAccess.from(user).isEnabled()) {
+        if (Objects.isNull(user) || !AccountAccess.from(user).isEnabled()) {
             throw new UserNameOrPasswordException();
         }
         String dbPassword = (String) user.get("password");
@@ -132,7 +158,7 @@ public class UserService {
     }
 
     public void verifyCurrentCredentials(int userId, String submittedPassword, String mfaCode) throws SQLException {
-        Map<String, Object> user = new User().loadById(userId);
+        Map<String, Object> user = this.userProvider.get().loadById(userId);
         if (Objects.isNull(user) || !verifyPassword(submittedPassword, Objects.toString(user.get("password"), ""))) {
             throw new OldPasswordException();
         }
@@ -140,7 +166,7 @@ public class UserService {
     }
 
     public UserLoginDTO buildLoginDTO(Map<String, Object> user) {
-        if (!com.zrlog.data.security.AccountAccess.from(user).isEnabled()) throw new UserNameOrPasswordException();
+        if (!AccountAccess.from(user).isEnabled()) throw new UserNameOrPasswordException();
         int userId = ((Number) user.get("userId")).intValue();
         UserBasicDTO basicDTO = BeanUtil.convert(user, UserBasicDTO.class);
         UserBasicInfoResponse userInfoByUser = getUserInfoByUser(basicDTO, UUID.randomUUID().toString());
@@ -158,8 +184,13 @@ public class UserService {
         if (ZrLogUtil.isPreviewMode()) {
             throw new PermissionErrorException();
         }
-        new User().updateEmailUserNameHeaderByUserId(updateAdminRequest.getEmail(), updateAdminRequest.getUserName(),
-                normalizeHeader(updateAdminRequest.getHeader(), request, storage), userId);
+        this.userProvider
+                .get()
+                .updateEmailUserNameHeaderByUserId(
+                        updateAdminRequest.getEmail(),
+                        updateAdminRequest.getUserName(),
+                        normalizeHeader(updateAdminRequest.getHeader(), request, storage),
+                        userId);
         return getBasicUserInfo(userId, AdminTokenThreadLocal.getUser().getSessionId());
     }
 

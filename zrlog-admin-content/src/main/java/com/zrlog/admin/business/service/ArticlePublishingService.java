@@ -17,6 +17,9 @@ import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.data.exception.DAOException;
 import com.zrlog.util.I18nUtil;
 
+import jakarta.inject.Inject;
+import jakarta.inject.Singleton;
+
 import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.List;
@@ -24,7 +27,10 @@ import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+@Singleton
 public class ArticlePublishingService {
+    private final AdminAuditService adminAuditService;
+    private final MessageCenterOperationService messageCenterOperationService;
 
     private static final Logger LOGGER = LoggerUtil.getLogger(ArticlePublishingService.class);
 
@@ -33,8 +39,16 @@ public class ArticlePublishingService {
     private final CacheRefreshService cacheRefresh;
     private final MarkdownRenderer markdownRenderer;
 
-    public ArticlePublishingService(AdminArticleService articleService, CacheRefreshService cacheRefresh,
-                                    MarkdownRenderer markdownRenderer) {
+    @Inject
+    public ArticlePublishingService(
+            AdminArticleService articleService,
+            CacheRefreshService cacheRefresh,
+            MarkdownRenderer markdownRenderer,
+            AdminAuditService adminAuditService,
+            MessageCenterOperationService messageCenterOperationService) {
+        this.adminAuditService = adminAuditService;
+        this.messageCenterOperationService = messageCenterOperationService;
+
         this.articleService = articleService;
         this.cacheRefresh = cacheRefresh;
         this.markdownRenderer = Objects.requireNonNull(markdownRenderer);
@@ -52,17 +66,21 @@ public class ArticlePublishingService {
     }
 
     public DeleteResponse deleteArticles(String ids, HttpRequest request) throws SQLException {
-        boolean deleted = Arrays.stream(ids.split(",")).allMatch(id -> {
-            try {
-                boolean removed = articleService.delete(Long.valueOf(id));
-                if (removed) {
-                    new AdminAuditService().record(request, AdminAuditAction.DELETE_ARTICLE, id);
-                }
-                return removed;
-            } catch (SQLException e) {
-                throw new DAOException(e);
-            }
-        });
+        boolean deleted =
+                Arrays.stream(ids.split(","))
+                        .allMatch(
+                                id -> {
+                                    try {
+                                        boolean removed = articleService.delete(Long.valueOf(id));
+                                        if (removed) {
+                                            this.adminAuditService.record(
+                                                    request, AdminAuditAction.DELETE_ARTICLE, id);
+                                        }
+                                        return removed;
+                                    } catch (SQLException e) {
+                                        throw new DAOException(e);
+                                    }
+                                });
         return new DeleteResponse(deleted);
     }
 
@@ -78,7 +96,7 @@ public class ArticlePublishingService {
     public CreateOrUpdateArticleResponse create(AdminTokenVO token, CreateArticleRequest body, HttpRequest request)
             throws SQLException {
         CreateOrUpdateArticleResponse response = articleService.create(token, body);
-        new AdminAuditService().record(request, AdminAuditAction.CREATE_ARTICLE, body.getTitle());
+        this.adminAuditService.record(request, AdminAuditAction.CREATE_ARTICLE, body.getTitle());
         recordPublication(body, response, request);
         return response;
     }
@@ -93,7 +111,8 @@ public class ArticlePublishingService {
     private void recordPublication(CreateArticleRequest body, CreateOrUpdateArticleResponse saved, HttpRequest request) {
         // Admin APIs, MCP and the built-in assistant share the same publication policy.
         if (Objects.equals(saved.getRubbish(), false) && Objects.equals(saved.getPrivacy(), false)) {
-            new AdminAuditService().record(request, AdminAuditAction.PUBLISH_ARTICLE, body.getTitle());
+            this.adminAuditService.record(
+                    request, AdminAuditAction.PUBLISH_ARTICLE, body.getTitle());
         }
     }
 
@@ -129,7 +148,7 @@ public class ArticlePublishingService {
             return;
         }
         try {
-            new MessageCenterOperationService().recordBlogStaticSiteSync(synced, message);
+            this.messageCenterOperationService.recordBlogStaticSiteSync(synced, message);
         } catch (Exception e) {
             LOGGER.log(Level.FINE, "Record blog static sync notice failed", e);
         }

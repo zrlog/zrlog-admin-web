@@ -9,6 +9,8 @@ import com.zrlog.common.exception.UnknownException;
 import com.zrlog.data.service.DistributedLock;
 import com.zrlog.model.Log;
 
+import jakarta.inject.Inject;
+
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
@@ -19,6 +21,17 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 
 public class ArticlePinningService {
+    private final DistributedLock.Factory locks;
+
+    private final jakarta.inject.Provider<Log> logProvider;
+
+    @Inject
+    public ArticlePinningService(
+            jakarta.inject.Provider<Log> logProvider, DistributedLock.Factory locks) {
+        this.locks = locks;
+
+        this.logProvider = logProvider;
+    }
 
     static final String LOCK_KEY = "article-sticky-order";
     private static final long LOCK_WAIT_SECONDS = 20L;
@@ -73,8 +86,8 @@ public class ArticlePinningService {
         });
     }
 
-    static <T> T withOrderLock(PinningOperation<T> operation) throws SQLException {
-        Lock lock = new DistributedLock(LOCK_KEY);
+    <T> T withOrderLock(PinningOperation<T> operation) throws SQLException {
+        Lock lock = locks.create(LOCK_KEY);
         boolean locked = false;
         try {
             locked = lock.tryLock(LOCK_WAIT_SECONDS, TimeUnit.SECONDS);
@@ -97,10 +110,16 @@ public class ArticlePinningService {
     }
 
     private ArticlePinningEntryResponse requirePublicArticle(Long logId) throws SQLException {
-        Map<String, Object> row = new Log().queryFirstWithParams(
-                "select logId,title,sticky from " + Log.TABLE_NAME
-                        + " where logId=? and rubbish=? and privacy=?",
-                logId, false, false);
+        Map<String, Object> row =
+                this.logProvider
+                        .get()
+                        .queryFirstWithParams(
+                                "select logId,title,sticky from "
+                                        + Log.TABLE_NAME
+                                        + " where logId=? and rubbish=? and privacy=?",
+                                logId,
+                                false,
+                                false);
         if (row == null || row.isEmpty()) {
             throw new ArticlePinningNotAllowedException();
         }
@@ -109,10 +128,16 @@ public class ArticlePinningService {
 
     private List<ArticlePinningEntryResponse> queryPinnedArticles() throws SQLException {
         List<ArticlePinningEntryResponse> items = new ArrayList<>();
-        for (Map<String, Object> row : new Log().queryListWithParams(
-                "select logId,title,sticky from " + Log.TABLE_NAME
-                        + " where rubbish=? and privacy=? and sticky>? order by sticky desc,logId desc",
-                false, false, 0)) {
+        for (Map<String, Object> row :
+                this.logProvider
+                        .get()
+                        .queryListWithParams(
+                                "select logId,title,sticky from "
+                                        + Log.TABLE_NAME
+                                        + " where rubbish=? and privacy=? and sticky>? order by sticky desc,logId desc",
+                                false,
+                                false,
+                                0)) {
             items.add(toEntry(row));
         }
         return items;
@@ -120,10 +145,12 @@ public class ArticlePinningService {
 
     private void persist(List<ArticlePinningEntryResponse> items) throws SQLException {
         if (items.isEmpty()) {
-            new Log().execute("update " + Log.TABLE_NAME + " set sticky=0 where sticky>0");
+            this.logProvider
+                    .get()
+                    .execute("update " + Log.TABLE_NAME + " set sticky=0 where sticky>0");
             return;
         }
-        new Log().execute(buildPersistSql(items), false, false);
+        this.logProvider.get().execute(buildPersistSql(items), false, false);
     }
 
     static String buildPersistSql(List<ArticlePinningEntryResponse> items) {

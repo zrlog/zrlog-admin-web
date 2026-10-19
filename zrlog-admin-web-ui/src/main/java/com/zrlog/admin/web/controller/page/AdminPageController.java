@@ -13,6 +13,8 @@ import com.zrlog.common.TokenService;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.plugin.BaseStaticSitePlugin;
 
+import jakarta.inject.Inject;
+
 import java.io.InputStream;
 import java.util.Objects;
 
@@ -23,7 +25,11 @@ public class AdminPageController extends Controller {
     private final AdminPageService adminPageService;
     private final TokenService tokenService;
 
-    public AdminPageController(AdminPageService adminPageService, TokenService tokenService, AdminPageDataFactory pages) {
+    @Inject
+    public AdminPageController(
+            AdminPageService adminPageService,
+            TokenService tokenService,
+            AdminPageDataFactory pages) {
         this.pages = pages;
         this.tokenService = tokenService;
         this.adminPageService = adminPageService;

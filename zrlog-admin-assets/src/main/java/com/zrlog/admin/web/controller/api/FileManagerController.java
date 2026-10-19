@@ -24,6 +24,8 @@ import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.ZrLogUtil;
 
+import jakarta.inject.Inject;
+
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
@@ -36,7 +38,9 @@ public class FileManagerController extends BaseController {
 
     private final FileManagerService fileManagerService;
 
-    public FileManagerController(FileManagerService fileManagerService, AdminPageDataFactory pages) {
+    @Inject
+    public FileManagerController(
+            FileManagerService fileManagerService, AdminPageDataFactory pages) {
         this.pages = pages;
         this.fileManagerService = fileManagerService;
     }

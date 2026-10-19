@@ -8,6 +8,8 @@ import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.rest.request.WebhookConfigRequest;
 import com.zrlog.admin.business.rest.request.WebhookMessageNoticeRequest;
 import com.zrlog.admin.business.rest.response.*;
+import com.zrlog.admin.business.security.DelegatedAccess;
+import com.zrlog.admin.business.service.AccountPermissionService;
 import com.zrlog.admin.business.service.AdminAuditService;
 import com.zrlog.admin.business.service.AdminPageDataFactory;
 import com.zrlog.admin.business.service.WebhookService;
@@ -20,15 +22,30 @@ import com.zrlog.common.rest.response.StandardResponse;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.I18nUtil;
 
+import jakarta.inject.Inject;
+
 public class WebhookController extends BaseController {
-    public WebhookController(AdminPageDataFactory pages) {
+    private final AdminAuditService adminAuditService;
+
+    private final AccountPermissionService permissionService;
+
+    @Inject
+    public WebhookController(
+            AdminPageDataFactory pages,
+            AccountPermissionService permissionService,
+            WebhookService webhookService,
+            AdminAuditService adminAuditService) {
+        this.webhookService = webhookService;
+        this.adminAuditService = adminAuditService;
+
+        this.permissionService = permissionService;
+
         this.pages = pages;
     }
 
     private final AdminPageDataFactory pages;
 
-
-    private final WebhookService webhookService = new WebhookService();
+    private final WebhookService webhookService;
 
     @ResponseBody
     @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "webhook.configure")
@@ -36,7 +53,7 @@ public class WebhookController extends BaseController {
         if (request.getMethod() == HttpMethod.POST) {
             WebhookConfigRequest configRequest = getRequestBodyWithNullCheck(WebhookConfigRequest.class);
             WebhookConfigResponse response = webhookService.updateConfig(configRequest);
-            new AdminAuditService().record(request, AdminAuditAction.UPDATE_WEBHOOK_CONFIG);
+            this.adminAuditService.record(request, AdminAuditAction.UPDATE_WEBHOOK_CONFIG);
             return new ApiStandardResponse<>(
                     response,
                     I18nUtil.getAdminBackendStringFromRes("admin.common.update.success")
@@ -50,7 +67,7 @@ public class WebhookController extends BaseController {
     public ApiStandardResponse<WebhookTokenResponse> token() {
         requirePost();
         WebhookTokenResponse response = webhookService.rotateToken();
-        new AdminAuditService().record(request, AdminAuditAction.ROTATE_WEBHOOK_TOKEN);
+        this.adminAuditService.record(request, AdminAuditAction.ROTATE_WEBHOOK_TOKEN);
         return new ApiStandardResponse<>(response);
     }
 
@@ -59,7 +76,7 @@ public class WebhookController extends BaseController {
     public ApiStandardResponse<WebhookConfigResponse> revokeToken() {
         requirePost();
         WebhookConfigResponse response = webhookService.revokeToken();
-        new AdminAuditService().record(request, AdminAuditAction.REVOKE_WEBHOOK_TOKEN);
+        this.adminAuditService.record(request, AdminAuditAction.REVOKE_WEBHOOK_TOKEN);
         return new ApiStandardResponse<>(response);
     }
 
@@ -68,8 +85,8 @@ public class WebhookController extends BaseController {
     @RequiresAction(value = AccountAction.NOTIFICATION_CREATE, descriptionKey = "webhook.createNotice")
     public ApiStandardResponse<WebhookMessageNoticeCreateResponse> messageCenterNotice() {
         requirePost();
-        boolean personal = com.zrlog.admin.business.security.DelegatedAccess.active();
-        if (personal) com.zrlog.admin.business.service.AccountPermissionService.require(AccountAction.NOTIFICATION_CREATE);
+        boolean personal = DelegatedAccess.active();
+        if (personal) permissionService.require(AccountAction.NOTIFICATION_CREATE);
         if (!webhookService.getConfigResponse().getEnabled() || (!personal && !webhookService.verifyToken(readToken()))) {
             throw new PermissionErrorException();
         }

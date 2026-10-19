@@ -1,20 +1,33 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.*;
+
 import com.google.gson.*;
+import com.hibegin.common.dao.DAO;
+import com.zrlog.admin.business.content.ArticleAssistant;
 import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.rest.response.AdminDashboardConfigResponse;
 import com.zrlog.admin.business.rest.response.UserPreferencesResponse;
+import com.zrlog.admin.support.AccountServicesFixture;
+import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.vo.AdminTokenVO;
+import com.zrlog.data.service.UserPreferenceStore;
+import com.zrlog.model.Log;
+import com.zrlog.model.LogVersion;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.util.List;
-
-import static org.junit.Assert.*;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 @RunWith(Parameterized.class)
 public class UserPreferenceServiceTest {
@@ -37,27 +50,200 @@ public class UserPreferenceServiceTest {
             db.execute("insert into user(userId,userName,role) values(2,'writer','contributor')");
             db.putWebsite("admin_article_page_size", 20);
             db.putWebsite("article_edit_auto_save_interval", 5);
-            UserPreferenceService service = new UserPreferenceService();
+            UserPreferenceService service =
+                    new UserPreferenceService(
+                            ApplicationServicesFixture.settings(),
+                            new UserPreferenceStore(),
+                            AccountServicesFixture.component().permissions());
             service.update(json("{\"language\":\"en_US\",\"appearance\":{\"darkMode\":true},\"articlePageSize\":40,\"editor\":{\"autoSaveInterval\":10}}"));
-            assertEquals(40, new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(db.config(), com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(db.resources()))).resolveAdminPageSize(0));
-            assertEquals(7, new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(db.config(), com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(db.resources()))).resolveAdminPageSize(7));
+            assertEquals(
+                    40,
+                    new AdminArticleService(
+                                    db.cacheService(),
+                                    ApplicationServicesFixture.capability(
+                                            db.config(), ArticleAssistant.class),
+                                    new AdminPageDataFactory(
+                                            ApplicationServicesFixture.site(db.config()),
+                                            ApplicationServicesFixture.buildId(db.resources()),
+                                            ApplicationServicesFixture.messages(),
+                                            AccountServicesFixture.component().permissions()),
+                                    AccountServicesFixture.component().permissions(),
+                                    AccountServicesFixture.component().preferences(),
+                                    new ArticleVersionService(
+                                            AccountServicesFixture.component().permissions(),
+                                            Log::new,
+                                            () -> new LogVersion(DAO.getDefaultDataSource())),
+                                    new ArticlePinningService(
+                                            Log::new, ApplicationServicesFixture.locks()),
+                                    Log::new,
+                                    ApplicationServicesFixture.locks())
+                            .resolveAdminPageSize(0));
+            assertEquals(
+                    7,
+                    new AdminArticleService(
+                                    db.cacheService(),
+                                    ApplicationServicesFixture.capability(
+                                            db.config(), ArticleAssistant.class),
+                                    new AdminPageDataFactory(
+                                            ApplicationServicesFixture.site(db.config()),
+                                            ApplicationServicesFixture.buildId(db.resources()),
+                                            ApplicationServicesFixture.messages(),
+                                            AccountServicesFixture.component().permissions()),
+                                    AccountServicesFixture.component().permissions(),
+                                    AccountServicesFixture.component().preferences(),
+                                    new ArticleVersionService(
+                                            AccountServicesFixture.component().permissions(),
+                                            Log::new,
+                                            () -> new LogVersion(DAO.getDefaultDataSource())),
+                                    new ArticlePinningService(
+                                            Log::new, ApplicationServicesFixture.locks()),
+                                    Log::new,
+                                    ApplicationServicesFixture.locks())
+                            .resolveAdminPageSize(7));
             assertEquals(Long.valueOf(10), service.effective().editor.autoSaveInterval);
             assertTrue(service.effective().appearance.darkMode);
             assertEquals("20", db.scalar("select value from website where name='admin_article_page_size'"));
             assertEquals(0, ((Number) db.scalar("select authVersion from user where userId=1")).intValue());
-            assertEquals("admin", AccountPermissionService.current().getRole());
+            assertEquals(
+                    "admin", AccountServicesFixture.component().permissions().current().getRole());
             login(2);
-            assertEquals(20, new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(db.config(), com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(db.resources()))).resolveAdminPageSize(0));
+            assertEquals(
+                    20,
+                    new AdminArticleService(
+                                    db.cacheService(),
+                                    ApplicationServicesFixture.capability(
+                                            db.config(), ArticleAssistant.class),
+                                    new AdminPageDataFactory(
+                                            ApplicationServicesFixture.site(db.config()),
+                                            ApplicationServicesFixture.buildId(db.resources()),
+                                            ApplicationServicesFixture.messages(),
+                                            AccountServicesFixture.component().permissions()),
+                                    AccountServicesFixture.component().permissions(),
+                                    AccountServicesFixture.component().preferences(),
+                                    new ArticleVersionService(
+                                            AccountServicesFixture.component().permissions(),
+                                            Log::new,
+                                            () -> new LogVersion(DAO.getDefaultDataSource())),
+                                    new ArticlePinningService(
+                                            Log::new, ApplicationServicesFixture.locks()),
+                                    Log::new,
+                                    ApplicationServicesFixture.locks())
+                            .resolveAdminPageSize(0));
             service.update(json("{\"articlePageSize\":15}"));
-            assertEquals(15, new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(db.config(), com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(db.resources()))).resolveAdminPageSize(0));
+            assertEquals(
+                    15,
+                    new AdminArticleService(
+                                    db.cacheService(),
+                                    ApplicationServicesFixture.capability(
+                                            db.config(), ArticleAssistant.class),
+                                    new AdminPageDataFactory(
+                                            ApplicationServicesFixture.site(db.config()),
+                                            ApplicationServicesFixture.buildId(db.resources()),
+                                            ApplicationServicesFixture.messages(),
+                                            AccountServicesFixture.component().permissions()),
+                                    AccountServicesFixture.component().permissions(),
+                                    AccountServicesFixture.component().preferences(),
+                                    new ArticleVersionService(
+                                            AccountServicesFixture.component().permissions(),
+                                            Log::new,
+                                            () -> new LogVersion(DAO.getDefaultDataSource())),
+                                    new ArticlePinningService(
+                                            Log::new, ApplicationServicesFixture.locks()),
+                                    Log::new,
+                                    ApplicationServicesFixture.locks())
+                            .resolveAdminPageSize(0));
             login(1);
-            assertEquals(40, new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(db.config(), com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(db.resources()))).resolveAdminPageSize(0));
+            assertEquals(
+                    40,
+                    new AdminArticleService(
+                                    db.cacheService(),
+                                    ApplicationServicesFixture.capability(
+                                            db.config(), ArticleAssistant.class),
+                                    new AdminPageDataFactory(
+                                            ApplicationServicesFixture.site(db.config()),
+                                            ApplicationServicesFixture.buildId(db.resources()),
+                                            ApplicationServicesFixture.messages(),
+                                            AccountServicesFixture.component().permissions()),
+                                    AccountServicesFixture.component().permissions(),
+                                    AccountServicesFixture.component().preferences(),
+                                    new ArticleVersionService(
+                                            AccountServicesFixture.component().permissions(),
+                                            Log::new,
+                                            () -> new LogVersion(DAO.getDefaultDataSource())),
+                                    new ArticlePinningService(
+                                            Log::new, ApplicationServicesFixture.locks()),
+                                    Log::new,
+                                    ApplicationServicesFixture.locks())
+                            .resolveAdminPageSize(0));
             service.update(json("{}"));
-            assertEquals(20, new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(db.config(), com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(db.resources()))).resolveAdminPageSize(0));
+            assertEquals(
+                    20,
+                    new AdminArticleService(
+                                    db.cacheService(),
+                                    ApplicationServicesFixture.capability(
+                                            db.config(), ArticleAssistant.class),
+                                    new AdminPageDataFactory(
+                                            ApplicationServicesFixture.site(db.config()),
+                                            ApplicationServicesFixture.buildId(db.resources()),
+                                            ApplicationServicesFixture.messages(),
+                                            AccountServicesFixture.component().permissions()),
+                                    AccountServicesFixture.component().permissions(),
+                                    AccountServicesFixture.component().preferences(),
+                                    new ArticleVersionService(
+                                            AccountServicesFixture.component().permissions(),
+                                            Log::new,
+                                            () -> new LogVersion(DAO.getDefaultDataSource())),
+                                    new ArticlePinningService(
+                                            Log::new, ApplicationServicesFixture.locks()),
+                                    Log::new,
+                                    ApplicationServicesFixture.locks())
+                            .resolveAdminPageSize(0));
             db.putWebsite("admin_article_page_size", 30);
-            assertEquals(30, new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(db.config(), com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(db.resources()))).resolveAdminPageSize(0));
+            assertEquals(
+                    30,
+                    new AdminArticleService(
+                                    db.cacheService(),
+                                    ApplicationServicesFixture.capability(
+                                            db.config(), ArticleAssistant.class),
+                                    new AdminPageDataFactory(
+                                            ApplicationServicesFixture.site(db.config()),
+                                            ApplicationServicesFixture.buildId(db.resources()),
+                                            ApplicationServicesFixture.messages(),
+                                            AccountServicesFixture.component().permissions()),
+                                    AccountServicesFixture.component().permissions(),
+                                    AccountServicesFixture.component().preferences(),
+                                    new ArticleVersionService(
+                                            AccountServicesFixture.component().permissions(),
+                                            Log::new,
+                                            () -> new LogVersion(DAO.getDefaultDataSource())),
+                                    new ArticlePinningService(
+                                            Log::new, ApplicationServicesFixture.locks()),
+                                    Log::new,
+                                    ApplicationServicesFixture.locks())
+                            .resolveAdminPageSize(0));
             login(2);
-            assertEquals(15, new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(db.config(), com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(db.resources()))).resolveAdminPageSize(0));
+            assertEquals(
+                    15,
+                    new AdminArticleService(
+                                    db.cacheService(),
+                                    ApplicationServicesFixture.capability(
+                                            db.config(), ArticleAssistant.class),
+                                    new AdminPageDataFactory(
+                                            ApplicationServicesFixture.site(db.config()),
+                                            ApplicationServicesFixture.buildId(db.resources()),
+                                            ApplicationServicesFixture.messages(),
+                                            AccountServicesFixture.component().permissions()),
+                                    AccountServicesFixture.component().permissions(),
+                                    AccountServicesFixture.component().preferences(),
+                                    new ArticleVersionService(
+                                            AccountServicesFixture.component().permissions(),
+                                            Log::new,
+                                            () -> new LogVersion(DAO.getDefaultDataSource())),
+                                    new ArticlePinningService(
+                                            Log::new, ApplicationServicesFixture.locks()),
+                                    Log::new,
+                                    ApplicationServicesFixture.locks())
+                            .resolveAdminPageSize(0));
         }
     }
 
@@ -66,7 +252,11 @@ public class UserPreferenceServiceTest {
             db.execute("insert into user(userId,userName,role) values(2,'writer','author')");
             db.putWebsite("session_timeout", 90);
             db.putWebsite("article_auto_digest_length", 250);
-            UserPreferenceService service = new UserPreferenceService();
+            UserPreferenceService service =
+                    new UserPreferenceService(
+                            ApplicationServicesFixture.settings(),
+                            new UserPreferenceStore(),
+                            AccountServicesFixture.component().permissions());
             service.updateBody("{\"session\":{\"timeoutMinutes\":60}}", "session");
             service.updateBody("{\"editor\":{\"autoDigestLength\":0,\"linkPreviewEnabled\":true,\"publishCheckEnabled\":false,\"coverAspectRatio\":\"1:1\"},\"articleList\":{\"status\":\"draft\",\"sort\":\"click,ASC\",\"columns\":[]}}", "writing");
             assertEquals(Long.valueOf(0), service.effective().editor.autoDigestLength);
@@ -74,7 +264,7 @@ public class UserPreferenceServiceTest {
             assertEquals("1:1", service.effective().editor.coverAspectRatio);
             assertEquals("draft", service.effective().articleList.status);
             assertTrue(service.effective().articleList.columns.isEmpty());
-            assertEquals(60, new com.zrlog.data.service.UserPreferenceStore().sessionTimeoutMinutes(1, 90));
+            assertEquals(60, new UserPreferenceStore().sessionTimeoutMinutes(1, 90));
             // A stale appearance page must not write its stale session/editor snapshot.
             service.updateBody("{\"appearance\":{\"darkMode\":true},\"session\":{\"timeoutMinutes\":10},\"editor\":{\"autoDigestLength\":99}}", "appearance");
             assertEquals(Long.valueOf(60), service.effective().session.timeoutMinutes);
@@ -101,7 +291,11 @@ public class UserPreferenceServiceTest {
 
     @Test public void validatesExtendedFieldsAndKeepsValidPartitionsWhenAnotherIsCorrupt() throws Exception {
         try (InMemoryZrLogDatabase db = database()) {
-            UserPreferenceService service = new UserPreferenceService();
+            UserPreferenceService service =
+                    new UserPreferenceService(
+                            ApplicationServicesFixture.settings(),
+                            new UserPreferenceStore(),
+                            AccountServicesFixture.component().permissions());
             for (String invalid : List.of(
                     "{\"session\":{\"timeoutMinutes\":5}}", "{\"session\":{\"timeoutMinutes\":100000}}",
                     "{\"session\":{\"timeoutMinutes\":1.5}}", "{\"session\":{\"timeoutMinutes\":\"60\"}}",
@@ -121,7 +315,11 @@ public class UserPreferenceServiceTest {
     @Test public void assistantDefaultsAndSingleScopeAreAccountSpecific() throws Exception {
         try (InMemoryZrLogDatabase db = database()) {
             db.execute("insert into user(userId,userName,role) values(2,'writer','author')");
-            UserPreferenceService service = new UserPreferenceService();
+            UserPreferenceService service =
+                    new UserPreferenceService(
+                            ApplicationServicesFixture.settings(),
+                            new UserPreferenceStore(),
+                            AccountServicesFixture.component().permissions());
             assertEquals("own_public", service.current().effective.assistant.knowledgeScope);
             service.update(json("{\"assistant\":{\"knowledgeScope\":\"own_all\"}}"));
             assertEquals("own_all", service.assistant(AdminTokenThreadLocal.getUser()).knowledgeScope);
@@ -138,7 +336,11 @@ public class UserPreferenceServiceTest {
 
     @Test public void validatesTypesRangesAndRejectsAuthorizationFields() throws Exception {
         try (InMemoryZrLogDatabase db = database()) {
-            UserPreferenceService service = new UserPreferenceService();
+            UserPreferenceService service =
+                    new UserPreferenceService(
+                            ApplicationServicesFixture.settings(),
+                            new UserPreferenceStore(),
+                            AccountServicesFixture.component().permissions());
             for (String invalid : List.of("{\"userId\":2}", "{\"role\":\"owner\"}", "{\"scope\":\"articles:read:private\"}",
                     "{\"dashboard\":{}}", "{\"language\":\"xx\"}", "{\"language\":1}", "{\"appearance\":[]}",
                     "{\"appearance\":{\"darkMode\":\"true\"}}", "{\"appearance\":{\"theme\":\"invalid\"}}",
@@ -161,7 +363,11 @@ public class UserPreferenceServiceTest {
 
     @Test public void preservesDashboardAndFutureSectionsAndRecoversCorruptStorage() throws Exception {
         try (InMemoryZrLogDatabase db = database()) {
-            UserPreferenceService service = new UserPreferenceService();
+            UserPreferenceService service =
+                    new UserPreferenceService(
+                            ApplicationServicesFixture.settings(),
+                            new UserPreferenceStore(),
+                            AccountServicesFixture.component().permissions());
             db.execute("update user set preferences=? where userId=1", "{\"future\":{\"key\":1},\"dashboard\":{\"autoRefreshEnabled\":true}}");
             service.update(json("{\"articlePageSize\":50}"));
             assertTrue(service.dashboard(AdminTokenThreadLocal.getUser()).getAutoRefreshEnabled());
@@ -182,30 +388,76 @@ public class UserPreferenceServiceTest {
     }
     @Test public void concurrentSectionsDoNotOverwriteEachOther() throws Exception {
         try (InMemoryZrLogDatabase db = database()) {
-            java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(2);
-            java.util.concurrent.CountDownLatch start = new java.util.concurrent.CountDownLatch(1);
+            ExecutorService pool = Executors.newFixedThreadPool(2);
+            CountDownLatch start = new CountDownLatch(1);
             try {
-                java.util.concurrent.Future<?> personal = pool.submit(() -> {
-                    try {
-                        login(1); start.await();
-                        for (int i = 1; i <= 10; i++) new UserPreferenceService().update(json("{\"articlePageSize\":" + i + "}"));
-                    } catch (Exception e) { throw new RuntimeException(e); }
-                    finally { AdminTokenThreadLocal.remove(); }
-                });
-                java.util.concurrent.Future<?> dashboard = pool.submit(() -> {
-                    try {
-                        login(1); start.await();
-                        for (int i = 1; i <= 10; i++) {
-                            AdminDashboardConfigResponse config = new AdminDashboardConfigResponse();
-                            config.setAutoRefreshIntervalSeconds(i * 10);
-                            new UserPreferenceService().saveDashboard(AdminTokenThreadLocal.getUser(), config);
-                        }
-                    } catch (Exception e) { throw new RuntimeException(e); }
-                    finally { AdminTokenThreadLocal.remove(); }
-                });
-                start.countDown(); personal.get(10, java.util.concurrent.TimeUnit.SECONDS); dashboard.get(10, java.util.concurrent.TimeUnit.SECONDS);
-                assertEquals(Integer.valueOf(10), new UserPreferenceService().effective().articlePageSize);
-                assertEquals(Integer.valueOf(100), new UserPreferenceService().dashboard(AdminTokenThreadLocal.getUser()).getAutoRefreshIntervalSeconds());
+                Future<?> personal =
+                        pool.submit(
+                                () -> {
+                                    try {
+                                        login(1);
+                                        start.await();
+                                        for (int i = 1; i <= 10; i++)
+                                            new UserPreferenceService(
+                                                            ApplicationServicesFixture.settings(),
+                                                            new UserPreferenceStore(),
+                                                            AccountServicesFixture.component()
+                                                                    .permissions())
+                                                    .update(
+                                                            json(
+                                                                    "{\"articlePageSize\":"
+                                                                            + i
+                                                                            + "}"));
+                                    } catch (Exception e) {
+                                        throw new RuntimeException(e);
+                                    } finally {
+                                        AdminTokenThreadLocal.remove();
+                                    }
+                                });
+                Future<?> dashboard =
+                        pool.submit(
+                                () -> {
+                                    try {
+                                        login(1);
+                                        start.await();
+                                        for (int i = 1; i <= 10; i++) {
+                                            AdminDashboardConfigResponse config =
+                                                    new AdminDashboardConfigResponse();
+                                            config.setAutoRefreshIntervalSeconds(i * 10);
+                                            new UserPreferenceService(
+                                                            ApplicationServicesFixture.settings(),
+                                                            new UserPreferenceStore(),
+                                                            AccountServicesFixture.component()
+                                                                    .permissions())
+                                                    .saveDashboard(
+                                                            AdminTokenThreadLocal.getUser(),
+                                                            config);
+                                        }
+                                    } catch (Exception e) {
+                                        throw new RuntimeException(e);
+                                    } finally {
+                                        AdminTokenThreadLocal.remove();
+                                    }
+                                });
+                start.countDown();
+                personal.get(10, TimeUnit.SECONDS);
+                dashboard.get(10, TimeUnit.SECONDS);
+                assertEquals(
+                        Integer.valueOf(10),
+                        new UserPreferenceService(
+                                        ApplicationServicesFixture.settings(),
+                                        new UserPreferenceStore(),
+                                        AccountServicesFixture.component().permissions())
+                                .effective()
+                                .articlePageSize);
+                assertEquals(
+                        Integer.valueOf(100),
+                        new UserPreferenceService(
+                                        ApplicationServicesFixture.settings(),
+                                        new UserPreferenceStore(),
+                                        AccountServicesFixture.component().permissions())
+                                .dashboard(AdminTokenThreadLocal.getUser())
+                                .getAutoRefreshIntervalSeconds());
             } finally { pool.shutdownNow(); }
         }
     }

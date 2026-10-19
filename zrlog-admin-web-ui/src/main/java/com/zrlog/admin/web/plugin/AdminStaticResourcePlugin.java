@@ -15,6 +15,8 @@ import com.zrlog.data.dto.FaviconBase64DTO;
 import com.zrlog.model.WebSite;
 import com.zrlog.util.ThreadUtils;
 
+import jakarta.inject.Inject;
+
 import java.io.File;
 import java.util.List;
 import java.util.Map;
@@ -29,6 +31,7 @@ import java.util.function.Supplier;
 import java.util.logging.Logger;
 
 public class AdminStaticResourcePlugin extends BaseLockObject implements StaticSitePlugin {
+    private final jakarta.inject.Provider<WebSite> webSiteProvider;
 
     private static final Logger LOGGER = LoggerUtil.getLogger(AdminStaticResourcePlugin.class);
 
@@ -44,8 +47,15 @@ public class AdminStaticResourcePlugin extends BaseLockObject implements StaticS
     private final ExecutorService executorService = ThreadUtils.newFixedThreadPool(20);
     private final List<File> cacheFiles = new CopyOnWriteArrayList<>();
 
+    @Inject
+    public AdminStaticResourcePlugin(
+            StaticSiteRenderer renderer,
+            Supplier<PublicWebSiteInfo> site,
+            AdminResource adminResource,
+            String contextPath,
+            jakarta.inject.Provider<WebSite> webSiteProvider) {
+        this.webSiteProvider = webSiteProvider;
 
-    public AdminStaticResourcePlugin(StaticSiteRenderer renderer, Supplier<PublicWebSiteInfo> site, AdminResource adminResource, String contextPath) {
         this.adminResource = adminResource;
         this.contextPath = contextPath;
         this.renderer = Objects.requireNonNull(renderer);
@@ -90,7 +100,7 @@ public class AdminStaticResourcePlugin extends BaseLockObject implements StaticS
     }
 
     private void copyFavicon() {
-        FaviconBase64DTO faviconBase64DTO = new WebSite().faviconBase64DTO();
+        FaviconBase64DTO faviconBase64DTO = this.webSiteProvider.get().faviconBase64DTO();
         faviconHandle(faviconBase64DTO.getFavicon_png_pwa_192_base64(), AdminConstants.FAVICON_PNG_PWA_192_URI_PATH, ResultValueConvertUtils.toBoolean(faviconBase64DTO.getGenerator_html_status()));
         faviconHandle(faviconBase64DTO.getFavicon_png_pwa_512_base64(), AdminConstants.FAVICON_PNG_PWA_512_URI_PATH, ResultValueConvertUtils.toBoolean(faviconBase64DTO.getGenerator_html_status()));
     }

@@ -4,6 +4,7 @@ import com.google.gson.JsonObject;
 import com.hibegin.http.server.api.HttpRequest;
 import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.exception.UpdateArticleExpireException;
+import com.zrlog.admin.business.knowledge.ContentToolModels.*;
 import com.zrlog.admin.business.rest.request.CreateArticleRequest;
 import com.zrlog.admin.business.rest.request.UpdateArticleRequest;
 import com.zrlog.admin.business.rest.response.CreateOrUpdateArticleResponse;
@@ -15,26 +16,58 @@ import com.zrlog.model.Tag;
 import com.zrlog.model.Type;
 import com.zrlog.util.I18nUtil;
 import com.zrlog.util.ZrLogUtil;
+
+import jakarta.inject.Inject;
+import jakarta.inject.Singleton;
+
 import java.sql.SQLException;
-import java.util.function.Consumer;
-import com.zrlog.admin.business.knowledge.ContentToolModels.*;
 import java.util.*;
+import java.util.function.Consumer;
 
 /** Content operations for tools, using the existing publishing, audit and version chain. */
+@Singleton
 public final class ContentToolService {
+    private final jakarta.inject.Provider<Tag> tagProvider;
+    private final jakarta.inject.Provider<Type> typeProvider;
+
+    private final AccountPermissionService permissionService;
+
     private final ArticlePublishingService publishing;
     private final Consumer<HttpRequest> refresh;
 
-    public ContentToolService(ArticlePublishingService publishing) { this(publishing, publishing::updateBlogCacheWithStaticSyncNotice); }
-    public ContentToolService(ArticlePublishingService publishing, Consumer<HttpRequest> refresh) {
+    @Inject
+    public ContentToolService(
+            ArticlePublishingService publishing,
+            AccountPermissionService permissionService,
+            jakarta.inject.Provider<Tag> tagProvider,
+            jakarta.inject.Provider<Type> typeProvider) {
+        this(
+                publishing,
+                publishing::updateBlogCacheWithStaticSyncNotice,
+                permissionService,
+                tagProvider,
+                typeProvider);
+    }
+
+    public ContentToolService(
+            ArticlePublishingService publishing,
+            Consumer<HttpRequest> refresh,
+            AccountPermissionService permissionService,
+            jakarta.inject.Provider<Tag> tagProvider,
+            jakarta.inject.Provider<Type> typeProvider) {
+        this.tagProvider = tagProvider;
+        this.typeProvider = typeProvider;
+
+        this.permissionService = permissionService;
+
         this.publishing = publishing;
         this.refresh = refresh;
     }
 
     public ArticleDetails details(int id, Set<String> scopes) throws SQLException {
-        AccountPermissionService.require(AccountAction.ARTICLE_READ);
-        AccountAccess account = AccountPermissionService.current();
-        Map<String,Object> row = AccountPermissionService.article(account, id, false);
+        permissionService.require(AccountAction.ARTICLE_READ);
+        AccountAccess account = permissionService.current();
+        Map<String, Object> row = permissionService.article(account, id, false);
         if (!ArticleAccess.canRead(account, scopes, number(row, "userId"), bool(row, "rubbish"), bool(row, "privacy"))) throw new PermissionErrorException();
         ArticleDetails details = new ArticleDetails();
         details.id = id; details.version = number(row, "version"); details.typeId = number(row, "typeId");
@@ -46,10 +79,21 @@ public final class ContentToolService {
     }
 
     public TaxonomyList taxonomy(boolean categories, int offset, int limit) throws SQLException {
-        AccountPermissionService.require(AccountAction.TAXONOMY_READ);
-        List<Map<String,Object>> rows = categories
-                ? new Type().queryListWithParams("select typeId,typeName,alias,remark from type order by typeId limit ? offset ?", limit + 1, offset)
-                : new Tag().queryListWithParams("select tagId,text from tag order by tagId limit ? offset ?", limit + 1, offset);
+        permissionService.require(AccountAction.TAXONOMY_READ);
+        List<Map<String, Object>> rows =
+                categories
+                        ? this.typeProvider
+                                .get()
+                                .queryListWithParams(
+                                        "select typeId,typeName,alias,remark from type order by typeId limit ? offset ?",
+                                        limit + 1,
+                                        offset)
+                        : this.tagProvider
+                                .get()
+                                .queryListWithParams(
+                                        "select tagId,text from tag order by tagId limit ? offset ?",
+                                        limit + 1,
+                                        offset);
         TaxonomyList result = new TaxonomyList();
         if (rows.size() > limit) result.nextOffset = offset + limit;
         for (Map<String,Object> row : rows.subList(0, Math.min(rows.size(), limit))) {
@@ -63,9 +107,10 @@ public final class ContentToolService {
 
     public SavedArticle save(String operation, JsonObject args, Set<String> scopes, HttpRequest request) throws SQLException {
         boolean create = operation.equals("create_article");
-        AccountPermissionService.require(create ? AccountAction.ARTICLE_CREATE : AccountAction.ARTICLE_UPDATE);
+        permissionService.require(
+                create ? AccountAction.ARTICLE_CREATE : AccountAction.ARTICLE_UPDATE);
         if (ZrLogUtil.isPreviewMode()) throw new PermissionErrorException();
-        AccountAccess account = AccountPermissionService.current();
+        AccountAccess account = permissionService.current();
         Map<String,Object> old = null;
         CreateArticleRequest body;
         int version = 0;
@@ -73,7 +118,7 @@ public final class ContentToolService {
             body = new CreateArticleRequest(); body.setRubbish(true); body.setCanComment(true); body.setEditorType("markdown");
         } else {
             int id = args.get("id").getAsInt();
-            old = AccountPermissionService.article(account, id, false);
+            old = permissionService.article(account, id, false);
             version = args.get("version").getAsInt();
             if (version != number(old, "version")) throw new UpdateArticleExpireException();
             UpdateArticleRequest update = new UpdateArticleRequest();
@@ -86,7 +131,8 @@ public final class ContentToolService {
                 old != null && bool(old, "privacy"), body.isRubbish(), body.isPrivacy())) throw new PermissionErrorException();
         body.setPreserveDraftAiMessages(true);
         body.doValid(); body.doClean();
-        if (new Type().loadById(body.getTypeId()) == null) throw invalid("admin.mcp.validation.category");
+        if (this.typeProvider.get().loadById(body.getTypeId()) == null)
+            throw invalid("admin.mcp.validation.category");
         publishing.prepareRequest(body);
         if (body.getMarkdown() != null && !body.getMarkdown().isBlank() && (body.getContent() == null || body.getContent().isBlank())) {
             throw invalid("admin.mcp.validation.htmlRequired");

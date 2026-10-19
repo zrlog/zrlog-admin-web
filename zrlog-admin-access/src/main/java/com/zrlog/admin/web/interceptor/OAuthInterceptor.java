@@ -9,6 +9,8 @@ import com.zrlog.admin.business.security.OAuthException;
 import com.zrlog.admin.business.security.OAuthModels;
 import com.zrlog.admin.business.service.OAuthService;
 
+import jakarta.inject.Inject;
+
 import java.io.ByteArrayInputStream;
 import java.net.URLDecoder;
 import java.nio.ByteBuffer;
@@ -19,7 +21,9 @@ import java.util.*;
 public class OAuthInterceptor implements HandleAbleInterceptor {
     private final OAuthService service;
 
-    public OAuthInterceptor(OAuthService service) { this.service = Objects.requireNonNull(service); }
+    @Inject
+    public OAuthInterceptor(OAuthService service) {
+        this.service = Objects.requireNonNull(service); }
     @Override public boolean isHandleAble(HttpRequest request) {
         String path = request.getUri();
         return path.startsWith("/oauth/") || path.startsWith("/.well-known/oauth-") || path.equals("/api/oauth/me");

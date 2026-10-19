@@ -1,20 +1,34 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.*;
+
 import com.google.gson.Gson;
 import com.google.gson.JsonParser;
+import com.hibegin.common.dao.DAO;
+import com.zrlog.admin.business.content.ArticleAssistant;
+import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.knowledge.KnowledgeModels;
 import com.zrlog.admin.business.knowledge.KnowledgeService;
+import com.zrlog.admin.business.rest.request.CreateArticleRequest;
+import com.zrlog.admin.business.security.DelegatedAccess;
+import com.zrlog.admin.business.security.MemberModels;
 import com.zrlog.admin.business.security.OAuthException;
 import com.zrlog.admin.business.security.PersonalTokenModels.*;
+import com.zrlog.admin.support.AccountServicesFixture;
+import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
+import com.zrlog.admin.web.token.AdminTokenThreadLocal;
+import com.zrlog.common.exception.ArgsException;
 import com.zrlog.data.security.AccountAccess;
+import com.zrlog.model.Log;
+import com.zrlog.model.LogVersion;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.util.*;
-
-import static org.junit.Assert.*;
+import java.util.stream.Collectors;
 
 @RunWith(Parameterized.class)
 public class PersonalAccessTokenServiceTest {
@@ -23,8 +37,25 @@ public class PersonalAccessTokenServiceTest {
     private final String backend;
     public PersonalAccessTokenServiceTest(String backend) { this.backend = backend; }
     private InMemoryZrLogDatabase database() throws Exception { return "webapi".equals(backend) ? InMemoryZrLogDatabase.openWebApi() : "sqlite".equals(backend) ? InMemoryZrLogDatabase.openSqlite() : InMemoryZrLogDatabase.open(); }
-    private final OAuthService oauth = new OAuthService(() -> "https://blog.example/sub", () -> true);
-    private final PersonalAccessTokenService service = new PersonalAccessTokenService(oauth.mcpResource());
+
+    private final OAuthService oauth =
+            new OAuthService(
+                    () -> "https://blog.example/sub",
+                    () -> true,
+                    AccountServicesFixture.component().permissions(),
+                    AccountServicesFixture.component().security(),
+                    tokenResource ->
+                            new PersonalAccessTokenService(
+                                    tokenResource,
+                                    AccountServicesFixture.component().permissions(),
+                                    AccountServicesFixture.component().security()),
+                    AccountServicesFixture.component().backend());
+    private final PersonalAccessTokenService service =
+            new PersonalAccessTokenService(
+                    oauth.mcpResource(),
+                    AccountServicesFixture.component().permissions(),
+                    AccountServicesFixture.component().security());
+
     private Create request(String... scopes) { Create request = new Create(); request.name = "My assistant"; request.scopes = List.of(scopes); return request; }
 
     @Test public void bindsCreationToTheLoggedInAccountAndReturnsTheSecretOnlyOnce() throws Exception {
@@ -71,11 +102,11 @@ public class PersonalAccessTokenServiceTest {
             assertThrows(OAuthException.class, () -> service.create(request("articles:read_private")));
             for (int days : List.of(-1, 0, 1, 365, Integer.MAX_VALUE)) {
                 Create invalid = request("articles:read"); invalid.expiresInDays = days;
-                assertThrows(com.zrlog.common.exception.ArgsException.class, () -> service.create(invalid));
+                assertThrows(ArgsException.class, () -> service.create(invalid));
             }
             for (String name : Arrays.asList(null, " ", "line\nbreak", "x".repeat(129))) {
                 Create invalid = request("articles:read"); invalid.name = name;
-                assertThrows(com.zrlog.common.exception.ArgsException.class, () -> service.create(invalid));
+                assertThrows(ArgsException.class, () -> service.create(invalid));
             }
             assertEquals(0L, ((Number) db.scalar("select count(*) from user_access_token")).longValue());
             AccountAuthorizationTest.login(db, 1, "author");
@@ -130,8 +161,11 @@ public class PersonalAccessTokenServiceTest {
             assertEquals(Set.of("articles:read", "articles:read_drafts", "articles:read_private", "articles:all"), new HashSet<>(identity.scopes));
             assertEquals(identity.scopes, oauth.authenticate(limited.token, oauth.mcpResource(), Set.of("articles:read")).scopes);
             Created inherited = service.create(general("inherit"));
-            assertEquals(PersonalAccessTokenService.availablePermissions(AccountPermissionService.current()),
-                    oauth.authenticate(inherited.token, oauth.adminResource(), Set.of()).permissions);
+            assertEquals(
+                    PersonalAccessTokenService.availablePermissions(
+                            AccountServicesFixture.component().permissions().current()),
+                    oauth.authenticate(inherited.token, oauth.adminResource(), Set.of())
+                            .permissions);
             Created legacy = service.create(request("articles:read"));
             assertEquals(401, assertThrows(OAuthException.class, () -> oauth.authenticate(legacy.token, oauth.adminResource(), Set.of())).getStatus());
             assertThrows(OAuthException.class, () -> service.create(general("custom", "unknown.action")));
@@ -147,29 +181,105 @@ public class PersonalAccessTokenServiceTest {
             AccountAuthorizationTest.login(db, 1, "owner");
             Created token = service.create(general("custom", "article.create", "oauth.grant.manage", "member.manage"));
             var identity = oauth.authenticate(token.token, oauth.adminResource(), Set.of());
-            com.zrlog.admin.business.security.DelegatedAccess.withPermissions(java.util.Set.copyOf(identity.permissions), "inherit".equals(identity.permissionMode), () -> {
-                assertFalse(AccountPermissionService.current().canPublish());
-                assertThrows(OAuthException.class, () -> service.create(general("inherit")));
-                assertThrows(OAuthException.class, () -> service.create(general("custom", "site.configure")));
-                assertEquals(List.of("article.create"), service.create(general("custom", "article.create")).info.permissions);
-                var create = new com.zrlog.admin.business.rest.request.CreateArticleRequest();
-                create.setTitle("No publication"); create.setContent("body"); create.setTypeId(1L); create.setRubbish(false);
-                assertThrows(com.zrlog.admin.business.exception.PermissionErrorException.class, () -> new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(db.config(), com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(db.resources()))).create(com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser(), create));
-                var member = new com.zrlog.admin.business.security.MemberModels.Create();
-                member.userName = "limited"; member.password = "long-password-123"; member.role = "admin";
-                assertThrows(com.zrlog.admin.business.exception.PermissionErrorException.class, () -> new MemberService().create(member));
-                return null;
-            });
-            assertTrue(AccountPermissionService.current().canPublish());
+            DelegatedAccess.withPermissions(
+                    java.util.Set.copyOf(identity.permissions),
+                    "inherit".equals(identity.permissionMode),
+                    () -> {
+                        assertFalse(
+                                AccountServicesFixture.component()
+                                        .permissions()
+                                        .current()
+                                        .canPublish());
+                        assertThrows(
+                                OAuthException.class, () -> service.create(general("inherit")));
+                        assertThrows(
+                                OAuthException.class,
+                                () -> service.create(general("custom", "site.configure")));
+                        assertEquals(
+                                List.of("article.create"),
+                                service.create(general("custom", "article.create"))
+                                        .info
+                                        .permissions);
+                        var create = new CreateArticleRequest();
+                        create.setTitle("No publication");
+                        create.setContent("body");
+                        create.setTypeId(1L);
+                        create.setRubbish(false);
+                        assertThrows(
+                                PermissionErrorException.class,
+                                () ->
+                                        new AdminArticleService(
+                                                        db.cacheService(),
+                                                        ApplicationServicesFixture.capability(
+                                                                db.config(),
+                                                                ArticleAssistant.class),
+                                                        new AdminPageDataFactory(
+                                                                ApplicationServicesFixture.site(
+                                                                        db.config()),
+                                                                ApplicationServicesFixture.buildId(
+                                                                        db.resources()),
+                                                                ApplicationServicesFixture
+                                                                        .messages(),
+                                                                AccountServicesFixture.component()
+                                                                        .permissions()),
+                                                        AccountServicesFixture.component()
+                                                                .permissions(),
+                                                        AccountServicesFixture.component()
+                                                                .preferences(),
+                                                        new ArticleVersionService(
+                                                                AccountServicesFixture.component()
+                                                                        .permissions(),
+                                                                Log::new,
+                                                                () ->
+                                                                        new LogVersion(
+                                                                                DAO
+                                                                                        .getDefaultDataSource())),
+                                                        new ArticlePinningService(
+                                                                Log::new,
+                                                                ApplicationServicesFixture.locks()),
+                                                        Log::new,
+                                                        ApplicationServicesFixture.locks())
+                                                .create(AdminTokenThreadLocal.getUser(), create));
+                        var member = new MemberModels.Create();
+                        member.userName = "limited";
+                        member.password = "long-password-123";
+                        member.role = "admin";
+                        assertThrows(
+                                PermissionErrorException.class,
+                                () ->
+                                        new MemberService(
+                                                        AccountServicesFixture.component()
+                                                                .security(),
+                                                        AccountServicesFixture.component().users(),
+                                                        AccountServicesFixture.component()
+                                                                .permissions())
+                                                .create(member));
+                        return null;
+                    });
+            assertTrue(AccountServicesFixture.component().permissions().current().canPublish());
         }
     }
     private List<Long> hits(String token) throws Exception {
         var identity = oauth.authenticate(token, oauth.mcpResource(), Set.of("articles:read"));
-        KnowledgeService knowledge = new KnowledgeService(() -> {
-            try { return AccountAccess.load(oauth.authenticate(token, oauth.mcpResource(), Set.of("articles:read")).userId); }
-            catch (java.sql.SQLException e) { throw new RuntimeException(e); }
-        }, new HashSet<>(identity.scopes), () -> "https://blog.example/sub", () -> false);
+        KnowledgeService knowledge =
+                new KnowledgeService(
+                        () -> {
+                            try {
+                                return AccountAccess.load(
+                                        oauth.authenticate(
+                                                        token,
+                                                        oauth.mcpResource(),
+                                                        Set.of("articles:read"))
+                                                .userId);
+                            } catch (java.sql.SQLException e) {
+                                throw new RuntimeException(e);
+                            }
+                        },
+                        new HashSet<>(identity.scopes),
+                        () -> "https://blog.example/sub",
+                        () -> false,
+                        Log::new);
         KnowledgeModels.SearchResult result = (KnowledgeModels.SearchResult) knowledge.call("search_articles", JsonParser.parseString("{}").getAsJsonObject());
-        return result.articles.stream().map(hit -> hit.id).collect(java.util.stream.Collectors.toList());
+        return result.articles.stream().map(hit -> hit.id).collect(Collectors.toList());
     }
 }

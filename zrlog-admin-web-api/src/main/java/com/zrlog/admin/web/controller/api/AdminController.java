@@ -3,9 +3,11 @@ package com.zrlog.admin.web.controller.api;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.RequestMethod;
 import com.hibegin.http.annotation.ResponseBody;
+import com.zrlog.admin.business.rest.request.AdminDashboardConfigRequest;
 import com.zrlog.admin.business.rest.request.FirstUseChecklistRequest;
 import com.zrlog.admin.business.rest.response.*;
 import com.zrlog.admin.business.service.*;
+import com.zrlog.admin.business.service.AdminAuditService;
 import com.zrlog.admin.business.service.AdminPageDataFactory;
 import com.zrlog.admin.business.type.AdminAuditAction;
 import com.zrlog.admin.web.annotation.RefreshCache;
@@ -17,16 +19,26 @@ import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.I18nUtil;
 
+import jakarta.inject.Inject;
+
 import java.sql.SQLException;
 import java.util.*;
 
 public class AdminController extends BaseController {
+    private final AdminAuditService adminAuditService;
+
     private final AdminPageDataFactory pages;
 
 
     private final AdminDashboardService dashboardService;
 
-    public AdminController(AdminDashboardService dashboardService, AdminPageDataFactory pages) {
+    @Inject
+    public AdminController(
+            AdminDashboardService dashboardService,
+            AdminPageDataFactory pages,
+            AdminAuditService adminAuditService) {
+        this.adminAuditService = adminAuditService;
+
         this.pages = pages;
         this.dashboardService = dashboardService;
     }
@@ -38,7 +50,7 @@ public class AdminController extends BaseController {
     @RefreshCache(updateStaticSites = {StaticSiteType.ADMIN, StaticSiteType.BLOG})
     @RequiresAction(value = AccountAction.SYSTEM_MANAGE, descriptionKey = "system.refreshCache")
     public UpdateRecordResponse refreshCache() {
-        new AdminAuditService().record(request, AdminAuditAction.REFRESH_CACHE);
+        this.adminAuditService.record(request, AdminAuditAction.REFRESH_CACHE);
         return new UpdateRecordResponse();
     }
 
@@ -68,10 +80,12 @@ public class AdminController extends BaseController {
         AdminDashboardConfigResponse config;
         String message = "";
         if (request.getMethod() == HttpMethod.POST) {
-            config = dashboardService.saveConfig(
-                    getRequestBodyWithNullCheck(com.zrlog.admin.business.rest.request.AdminDashboardConfigRequest.class),
-                    request, AdminTokenThreadLocal.getUser());
-            new AdminAuditService().record(request, AdminAuditAction.UPDATE_DASHBOARD_CONFIG);
+            config =
+                    dashboardService.saveConfig(
+                            getRequestBodyWithNullCheck(AdminDashboardConfigRequest.class),
+                            request,
+                            AdminTokenThreadLocal.getUser());
+            this.adminAuditService.record(request, AdminAuditAction.UPDATE_DASHBOARD_CONFIG);
             message = I18nUtil.getAdminBackendStringFromRes("admin.common.update.success");
         } else {
             config = dashboardService.getConfig(request, AdminTokenThreadLocal.getUser());

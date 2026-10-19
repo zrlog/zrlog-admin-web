@@ -1,15 +1,25 @@
 package com.zrlog.admin.web.controller.api;
 
+import static org.junit.Assert.*;
+
 import com.google.gson.Gson;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
 import com.hibegin.http.server.web.Controller;
+import com.zrlog.admin.business.exception.AbstractAdminBusinessException;
 import com.zrlog.admin.business.security.OAuthException;
 import com.zrlog.admin.business.security.OAuthModels;
+import com.zrlog.admin.business.service.AdminPageDataFactory;
 import com.zrlog.admin.business.service.OAuthService;
+import com.zrlog.admin.business.service.PersonalAccessTokenService;
+import com.zrlog.admin.support.AccountServicesFixture;
+import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
+import com.zrlog.admin.web.McpWebSetup;
 import com.zrlog.admin.web.interceptor.OAuthInterceptor;
+import com.zrlog.common.ZrLogConfig;
+
 import org.junit.Test;
 import org.junit.function.ThrowingRunnable;
 
@@ -22,11 +32,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static org.junit.Assert.*;
-
 public class AdminOriginControllerTest {
 
-    private com.zrlog.common.ZrLogConfig applicationConfig;
+    private ZrLogConfig applicationConfig;
     private static final String FRONTEND = "https://admin.example";
 
     private void configure(InMemoryZrLogDatabase db) throws Exception {
@@ -38,7 +46,18 @@ public class AdminOriginControllerTest {
         try (var db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
             configure(db);
-            OAuthService service = new OAuthService(com.zrlog.admin.support.ApplicationServicesFixture.backend(db.config())::configured, com.zrlog.admin.support.ApplicationServicesFixture.available(db.config(), com.zrlog.admin.web.McpWebSetup.class));
+            OAuthService service =
+                    new OAuthService(
+                            ApplicationServicesFixture.backend(db.config())::configured,
+                            ApplicationServicesFixture.available(db.config(), McpWebSetup.class),
+                            AccountServicesFixture.component().permissions(),
+                            AccountServicesFixture.component().security(),
+                            tokenResource ->
+                                    new PersonalAccessTokenService(
+                                            tokenResource,
+                                            AccountServicesFixture.component().permissions(),
+                                            AccountServicesFixture.component().security()),
+                            AccountServicesFixture.component().backend());
             var client = oauth(FRONTEND, Map.of("name", "Static admin application",
                     "redirectUris", List.of("https://client.example/callback"))).register().getData();
             assertNotNull(client.clientId);
@@ -83,11 +102,53 @@ public class AdminOriginControllerTest {
         try (var db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
             configure(db);
-            var member = controller(new MemberController(com.zrlog.admin.support.ApplicationServicesFixture.backend(db.config()), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(db.resources()))), FRONTEND, Map.of("userName", "writer",
-                    "password", "test-member-password", "role", "author")).create().getData();
+            var member =
+                    controller(
+                                    new MemberController(
+                                            ApplicationServicesFixture.backend(db.config()),
+                                            new AdminPageDataFactory(
+                                                    ApplicationServicesFixture.site(db.config()),
+                                                    ApplicationServicesFixture.buildId(
+                                                            db.resources()),
+                                                    ApplicationServicesFixture.messages(),
+                                                    AccountServicesFixture.component()
+                                                            .permissions()),
+                                            AccountServicesFixture.component().members(),
+                                            ApplicationServicesFixture.audit()),
+                                    FRONTEND,
+                                    Map.of(
+                                            "userName",
+                                            "writer",
+                                            "password",
+                                            "test-member-password",
+                                            "role",
+                                            "author"))
+                            .create()
+                            .getData();
             assertEquals("author", member.role);
-            var updated = controller(new MemberController(com.zrlog.admin.support.ApplicationServicesFixture.backend(db.config()), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(db.resources()))), FRONTEND, Map.of("userId", member.userId,
-                    "role", "contributor", "enabled", false)).update().getData();
+            var updated =
+                    controller(
+                                    new MemberController(
+                                            ApplicationServicesFixture.backend(db.config()),
+                                            new AdminPageDataFactory(
+                                                    ApplicationServicesFixture.site(db.config()),
+                                                    ApplicationServicesFixture.buildId(
+                                                            db.resources()),
+                                                    ApplicationServicesFixture.messages(),
+                                                    AccountServicesFixture.component()
+                                                            .permissions()),
+                                            AccountServicesFixture.component().members(),
+                                            ApplicationServicesFixture.audit()),
+                                    FRONTEND,
+                                    Map.of(
+                                            "userId",
+                                            member.userId,
+                                            "role",
+                                            "contributor",
+                                            "enabled",
+                                            false))
+                            .update()
+                            .getData();
             assertEquals("contributor", updated.role);
             assertFalse(updated.enabled);
         }
@@ -99,11 +160,23 @@ public class AdminOriginControllerTest {
             configure(db);
             for (String origin : List.of("https://evil.example", "https://admin.example.evil.example")) {
                 var oauth = oauth(origin, Map.of());
-                var members = controller(new MemberController(com.zrlog.admin.support.ApplicationServicesFixture.backend(db.config()), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(db.resources()))), origin, Map.of());
+                var members =
+                        controller(
+                                new MemberController(
+                                        ApplicationServicesFixture.backend(db.config()),
+                                        new AdminPageDataFactory(
+                                                ApplicationServicesFixture.site(db.config()),
+                                                ApplicationServicesFixture.buildId(db.resources()),
+                                                ApplicationServicesFixture.messages(),
+                                                AccountServicesFixture.component().permissions()),
+                                        AccountServicesFixture.component().members(),
+                                        ApplicationServicesFixture.audit()),
+                                origin,
+                                Map.of());
                 for (ThrowingRunnable action : List.<ThrowingRunnable>of(oauth::register, oauth::decide,
                         oauth::revokeGrant, oauth::createPersonalToken, oauth::revokePersonalToken,
                         oauth::disableClient, members::create, members::update, members::transfer)) {
-                    var error = assertThrows(com.zrlog.admin.business.exception.AbstractAdminBusinessException.class, action);
+                    var error = assertThrows(AbstractAdminBusinessException.class, action);
                     var legacy = new OAuthException("access_denied", 403);
                     assertEquals(legacy.getError(), error.getError());
                     assertEquals(legacy.getErrorCode(), error.getErrorCode());
@@ -117,7 +190,33 @@ public class AdminOriginControllerTest {
     }
 
     private OAuthAdminController oauth(String origin, Object body) throws Exception {
-        return controller(new OAuthAdminController(new com.zrlog.admin.business.service.OAuthService(com.zrlog.admin.support.ApplicationServicesFixture.backend(applicationConfig)::configured, com.zrlog.admin.support.ApplicationServicesFixture.available(applicationConfig, com.zrlog.admin.web.McpWebSetup.class)), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), () -> "test")), origin, body);
+        return controller(
+                new OAuthAdminController(
+                        new OAuthService(
+                                ApplicationServicesFixture.backend(applicationConfig)::configured,
+                                ApplicationServicesFixture.available(
+                                        applicationConfig, McpWebSetup.class),
+                                AccountServicesFixture.component().permissions(),
+                                AccountServicesFixture.component().security(),
+                                tokenResource ->
+                                        new PersonalAccessTokenService(
+                                                tokenResource,
+                                                AccountServicesFixture.component().permissions(),
+                                                AccountServicesFixture.component().security()),
+                                AccountServicesFixture.component().backend()),
+                        new AdminPageDataFactory(
+                                ApplicationServicesFixture.site(applicationConfig),
+                                () -> "test",
+                                ApplicationServicesFixture.messages(),
+                                AccountServicesFixture.component().permissions()),
+                        ApplicationServicesFixture.audit(),
+                        resource ->
+                                new PersonalAccessTokenService(
+                                        resource,
+                                        AccountServicesFixture.component().permissions(),
+                                        AccountServicesFixture.component().security())),
+                origin,
+                body);
     }
 
     private <T extends Controller> T controller(T controller, String origin, Object body) throws Exception {

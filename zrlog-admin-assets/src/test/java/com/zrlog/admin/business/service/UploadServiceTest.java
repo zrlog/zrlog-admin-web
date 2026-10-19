@@ -1,9 +1,18 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.util.PathUtil;
 import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.rest.response.UploadFileResponse;
+import com.zrlog.admin.support.AccountServicesFixture;
+import com.zrlog.admin.support.ApplicationServicesFixture;
+import com.zrlog.model.WebSite;
+
 import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
@@ -13,11 +22,6 @@ import java.io.File;
 import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
 
 public class UploadServiceTest {
 
@@ -37,8 +41,13 @@ public class UploadServiceTest {
 
     @Test
     public void shouldFallbackToLocalUrlWhenPluginCoreIsUnavailable() {
-        UploadFileResponse response = new UploadService(() -> null).getCloudUrl(
-                "/attached/a.png", "/tmp/a.png", request("/blog"), null);
+        UploadFileResponse response =
+                new UploadService(
+                                () -> null,
+                                AccountServicesFixture.component().permissions(),
+                                new DbFileService(
+                                        ApplicationServicesFixture.websiteKv(), WebSite::new))
+                        .getCloudUrl("/attached/a.png", "/tmp/a.png", request("/blog"), null);
 
         assertEquals("/blog/attached/a.png", response.getUrl());
     }
@@ -47,8 +56,18 @@ public class UploadServiceTest {
     public void shouldSaveBytesWithNormalizedExtension() throws Exception {
         withRootPath();
 
-        UploadFileResponse response = new UploadService(() -> null).saveBytes(
-                "hello".getBytes(StandardCharsets.UTF_8), "", "image", request("/blog"), null);
+        UploadFileResponse response =
+                new UploadService(
+                                () -> null,
+                                AccountServicesFixture.component().permissions(),
+                                new DbFileService(
+                                        ApplicationServicesFixture.websiteKv(), WebSite::new))
+                        .saveBytes(
+                                "hello".getBytes(StandardCharsets.UTF_8),
+                                "",
+                                "image",
+                                request("/blog"),
+                                null);
         String uri = response.getUrl().substring("/blog".length());
         File file = PathUtil.getStaticFile(uri);
 
@@ -61,8 +80,14 @@ public class UploadServiceTest {
     public void shouldSaveThumbnailBytesWithStableMd5Name() throws Exception {
         withRootPath();
 
-        UploadFileResponse response = new UploadService(() -> null).saveThumbnailBytes(
-                "abc".getBytes(StandardCharsets.UTF_8), "jpg", request(""), null);
+        UploadFileResponse response =
+                new UploadService(
+                                () -> null,
+                                AccountServicesFixture.component().permissions(),
+                                new DbFileService(
+                                        ApplicationServicesFixture.websiteKv(), WebSite::new))
+                        .saveThumbnailBytes(
+                                "abc".getBytes(StandardCharsets.UTF_8), "jpg", request(""), null);
         String uri = response.getUrl();
         File file = PathUtil.getStaticFile(uri);
 
@@ -74,7 +99,11 @@ public class UploadServiceTest {
 
     @Test
     public void shouldNormalizeExtensions() throws Exception {
-        UploadService service = new UploadService(() -> null);
+        UploadService service =
+                new UploadService(
+                        () -> null,
+                        AccountServicesFixture.component().permissions(),
+                        new DbFileService(ApplicationServicesFixture.websiteKv(), WebSite::new));
 
         assertEquals("png", service.normalizeExtension(null));
         assertEquals("png", service.normalizeExtension(" "));
@@ -83,7 +112,11 @@ public class UploadServiceTest {
 
     @Test
     public void shouldNormalizeTemporaryUploadDirectories() throws Exception {
-        UploadService service = new UploadService(() -> null);
+        UploadService service =
+                new UploadService(
+                        () -> null,
+                        AccountServicesFixture.component().permissions(),
+                        new DbFileService(ApplicationServicesFixture.websiteKv(), WebSite::new));
 
         assertEquals("/", service.normalizeTemporaryDir(AdminConstants.ADMIN_DB_ATTACHED_TMP));
         assertEquals("/", service.normalizeTemporaryDir(AdminConstants.ADMIN_DB_ATTACHED_TMP + "/"));
@@ -97,7 +130,11 @@ public class UploadServiceTest {
     public void shouldBuildTemporaryUriUnderAdminDbAttachmentRoot() throws Exception {
         File file = temporaryFolder.newFile("cover.PNG");
         Files.writeString(file.toPath(), "image", StandardCharsets.UTF_8);
-        UploadService service = new UploadService(() -> null);
+        UploadService service =
+                new UploadService(
+                        () -> null,
+                        AccountServicesFixture.component().permissions(),
+                        new DbFileService(ApplicationServicesFixture.websiteKv(), WebSite::new));
 
         String rootUri = service.buildTemporaryUri(AdminConstants.ADMIN_DB_ATTACHED_TMP, file);
         String nestedUri = service.buildTemporaryUri(AdminConstants.ADMIN_DB_ATTACHED_TMP + "/article-cover", file);

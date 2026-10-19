@@ -1,21 +1,26 @@
 package com.zrlog.admin.business.service;
 
-import com.google.gson.Gson;
-import com.zrlog.admin.business.rest.response.MessageCenterStatusResponse;
-import com.zrlog.admin.support.InMemoryZrLogDatabase;
-import org.junit.Test;
-
-import java.util.Map;
-
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+
+import com.google.gson.Gson;
+import com.zrlog.admin.business.rest.response.MessageCenterStatusResponse;
+import com.zrlog.admin.support.ApplicationServicesFixture;
+import com.zrlog.admin.support.InMemoryZrLogDatabase;
+import com.zrlog.model.WebSite;
+
+import org.junit.Test;
+
+import java.util.Map;
 
 public class MessageCenterStateServiceTest {
 
     @Test
     public void shouldParseStoredStatusAndFallbackForInvalidValues() throws Exception {
-        MessageCenterStateService service = new MessageCenterStateService();
+        MessageCenterStateService service =
+                new MessageCenterStateService(
+                        ApplicationServicesFixture.websiteCache(), WebSite::new);
 
         MessageCenterStatusResponse empty = service.parseStatus("");
         MessageCenterStatusResponse invalid = service.parseStatus("{bad-json");
@@ -31,7 +36,9 @@ public class MessageCenterStateServiceTest {
 
     @Test
     public void shouldCompareStatusValues() throws Exception {
-        MessageCenterStateService service = new MessageCenterStateService();
+        MessageCenterStateService service =
+                new MessageCenterStateService(
+                        ApplicationServicesFixture.websiteCache(), WebSite::new);
 
         assertTrue(service.sameStatus(
                 new MessageCenterStatusResponse(7L, true),
@@ -46,7 +53,9 @@ public class MessageCenterStateServiceTest {
 
     @Test
     public void shouldGenerateMonotonicNextRevision() throws Exception {
-        MessageCenterStateService service = new MessageCenterStateService();
+        MessageCenterStateService service =
+                new MessageCenterStateService(
+                        ApplicationServicesFixture.websiteCache(), WebSite::new);
         long now = System.currentTimeMillis();
 
         long fromPast = service.nextRevision(now - 10_000);
@@ -59,7 +68,9 @@ public class MessageCenterStateServiceTest {
     @Test
     public void shouldPersistAndSynchronizeStatusThroughWebsiteCache() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-            MessageCenterStateService service = new MessageCenterStateService();
+            MessageCenterStateService service =
+                    new MessageCenterStateService(
+                            ApplicationServicesFixture.websiteCache(), WebSite::new);
 
             service.markMayHaveUnread();
             MessageCenterStatusResponse unread = service.current();

@@ -1,8 +1,27 @@
 package com.zrlog.admin.util;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
+import com.hibegin.common.dao.DAO;
 import com.hibegin.http.server.api.HttpResponse;
+import com.zrlog.admin.business.content.ArticleAssistant;
+import com.zrlog.admin.business.exception.PermissionErrorException;
+import com.zrlog.admin.business.exception.UpdateArticleExpireException;
+import com.zrlog.admin.business.rest.request.CreateArticleRequest;
+import com.zrlog.admin.business.security.DelegatedAccess;
+import com.zrlog.admin.business.security.OAuthModels;
 import com.zrlog.admin.business.service.AdminArticleService;
+import com.zrlog.admin.business.service.AdminPageDataFactory;
+import com.zrlog.admin.business.service.ArticlePinningService;
+import com.zrlog.admin.business.service.ArticleVersionService;
+import com.zrlog.admin.support.AccountServicesFixture;
+import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
+import com.zrlog.admin.web.token.AdminTokenThreadLocal;
+import com.zrlog.model.Log;
+import com.zrlog.model.LogVersion;
+
 import org.junit.Test;
 
 import java.io.ByteArrayOutputStream;
@@ -11,9 +30,6 @@ import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 
 public class AdminSseEmitterTest {
 
@@ -51,9 +67,13 @@ public class AdminSseEmitterTest {
     @Test
     public void shouldPreserveBusinessErrorCodeBeforeArticleIsSaved() throws Exception {
         CapturedResponse response = new CapturedResponse();
-        AdminSseEmitter.write(response.response(), "publish-conflict", "publish-error", emitter -> {
-            throw new com.zrlog.admin.business.exception.UpdateArticleExpireException();
-        });
+        AdminSseEmitter.write(
+                response.response(),
+                "publish-conflict",
+                "publish-error",
+                emitter -> {
+                    throw new UpdateArticleExpireException();
+                });
         String body = response.body();
         assertTrue(body.contains("event: publish-error"));
         assertTrue(body.contains("\"error\":9094"));
@@ -64,21 +84,77 @@ public class AdminSseEmitterTest {
     @Test public void sseWorkerCannotLoseDelegatedPublicationRestrictions() throws Exception {
         try (var db = InMemoryZrLogDatabase.open()) {
             CapturedResponse response = new CapturedResponse();
-            var identity = new com.zrlog.admin.business.security.OAuthModels.Identity();
+            var identity = new OAuthModels.Identity();
             identity.permissions = java.util.List.of("article.create"); identity.permissionMode = "custom";
-            com.zrlog.admin.business.security.DelegatedAccess.withPermissions(java.util.Set.copyOf(identity.permissions), "inherit".equals(identity.permissionMode), () -> {
-                AdminSseEmitter.write(response.response(), "restricted-publish", emitter -> {
-                    var request = new com.zrlog.admin.business.rest.request.CreateArticleRequest();
-                    request.setTitle("Must not publish"); request.setTypeId(1L); request.setRubbish(false); request.setContent("content");
-                    org.junit.Assert.assertThrows(com.zrlog.admin.business.exception.PermissionErrorException.class,
-                            () -> new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(db.config(), com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(db.resources()))).create(com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser(), request));
-                    emitter.send("checked", true);
-                });
-                return null;
-            });
+            DelegatedAccess.withPermissions(
+                    java.util.Set.copyOf(identity.permissions),
+                    "inherit".equals(identity.permissionMode),
+                    () -> {
+                        AdminSseEmitter.write(
+                                response.response(),
+                                "restricted-publish",
+                                emitter -> {
+                                    var request = new CreateArticleRequest();
+                                    request.setTitle("Must not publish");
+                                    request.setTypeId(1L);
+                                    request.setRubbish(false);
+                                    request.setContent("content");
+                                    org.junit.Assert.assertThrows(
+                                            PermissionErrorException.class,
+                                            () ->
+                                                    new AdminArticleService(
+                                                                    db.cacheService(),
+                                                                    ApplicationServicesFixture
+                                                                            .capability(
+                                                                                    db.config(),
+                                                                                    ArticleAssistant
+                                                                                            .class),
+                                                                    new AdminPageDataFactory(
+                                                                            ApplicationServicesFixture
+                                                                                    .site(
+                                                                                            db
+                                                                                                    .config()),
+                                                                            ApplicationServicesFixture
+                                                                                    .buildId(
+                                                                                            db
+                                                                                                    .resources()),
+                                                                            ApplicationServicesFixture
+                                                                                    .messages(),
+                                                                            AccountServicesFixture
+                                                                                    .component()
+                                                                                    .permissions()),
+                                                                    AccountServicesFixture
+                                                                            .component()
+                                                                            .permissions(),
+                                                                    AccountServicesFixture
+                                                                            .component()
+                                                                            .preferences(),
+                                                                    new ArticleVersionService(
+                                                                            AccountServicesFixture
+                                                                                    .component()
+                                                                                    .permissions(),
+                                                                            Log::new,
+                                                                            () ->
+                                                                                    new LogVersion(
+                                                                                            DAO
+                                                                                                    .getDefaultDataSource())),
+                                                                    new ArticlePinningService(
+                                                                            Log::new,
+                                                                            ApplicationServicesFixture
+                                                                                    .locks()),
+                                                                    Log::new,
+                                                                    ApplicationServicesFixture
+                                                                            .locks())
+                                                            .create(
+                                                                    AdminTokenThreadLocal.getUser(),
+                                                                    request));
+                                    emitter.send("checked", true);
+                                });
+                        return null;
+                    });
             assertTrue(response.body().contains("event: checked"));
-            org.junit.Assert.assertFalse(com.zrlog.admin.business.security.DelegatedAccess.active());
-            assertTrue(com.zrlog.admin.business.service.AccountPermissionService.current().canPublish());
+            org.junit.Assert.assertFalse(DelegatedAccess.active());
+            assertTrue(AccountServicesFixture.component().permissions().current().canPublish());
         }
     }
 

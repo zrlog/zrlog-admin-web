@@ -8,6 +8,9 @@ import com.zrlog.common.CacheService;
 import com.zrlog.model.Comment;
 import com.zrlog.model.Log;
 
+import jakarta.inject.Inject;
+import jakarta.inject.Singleton;
+
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -19,12 +22,26 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.logging.Logger;
 
+@Singleton
 public class AdminStatisticsService {
+    private final AdminAuditService adminAuditService;
+    private final jakarta.inject.Provider<Log> logProvider;
+    private final jakarta.inject.Provider<Comment> commentProvider;
 
     private final CacheService cacheService;
     private final SystemInfoUtils systemInfo;
 
-    public AdminStatisticsService(CacheService cacheService, SystemInfoUtils systemInfo) {
+    @Inject
+    public AdminStatisticsService(
+            CacheService cacheService,
+            SystemInfoUtils systemInfo,
+            AdminAuditService adminAuditService,
+            jakarta.inject.Provider<Log> logProvider,
+            jakarta.inject.Provider<Comment> commentProvider) {
+        this.adminAuditService = adminAuditService;
+        this.logProvider = logProvider;
+        this.commentProvider = commentProvider;
+
         this.cacheService = cacheService;
         this.systemInfo = systemInfo;
     }
@@ -36,45 +53,66 @@ public class AdminStatisticsService {
     }
 
     public CompletableFuture<StatisticsInfoResponse> statisticsInfo(Executor executor, boolean includeAuditLogs) {
-        return CompletableFuture.supplyAsync(() -> {
-            StatisticsInfoResponse info = new StatisticsInfoResponse();
-            List<CompletableFuture<Void>> futures = new ArrayList<>();
-            futures.add(CompletableFuture.runAsync(() -> {
-                info.setTypeData(cacheService.getArticleTypes());
-            }, executor));
-            futures.add(CompletableFuture.runAsync(() -> {
-                info.setTagData(cacheService.getTags());
-            }, executor));
-            futures.add(CompletableFuture.runAsync(() -> fillCommentCounts(info), executor));
-            futures.add(CompletableFuture.runAsync(() -> fillArticleCounts(info), executor));
-            if (includeAuditLogs) {
-                futures.add(CompletableFuture.runAsync(() -> {
-                    info.setAuditLogs(new AdminAuditService().getRecentLogs());
-                }, executor));
-            }
-            futures.add(CompletableFuture.runAsync(() -> {
-                List<ServerInfo> serverInfos = systemInfo.systemIOInfoVO();
-                for (ServerInfo serverInfo : serverInfos) {
-                    if ("usedCacheSpace".equals(serverInfo.getKey())) {
-                        info.setUsedCacheSpace(serverInfo.getValue());
+        return CompletableFuture.supplyAsync(
+                () -> {
+                    StatisticsInfoResponse info = new StatisticsInfoResponse();
+                    List<CompletableFuture<Void>> futures = new ArrayList<>();
+                    futures.add(
+                            CompletableFuture.runAsync(
+                                    () -> {
+                                        info.setTypeData(cacheService.getArticleTypes());
+                                    },
+                                    executor));
+                    futures.add(
+                            CompletableFuture.runAsync(
+                                    () -> {
+                                        info.setTagData(cacheService.getTags());
+                                    },
+                                    executor));
+                    futures.add(
+                            CompletableFuture.runAsync(() -> fillCommentCounts(info), executor));
+                    futures.add(
+                            CompletableFuture.runAsync(() -> fillArticleCounts(info), executor));
+                    if (includeAuditLogs) {
+                        futures.add(
+                                CompletableFuture.runAsync(
+                                        () -> {
+                                            info.setAuditLogs(
+                                                    this.adminAuditService.getRecentLogs());
+                                        },
+                                        executor));
                     }
-                    if ("usedDiskSpace".equals(serverInfo.getKey())) {
-                        info.setUsedDiskSpace(serverInfo.getValue());
-                    }
-                }
-            }, executor));
-            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
-            return info;
-        }, executor);
+                    futures.add(
+                            CompletableFuture.runAsync(
+                                    () -> {
+                                        List<ServerInfo> serverInfos = systemInfo.systemIOInfoVO();
+                                        for (ServerInfo serverInfo : serverInfos) {
+                                            if ("usedCacheSpace".equals(serverInfo.getKey())) {
+                                                info.setUsedCacheSpace(serverInfo.getValue());
+                                            }
+                                            if ("usedDiskSpace".equals(serverInfo.getKey())) {
+                                                info.setUsedDiskSpace(serverInfo.getValue());
+                                            }
+                                        }
+                                    },
+                                    executor));
+                    CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+                    return info;
+                },
+                executor);
     }
 
     private void fillCommentCounts(StatisticsInfoResponse info) {
         try {
-            Map<String, Object> row = new Comment().queryFirstWithParams(
-                    "SELECT count(1) AS totalCount,"
-                            + "SUM(CASE WHEN commTime > ? THEN 1 ELSE 0 END) AS todayCount "
-                            + "FROM " + Comment.TABLE_NAME,
-                    new SimpleDateFormat("yyyy-MM-dd").format(new Date()));
+            Map<String, Object> row =
+                    this.commentProvider
+                            .get()
+                            .queryFirstWithParams(
+                                    "SELECT count(1) AS totalCount,"
+                                            + "SUM(CASE WHEN commTime > ? THEN 1 ELSE 0 END) AS todayCount "
+                                            + "FROM "
+                                            + Comment.TABLE_NAME,
+                                    new SimpleDateFormat("yyyy-MM-dd").format(new Date()));
             info.setCommCount(toLong(row, "totalCount"));
             info.setToDayCommCount(toLong(row, "todayCount"));
         } catch (SQLException e) {
@@ -86,18 +124,26 @@ public class AdminStatisticsService {
 
     private void fillArticleCounts(StatisticsInfoResponse info) {
         try {
-            Map<String, Object> row = new Log().queryFirstWithParams(
-                    "SELECT "
-                            + "count(1) AS totalCount,"
-                            + "SUM(CASE WHEN l.rubbish = ? AND l.privacy = ? THEN 1 ELSE 0 END) AS publishedCount,"
-                            + "SUM(CASE WHEN l.privacy = ? THEN 1 ELSE 0 END) AS privateCount,"
-                            + "SUM(CASE WHEN l.rubbish = ? THEN 1 ELSE 0 END) AS draftCount,"
-                            + "SUM(l.click) AS clickCount "
-                            + "FROM " + Log.TABLE_NAME + " l "
-                            + "inner join user u on u.userId = l.userId "
-                            + "inner join type t on t.typeId = l.typeId "
-                            + "where l.typeId is not null",
-                    false, false, true, true);
+            Map<String, Object> row =
+                    this.logProvider
+                            .get()
+                            .queryFirstWithParams(
+                                    "SELECT "
+                                            + "count(1) AS totalCount,"
+                                            + "SUM(CASE WHEN l.rubbish = ? AND l.privacy = ? THEN 1 ELSE 0 END) AS publishedCount,"
+                                            + "SUM(CASE WHEN l.privacy = ? THEN 1 ELSE 0 END) AS privateCount,"
+                                            + "SUM(CASE WHEN l.rubbish = ? THEN 1 ELSE 0 END) AS draftCount,"
+                                            + "SUM(l.click) AS clickCount "
+                                            + "FROM "
+                                            + Log.TABLE_NAME
+                                            + " l "
+                                            + "inner join user u on u.userId = l.userId "
+                                            + "inner join type t on t.typeId = l.typeId "
+                                            + "where l.typeId is not null",
+                                    false,
+                                    false,
+                                    true,
+                                    true);
             info.setArticleCount(toLong(row, "totalCount"));
             info.setDraftCount(toLong(row, "draftCount"));
             info.setPrivateCount(toLong(row, "privateCount"));

@@ -4,13 +4,11 @@ import com.hibegin.http.server.ApplicationContext;
 import com.hibegin.http.server.api.Interceptor;
 import com.hibegin.http.server.web.Router;
 import com.zrlog.admin.business.AdminConstants;
-import com.zrlog.admin.business.service.AdminPageDataFactory;
 import com.zrlog.admin.business.service.AdminPageService;
 import com.zrlog.admin.business.service.AdminResource;
 import com.zrlog.admin.business.service.AdminResourceImpl;
 import com.zrlog.admin.business.service.AdminResourceProvider;
 import com.zrlog.admin.business.service.AdminResourceService;
-import com.zrlog.admin.business.service.TemplateService;
 import com.zrlog.admin.util.AdminStaticSiteSsePublisher;
 import com.zrlog.admin.util.AdminUiNativeImageUtils;
 import com.zrlog.admin.web.config.AdminAccountPages;
@@ -18,15 +16,20 @@ import com.zrlog.admin.web.controller.api.AdminStaticSiteController;
 import com.zrlog.admin.web.controller.page.AdminManifestController;
 import com.zrlog.admin.web.controller.page.AdminPageController;
 import com.zrlog.admin.web.controller.page.AdminTemplatePageController;
+import com.zrlog.admin.web.di.AdminComponent;
+import com.zrlog.admin.web.di.account.AccountComponent;
+import com.zrlog.admin.web.di.ui.AdminUiComponent;
+import com.zrlog.admin.web.di.ui.DaggerAdminUiComponent;
 import com.zrlog.admin.web.interceptor.*;
 import com.zrlog.admin.web.plugin.AdminStaticResourcePlugin;
+import com.zrlog.business.di.ServiceComponent;
 import com.zrlog.business.plugin.PluginCorePlugin;
 import com.zrlog.business.plugin.StaticSiteRenderer;
-import com.zrlog.business.service.CacheRefreshService;
 import com.zrlog.business.service.TemplateInfoHelper;
 import com.zrlog.common.CacheService;
 import com.zrlog.common.TokenService;
 import com.zrlog.common.ZrLogConfig;
+import com.zrlog.data.di.DataComponent;
 import com.zrlog.plugin.Plugins;
 import com.zrlog.web.WebSetup;
 import com.zrlog.web.WebSiteInfoProvider;
@@ -54,18 +57,47 @@ public class AdminUiWebSetup implements WebSetup, AdminResourceProvider {
     }
 
     @Override public void setup() {
-        config.getServerConfig().getBindings()
-                .controller(AdminStaticSiteController.class, (r, request, response) -> new AdminStaticSiteController(
-                        r.get(CacheRefreshService.class), r.get(AdminStaticSiteSsePublisher.class),
-                        () -> config.getPlugin(AdminStaticResourcePlugin.class), r.get(AdminPageDataFactory.class)))
+        config.getServerConfig()
+                .getBindings()
+                .singleton(
+                        AdminUiComponent.class,
+                        r ->
+                                DaggerAdminUiComponent.factory()
+                                        .create(
+                                                r.get(DataComponent.class),
+                                                r.get(ServiceComponent.class),
+                                                r.get(AccountComponent.class),
+                                                r.get(AdminComponent.class),
+                                                r.get(TokenService.class),
+                                                () -> config.getPlugin(PluginCorePlugin.class),
+                                                () ->
+                                                        config.getPlugin(
+                                                                AdminStaticResourcePlugin.class),
+                                                () -> r.get(AdminStaticSiteSsePublisher.class),
+                                                resources::getStaticResourceBuildId,
+                                                config::isInstalled))
+                .singleton(AdminPageService.class, r -> r.get(AdminUiComponent.class).pages())
+                .controller(
+                        AdminStaticSiteController.class,
+                        (r, request, response) -> r.get(AdminUiComponent.class).staticSites())
+                .controller(
+                        AdminTemplatePageController.class,
+                        (r, request, response) -> r.get(AdminUiComponent.class).templates())
+                .controller(
+                        AdminManifestController.class,
+                        (r, request, response) -> r.get(AdminUiComponent.class).manifest())
+                .controller(
+                        AdminPageController.class,
+                        (r, request, response) -> r.get(AdminUiComponent.class).pageController())
+                .interceptor(
+                        AdminPluginInterceptor.class,
+                        r -> r.get(AdminUiComponent.class).pluginInterceptor())
                 .interceptor(AdminPwaInterceptor.class, r -> new AdminPwaInterceptor(resources))
-                .interceptor(AdminStaticResourceInterceptor.class, r -> new AdminStaticResourceInterceptor(() -> config.getPlugin(AdminStaticResourcePlugin.class)))
-                .controller(AdminTemplatePageController.class, (r, request, response) -> new AdminTemplatePageController(r.get(TemplateService.class), () -> Boolean.TRUE.equals(r.get(CacheService.class).getPublicWebSiteInfo().getGenerator_html_status())))
-                .interceptor(AdminPluginInterceptor.class, r -> new AdminPluginInterceptor(() -> r.get(TokenService.class), () -> config.getPlugin(PluginCorePlugin.class), config::isInstalled))
-                .singleton(AdminPageService.class, r -> new AdminPageService(r.get(CacheService.class), r.get(AdminPageDataFactory.class),
-                        r.get(AdminResourceService.class), resources::getStaticResourceBuildId))
-                .controller(AdminManifestController.class, (r, request, response) -> new AdminManifestController(r.get(CacheService.class)::getPublicWebSiteInfo))
-                .controller(AdminPageController.class, (r, request, response) -> new AdminPageController(r.get(AdminPageService.class), r.get(TokenService.class), r.get(AdminPageDataFactory.class)));
+                .interceptor(
+                        AdminStaticResourceInterceptor.class,
+                        r ->
+                                new AdminStaticResourceInterceptor(
+                                        () -> config.getPlugin(AdminStaticResourcePlugin.class)));
         List<Class<? extends Interceptor>> interceptors = config.getServerConfig().getInterceptors();
         interceptors.addAll(interceptors.indexOf(AdminLoginInterceptor.class), List.of(
                 PwaInterceptor.class, AdminPwaInterceptor.class,
@@ -88,9 +120,19 @@ public class AdminUiWebSetup implements WebSetup, AdminResourceProvider {
         Plugins plugins = new Plugins();
         ApplicationContext context = new ApplicationContext(config.getServerConfig());
         context.init();
-        plugins.add(new AdminStaticResourcePlugin(new StaticSiteRenderer(config.getRequestConfig(),
-                config.getResponseConfig(), context),
-                () -> config.getWebSetup(WebSiteInfoProvider.class).getPublicWebSiteInfo(), resources, contextPath));
+        plugins.add(
+                new AdminStaticResourcePlugin(
+                        new StaticSiteRenderer(
+                                config.getRequestConfig(), config.getResponseConfig(), context),
+                        () -> config.getWebSetup(WebSiteInfoProvider.class).getPublicWebSiteInfo(),
+                        resources,
+                        contextPath,
+                        () ->
+                                config.getServerConfig()
+                                        .getBindings()
+                                        .build()
+                                        .get(DataComponent.class)
+                                        .website()));
         return plugins;
     }
 }

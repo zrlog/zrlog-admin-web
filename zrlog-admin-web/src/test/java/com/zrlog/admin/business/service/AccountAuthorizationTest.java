@@ -1,10 +1,19 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.*;
+
+import com.hibegin.common.dao.DAO;
+import com.hibegin.common.util.PasswordHashUtils;
+import com.hibegin.common.util.SecurityUtils;
+import com.hibegin.http.HttpMethod;
 import com.hibegin.http.server.config.ServerConfig;
+import com.zrlog.admin.business.content.ArticleAssistant;
 import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.rest.request.CreateArticleRequest;
 import com.zrlog.admin.business.rest.request.UpdateArticleRequest;
 import com.zrlog.admin.business.security.MemberModels;
+import com.zrlog.admin.support.AccountServicesFixture;
+import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.annotation.RequiresAction;
 import com.zrlog.admin.web.controller.ai.AICommentController;
@@ -13,11 +22,12 @@ import com.zrlog.admin.web.interceptor.AdminInternalAiInterceptor;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.data.security.*;
+import com.zrlog.model.Log;
+import com.zrlog.model.LogVersion;
+
 import org.junit.Test;
 
 import java.util.*;
-
-import static org.junit.Assert.*;
 
 public class AccountAuthorizationTest {
     static void login(InMemoryZrLogDatabase db, int id, String role) throws Exception {
@@ -52,10 +62,14 @@ public class AccountAuthorizationTest {
             db.loadAdminWebModules();
             ServerConfig config=db.config().getServerConfig();
             assertFalse(config.getRouter().getRouterMap().containsKey("/api/admin/knowledge/chat"));
-            assertNotNull(config.getRouter().getMethod("/api/admin/article/ai", com.hibegin.http.HttpMethod.POST));
+            assertNotNull(config.getRouter().getMethod("/api/admin/article/ai", HttpMethod.POST));
             java.lang.reflect.Method commentAnalyze = AICommentController.class.getMethod("analyze");
-            assertEquals(commentAnalyze, config.getRouter().getMethod(
-                    AdminInternalAiInterceptor.COMMENT_ANALYZE_PATH, com.hibegin.http.HttpMethod.POST));
+            assertEquals(
+                    commentAnalyze,
+                    config.getRouter()
+                            .getMethod(
+                                    AdminInternalAiInterceptor.COMMENT_ANALYZE_PATH,
+                                    HttpMethod.POST));
             int internalAiIndex = config.getInterceptors().indexOf(AdminInternalAiInterceptor.class);
             assertTrue("Internal AI route must have plugin-token authentication", internalAiIndex >= 0);
             assertTrue("Plugin-token authentication must precede account authentication",
@@ -74,19 +88,51 @@ public class AccountAuthorizationTest {
                     assertFalse(path + " missing description", binding.descriptionKey().isBlank());
                 }
             });
-            assertThrows(PermissionErrorException.class,()->AccountPermissionService.checkRoute(Object.class.getMethod("toString"),null));
+            assertThrows(
+                    PermissionErrorException.class,
+                    () ->
+                            AccountServicesFixture.component()
+                                    .permissions()
+                                    .checkRoute(Object.class.getMethod("toString"), null));
         }
     }
     @Test public void articleServiceMustPreserveAuthorAndRejectForeignPrivateAndPublishedWrites() throws Exception {
         try(InMemoryZrLogDatabase db=InMemoryZrLogDatabase.open()) {
             db.execute("insert into user(userId,userName,role) values(?,?,?)",2,"writer","author");
             login(db,1,"owner");
-            AdminArticleService service=new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(db.config(), com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(db.resources())));
+            AdminArticleService service =
+                    new AdminArticleService(
+                            db.cacheService(),
+                            ApplicationServicesFixture.capability(
+                                    db.config(), ArticleAssistant.class),
+                            new AdminPageDataFactory(
+                                    ApplicationServicesFixture.site(db.config()),
+                                    ApplicationServicesFixture.buildId(db.resources()),
+                                    ApplicationServicesFixture.messages(),
+                                    AccountServicesFixture.component().permissions()),
+                            AccountServicesFixture.component().permissions(),
+                            AccountServicesFixture.component().preferences(),
+                            new ArticleVersionService(
+                                    AccountServicesFixture.component().permissions(),
+                                    Log::new,
+                                    () -> new LogVersion(DAO.getDefaultDataSource())),
+                            new ArticlePinningService(Log::new, ApplicationServicesFixture.locks()),
+                            Log::new,
+                            ApplicationServicesFixture.locks());
             CreateArticleRequest create=new CreateArticleRequest();create.setTitle("Private");create.setTypeId(1L);create.setPrivacy(true);create.setRubbish(true);create.setContent("secret");
             long id=service.create(AdminTokenThreadLocal.getUser(),create).getLogId();
             login(db,2,"editor");
-            assertThrows(PermissionErrorException.class,()->AccountPermissionService.readArticle(id));
-            assertThrows(PermissionErrorException.class,()->new ArticleVersionService().listVersions((int)id));
+            assertThrows(
+                    PermissionErrorException.class,
+                    () -> AccountServicesFixture.component().permissions().readArticle(id));
+            assertThrows(
+                    PermissionErrorException.class,
+                    () ->
+                            new ArticleVersionService(
+                                            AccountServicesFixture.component().permissions(),
+                                            Log::new,
+                                            () -> new LogVersion(DAO.getDefaultDataSource()))
+                                    .listVersions((int) id));
             db.execute("update log set privacy=? where logId=?",false,id);
             UpdateArticleRequest update=new UpdateArticleRequest();update.setLogId((int)id);update.setTitle("Edited");update.setTypeId(1L);update.setVersion(0);update.setRubbish(true);update.setContent("edited");
             service.update(AdminTokenThreadLocal.getUser(),update);
@@ -99,13 +145,20 @@ public class AccountAuthorizationTest {
             create.setRubbish(true);long own=service.create(AdminTokenThreadLocal.getUser(),create).getLogId();
             assertThrows(PermissionErrorException.class,()->service.delete(own));
             db.execute("update user set authVersion=authVersion+1 where userId=2");
-            assertThrows(PermissionErrorException.class,AccountPermissionService::current);
+            assertThrows(
+                    PermissionErrorException.class,
+                    AccountServicesFixture.component().permissions()::current);
         }
     }
     @Test public void membersCannotEscalateOrModifyOwnerAndTransferRevokesBothSessions() throws Exception {
         for (String backend : List.of("h2", "sqlite", "webapi")) {
             try(InMemoryZrLogDatabase db="webapi".equals(backend) ? InMemoryZrLogDatabase.openWebApi() : "sqlite".equals(backend) ? InMemoryZrLogDatabase.openSqlite() : InMemoryZrLogDatabase.open()) {
-                login(db,1,"owner");MemberService service=new MemberService();
+                login(db, 1, "owner");
+                MemberService service =
+                        new MemberService(
+                                AccountServicesFixture.component().security(),
+                                AccountServicesFixture.component().users(),
+                                AccountServicesFixture.component().permissions());
                 MemberModels.Create create=new MemberModels.Create();create.userName="second";create.password="a-long-new-password";create.role="admin";
                 int admin=service.create(create).userId;
                 assertFalse(String.valueOf(db.scalar("select password from user where userId=?",admin)).contains(create.password));
@@ -114,12 +167,16 @@ public class AccountAuthorizationTest {
                 MemberModels.Update update=new MemberModels.Update();update.userId=1;update.role="author";update.enabled=false;
                 assertThrows(PermissionErrorException.class,()->service.update(update));
                 login(db,1,"owner");
-                db.execute("update user set password=? where userId=1",com.hibegin.common.util.PasswordHashUtils.hash(com.hibegin.common.util.SecurityUtils.md5("owner-password")));
+                db.execute(
+                        "update user set password=? where userId=1",
+                        PasswordHashUtils.hash(SecurityUtils.md5("owner-password")));
                 MemberModels.Transfer transfer=new MemberModels.Transfer();transfer.userId=admin;transfer.password="owner-password";service.transfer(transfer);
                 assertEquals(1,((Number)db.scalar("select count(*) from user where role='owner'")).intValue());
                 assertEquals("owner",db.scalar("select role from user where userId=?",admin));
                 assertEquals("admin",db.scalar("select role from user where userId=1"));
-                assertThrows(PermissionErrorException.class,AccountPermissionService::current);
+                assertThrows(
+                        PermissionErrorException.class,
+                        AccountServicesFixture.component().permissions()::current);
                 assertEquals(1,((Number)db.scalar("select authVersion from user where userId=?",admin)).intValue());
             }
         }

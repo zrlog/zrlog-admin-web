@@ -5,6 +5,8 @@ import com.zrlog.admin.business.ai.model.AIChatModels.Run;
 import com.zrlog.admin.business.ai.model.AIChatModels.RunView;
 import com.zrlog.admin.business.security.SecurityStore;
 
+import jakarta.inject.Inject;
+
 import java.sql.SQLException;
 import java.util.Map;
 import java.util.Objects;
@@ -12,11 +14,17 @@ import java.util.UUID;
 
 /** One private checkpoint per account/editor, with atomic claims on JDBC and Web API databases. */
 final class AIApprovalStore {
+
+    @Inject
+    public AIApprovalStore(SecurityStore db) {
+        this.db = db;
+    }
+
     static final long APPROVAL_TTL = 30 * 60_000L;
     static final long RUN_TIMEOUT = 20 * 60_000L;
     private static final int MAX_CHECKPOINT_LENGTH = 16 * 1024 * 1024;
     private final Gson json = new Gson();
-    private final SecurityStore db = new SecurityStore();
+    private final SecurityStore db;
 
     static final class Changed extends RuntimeException { }
 

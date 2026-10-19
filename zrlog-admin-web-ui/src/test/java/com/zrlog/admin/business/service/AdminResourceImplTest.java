@@ -1,12 +1,22 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertTrue;
+
+import com.hibegin.common.dao.DAO;
 import com.hibegin.http.server.api.HttpRequest;
 import com.zrlog.admin.business.AdminConstants;
+import com.zrlog.admin.business.rest.request.WebhookConfigRequest;
 import com.zrlog.admin.business.rest.response.AdminResourceInfoResponse;
+import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.data.util.WebSiteUtils;
 import com.zrlog.model.UserPasskey;
+import com.zrlog.model.WebSite;
 import com.zrlog.plugin.BaseStaticSitePlugin;
+
 import org.junit.Test;
 
 import java.io.InputStream;
@@ -16,18 +26,26 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertTrue;
-
 public class AdminResourceImplTest {
 
     @Test
     public void shouldExposeAdminResourceUrisAndBuildServiceWorkerUrls() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             db.putWebsite("admin_static_resource_base_url", "https://cdn.example.com");
-            var resources = new com.zrlog.admin.business.service.AdminResourceService(com.zrlog.admin.business.rest.response.AdminResourceInfoResponse.Capabilities::new, new com.zrlog.admin.business.service.FeatureLabService(() -> true), com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), () -> new com.zrlog.model.WebSite().getStringValueByName("admin_static_resource_base_url"));
+            var resources =
+                    new AdminResourceService(
+                            AdminResourceInfoResponse.Capabilities::new,
+                            new FeatureLabService(
+                                    () -> true,
+                                    new WebhookService(
+                                            ApplicationServicesFixture.messages(),
+                                            ApplicationServicesFixture.websiteCache()),
+                                    WebSite::new),
+                            ApplicationServicesFixture.site(db.config()),
+                            () ->
+                                    new WebSite()
+                                            .getStringValueByName("admin_static_resource_base_url"),
+                            () -> new UserPasskey(DAO.getDefaultDataSource()));
             AdminResourceImpl resource = new AdminResourceImpl("/blog", () -> 0L, resources::staticResourceBaseUrl);
 
             Set<String> pageUris = resource.getAdminPageUris();
@@ -83,12 +101,37 @@ public class AdminResourceImplTest {
     public void shouldBuildAdminResourceInfoFromRealWebsiteAndFeatureTables() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             db.putWebsite("feature_webhook_enabled", true); // Obsolete menu-only flag must not enable receiving.
-            assertFalse(new com.zrlog.admin.business.service.FeatureLabService(() -> true).featureLab().getFeature_webhook_enabled());
-            var webhook = new com.zrlog.admin.business.rest.request.WebhookConfigRequest();
-            webhook.setEnabled(true); new WebhookService().updateConfig(webhook);
+            assertFalse(
+                    new FeatureLabService(
+                                    () -> true,
+                                    new WebhookService(
+                                            ApplicationServicesFixture.messages(),
+                                            ApplicationServicesFixture.websiteCache()),
+                                    WebSite::new)
+                            .featureLab()
+                            .getFeature_webhook_enabled());
+            var webhook = new WebhookConfigRequest();
+            webhook.setEnabled(true);
+            new WebhookService(
+                            ApplicationServicesFixture.messages(),
+                            ApplicationServicesFixture.websiteCache())
+                    .updateConfig(webhook);
             db.putWebsite("feature_personal_data_enabled", true);
             db.putWebsite("admin_static_resource_base_url", "https://cdn.example.com");
-            var resources = new com.zrlog.admin.business.service.AdminResourceService(com.zrlog.admin.business.rest.response.AdminResourceInfoResponse.Capabilities::new, new com.zrlog.admin.business.service.FeatureLabService(() -> true), com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), () -> new com.zrlog.model.WebSite().getStringValueByName("admin_static_resource_base_url"));
+            var resources =
+                    new AdminResourceService(
+                            AdminResourceInfoResponse.Capabilities::new,
+                            new FeatureLabService(
+                                    () -> true,
+                                    new WebhookService(
+                                            ApplicationServicesFixture.messages(),
+                                            ApplicationServicesFixture.websiteCache()),
+                                    WebSite::new),
+                            ApplicationServicesFixture.site(db.config()),
+                            () ->
+                                    new WebSite()
+                                            .getStringValueByName("admin_static_resource_base_url"),
+                            () -> new UserPasskey(DAO.getDefaultDataSource()));
 
             AdminResourceInfoResponse response = resources.adminResourceInfo(request("Browser"));
             AdminResourceInfoResponse staticResponse =
@@ -117,7 +160,7 @@ public class AdminResourceImplTest {
             assertEquals(false, trustedCrossOriginResponse.getPasskeyLoginEnabled());
             assertEquals(false, untrustedCrossOriginResponse.getPasskeyLoginEnabled());
 
-            UserPasskey passkeys = new UserPasskey();
+            UserPasskey passkeys = new UserPasskey(DAO.getDefaultDataSource());
             assertTrue(passkeys.save(1, "other-credential-hash", "other-credential-id", "public-key",
                     0, "internal", "Other origin passkey", "aaguid", true, false,
                     "https://localhost:18080", "localhost", System.currentTimeMillis()));

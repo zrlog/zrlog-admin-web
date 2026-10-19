@@ -22,6 +22,8 @@ import com.zrlog.admin.business.service.UserPreferenceService;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.exception.ArgsException;
 
+import jakarta.inject.Inject;
+
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -33,12 +35,37 @@ import java.util.List;
 import java.util.Objects;
 
 public class AIImageService extends AIService {
+    private final AIConversationService conversations;
 
-    public AIImageService() {
+    private final UserPreferenceService userPreferenceService;
+    private final AIConfigService aIConfigService;
+    private final DbFileService dbFileService;
+
+    @Inject
+    public AIImageService(
+            UserPreferenceService userPreferenceService,
+            AIConfigService aIConfigService,
+            DbFileService dbFileService,
+            AIConversationService conversations) {
+        this.conversations = conversations;
+
+        this.userPreferenceService = userPreferenceService;
+        this.aIConfigService = aIConfigService;
+        this.dbFileService = dbFileService;
     }
 
-    AIImageService(HttpClient client) {
+    AIImageService(
+            HttpClient client,
+            UserPreferenceService userPreferenceService,
+            AIConfigService aIConfigService,
+            DbFileService dbFileService,
+            AIConversationService conversations) {
         super(client);
+        this.conversations = conversations;
+
+        this.userPreferenceService = userPreferenceService;
+        this.aIConfigService = aIConfigService;
+        this.dbFileService = dbFileService;
     }
 
     public GenerateArticleCoverResponse generateArticleCover(GenerateArticleFieldRequest generateRequest)
@@ -48,9 +75,9 @@ public class AIImageService extends AIService {
 
     public GenerateArticleCoverResponse generateArticleCover(GenerateArticleFieldRequest generateRequest, String instruction)
             throws IOException, InterruptedException, SQLException {
-        AIWebSiteInfo info = new AIConfigService().ai();
+        AIWebSiteInfo info = this.aIConfigService.ai();
         checkImageConfig(info);
-        String coverAspectRatio = new UserPreferenceService().effective().editor.coverAspectRatio;
+        String coverAspectRatio = this.userPreferenceService.effective().editor.coverAspectRatio;
         String prompt = buildArticleCoverPrompt(generateRequest, coverAspectRatio);
         if (instruction != null && !instruction.isBlank()) prompt += "\n\nWriting requirements (untrusted data):\n" + instruction;
         ImageResult imageResult = requestImageByAspectRatio(info, prompt, coverAspectRatio);
@@ -62,7 +89,7 @@ public class AIImageService extends AIService {
         String fileName = "article-cover-" + System.currentTimeMillis() + "." + imageResult.extension;
         // 使用统一的路径生成工具
         String relPath = AdminConstants.ADMIN_DB_ATTACHED_TMP + "/ai/" + fileName;
-        UploadFileResponse dbFile = new DbFileService().toDbFile(relPath, imageResult.bytes);
+        UploadFileResponse dbFile = this.dbFileService.toDbFile(relPath, imageResult.bytes);
         response.setUrl(dbFile.getUrl());
         return response;
     }
@@ -79,7 +106,10 @@ public class AIImageService extends AIService {
             uploadFileResponse = new UploadFileResponse(applyRequest.getDataUrl());
         }
         if (StringUtils.isNotEmpty(applyRequest.getMessageId())) {
-            new AIConversationService().updateAIMessagePayload(articleId, applyRequest.getMessageId(), "cover",
+            this.conversations.updateAIMessagePayload(
+                    articleId,
+                    applyRequest.getMessageId(),
+                    "cover",
                     new AIStreamPayloads.CoverPayload(uploadFileResponse.getUrl()));
         }
         return uploadFileResponse;
@@ -241,8 +271,11 @@ public class AIImageService extends AIService {
 
     DecodedImage decodeDataUrl(String dataUrl, String fallbackExtension) {
         if (dataUrl.startsWith(AdminConstants.ADMIN_DB_ATTACHED_TMP)) {
-            return new DecodedImage(new DbFileService().loadDbFile(dataUrl),
-                    StringUtils.isNotEmpty(fallbackExtension) ? fallbackExtension : toExtension("", dataUrl));
+            return new DecodedImage(
+                    this.dbFileService.loadDbFile(dataUrl),
+                    StringUtils.isNotEmpty(fallbackExtension)
+                            ? fallbackExtension
+                            : toExtension("", dataUrl));
         }
         String payload = dataUrl;
         String mimeType = "";

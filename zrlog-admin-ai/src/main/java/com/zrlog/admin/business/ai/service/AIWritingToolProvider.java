@@ -8,13 +8,35 @@ import com.zrlog.admin.business.knowledge.ToolProvider;
 import com.zrlog.admin.business.rest.request.GenerateArticleFieldRequest;
 import com.zrlog.admin.business.rest.response.AIResponseEntry.AIContentEntry;
 import com.zrlog.common.exception.ArgsException;
+
+import dagger.assisted.Assisted;
+import dagger.assisted.AssistedFactory;
+import dagger.assisted.AssistedInject;
+
 import java.util.*;
 
 /** Internal writing tools, independent of knowledge-library permissions. */
 final class AIWritingToolProvider implements ToolProvider {
+    private final AIPublishCheckService publishing;
+
     private final Run run;
     private final AIWritingSkillService skills;
-    AIWritingToolProvider(Run run, AIWritingSkillService skills) { this.run = run; this.skills = skills; }
+
+    @AssistedInject
+    AIWritingToolProvider(
+            @Assisted Run run,
+            @Assisted AIWritingSkillService skills,
+            AIPublishCheckService publishing) {
+        this.publishing = publishing;
+        this.run = run;
+        this.skills = skills;
+    }
+
+    @AssistedFactory
+    interface Factory {
+        AIWritingToolProvider create(Run run, AIWritingSkillService skills);
+    }
+
     @Override public List<Tool> definitions(String language) {
         return run.editorContext == null ? List.of() : AIWritingSkillCatalog.tools();
     }
@@ -23,7 +45,7 @@ final class AIWritingToolProvider implements ToolProvider {
         String key = name.substring("writing_".length());
         // Keep runtime settings and per-call adjustments out of the original editor snapshot.
         GenerateArticleFieldRequest context = new Gson().fromJson(new Gson().toJson(run.editorContext), GenerateArticleFieldRequest.class);
-        if (key.equals("publishCheck")) new AIPublishCheckService().fillPublishCheckContext(context);
+        if (key.equals("publishCheck")) publishing.fillPublishCheckContext(context);
         StringBuilder instruction = new StringBuilder();
         for (int i = Math.max(0, run.messages.size() - 8); i < run.messages.size(); i++) {
             var message = run.messages.get(i);

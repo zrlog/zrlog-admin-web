@@ -1,19 +1,22 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.*;
+
 import com.google.gson.JsonParser;
 import com.hibegin.http.server.api.HttpRequest;
 import com.zrlog.admin.business.type.AdminAuditAction;
+import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
+
 import org.junit.Test;
 
 import java.lang.reflect.Proxy;
 
-import static org.junit.Assert.*;
-
 public class AdminAuditAgentDatabaseTest {
     @Test public void persistsCallerIdentityAndPreservesItAcrossLaterWrites() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-            AdminAuditService service = new AdminAuditService();
+            AdminAuditService service =
+                    new AdminAuditService(ApplicationServicesFixture.websiteKv());
             service.record(request("zrlogctl/0.1.42 dot/1.2-beta.1"), AdminAuditAction.REFRESH_CACHE);
             service.record(request("zrlogctl/0.1.42 muse"), AdminAuditAction.REFRESH_CACHE);
             service.record(request("zrlogctl/0.1.42"), AdminAuditAction.REFRESH_CACHE);

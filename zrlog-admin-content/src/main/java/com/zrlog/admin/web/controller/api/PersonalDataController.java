@@ -17,17 +17,27 @@ import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.data.security.AccountAction;
 
+import jakarta.inject.Inject;
+
 import java.sql.SQLException;
 
 public class PersonalDataController extends BaseController {
-    public PersonalDataController(AdminPageDataFactory pages) {
+    private final AdminAuditService adminAuditService;
+
+    @Inject
+    public PersonalDataController(
+            AdminPageDataFactory pages,
+            AdminAuditService adminAuditService,
+            PersonalDataService personalDataService) {
+        this.adminAuditService = adminAuditService;
+        this.personalDataService = personalDataService;
+
         this.pages = pages;
     }
 
     private final AdminPageDataFactory pages;
 
-
-    private final PersonalDataService personalDataService = new PersonalDataService();
+    private final PersonalDataService personalDataService;
 
     @ResponseBody
     @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "privacy.page")
@@ -49,7 +59,7 @@ public class PersonalDataController extends BaseController {
         requirePost();
         PersonalDataPreviewRequest body = getRequestBodyWithNullCheck(PersonalDataPreviewRequest.class);
         PersonalDataCommentExportResponse response = personalDataService.exportComments(body);
-        new AdminAuditService().record(request, AdminAuditAction.EXPORT_PERSONAL_DATA);
+        this.adminAuditService.record(request, AdminAuditAction.EXPORT_PERSONAL_DATA);
         return new ApiStandardResponse<>(response);
     }
 

@@ -1,41 +1,64 @@
 package com.zrlog.admin.web.interceptor;
 
+import static org.junit.Assert.*;
+
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.ResponseBody;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
 import com.hibegin.http.server.config.RequestConfig;
 import com.hibegin.http.server.web.Controller;
+import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.security.DelegatedAccess;
 import com.zrlog.admin.business.security.PersonalTokenModels;
 import com.zrlog.admin.business.service.*;
+import com.zrlog.admin.business.service.OAuthService;
+import com.zrlog.admin.business.service.PersonalAccessTokenService;
+import com.zrlog.admin.business.service.WebhookService;
+import com.zrlog.admin.support.AccountServicesFixture;
+import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.util.AdminLanguageContext;
+import com.zrlog.admin.web.McpWebSetup;
 import com.zrlog.admin.web.annotation.RequiresAction;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
+import com.zrlog.common.ZrLogConfig;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.I18nUtil;
+
 import org.junit.Test;
 
 import java.lang.reflect.Proxy;
 import java.util.*;
 
-import static org.junit.Assert.*;
-
 public class BearerTokenInterceptorTest {
 
-    private com.zrlog.common.ZrLogConfig applicationConfig;
+    private ZrLogConfig applicationConfig;
+
     public static class TestController extends Controller {
-        @ResponseBody @RequiresAction(value=AccountAction.TAXONOMY_READ, descriptionKey="taxonomy.list")
-        public ApiStandardResponse<Boolean> read() { return new ApiStandardResponse<>(DelegatedAccess.active() && !AccountPermissionService.current().canPublish()); }
+        @ResponseBody
+        @RequiresAction(value = AccountAction.TAXONOMY_READ, descriptionKey = "taxonomy.list")
+        public ApiStandardResponse<Boolean> read() {
+            return new ApiStandardResponse<>(
+                    DelegatedAccess.active()
+                            && !AccountServicesFixture.component()
+                                    .permissions()
+                                    .current()
+                                    .canPublish());
+        }
+
         @ResponseBody @RequiresAction(value=AccountAction.SITE_CONFIGURE, descriptionKey="website.basic")
         public ApiStandardResponse<Boolean> write() { return new ApiStandardResponse<>(true); }
         @ResponseBody public ApiStandardResponse<Boolean> unbound() { return new ApiStandardResponse<>(true); }
         @ResponseBody @RequiresAction(value=AccountAction.TAXONOMY_READ, descriptionKey="taxonomy.list")
         public ApiStandardResponse<String> language() { return new ApiStandardResponse<>(I18nUtil.getCurrentLocale()); }
-        @ResponseBody @RequiresAction(value=AccountAction.TAXONOMY_READ, descriptionKey="taxonomy.list")
-        public ApiStandardResponse<Void> failure() { throw new com.zrlog.admin.business.exception.PermissionErrorException(); }
+
+        @ResponseBody
+        @RequiresAction(value = AccountAction.TAXONOMY_READ, descriptionKey = "taxonomy.list")
+        public ApiStandardResponse<Void> failure() {
+            throw new PermissionErrorException();
+        }
     }
     @Test public void localizesResponsesAndControllerErrorsForTheTokenOwnerAndRestoresTheThread() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open(); var language = AdminLanguageContext.open("zh_CN")) {
@@ -46,7 +69,32 @@ public class BearerTokenInterceptorTest {
             db.execute("update user set preferences=? where userId=1", "{\"language\":\"en_US\"}");
             PersonalTokenModels.Create body = new PersonalTokenModels.Create();
             body.name = "language"; body.permissionMode = "custom"; body.permissions = List.of("taxonomy.read");
-            String token = new PersonalAccessTokenService(new OAuthService(com.zrlog.admin.support.ApplicationServicesFixture.backend(applicationConfig)::configured, com.zrlog.admin.support.ApplicationServicesFixture.available(applicationConfig, com.zrlog.admin.web.McpWebSetup.class)).mcpResource()).create(body).token;
+            String token =
+                    new PersonalAccessTokenService(
+                                    new OAuthService(
+                                                    ApplicationServicesFixture.backend(
+                                                                    applicationConfig)
+                                                            ::configured,
+                                                    ApplicationServicesFixture.available(
+                                                            applicationConfig, McpWebSetup.class),
+                                                    AccountServicesFixture.component()
+                                                            .permissions(),
+                                                    AccountServicesFixture.component().security(),
+                                                    tokenResource ->
+                                                            new PersonalAccessTokenService(
+                                                                    tokenResource,
+                                                                    AccountServicesFixture
+                                                                            .component()
+                                                                            .permissions(),
+                                                                    AccountServicesFixture
+                                                                            .component()
+                                                                            .security()),
+                                                    AccountServicesFixture.component().backend())
+                                            .mcpResource(),
+                                    AccountServicesFixture.component().permissions(),
+                                    AccountServicesFixture.component().security())
+                            .create(body)
+                            .token;
             AdminTokenThreadLocal.remove();
             var parent = I18nUtil.threadLocal.get();
             assertEquals("en_US", ((ApiStandardResponse<?>) call("/api/admin/test/language", token).rendered).getData());
@@ -69,7 +117,26 @@ public class BearerTokenInterceptorTest {
             applicationConfig = db.config();
             var config=db.config().getServerConfig(); config.getRouter().addMapper("/api/admin/test",TestController.class);
             PersonalTokenModels.Create body=new PersonalTokenModels.Create(); body.name="test"; body.permissionMode="custom"; body.permissions=List.of("taxonomy.read");
-            var service=new PersonalAccessTokenService(new OAuthService(com.zrlog.admin.support.ApplicationServicesFixture.backend(db.config())::configured, com.zrlog.admin.support.ApplicationServicesFixture.available(db.config(), com.zrlog.admin.web.McpWebSetup.class)).mcpResource());
+            var service =
+                    new PersonalAccessTokenService(
+                            new OAuthService(
+                                            ApplicationServicesFixture.backend(db.config())
+                                                    ::configured,
+                                            ApplicationServicesFixture.available(
+                                                    db.config(), McpWebSetup.class),
+                                            AccountServicesFixture.component().permissions(),
+                                            AccountServicesFixture.component().security(),
+                                            tokenResource ->
+                                                    new PersonalAccessTokenService(
+                                                            tokenResource,
+                                                            AccountServicesFixture.component()
+                                                                    .permissions(),
+                                                            AccountServicesFixture.component()
+                                                                    .security()),
+                                            AccountServicesFixture.component().backend())
+                                    .mcpResource(),
+                            AccountServicesFixture.component().permissions(),
+                            AccountServicesFixture.component().security());
             String token=service.create(body).token;
             var previous=AdminTokenThreadLocal.getUser();
             Recorder success=call("/api/admin/test/read",token);
@@ -100,7 +167,27 @@ public class BearerTokenInterceptorTest {
                 default:return method.getReturnType().isPrimitive() ? 0 : null;
             }
         });
-        Recorder recorder=new Recorder(); BearerTokenInterceptor interceptor=new BearerTokenInterceptor(() -> com.zrlog.admin.support.ApplicationServicesFixture.dispatcher(null, applicationConfig), new com.zrlog.admin.business.service.OAuthService(com.zrlog.admin.support.ApplicationServicesFixture.backend(applicationConfig)::configured, com.zrlog.admin.support.ApplicationServicesFixture.available(applicationConfig, com.zrlog.admin.web.McpWebSetup.class)));
+        Recorder recorder = new Recorder();
+        BearerTokenInterceptor interceptor =
+                new BearerTokenInterceptor(
+                        () -> ApplicationServicesFixture.dispatcher(null, applicationConfig),
+                        new OAuthService(
+                                ApplicationServicesFixture.backend(applicationConfig)::configured,
+                                ApplicationServicesFixture.available(
+                                        applicationConfig, McpWebSetup.class),
+                                AccountServicesFixture.component().permissions(),
+                                AccountServicesFixture.component().security(),
+                                tokenResource ->
+                                        new PersonalAccessTokenService(
+                                                tokenResource,
+                                                AccountServicesFixture.component().permissions(),
+                                                AccountServicesFixture.component().security()),
+                                AccountServicesFixture.component().backend()),
+                        AccountServicesFixture.component().permissions(),
+                        AccountServicesFixture.component().preferences(),
+                        new WebhookService(
+                                ApplicationServicesFixture.messages(),
+                                ApplicationServicesFixture.websiteCache()));
         assertTrue(interceptor.isHandleAble(request)); assertFalse(interceptor.doInterceptor(request,recorder.response())); return recorder;
     }
     private static class Recorder {

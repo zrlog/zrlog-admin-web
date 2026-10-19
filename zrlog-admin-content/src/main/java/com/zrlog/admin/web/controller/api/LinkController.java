@@ -19,18 +19,23 @@ import com.zrlog.common.controller.BaseController;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.data.security.AccountAction;
 
+import jakarta.inject.Inject;
+
 import java.io.IOException;
 import java.sql.SQLException;
 
 public class LinkController extends BaseController {
-    public LinkController(AdminPageDataFactory pages) {
+
+    @Inject
+    public LinkController(AdminPageDataFactory pages, LinkService linkService) {
+        this.linkService = linkService;
+
         this.pages = pages;
     }
 
     private final AdminPageDataFactory pages;
 
-
-    private final LinkService linkService = new LinkService();
+    private final LinkService linkService;
 
     @RefreshCache(async = true, updateStaticSites = StaticSiteType.BLOG)
     @ResponseBody

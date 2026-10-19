@@ -3,6 +3,11 @@ package com.zrlog.admin.business.knowledge;
 import com.google.gson.*;
 import com.zrlog.admin.business.knowledge.McpModels.*;
 
+import dagger.assisted.Assisted;
+import dagger.assisted.AssistedFactory;
+import dagger.assisted.AssistedInject;
+import jakarta.inject.Named;
+
 import java.util.*;
 import java.util.function.Supplier;
 
@@ -16,8 +21,14 @@ public final class McpService {
     private final KnowledgeMessages messages;
 
     public McpService(Supplier<String> websiteTitle) { this(websiteTitle, "en_US"); }
-    public McpService(Supplier<String> websiteTitle, String language) {
+    @AssistedInject
+    public McpService(@Named("siteTitle") Supplier<String> websiteTitle, @Assisted String language) {
         this.websiteTitle = websiteTitle; this.language = language; this.messages = new KnowledgeMessages(language);
+    }
+
+    @AssistedFactory
+    public interface Factory {
+        McpService create(String language);
     }
 
     public static final class Reply {

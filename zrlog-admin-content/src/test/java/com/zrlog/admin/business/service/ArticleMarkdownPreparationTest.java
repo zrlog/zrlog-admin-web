@@ -1,22 +1,30 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+
 import com.zrlog.admin.business.rest.request.CreateArticleRequest;
+import com.zrlog.admin.support.ApplicationServicesFixture;
+
 import org.junit.Test;
 
 import java.util.concurrent.atomic.AtomicInteger;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
 
 public class ArticleMarkdownPreparationTest {
     @Test
     public void shouldUseInjectedRendererOnlyForMarkdownWithoutHtml() {
         AtomicInteger calls = new AtomicInteger();
-        ArticlePublishingService service = new ArticlePublishingService(null, null, markdown -> {
-            calls.incrementAndGet();
-            assertEquals("# Title", markdown);
-            return "<h1>Title</h1>";
-        });
+        ArticlePublishingService service =
+                new ArticlePublishingService(
+                        null,
+                        null,
+                        markdown -> {
+                            calls.incrementAndGet();
+                            assertEquals("# Title", markdown);
+                            return "<h1>Title</h1>";
+                        },
+                        ApplicationServicesFixture.audit(),
+                        ApplicationServicesFixture.operations());
         CreateArticleRequest request = new CreateArticleRequest();
         request.setEditorType("markdown");
         request.setMarkdown("# Title");
@@ -40,7 +48,13 @@ public class ArticleMarkdownPreparationTest {
 
     @Test
     public void unavailableRendererShouldPreserveExistingContent() {
-        ArticlePublishingService service = new ArticlePublishingService(null, null, markdown -> null);
+        ArticlePublishingService service =
+                new ArticlePublishingService(
+                        null,
+                        null,
+                        markdown -> null,
+                        ApplicationServicesFixture.audit(),
+                        ApplicationServicesFixture.operations());
         CreateArticleRequest request = new CreateArticleRequest();
         request.setEditorType("markdown");
         request.setMarkdown("# Title");

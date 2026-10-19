@@ -1,24 +1,40 @@
 package com.zrlog.admin.business.ai.service;
 
+import static org.junit.Assert.*;
+
 import com.google.gson.*;
+import com.zrlog.admin.business.ai.exception.AIIncompleteResponseException;
+import com.zrlog.admin.business.ai.exception.AIRequestException;
+import com.zrlog.admin.business.ai.exception.AIResponseException;
 import com.zrlog.admin.business.ai.model.*;
 import com.zrlog.admin.business.ai.model.AIChatModels.*;
+import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.knowledge.*;
 import com.zrlog.admin.business.knowledge.KnowledgeModels.*;
 import com.zrlog.admin.business.rest.base.AIWebSiteInfo;
 import com.zrlog.admin.business.service.UserPreferenceService;
+import com.zrlog.admin.support.AccountServicesFixture;
+import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
+import com.zrlog.admin.util.AdminLanguageContext;
+import com.zrlog.common.ZrLogConfig;
 import com.zrlog.data.security.AccountAccess;
+import com.zrlog.data.service.UserPreferenceStore;
+import com.zrlog.model.Log;
+import com.zrlog.model.WebSite;
+import com.zrlog.test.support.TestLogCapture;
+import com.zrlog.util.I18nUtil;
+
 import org.junit.Test;
 
 import java.io.*;
 import java.util.*;
-
-import static org.junit.Assert.*;
+import java.util.logging.Level;
 
 public class AIChatConversationTest {
 
-    private com.zrlog.common.ZrLogConfig applicationConfig;
+    private ZrLogConfig applicationConfig;
+
     @Test public void injectsAuthorizedArticleMetadataAndExcludesLegacySnapshotsAndBody() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
@@ -63,7 +79,7 @@ public class AIChatConversationTest {
 
     @Test public void asynchronousToolsFollowAccountLanguageWithoutLeakingTheBrowserLocale() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open();
-             var ignored = com.zrlog.admin.util.AdminLanguageContext.open("zh_CN")) {
+                var ignored = AdminLanguageContext.open("zh_CN")) {
             configure(db);
             for (String language : List.of("en_US", "zh_CN", "en_US")) {
                 db.execute("update user set preferences=? where userId=1", "{\"language\":\"" + language + "\"}");
@@ -75,32 +91,66 @@ public class AIChatConversationTest {
                 String messages = model.requests.get(1).getAsJsonArray("messages").toString();
                 assertTrue(messages, messages.contains(language.equals("en_US")
                         ? "Invalid tool arguments, unknown tool, or article unavailable" : "工具参数无效、工具不存在或文章不可用"));
-                assertEquals("zh_CN", com.zrlog.util.I18nUtil.getCurrentLocale());
+                assertEquals("zh_CN", I18nUtil.getCurrentLocale());
             }
         }
     }
     @Test public void returnsDistinctSafeErrorsWithoutSavingFailedResponses() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open();
-             var logs = com.zrlog.test.support.TestLogCapture.forClass(AIChatService.class)) {
+                var logs = TestLogCapture.forClass(AIChatService.class)) {
             configure(db);
-            for (var failure : Map.<Exception,String>of(
-                    new java.net.http.HttpTimeoutException("private provider detail"), "requestTimeout",
-                    new com.zrlog.admin.business.ai.exception.AIIncompleteResponseException("length"), "responseIncomplete",
-                    new com.zrlog.admin.business.ai.exception.AIRequestException("private provider detail"), "providerRequestFailed",
-                    new com.zrlog.admin.business.ai.exception.AIResponseException("private provider detail"), "providerResponseInvalid").entrySet()) {
-                AIChatService service = new AIChatService(null, ContentToolsFixture.from(applicationConfig)) {
-                    @Override protected AIProviderResponses.Choice complete(AIWebSiteInfo info, String body, AIChatStreamReader.Progress progress) throws IOException {
-                        if (failure.getKey() instanceof IOException) throw (IOException) failure.getKey();
-                        throw (RuntimeException) failure.getKey();
-                    }
-                };
+            for (var failure :
+                    Map.<Exception, String>of(
+                                    new java.net.http.HttpTimeoutException(
+                                                    "private provider detail"),
+                                            "requestTimeout",
+                                    new AIIncompleteResponseException("length"),
+                                            "responseIncomplete",
+                                    new AIRequestException("private provider detail"),
+                                            "providerRequestFailed",
+                                    new AIResponseException("private provider detail"),
+                                            "providerResponseInvalid")
+                            .entrySet()) {
+                AIChatService service =
+                        new AIChatService(
+                                null,
+                                ContentToolsFixture.from(applicationConfig),
+                                AccountServicesFixture.component().permissions(),
+                                AccountServicesFixture.component().preferences(),
+                                AIServiceDependencies.approvals(),
+                                new AIFileService(),
+                                AIServiceDependencies.writing(),
+                                AIServiceDependencies.conversations(),
+                                AIServiceDependencies.writingTools(),
+                                AIServiceDependencies.references(
+                                        ContentToolsFixture.from(applicationConfig))) {
+                            @Override
+                            protected AIProviderResponses.Choice complete(
+                                    AIWebSiteInfo info,
+                                    String body,
+                                    AIChatStreamReader.Progress progress)
+                                    throws IOException {
+                                if (failure.getKey() instanceof IOException)
+                                    throw (IOException) failure.getKey();
+                                throw (RuntimeException) failure.getKey();
+                            }
+                        };
                 String wire = new String(service.start(input()).getInputStream().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
                 assertTrue(wire.contains("\"error\":\"" + failure.getValue() + "\""));
                 assertFalse(wire.contains("private provider detail"));
                 assertFalse(wire.contains("\"type\":\"done\""));
-                assertTrue(logs.contains(java.util.logging.Level.WARNING, "error=" + failure.getValue()));
+                assertTrue(logs.contains(Level.WARNING, "error=" + failure.getValue()));
             }
-            assertTrue(new AIConversationService().exportAIMessage(-1L).getMessages().isEmpty());
+            assertTrue(
+                    new AIConversationService(
+                                    AccountServicesFixture.component().security(),
+                                    ApplicationServicesFixture.websiteKv(),
+                                    WebSite::new,
+                                    new AIFileService(),
+                                    AIServiceDependencies.approvals())
+                            .exportAIMessage(-1L)
+                            .getMessages()
+                            .isEmpty());
         }
     }
 
@@ -109,18 +159,60 @@ public class AIChatConversationTest {
         AIProviderRequests.Message message=new AIProviderRequests.Message("assistant",null);
         AIProviderRequests.ToolCall call=new Gson().fromJson("{\"id\":\"a\",\"type\":\"function\",\"function\":{\"name\":\"search_articles\",\"arguments\":\"{}\"},\"extra_content\":{\"google\":{\"thought_signature\":\"opaque-signature\"}}}",AIProviderRequests.ToolCall.class);
         message.toolCalls=List.of(call);message.reasoningContent="provider reasoning";
-        JsonObject request=JsonParser.parseString(new AIChatService().request(info,List.of(message),KnowledgeService.tools())).getAsJsonObject();
+        JsonObject request =
+                JsonParser.parseString(
+                                new AIChatService(
+                                                AccountServicesFixture.component().permissions(),
+                                                AccountServicesFixture.component().preferences(),
+                                                AIServiceDependencies.approvals(),
+                                                new AIFileService(),
+                                                AIServiceDependencies.writing(),
+                                                AIServiceDependencies.conversations(),
+                                                AIServiceDependencies.writingTools(),
+                                                AIServiceDependencies.references(null))
+                                        .request(info, List.of(message), KnowledgeService.tools()))
+                        .getAsJsonObject();
         assertTrue(request.get("enable_thinking").getAsBoolean());
         assertTrue(request.get("stream").getAsBoolean());
         assertTrue(request.toString().contains("opaque-signature"));assertTrue(request.toString().contains("provider reasoning"));
     }
     private ChatRequest input() { ChatRequest r=new ChatRequest();r.input="What is in the blog?";return r; }
-    private KnowledgeService knowledge() { return new KnowledgeService(()->{try{return AccountAccess.load(1);}catch(Exception e){throw new RuntimeException(e);}},Set.of("articles:read"),()->"https://blog.example", () -> false); }
+
+    private KnowledgeService knowledge() {
+        return new KnowledgeService(
+                () -> {
+                    try {
+                        return AccountAccess.load(1);
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                },
+                Set.of("articles:read"),
+                () -> "https://blog.example",
+                () -> false,
+                Log::new);
+    }
+
     private static String tool(String name,String args) { return "{\"finish_reason\":\"tool_calls\",\"message\":{\"tool_calls\":[{\"id\":\"call-1\",\"type\":\"function\",\"function\":{\"name\":\""+name+"\",\"arguments\":"+new Gson().toJson(args)+"}}]}}"; }
     private static class Model extends AIChatService {
         final List<String> responses; final List<JsonObject> requests=new ArrayList<>();
         Runnable afterRequest = () -> {};
-        Model(com.zrlog.common.ZrLogConfig config, String... responses){super(null, ContentToolsFixture.from(config));this.responses=List.of(responses);}
+
+        Model(ZrLogConfig config, String... responses) {
+            super(
+                    null,
+                    ContentToolsFixture.from(config),
+                    AccountServicesFixture.component().permissions(),
+                    AccountServicesFixture.component().preferences(),
+                    AIServiceDependencies.approvals(),
+                    new AIFileService(),
+                    AIServiceDependencies.writing(),
+                    AIServiceDependencies.conversations(),
+                    AIServiceDependencies.writingTools(),
+                    AIServiceDependencies.references(ContentToolsFixture.from(config)));
+            this.responses = List.of(responses);
+        }
+
         @Override protected AIProviderResponses.Choice complete(AIWebSiteInfo info,String body, AIChatStreamReader.Progress progress) throws IOException {
             requests.add(JsonParser.parseString(body).getAsJsonObject());
             afterRequest.run();
@@ -151,7 +243,14 @@ public class AIChatConversationTest {
         db.putWebsite("ai_base_url", "http://localhost:1234");
     }
     private void scope(String scope) throws Exception {
-        new UserPreferenceService().update(JsonParser.parseString("{\"assistant\":{\"knowledgeScope\":\"" + scope + "\"}}").getAsJsonObject());
+        new UserPreferenceService(
+                        ApplicationServicesFixture.settings(),
+                        new UserPreferenceStore(),
+                        AccountServicesFixture.component().permissions())
+                .update(
+                        JsonParser.parseString(
+                                        "{\"assistant\":{\"knowledgeScope\":\"" + scope + "\"}}")
+                                .getAsJsonObject());
     }
     private static final String ANSWER = "{\"finish_reason\":\"stop\",\"message\":{\"content\":\"Answer\"}}";
 
@@ -164,7 +263,15 @@ public class AIChatConversationTest {
             Model model = new Model(applicationConfig, tool("read_article", "{\"id\":7}"), ANSWER.replace("\"content\":", "\"reasoning_content\":\"Summarize sources.\",\"content\":"));
             String stream = new String(model.start(request).getInputStream().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
             assertTrue(stream.contains("\"type\":\"done\""));
-            var saved = new AIConversationService().exportAIMessage(7L).getMessages();
+            var saved =
+                    new AIConversationService(
+                                    AccountServicesFixture.component().security(),
+                                    ApplicationServicesFixture.websiteKv(),
+                                    WebSite::new,
+                                    new AIFileService(),
+                                    AIServiceDependencies.approvals())
+                            .exportAIMessage(7L)
+                            .getMessages();
             var reply = saved.get(saved.size() - 1);
             assertEquals("Answer", reply.getContent());
             assertEquals("Summarize sources.", reply.getReasoningContent());
@@ -181,7 +288,16 @@ public class AIChatConversationTest {
             assertTrue(providerHistory.contains("Answer"));
             assertFalse(providerHistory.contains("FORGED HISTORY"));
             assertFalse(providerHistory.contains("Summarize sources."));
-            assertTrue(new AIConversationService().exportAIMessage(8L).getMessages().isEmpty());
+            assertTrue(
+                    new AIConversationService(
+                                    AccountServicesFixture.component().security(),
+                                    ApplicationServicesFixture.websiteKv(),
+                                    WebSite::new,
+                                    new AIFileService(),
+                                    AIServiceDependencies.approvals())
+                            .exportAIMessage(8L)
+                            .getMessages()
+                            .isEmpty());
         }
     }
 
@@ -190,7 +306,7 @@ public class AIChatConversationTest {
             applicationConfig = db.config();
             configure(db);
             Model missing = new Model(applicationConfig, ANSWER); ChatRequest request = input(); request.articleId = 99;
-            assertThrows(com.zrlog.admin.business.exception.PermissionErrorException.class, () -> missing.start(request));
+            assertThrows(PermissionErrorException.class, () -> missing.start(request));
             assertTrue(missing.requests.isEmpty());
             Model failed = new Model(applicationConfig, ANSWER);
             failed.afterRequest = () -> {
@@ -240,7 +356,15 @@ public class AIChatConversationTest {
         for (String prompt : List.of("Hello", "Rewrite this sentence: The sky is blue.", "Summarize your previous answer.")) {
             ChatRequest request = input(); request.input = prompt;
             // Any accidental database/permission lookup from the knowledge tools fails this test.
-            KnowledgeService unused = new KnowledgeService(() -> { throw new AssertionError("Unexpected retrieval"); }, Set.of("articles:read"), () -> "https://blog.example", () -> false);
+            KnowledgeService unused =
+                    new KnowledgeService(
+                            () -> {
+                                throw new AssertionError("Unexpected retrieval");
+                            },
+                            Set.of("articles:read"),
+                            () -> "https://blog.example",
+                            () -> false,
+                            Log::new);
             Model model = new Model(applicationConfig, ANSWER);
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             model.run(request, new AIWebSiteInfo(), unused, out, () -> {});
@@ -308,10 +432,23 @@ public class AIChatConversationTest {
         try(InMemoryZrLogDatabase db=InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
             Model model=new Model(applicationConfig, tool("delete_article","{}"));
-            assertThrows(com.zrlog.admin.business.ai.exception.AIResponseException.class,()->model.run(input(),new AIWebSiteInfo(),knowledge(),new ByteArrayOutputStream(),()->{}));
+            assertThrows(
+                    AIResponseException.class,
+                    () ->
+                            model.run(
+                                    input(),
+                                    new AIWebSiteInfo(),
+                                    knowledge(),
+                                    new ByteArrayOutputStream(),
+                                    () -> {}));
             assertEquals(5,model.requests.size());assertFalse(model.requests.get(4).has("tools"));
-            assertTrue(model.requests.get(1).toString().contains(
-                    com.zrlog.util.I18nUtil.getAdminBackendStringFromRes("admin.ai.error.knowledgeTool")));
+            assertTrue(
+                    model.requests
+                            .get(1)
+                            .toString()
+                            .contains(
+                                    I18nUtil.getAdminBackendStringFromRes(
+                                            "admin.ai.error.knowledgeTool")));
         }
     }
     @Test public void permissionChangeStopsBeforeSendingAnotherModelRequestAndDisconnectStopsWork() throws Exception {
@@ -319,7 +456,17 @@ public class AIChatConversationTest {
             applicationConfig = db.config();
             Model model=new Model(applicationConfig, tool("search_articles","{}")); boolean[] revoked={false};
             model.afterRequest = () -> revoked[0] = true;
-            assertThrows(com.zrlog.admin.business.exception.PermissionErrorException.class,()->model.run(input(),new AIWebSiteInfo(),knowledge(),new ByteArrayOutputStream(),()->{if(revoked[0])throw new com.zrlog.admin.business.exception.PermissionErrorException();}));
+            assertThrows(
+                    PermissionErrorException.class,
+                    () ->
+                            model.run(
+                                    input(),
+                                    new AIWebSiteInfo(),
+                                    knowledge(),
+                                    new ByteArrayOutputStream(),
+                                    () -> {
+                                        if (revoked[0]) throw new PermissionErrorException();
+                                    }));
             assertEquals(1,model.requests.size());
             Model disconnected=new Model(applicationConfig, tool("search_articles","{}"));
             assertThrows(IOException.class,()->disconnected.run(input(),new AIWebSiteInfo(),knowledge(),new OutputStream(){public void write(int b)throws IOException{throw new IOException();}},()->{}));

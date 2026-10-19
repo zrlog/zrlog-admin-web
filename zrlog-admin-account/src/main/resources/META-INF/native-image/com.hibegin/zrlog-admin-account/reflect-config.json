@@ -3,12 +3,6 @@
     "name": "com.zrlog.admin.web.controller.api.AccessController",
     "methods": [
       {
-        "name": "<init>",
-        "parameterTypes": [
-          "com.zrlog.admin.business.service.AdminPageDataFactory"
-        ]
-      },
-      {
         "name": "index",
         "parameterTypes": []
       }
@@ -17,16 +11,6 @@
   {
     "name": "com.zrlog.admin.web.controller.api.AccountSessionController",
     "methods": [
-      {
-        "name": "<init>",
-        "parameterTypes": [
-          "com.zrlog.admin.business.service.UserService",
-          "com.zrlog.common.TokenService",
-          "java.util.function.BooleanSupplier",
-          "com.zrlog.admin.business.service.AdminPageDataFactory",
-          "com.zrlog.admin.business.service.PasskeyService"
-        ]
-      },
       {
         "name": "login",
         "parameterTypes": []
@@ -44,16 +28,6 @@
   {
     "name": "com.zrlog.admin.web.controller.api.AdminUserController",
     "methods": [
-      {
-        "name": "<init>",
-        "parameterTypes": [
-          "com.zrlog.admin.business.service.UserService",
-          "com.zrlog.common.CacheService",
-          "java.util.function.Supplier",
-          "com.zrlog.admin.business.service.AdminPageDataFactory",
-          "com.zrlog.admin.business.service.PasskeyService"
-        ]
-      },
       {
         "name": "disableMfa",
         "parameterTypes": []
@@ -111,13 +85,6 @@
   {
     "name": "com.zrlog.admin.web.controller.api.MemberController",
     "methods": [
-      {
-        "name": "<init>",
-        "parameterTypes": [
-          "com.zrlog.admin.util.BackendServerUrl",
-          "com.zrlog.admin.business.service.AdminPageDataFactory"
-        ]
-      },
       {
         "name": "create",
         "parameterTypes": []

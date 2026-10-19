@@ -1,12 +1,19 @@
 package com.zrlog.admin.business.service;
 
 import com.google.gson.Gson;
+import com.zrlog.admin.business.security.DelegatedAccess;
 import com.zrlog.admin.business.security.OAuthException;
 import com.zrlog.admin.business.security.OAuthModels.*;
 import com.zrlog.admin.business.security.SecurityStore;
+import com.zrlog.admin.util.BackendServerUrl;
+import com.zrlog.admin.web.config.AdminAccountPages;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.data.security.AccountAccess;
+import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.ZrLogUtil;
+
+import jakarta.inject.Inject;
+import jakarta.inject.Singleton;
 
 import java.net.URI;
 import java.net.URLEncoder;
@@ -20,7 +27,13 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /** Authorization-code provider with pre-registered public clients and mandatory S256 PKCE. */
+@Singleton
 public final class OAuthService {
+    private final PersonalAccessTokenService.Factory personalTokens;
+    private final BackendServerUrl backend;
+
+    private final AccountPermissionService permissionService;
+
     public static final List<String> SCOPES = List.of("articles:read", "articles:read_drafts", "articles:read_private", "articles:all", "articles:write", "articles:publish", "articles:delete", "assets:write", "taxonomy:read", "offline_access");
     public static final String CLI_CLIENT_ID = "zrlogctl";
     public static final String INHERIT_SCOPE = "account:inherit";
@@ -29,14 +42,31 @@ public final class OAuthService {
     private static final long REFRESH_TTL = 30L * 24 * 3600 * 1000;
     private static final Gson JSON = new Gson();
     private static final SecureRandom RANDOM = new SecureRandom();
-    private final SecurityStore store = new SecurityStore();
+    private final SecurityStore store;
     private final Supplier<String> configuredIssuer;
     private final BooleanSupplier mcpEnabled;
     static String configuredIssuer(String backendUrl, String blogHost, String contextPath) {
-        try { return com.zrlog.admin.util.BackendServerUrl.resolve(backendUrl, blogHost, contextPath); }
-        catch (IllegalArgumentException e) { throw new OAuthException("invalid_request"); }
+        try {
+            return BackendServerUrl.resolve(backendUrl, blogHost, contextPath);
+        } catch (IllegalArgumentException e) {
+            throw new OAuthException("invalid_request"); }
     }
-    public OAuthService(Supplier<String> issuer, BooleanSupplier mcpEnabled) {
+
+    @Inject
+    public OAuthService(
+            Supplier<String> issuer,
+            BooleanSupplier mcpEnabled,
+            AccountPermissionService permissionService,
+            SecurityStore store,
+            PersonalAccessTokenService.Factory personalTokens,
+            BackendServerUrl backend) {
+        this.personalTokens = personalTokens;
+        this.backend = backend;
+
+        this.store = store;
+
+        this.permissionService = permissionService;
+
         this.configuredIssuer = Objects.requireNonNull(issuer);
         this.mcpEnabled = Objects.requireNonNull(mcpEnabled);
     }
@@ -69,7 +99,9 @@ public final class OAuthService {
         Metadata m = new Metadata(); m.issuer = issuer(); m.authorization_endpoint = m.issuer + "/oauth/authorize";
         m.token_endpoint = m.issuer + "/oauth/token"; m.revocation_endpoint = m.issuer + "/oauth/revoke"; m.scopes_supported = new ArrayList<>(SCOPES);
         m.scopes_supported.add(INHERIT_SCOPE);
-        Arrays.stream(com.zrlog.data.security.AccountAction.values()).map(com.zrlog.data.security.AccountAction::getId).forEach(m.scopes_supported::add);
+        Arrays.stream(AccountAction.values())
+                .map(AccountAction::getId)
+                .forEach(m.scopes_supported::add);
         return m;
     }
     public ResourceMetadata resourceMetadata() {
@@ -104,11 +136,13 @@ public final class OAuthService {
     }
     /** Cookie-authenticated admin actions also trust the explicitly configured admin frontend. */
     public void requireAdminOrigin(String origin) {
-        try { com.zrlog.admin.util.BackendServerUrl.requireAdminOrigin(origin, issuer()); }
-        catch (IllegalArgumentException e) { throw new OAuthException("access_denied", 403); }
+        try {
+            backend.requireAdminOrigin(origin, issuer());
+        } catch (IllegalArgumentException e) {
+            throw new OAuthException("access_denied", 403); }
     }
     public Client register(Client client) throws SQLException {
-        AccountPermissionService.administrator();
+        permissionService.administrator();
         if (ZrLogUtil.isPreviewMode()) throw new OAuthException("access_denied", 403);
         if (client == null || client.name == null || client.name.isBlank() || client.name.length() > 128
                 || client.redirectUris == null || client.redirectUris.isEmpty() || client.redirectUris.size() > 10) throw new OAuthException("invalid_client_metadata");
@@ -139,8 +173,10 @@ public final class OAuthService {
         if (!adminResource().equals(resource)) return scopes(scope);
         if (scope == null || scope.isBlank() || scope.length() > 512) throw new OAuthException("invalid_scope");
         Set<String> selected = new LinkedHashSet<>(Arrays.asList(scope.split(" +")));
-        Set<String> actions = Arrays.stream(com.zrlog.data.security.AccountAction.values())
-                .map(com.zrlog.data.security.AccountAction::getId).collect(Collectors.toSet());
+        Set<String> actions =
+                Arrays.stream(AccountAction.values())
+                        .map(AccountAction::getId)
+                        .collect(Collectors.toSet());
         if (selected.contains(INHERIT_SCOPE)) {
             if (!Set.of(INHERIT_SCOPE, "offline_access").containsAll(selected)) throw new OAuthException("invalid_scope");
         } else if (Collections.disjoint(selected, actions)) throw new OAuthException("invalid_scope");
@@ -150,20 +186,21 @@ public final class OAuthService {
     }
     private static Set<String> protocolScopes(AccountAccess account) {
         Set<String> scopes = new LinkedHashSet<>(account.scopes());
-        if (com.zrlog.data.security.AccountAction.TAXONOMY_READ.allowed(account)) scopes.add("taxonomy:read");
+        if (AccountAction.TAXONOMY_READ.allowed(account)) scopes.add("taxonomy:read");
         return scopes;
     }
     private Set<String> availableScopes(AccountAccess account, String resource) {
         Set<String> available = new LinkedHashSet<>(adminResource().equals(resource)
                 ? PersonalAccessTokenService.availablePermissions(account) : protocolScopes(account));
         available.add("offline_access");
-        if (adminResource().equals(resource) && !com.zrlog.admin.business.security.DelegatedAccess.restricted()) available.add(INHERIT_SCOPE);
+        if (adminResource().equals(resource) && !DelegatedAccess.restricted())
+            available.add(INHERIT_SCOPE);
         return available;
     }
     private boolean containsScopes(Set<String> allowed, Set<String> selected) {
         Set<String> ceiling = new HashSet<>(allowed);
-        if (allowed.contains(INHERIT_SCOPE)) Arrays.stream(com.zrlog.data.security.AccountAction.values())
-                .map(com.zrlog.data.security.AccountAction::getId).forEach(ceiling::add);
+        if (allowed.contains(INHERIT_SCOPE))
+            Arrays.stream(AccountAction.values()).map(AccountAction::getId).forEach(ceiling::add);
         return ceiling.containsAll(selected);
     }
     private Client client(SecurityStore.Session c, String id) throws SQLException {
@@ -185,26 +222,47 @@ public final class OAuthService {
         if (mcpResource().equals(request.resource) && !MCP_SCOPES.containsAll(requested)) throw new OAuthException("invalid_scope");
         if (!"S256".equals(request.code_challenge_method) || request.code_challenge == null || !request.code_challenge.matches("[A-Za-z0-9_-]{43}")) throw new OAuthException("invalid_request");
         if (request.state != null && request.state.length() > 2048) throw new OAuthException("invalid_request");
-        return store.withSession(c -> {
-            if (CLI_CLIENT_ID.equals(request.client_id)) {
-                if (!adminResource().equals(request.resource)) throw new OAuthException("invalid_target");
-                ensureCliClient(c);
-            }
-            store.lock(c, "update oauth_client set enabled=enabled where clientId=?", request.client_id);
-            Client app = client(c, request.client_id);
-            if (!redirectAllowed(app, request.redirect_uri)) throw new OAuthException("invalid_request");
-            Pending pending = new Pending(); pending.request = request;
-            // Bound unauthenticated, abandoned requests.
-            store.update(c, "delete from oauth_credential where kind=? and expiresAt<?", "pending", System.currentTimeMillis());
-            Number pendingCount = (Number) store.one(c, "select count(*) as total from oauth_credential where kind=?", "pending").get("total");
-            if (pendingCount.longValue() >= 1000) throw new OAuthException("temporarily_unavailable", 503);
-            store.update(c, "delete from oauth_credential where expiresAt<?", System.currentTimeMillis() - REFRESH_TTL);
-            String id = issue(c, "pending", null, pending, 600_000L);
-            return issuer() + com.zrlog.admin.web.config.AdminAccountPages.AUTHORIZE + "?request_id=" + encode(id);
-        });
+        return store.withSession(
+                c -> {
+                    if (CLI_CLIENT_ID.equals(request.client_id)) {
+                        if (!adminResource().equals(request.resource))
+                            throw new OAuthException("invalid_target");
+                        ensureCliClient(c);
+                    }
+                    store.lock(
+                            c,
+                            "update oauth_client set enabled=enabled where clientId=?",
+                            request.client_id);
+                    Client app = client(c, request.client_id);
+                    if (!redirectAllowed(app, request.redirect_uri))
+                        throw new OAuthException("invalid_request");
+                    Pending pending = new Pending();
+                    pending.request = request;
+                    // Bound unauthenticated, abandoned requests.
+                    store.update(
+                            c,
+                            "delete from oauth_credential where kind=? and expiresAt<?",
+                            "pending",
+                            System.currentTimeMillis());
+                    Number pendingCount =
+                            (Number)
+                                    store.one(
+                                                    c,
+                                                    "select count(*) as total from oauth_credential where kind=?",
+                                                    "pending")
+                                            .get("total");
+                    if (pendingCount.longValue() >= 1000)
+                        throw new OAuthException("temporarily_unavailable", 503);
+                    store.update(
+                            c,
+                            "delete from oauth_credential where expiresAt<?",
+                            System.currentTimeMillis() - REFRESH_TTL);
+                    String id = issue(c, "pending", null, pending, 600_000L);
+                    return issuer() + AdminAccountPages.AUTHORIZE + "?request_id=" + encode(id);
+                });
     }
     public Consent consent(String requestId) throws SQLException {
-        AccountAccess account = AccountPermissionService.current();
+        AccountAccess account = permissionService.current();
         return store.withSession(c -> {
             lockPending(c, requestId);
             Map<String,Object> row = credential(c, requestId, "pending");
@@ -228,7 +286,7 @@ public final class OAuthService {
         });
     }
     public Redirect decide(Decision decision) throws SQLException {
-        AccountAccess account = AccountPermissionService.current();
+        AccountAccess account = permissionService.current();
         if (decision == null || decision.csrf == null) throw new OAuthException("invalid_request");
         return store.withSession(c -> {
             lockPending(c, decision.requestId);
@@ -337,7 +395,7 @@ public final class OAuthService {
     }
     public Identity authenticate(String bearer, String resource, Set<String> required) throws SQLException {
         if (PersonalAccessTokenService.isPersonalToken(bearer))
-            return new PersonalAccessTokenService(mcpResource()).authenticate(bearer, resource, required);
+            return personalTokens.create(mcpResource()).authenticate(bearer, resource, required);
         try {
             return store.withSession(c -> {
                 if (bearer == null || !bearer.matches("[A-Za-z0-9_-]{43}")) throw new OAuthException("invalid_token", 401);
@@ -373,36 +431,58 @@ public final class OAuthService {
         });
     }
     public void revokeGrant(String id) throws SQLException {
-        AccountAccess account = AccountPermissionService.current();
+        AccountAccess account = permissionService.current();
         store.withSession(c -> store.update(c, "update oauth_grant set revoked=? where id=? and userId=?", true, id, account.getUserId()));
     }
     public void disableClient(String id) throws SQLException {
-        AccountPermissionService.administrator();
+        permissionService.administrator();
         store.withSession(c -> {
             store.update(c, "update oauth_client set enabled=? where clientId=?", false, id);
             store.update(c, "update oauth_grant set revoked=? where clientId=?", true, id); return null;
         });
     }
     public Page page() throws SQLException {
-        AccountAccess account = AccountPermissionService.current();
-        return store.withSession(c -> {
-            Page page = new Page(); page.administrator = com.zrlog.data.security.AccountAction.OAUTH_CLIENT_MANAGE.allowed(account); page.issuer = issuer(); page.resource = resource(); page.mcpResource = isMcpEnabled() ? mcpResource() : null;
-            page.clients = new ArrayList<>();
-            if (page.administrator) for (Map<String,Object> row : store.list(c, "select * from oauth_client where enabled=?", true)) page.clients.add(client(c, (String) row.get("clientId")));
-            page.personalTokenPermissions = PersonalAccessTokenService.availablePermissions(account);
-            page.notificationEndpoint = issuer() + WebhookService.MESSAGE_CENTER_NOTICE_ENDPOINT;
-            page.personalTokenScopes = PersonalAccessTokenService.availableScopes(account);
-            page.personalTokens = new PersonalAccessTokenService(mcpResource()).list(account);
-            page.grants = new ArrayList<>();
-            for (Map<String,Object> row : store.list(c, "select g.*,c.name,c.enabled as clientEnabled from oauth_grant g inner join oauth_client c on c.clientId=g.clientId where g.userId=? order by g.createdAt desc", account.getUserId())) {
-                Grant g = new Grant(); g.id=(String)row.get("id"); g.userId=account.getUserId(); g.clientId=(String)row.get("clientId");
-                g.clientName=(String)row.get("name"); g.scope=(String)row.get("scope"); g.resource=(String)row.get("resource");
-                g.createdAt=((Number)row.get("createdAt")).longValue();
-                g.revoked=AccountAccess.truth(row.get("revoked")) || !AccountAccess.truth(row.get("clientEnabled"))
-                        || ((Number)row.get("authVersion")).intValue() != account.getAuthVersion();
-                page.grants.add(g);
-            }
-            return page;
-        });
+        AccountAccess account = permissionService.current();
+        return store.withSession(
+                c -> {
+                    Page page = new Page();
+                    page.administrator = AccountAction.OAUTH_CLIENT_MANAGE.allowed(account);
+                    page.issuer = issuer();
+                    page.resource = resource();
+                    page.mcpResource = isMcpEnabled() ? mcpResource() : null;
+                    page.clients = new ArrayList<>();
+                    if (page.administrator)
+                        for (Map<String, Object> row :
+                                store.list(c, "select * from oauth_client where enabled=?", true))
+                            page.clients.add(client(c, (String) row.get("clientId")));
+                    page.personalTokenPermissions =
+                            PersonalAccessTokenService.availablePermissions(account);
+                    page.notificationEndpoint =
+                            issuer() + WebhookService.MESSAGE_CENTER_NOTICE_ENDPOINT;
+                    page.personalTokenScopes = PersonalAccessTokenService.availableScopes(account);
+                    page.personalTokens = personalTokens.create(mcpResource()).list(account);
+                    page.grants = new ArrayList<>();
+                    for (Map<String, Object> row :
+                            store.list(
+                                    c,
+                                    "select g.*,c.name,c.enabled as clientEnabled from oauth_grant g inner join oauth_client c on c.clientId=g.clientId where g.userId=? order by g.createdAt desc",
+                                    account.getUserId())) {
+                        Grant g = new Grant();
+                        g.id = (String) row.get("id");
+                        g.userId = account.getUserId();
+                        g.clientId = (String) row.get("clientId");
+                        g.clientName = (String) row.get("name");
+                        g.scope = (String) row.get("scope");
+                        g.resource = (String) row.get("resource");
+                        g.createdAt = ((Number) row.get("createdAt")).longValue();
+                        g.revoked =
+                                AccountAccess.truth(row.get("revoked"))
+                                        || !AccountAccess.truth(row.get("clientEnabled"))
+                                        || ((Number) row.get("authVersion")).intValue()
+                                                != account.getAuthVersion();
+                        page.grants.add(g);
+                    }
+                    return page;
+                });
     }
 }

@@ -1,9 +1,13 @@
 package com.zrlog.admin.web.interceptor;
 
+import static org.junit.Assert.*;
+
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
+import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.business.plugin.PluginCorePlugin;
 import com.zrlog.common.exception.ArgsException;
+
 import org.junit.Test;
 
 import java.lang.reflect.Method;
@@ -13,17 +17,28 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.junit.Assert.*;
-
 public class PluginTokenAuthenticationTest {
 
     @Test public void bothEndpointsRejectMissingAndWrongTokensAndAcceptHostTokenWithoutLogin() throws Exception {
         PluginTokenValidator tokens = new PluginTokenValidator(() -> plugin("host-token"));
         AtomicInteger invoked = new AtomicInteger();
-        AdminRefreshCacheInterceptor refresh = new AdminRefreshCacheInterceptor(() -> null, tokens, () -> null) {
-            @Override protected Method getMethod(HttpRequest request) { return null; }
-            @Override protected void doMethodInterceptor(HttpRequest request, HttpResponse response, Method method) { invoked.incrementAndGet(); }
-        };
+        AdminRefreshCacheInterceptor refresh =
+                new AdminRefreshCacheInterceptor(
+                        () -> null,
+                        tokens,
+                        () -> null,
+                        AccountServicesFixture.component().permissions()) {
+                    @Override
+                    protected Method getMethod(HttpRequest request) {
+                        return null;
+                    }
+
+                    @Override
+                    protected void doMethodInterceptor(
+                            HttpRequest request, HttpResponse response, Method method) {
+                        invoked.incrementAndGet();
+                    }
+                };
         AdminMethodInterceptor ai = new AdminInternalAiInterceptor(tokens, () -> null) {
             @Override protected Method getMethod(HttpRequest request) { return null; }
             @Override protected void doMethodInterceptor(HttpRequest request, HttpResponse response, Method method) { invoked.incrementAndGet(); }

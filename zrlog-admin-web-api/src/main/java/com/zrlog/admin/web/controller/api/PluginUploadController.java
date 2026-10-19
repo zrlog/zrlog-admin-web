@@ -8,12 +8,15 @@ import com.zrlog.business.plugin.PluginCorePlugin;
 import com.zrlog.common.controller.BaseController;
 import com.zrlog.data.security.AccountAction;
 
+import jakarta.inject.Inject;
+
 import java.util.function.Supplier;
 
 /** Authenticated transport adapter; artifact installation belongs to plugin-core. */
 public class PluginUploadController extends BaseController {
     private final Supplier<PluginCorePlugin> pluginCore;
 
+    @Inject
     public PluginUploadController(Supplier<PluginCorePlugin> pluginCore) {
         this.pluginCore = pluginCore;
     }

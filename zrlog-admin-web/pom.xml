@@ -11,6 +11,22 @@
     <dependencies>
         <dependency>
             <groupId>com.hibegin</groupId>
+            <artifactId>zrlog-admin-ai</artifactId>
+            <version>${project.version}</version>
+            <type>test-jar</type>
+            <classifier>tests</classifier>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.hibegin</groupId>
+            <artifactId>zrlog-admin-account</artifactId>
+            <version>${project.version}</version>
+            <type>test-jar</type>
+            <classifier>tests</classifier>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.hibegin</groupId>
             <artifactId>zrlog-admin-web-api</artifactId>
         </dependency>
         <dependency>

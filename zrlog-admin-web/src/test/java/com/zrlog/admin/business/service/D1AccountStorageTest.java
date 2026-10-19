@@ -1,14 +1,19 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.*;
+
 import com.hibegin.common.util.PasswordHashUtils;
 import com.hibegin.common.util.SecurityUtils;
 import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.security.MemberModels;
 import com.zrlog.admin.business.security.OAuthException;
 import com.zrlog.admin.business.security.OAuthModels.*;
+import com.zrlog.admin.business.security.PersonalTokenModels;
+import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.interceptor.OAuthInterceptor;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
+
 import org.junit.Test;
 
 import java.net.URI;
@@ -16,11 +21,25 @@ import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.*;
 
-import static org.junit.Assert.*;
-
 /** Exercises interleavings between separate autocommitted statements, without a shared process lock. */
 public class D1AccountStorageTest {
-    private final OAuthService oauth = new OAuthService(() -> "https://blog.example/sub", () -> true);
+    private OAuthService oauth;
+
+    private void initializeServices() {
+        oauth =
+                new OAuthService(
+                        () -> "https://blog.example/sub",
+                        () -> true,
+                        AccountServicesFixture.component().permissions(),
+                        AccountServicesFixture.component().security(),
+                        tokenResource ->
+                                new PersonalAccessTokenService(
+                                        tokenResource,
+                                        AccountServicesFixture.component().permissions(),
+                                        AccountServicesFixture.component().security()),
+                        AccountServicesFixture.component().backend());
+    }
+
     private final String verifier = OAuthService.random();
 
     private Client client() throws Exception {
@@ -69,6 +88,7 @@ public class D1AccountStorageTest {
     @Test public void competingCodeAndRefreshExchangesRevokeTheWinnersGrant() throws Exception {
         for (boolean refresh : List.of(false, true)) {
             try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.openWebApi()) {
+                initializeServices();
                 Client client = client(); TokenRequest request = code(client, oauth.consent(pending(client)));
                 if (refresh) {
                     TokenResponse previous = oauth.token(request);
@@ -93,6 +113,7 @@ public class D1AccountStorageTest {
 
     @Test public void competingConsentSessionsCannotReplaceTheWinningAccountBinding() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.openWebApi()) {
+            initializeServices();
             Client client = client(); String id = pending(client);
             db.execute("insert into user(userId,userName,role) values(?,?,?)", 2, "other", "author");
             CyclicBarrier barrier = new CyclicBarrier(2);
@@ -119,6 +140,7 @@ public class D1AccountStorageTest {
 
     @Test public void issuanceFailureDoesNotRestoreConsumedCredentials() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.openWebApi()) {
+            initializeServices();
             Client client = client(); TokenRequest request = code(client, oauth.consent(pending(client)));
             db.beforeWebApiUpdate((sql, args) -> {
                 if (sql.startsWith("insert into oauth_credential") && "refresh".equals(args[1])) throw new SQLException("Simulated interruption");
@@ -133,6 +155,7 @@ public class D1AccountStorageTest {
 
     @Test public void pendingQuotaIsCheckedInTheInsertionStatement() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.openWebApi()) {
+            initializeServices();
             Client client = client();
             db.execute("with recursive seq(n) as (select 1 union all select n+1 from seq where n<999) "
                     + "insert into oauth_credential(hash,kind,payload,expiresAt,used) select 'quota-'||n,'pending','{}',?,0 from seq", System.currentTimeMillis() + 600_000);
@@ -151,13 +174,25 @@ public class D1AccountStorageTest {
 
     @Test public void memberUpdateAtomicallyChangesPasswordRoleAndCredentialVersion() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.openWebApi()) {
+            initializeServices();
             AccountAuthorizationTest.login(db, 1, "owner");
-            MemberService members = new MemberService();
+            MemberService members =
+                    new MemberService(
+                            AccountServicesFixture.component().security(),
+                            AccountServicesFixture.component().users(),
+                            AccountServicesFixture.component().permissions());
             MemberModels.Create create = new MemberModels.Create(); create.userName = "writer"; create.role = "author"; create.password = "previous-password";
             int id = members.create(create).userId;
             AccountAuthorizationTest.login(db, id, "author");
-            com.zrlog.admin.business.security.PersonalTokenModels.Create pat = new com.zrlog.admin.business.security.PersonalTokenModels.Create(); pat.name = "Assistant";
-            String token = new PersonalAccessTokenService(oauth.mcpResource()).create(pat).token;
+            PersonalTokenModels.Create pat = new PersonalTokenModels.Create();
+            pat.name = "Assistant";
+            String token =
+                    new PersonalAccessTokenService(
+                                    oauth.mcpResource(),
+                                    AccountServicesFixture.component().permissions(),
+                                    AccountServicesFixture.component().security())
+                            .create(pat)
+                            .token;
             AccountAuthorizationTest.login(db, 1, "owner");
             MemberModels.Update update = new MemberModels.Update(); update.userId = id; update.role = "editor"; update.enabled = false; update.password = "replacement-password";
             members.update(update);
@@ -172,7 +207,12 @@ public class D1AccountStorageTest {
 
     @Test public void memberWritesRecheckActorAndTargetAtTheWrite() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.openWebApi()) {
-            MemberService members = new MemberService();
+            initializeServices();
+            MemberService members =
+                    new MemberService(
+                            AccountServicesFixture.component().security(),
+                            AccountServicesFixture.component().users(),
+                            AccountServicesFixture.component().permissions());
             MemberModels.Create create = new MemberModels.Create(); create.userName = "writer"; create.role = "author"; create.password = "previous-password";
             int id = members.create(create).userId;
             MemberModels.Update update = new MemberModels.Update(); update.userId = id; update.role = "contributor"; update.enabled = false;
@@ -193,6 +233,7 @@ public class D1AccountStorageTest {
 
     @Test public void competingOwnershipTransfersAlwaysLeaveExactlyOneOwner() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.openWebApi()) {
+            initializeServices();
             AccountAuthorizationTest.login(db, 1, "owner");
             db.execute("update user set password=? where userId=1", PasswordHashUtils.hash(SecurityUtils.md5("owner-password")));
             db.execute("insert into user(userId,userName,role) values(?,?,?),(?,?,?)", 2, "second", "admin", 3, "third", "admin");
@@ -210,7 +251,16 @@ public class D1AccountStorageTest {
         try {
             AccountAuthorizationTest.login(db, 1, "owner");
             MemberModels.Transfer transfer = new MemberModels.Transfer(); transfer.userId = target; transfer.password = "owner-password";
-            try { new MemberService().transfer(transfer); return true; } catch (PermissionErrorException e) { return false; }
+            try {
+                new MemberService(
+                                AccountServicesFixture.component().security(),
+                                AccountServicesFixture.component().users(),
+                                AccountServicesFixture.component().permissions())
+                        .transfer(transfer);
+                return true;
+            } catch (PermissionErrorException e) {
+                return false;
+            }
         } finally { AdminTokenThreadLocal.remove(); }
     }
 }

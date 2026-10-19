@@ -1,16 +1,29 @@
 package com.zrlog.admin.business.ai.service;
 
+import static com.zrlog.admin.business.ai.service.AIChatServiceTest.*;
+import static com.zrlog.admin.business.ai.service.OpenAIResponsesAdapterTest.*;
+
+import static org.junit.Assert.*;
+
 import com.google.gson.*;
 import com.hibegin.http.server.util.PathUtil;
+import com.zrlog.admin.business.ai.dto.AIStreamResponse;
 import com.zrlog.admin.business.ai.exception.AIFileInputException;
 import com.zrlog.admin.business.ai.model.AIChatModels.*;
 import com.zrlog.admin.business.ai.model.AIFileModels.*;
+import com.zrlog.admin.business.ai.model.AIProviderRequests;
 import com.zrlog.admin.business.ai.model.AIProviderType;
+import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.rest.base.AIWebSiteInfo;
 import com.zrlog.admin.business.rest.response.AIResponseEntry;
+import com.zrlog.admin.support.AccountServicesFixture;
+import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
+import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.vo.AdminTokenVO;
+import com.zrlog.model.WebSite;
+
 import org.junit.*;
 import org.junit.rules.TemporaryFolder;
 
@@ -21,10 +34,6 @@ import java.nio.file.attribute.FileTime;
 import java.time.Duration;
 import java.util.*;
 import java.util.zip.*;
-
-import static com.zrlog.admin.business.ai.service.AIChatServiceTest.*;
-import static com.zrlog.admin.business.ai.service.OpenAIResponsesAdapterTest.*;
-import static org.junit.Assert.*;
 
 public class AIFileInputTest {
     @Rule public TemporaryFolder temporary = new TemporaryFolder();
@@ -52,7 +61,8 @@ public class AIFileInputTest {
         db.execute("insert into log(logId,userId,typeId,title,rubbish,privacy,version) values(?,?,?,?,?,?,?)", 7,1,1,"Before",true,false,2);
         db.execute("update user set preferences=? where userId=1", "{\"assistant\":{\"knowledgeScope\":\"own_all\"}}");
     }
-    private static String read(com.zrlog.admin.business.ai.dto.AIStreamResponse response) throws IOException {
+
+    private static String read(AIStreamResponse response) throws IOException {
         return new String(response.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
     }
 
@@ -70,7 +80,24 @@ public class AIFileInputTest {
                 FakeHttpClient client = new FakeHttpClient(streamResponse(response), streamResponse(response));
                 for (String json : List.of("{\"input\":\"Hello\",\"articleId\":7}",
                         "{\"input\":\"Continue\",\"articleId\":7,\"files\":[]}")) {
-                    String payload = read(new AIChatService(client, null, ContentToolsFixture.from(db.config())).start(new Gson().fromJson(json, ChatRequest.class)));
+                    String payload =
+                            read(
+                                    new AIChatService(
+                                                    client,
+                                                    null,
+                                                    ContentToolsFixture.from(db.config()),
+                                                    AccountServicesFixture.component()
+                                                            .permissions(),
+                                                    AccountServicesFixture.component()
+                                                            .preferences(),
+                                                    AIServiceDependencies.approvals(),
+                                                    new AIFileService(),
+                                                    AIServiceDependencies.writing(),
+                                                    AIServiceDependencies.conversations(),
+                                                    AIServiceDependencies.writingTools(),
+                                                    AIServiceDependencies.references(
+                                                            ContentToolsFixture.from(db.config())))
+                                            .start(new Gson().fromJson(json, ChatRequest.class)));
                     assertTrue(payload, payload.contains("\"type\":\"done\""));
                 }
                 assertEquals(2, client.requests.size());
@@ -133,10 +160,40 @@ public class AIFileInputTest {
             Input png = image("png"), jpeg = image("jpg"), webp = image("webp"), csv = text("notes.csv", "a,b\n1,2");
             jpeg.name = "Photo.JPEG";
             FakeHttpClient client = new FakeHttpClient(streamResponse(terminal(MESSAGE)), streamResponse(terminal(MESSAGE)));
-            String first = read(new AIChatService(client, null, ContentToolsFixture.from(db.config())).start(request(7, png, jpeg, webp, csv)));
+            String first =
+                    read(
+                            new AIChatService(
+                                            client,
+                                            null,
+                                            ContentToolsFixture.from(db.config()),
+                                            AccountServicesFixture.component().permissions(),
+                                            AccountServicesFixture.component().preferences(),
+                                            AIServiceDependencies.approvals(),
+                                            new AIFileService(),
+                                            AIServiceDependencies.writing(),
+                                            AIServiceDependencies.conversations(),
+                                            AIServiceDependencies.writingTools(),
+                                            AIServiceDependencies.references(
+                                                    ContentToolsFixture.from(db.config())))
+                                    .start(request(7, png, jpeg, webp, csv)));
             assertTrue(first, first.contains("\"type\":\"done\""));
             assertFalse(first.contains(png.data));
-            assertTrue(read(new AIChatService(client, null, ContentToolsFixture.from(db.config())).start(request(7))).contains("\"type\":\"done\""));
+            assertTrue(
+                    read(new AIChatService(
+                                            client,
+                                            null,
+                                            ContentToolsFixture.from(db.config()),
+                                            AccountServicesFixture.component().permissions(),
+                                            AccountServicesFixture.component().preferences(),
+                                            AIServiceDependencies.approvals(),
+                                            new AIFileService(),
+                                            AIServiceDependencies.writing(),
+                                            AIServiceDependencies.conversations(),
+                                            AIServiceDependencies.writingTools(),
+                                            AIServiceDependencies.references(
+                                                    ContentToolsFixture.from(db.config())))
+                                    .start(request(7)))
+                            .contains("\"type\":\"done\""));
             for (JsonObject wire : client.requestBodies) {
                 List<JsonObject> images = parts(wire, "input_image");
                 assertEquals(3, images.size());
@@ -147,7 +204,16 @@ public class AIFileInputTest {
                 assertBytes(csv, fileParts(wire).get(0));
                 assertFalse(wire.toString().contains("attachments"));
             }
-            String stored = new Gson().toJson(new AIConversationService().exportAIMessage(7L));
+            String stored =
+                    new Gson()
+                            .toJson(
+                                    new AIConversationService(
+                                                    AccountServicesFixture.component().security(),
+                                                    ApplicationServicesFixture.websiteKv(),
+                                                    WebSite::new,
+                                                    new AIFileService(),
+                                                    AIServiceDependencies.approvals())
+                                            .exportAIMessage(7L));
             assertTrue(stored.contains("image/png"));
             assertFalse(stored.contains(png.data));
             assertFalse(stored.contains("image_url"));
@@ -159,9 +225,9 @@ public class AIFileInputTest {
             Input png = image("png");
             AIFileService storage = new AIFileService();
             Attachment image = storage.save(List.of(png), info()).get(0);
-            var message = new com.zrlog.admin.business.ai.model.AIProviderRequests.Message("user", "");
+            var message = new AIProviderRequests.Message("user", "");
             message.attachments = List.of(image);
-            var completion = new com.zrlog.admin.business.ai.model.AIProviderRequests.CompletionRequest();
+            var completion = new AIProviderRequests.CompletionRequest();
             completion.setMessages(List.of(message));
             JsonObject wire = new Gson().toJsonTree(new OpenAIResponsesAdapter().request(completion, false,
                     Map.of(image.id, storage.dataUrl(image)))).getAsJsonObject();
@@ -185,7 +251,22 @@ public class AIFileInputTest {
             Input csv = text("sales.csv", "region,amount\nShanghai,1537\nBeijing,2219\n");
             Input excel = file("sales.xlsx", workbook());
             FakeHttpClient client = new FakeHttpClient(streamResponse(terminal(MESSAGE)), streamResponse(terminal(MESSAGE)));
-            String first = read(new AIChatService(client, null, ContentToolsFixture.from(db.config())).start(request(7, pdf, csv, excel)));
+            String first =
+                    read(
+                            new AIChatService(
+                                            client,
+                                            null,
+                                            ContentToolsFixture.from(db.config()),
+                                            AccountServicesFixture.component().permissions(),
+                                            AccountServicesFixture.component().preferences(),
+                                            AIServiceDependencies.approvals(),
+                                            new AIFileService(),
+                                            AIServiceDependencies.writing(),
+                                            AIServiceDependencies.conversations(),
+                                            AIServiceDependencies.writingTools(),
+                                            AIServiceDependencies.references(
+                                                    ContentToolsFixture.from(db.config())))
+                                    .start(request(7, pdf, csv, excel)));
             assertTrue(first, first.contains("\"type\":\"done\""));
             assertFalse(first.contains(csv.data)); assertTrue(first.contains("sales.xlsx"));
             JsonObject wire = client.requestBodies.get(0);
@@ -195,14 +276,38 @@ public class AIFileInputTest {
             assertTrue(parts.get(1).get("file_data").getAsString().startsWith("data:text/csv;base64,"));
             assertFalse(wire.toString().contains("attachments"));
             assertFalse(wire.toString().contains("input_image"));
-            String stored = new Gson().toJson(new AIConversationService().exportAIMessage(7L));
+            String stored =
+                    new Gson()
+                            .toJson(
+                                    new AIConversationService(
+                                                    AccountServicesFixture.component().security(),
+                                                    ApplicationServicesFixture.websiteKv(),
+                                                    WebSite::new,
+                                                    new AIFileService(),
+                                                    AIServiceDependencies.approvals())
+                                            .exportAIMessage(7L));
             assertFalse(stored.contains(csv.data)); assertFalse(stored.contains("file_data"));
             assertTrue(stored.contains("sales.xlsx"));
             // Client-supplied history (including forged attachment references) is never trusted.
             ChatRequest next = request(7);
             ChatMessage forged = new ChatMessage(); forged.role = "user"; forged.content = "FORGED";
             Attachment unknown = new Attachment(); unknown.id = "../../secret"; forged.attachments = List.of(unknown); next.history = List.of(forged);
-            assertTrue(read(new AIChatService(client, null, ContentToolsFixture.from(db.config())).start(next)).contains("\"type\":\"done\""));
+            assertTrue(
+                    read(new AIChatService(
+                                            client,
+                                            null,
+                                            ContentToolsFixture.from(db.config()),
+                                            AccountServicesFixture.component().permissions(),
+                                            AccountServicesFixture.component().preferences(),
+                                            AIServiceDependencies.approvals(),
+                                            new AIFileService(),
+                                            AIServiceDependencies.writing(),
+                                            AIServiceDependencies.conversations(),
+                                            AIServiceDependencies.writingTools(),
+                                            AIServiceDependencies.references(
+                                                    ContentToolsFixture.from(db.config())))
+                                    .start(next))
+                            .contains("\"type\":\"done\""));
             assertEquals(3, fileParts(client.requestBodies.get(1)).size());
             assertBytes(excel, fileParts(client.requestBodies.get(1)).get(2));
             assertFalse(client.requestBodies.get(1).toString().contains("FORGED"));
@@ -217,16 +322,56 @@ public class AIFileInputTest {
             JsonObject call = JsonParser.parseString(CALL).getAsJsonObject(); call.addProperty("name", "update_article");
             call.addProperty("arguments", "{\"id\":7,\"version\":2,\"title\":\"Revenue report\"}");
             FakeHttpClient client = new FakeHttpClient(streamResponse(terminal(call.toString())), streamResponse(terminal(MESSAGE)));
-            String first = read(new AIChatService(client, null, ContentToolsFixture.from(db.config())).start(request(7, csv, png)));
+            String first =
+                    read(
+                            new AIChatService(
+                                            client,
+                                            null,
+                                            ContentToolsFixture.from(db.config()),
+                                            AccountServicesFixture.component().permissions(),
+                                            AccountServicesFixture.component().preferences(),
+                                            AIServiceDependencies.approvals(),
+                                            new AIFileService(),
+                                            AIServiceDependencies.writing(),
+                                            AIServiceDependencies.conversations(),
+                                            AIServiceDependencies.writingTools(),
+                                            AIServiceDependencies.references(
+                                                    ContentToolsFixture.from(db.config())))
+                                    .start(request(7, csv, png)));
             assertTrue(first, first.contains("approval-required"));
-            RunView view = new AIChatService().getRun(7);
+            RunView view =
+                    new AIChatService(
+                                    AccountServicesFixture.component().permissions(),
+                                    AccountServicesFixture.component().preferences(),
+                                    AIServiceDependencies.approvals(),
+                                    new AIFileService(),
+                                    AIServiceDependencies.writing(),
+                                    AIServiceDependencies.conversations(),
+                                    AIServiceDependencies.writingTools(),
+                                    AIServiceDependencies.references(null))
+                            .getRun(7);
             assertEquals("sales.csv", view.attachments.get(0).name);
             String checkpoint = db.scalar("select value from website where name='ai_pending_u1_7'").toString();
             assertFalse(checkpoint.contains(csv.data)); assertFalse(checkpoint.contains("file_data"));
             assertFalse(checkpoint.contains(png.data));
             ApprovalRequest decision = new ApprovalRequest(); decision.articleId = 7; decision.runId = view.runId;
             decision.approvalId = view.approval.id; decision.decision = "reject";
-            assertTrue(read(new AIChatService(client, null, ContentToolsFixture.from(db.config())).resume(decision)).contains("\"type\":\"done\""));
+            assertTrue(
+                    read(new AIChatService(
+                                            client,
+                                            null,
+                                            ContentToolsFixture.from(db.config()),
+                                            AccountServicesFixture.component().permissions(),
+                                            AccountServicesFixture.component().preferences(),
+                                            AIServiceDependencies.approvals(),
+                                            new AIFileService(),
+                                            AIServiceDependencies.writing(),
+                                            AIServiceDependencies.conversations(),
+                                            AIServiceDependencies.writingTools(),
+                                            AIServiceDependencies.references(
+                                                    ContentToolsFixture.from(db.config())))
+                                    .resume(decision))
+                            .contains("\"type\":\"done\""));
             assertBytes(csv, fileParts(client.requestBodies.get(1)).get(0));
             assertImage(png, parts(client.requestBodies.get(1), "input_image").get(0), "image/png");
         }
@@ -238,9 +383,41 @@ public class AIFileInputTest {
             for (String provider : List.of("GOOGLE_GEMINI", "QWEN", "DEEP_SEEK")) {
                 db.putWebsite("ai_provider", provider);
                 FakeHttpClient client = new FakeHttpClient();
-                assertThrows(AIFileInputException.class, () -> new AIChatService(client, null, ContentToolsFixture.from(db.config())).start(request(7, text("report.csv", "a,b"))));
+                assertThrows(
+                        AIFileInputException.class,
+                        () ->
+                                new AIChatService(
+                                                client,
+                                                null,
+                                                ContentToolsFixture.from(db.config()),
+                                                AccountServicesFixture.component().permissions(),
+                                                AccountServicesFixture.component().preferences(),
+                                                AIServiceDependencies.approvals(),
+                                                new AIFileService(),
+                                                AIServiceDependencies.writing(),
+                                                AIServiceDependencies.conversations(),
+                                                AIServiceDependencies.writingTools(),
+                                                AIServiceDependencies.references(
+                                                        ContentToolsFixture.from(db.config())))
+                                        .start(request(7, text("report.csv", "a,b"))));
                 Input image = image("png");
-                assertThrows(AIFileInputException.class, () -> new AIChatService(client, null, ContentToolsFixture.from(db.config())).start(request(7, image)));
+                assertThrows(
+                        AIFileInputException.class,
+                        () ->
+                                new AIChatService(
+                                                client,
+                                                null,
+                                                ContentToolsFixture.from(db.config()),
+                                                AccountServicesFixture.component().permissions(),
+                                                AccountServicesFixture.component().preferences(),
+                                                AIServiceDependencies.approvals(),
+                                                new AIFileService(),
+                                                AIServiceDependencies.writing(),
+                                                AIServiceDependencies.conversations(),
+                                                AIServiceDependencies.writingTools(),
+                                                AIServiceDependencies.references(
+                                                        ContentToolsFixture.from(db.config())))
+                                        .start(request(7, image)));
                 assertTrue(client.requests.isEmpty());
             }
             assertThrows(AIFileInputException.class, () -> AIFileService.validateInputs(List.of(text("photo.png", "image"))));
@@ -311,14 +488,29 @@ public class AIFileInputTest {
             Attachment document = storage.save(List.of(text("notes.txt", "private notes")), info()).get(0);
             AIResponseEntry.AIContentEntry message = new AIResponseEntry.AIContentEntry("user", "Look at this image");
             message.setAttachments(List.of(png, document));
-            AIConversationService conversations = new AIConversationService();
+            AIConversationService conversations =
+                    new AIConversationService(
+                            AccountServicesFixture.component().security(),
+                            ApplicationServicesFixture.websiteKv(),
+                            WebSite::new,
+                            new AIFileService(),
+                            AIServiceDependencies.approvals());
             conversations.appendAIMessageEntries(List.of(message), 7L);
-            AIChatService chat = new AIChatService();
+            AIChatService chat =
+                    new AIChatService(
+                            AccountServicesFixture.component().permissions(),
+                            AccountServicesFixture.component().preferences(),
+                            AIServiceDependencies.approvals(),
+                            new AIFileService(),
+                            AIServiceDependencies.writing(),
+                            AIServiceDependencies.conversations(),
+                            AIServiceDependencies.writingTools(),
+                            AIServiceDependencies.references(null));
             assertArrayEquals(Base64.getDecoder().decode(image.data), storage.read(chat.imageAttachment(7, png.id)));
             assertThrows(AIFileInputException.class, () -> chat.imageAttachment(0, png.id));
             assertThrows(AIFileInputException.class, () -> chat.imageAttachment(7, document.id));
             assertThrows(AIFileInputException.class, () -> chat.imageAttachment(7, "../../secret"));
-            assertThrows(com.zrlog.common.exception.ArgsException.class, () -> chat.imageAttachment(-1, png.id));
+            assertThrows(ArgsException.class, () -> chat.imageAttachment(-1, png.id));
             db.execute("insert into user(userId,userName,role,authVersion) values(?,?,?,?)", 2, "another", "admin", 0);
             AdminTokenVO another = new AdminTokenVO(); another.setUserId(2); another.setAuthVersion(0);
             AdminTokenThreadLocal.withUser(another, () -> {
@@ -326,7 +518,7 @@ public class AIFileInputTest {
             });
             db.execute("update user set role='author' where userId=1");
             db.execute("update log set userId=2,privacy=true where logId=7");
-            assertThrows(com.zrlog.admin.business.exception.PermissionErrorException.class, () -> chat.imageAttachment(7, png.id));
+            assertThrows(PermissionErrorException.class, () -> chat.imageAttachment(7, png.id));
         }
     }
 
@@ -336,13 +528,31 @@ public class AIFileInputTest {
             AIFileService storage = new AIFileService();
             Attachment image = storage.save(List.of(image("webp")), info()).get(0);
             Run run = new Run(); run.userId = 1; run.articleId = 0; run.input = "Describe"; run.attachments = List.of(image);
-            AIApprovalStore checkpoints = new AIApprovalStore(); checkpoints.pause(run); checkpoints.save(run, "running");
-            AIChatService chat = new AIChatService();
+            AIApprovalStore checkpoints =
+                    new AIApprovalStore(AccountServicesFixture.component().security());
+            checkpoints.pause(run);
+            checkpoints.save(run, "running");
+            AIChatService chat =
+                    new AIChatService(
+                            AccountServicesFixture.component().permissions(),
+                            AccountServicesFixture.component().preferences(),
+                            AIServiceDependencies.approvals(),
+                            new AIFileService(),
+                            AIServiceDependencies.writing(),
+                            AIServiceDependencies.conversations(),
+                            AIServiceDependencies.writingTools(),
+                            AIServiceDependencies.references(null));
             assertEquals(image.id, chat.imageAttachment(0, image.id).id);
             checkpoints.save(run, "completed");
             AIResponseEntry.AIContentEntry message = new AIResponseEntry.AIContentEntry("user", "Describe");
             image.expiresAt = 1; message.setAttachments(List.of(image));
-            AIConversationService conversations = new AIConversationService();
+            AIConversationService conversations =
+                    new AIConversationService(
+                            AccountServicesFixture.component().security(),
+                            ApplicationServicesFixture.websiteKv(),
+                            WebSite::new,
+                            new AIFileService(),
+                            AIServiceDependencies.approvals());
             conversations.appendAIMessageEntries(List.of(message), -1L);
             assertThrows(AIFileInputException.class, () -> storage.read(chat.imageAttachment(0, image.id)));
             assertTrue(conversations.clearAIMessage(-1L));
@@ -355,10 +565,19 @@ public class AIFileInputTest {
             configure(db); AIFileService storage = new AIFileService();
             Attachment file = storage.save(List.of(text("notes.txt", "Keep these notes")), info()).get(0);
             AIResponseEntry.AIContentEntry entry = new AIResponseEntry.AIContentEntry("user", "Read notes"); entry.setAttachments(List.of(file));
-            AIConversationService conversations = new AIConversationService();
+            AIConversationService conversations =
+                    new AIConversationService(
+                            AccountServicesFixture.component().security(),
+                            ApplicationServicesFixture.websiteKv(),
+                            WebSite::new,
+                            new AIFileService(),
+                            AIServiceDependencies.approvals());
             conversations.appendAIMessageEntries(List.of(entry), -1L);
             Run draft = new Run(); draft.userId = 1; draft.articleId = 0; draft.input = "Read notes"; draft.attachments = List.of(file);
-            AIApprovalStore store = new AIApprovalStore(); store.pause(draft); store.save(draft, "completed");
+            AIApprovalStore store =
+                    new AIApprovalStore(AccountServicesFixture.component().security());
+            store.pause(draft);
+            store.save(draft, "completed");
             assertTrue(conversations.migrateDraftAIMessageToArticle(7L, -1L));
             assertTrue(conversations.clearAIMessage(-1L)); assertNotNull(storage.dataUrl(file));
             assertTrue(conversations.clearAIMessage(7L));

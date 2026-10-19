@@ -1,13 +1,21 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
+
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.zrlog.admin.business.rest.response.MessageCenterNoticeResponse;
 import com.zrlog.admin.business.rest.response.MessageCenterOperationNoticeEntry;
 import com.zrlog.admin.business.rest.response.ReplaceArticleResourceUrlResponse;
 import com.zrlog.admin.business.rest.response.ScoreArticleResponse;
+import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.business.plugin.type.StaticSiteType;
 import com.zrlog.business.rest.response.UpgradeProcessResponse;
+import com.zrlog.model.WebSite;
+
 import org.junit.Test;
 
 import java.lang.reflect.Field;
@@ -17,12 +25,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
 
 public class MessageCenterOperationServiceTest {
 
@@ -258,6 +260,9 @@ public class MessageCenterOperationServiceTest {
     }
 
     private static class FakeWebsiteCacheService extends WebsiteCacheService {
+        FakeWebsiteCacheService() {
+            super(ApplicationServicesFixture.websiteKv());
+        }
 
         private Map<String, Object> values;
 
@@ -279,6 +284,9 @@ public class MessageCenterOperationServiceTest {
     }
 
     private static class FakeMessageCenterStateService extends MessageCenterStateService {
+        FakeMessageCenterStateService() {
+            super(ApplicationServicesFixture.websiteCache(), WebSite::new);
+        }
 
         private boolean changed;
         private boolean mayHaveUnread;

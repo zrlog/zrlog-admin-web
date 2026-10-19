@@ -11,6 +11,10 @@ import com.zrlog.admin.plugin.rest.response.UploadServiceResponseEntity;
 import com.zrlog.admin.util.UploadFileUtils;
 import com.zrlog.business.plugin.PluginCorePlugin;
 import com.zrlog.common.vo.AdminTokenVO;
+import com.zrlog.data.security.AccountAccess;
+
+import jakarta.inject.Inject;
+import jakarta.inject.Singleton;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -28,13 +32,24 @@ import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+@Singleton
 public class UploadService {
 
+    private final AccountPermissionService permissionService;
+
     private static final Logger LOGGER = LoggerUtil.getLogger(UploadService.class);
-    private final DbFileService dbFileService = new DbFileService();
+    private final DbFileService dbFileService;
     private final Supplier<PluginCorePlugin> pluginCore;
 
-    public UploadService(Supplier<PluginCorePlugin> pluginCore) {
+    @Inject
+    public UploadService(
+            Supplier<PluginCorePlugin> pluginCore,
+            AccountPermissionService permissionService,
+            DbFileService dbFileService) {
+        this.dbFileService = dbFileService;
+
+        this.permissionService = permissionService;
+
         this.pluginCore = Objects.requireNonNull(pluginCore);
     }
 
@@ -46,7 +61,7 @@ public class UploadService {
     public UploadFileResponse saveUploadedFile(File file, String dir, String name, HttpRequest request,
                                                AdminTokenVO adminTokenVO) throws IOException, SQLException {
         String resolvedDir = UploadFileUtils.resolveUploadDir(dir);
-        com.zrlog.data.security.AccountAccess actor = AccountPermissionService.account(adminTokenVO);
+        AccountAccess actor = permissionService.account(adminTokenVO);
         if (!actor.isAdministrator()) {
             resolvedDir = normalizeTemporaryDir(resolvedDir) == null
                     ? "users/" + actor.getUserId()

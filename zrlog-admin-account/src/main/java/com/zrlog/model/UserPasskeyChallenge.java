@@ -1,6 +1,9 @@
 package com.zrlog.model;
 
 import com.hibegin.common.dao.BasePageableDAO;
+import com.hibegin.common.dao.DataSourceWrapper;
+
+import jakarta.inject.Inject;
 
 import java.sql.SQLException;
 import java.util.Map;
@@ -9,7 +12,9 @@ public class UserPasskeyChallenge extends BasePageableDAO {
 
     public static final String TABLE_NAME = "user_passkey_challenge";
 
-    public UserPasskeyChallenge() {
+    @Inject
+    public UserPasskeyChallenge(DataSourceWrapper database) {
+        super(database);
         this.tableName = TABLE_NAME;
         this.pk = "id";
     }

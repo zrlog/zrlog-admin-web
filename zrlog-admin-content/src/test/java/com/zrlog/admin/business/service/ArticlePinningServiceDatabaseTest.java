@@ -1,13 +1,25 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
+
+import com.hibegin.common.dao.DAO;
+import com.zrlog.admin.business.content.ArticleAssistant;
 import com.zrlog.admin.business.exception.ArticleNotPinnedException;
 import com.zrlog.admin.business.exception.ArticlePinningNotAllowedException;
 import com.zrlog.admin.business.rest.request.CreateArticleRequest;
 import com.zrlog.admin.business.rest.response.ArticlePinningEntryResponse;
 import com.zrlog.admin.business.rest.response.ArticlePinningResponse;
 import com.zrlog.admin.business.rest.response.CreateOrUpdateArticleResponse;
+import com.zrlog.admin.support.AccountServicesFixture;
+import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
+import com.zrlog.common.ZrLogConfig;
 import com.zrlog.common.vo.AdminTokenVO;
+import com.zrlog.model.Log;
+import com.zrlog.model.LogVersion;
+
 import org.junit.Test;
 
 import java.util.List;
@@ -18,13 +30,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
-
 public class ArticlePinningServiceDatabaseTest {
 
-    private com.zrlog.common.ZrLogConfig applicationConfig;
+    private ZrLogConfig applicationConfig;
 
     @Test
     public void shouldPinMoveUnpinAndCompressPriorities() throws Exception {
@@ -33,7 +41,8 @@ public class ArticlePinningServiceDatabaseTest {
             Long first = createArticle("First", false, false);
             Long second = createArticle("Second", false, false);
             Long third = createArticle("Third", false, false);
-            ArticlePinningService service = new ArticlePinningService();
+            ArticlePinningService service =
+                    new ArticlePinningService(Log::new, ApplicationServicesFixture.locks());
 
             assertIds(service.pin(first), first);
             assertIds(service.pin(second), second, first);
@@ -56,7 +65,8 @@ public class ArticlePinningServiceDatabaseTest {
             applicationConfig = ignored.config();
             Long draft = createArticle("Draft", false, true);
             Long privateArticle = createArticle("Private", true, false);
-            ArticlePinningService service = new ArticlePinningService();
+            ArticlePinningService service =
+                    new ArticlePinningService(Log::new, ApplicationServicesFixture.locks());
 
             assertThrows(ArticlePinningNotAllowedException.class, () -> service.pin(draft));
             assertThrows(ArticlePinningNotAllowedException.class, () -> service.pin(privateArticle));
@@ -74,22 +84,33 @@ public class ArticlePinningServiceDatabaseTest {
             CountDownLatch start = new CountDownLatch(1);
             ExecutorService executor = Executors.newFixedThreadPool(2);
             try {
-                Future<ArticlePinningResponse> firstResult = executor.submit(() -> {
-                    ready.countDown();
-                    start.await();
-                    return new ArticlePinningService().pin(first);
-                });
-                Future<ArticlePinningResponse> secondResult = executor.submit(() -> {
-                    ready.countDown();
-                    start.await();
-                    return new ArticlePinningService().pin(second);
-                });
+                Future<ArticlePinningResponse> firstResult =
+                        executor.submit(
+                                () -> {
+                                    ready.countDown();
+                                    start.await();
+                                    return new ArticlePinningService(
+                                                    Log::new, ApplicationServicesFixture.locks())
+                                            .pin(first);
+                                });
+                Future<ArticlePinningResponse> secondResult =
+                        executor.submit(
+                                () -> {
+                                    ready.countDown();
+                                    start.await();
+                                    return new ArticlePinningService(
+                                                    Log::new, ApplicationServicesFixture.locks())
+                                            .pin(second);
+                                });
                 ready.await();
                 start.countDown();
                 firstResult.get();
                 secondResult.get();
 
-                List<ArticlePinningEntryResponse> items = new ArticlePinningService().list().getItems();
+                List<ArticlePinningEntryResponse> items =
+                        new ArticlePinningService(Log::new, ApplicationServicesFixture.locks())
+                                .list()
+                                .getItems();
                 assertEquals(Set.of(first, second), items.stream()
                         .map(ArticlePinningEntryResponse::getLogId)
                         .collect(Collectors.toSet()));
@@ -107,7 +128,8 @@ public class ArticlePinningServiceDatabaseTest {
     public void shouldPersistMoreThanD1BindingLimitWithNumericLiterals() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
-            ArticlePinningService service = new ArticlePinningService();
+            ArticlePinningService service =
+                    new ArticlePinningService(Log::new, ApplicationServicesFixture.locks());
             for (int i = 1; i <= 40; i++) {
                 service.pin(createArticle("Pinned " + i, false, false));
             }
@@ -147,7 +169,27 @@ public class ArticlePinningServiceDatabaseTest {
         request.setPrivacy(privacy);
         request.setRubbish(rubbish);
         request.setEditorType("markdown");
-        CreateOrUpdateArticleResponse response = new AdminArticleService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(applicationConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), () -> "test")).create(token(), request);
+        CreateOrUpdateArticleResponse response =
+                new AdminArticleService(
+                                new InMemoryZrLogDatabase.TestCacheService(),
+                                ApplicationServicesFixture.capability(
+                                        applicationConfig, ArticleAssistant.class),
+                                new AdminPageDataFactory(
+                                        ApplicationServicesFixture.site(applicationConfig),
+                                        () -> "test",
+                                        ApplicationServicesFixture.messages(),
+                                        AccountServicesFixture.component().permissions()),
+                                AccountServicesFixture.component().permissions(),
+                                AccountServicesFixture.component().preferences(),
+                                new ArticleVersionService(
+                                        AccountServicesFixture.component().permissions(),
+                                        Log::new,
+                                        () -> new LogVersion(DAO.getDefaultDataSource())),
+                                new ArticlePinningService(
+                                        Log::new, ApplicationServicesFixture.locks()),
+                                Log::new,
+                                ApplicationServicesFixture.locks())
+                        .create(token(), request);
         return response.getLogId();
     }
 

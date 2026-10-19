@@ -1,14 +1,18 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.*;
+
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import com.zrlog.admin.support.AccountServicesFixture;
+import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
+import com.zrlog.model.WebSite;
 import com.zrlog.util.I18nUtil;
+
 import org.junit.Test;
 
 import java.util.concurrent.atomic.AtomicReference;
-
-import static org.junit.Assert.*;
 
 public class AdminPageDataFactoryTest {
     @Test
@@ -21,10 +25,20 @@ public class AdminPageDataFactoryTest {
             site.setLanguage("en_US");
             site.setSystem_notification("Maintenance A");
             var version = new AtomicReference<>("build-a");
-            var pages = new AdminPageDataFactory(() -> site, version::get);
+            var pages =
+                    new AdminPageDataFactory(
+                            () -> site,
+                            version::get,
+                            ApplicationServicesFixture.messages(),
+                            AccountServicesFixture.component().permissions());
             var otherSite = new InMemoryZrLogDatabase.TestCacheService().getPublicWebSiteInfo();
             otherSite.setTitle("Site B");
-            var other = new AdminPageDataFactory(() -> otherSite, () -> "build-b");
+            var other =
+                    new AdminPageDataFactory(
+                            () -> otherSite,
+                            () -> "build-b",
+                            ApplicationServicesFixture.messages(),
+                            AccountServicesFixture.component().permissions());
 
             JsonObject first = new Gson().toJsonTree(pages.response("content", "", "/admin/system")).getAsJsonObject();
             assertEquals("content", first.get("data").getAsString());
@@ -51,8 +65,14 @@ public class AdminPageDataFactoryTest {
     @Test
     public void editorPagesDoNotExposeAdministratorMessageStatus() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-            var pages = new AdminPageDataFactory(db.cacheService()::getPublicWebSiteInfo, () -> "");
-            new MessageCenterStateService().markMayHaveUnread();
+            var pages =
+                    new AdminPageDataFactory(
+                            db.cacheService()::getPublicWebSiteInfo,
+                            () -> "",
+                            ApplicationServicesFixture.messages(),
+                            AccountServicesFixture.component().permissions());
+            new MessageCenterStateService(ApplicationServicesFixture.websiteCache(), WebSite::new)
+                    .markMayHaveUnread();
             assertTrue(pages.response(null).getMessageCenter().isHasUnread());
             db.execute("update user set role='editor' where userId=1");
             var response = pages.response(null);

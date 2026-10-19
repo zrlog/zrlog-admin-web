@@ -2,11 +2,15 @@ package com.zrlog.admin.business.service;
 
 import com.hibegin.common.dao.dto.PageData;
 import com.hibegin.common.dao.dto.PageRequest;
+import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.rest.request.ReadCommentRequest;
 import com.zrlog.admin.business.rest.response.DeleteResponse;
 import com.zrlog.admin.business.rest.response.UpdateRecordResponse;
 import com.zrlog.data.dto.CommentDTO;
+import com.zrlog.data.security.AccountAccess;
 import com.zrlog.model.Comment;
+
+import jakarta.inject.Inject;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -17,8 +21,22 @@ import java.util.Set;
 import java.util.StringJoiner;
 
 public class AdminCommentService {
+    private final jakarta.inject.Provider<Comment> commentProvider;
 
-    private final MessageCenterStateService messageCenterStateService = new MessageCenterStateService();
+    private final AccountPermissionService permissionService;
+
+    @Inject
+    public AdminCommentService(
+            AccountPermissionService permissionService,
+            MessageCenterStateService messageCenterStateService,
+            jakarta.inject.Provider<Comment> commentProvider) {
+        this.messageCenterStateService = messageCenterStateService;
+        this.commentProvider = commentProvider;
+
+        this.permissionService = permissionService;
+    }
+
+    private final MessageCenterStateService messageCenterStateService;
 
     public DeleteResponse delete(String[] ids) throws SQLException {
         List<Integer> commentIds = parseCommentIds(ids);
@@ -27,7 +45,7 @@ public class AdminCommentService {
         }
         for (Integer id : commentIds) checkArticle(id);
         String placeholders = placeholders(commentIds.size());
-        Comment comment = new Comment();
+        Comment comment = this.commentProvider.get();
         Object matchedCount = comment.queryFirstObj(
                 "select count(1) from " + Comment.TABLE_NAME + " where commentId in (" + placeholders + ")",
                 commentIds.toArray());
@@ -43,11 +61,17 @@ public class AdminCommentService {
 
     private void checkArticle(long commentId) {
         try {
-            if (AccountPermissionService.current().isAdministrator()) return;
-            Object id = new Comment().queryFirstObj("select logId from comment where commentId=?", commentId);
-            if (!(id instanceof Number)) throw new com.zrlog.admin.business.exception.PermissionErrorException();
-            AccountPermissionService.readArticle(((Number) id).longValue());
-        } catch (SQLException e) { throw new com.zrlog.admin.business.exception.PermissionErrorException(); }
+            if (permissionService.current().isAdministrator()) return;
+            Object id =
+                    this.commentProvider
+                            .get()
+                            .queryFirstObj(
+                                    "select logId from comment where commentId=?", commentId);
+            if (!(id instanceof Number)) throw new PermissionErrorException();
+            permissionService.readArticle(((Number) id).longValue());
+        } catch (SQLException e) {
+            throw new PermissionErrorException();
+        }
     }
 
     List<Integer> parseCommentIds(String[] ids) {
@@ -78,20 +102,27 @@ public class AdminCommentService {
             return new UpdateRecordResponse(false);
         }
         checkArticle(commentRequest.getId());
-        new Comment().doRead(commentRequest.getId());
+        this.commentProvider.get().doRead(commentRequest.getId());
         messageCenterStateService.markChanged();
         return new UpdateRecordResponse();
     }
 
     public PageData<CommentDTO> page(PageRequest pageable) throws SQLException {
-        com.zrlog.data.security.AccountAccess actor = AccountPermissionService.current();
-        return new Comment().find(pageable, actor.isAdministrator() ? null : actor.getUserId());
+        AccountAccess actor = permissionService.current();
+        return this.commentProvider
+                .get()
+                .find(pageable, actor.isAdministrator() ? null : actor.getUserId());
     }
 
     public int countUnread() throws SQLException {
-        Object count = new Comment().queryFirstObj(
-                "select count(1) from " + Comment.TABLE_NAME + " where have_read = ?",
-                false);
+        Object count =
+                this.commentProvider
+                        .get()
+                        .queryFirstObj(
+                                "select count(1) from "
+                                        + Comment.TABLE_NAME
+                                        + " where have_read = ?",
+                                false);
         if (count instanceof Number) {
             return ((Number) count).intValue();
         }
@@ -99,10 +130,22 @@ public class AdminCommentService {
     }
 
     public void readAll() throws SQLException {
-        com.zrlog.data.security.AccountAccess actor = AccountPermissionService.current();
-        boolean updated = actor.isAdministrator()
-                ? new Comment().execute("update comment set have_read=? where have_read=?", true, false)
-                : new Comment().execute("update comment set have_read=? where have_read=? and logId in (select logId from log where privacy=false or userId=?)", true, false, actor.getUserId());
+        AccountAccess actor = permissionService.current();
+        boolean updated =
+                actor.isAdministrator()
+                        ? this.commentProvider
+                                .get()
+                                .execute(
+                                        "update comment set have_read=? where have_read=?",
+                                        true,
+                                        false)
+                        : this.commentProvider
+                                .get()
+                                .execute(
+                                        "update comment set have_read=? where have_read=? and logId in (select logId from log where privacy=false or userId=?)",
+                                        true,
+                                        false,
+                                        actor.getUserId());
         if (updated) {
             messageCenterStateService.markChanged();
         }

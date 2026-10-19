@@ -15,10 +15,17 @@ import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.NetworkProxy;
 
+import jakarta.inject.Inject;
+
 import java.io.IOException;
 
 public class AdminProxyController extends BaseController {
-    public AdminProxyController(AdminPageDataFactory pages) {
+    private final AdminProxyService adminProxyService;
+
+    @Inject
+    public AdminProxyController(AdminPageDataFactory pages, AdminProxyService adminProxyService) {
+        this.adminProxyService = adminProxyService;
+
         this.pages = pages;
     }
 
@@ -51,8 +58,9 @@ public class AdminProxyController extends BaseController {
         }
         ProxySettingsRequest input = getRequestBodyWithNullCheck(ProxySettingsRequest.class);
         try {
-            return new ApiStandardResponse<>(new AdminProxyService()
-                    .testConnection(NetworkProxy.preview(input.getUrl(), input.getNoProxy())));
+            return new ApiStandardResponse<>(
+                    this.adminProxyService.testConnection(
+                            NetworkProxy.preview(input.getUrl(), input.getNoProxy())));
         } catch (IllegalArgumentException error) {
             throw new ArgsException("proxy");
         }

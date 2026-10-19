@@ -1,15 +1,27 @@
 package com.zrlog.admin.business.security;
 
-import com.hibegin.common.dao.DAO;
 import com.hibegin.common.dao.DataSourceWrapper;
+
+import jakarta.inject.Inject;
+import jakarta.inject.Singleton;
+
 import org.apache.commons.dbutils.QueryRunner;
 import org.apache.commons.dbutils.handlers.MapHandler;
 import org.apache.commons.dbutils.handlers.MapListHandler;
+
 import java.sql.*;
 import java.util.*;
 
 /** Parameterized persistence. Web API sessions require atomic conditional writes, not JDBC locks. */
+@Singleton
 public final class SecurityStore {
+    private final jakarta.inject.Provider<DataSourceWrapper> database;
+
+    @Inject
+    public SecurityStore(jakarta.inject.Provider<DataSourceWrapper> database) {
+        this.database = database;
+    }
+
     public static final class Session {
         private final QueryRunner runner;
         private final Connection connection;
@@ -24,7 +36,7 @@ public final class SecurityStore {
 
     /** JDBC rolls back on failure. Web API commits each statement; callers must fail closed. */
     public <T> T withSession(Work<T> work) throws SQLException {
-        DataSourceWrapper source = DAO.getDefaultDataSource();
+        DataSourceWrapper source = database.get();
         if (source.isWebApi()) return work.run(new Session(source.getQueryRunner(), null));
         try (Connection c = source.getConnection()) {
             c.setAutoCommit(false);

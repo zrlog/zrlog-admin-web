@@ -1,17 +1,21 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+
 import com.google.gson.Gson;
 import com.zrlog.admin.business.rest.response.MessageCenterNoticeResponse;
 import com.zrlog.admin.business.rest.response.MessageCenterStatusResponse;
+import com.zrlog.admin.support.AccountServicesFixture;
+import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
+import com.zrlog.model.Comment;
+
 import org.junit.Test;
 
 import java.util.List;
 import java.util.Map;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
 
 public class MessageCenterServiceDatabaseTest {
 
@@ -20,7 +24,19 @@ public class MessageCenterServiceDatabaseTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             seedUnreadComment(db);
 
-            List<MessageCenterNoticeResponse> notices = new MessageCenterService(com.zrlog.admin.support.ApplicationServicesFixture.upgradeNotices(db.config())).listNotices();
+            List<MessageCenterNoticeResponse> notices =
+                    new MessageCenterService(
+                                    ApplicationServicesFixture.upgradeNotices(db.config()),
+                                    new WebhookService(
+                                            ApplicationServicesFixture.messages(),
+                                            ApplicationServicesFixture.websiteCache()),
+                                    ApplicationServicesFixture.messages(),
+                                    ApplicationServicesFixture.operations(),
+                                    new AdminCommentService(
+                                            AccountServicesFixture.component().permissions(),
+                                            ApplicationServicesFixture.messages(),
+                                            Comment::new))
+                            .listNotices();
             Map<String, Object> statusRow = db.queryOne("select value from website where name=?",
                     "admin_cache:message_center_status");
             MessageCenterStatusResponse status = new Gson().fromJson(statusRow.get("value").toString(),

@@ -1,19 +1,21 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 import com.zrlog.admin.business.rest.response.AdminAuditLogEntryResponse;
 import com.zrlog.admin.business.type.AdminAuditAction;
+import com.zrlog.admin.support.ApplicationServicesFixture;
+
 import org.junit.Test;
 
 import java.util.List;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 
 public class AdminAuditServiceTest {
 
     @Test
     public void shouldReadOnlyValidAuditLogEntriesFromJson() throws Exception {
-        AdminAuditService service = new AdminAuditService();
+        AdminAuditService service = new AdminAuditService(ApplicationServicesFixture.websiteKv());
 
         assertTrue(service.readLogs(null).isEmpty());
         assertTrue(service.readLogs("not-json").isEmpty());
@@ -30,7 +32,7 @@ public class AdminAuditServiceTest {
 
     @Test
     public void shouldReadAgentFieldsAndKeepLegacyLogsCompatible() {
-        AdminAuditService service = new AdminAuditService();
+        AdminAuditService service = new AdminAuditService(ApplicationServicesFixture.websiteKv());
         List<AdminAuditLogEntryResponse> logs = service.readLogs(
                 "[{\"browser\":\"ZrLogCtl 0.1.42\",\"agentName\":\"dot\",\"agentVersion\":\"1.2\"},{\"browser\":\"Chrome\"}]");
         AdminAuditLogEntryResponse display = service.toDisplayLog(logs.get(0));
@@ -43,7 +45,7 @@ public class AdminAuditServiceTest {
 
     @Test
     public void shouldSanitizeSecurityLogsForDisplay() throws Exception {
-        AdminAuditService service = new AdminAuditService();
+        AdminAuditService service = new AdminAuditService(ApplicationServicesFixture.websiteKv());
 
         AdminAuditLogEntryResponse byType = service.toDisplayLog(entry("UNKNOWN", "security", "secret"));
         AdminAuditLogEntryResponse byAction = service.toDisplayLog(entry("UPDATE_PASSWORD", "system", "secret"));
@@ -56,7 +58,7 @@ public class AdminAuditServiceTest {
 
     @Test
     public void shouldConvertAuditLogFieldsForDisplay() throws Exception {
-        AdminAuditService service = new AdminAuditService();
+        AdminAuditService service = new AdminAuditService(ApplicationServicesFixture.websiteKv());
 
         AdminAuditLogEntryResponse raw = entry("UNKNOWN", "system", "done");
         raw.setTimestamp(123L);
@@ -78,7 +80,7 @@ public class AdminAuditServiceTest {
 
     @Test
     public void shouldResolveAuditActionsAndUnknownValues() throws Exception {
-        AdminAuditService service = new AdminAuditService();
+        AdminAuditService service = new AdminAuditService(ApplicationServicesFixture.websiteKv());
 
         assertEquals(AdminAuditAction.REFRESH_CACHE, service.toAuditAction("REFRESH_CACHE"));
         assertEquals(null, service.toAuditAction("MISSING"));
@@ -87,7 +89,7 @@ public class AdminAuditServiceTest {
 
     @Test
     public void shouldSanitizeSecurityActionContent() throws Exception {
-        AdminAuditService service = new AdminAuditService();
+        AdminAuditService service = new AdminAuditService(ApplicationServicesFixture.websiteKv());
 
         assertEquals("", service.sanitizeContent(AdminAuditAction.UPDATE_PASSWORD, "secret"));
         assertEquals("", service.sanitizeContent(AdminAuditAction.REFRESH_CACHE, null));

@@ -18,6 +18,8 @@ import com.zrlog.common.exception.ResourceLockedException;
 import com.zrlog.data.service.DistributedLock;
 import com.zrlog.util.BlogBuildInfoUtil;
 
+import jakarta.inject.Inject;
+
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.List;
@@ -26,15 +28,23 @@ import java.util.concurrent.locks.Lock;
 
 /** Executes an authenticated action with its request lock and cache/publication policy. */
 public final class AdminActionDispatcher {
+    private final DistributedLock.Factory locks;
+
     private final CacheRefreshService cacheRefresh;
     private final AdminStaticSiteSsePublisher staticSitePublisher;
 
-    public AdminActionDispatcher(CacheRefreshService cacheRefresh, AdminStaticSiteSsePublisher staticSitePublisher) {
+    @Inject
+    public AdminActionDispatcher(
+            CacheRefreshService cacheRefresh,
+            AdminStaticSiteSsePublisher staticSitePublisher,
+            DistributedLock.Factory locks) {
+        this.locks = locks;
+
         this.cacheRefresh = cacheRefresh;
         this.staticSitePublisher = staticSitePublisher;
     }
 
-    private static Lock getLock(Method method, HttpRequest request) {
+    private Lock getLock(Method method, HttpRequest request) {
         if (Objects.isNull(method)) {
             return null;
         }
@@ -49,7 +59,12 @@ public final class AdminActionDispatcher {
         if (Objects.nonNull(AdminTokenThreadLocal.getUser())) {
             userFlag = AdminTokenThreadLocal.getUser().getSessionId();
         }
-        return new DistributedLock("request-lock-" + BlogBuildInfoUtil.getBuildId() + request.getUri() + "-" + userFlag);
+        return locks.create(
+                "request-lock-"
+                        + BlogBuildInfoUtil.getBuildId()
+                        + request.getUri()
+                        + "-"
+                        + userFlag);
     }
 
     public void dispatch(HttpRequest request, HttpResponse response, Method method) throws Exception {

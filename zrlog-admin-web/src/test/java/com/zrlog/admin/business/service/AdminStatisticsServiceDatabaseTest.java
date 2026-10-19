@@ -1,17 +1,22 @@
 package com.zrlog.admin.business.service;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+
 import com.zrlog.admin.business.rest.response.StatisticsInfoResponse;
+import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
+import com.zrlog.admin.support.RuntimeInfoFixture;
 import com.zrlog.common.cache.dto.TagDTO;
+import com.zrlog.model.Comment;
+import com.zrlog.model.Log;
 import com.zrlog.test.support.TestLogCapture;
+
 import org.junit.Test;
 
 import java.util.concurrent.Executor;
 import java.util.logging.Level;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
 
 public class AdminStatisticsServiceDatabaseTest {
 
@@ -28,9 +33,15 @@ public class AdminStatisticsServiceDatabaseTest {
             insertComment(db, 3, "DATEADD('DAY', -1, CURRENT_TIMESTAMP)");
             db.cacheService().getTags().add(tag("zrlog", 3L));
 
-            StatisticsInfoResponse response = new AdminStatisticsService(db.cacheService(), com.zrlog.admin.support.RuntimeInfoFixture.from(db.config()))
-                    .statisticsInfo(DIRECT_EXECUTOR, false)
-                    .get();
+            StatisticsInfoResponse response =
+                    new AdminStatisticsService(
+                                    db.cacheService(),
+                                    RuntimeInfoFixture.from(db.config()),
+                                    ApplicationServicesFixture.audit(),
+                                    Log::new,
+                                    Comment::new)
+                            .statisticsInfo(DIRECT_EXECUTOR, false)
+                            .get();
 
             assertEquals(Long.valueOf(3L), response.getArticleCount());
             assertEquals(Long.valueOf(1L), response.getPublishedCount());
@@ -56,9 +67,15 @@ public class AdminStatisticsServiceDatabaseTest {
 
             StatisticsInfoResponse response;
             try (TestLogCapture logs = TestLogCapture.forClass(AdminStatisticsService.class)) {
-                response = new AdminStatisticsService(db.cacheService(), com.zrlog.admin.support.RuntimeInfoFixture.from(db.config()))
-                        .statisticsInfo(DIRECT_EXECUTOR, false)
-                        .get();
+                response =
+                        new AdminStatisticsService(
+                                        db.cacheService(),
+                                        RuntimeInfoFixture.from(db.config()),
+                                        ApplicationServicesFixture.audit(),
+                                        Log::new,
+                                        Comment::new)
+                                .statisticsInfo(DIRECT_EXECUTOR, false)
+                                .get();
 
                 assertTrue(logs.contains(Level.WARNING, "Query comment counts error"));
                 assertTrue(logs.contains(Level.WARNING, "Query article counts error"));
