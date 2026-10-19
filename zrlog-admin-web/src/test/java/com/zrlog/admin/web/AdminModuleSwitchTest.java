@@ -56,7 +56,7 @@ public class AdminModuleSwitchTest {
         }
     }
 
-    public void main(String[] args) throws Exception {
+    public static void main(String[] args) throws Exception {
         var disabled = java.util.Set.of(args[0].split(","));
         boolean admin = !disabled.contains("admin");
         boolean ui = admin && !disabled.contains("admin-ui");
