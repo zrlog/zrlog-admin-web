@@ -25,7 +25,6 @@ import com.zrlog.admin.web.ContentWebSetup;
 import com.zrlog.admin.web.McpWebSetup;
 import com.zrlog.admin.web.di.access.DaggerAccessComponent;
 import com.zrlog.admin.web.di.account.DaggerAccountComponent;
-import com.zrlog.admin.web.token.AdminTokenService;
 import com.zrlog.admin.web.di.content.ContentComponent;
 import com.zrlog.admin.web.di.content.DaggerContentComponent;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
@@ -407,7 +406,6 @@ public class McpInterceptorTest {
                                 java.util.Collections::emptyList);
         var account = DaggerAccountComponent.factory().create(
                 data, shared,
-                new AdminTokenService(60, () -> true, () -> false, data::user, data::preferences),
                 () -> true, () -> null, Collections::emptySet,
                 ApplicationServicesFixture.site(applicationConfig), () -> "test",
                 serverConfig::getPort, serverConfig::getContextPath);

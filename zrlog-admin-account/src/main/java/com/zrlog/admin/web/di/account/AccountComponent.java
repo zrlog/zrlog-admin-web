@@ -25,6 +25,8 @@ import java.util.function.Supplier;
 @Singleton
 @Component(modules = {DataBindingsModule.class, ServiceBindingsModule.class, AccountModule.class})
 public interface AccountComponent {
+    TokenService tokens();
+
     UserService users();
 
     PasskeyService passkeys();
@@ -56,7 +58,6 @@ public interface AccountComponent {
         AccountComponent create(
                 @BindsInstance DataComponent data,
                 @BindsInstance ServiceComponent services,
-                @BindsInstance TokenService tokens,
                 @BindsInstance BooleanSupplier installed,
                 @BindsInstance Supplier<AvatarStorage> avatars,
                 @BindsInstance Supplier<Set<String>> cacheableApiUris,

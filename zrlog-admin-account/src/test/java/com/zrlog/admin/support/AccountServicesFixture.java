@@ -3,7 +3,6 @@ package com.zrlog.admin.support;
 import com.hibegin.common.dao.DAO;
 import com.zrlog.admin.web.di.account.AccountComponent;
 import com.zrlog.admin.web.di.account.DaggerAccountComponent;
-import com.zrlog.admin.web.token.AdminTokenService;
 import com.zrlog.business.di.DaggerServiceComponent;
 import com.zrlog.common.vo.PublicWebSiteInfo;
 import com.zrlog.data.di.DaggerDataComponent;
@@ -26,13 +25,10 @@ public final class AccountServicesFixture {
         var services =
                 DaggerServiceComponent.factory()
                         .create(data, () -> true, () -> null, () -> null, Collections::emptyList);
-        var tokens =
-                new AdminTokenService(60, () -> true, () -> false, data::user, data::preferences);
         return DaggerAccountComponent.factory()
                 .create(
                         data,
                         services,
-                        tokens,
                         () -> true,
                         () -> null,
                         cacheableUris,

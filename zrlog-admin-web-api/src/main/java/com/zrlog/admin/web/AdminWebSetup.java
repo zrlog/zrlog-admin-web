@@ -42,7 +42,6 @@ import com.zrlog.admin.web.di.account.DaggerAccountComponent;
 import com.zrlog.admin.web.di.content.ContentComponent;
 import com.zrlog.admin.web.di.content.DaggerContentComponent;
 import com.zrlog.admin.web.interceptor.*;
-import com.zrlog.admin.web.token.AdminTokenService;
 import com.zrlog.blog.web.plugin.TemplateDownloadPlugin;
 import com.zrlog.business.di.ServiceComponent;
 import com.zrlog.business.plugin.PluginCorePlugin;
@@ -57,7 +56,6 @@ import com.zrlog.common.ZrLogConfig;
 import com.zrlog.common.adapter.UpdaterHosts;
 import com.zrlog.common.vo.PublicWebSiteInfo;
 import com.zrlog.data.di.DataComponent;
-import com.zrlog.data.util.WebSiteUtils;
 import com.zrlog.plugin.Plugins;
 import com.zrlog.web.TokenServiceProvider;
 import com.zrlog.web.WebSetup;
@@ -69,29 +67,9 @@ import java.util.ServiceLoader;
 public class AdminWebSetup implements WebSetup, TokenServiceProvider {
 
     private final ZrLogConfig zrLogConfig;
-    private final AdminTokenService sessionTokens;
 
     public AdminWebSetup(ZrLogConfig zrLogConfig) {
         this.zrLogConfig = zrLogConfig;
-        this.sessionTokens =
-                new AdminTokenService(
-                        WebSiteUtils.DEFAULT_SESSION_TIMEOUT / 60000,
-                        zrLogConfig::isInstalled,
-                        this::staticHtmlEnabled,
-                        () ->
-                                zrLogConfig
-                                        .getServerConfig()
-                                        .getBindings()
-                                        .build()
-                                        .get(DataComponent.class)
-                                        .user(),
-                        () ->
-                                zrLogConfig
-                                        .getServerConfig()
-                                        .getBindings()
-                                        .build()
-                                        .get(DataComponent.class)
-                                        .preferences());
         if (zrLogConfig.getServerConfig().isNativeImageAgent()) {
             //register
             AdminNativeImageUtils.reg();
@@ -125,7 +103,6 @@ public class AdminWebSetup implements WebSetup, TokenServiceProvider {
         zrLogConfig
                 .getServerConfig()
                 .getBindings()
-                .instance(TokenService.class, sessionTokens)
                 .singleton(
                         AccountComponent.class,
                         r ->
@@ -133,7 +110,6 @@ public class AdminWebSetup implements WebSetup, TokenServiceProvider {
                                         .create(
                                                 r.get(DataComponent.class),
                                                 r.get(ServiceComponent.class),
-                                                sessionTokens,
                                                 zrLogConfig::isInstalled,
                                                 () -> zrLogConfig.getWebSetup(AvatarStorage.class),
                                                 () -> {
@@ -157,6 +133,7 @@ public class AdminWebSetup implements WebSetup, TokenServiceProvider {
                                                 },
                                                 zrLogConfig.getServerConfig()::getPort,
                                                 zrLogConfig.getServerConfig()::getContextPath))
+                .singleton(TokenService.class, r -> r.get(AccountComponent.class).tokens())
                 .singleton(AdminPageDataFactory.class, r -> r.get(AccountComponent.class).pages())
                 .singleton(BackendServerUrl.class, r -> r.get(AccountComponent.class).backend())
                 .singleton(
@@ -221,7 +198,7 @@ public class AdminWebSetup implements WebSetup, TokenServiceProvider {
                                                 r.get(ServiceComponent.class),
                                                 r.get(AccountComponent.class),
                                                 () -> r.get(ContentComponent.class),
-                                                sessionTokens,
+                                                r.get(TokenService.class),
                                                 () -> zrLogConfig.getPlugin(PluginCorePlugin.class),
                                                 () ->
                                                         zrLogConfig.getPlugin(
@@ -350,13 +327,13 @@ public class AdminWebSetup implements WebSetup, TokenServiceProvider {
 
     @Override
     public TokenService getTokenService() {
-        return sessionTokens;
+        return zrLogConfig.getServerConfig().getBindings().build().get(TokenService.class);
     }
 
     @Override
     public void onDatabaseReady(DataSourceWrapper dataSource) {
         CacheService cache = zrLogConfig.getServerConfig().getBindings().build().get(CacheService.class);
-        sessionTokens.updateSessionTimeout(cache.getPublicWebSiteInfo().getSession_timeout());
+        getTokenService().updateSessionTimeout(cache.getPublicWebSiteInfo().getSession_timeout());
     }
 
     @Override
