@@ -18,7 +18,7 @@ final class ContentToolsFixture {
         var articles = new AdminArticleService(cache,
                 ApplicationServicesFixture.capability(config, ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
         var publishing = new ArticlePublishingService(articles,
-                ApplicationServicesFixture.cacheRefresh(cache, config));
+                ApplicationServicesFixture.cacheRefresh(cache, config), markdown -> null);
         return new ContentToolFactory(new ContentToolService(publishing),
                 ApplicationServicesFixture.capability(config, AttachmentStorage.class), ApplicationServicesFixture.backend(config)::configured, () -> Boolean.TRUE.equals(cache.getPublicWebSiteInfo().getGenerator_html_status()));
     }

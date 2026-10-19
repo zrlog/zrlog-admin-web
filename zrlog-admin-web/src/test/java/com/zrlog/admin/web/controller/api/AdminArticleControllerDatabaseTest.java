@@ -120,9 +120,12 @@ public class AdminArticleControllerDatabaseTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    public void shouldHandleMissingMarkdownContentForCurrentJvmAndPreserveExplicitHtml() throws Exception {
+    public void shouldPersistInjectedMarkdownRenderingAndPreserveExplicitHtml() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             setAdminToken();
+            com.zrlog.business.service.MarkdownRenderer renderer = markdown -> Map.of(
+                    "# Rendered\n\nfirst line\nsecond line", "<h1>Rendered</h1>\n<p>first line<br>second line</p>\n",
+                    "## Updated\n\nnew body", "<h2>Updated</h2>\n<p>new body</p>\n").get(markdown);
             String markdownOnly = "{"
                     + "\"title\":\"Rendered Draft\","
                     + "\"alias\":\"rendered-draft\","
@@ -137,13 +140,12 @@ public class AdminArticleControllerDatabaseTest {
                     + "}";
             ResponseRecorder renderedResponse = new ResponseRecorder();
 
-            controller(db.cacheService(), Map.of(), markdownOnly, renderedResponse).create();
+            controller(db.cacheService(), Map.of(), markdownOnly, renderedResponse, renderer).create();
 
             AdminPageDataResponse<ArticleGlobalResponse> rendered =
                     (AdminPageDataResponse<ArticleGlobalResponse>) renderedResponse.rendered;
             Long renderedId = Long.valueOf(rendered.getData().getArticle().getLogId());
-            assertEquals(Runtime.version().feature() >= 17
-                            ? "<h1>Rendered</h1>\n<p>first line<br>second line</p>\n" : null,
+            assertEquals("<h1>Rendered</h1>\n<p>first line<br>second line</p>\n",
                     db.queryOne("select content from log where logId=?", renderedId).get("content"));
             assertEquals("# Rendered\n\nfirst line\nsecond line",
                     db.queryOne("select markdown from log where logId=?", renderedId).get("markdown"));
@@ -163,8 +165,8 @@ public class AdminArticleControllerDatabaseTest {
                     + "\"transparentPublish\":false,"
                     + "\"editorType\":\"markdown\""
                     + "}";
-            controller(db.cacheService(), Map.of(), markdownUpdate, new ResponseRecorder()).update();
-            assertEquals(Runtime.version().feature() >= 17 ? "<h2>Updated</h2>\n<p>new body</p>\n" : "",
+            controller(db.cacheService(), Map.of(), markdownUpdate, new ResponseRecorder(), renderer).update();
+            assertEquals("<h2>Updated</h2>\n<p>new body</p>\n",
                     db.queryOne("select content from log where logId=?", renderedId).get("content"));
             assertEquals("## Updated\n\nnew body",
                     db.queryOne("select markdown from log where logId=?", renderedId).get("markdown"));
@@ -545,7 +547,7 @@ public class AdminArticleControllerDatabaseTest {
     @Test
     public void shouldShortCircuitPublishCheckAndEmitReadyStatesWithoutCallingAi() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-            ArticlePublishingService publishingService = new ArticlePublishingService(new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource))), com.zrlog.admin.support.ApplicationServicesFixture.cacheRefresh(db.cacheService(), com.zrlog.common.Constants.zrLogConfig));
+            ArticlePublishingService publishingService = new ArticlePublishingService(new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource))), com.zrlog.admin.support.ApplicationServicesFixture.cacheRefresh(db.cacheService(), com.zrlog.common.Constants.zrLogConfig), markdown -> null);
             CreateArticleRequest request = new CreateArticleRequest();
             request.setTransparentPublish(true);
             request.setRubbish(false);
@@ -841,8 +843,13 @@ public class AdminArticleControllerDatabaseTest {
 
     private static AdminArticleController controller(com.zrlog.common.CacheService cache, Map<String, String> params, String body,
                                                      ResponseRecorder response) throws Exception {
+        return controller(cache, params, body, response, markdown -> null);
+    }
+
+    private static AdminArticleController controller(com.zrlog.common.CacheService cache, Map<String, String> params, String body,
+                                                     ResponseRecorder response, com.zrlog.business.service.MarkdownRenderer renderer) throws Exception {
         AdminArticleService articles = new AdminArticleService(cache, com.zrlog.admin.support.ApplicationServicesFixture.capability(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
-        AdminArticleController controller = new AdminArticleController(articles, new ArticlePublishingService(articles, com.zrlog.admin.support.ApplicationServicesFixture.cacheRefresh(cache, com.zrlog.common.Constants.zrLogConfig)), com.zrlog.admin.support.ApplicationServicesFixture.publisher(null, com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.capability(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
+        AdminArticleController controller = new AdminArticleController(articles, new ArticlePublishingService(articles, com.zrlog.admin.support.ApplicationServicesFixture.cacheRefresh(cache, com.zrlog.common.Constants.zrLogConfig), renderer), com.zrlog.admin.support.ApplicationServicesFixture.publisher(null, com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.capability(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
         setControllerField(controller, "request", request(params, body));
         setControllerField(controller, "response", response.response());
         return controller;

@@ -17,7 +17,10 @@ import com.zrlog.admin.web.controller.api.LinkController;
 import com.zrlog.admin.web.controller.api.PersonalDataController;
 import com.zrlog.admin.web.controller.api.TypeController;
 import com.zrlog.business.service.CacheRefreshService;
+import com.zrlog.business.service.MarkdownRenderer;
 import com.zrlog.common.CacheService;
+
+import java.util.ServiceLoader;
 
 public class ContentWebSetup implements com.zrlog.web.WebSetup {
     private final Router router;
@@ -40,7 +43,9 @@ public class ContentWebSetup implements com.zrlog.web.WebSetup {
                 .controller(CommentController.class, (r, request, response) -> new CommentController(r.get(AdminPageDataFactory.class)))
                 .controller(PersonalDataController.class, (r, request, response) -> new PersonalDataController(r.get(AdminPageDataFactory.class)))
                 .controller(BlogNavController.class, (r, request, response) -> new BlogNavController(r.get(AdminPageDataFactory.class)))
-                .singleton(ArticlePublishingService.class, r -> new ArticlePublishingService(r.get(AdminArticleService.class), r.get(CacheRefreshService.class)))
+                .singleton(MarkdownRenderer.class, r -> ServiceLoader.load(MarkdownRenderer.class)
+                        .findFirst().orElse(markdown -> null))
+                .singleton(ArticlePublishingService.class, r -> new ArticlePublishingService(r.get(AdminArticleService.class), r.get(CacheRefreshService.class), r.get(MarkdownRenderer.class)))
                 .singleton(ContentToolService.class, r -> new ContentToolService(r.get(ArticlePublishingService.class)))
                 .singleton(com.zrlog.admin.business.knowledge.ContentToolFactory.class, r -> new com.zrlog.admin.business.knowledge.ContentToolFactory(r.get(ContentToolService.class), storage, r.get(com.zrlog.admin.util.BackendServerUrl.class)::configured, () -> Boolean.TRUE.equals(r.get(CacheService.class).getPublicWebSiteInfo().getGenerator_html_status())))
                 .controller(AdminArticleVersionController.class, (r, request, response) -> new AdminArticleVersionController(r.get(AdminArticleService.class), r.get(CacheRefreshService.class)))

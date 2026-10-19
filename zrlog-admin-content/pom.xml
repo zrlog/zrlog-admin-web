@@ -21,11 +21,5 @@
             <classifier>tests</classifier>
             <scope>test</scope>
         </dependency>
-        <dependency>
-            <groupId>com.hibegin</groupId>
-            <artifactId>zrlog-polyglot-template</artifactId>
-            <version>${zrlog-xx-template.version}</version>
-            <scope>compile</scope>
-        </dependency>
     </dependencies>
 </project>

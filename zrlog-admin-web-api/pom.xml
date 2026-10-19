@@ -31,8 +31,9 @@
         </dependency>
         <dependency>
             <groupId>com.hibegin</groupId>
-            <artifactId>zrlog-freemarker-template</artifactId>
-            <version>${zrlog-xx-template.version}</version>
+            <artifactId>zrlog-template-default</artifactId>
+            <version>1.0.1</version>
+            <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>com.hibegin</groupId>

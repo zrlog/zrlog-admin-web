@@ -10,9 +10,9 @@ import com.zrlog.admin.business.rest.response.ArticleGlobalResponse;
 import com.zrlog.admin.business.rest.response.CreateOrUpdateArticleResponse;
 import com.zrlog.admin.business.rest.response.DeleteResponse;
 import com.zrlog.admin.business.type.AdminAuditAction;
-import com.zrlog.blog.polyglot.markdown.MarkdownJsRenderer;
 import com.zrlog.business.plugin.type.StaticSiteType;
 import com.zrlog.business.service.CacheRefreshService;
+import com.zrlog.business.service.MarkdownRenderer;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.data.exception.DAOException;
 import com.zrlog.util.I18nUtil;
@@ -31,36 +31,24 @@ public class ArticlePublishingService {
     private final AdminArticleService articleService;
 
     private final CacheRefreshService cacheRefresh;
+    private final MarkdownRenderer markdownRenderer;
 
-    public ArticlePublishingService(AdminArticleService articleService, CacheRefreshService cacheRefresh) {
+    public ArticlePublishingService(AdminArticleService articleService, CacheRefreshService cacheRefresh,
+                                    MarkdownRenderer markdownRenderer) {
         this.articleService = articleService;
         this.cacheRefresh = cacheRefresh;
+        this.markdownRenderer = Objects.requireNonNull(markdownRenderer);
     }
 
     public void prepareRequest(CreateArticleRequest request) {
         if ("markdown".equals(request.getEditorType())
                 && StringUtils.isEmpty(request.getContent())
                 && StringUtils.isNotEmpty(request.getMarkdown())) {
-            String content = renderMarkdown(request.getMarkdown());
+            String content = markdownRenderer.render(request.getMarkdown());
             if (content != null) {
                 request.setContent(content);
             }
         }
-    }
-
-    private String renderMarkdown(String markdown) {
-        try {
-            return NativeMarkdown.RENDERER.render(markdown);
-        } catch (NoClassDefFoundError e) {
-            // Ordinary JDK ZIP/WAR omit the renderer; keep the supplied content.
-            LOGGER.log(Level.FINE, "Server-side Markdown renderer is not included", e);
-            return null;
-        }
-    }
-
-    // Keep the optional renderer out of the publishing service's class initialization.
-    private static final class NativeMarkdown {
-        private static final MarkdownJsRenderer RENDERER = new MarkdownJsRenderer();
     }
 
     public DeleteResponse deleteArticles(String ids, HttpRequest request) throws SQLException {
