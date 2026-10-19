@@ -11,8 +11,8 @@
     <properties>
         <libOutputPath>lib</libOutputPath>
         <frontendBuildOutputPath>build</frontendBuildOutputPath>
-        <zrlog-xx-template.version>4.0.0-SNAPSHOT</zrlog-xx-template.version>
-        <zrlog-install-web.version>4.0.0-SNAPSHOT</zrlog-install-web.version>
+        <zrlog-xx-template.version>4.0.0</zrlog-xx-template.version>
+        <zrlog-install-web.version>4.0.0</zrlog-install-web.version>
         <gpg.passphrase />
     </properties>
     <repositories>
