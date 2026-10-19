@@ -18,7 +18,6 @@ import com.zrlog.common.Updater;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.install.business.service.InstallService;
 import com.zrlog.install.business.vo.InstallConfigVO;
-import com.zrlog.install.web.InstallConstants;
 import com.zrlog.install.web.config.DefaultInstallConfig;
 import com.zrlog.plugin.IPlugin;
 import com.zrlog.plugin.Plugins;
@@ -66,7 +65,6 @@ public class MemoryApplication {
 
         InstallConfigVO installConfig = readInstallConfigTemplate();
         applyRuntimeConfig(installConfig, port);
-        InstallConstants.installConfig = new MemoryInstallConfig();
         installFromConfig(installConfig);
         DevZrLogConfig config = prepareConfig(port, installConfig.getContextPath());
         return config;
@@ -102,7 +100,7 @@ public class MemoryApplication {
     }
 
     private static void installFromConfig(InstallConfigVO config) throws Exception {
-        InstallService installService = new InstallService(InstallConstants.installConfig, config);
+        InstallService installService = new InstallService(new MemoryInstallConfig(), config);
         boolean install = installService.install();
         if (!install) {
             throw new IllegalStateException("Install memory database failed");

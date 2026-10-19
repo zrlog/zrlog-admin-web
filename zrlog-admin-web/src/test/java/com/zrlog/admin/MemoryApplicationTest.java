@@ -8,9 +8,6 @@ import com.hibegin.http.server.util.PathUtil;
 import com.zrlog.business.version.UpgradeVersionHandler;
 import com.zrlog.common.CacheService;
 import com.zrlog.install.business.vo.InstallConfigVO;
-import com.zrlog.install.web.InstallConstants;
-import com.zrlog.install.web.config.DefaultInstallConfig;
-import com.zrlog.install.web.config.InstallConfig;
 import org.junit.Test;
 
 import java.nio.file.Files;
@@ -49,7 +46,6 @@ public class MemoryApplicationTest {
     @Test
     public void shouldPrepareRuntimeFromMemoryInstallConfig() throws Exception {
         String previousRootPath = PathUtil.getRootPath();
-        InstallConfig previousInstallConfig = InstallConstants.installConfig;
         Path projectRoot = Path.of(System.getProperty("user.dir")).toAbsolutePath().normalize();
         Path runtimeRoot = memoryRoot(projectRoot);
         DevZrLogConfig config = null;
@@ -92,7 +88,7 @@ public class MemoryApplicationTest {
                 config.stop();
             }
             deleteTree(runtimeRoot);
-            restoreRuntime(previousRootPath, previousInstallConfig);
+            restoreRuntime(previousRootPath);
         }
     }
 
@@ -100,7 +96,6 @@ public class MemoryApplicationTest {
     public void shouldUseDatabaseNameFromInstallConfigTemplate() throws Exception {
         String previousUserDir = System.getProperty("user.dir");
         String previousRootPath = PathUtil.getRootPath();
-        InstallConfig previousInstallConfig = InstallConstants.installConfig;
         Path testProjectRoot = temporary.newFolder("custom-database").toPath();
         DevZrLogConfig config = null;
         Path runtimeRoot = memoryRoot(testProjectRoot);
@@ -124,7 +119,7 @@ public class MemoryApplicationTest {
             if (config != null) config.stop();
             System.setProperty("user.dir", previousUserDir);
             deleteTree(testProjectRoot);
-            restoreRuntime(previousRootPath, previousInstallConfig);
+            restoreRuntime(previousRootPath);
         }
     }
 
@@ -172,10 +167,7 @@ public class MemoryApplicationTest {
         }
     }
 
-    private static void restoreRuntime(String previousRootPath, InstallConfig previousInstallConfig) {
+    private static void restoreRuntime(String previousRootPath) {
         PathUtil.setRootPath(previousRootPath);
-        InstallConstants.installConfig = previousInstallConfig == null
-                ? new DefaultInstallConfig()
-                : previousInstallConfig;
     }
 }

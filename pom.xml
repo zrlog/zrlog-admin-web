@@ -11,7 +11,7 @@
     <properties>
         <libOutputPath>lib</libOutputPath>
         <frontendBuildOutputPath>build</frontendBuildOutputPath>
-        <zrlog-install-web.version>4.0.0</zrlog-install-web.version>
+        <zrlog-install-web.version>4.0.1-SNAPSHOT</zrlog-install-web.version>
         <gpg.passphrase />
     </properties>
     <repositories>
