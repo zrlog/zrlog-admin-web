@@ -8,7 +8,6 @@ import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.support.UploadFallbackZrLogConfig;
 import com.zrlog.admin.web.token.AdminTokenService;
 import com.zrlog.common.Constants;
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -23,24 +22,19 @@ import static org.junit.Assert.assertTrue;
 
 public class AdminCorsAndTemporaryResourceInterceptorTest {
 
-    private com.zrlog.common.ZrLogConfig previousConfig;
+    private com.zrlog.common.ZrLogConfig applicationConfig;
 
     @Before
     public void setUp() {
-        previousConfig = Constants.zrLogConfig;
-        Constants.zrLogConfig = new UploadFallbackZrLogConfig();
+        applicationConfig = new UploadFallbackZrLogConfig();
     }
 
-    @After
-    public void tearDown() {
-        Constants.zrLogConfig = previousConfig;
-    }
 
     @Test
     public void shouldSkipCorsHeadersWhenOriginIsMissing() {
         ResponseRecorder response = new ResponseRecorder();
 
-        boolean proceed = new AdminCrossOriginInterceptor(new com.zrlog.admin.business.service.PasskeyRequestContext(com.zrlog.admin.support.ApplicationServicesFixture.siteHost(com.zrlog.common.Constants.zrLogConfig))).doInterceptor(
+        boolean proceed = new AdminCrossOriginInterceptor(new com.zrlog.admin.business.service.PasskeyRequestContext(com.zrlog.admin.support.ApplicationServicesFixture.siteHost(applicationConfig))).doInterceptor(
                 request(HttpMethod.GET, "/api/admin", Map.of()), response.response());
 
         assertTrue(proceed);
@@ -51,7 +45,7 @@ public class AdminCorsAndTemporaryResourceInterceptorTest {
     public void shouldApplyCorsHeadersForOriginRequest() {
         ResponseRecorder response = new ResponseRecorder();
 
-        boolean proceed = new AdminCrossOriginInterceptor(new com.zrlog.admin.business.service.PasskeyRequestContext(com.zrlog.admin.support.ApplicationServicesFixture.siteHost(com.zrlog.common.Constants.zrLogConfig))).doInterceptor(
+        boolean proceed = new AdminCrossOriginInterceptor(new com.zrlog.admin.business.service.PasskeyRequestContext(com.zrlog.admin.support.ApplicationServicesFixture.siteHost(applicationConfig))).doInterceptor(
                 request(HttpMethod.GET, "/api/admin", Map.of("Origin", "https://admin.example.com")),
                 response.response());
 
@@ -66,7 +60,7 @@ public class AdminCorsAndTemporaryResourceInterceptorTest {
     public void shouldVaryPublicAdminResourceByOrigin() {
         ResponseRecorder response = new ResponseRecorder();
 
-        boolean proceed = new AdminCrossOriginInterceptor(new com.zrlog.admin.business.service.PasskeyRequestContext(com.zrlog.admin.support.ApplicationServicesFixture.siteHost(com.zrlog.common.Constants.zrLogConfig))).doInterceptor(
+        boolean proceed = new AdminCrossOriginInterceptor(new com.zrlog.admin.business.service.PasskeyRequestContext(com.zrlog.admin.support.ApplicationServicesFixture.siteHost(applicationConfig))).doInterceptor(
                 request(HttpMethod.GET, Constants.API_PUBLIC_ADMIN_RESOURCE, Map.of()), response.response());
 
         assertTrue(proceed);
@@ -77,7 +71,7 @@ public class AdminCorsAndTemporaryResourceInterceptorTest {
     public void shouldCompleteCorsOptionsRequestWithoutContinuingChain() {
         ResponseRecorder response = new ResponseRecorder();
 
-        boolean proceed = new AdminCrossOriginInterceptor(new com.zrlog.admin.business.service.PasskeyRequestContext(com.zrlog.admin.support.ApplicationServicesFixture.siteHost(com.zrlog.common.Constants.zrLogConfig))).doInterceptor(
+        boolean proceed = new AdminCrossOriginInterceptor(new com.zrlog.admin.business.service.PasskeyRequestContext(com.zrlog.admin.support.ApplicationServicesFixture.siteHost(applicationConfig))).doInterceptor(
                 request(HttpMethod.OPTIONS, "/api/admin", Map.of("Origin", "https://admin.example.com")),
                 response.response());
 
@@ -90,7 +84,7 @@ public class AdminCorsAndTemporaryResourceInterceptorTest {
     public void shouldApplyCorsHeadersForTrustedPasskeyOrigin() {
         ResponseRecorder response = new ResponseRecorder();
 
-        boolean proceed = new AdminCrossOriginInterceptor(new com.zrlog.admin.business.service.PasskeyRequestContext(com.zrlog.admin.support.ApplicationServicesFixture.siteHost(com.zrlog.common.Constants.zrLogConfig))).doInterceptor(
+        boolean proceed = new AdminCrossOriginInterceptor(new com.zrlog.admin.business.service.PasskeyRequestContext(com.zrlog.admin.support.ApplicationServicesFixture.siteHost(applicationConfig))).doInterceptor(
                 request(HttpMethod.POST, "/api/admin/passkey/authentication/options",
                         Map.of("Origin", "https://admin.example.com", "Host", "admin.example.com"), "https"),
                 response.response());
@@ -104,10 +98,11 @@ public class AdminCorsAndTemporaryResourceInterceptorTest {
     @Test
     public void shouldApplyCorsHeadersForConfiguredStaticAdminOrigin() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             db.cacheService().getPublicWebSiteInfo().setHost("demo.zrlog.com");
             ResponseRecorder response = new ResponseRecorder();
 
-            boolean proceed = new AdminCrossOriginInterceptor(new com.zrlog.admin.business.service.PasskeyRequestContext(com.zrlog.admin.support.ApplicationServicesFixture.siteHost(com.zrlog.common.Constants.zrLogConfig))).doInterceptor(
+            boolean proceed = new AdminCrossOriginInterceptor(new com.zrlog.admin.business.service.PasskeyRequestContext(com.zrlog.admin.support.ApplicationServicesFixture.siteHost(db.config()))).doInterceptor(
                     request(HttpMethod.POST, "/api/admin/passkey/authentication/options",
                             Map.of("Origin", "https://demo.zrlog.com", "Host", "faas-demo.zrlog.com"), "https"),
                     response.response());
@@ -123,7 +118,7 @@ public class AdminCorsAndTemporaryResourceInterceptorTest {
     public void shouldApplyCorsHeadersForSameOriginBrowserBehindReverseProxy() {
         ResponseRecorder response = new ResponseRecorder();
 
-        boolean proceed = new AdminCrossOriginInterceptor(new com.zrlog.admin.business.service.PasskeyRequestContext(com.zrlog.admin.support.ApplicationServicesFixture.siteHost(com.zrlog.common.Constants.zrLogConfig))).doInterceptor(
+        boolean proceed = new AdminCrossOriginInterceptor(new com.zrlog.admin.business.service.PasskeyRequestContext(com.zrlog.admin.support.ApplicationServicesFixture.siteHost(applicationConfig))).doInterceptor(
                 request(HttpMethod.POST, "/api/admin/account-security/passkey/registration/options",
                         Map.of("Origin", "https://blog-admin.zrlog.com", "Host", "localhost:18080",
                                 "Referer", "https://blog-admin.zrlog.com/admin/account-security",
@@ -140,7 +135,7 @@ public class AdminCorsAndTemporaryResourceInterceptorTest {
     public void shouldNotApplyCorsHeadersForUntrustedPasskeyOrigin() {
         ResponseRecorder response = new ResponseRecorder();
 
-        boolean proceed = new AdminCrossOriginInterceptor(new com.zrlog.admin.business.service.PasskeyRequestContext(com.zrlog.admin.support.ApplicationServicesFixture.siteHost(com.zrlog.common.Constants.zrLogConfig))).doInterceptor(
+        boolean proceed = new AdminCrossOriginInterceptor(new com.zrlog.admin.business.service.PasskeyRequestContext(com.zrlog.admin.support.ApplicationServicesFixture.siteHost(applicationConfig))).doInterceptor(
                 request(HttpMethod.POST, "/api/admin/passkey/authentication/options",
                         Map.of("Origin", "https://static.example.com", "Host", "admin.example.com"), "https"),
                 response.response());
@@ -155,7 +150,7 @@ public class AdminCorsAndTemporaryResourceInterceptorTest {
     public void shouldRejectCorsOptionsForUntrustedPasskeyOrigin() {
         ResponseRecorder response = new ResponseRecorder();
 
-        boolean proceed = new AdminCrossOriginInterceptor(new com.zrlog.admin.business.service.PasskeyRequestContext(com.zrlog.admin.support.ApplicationServicesFixture.siteHost(com.zrlog.common.Constants.zrLogConfig))).doInterceptor(
+        boolean proceed = new AdminCrossOriginInterceptor(new com.zrlog.admin.business.service.PasskeyRequestContext(com.zrlog.admin.support.ApplicationServicesFixture.siteHost(applicationConfig))).doInterceptor(
                 request(HttpMethod.OPTIONS, "/api/admin/account-security/passkey/registration/options",
                         Map.of("Origin", "https://static.example.com", "Host", "admin.example.com"), "https"),
                 response.response());
@@ -171,7 +166,7 @@ public class AdminCorsAndTemporaryResourceInterceptorTest {
     public void shouldProtectPasskeyRoutesResolvedFromHyphenatedAliases() {
         ResponseRecorder response = new ResponseRecorder();
 
-        boolean proceed = new AdminCrossOriginInterceptor(new com.zrlog.admin.business.service.PasskeyRequestContext(com.zrlog.admin.support.ApplicationServicesFixture.siteHost(com.zrlog.common.Constants.zrLogConfig))).doInterceptor(
+        boolean proceed = new AdminCrossOriginInterceptor(new com.zrlog.admin.business.service.PasskeyRequestContext(com.zrlog.admin.support.ApplicationServicesFixture.siteHost(applicationConfig))).doInterceptor(
                 request(HttpMethod.OPTIONS, "/api/admin/passkey/authentication/options-alias",
                         Map.of("Origin", "https://static.example.com", "Host", "admin.example.com"), "https"),
                 response.response());
@@ -186,7 +181,7 @@ public class AdminCorsAndTemporaryResourceInterceptorTest {
     public void shouldCompleteCorsOptionsForTrustedPasskeyOrigin() {
         ResponseRecorder response = new ResponseRecorder();
 
-        boolean proceed = new AdminCrossOriginInterceptor(new com.zrlog.admin.business.service.PasskeyRequestContext(com.zrlog.admin.support.ApplicationServicesFixture.siteHost(com.zrlog.common.Constants.zrLogConfig))).doInterceptor(
+        boolean proceed = new AdminCrossOriginInterceptor(new com.zrlog.admin.business.service.PasskeyRequestContext(com.zrlog.admin.support.ApplicationServicesFixture.siteHost(applicationConfig))).doInterceptor(
                 request(HttpMethod.OPTIONS, "/api/admin/account-security/passkey/registration/options",
                         Map.of("Origin", "https://admin.example.com", "Host", "admin.example.com"), "https"),
                 response.response());
@@ -202,7 +197,7 @@ public class AdminCorsAndTemporaryResourceInterceptorTest {
     public void shouldRejectTemporaryDbResourceWhenAdminTokenIsMissing() throws Exception {
         ResponseRecorder response = new ResponseRecorder();
 
-        boolean proceed = new AdminTemporaryResourceInterceptor(() -> com.zrlog.common.Constants.zrLogConfig.getTokenService(), () -> false).doInterceptor(
+        boolean proceed = new AdminTemporaryResourceInterceptor(() -> applicationConfig.getTokenService(), () -> false).doInterceptor(
                 request(HttpMethod.GET, AdminConstants.ADMIN_DB_ATTACHED_TMP + "/image.png",
                         Map.of("Origin", "https://admin.example.com")),
                 response.response());

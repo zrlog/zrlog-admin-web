@@ -56,7 +56,6 @@ public class KnowledgeServiceTest {
             KnowledgeService service = new KnowledgeService(() -> {
                 try { return AccountAccess.load(1); } catch (Exception e) { throw new RuntimeException(e); }
             }, Set.of("articles:read", "articles:read_drafts"), () -> "https://blog.example/sub", staticHtml::get);
-            com.zrlog.common.Constants.zrLogConfig = null;
             assertEquals("https://blog.example/sub/article-1", read(service, 1).source.url);
             staticHtml.set(true);
             assertEquals("https://blog.example/sub/article-1.html", read(service, 1).source.url);

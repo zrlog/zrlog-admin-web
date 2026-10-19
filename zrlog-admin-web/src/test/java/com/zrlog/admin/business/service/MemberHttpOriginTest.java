@@ -21,12 +21,15 @@ import java.util.Map;
 import static org.junit.Assert.*;
 
 public class MemberHttpOriginTest {
+
+    private com.zrlog.common.ZrLogConfig applicationConfig;
     @Test
     public void httpDeploymentsCanCreateEditAndTransferMembers() throws Exception {
         for (String host : List.of("192.168.1.12:8080", "blog.internal", "blog.example:8080")) {
             try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+                applicationConfig = db.config();
                 db.cacheService().getPublicWebSiteInfo().setHost(host);
-                com.zrlog.common.Constants.zrLogConfig.getServerConfig().setContextPath("/sub");
+                db.config().getServerConfig().setContextPath("/sub");
                 AccountAuthorizationTest.login(db, 1, "owner");
                 db.execute("update user set password=? where userId=1", PasswordHashUtils.hash(SecurityUtils.md5("owner-password")));
                 String origin = "http://" + host;
@@ -44,6 +47,7 @@ public class MemberHttpOriginTest {
     @Test
     public void allMemberMutationsStillRejectForeignOrigins() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             db.cacheService().getPublicWebSiteInfo().setHost("blog.internal");
             AccountAuthorizationTest.login(db, 1, "owner");
             assertThrows(AdminOriginException.class, () -> controller("http://evil.example", "{}").create());
@@ -53,7 +57,7 @@ public class MemberHttpOriginTest {
         }
     }
 
-    private static MemberController controller(String origin, String body) throws Exception {
+    private MemberController controller(String origin, String body) throws Exception {
         byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
         Map<String, Object> attrs = new HashMap<>();
         HttpRequest request = (HttpRequest) Proxy.newProxyInstance(MemberHttpOriginTest.class.getClassLoader(),
@@ -71,7 +75,7 @@ public class MemberHttpOriginTest {
                         default: return null;
                     }
                 });
-        MemberController controller = new MemberController(com.zrlog.admin.support.ApplicationServicesFixture.backend(com.zrlog.common.Constants.zrLogConfig), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
+        MemberController controller = new MemberController(com.zrlog.admin.support.ApplicationServicesFixture.backend(applicationConfig), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
         var field = Controller.class.getDeclaredField("request");
         field.setAccessible(true);
         field.set(controller, request);

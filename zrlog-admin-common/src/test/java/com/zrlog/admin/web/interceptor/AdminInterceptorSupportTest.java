@@ -12,7 +12,6 @@ import com.hibegin.http.server.web.Controller;
 import com.hibegin.http.server.web.Router;
 import com.zrlog.admin.web.annotation.RefreshCache;
 import com.zrlog.business.plugin.type.StaticSiteType;
-import com.zrlog.common.Constants;
 import com.zrlog.common.TokenService;
 import com.zrlog.common.ZrLogConfig;
 import com.zrlog.common.rest.response.ApiStandardResponse;
@@ -34,19 +33,21 @@ import static org.junit.Assert.assertSame;
 
 public class AdminInterceptorSupportTest {
 
+    private com.zrlog.common.ZrLogConfig applicationConfig;
+
     @Rule
     public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
     @Test
     public void shouldReturnNullAdminTokenWhenBlogIsNotInstalled() throws Exception {
         withConfig(new TestZrLogConfig(false, tokenService(new AdminFullTokenVO())), () ->
-                assertNull(AdminInterceptorSupport.getAdminToken(Constants.zrLogConfig.isInstalled() ? Constants.zrLogConfig.getTokenService() : null, request())));
+                assertNull(AdminInterceptorSupport.getAdminToken(applicationConfig.isInstalled() ? applicationConfig.getTokenService() : null, request())));
     }
 
     @Test
     public void shouldReturnNullAdminTokenWhenTokenServiceIsMissing() throws Exception {
         withConfig(new TestZrLogConfig(true, null), () ->
-                assertNull(AdminInterceptorSupport.getAdminToken(Constants.zrLogConfig.isInstalled() ? Constants.zrLogConfig.getTokenService() : null, request())));
+                assertNull(AdminInterceptorSupport.getAdminToken(applicationConfig.isInstalled() ? applicationConfig.getTokenService() : null, request())));
     }
 
     @Test
@@ -54,7 +55,7 @@ public class AdminInterceptorSupportTest {
         AdminFullTokenVO token = new AdminFullTokenVO();
 
         withConfig(new TestZrLogConfig(true, tokenService(token)), () ->
-                assertSame(token, AdminInterceptorSupport.getAdminToken(Constants.zrLogConfig.isInstalled() ? Constants.zrLogConfig.getTokenService() : null, request())));
+                assertSame(token, AdminInterceptorSupport.getAdminToken(applicationConfig.isInstalled() ? applicationConfig.getTokenService() : null, request())));
     }
 
     @Test
@@ -63,7 +64,7 @@ public class AdminInterceptorSupportTest {
         RequestConfig requestConfig = requestConfig();
         Method method = RefreshController.class.getDeclaredMethod("plain");
 
-        com.zrlog.admin.support.ApplicationServicesFixture.dispatcher(null, com.zrlog.common.Constants.zrLogConfig).dispatch(
+        com.zrlog.admin.support.ApplicationServicesFixture.dispatcher(null, applicationConfig).dispatch(
                 request("/plain", HttpMethod.GET, Map.of(), requestConfig), response.response(), method);
 
         assertEquals("plain", ((ApiStandardResponse<?>) response.rendered).getData());
@@ -75,7 +76,7 @@ public class AdminInterceptorSupportTest {
         RequestConfig requestConfig = requestConfig();
         Method method = RefreshController.class.getDeclaredMethod("refreshPostOnly");
 
-        com.zrlog.admin.support.ApplicationServicesFixture.dispatcher(null, com.zrlog.common.Constants.zrLogConfig).dispatch(
+        com.zrlog.admin.support.ApplicationServicesFixture.dispatcher(null, applicationConfig).dispatch(
                 request("/refreshPostOnly", HttpMethod.GET, Map.of(), requestConfig), response.response(), method);
 
         assertEquals("refresh", ((ApiStandardResponse<?>) response.rendered).getData());
@@ -87,7 +88,7 @@ public class AdminInterceptorSupportTest {
         RequestConfig requestConfig = requestConfig();
         Method method = RefreshController.class.getDeclaredMethod("refreshPostOnly");
 
-        com.zrlog.admin.support.ApplicationServicesFixture.dispatcher(null, com.zrlog.common.Constants.zrLogConfig).dispatch(
+        com.zrlog.admin.support.ApplicationServicesFixture.dispatcher(null, applicationConfig).dispatch(
                 request("/refreshPostOnly", HttpMethod.GET, Map.of("Accept", "text/event-stream"), requestConfig),
                 response.response(), method);
 
@@ -95,14 +96,12 @@ public class AdminInterceptorSupportTest {
     }
 
     private void withConfig(ZrLogConfig config, ThrowingRunnable runnable) throws Exception {
-        ZrLogConfig previousConfig = Constants.zrLogConfig;
         String previousRootPath = System.getProperty("sws.root.path");
         try {
             PathUtil.setRootPath(temporaryFolder.newFolder("zrlog-admin-interceptor").getAbsolutePath());
-            Constants.zrLogConfig = config;
+            applicationConfig = config;
             runnable.run();
         } finally {
-            Constants.zrLogConfig = previousConfig;
             restoreProperty("sws.root.path", previousRootPath);
         }
     }
@@ -155,7 +154,6 @@ public class AdminInterceptorSupportTest {
     }
 
     public static class RefreshController extends Controller {
-
         @ResponseBody
         public ApiStandardResponse<String> plain() {
             return new ApiStandardResponse<>("plain");
@@ -219,7 +217,6 @@ public class AdminInterceptorSupportTest {
     }
 
     private static class TestZrLogConfig extends ZrLogConfig {
-
         private final boolean installed;
         private final TokenService tokenService;
 

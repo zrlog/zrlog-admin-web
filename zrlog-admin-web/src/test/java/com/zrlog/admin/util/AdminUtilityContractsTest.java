@@ -6,7 +6,6 @@ import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.config.ServerConfig;
 import com.hibegin.http.server.util.PathUtil;
 import com.zrlog.common.Constants;
-import com.zrlog.common.ZrLogConfig;
 import com.zrlog.common.controller.BaseController;
 import org.junit.Rule;
 import org.junit.Test;
@@ -28,12 +27,10 @@ public class AdminUtilityContractsTest {
 
     @Test
     public void shouldBuildServerInfoFromRequestServerConfig() throws Exception {
-        ZrLogConfig previousConfig = Constants.zrLogConfig;
         String previousRoot = PathUtil.getRootPath();
         try {
             String rootPath = temporaryFolder.newFolder("zrlog-root").getAbsolutePath();
             PathUtil.setRootPath(rootPath);
-            Constants.zrLogConfig = null;
             ServerConfig serverConfig = new ServerConfig()
                     .setApplicationName("custom-admin")
                     .setApplicationVersion("1.2.3");
@@ -48,18 +45,15 @@ public class AdminUtilityContractsTest {
             assertTrue(infoByKey.containsKey("runtime"));
             assertTrue(infoByKey.containsKey("programInfo"));
         } finally {
-            Constants.zrLogConfig = previousConfig;
             PathUtil.setRootPath(previousRoot);
         }
     }
 
     @Test
     public void shouldReturnSystemIoInfoWithDatabasePoolSummary() throws Exception {
-        ZrLogConfig previousConfig = Constants.zrLogConfig;
         String previousRoot = PathUtil.getRootPath();
         try {
             PathUtil.setRootPath(temporaryFolder.newFolder("zrlog-root").getAbsolutePath());
-            Constants.zrLogConfig = null;
 
             List<ServerInfo> infos = new SystemInfoUtils(() -> false, AdminUtilityContractsTest::dataSource, () -> null, () -> "test uptime").systemIOInfoVO();
             Map<String, String> infoByKey = new HashMap<>();
@@ -70,7 +64,6 @@ public class AdminUtilityContractsTest {
             assertEquals("2 / 5", infoByKey.get("dbConnectSize"));
             assertEquals("test uptime", infoByKey.get("uptime"));
         } finally {
-            Constants.zrLogConfig = previousConfig;
             PathUtil.setRootPath(previousRoot);
         }
     }

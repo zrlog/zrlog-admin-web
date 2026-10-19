@@ -4,7 +4,6 @@ import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.util.PathUtil;
 import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.rest.response.UploadFileResponse;
-import com.zrlog.common.Constants;
 import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
@@ -25,12 +24,10 @@ public class UploadServiceTest {
     @Rule
     public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-    private final com.zrlog.common.ZrLogConfig previousConfig = Constants.zrLogConfig;
     private final String previousRootPath = System.getProperty("sws.root.path");
 
     @After
     public void tearDown() {
-        Constants.zrLogConfig = previousConfig;
         if (previousRootPath == null) {
             System.clearProperty("sws.root.path");
         } else {
@@ -40,8 +37,6 @@ public class UploadServiceTest {
 
     @Test
     public void shouldFallbackToLocalUrlWhenPluginCoreIsUnavailable() {
-        Constants.zrLogConfig = null;
-
         UploadFileResponse response = new UploadService(() -> null).getCloudUrl(
                 "/attached/a.png", "/tmp/a.png", request("/blog"), null);
 
@@ -51,7 +46,6 @@ public class UploadServiceTest {
     @Test
     public void shouldSaveBytesWithNormalizedExtension() throws Exception {
         withRootPath();
-        Constants.zrLogConfig = null;
 
         UploadFileResponse response = new UploadService(() -> null).saveBytes(
                 "hello".getBytes(StandardCharsets.UTF_8), "", "image", request("/blog"), null);
@@ -66,7 +60,6 @@ public class UploadServiceTest {
     @Test
     public void shouldSaveThumbnailBytesWithStableMd5Name() throws Exception {
         withRootPath();
-        Constants.zrLogConfig = null;
 
         UploadFileResponse response = new UploadService(() -> null).saveThumbnailBytes(
                 "abc".getBytes(StandardCharsets.UTF_8), "jpg", request(""), null);

@@ -6,7 +6,6 @@ import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.security.DelegatedAccess;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.AssetsWebSetup;
-import com.zrlog.common.Constants;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -28,7 +27,7 @@ public class AttachmentStorageTest {
                 if(method.getName().equals("getContextPath")) return "/sub";
                 return null;
             });
-            AssetsWebSetup storage=new AssetsWebSetup(Constants.zrLogConfig.getServerConfig(), () -> null);
+            AssetsWebSetup storage=new AssetsWebSetup(db.config().getServerConfig(), () -> null);
             byte[] bytes="actual attachment".getBytes(java.nio.charset.StandardCharsets.UTF_8);
             String url=storage.saveAttachment(bytes,"cover.PNG",request);
             assertTrue(url,url.startsWith("/sub/attached/users/1/"));assertTrue(url.endsWith(".png"));

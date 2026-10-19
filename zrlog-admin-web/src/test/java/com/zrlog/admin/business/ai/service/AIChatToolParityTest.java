@@ -13,7 +13,6 @@ import com.zrlog.admin.business.service.AccountPermissionService;
 import com.zrlog.admin.business.service.AdminAuditService;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
-import com.zrlog.common.Constants;
 import com.zrlog.common.ZrLogConfig;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.web.WebSetup;
@@ -30,6 +29,8 @@ import static org.junit.Assert.*;
 
 @RunWith(Parameterized.class)
 public class AIChatToolParityTest {
+
+    private com.zrlog.common.ZrLogConfig applicationConfig;
     @Parameterized.Parameters(name = "database={0}")
     public static String[] databases() { return new String[]{"h2", "sqlite"}; }
     private final String database;
@@ -46,16 +47,17 @@ public class AIChatToolParityTest {
 
     @Test public void modelAndMcpExposeIdenticalNamesDescriptionsAndSchemasForEachRoleAndModuleState() throws Exception {
         try (InMemoryZrLogDatabase db = open()) {
+            applicationConfig = db.config();
             for (String role : List.of("owner", "author", "contributor")) {
                 db.execute("update user set role=? where userId=1", role);
                 for (boolean enabled : List.of(false, true)) {
                     storage(enabled);
-                    Model model = new Model(ANSWER);
+                    Model model = new Model(tools(), ANSWER);
                     assertTrue(model.chat().contains("\"type\":\"done\""));
                     JsonArray actual = model.requests.get(0).getAsJsonArray("tools");
                     Identity identity = identity();
-                    McpContentService provider = new McpContentService(() -> identity, request(), "en_US", tools(), com.zrlog.admin.support.ApplicationServicesFixture.backend(com.zrlog.common.Constants.zrLogConfig)::configured);
-                    JsonArray expected = new McpService(com.zrlog.admin.support.ApplicationServicesFixture.siteTitle(com.zrlog.common.Constants.zrLogConfig), "en_US").handle(
+                    McpContentService provider = new McpContentService(() -> identity, request(), "en_US", tools(), com.zrlog.admin.support.ApplicationServicesFixture.backend(db.config())::configured);
+                    JsonArray expected = new McpService(com.zrlog.admin.support.ApplicationServicesFixture.siteTitle(db.config()), "en_US").handle(
                             "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\"}", provider)
                             .body.getAsJsonObject("result").getAsJsonArray("tools");
                     assertEquals(8 + (enabled ? 1 : 0) - (role.equals("contributor") ? 1 : 0), actual.size());
@@ -74,11 +76,12 @@ public class AIChatToolParityTest {
 
     @Test public void asynchronousModelCreatesReadsUpdatesAndPublishesUsingTheSharedWriteChain() throws Exception {
         try (InMemoryZrLogDatabase db = open()) {
+            applicationConfig = db.config();
             var token = AdminTokenThreadLocal.getUser();
             String content = "<p>" + "Article body. ".repeat(500) + "</p>";
             JsonObject create = JsonParser.parseString("{\"title\":\"Original\",\"typeId\":1,\"status\":\"draft\"}").getAsJsonObject();
             create.addProperty("content", content);
-            Model model = new Model(tool("create_article", create.toString()),
+            Model model = new Model(tools(), tool("create_article", create.toString()),
                     tool("get_article", "{\"id\":1}"),
                     tool("update_article", "{\"id\":1,\"version\":0,\"title\":\"Revised\"}"),
                     tool("publish_article", "{\"id\":1,\"version\":1}"), ANSWER);
@@ -109,8 +112,9 @@ public class AIChatToolParityTest {
 
     @Test public void conflictsAreReturnedToTheModelWithoutOverwritingTheArticle() throws Exception {
         try (InMemoryZrLogDatabase db = open()) {
+            applicationConfig = db.config();
             db.execute("insert into log(logId,userId,typeId,title,rubbish,privacy,version) values(?,?,?,?,?,?,?)", 1,1,1,"Current",true,false,2);
-            Model model = new Model(tool("update_article", "{\"id\":1,\"version\":0,\"title\":\"Stale\"}"), ANSWER);
+            Model model = new Model(tools(), tool("update_article", "{\"id\":1,\"version\":0,\"title\":\"Stale\"}"), ANSWER);
             String wire = model.chat();
             assertTrue(wire.contains("\"type\":\"done\""));
             assertTrue(articleUpdates(wire).isEmpty());
@@ -121,7 +125,8 @@ public class AIChatToolParityTest {
 
     @Test public void capturedDelegationHidesAndRejectsWritesOnTheWorker() throws Exception {
         try (InMemoryZrLogDatabase db = open()) {
-            Model model = new Model(tool("create_article", "{\"title\":\"Denied\",\"typeId\":1,\"status\":\"draft\"}"), ANSWER);
+            applicationConfig = db.config();
+            Model model = new Model(tools(), tool("create_article", "{\"title\":\"Denied\",\"typeId\":1,\"status\":\"draft\"}"), ANSWER);
             String wire = DelegatedAccess.withPermissions(Set.of("article.assist", "article.read"), false, model::chat);
             assertTrue(wire.contains("\"type\":\"done\""));
             JsonArray definitions = model.requests.get(0).getAsJsonArray("tools");
@@ -135,8 +140,9 @@ public class AIChatToolParityTest {
 
     @Test public void savedUpdateIsEmittedEvenWhenTheNextModelTurnFails() throws Exception {
         try (InMemoryZrLogDatabase db = open()) {
+            applicationConfig = db.config();
             db.execute("insert into log(logId,userId,typeId,title,rubbish,privacy,version) values(?,?,?,?,?,?,?)", 1,1,1,"Current",true,false,2);
-            Model model = new Model(tool("get_article", "{\"id\":1}"),
+            Model model = new Model(tools(), tool("get_article", "{\"id\":1}"),
                     tool("update_article", "{\"id\":1,\"version\":2,\"title\":\"Revised\"}"),
                     "{\"finish_reason\":\"stop\",\"message\":{\"content\":\"\"}}");
             String wire = model.chat(1);
@@ -166,7 +172,8 @@ public class AIChatToolParityTest {
 
     @Test public void revokingTheAccountAfterModelCompletionPreventsWrites() throws Exception {
         try (InMemoryZrLogDatabase db = open()) {
-            Model model = new Model(tool("create_article", "{\"title\":\"Denied\",\"typeId\":1,\"status\":\"draft\"}"));
+            applicationConfig = db.config();
+            Model model = new Model(tools(), tool("create_article", "{\"title\":\"Denied\",\"typeId\":1,\"status\":\"draft\"}"));
             model.afterRequest = () -> {
                 try { db.execute("update user set enabled=? where userId=1", false); }
                 catch (Exception e) { throw new RuntimeException(e); }
@@ -180,8 +187,9 @@ public class AIChatToolParityTest {
 
     @Test public void uploadsAttachmentsThroughTheEnabledStorageWithTheAccountAndRequest() throws Exception {
         try (InMemoryZrLogDatabase db = open()) {
+            applicationConfig = db.config();
             storage(true);
-            Model model = new Model(tool("upload_attachment", "{\"filename\":\"note.txt\",\"data\":\"aGVsbG8=\"}"), ANSWER);
+            Model model = new Model(tools(), tool("upload_attachment", "{\"filename\":\"note.txt\",\"data\":\"aGVsbG8=\"}"), ANSWER);
             assertTrue(model.chat().contains("\"type\":\"done\""));
             assertTrue(model.requests.get(1).toString().contains("/attachment/note.txt"));
         }
@@ -198,10 +206,10 @@ public class AIChatToolParityTest {
     }
 
     @SuppressWarnings("unchecked")
-    private static void storage(boolean enabled) throws Exception {
+    private void storage(boolean enabled) throws Exception {
         var field = ZrLogConfig.class.getDeclaredField("webSetups");
         field.setAccessible(true);
-        List<WebSetup> setups = (List<WebSetup>) field.get(Constants.zrLogConfig);
+        List<WebSetup> setups = (List<WebSetup>) field.get(applicationConfig);
         setups.removeIf(AttachmentStorage.class::isInstance);
         if (enabled) setups.add(new AttachmentStorage() {
             @Override public void setup() {}
@@ -214,15 +222,15 @@ public class AIChatToolParityTest {
         });
     }
 
-    private static com.zrlog.admin.business.knowledge.ContentToolFactory tools() {
+    private com.zrlog.admin.business.knowledge.ContentToolFactory tools() {
         var serverConfig = new com.hibegin.http.server.config.ServerConfig();
         var cache = new InMemoryZrLogDatabase.TestCacheService();
         serverConfig.getBindings().instance(com.zrlog.common.CacheService.class, cache)
                 .instance(com.zrlog.business.service.CacheRefreshService.class,
-                        com.zrlog.admin.support.ApplicationServicesFixture.cacheRefresh(cache, Constants.zrLogConfig));
-        serverConfig.getBindings().instance(com.zrlog.admin.util.BackendServerUrl.class, com.zrlog.admin.support.ApplicationServicesFixture.backend(com.zrlog.common.Constants.zrLogConfig));
-        serverConfig.getBindings().instance(com.zrlog.admin.business.service.AdminPageDataFactory.class, new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
-        new com.zrlog.admin.web.ContentWebSetup(serverConfig, com.zrlog.admin.support.ApplicationServicesFixture.capability(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.business.content.ArticleAssistant.class), com.zrlog.admin.support.ApplicationServicesFixture.capability(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.business.content.AttachmentStorage.class)).setup();
+                        com.zrlog.admin.support.ApplicationServicesFixture.cacheRefresh(cache, applicationConfig));
+        serverConfig.getBindings().instance(com.zrlog.admin.util.BackendServerUrl.class, com.zrlog.admin.support.ApplicationServicesFixture.backend(applicationConfig));
+        serverConfig.getBindings().instance(com.zrlog.admin.business.service.AdminPageDataFactory.class, new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
+        new com.zrlog.admin.web.ContentWebSetup(serverConfig, com.zrlog.admin.support.ApplicationServicesFixture.capability(applicationConfig, com.zrlog.admin.business.content.ArticleAssistant.class), com.zrlog.admin.support.ApplicationServicesFixture.capability(applicationConfig, com.zrlog.admin.business.content.AttachmentStorage.class)).setup();
         return serverConfig.getBindings().build().get(com.zrlog.admin.business.knowledge.ContentToolFactory.class);
     }
 
@@ -248,7 +256,7 @@ public class AIChatToolParityTest {
         final List<String> responses;
         final List<JsonObject> requests = new ArrayList<>();
         Runnable afterRequest = () -> {};
-        Model(String... responses) { super(AIChatToolParityTest.request(), tools()); this.responses = List.of(responses); }
+        Model(com.zrlog.admin.business.knowledge.ContentToolFactory tools, String... responses) { super(AIChatToolParityTest.request(), tools); this.responses = List.of(responses); }
         String chat() throws Exception {
             return chat(0);
         }

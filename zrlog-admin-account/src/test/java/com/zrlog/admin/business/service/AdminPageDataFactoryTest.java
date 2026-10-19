@@ -4,7 +4,6 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
-import com.zrlog.common.Constants;
 import com.zrlog.util.I18nUtil;
 import org.junit.Test;
 
@@ -27,7 +26,6 @@ public class AdminPageDataFactoryTest {
             var otherSite = new InMemoryZrLogDatabase.TestCacheService().getPublicWebSiteInfo();
             otherSite.setTitle("Site B");
             var other = new AdminPageDataFactory(() -> otherSite, () -> "build-b");
-            Constants.zrLogConfig = null;
             AdminConstants.adminResource = null;
 
             JsonObject first = new Gson().toJsonTree(pages.response("content", "", "/admin/system")).getAsJsonObject();

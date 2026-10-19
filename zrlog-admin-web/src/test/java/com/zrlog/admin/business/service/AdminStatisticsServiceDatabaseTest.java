@@ -28,7 +28,7 @@ public class AdminStatisticsServiceDatabaseTest {
             insertComment(db, 3, "DATEADD('DAY', -1, CURRENT_TIMESTAMP)");
             db.cacheService().getTags().add(tag("zrlog", 3L));
 
-            StatisticsInfoResponse response = new AdminStatisticsService(db.cacheService(), com.zrlog.admin.support.RuntimeInfoFixture.from(com.zrlog.common.Constants.zrLogConfig))
+            StatisticsInfoResponse response = new AdminStatisticsService(db.cacheService(), com.zrlog.admin.support.RuntimeInfoFixture.from(db.config()))
                     .statisticsInfo(DIRECT_EXECUTOR, false)
                     .get();
 
@@ -56,7 +56,7 @@ public class AdminStatisticsServiceDatabaseTest {
 
             StatisticsInfoResponse response;
             try (TestLogCapture logs = TestLogCapture.forClass(AdminStatisticsService.class)) {
-                response = new AdminStatisticsService(db.cacheService(), com.zrlog.admin.support.RuntimeInfoFixture.from(com.zrlog.common.Constants.zrLogConfig))
+                response = new AdminStatisticsService(db.cacheService(), com.zrlog.admin.support.RuntimeInfoFixture.from(db.config()))
                         .statisticsInfo(DIRECT_EXECUTOR, false)
                         .get();
 

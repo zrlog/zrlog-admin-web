@@ -11,7 +11,6 @@ import com.zrlog.admin.web.AdminWebSetup;
 import com.zrlog.admin.web.interceptor.BearerTokenInterceptor;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.business.plugin.PluginCorePlugin;
-import com.zrlog.common.Constants;
 import com.zrlog.common.vo.AdminTokenVO;
 import org.junit.Test;
 
@@ -25,12 +24,15 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.Assert.*;
 
 public class PluginUploadControllerTest {
+
+    private com.zrlog.common.ZrLogConfig applicationConfig;
     private static final String PATH = "/api/admin/plugins/upload";
 
     @Test
     public void bearerUploadRequiresPluginPermissionAndForwardsOriginalRequest() throws Exception {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
-            var config = Constants.zrLogConfig;
+            applicationConfig = ignored.config();
+            var config = ignored.config();
             config.getServerConfig().setContextPath("/sub");
             new AdminWebSetup(config).setup();
             assertNull(config.getServerConfig().getRouter().getMethod(PATH, HttpMethod.GET));
@@ -67,11 +69,11 @@ public class PluginUploadControllerTest {
         create.name = permission;
         create.permissionMode = "custom";
         create.permissions = List.of(permission);
-        return new PersonalAccessTokenService(new OAuthService(com.zrlog.admin.support.ApplicationServicesFixture.backend(com.zrlog.common.Constants.zrLogConfig)::configured, com.zrlog.admin.support.ApplicationServicesFixture.available(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.web.McpWebSetup.class)).mcpResource()).create(create).token;
+        return new PersonalAccessTokenService(new OAuthService(com.zrlog.admin.support.ApplicationServicesFixture.backend(applicationConfig)::configured, com.zrlog.admin.support.ApplicationServicesFixture.available(applicationConfig, com.zrlog.admin.web.McpWebSetup.class)).mcpResource()).create(create).token;
     }
 
     private int call(String token, byte[] body) throws Exception {
-        var config = Constants.zrLogConfig;
+        var config = applicationConfig;
         HttpRequest request = (HttpRequest) Proxy.newProxyInstance(getClass().getClassLoader(),
                 new Class[]{HttpRequest.class}, (proxy, method, args) -> {
                     switch (method.getName()) {
@@ -96,7 +98,7 @@ public class PluginUploadControllerTest {
                     if (method.getName().equals("write") && args.length > 1 && args[1] instanceof Integer) status.set((Integer) args[1]);
                     return null;
                 });
-        new BearerTokenInterceptor(() -> com.zrlog.admin.support.ApplicationServicesFixture.dispatcher(null, com.zrlog.common.Constants.zrLogConfig), new com.zrlog.admin.business.service.OAuthService(com.zrlog.admin.support.ApplicationServicesFixture.backend(com.zrlog.common.Constants.zrLogConfig)::configured, com.zrlog.admin.support.ApplicationServicesFixture.available(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.web.McpWebSetup.class))).doInterceptor(request, response);
+        new BearerTokenInterceptor(() -> com.zrlog.admin.support.ApplicationServicesFixture.dispatcher(null, applicationConfig), new com.zrlog.admin.business.service.OAuthService(com.zrlog.admin.support.ApplicationServicesFixture.backend(applicationConfig)::configured, com.zrlog.admin.support.ApplicationServicesFixture.available(applicationConfig, com.zrlog.admin.web.McpWebSetup.class))).doInterceptor(request, response);
         return status.get();
     }
 }

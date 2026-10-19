@@ -11,8 +11,6 @@ import com.zrlog.admin.business.type.FileEntryAccess;
 import com.zrlog.admin.business.type.FileEntryAction;
 import com.zrlog.admin.plugin.rest.response.UploadServiceResponseEntity;
 import com.zrlog.business.plugin.type.StaticSiteType;
-import com.zrlog.common.Constants;
-import com.zrlog.common.ZrLogConfig;
 import com.zrlog.util.BlogBuildInfoUtil;
 import org.junit.Test;
 
@@ -150,14 +148,7 @@ public class AdminTypeAndUtilContractTest {
 
     @Test
     public void shouldKeepContextPathWithoutGlobalConfigOrCdn() {
-        ZrLogConfig previousConfig = Constants.zrLogConfig;
-        try {
-            Constants.zrLogConfig = null;
-
-            assertEquals("/blog", AdminWebTools.getAdminStaticResourceBaseUrl(request("/admin", "/blog", ""), () -> ""));
-        } finally {
-            Constants.zrLogConfig = previousConfig;
-        }
+        assertEquals("/blog", AdminWebTools.getAdminStaticResourceBaseUrl(request("/admin", "/blog", ""), () -> ""));
     }
 
     @Test

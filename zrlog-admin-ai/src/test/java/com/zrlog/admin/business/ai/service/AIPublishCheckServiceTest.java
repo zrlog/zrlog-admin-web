@@ -21,7 +21,6 @@ public class AIPublishCheckServiceTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             var service = new AIPublishCheckService();
             var context = new GenerateArticleFieldRequest();
-            com.zrlog.common.Constants.zrLogConfig = null;
             db.putWebsite("generator_html_status", "1");
             db.putWebsite("host", "blog.example");
             service.fillPublishCheckContext(context);

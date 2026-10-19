@@ -3,7 +3,6 @@ package com.zrlog.admin.web.plugin;
 import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.business.plugin.type.StaticSiteType;
-import com.zrlog.common.Constants;
 import org.junit.Test;
 
 import java.util.concurrent.ExecutorService;
@@ -19,13 +18,12 @@ public class AdminStaticResourcePluginTest {
     @Test
     public void shouldExposeAdminStaticPluginStateWhenStaticSiteIsDisabled() throws Exception {
         try (InMemoryZrLogDatabase database = InMemoryZrLogDatabase.open()) {
-            var config = Constants.zrLogConfig;
+            var config = database.config();
             var context = new com.hibegin.http.server.ApplicationContext(config.getServerConfig());
             context.init();
             AdminStaticResourcePlugin plugin = new AdminStaticResourcePlugin(
                     new com.zrlog.business.plugin.StaticSiteRenderer(config.getRequestConfig(), config.getResponseConfig(), context),
                     database.cacheService()::getPublicWebSiteInfo, AdminConstants.adminResource, "/blog");
-            Constants.zrLogConfig = null;
             try {
                 assertFalse(plugin.autoStart());
                 assertFalse(plugin.isStarted());

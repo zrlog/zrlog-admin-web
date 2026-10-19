@@ -41,8 +41,8 @@ public class Application {
 
     public static void main(String[] args) {
         System.getProperties().put("sws.run.mode", "dev");
-        Constants.zrLogConfig = new DevZrLogConfig(17080, getUpdater(args), "/sub");
-        WebServerBuilder build = new WebServerBuilder.Builder().config(Constants.zrLogConfig).build();
+        DevZrLogConfig config = new DevZrLogConfig(17080, getUpdater(args), "/sub");
+        WebServerBuilder build = new WebServerBuilder.Builder().config(config).build();
         build.start();
     }
 }

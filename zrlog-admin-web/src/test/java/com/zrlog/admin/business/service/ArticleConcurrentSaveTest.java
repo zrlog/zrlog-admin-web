@@ -16,21 +16,24 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import static org.junit.Assert.*;
 
 public class ArticleConcurrentSaveTest {
+
+    private com.zrlog.common.ZrLogConfig applicationConfig;
     @Test
     public void competingAccountsAllocateDistinctArticleIds() throws Exception {
         for (String backend : List.of("h2", "sqlite", "webapi")) {
             try (InMemoryZrLogDatabase db = open(backend)) {
+                applicationConfig = db.config();
                 db.execute("insert into user(userId,userName,role) values(?,?,?)", 2, "other-admin", "admin");
                 CyclicBarrier start = new CyclicBarrier(2);
                 ExecutorService pool = Executors.newFixedThreadPool(2);
                 try {
                     Future<Long> first = pool.submit(() -> {
                         start.await(10, TimeUnit.SECONDS);
-                        return new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource))).create(token(1), article("First")).getLogId();
+                        return new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(db.config(), com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource))).create(token(1), article("First")).getLogId();
                     });
                     Future<Long> second = pool.submit(() -> {
                         start.await(10, TimeUnit.SECONDS);
-                        return new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource))).create(token(2), article("Second")).getLogId();
+                        return new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(db.config(), com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource))).create(token(2), article("Second")).getLogId();
                     });
                     Long firstId = first.get(30, TimeUnit.SECONDS);
                     Long secondId = second.get(30, TimeUnit.SECONDS);
@@ -49,8 +52,9 @@ public class ArticleConcurrentSaveTest {
     public void competingAccountsSaveOnlyOneSnapshotAndOneHistoryEntry() throws Exception {
         for (String backend : List.of("h2", "sqlite", "webapi")) {
             try (InMemoryZrLogDatabase db = open(backend)) {
+                applicationConfig = db.config();
                 db.execute("insert into user(userId,userName,role) values(?,?,?)", 2, "other-admin", "admin");
-                AdminArticleService service = new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
+                AdminArticleService service = new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(db.config(), com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
                 int id = service.create(token(1), article("Original")).getLogId().intValue();
                 CyclicBarrier start = new CyclicBarrier(2);
                 ExecutorService pool = Executors.newFixedThreadPool(2);
@@ -85,7 +89,8 @@ public class ArticleConcurrentSaveTest {
     @Test
     public void versionChangedAfterReadCannotBeOverwrittenOrRecordedInHistory() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.openWebApi()) {
-            AdminArticleService service = new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
+            applicationConfig = db.config();
+            AdminArticleService service = new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(db.config(), com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
             int id = service.create(token(1), article("Original")).getLogId().intValue();
             AtomicBoolean raced = new AtomicBoolean();
             db.beforeWebApiUpdate((sql, args) -> {
@@ -108,7 +113,8 @@ public class ArticleConcurrentSaveTest {
     public void missingStaleAndFutureVersionsCannotChangeContentOrHistory() throws Exception {
         for (String backend : List.of("h2", "sqlite", "webapi")) {
             try (InMemoryZrLogDatabase db = open(backend)) {
-                AdminArticleService service = new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
+                applicationConfig = db.config();
+                AdminArticleService service = new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(db.config(), com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
                 int id = service.create(token(1), article("Original")).getLogId().intValue();
                 for (Integer version : Arrays.asList(null, -1, 1, Integer.MAX_VALUE)) {
                     assertThrows(UpdateArticleExpireException.class, () -> service.update(token(1), update(id, version, "Invalid")));
@@ -120,9 +126,9 @@ public class ArticleConcurrentSaveTest {
         }
     }
 
-    private static boolean save(CyclicBarrier start, AdminTokenVO token, UpdateArticleRequest request) throws Exception {
+    private boolean save(CyclicBarrier start, AdminTokenVO token, UpdateArticleRequest request) throws Exception {
         start.await(10, TimeUnit.SECONDS);
-        try { new AdminArticleService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource))).update(token, request); return true; }
+        try { new AdminArticleService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(applicationConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource))).update(token, request); return true; }
         catch (UpdateArticleExpireException expected) { return false; }
     }
 

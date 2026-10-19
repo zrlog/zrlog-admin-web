@@ -3,7 +3,6 @@ package com.zrlog.admin.util;
 import com.hibegin.http.server.api.HttpRequest;
 import com.zrlog.admin.business.rest.response.AdminManifestResponse;
 import com.zrlog.common.CacheService;
-import com.zrlog.common.Constants;
 import com.zrlog.common.TokenService;
 import com.zrlog.common.ZrLogConfig;
 import com.zrlog.common.vo.PublicWebSiteInfo;
@@ -38,38 +37,24 @@ public class ManifestUtilsTest {
 
     @Test
     public void shouldBuildManifestFromPublicWebsiteInfo() throws Exception {
-        ZrLogConfig previousConfig = Constants.zrLogConfig;
-        try {
-            Constants.zrLogConfig = null;
+        AdminManifestResponse manifest = ManifestUtils.manifest(request(null), publicWebSiteInfo(false));
 
-            AdminManifestResponse manifest = ManifestUtils.manifest(request(null), publicWebSiteInfo(false));
-
-            assertEquals("Admin Test Blog", manifest.getShort_name());
-            assertTrue(manifest.getName().contains("Admin Test Blog"));
-            assertEquals("Admin description", manifest.getDescription());
-            assertEquals("admin-app-id", manifest.getId());
-            assertEquals("#45a29e", manifest.getTheme_color());
-            assertEquals("#FFFFFF", manifest.getBackground_color());
-            assertFalse(manifest.getIcons().isEmpty());
-            assertTrue(manifest.getIcons().get(0).getSrc().startsWith("/blog/admin/"));
-        } finally {
-            Constants.zrLogConfig = previousConfig;
-        }
+        assertEquals("Admin Test Blog", manifest.getShort_name());
+        assertTrue(manifest.getName().contains("Admin Test Blog"));
+        assertEquals("Admin description", manifest.getDescription());
+        assertEquals("admin-app-id", manifest.getId());
+        assertEquals("#45a29e", manifest.getTheme_color());
+        assertEquals("#FFFFFF", manifest.getBackground_color());
+        assertFalse(manifest.getIcons().isEmpty());
+        assertTrue(manifest.getIcons().get(0).getSrc().startsWith("/blog/admin/"));
     }
 
     @Test
     public void shouldRewriteManifestStartUrlForStaticPluginRequests() throws Exception {
-        ZrLogConfig previousConfig = Constants.zrLogConfig;
-        try {
-            Constants.zrLogConfig = null;
+        AdminManifestResponse manifest = ManifestUtils.manifest(request(BaseStaticSitePlugin.STATIC_USER_AGENT), publicWebSiteInfo(true));
 
-            AdminManifestResponse manifest = ManifestUtils.manifest(request(BaseStaticSitePlugin.STATIC_USER_AGENT), publicWebSiteInfo(true));
-
-            assertEquals("#000000", manifest.getBackground_color());
-            assertEquals("./index.html?pwa=true", manifest.getStart_url());
-        } finally {
-            Constants.zrLogConfig = previousConfig;
-        }
+        assertEquals("#000000", manifest.getBackground_color());
+        assertEquals("./index.html?pwa=true", manifest.getStart_url());
     }
 
     private static PublicWebSiteInfo publicWebSiteInfo(boolean darkMode) {

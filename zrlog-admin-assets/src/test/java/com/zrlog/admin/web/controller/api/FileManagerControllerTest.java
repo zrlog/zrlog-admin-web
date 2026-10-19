@@ -33,6 +33,8 @@ import static org.junit.Assert.assertTrue;
 
 public class FileManagerControllerTest {
 
+    private com.zrlog.common.ZrLogConfig applicationConfig;
+
     @Test
     @SuppressWarnings("unchecked")
     public void shouldSearchThroughFileManagerService() throws Exception {
@@ -50,6 +52,7 @@ public class FileManagerControllerTest {
     @Test
     public void shouldListShortcutsAndRefreshReferenceIndexThroughRealService() throws Exception {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
+            applicationConfig = ignored.config();
             FileManagerController listController = realController(Map.of("path", ""), new ResponseRecorder());
             FileManagerController brokenController = realController(Map.of("resourceType", "broken", "key", "missing"),
                     new ResponseRecorder());
@@ -112,6 +115,7 @@ public class FileManagerControllerTest {
     @Test
     public void shouldAuditSuccessfulFileActionsThroughRealStore() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             FakeFileManagerService service = new FakeFileManagerService();
             service.actionResult = true;
 
@@ -133,6 +137,7 @@ public class FileManagerControllerTest {
     @Test
     public void shouldAuditSuccessfulReuploadThroughRealStore() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             FakeFileManagerService service = new FakeFileManagerService();
             service.uploadResponse = new UploadFileResponse("/attached/missing.png");
             File upload = File.createTempFile("zrlog-upload", ".png");
@@ -152,6 +157,7 @@ public class FileManagerControllerTest {
     @Test
     public void shouldRecordReplaceArticleResourceUrlThroughRealStores() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             FakeFileManagerService service = new FakeFileManagerService();
             ReplaceArticleResourceUrlResponse replaceResponse = new ReplaceArticleResourceUrlResponse();
             replaceResponse.setScannedArticles(3);
@@ -229,23 +235,23 @@ public class FileManagerControllerTest {
         assertArrayEquals("download".getBytes(StandardCharsets.UTF_8), recorder.writtenBytes);
     }
 
-    private static FileManagerController controller(Map<String, String> params, FakeFileManagerService service,
+    private FileManagerController controller(Map<String, String> params, FakeFileManagerService service,
                                                     ResponseRecorder responseRecorder) throws Exception {
         return controller(params, null, Map.of(), service, responseRecorder);
     }
 
-    private static FileManagerController controller(Map<String, String> params, String body, Map<String, File> files,
+    private FileManagerController controller(Map<String, String> params, String body, Map<String, File> files,
                                                     FakeFileManagerService service,
                                                     ResponseRecorder responseRecorder) throws Exception {
-        FileManagerController controller = new FileManagerController(service, new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
+        FileManagerController controller = new FileManagerController(service, new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
         setControllerField(controller, "request", request(params, body, files));
         setControllerField(controller, "response", responseRecorder.response());
         return controller;
     }
 
-    private static FileManagerController realController(Map<String, String> params, ResponseRecorder responseRecorder)
+    private FileManagerController realController(Map<String, String> params, ResponseRecorder responseRecorder)
             throws Exception {
-        FileManagerController controller = new FileManagerController(new com.zrlog.admin.business.service.FileManagerService(new com.zrlog.admin.business.service.UploadService(() -> null), new com.zrlog.admin.business.service.FileManagerReferenceService("")), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
+        FileManagerController controller = new FileManagerController(new com.zrlog.admin.business.service.FileManagerService(new com.zrlog.admin.business.service.UploadService(() -> null), new com.zrlog.admin.business.service.FileManagerReferenceService("")), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
         setControllerField(controller, "request", request(params));
         setControllerField(controller, "response", responseRecorder.response());
         return controller;
@@ -371,7 +377,6 @@ public class FileManagerControllerTest {
     }
 
     private static class ResponseRecorder {
-
         private String redirect;
         private final Map<String, String> headers = new HashMap<>();
         private byte[] writtenBytes;

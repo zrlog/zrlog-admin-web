@@ -3,7 +3,6 @@ package com.zrlog.admin.util;
 import com.hibegin.http.server.api.HttpResponse;
 import com.hibegin.http.server.util.PathUtil;
 import com.zrlog.business.plugin.type.StaticSiteType;
-import com.zrlog.common.Constants;
 import com.zrlog.common.TokenService;
 import com.zrlog.common.ZrLogConfig;
 import com.zrlog.plugin.IPlugin;
@@ -26,19 +25,20 @@ import static org.junit.Assert.assertTrue;
 
 public class AdminStaticSiteSsePublisherTest {
 
+    private com.zrlog.common.ZrLogConfig applicationConfig;
+
     @Rule
     public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
     @Test
     public void shouldRunCacheStepsDirectlyWhenStaticSiteIsDisabled() throws Exception {
-        ZrLogConfig previousConfig = Constants.zrLogConfig;
         CapturedResponse capturedResponse = new CapturedResponse();
         AtomicInteger cacheRuns = new AtomicInteger();
-        try {
+        {
             PathUtil.setRootPath(temporaryFolder.newFolder("zrlog-root").getAbsolutePath());
-            Constants.zrLogConfig = new DisabledStaticConfig();
+            applicationConfig = new DisabledStaticConfig();
 
-            com.zrlog.admin.support.ApplicationServicesFixture.publisher(null, com.zrlog.common.Constants.zrLogConfig).write(
+            com.zrlog.admin.support.ApplicationServicesFixture.publisher(null, applicationConfig).write(
                     capturedResponse.response(),
                     "static-disabled-test",
                     "static-error",
@@ -57,20 +57,17 @@ public class AdminStaticSiteSsePublisherTest {
             assertTrue(body.contains("event: static-sync-skipped"));
             assertFalse(body.contains("event: static-sync-start"));
             assertFalse(body.contains("event: static-progress"));
-        } finally {
-            Constants.zrLogConfig = previousConfig;
         }
     }
 
     @Test
     public void shouldUseCacheErrorEventAfterBeforeStepSucceeds() throws Exception {
-        ZrLogConfig previousConfig = Constants.zrLogConfig;
         CapturedResponse capturedResponse = new CapturedResponse();
-        try {
+        {
             PathUtil.setRootPath(temporaryFolder.newFolder("zrlog-root-separated-errors").getAbsolutePath());
-            Constants.zrLogConfig = new DisabledStaticConfig();
+            applicationConfig = new DisabledStaticConfig();
 
-            com.zrlog.admin.support.ApplicationServicesFixture.publisher(null, com.zrlog.common.Constants.zrLogConfig).write(
+            com.zrlog.admin.support.ApplicationServicesFixture.publisher(null, applicationConfig).write(
                     capturedResponse.response(),
                     "static-separated-error-test",
                     "publish-error",
@@ -91,21 +88,18 @@ public class AdminStaticSiteSsePublisherTest {
             assertFalse(body.contains("event: publish-error"));
             assertFalse(body.contains("event: static-sync-skipped"));
             assertFalse(body.contains("event: publish-complete"));
-        } finally {
-            Constants.zrLogConfig = previousConfig;
         }
     }
 
     @Test
     public void shouldSendStaticErrorAndSkipCompletionWhenCacheRefreshFails() throws Exception {
-        ZrLogConfig previousConfig = Constants.zrLogConfig;
         CapturedResponse capturedResponse = new CapturedResponse();
         AtomicInteger cacheRuns = new AtomicInteger();
-        try {
+        {
             PathUtil.setRootPath(temporaryFolder.newFolder("zrlog-root-failed-refresh").getAbsolutePath());
-            Constants.zrLogConfig = new DisabledStaticConfig();
+            applicationConfig = new DisabledStaticConfig();
 
-            com.zrlog.admin.support.ApplicationServicesFixture.publisher(null, com.zrlog.common.Constants.zrLogConfig).write(
+            com.zrlog.admin.support.ApplicationServicesFixture.publisher(null, applicationConfig).write(
                     capturedResponse.response(),
                     "static-refresh-failure-test",
                     "static-error",
@@ -124,13 +118,10 @@ public class AdminStaticSiteSsePublisherTest {
             assertTrue(body.contains("event: static-error"));
             assertTrue(body.contains("refresh failed"));
             assertFalse(body.contains("event: refresh-complete"));
-        } finally {
-            Constants.zrLogConfig = previousConfig;
         }
     }
 
     private static class DisabledStaticConfig extends ZrLogConfig {
-
         DisabledStaticConfig() {
             super(18080, null, "");
         }

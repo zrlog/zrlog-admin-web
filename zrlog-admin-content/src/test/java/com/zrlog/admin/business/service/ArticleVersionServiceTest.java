@@ -215,7 +215,8 @@ public class ArticleVersionServiceTest {
 
     private static class FakeAdminArticleService extends AdminArticleService {
         private FakeAdminArticleService() {
-            super(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
+            super(new InMemoryZrLogDatabase.TestCacheService(), () -> null,
+                    new AdminPageDataFactory(() -> null, () -> ""));
         }
 
 

@@ -39,11 +39,14 @@ import static org.junit.Assert.assertTrue;
 
 public class AIChatServiceTest {
 
+    private com.zrlog.common.ZrLogConfig applicationConfig;
+
     private static final Gson GSON = new Gson();
 
     @Test
     public void shouldReplayPersistedOpenAiHistoryAcrossConsecutiveUserTurns() throws Exception {
         for (boolean enabled : List.of(true, false)) try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             seedAiConfig(db);
             db.putWebsite("ai_provider", "OPEN_AI");
             db.putWebsite("ai_model", "gpt-6-astra");
@@ -55,7 +58,7 @@ public class AIChatServiceTest {
             for (int turn = 1; turn <= 3; turn++) {
                 ChatRequest input = new ChatRequest(); input.articleId = 36; input.input = "Question " + turn;
                 // Each browser request creates a new service and restores history from storage.
-                String payload = new String(new NoSleepAIChatService(client).start(input)
+                String payload = new String(new NoSleepAIChatService(applicationConfig, client).start(input)
                         .getInputStream().readAllBytes(), StandardCharsets.UTF_8);
                 assertTrue(payload, payload.contains("\"type\":\"done\""));
                 assertFalse(payload, payload.contains("\"type\":\"error\""));
@@ -93,6 +96,7 @@ public class AIChatServiceTest {
     @Test
     public void shouldStreamAndPersistOpenAiSummariesThroughTheExistingBrowserProtocol() throws Exception {
         for (boolean enabled : List.of(true, false)) try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             seedAiConfig(db);
             db.putWebsite("ai_provider", "OPEN_AI"); db.putWebsite("ai_model", "gpt-6-astra");
             db.putWebsite("ai_base_url", "https://gateway.example/v1/chat/completions?route=test");
@@ -101,7 +105,7 @@ public class AIChatServiceTest {
                     OpenAIResponsesAdapterTest.frame("{\"type\":\"response.reasoning_summary_text.delta\",\"item_id\":\"rs_1\",\"summary_index\":0,\"delta\":\"检查文章🙂\"}")
                     + OpenAIResponsesAdapterTest.frame("{\"type\":\"response.output_text.delta\",\"delta\":\"Answer\"}")
                     + OpenAIResponsesAdapterTest.terminal(OpenAIResponsesAdapterTest.REASONING + "," + OpenAIResponsesAdapterTest.MESSAGE)));
-            String payload = new String(new NoSleepAIChatService(client).startStreamResponse("Question", 36L)
+            String payload = new String(new NoSleepAIChatService(applicationConfig, client).startStreamResponse("Question", 36L)
                     .getInputStream().readAllBytes(), StandardCharsets.UTF_8);
             String stored = String.valueOf(db.queryOne("select value from website where name=?", "ai_chat_message_u1_36").get("value"));
             assertEquals("https://gateway.example/v1/responses?route=test", client.requests.get(0).uri().toString());
@@ -123,12 +127,13 @@ public class AIChatServiceTest {
     @Test
     public void shouldReplayResponsesContextAcrossBoundedContinuation() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             seedAiConfig(db); db.putWebsite("ai_provider", "OPEN_AI"); db.putWebsite("ai_model", "gpt-6-astra");
             String partial = OpenAIResponsesAdapterTest.completed(OpenAIResponsesAdapterTest.REASONING + "," + OpenAIResponsesAdapterTest.MESSAGE)
                     .replace("\"status\":\"completed\",\"output\"", "\"status\":\"incomplete\",\"incomplete_details\":{\"reason\":\"max_output_tokens\"},\"output\"");
             FakeHttpClient client = new FakeHttpClient(streamResponse(OpenAIResponsesAdapterTest.frame("{\"type\":\"response.incomplete\",\"response\":" + partial + "}")),
                     streamResponse(OpenAIResponsesAdapterTest.terminal(OpenAIResponsesAdapterTest.MESSAGE.replace("Answer", " continued"))));
-            String payload = new String(new NoSleepAIChatService(client).startStreamResponse("Question", 36L)
+            String payload = new String(new NoSleepAIChatService(applicationConfig, client).startStreamResponse("Question", 36L)
                     .getInputStream().readAllBytes(), StandardCharsets.UTF_8);
             assertTrue(payload, payload.contains("\"content\":\"Answer continued\""));
             assertTrue(client.requestBodies.get(1).toString().contains("opaque-state"));
@@ -141,6 +146,7 @@ public class AIChatServiceTest {
     @Test
     public void shouldStartStreamResponseThroughPublicOverloadsUsingRealWebsiteTable() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             seedAiConfig(db);
             FakeHttpClient client = new FakeHttpClient(
                     streamResponse("data: {\"choices\":[{\"delta\":{\"reasoning_content\":\"plan \","
@@ -150,7 +156,7 @@ public class AIChatServiceTest {
                     streamResponse("data: {\"choices\":[{\"delta\":{\"content\":\"second\"}}]}\n\n"
                             + "data: {\"choices\":[{\"finish_reason\":\"stop\"}]}\n\n"
                             + "data: [DONE]\n\n"));
-            AIChatService service = new NoSleepAIChatService(client);
+            AIChatService service = new NoSleepAIChatService(applicationConfig, client);
 
             AIStreamResponse first = service.startStreamResponse("Question", 36L);
             String firstPayload = new String(first.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
@@ -175,6 +181,7 @@ public class AIChatServiceTest {
     @Test
     public void shouldDropProviderReasoningWhenDisabledThroughRealWebsiteTable() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             seedAiConfig(db);
             db.putWebsite("ai_reasoning_enabled", false);
             FakeHttpClient client = new FakeHttpClient(
@@ -182,7 +189,7 @@ public class AIChatServiceTest {
                             + "\"content\":\"answer\"}}]}\n\n"
                             + "data: {\"choices\":[{\"finish_reason\":\"stop\"}]}\n\n"
                             + "data: [DONE]\n\n"));
-            AIChatService service = new NoSleepAIChatService(client);
+            AIChatService service = new NoSleepAIChatService(applicationConfig, client);
 
             AIStreamResponse response = service.startStreamResponse("Question", 39L);
             String payload = new String(response.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
@@ -200,13 +207,14 @@ public class AIChatServiceTest {
     @Test
     public void shouldPersistAnswerWhenProviderSendsAnEmptyUsageDeltaAfterFinishing() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             seedAiConfig(db);
             FakeHttpClient client = new FakeHttpClient(streamResponse(
                     "data: {\"choices\":[{\"delta\":{\"content\":\"Answer🙂\"},\"finish_reason\":\"stop\"}]}\n\n"
                             + "data: {\"error\":null,\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}],"
                             + "\"usage\":{\"completion_tokens\":3}}\n\n"
                             + "data: [DONE]\n\n"));
-            String payload = new String(new NoSleepAIChatService(client).startStreamResponse("Question", 36L)
+            String payload = new String(new NoSleepAIChatService(applicationConfig, client).startStreamResponse("Question", 36L)
                     .getInputStream().readAllBytes(), StandardCharsets.UTF_8);
             assertTrue(payload, payload.contains("\"type\":\"delta\""));
             assertTrue(payload, payload.contains("\"type\":\"answer\""));
@@ -221,6 +229,7 @@ public class AIChatServiceTest {
     @Test
     public void shouldStartStreamResponseContinueAndPersistMessagesThroughRealWebsiteTable() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             seedAiConfig(db);
             FakeHttpClient client = new FakeHttpClient(
                     streamResponse("data: {\"choices\":[{\"delta\":{\"content\":\"part \"}}]}\n\n"
@@ -228,7 +237,7 @@ public class AIChatServiceTest {
                     streamResponse("data: {\"choices\":[{\"delta\":{\"content\":\"done\"}}]}\n\n"
                             + "data: {\"choices\":[{\"finish_reason\":\"stop\"}]}\n\n"
                             + "data: [DONE]\n\n"));
-            AIChatService service = new NoSleepAIChatService(client);
+            AIChatService service = new NoSleepAIChatService(applicationConfig, client);
 
             AIStreamResponse response = service.startStreamResponse("Question", 33L, null, null);
             String payload = new String(response.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
@@ -251,6 +260,7 @@ public class AIChatServiceTest {
     @Test
     public void shouldEmitIncompleteErrorWhenContinuationRoundsAreExhaustedThroughRealWebsiteTable() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             seedAiConfig(db);
             FakeHttpClient client = new FakeHttpClient(
                     streamResponse("data: {\"choices\":[{\"delta\":{\"content\":\"part0\"}}]}\n\n"
@@ -261,7 +271,7 @@ public class AIChatServiceTest {
                             + "data: {\"choices\":[{\"finish_reason\":\"length\"}]}\n\n"),
                     streamResponse("data: {\"choices\":[{\"delta\":{\"content\":\"part3\"}}]}\n\n"
                             + "data: {\"choices\":[{\"finish_reason\":\"length\"}]}\n\n"));
-            AIChatService service = new NoSleepAIChatService(client);
+            AIChatService service = new NoSleepAIChatService(applicationConfig, client);
 
             AIStreamResponse response = service.startStreamResponse("Question", 38L, null, null);
             String payload = new String(response.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
@@ -279,13 +289,14 @@ public class AIChatServiceTest {
     @Test
     public void shouldRetryInitialStreamRequestWithoutWaitingInTests() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             seedAiConfig(db);
             FakeHttpClient client = new FakeHttpClient(
                     streamResponse(503, "{\"error\":{\"message\":\"busy\"}}"),
                     streamResponse("data: {\"choices\":[{\"delta\":{\"content\":\"recovered\"}}]}\n\n"
                             + "data: {\"choices\":[{\"finish_reason\":\"stop\"}]}\n\n"
                             + "data: [DONE]\n\n"));
-            AIChatService service = new NoSleepAIChatService(client);
+            AIChatService service = new NoSleepAIChatService(applicationConfig, client);
 
             AIStreamResponse response = service.startStreamResponse("Retry", 34L, null, null);
             String payload = new String(response.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
@@ -299,9 +310,10 @@ public class AIChatServiceTest {
     @Test
     public void shouldReturnSafeProviderErrorWhenInitialStreamRequestFails() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             seedAiConfig(db);
             FakeHttpClient client = new FakeHttpClient(streamResponse(429, "{\"error\":{\"message\":\"quota\"}}"));
-            AIChatService service = new NoSleepAIChatService(client);
+            AIChatService service = new NoSleepAIChatService(applicationConfig, client);
 
             AIStreamResponse response = service.startStreamResponse("Retry", 35L, null, null);
 
@@ -379,9 +391,8 @@ public class AIChatServiceTest {
     }
 
     private static class NoSleepAIChatService extends AIChatService {
-
-        private NoSleepAIChatService(HttpClient client) {
-            super(client, null, ContentToolsFixture.from(com.zrlog.common.Constants.zrLogConfig));
+        private NoSleepAIChatService(com.zrlog.common.ZrLogConfig config, HttpClient client) {
+            super(client, null, ContentToolsFixture.from(config));
         }
 
         @Override
@@ -390,7 +401,6 @@ public class AIChatServiceTest {
     }
 
     static class FakeHttpClient extends HttpClient {
-
         private final List<HttpResponse<InputStream>> responses;
         final List<HttpRequest> requests = new ArrayList<>();
         final List<JsonObject> requestBodies = new ArrayList<>();

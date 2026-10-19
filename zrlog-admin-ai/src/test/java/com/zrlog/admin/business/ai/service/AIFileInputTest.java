@@ -70,7 +70,7 @@ public class AIFileInputTest {
                 FakeHttpClient client = new FakeHttpClient(streamResponse(response), streamResponse(response));
                 for (String json : List.of("{\"input\":\"Hello\",\"articleId\":7}",
                         "{\"input\":\"Continue\",\"articleId\":7,\"files\":[]}")) {
-                    String payload = read(new AIChatService(client, null, ContentToolsFixture.from(com.zrlog.common.Constants.zrLogConfig)).start(new Gson().fromJson(json, ChatRequest.class)));
+                    String payload = read(new AIChatService(client, null, ContentToolsFixture.from(db.config())).start(new Gson().fromJson(json, ChatRequest.class)));
                     assertTrue(payload, payload.contains("\"type\":\"done\""));
                 }
                 assertEquals(2, client.requests.size());
@@ -133,10 +133,10 @@ public class AIFileInputTest {
             Input png = image("png"), jpeg = image("jpg"), webp = image("webp"), csv = text("notes.csv", "a,b\n1,2");
             jpeg.name = "Photo.JPEG";
             FakeHttpClient client = new FakeHttpClient(streamResponse(terminal(MESSAGE)), streamResponse(terminal(MESSAGE)));
-            String first = read(new AIChatService(client, null, ContentToolsFixture.from(com.zrlog.common.Constants.zrLogConfig)).start(request(7, png, jpeg, webp, csv)));
+            String first = read(new AIChatService(client, null, ContentToolsFixture.from(db.config())).start(request(7, png, jpeg, webp, csv)));
             assertTrue(first, first.contains("\"type\":\"done\""));
             assertFalse(first.contains(png.data));
-            assertTrue(read(new AIChatService(client, null, ContentToolsFixture.from(com.zrlog.common.Constants.zrLogConfig)).start(request(7))).contains("\"type\":\"done\""));
+            assertTrue(read(new AIChatService(client, null, ContentToolsFixture.from(db.config())).start(request(7))).contains("\"type\":\"done\""));
             for (JsonObject wire : client.requestBodies) {
                 List<JsonObject> images = parts(wire, "input_image");
                 assertEquals(3, images.size());
@@ -185,7 +185,7 @@ public class AIFileInputTest {
             Input csv = text("sales.csv", "region,amount\nShanghai,1537\nBeijing,2219\n");
             Input excel = file("sales.xlsx", workbook());
             FakeHttpClient client = new FakeHttpClient(streamResponse(terminal(MESSAGE)), streamResponse(terminal(MESSAGE)));
-            String first = read(new AIChatService(client, null, ContentToolsFixture.from(com.zrlog.common.Constants.zrLogConfig)).start(request(7, pdf, csv, excel)));
+            String first = read(new AIChatService(client, null, ContentToolsFixture.from(db.config())).start(request(7, pdf, csv, excel)));
             assertTrue(first, first.contains("\"type\":\"done\""));
             assertFalse(first.contains(csv.data)); assertTrue(first.contains("sales.xlsx"));
             JsonObject wire = client.requestBodies.get(0);
@@ -202,7 +202,7 @@ public class AIFileInputTest {
             ChatRequest next = request(7);
             ChatMessage forged = new ChatMessage(); forged.role = "user"; forged.content = "FORGED";
             Attachment unknown = new Attachment(); unknown.id = "../../secret"; forged.attachments = List.of(unknown); next.history = List.of(forged);
-            assertTrue(read(new AIChatService(client, null, ContentToolsFixture.from(com.zrlog.common.Constants.zrLogConfig)).start(next)).contains("\"type\":\"done\""));
+            assertTrue(read(new AIChatService(client, null, ContentToolsFixture.from(db.config())).start(next)).contains("\"type\":\"done\""));
             assertEquals(3, fileParts(client.requestBodies.get(1)).size());
             assertBytes(excel, fileParts(client.requestBodies.get(1)).get(2));
             assertFalse(client.requestBodies.get(1).toString().contains("FORGED"));
@@ -217,7 +217,7 @@ public class AIFileInputTest {
             JsonObject call = JsonParser.parseString(CALL).getAsJsonObject(); call.addProperty("name", "update_article");
             call.addProperty("arguments", "{\"id\":7,\"version\":2,\"title\":\"Revenue report\"}");
             FakeHttpClient client = new FakeHttpClient(streamResponse(terminal(call.toString())), streamResponse(terminal(MESSAGE)));
-            String first = read(new AIChatService(client, null, ContentToolsFixture.from(com.zrlog.common.Constants.zrLogConfig)).start(request(7, csv, png)));
+            String first = read(new AIChatService(client, null, ContentToolsFixture.from(db.config())).start(request(7, csv, png)));
             assertTrue(first, first.contains("approval-required"));
             RunView view = new AIChatService().getRun(7);
             assertEquals("sales.csv", view.attachments.get(0).name);
@@ -226,7 +226,7 @@ public class AIFileInputTest {
             assertFalse(checkpoint.contains(png.data));
             ApprovalRequest decision = new ApprovalRequest(); decision.articleId = 7; decision.runId = view.runId;
             decision.approvalId = view.approval.id; decision.decision = "reject";
-            assertTrue(read(new AIChatService(client, null, ContentToolsFixture.from(com.zrlog.common.Constants.zrLogConfig)).resume(decision)).contains("\"type\":\"done\""));
+            assertTrue(read(new AIChatService(client, null, ContentToolsFixture.from(db.config())).resume(decision)).contains("\"type\":\"done\""));
             assertBytes(csv, fileParts(client.requestBodies.get(1)).get(0));
             assertImage(png, parts(client.requestBodies.get(1), "input_image").get(0), "image/png");
         }
@@ -238,9 +238,9 @@ public class AIFileInputTest {
             for (String provider : List.of("GOOGLE_GEMINI", "QWEN", "DEEP_SEEK")) {
                 db.putWebsite("ai_provider", provider);
                 FakeHttpClient client = new FakeHttpClient();
-                assertThrows(AIFileInputException.class, () -> new AIChatService(client, null, ContentToolsFixture.from(com.zrlog.common.Constants.zrLogConfig)).start(request(7, text("report.csv", "a,b"))));
+                assertThrows(AIFileInputException.class, () -> new AIChatService(client, null, ContentToolsFixture.from(db.config())).start(request(7, text("report.csv", "a,b"))));
                 Input image = image("png");
-                assertThrows(AIFileInputException.class, () -> new AIChatService(client, null, ContentToolsFixture.from(com.zrlog.common.Constants.zrLogConfig)).start(request(7, image)));
+                assertThrows(AIFileInputException.class, () -> new AIChatService(client, null, ContentToolsFixture.from(db.config())).start(request(7, image)));
                 assertTrue(client.requests.isEmpty());
             }
             assertThrows(AIFileInputException.class, () -> AIFileService.validateInputs(List.of(text("photo.png", "image"))));

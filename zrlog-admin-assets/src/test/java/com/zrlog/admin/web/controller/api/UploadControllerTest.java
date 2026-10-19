@@ -8,8 +8,6 @@ import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.rest.response.UploadFileResponse;
 import com.zrlog.admin.business.service.DbFileService;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
-import com.zrlog.admin.support.UploadFallbackZrLogConfig;
-import com.zrlog.common.Constants;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import org.junit.After;
@@ -33,10 +31,10 @@ import static org.junit.Assert.assertTrue;
 
 public class UploadControllerTest {
 
+
     @Rule
     public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-    private final com.zrlog.common.ZrLogConfig previousConfig = Constants.zrLogConfig;
     private com.zrlog.admin.support.InMemoryZrLogDatabase permissionDb;
 
     @org.junit.Before
@@ -47,7 +45,6 @@ public class UploadControllerTest {
     @After
     public void tearDown() throws Exception {
         permissionDb.close();
-        Constants.zrLogConfig = previousConfig;
         if (previousRootPath == null) {
             System.clearProperty("sws.root.path");
         } else {
@@ -68,7 +65,6 @@ public class UploadControllerTest {
     @SuppressWarnings("unchecked")
     public void shouldStoreUploadedFileAndReturnLocalUrlWhenPluginCoreIsUnavailable() throws Exception {
         withRootPath();
-        Constants.zrLogConfig = new UploadFallbackZrLogConfig();
         File file = temporaryFolder.newFile("cover.png");
         Files.writeString(file.toPath(), "image", StandardCharsets.UTF_8);
         UploadController controller = controller(Map.of("dir", "image"), Map.of("imgFile", file));
@@ -87,7 +83,6 @@ public class UploadControllerTest {
     @SuppressWarnings("unchecked")
     public void shouldStoreDeprecatedThumbnailUploadThroughCommonPath() throws Exception {
         withRootPath();
-        Constants.zrLogConfig = new UploadFallbackZrLogConfig();
         File file = temporaryFolder.newFile("thumb.jpg");
         Files.writeString(file.toPath(), "thumb", StandardCharsets.UTF_8);
         UploadController controller = controller(new HashMap<>(), Map.of("file", file));
@@ -125,7 +120,6 @@ public class UploadControllerTest {
     @SuppressWarnings("unchecked")
     public void shouldUseThumbnailAsDefaultUploadDirectory() throws Exception {
         withRootPath();
-        Constants.zrLogConfig = new UploadFallbackZrLogConfig();
         File file = temporaryFolder.newFile("default.png");
         Files.writeString(file.toPath(), "image", StandardCharsets.UTF_8);
         UploadController controller = controller(new HashMap<>(), Map.of("imgFile", file));
@@ -140,7 +134,6 @@ public class UploadControllerTest {
     @SuppressWarnings("unchecked")
     public void shouldUseRequestedUploadNameWhenProvided() throws Exception {
         withRootPath();
-        Constants.zrLogConfig = new UploadFallbackZrLogConfig();
         File file = temporaryFolder.newFile("source.png");
         Files.writeString(file.toPath(), "image", StandardCharsets.UTF_8);
         UploadController controller = controller(Map.of("dir", "image", "name", "cover-final.png"), Map.of("imgFile", file));

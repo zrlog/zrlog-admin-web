@@ -30,7 +30,6 @@ import com.zrlog.admin.web.AIWebSetup;
 import com.zrlog.admin.web.controller.ai.AIArticleController;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.business.plugin.PluginCorePlugin;
-import com.zrlog.common.Constants;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.util.I18nUtil;
@@ -63,6 +62,8 @@ import static org.junit.Assert.assertTrue;
 
 public class AdminArticleControllerDatabaseTest {
 
+    private com.zrlog.common.ZrLogConfig applicationConfig;
+
     @After
     public void tearDown() {
         AdminTokenThreadLocal.remove();
@@ -71,6 +72,7 @@ public class AdminArticleControllerDatabaseTest {
     @Test
     public void listDefaultsRespectAccountAndExplicitQueryOverrides() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             new com.zrlog.admin.business.service.UserPreferenceService().updateBody("{\"articleList\":{\"sort\":\"click,ASC\",\"status\":\"draft\",\"columns\":[\"click\"]}}", "writing");
             ArticlePageData defaults = controller(db.cacheService(), Map.of(), null, new ResponseRecorder()).index().getData();
             assertEquals("draft", defaults.getStatus());
@@ -86,6 +88,7 @@ public class AdminArticleControllerDatabaseTest {
     @SuppressWarnings("unchecked")
     public void shouldCreateUpdateListAndLoadDraftArticleThroughRealDao() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             setAdminToken();
             ResponseRecorder createResponse = new ResponseRecorder();
             controller(db.cacheService(), Map.of(), articleBody("Draft Title", "draft-title", true), createResponse).create();
@@ -122,6 +125,7 @@ public class AdminArticleControllerDatabaseTest {
     @SuppressWarnings("unchecked")
     public void shouldPersistInjectedMarkdownRenderingAndPreserveExplicitHtml() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             setAdminToken();
             com.zrlog.business.service.MarkdownRenderer renderer = markdown -> Map.of(
                     "# Rendered\n\nfirst line\nsecond line", "<h1>Rendered</h1>\n<p>first line<br>second line</p>\n",
@@ -185,6 +189,7 @@ public class AdminArticleControllerDatabaseTest {
     @SuppressWarnings("unchecked")
     public void shouldCreateAndUpdatePublishedArticleWithRefreshCachePathThroughRealDao() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             setAdminToken();
             ResponseRecorder createResponse = new ResponseRecorder();
             controller(db.cacheService(), Map.of(), articleBody("Published Title", "published-title", false), createResponse).create();
@@ -216,6 +221,7 @@ public class AdminArticleControllerDatabaseTest {
     @SuppressWarnings("unchecked")
     public void shouldRefreshBlogWhenPinnedArticleMovesToDraft() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             setAdminToken();
             ResponseRecorder createResponse = new ResponseRecorder();
             controller(db.cacheService(), Map.of(), articleBody("Pinned Published", "pinned-published", false), createResponse)
@@ -238,6 +244,7 @@ public class AdminArticleControllerDatabaseTest {
     @SuppressWarnings("unchecked")
     public void shouldAcknowledgeDraftSaveBeforeSlowBlogRefreshAndAllowFurtherEdits() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             setAdminToken();
             ResponseRecorder createdResponse = new ResponseRecorder();
             controller(db.cacheService(), Map.of(), articleBody("Published", "published", false), createdResponse).create();
@@ -259,7 +266,7 @@ public class AdminArticleControllerDatabaseTest {
                         if (method.getReturnType() == boolean.class) return true;
                         return null;
                     });
-            Constants.zrLogConfig.getAllPlugins().add(plugin);
+            db.config().getAllPlugins().add(plugin);
             ResponseRecorder savedResponse = new ResponseRecorder();
             CompletableFuture<Void> saved = new CompletableFuture<>();
             Thread saveThread = new Thread(() -> {
@@ -297,7 +304,7 @@ public class AdminArticleControllerDatabaseTest {
                 saveThread.join(5000);
                 Thread refresh = refreshThread.get();
                 if (refresh != null && refresh != saveThread) refresh.join(5000);
-                Constants.zrLogConfig.getAllPlugins().remove(plugin);
+                db.config().getAllPlugins().remove(plugin);
                 assertFalse(saveThread.isAlive());
                 if (refresh != null) assertFalse(refresh.isAlive());
             }
@@ -307,6 +314,7 @@ public class AdminArticleControllerDatabaseTest {
     @Test
     public void shouldCreatePublishedArticleWithTransparentPublishStreamThroughRealDao() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             setAdminToken();
             ResponseRecorder response = new ResponseRecorder();
 
@@ -338,6 +346,7 @@ public class AdminArticleControllerDatabaseTest {
     @SuppressWarnings("unchecked")
     public void shouldRenderExistingPublishedArticleAsTransparentPublishStreamThroughRealDao() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             setAdminToken();
             ResponseRecorder createResponse = new ResponseRecorder();
             controller(db.cacheService(), Map.of(), articleBody("Render Stream", "render-stream", false), createResponse).create();
@@ -363,6 +372,7 @@ public class AdminArticleControllerDatabaseTest {
     @SuppressWarnings("unchecked")
     public void shouldUpdatePublishedArticleWithTransparentPublishStreamThroughRealDao() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             setAdminToken();
             ResponseRecorder createResponse = new ResponseRecorder();
             controller(db.cacheService(), Map.of(), articleBody("Before Stream Update", "before-stream-update", false), createResponse)
@@ -391,6 +401,7 @@ public class AdminArticleControllerDatabaseTest {
     @Test
     public void shouldUseWebsiteConfiguredArticlePageSizeWhenRequestSizeIsMissing() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             setAdminToken();
             db.putWebsite("admin_article_page_size", 1);
             controller(db.cacheService(), Map.of(), articleBody("First Draft", "first-draft", true), new ResponseRecorder()).create();
@@ -407,6 +418,7 @@ public class AdminArticleControllerDatabaseTest {
     @Test
     public void shouldUseDefaultArticlePageSizeWhenWebsiteConfigIsBlank() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             setAdminToken();
             db.putWebsite("admin_article_page_size", "");
             controller(db.cacheService(), Map.of(), articleBody("Default Size Draft", "default-size-draft", true),
@@ -423,6 +435,7 @@ public class AdminArticleControllerDatabaseTest {
     @Test
     public void shouldDeleteArticleThroughRealDao() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             setAdminToken();
             ResponseRecorder createResponse = new ResponseRecorder();
             controller(db.cacheService(), Map.of(), articleBody("Delete Draft", "delete-draft", true), createResponse).create();
@@ -440,6 +453,7 @@ public class AdminArticleControllerDatabaseTest {
     @Test
     public void shouldRecordPublishCheckNoticesThroughPublishingService() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             db.putWebsite("admin_cache:message_center_operation_notices", "[]");
             AIPublishCheckService publishingService = new AIPublishCheckService();
 
@@ -460,6 +474,7 @@ public class AdminArticleControllerDatabaseTest {
     @Test
     public void shouldManageArticleAiMessagesThroughRealWebsiteTable() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             setAdminToken();
             AIResponseEntry.AIContentEntry message = new AIResponseEntry.AIContentEntry("user", "Check this article");
             message.setMessageType("knowledge");
@@ -490,6 +505,7 @@ public class AdminArticleControllerDatabaseTest {
     @Test
     public void shouldApplyExternalCoverAndUpdateAiMessagePayloadThroughRealWebsiteTable() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             setAdminToken();
             AIResponseEntry.AIContentEntry message = new AIResponseEntry.AIContentEntry("assistant", "Cover");
             assertTrue(new com.zrlog.admin.business.ai.service.AIConversationService()
@@ -512,6 +528,7 @@ public class AdminArticleControllerDatabaseTest {
     @Test
     public void shouldAuthorizeChatArticleFromBodyWithoutRequiringQueryId() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             db.execute("update user set role='editor' where userId=1");
             db.execute("insert into user(userId,userName,role) values(?,?,?)", 2, "writer", "author");
             db.execute("insert into log(logId,userId,typeId,title,privacy,rubbish) values(?,?,?,?,?,?)",
@@ -529,6 +546,7 @@ public class AdminArticleControllerDatabaseTest {
     @Test
     public void shouldReturnAiToolConfigurationErrorAsSseResponse() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             ResponseRecorder response = new ResponseRecorder();
 
             aiController(Map.of("id", "0", "input", "check before publish", "tool", "publishCheck"),
@@ -547,7 +565,8 @@ public class AdminArticleControllerDatabaseTest {
     @Test
     public void shouldShortCircuitPublishCheckAndEmitReadyStatesWithoutCallingAi() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-            ArticlePublishingService publishingService = new ArticlePublishingService(new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource))), com.zrlog.admin.support.ApplicationServicesFixture.cacheRefresh(db.cacheService(), com.zrlog.common.Constants.zrLogConfig), markdown -> null);
+            applicationConfig = db.config();
+            ArticlePublishingService publishingService = new ArticlePublishingService(new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(db.config(), com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource))), com.zrlog.admin.support.ApplicationServicesFixture.cacheRefresh(db.cacheService(), db.config()), markdown -> null);
             CreateArticleRequest request = new CreateArticleRequest();
             request.setTransparentPublish(true);
             request.setRubbish(false);
@@ -555,7 +574,7 @@ public class AdminArticleControllerDatabaseTest {
             AIArticleGlobalResponse global = new AIArticleGlobalResponse();
             global.setPublishCheckEnabled(false);
             global.setAiConfigured(true);
-            AdminPageDataResponse<ArticleGlobalResponse> detail = new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)).response(global);
+            AdminPageDataResponse<ArticleGlobalResponse> detail = new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)).response(global);
 
             assertTrue(publishingService.shouldUseTransparentPublishStream(request));
             assertNull(new AIPublishCheckService().startPublishCheck(detail.getData(), request));
@@ -589,6 +608,7 @@ public class AdminArticleControllerDatabaseTest {
     @Test(timeout = 5000)
     public void shouldEmitPublishCheckErrorWhenWaitTimesOut() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             String payload = emitPublishCheck(new CompletableFuture<>(), true, 20);
 
             assertTrue(payload.contains("event: publish-check-error"));
@@ -600,6 +620,7 @@ public class AdminArticleControllerDatabaseTest {
     @Test(timeout = 5000)
     public void shouldPreventLatePublishCheckPersistenceAfterTimeout() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             db.putWebsite("admin_cache:message_center_operation_notices", "[]");
             CountDownLatch generationStarted = new CountDownLatch(1);
             CountDownLatch releaseGeneration = new CountDownLatch(1);
@@ -655,6 +676,7 @@ public class AdminArticleControllerDatabaseTest {
     @Test(timeout = 5000)
     public void shouldIgnoreLatePublishCheckFailureAfterTimeoutNotice() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             db.putWebsite("admin_cache:message_center_operation_notices", "[]");
             CountDownLatch generationStarted = new CountDownLatch(1);
             CountDownLatch releaseGeneration = new CountDownLatch(1);
@@ -689,6 +711,7 @@ public class AdminArticleControllerDatabaseTest {
     @Test(timeout = 5000)
     public void shouldEmitCommittedPublishCheckWhenCommitWinsTimeoutRace() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             PublishCheckPersistenceGuard guard = new PublishCheckPersistenceGuard();
             PublishCheckResponse response = guard.commit(AdminArticleControllerDatabaseTest::publishCheckResponse);
             CompletableFuture<PublishCheckResponse> future = new CompletableFuture<>();
@@ -707,6 +730,7 @@ public class AdminArticleControllerDatabaseTest {
     @Test
     public void shouldSendCompletedPublishCheckOnlyOnceAcrossCompetingCallbacks() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             CompletableFuture<PublishCheckResponse> future =
                     CompletableFuture.completedFuture(publishCheckResponse());
             PublishCheckTask task = new PublishCheckTask(
@@ -721,6 +745,7 @@ public class AdminArticleControllerDatabaseTest {
     @Test
     public void shouldRecordFailedPublishCheckOnlyOnceAcrossCompetingCallbacks() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             db.putWebsite("admin_cache:message_center_operation_notices", "[]");
             CompletableFuture<PublishCheckResponse> future = new CompletableFuture<>();
             future.completeExceptionally(new IllegalStateException("provider unavailable"));
@@ -746,6 +771,7 @@ public class AdminArticleControllerDatabaseTest {
     @SuppressWarnings("unchecked")
     public void shouldStartPublishCheckAndRecordConfigurationErrorThroughRealWebsiteTable() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             db.putWebsite("admin_cache:message_center_operation_notices", "[]");
             AdminArticleController controller = controller(db.cacheService(), Map.of(), null, new ResponseRecorder());
             CreateArticleRequest request = articleRequest("Publish Check");
@@ -757,7 +783,7 @@ public class AdminArticleControllerDatabaseTest {
             global.setArticle(article);
             global.setPublishCheckEnabled(true);
             global.setAiConfigured(true);
-            AdminPageDataResponse<ArticleGlobalResponse> detail = new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)).response(global);
+            AdminPageDataResponse<ArticleGlobalResponse> detail = new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)).response(global);
 
             PublishCheckTask task = new AIPublishCheckService().startPublishCheck(detail.getData(), request);
 
@@ -841,15 +867,15 @@ public class AdminArticleControllerDatabaseTest {
                 + "}";
     }
 
-    private static AdminArticleController controller(com.zrlog.common.CacheService cache, Map<String, String> params, String body,
+    private AdminArticleController controller(com.zrlog.common.CacheService cache, Map<String, String> params, String body,
                                                      ResponseRecorder response) throws Exception {
         return controller(cache, params, body, response, markdown -> null);
     }
 
-    private static AdminArticleController controller(com.zrlog.common.CacheService cache, Map<String, String> params, String body,
+    private AdminArticleController controller(com.zrlog.common.CacheService cache, Map<String, String> params, String body,
                                                      ResponseRecorder response, com.zrlog.business.service.MarkdownRenderer renderer) throws Exception {
-        AdminArticleService articles = new AdminArticleService(cache, com.zrlog.admin.support.ApplicationServicesFixture.capability(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
-        AdminArticleController controller = new AdminArticleController(articles, new ArticlePublishingService(articles, com.zrlog.admin.support.ApplicationServicesFixture.cacheRefresh(cache, com.zrlog.common.Constants.zrLogConfig), renderer), com.zrlog.admin.support.ApplicationServicesFixture.publisher(null, com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.capability(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
+        AdminArticleService articles = new AdminArticleService(cache, com.zrlog.admin.support.ApplicationServicesFixture.capability(applicationConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
+        AdminArticleController controller = new AdminArticleController(articles, new ArticlePublishingService(articles, com.zrlog.admin.support.ApplicationServicesFixture.cacheRefresh(cache, applicationConfig), renderer), com.zrlog.admin.support.ApplicationServicesFixture.publisher(null, applicationConfig), com.zrlog.admin.support.ApplicationServicesFixture.capability(applicationConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
         setControllerField(controller, "request", request(params, body));
         setControllerField(controller, "response", response.response());
         return controller;
@@ -1007,7 +1033,6 @@ public class AdminArticleControllerDatabaseTest {
     }
 
     private static class ResponseRecorder {
-
         private Object rendered;
         private int statusCode = -1;
         private String writtenBody = "";

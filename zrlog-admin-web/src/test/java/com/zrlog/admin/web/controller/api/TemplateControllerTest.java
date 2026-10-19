@@ -36,6 +36,8 @@ import static org.junit.Assert.assertTrue;
 
 public class TemplateControllerTest {
 
+    private com.zrlog.common.ZrLogConfig applicationConfig;
+
     @Rule
     public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
@@ -53,6 +55,7 @@ public class TemplateControllerTest {
     @Test
     public void shouldApplyDefaultTemplateAndClearPreviewCookie() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             ResponseRecorder response = new ResponseRecorder();
             ApiStandardResponse<Void> applied = controller(Map.of("shortTemplate", "default"), response).apply();
 
@@ -80,6 +83,7 @@ public class TemplateControllerTest {
     @Test
     public void shouldDeleteLocalTemplateDirectoryWhenPresent() throws Exception {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
+            applicationConfig = ignored.config();
             withRootPath();
             File templateDir = new File(temporaryFolder.getRoot(), "static/include/templates/local-template");
             assertTrue(templateDir.mkdirs());
@@ -112,6 +116,7 @@ public class TemplateControllerTest {
     @Test
     public void shouldInstallUploadedThemeAndRecordAudit() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             withRootPath();
             File zipFile = temporaryFolder.newFile("controller-theme.zip");
             try (ZipOutputStream output = new ZipOutputStream(Files.newOutputStream(zipFile.toPath()))) {
@@ -142,6 +147,7 @@ public class TemplateControllerTest {
     @Test
     public void shouldIgnoreConfigUpdateWhenTemplateIsBlank() throws Exception {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
+            applicationConfig = ignored.config();
             assertNotNull(controller(Map.of(), "{\"template\":\"\"}", new ResponseRecorder()).config());
         }
     }
@@ -149,6 +155,7 @@ public class TemplateControllerTest {
     @Test
     public void shouldPersistTemplateConfigAndAuditThroughRealDao() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             assertNotNull(controller(Map.of(), "{\"template\":\"" + Constants.getDefaultTemplatePath() + "\"}",
                     new ResponseRecorder()).config());
 
@@ -197,25 +204,25 @@ public class TemplateControllerTest {
         System.setProperty("sws.root.path", temporaryFolder.getRoot().getAbsolutePath());
     }
 
-    private static TemplateController controller(Map<String, String> params, ResponseRecorder response)
+    private TemplateController controller(Map<String, String> params, ResponseRecorder response)
             throws Exception {
         return controller(params, null, response);
     }
 
-    private static TemplateController controller(Map<String, String> params, String body, ResponseRecorder response)
+    private TemplateController controller(Map<String, String> params, String body, ResponseRecorder response)
             throws Exception {
         return controller(params, body, null, response);
     }
 
-    private static TemplateController controllerWithFile(Map<String, String> params, File file,
+    private TemplateController controllerWithFile(Map<String, String> params, File file,
                                                          ResponseRecorder response)
             throws Exception {
         return controller(params, null, file, response);
     }
 
-    private static TemplateController controller(Map<String, String> params, String body, File file,
+    private TemplateController controller(Map<String, String> params, String body, File file,
                                                  ResponseRecorder response) throws Exception {
-        TemplateController controller = new TemplateController(new com.zrlog.admin.business.service.TemplateService(new com.zrlog.admin.support.InMemoryZrLogDatabase.TestCacheService(), () -> null, () -> null), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
+        TemplateController controller = new TemplateController(new com.zrlog.admin.business.service.TemplateService(new com.zrlog.admin.support.InMemoryZrLogDatabase.TestCacheService(), () -> null, () -> null), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
         setControllerField(controller, "request", request(params, body, file));
         setControllerField(controller, "response", response.response());
         return controller;
@@ -269,7 +276,6 @@ public class TemplateControllerTest {
     }
 
     private static class ResponseRecorder {
-
         private Cookie cookie;
 
         private HttpResponse response() {

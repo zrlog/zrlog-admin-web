@@ -20,6 +20,8 @@ import static org.junit.Assert.assertNotNull;
 
 public class AdminPageControllerTest {
 
+    private com.zrlog.common.ZrLogConfig applicationConfig;
+
     @Test
     public void shouldRedirectAdminRootToIndexPage() throws Throwable {
         ResponseRecorder recorder = new ResponseRecorder();
@@ -33,6 +35,7 @@ public class AdminPageControllerTest {
     @Test
     public void shouldReturnServerSideDataForAnonymousPageRequest() throws Throwable {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
+            applicationConfig = ignored.config();
             com.zrlog.admin.web.token.AdminTokenThreadLocal.remove();
             AdminPageController controller = controller(Constants.ADMIN_URI_BASE_PATH + "/system",
                     Map.of("uri", "/system"), response());
@@ -46,9 +49,9 @@ public class AdminPageControllerTest {
         }
     }
 
-    private static AdminPageController controller(String uri, Map<String, String> params, HttpResponse response)
+    private AdminPageController controller(String uri, Map<String, String> params, HttpResponse response)
             throws Exception {
-        AdminPageController controller = new AdminPageController(new AdminPageService(new InMemoryZrLogDatabase.TestCacheService(), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)), com.zrlog.admin.business.AdminConstants.adminResource, com.zrlog.admin.support.ApplicationServicesFixture.staticResourceUrl()), com.zrlog.common.Constants.zrLogConfig == null ? null : com.zrlog.common.Constants.zrLogConfig.getTokenService(), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
+        AdminPageController controller = new AdminPageController(new AdminPageService(new InMemoryZrLogDatabase.TestCacheService(), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)), com.zrlog.admin.business.AdminConstants.adminResource, com.zrlog.admin.support.ApplicationServicesFixture.staticResourceUrl()), applicationConfig == null ? null : applicationConfig.getTokenService(), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
         Field requestField = Controller.class.getDeclaredField("request");
         requestField.setAccessible(true);
         requestField.set(controller, request(uri, params));

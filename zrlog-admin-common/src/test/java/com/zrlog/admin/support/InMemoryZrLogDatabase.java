@@ -32,7 +32,7 @@ import java.util.Map;
 public class InMemoryZrLogDatabase implements AutoCloseable {
 
     private final ZrLogTestDatabase database;
-    private final ZrLogConfig previousConfig = Constants.zrLogConfig;
+    private final TestZrLogConfig config;
     private final AdminResource previousAdminResource = AdminConstants.adminResource;
     private final AdminTokenVO previousToken = AdminTokenThreadLocal.getUser();
     private final TestCacheService cacheService = new TestCacheService();
@@ -40,7 +40,7 @@ public class InMemoryZrLogDatabase implements AutoCloseable {
     private InMemoryZrLogDatabase(ZrLogTestDatabase database) throws Exception {
         this.database = database;
         try {
-            Constants.zrLogConfig = new TestZrLogConfig(database.dataSource(), cacheService);
+            config = new TestZrLogConfig(database.dataSource(), cacheService);
             AdminConstants.adminResource = new TestAdminResource();
             seedBaseData();
             AdminTokenVO token = new AdminTokenVO();
@@ -66,13 +66,14 @@ public class InMemoryZrLogDatabase implements AutoCloseable {
     }
 
     public void loadAdminWebModules() {
-        ((TestZrLogConfig) Constants.zrLogConfig).webModules();
+        config.webModules();
     }
 
     public void beforeWebApiUpdate(ZrLogTestDatabase.SqlHook hook) { database.beforeWebApiUpdate(hook); }
     public void afterWebApiQuery(ZrLogTestDatabase.SqlHook hook) { database.afterWebApiQuery(hook); }
     public DataSourceWrapper dataSource() { return database.dataSource(); }
     public TestCacheService cacheService() { return cacheService; }
+    public ZrLogConfig config() { return config; }
     public boolean execute(String sql, Object... params) throws SQLException { return database.execute(sql, params); }
     public Object scalar(String sql, Object... params) throws SQLException { return database.scalar(sql, params); }
     public Map<String, Object> queryOne(String sql, Object... params) throws SQLException { return database.queryOne(sql, params); }
@@ -91,7 +92,6 @@ public class InMemoryZrLogDatabase implements AutoCloseable {
     @Override public void close() throws Exception {
         try { database.close(); }
         finally {
-            Constants.zrLogConfig = previousConfig;
             AdminConstants.adminResource = previousAdminResource;
             setToken(previousToken);
         }
@@ -116,7 +116,6 @@ public class InMemoryZrLogDatabase implements AutoCloseable {
     }
 
     public static class TestCacheService implements CacheService {
-
         private final PublicWebSiteInfo publicInfo = new PublicWebSiteInfo();
         private final List<TypeDTO> articleTypes = new ArrayList<>();
         private final List<TagDTO> tags = new ArrayList<>();
@@ -188,7 +187,6 @@ public class InMemoryZrLogDatabase implements AutoCloseable {
     }
 
     private static class TestZrLogConfig extends ZrLogConfig {
-
         private final DataSourceWrapper testDataSource;
         private final CacheService cacheService;
 
@@ -256,7 +254,6 @@ public class InMemoryZrLogDatabase implements AutoCloseable {
     }
 
     public static class TestAdminResource implements AdminResource {
-
         @Override
         public java.util.Set<String> getAdminStaticResourceUris() {
             return java.util.Set.of();

@@ -53,9 +53,9 @@ public class MemoryApplication {
         System.getProperties().put("sws.run.mode", "dev");
         int port = resolvePort(args);
 
-        prepareRuntime(port);
-        WebServerBuilder build = new WebServerBuilder.Builder().config(Constants.zrLogConfig).build();
-        LOGGER.info("Start ZrLog admin memory application at http://127.0.0.1:" + port + Constants.zrLogConfig.getServerConfig().getContextPath()
+        DevZrLogConfig config = prepareRuntime(port);
+        WebServerBuilder build = new WebServerBuilder.Builder().config(config).build();
+        LOGGER.info("Start ZrLog admin memory application at http://127.0.0.1:" + port + config.getServerConfig().getContextPath()
                 + "/admin/login, root=" + PathUtil.getRootPath());
         build.start();
     }
@@ -69,7 +69,6 @@ public class MemoryApplication {
         InstallConstants.installConfig = new MemoryInstallConfig();
         installFromConfig(installConfig);
         DevZrLogConfig config = prepareConfig(port, installConfig.getContextPath());
-        Constants.zrLogConfig = config;
         return config;
     }
 
@@ -111,7 +110,6 @@ public class MemoryApplication {
     }
 
     private static class MemoryZrLogConfig extends DevZrLogConfig {
-
         @Override
         public boolean isTest() { return true; }
 
@@ -130,7 +128,6 @@ public class MemoryApplication {
     }
 
     private static class MemoryInstallConfig extends DefaultInstallConfig {
-
         @Override
         public String defaultTemplatePath() {
             return Constants.getDefaultTemplatePath();
@@ -148,7 +145,6 @@ public class MemoryApplication {
     }
 
     private static class MemoryPluginCorePlugin implements PluginCorePlugin {
-
         @Override
         public boolean refreshCache(String cacheVersion, HttpRequest request) {
             return false;

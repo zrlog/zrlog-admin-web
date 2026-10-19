@@ -40,16 +40,19 @@ import static org.junit.Assert.assertTrue;
 
 public class WebSiteControllerDatabaseTest {
 
+    private com.zrlog.common.ZrLogConfig applicationConfig;
+
     @Test
     public void arrangementVisibilityIsPersistedWithoutChangingArticleDataOrBlockingWrites() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             String labUri = "/api/admin/website/lab";
             HttpRequest editorRequest = request(HttpMethod.GET, "/admin/article-edit", null);
-            AdminResourceService resources = new com.zrlog.admin.business.service.AdminResourceService(com.zrlog.admin.business.rest.response.AdminResourceInfoResponse.Capabilities::new, new com.zrlog.admin.business.service.FeatureLabService(() -> true), com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), () -> new com.zrlog.model.WebSite().getStringValueByName("admin_static_resource_base_url"));
+            AdminResourceService resources = new com.zrlog.admin.business.service.AdminResourceService(com.zrlog.admin.business.rest.response.AdminResourceInfoResponse.Capabilities::new, new com.zrlog.admin.business.service.FeatureLabService(() -> true), com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), () -> new com.zrlog.model.WebSite().getStringValueByName("admin_static_resource_base_url"));
             assertFalse(controller(HttpMethod.GET, labUri, null).lab().getData().getFeature_article_arrangement_enabled());
             assertFalse(resources.adminResourceInfo(editorRequest).getFeature_article_arrangement_enabled());
 
-            AdminArticleService articles = new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
+            AdminArticleService articles = new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(db.config(), com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
             CreateArticleRequest create = new CreateArticleRequest();
             create.setTitle("Layout visibility");
             create.setAlias("layout-visibility");
@@ -84,6 +87,7 @@ public class WebSiteControllerDatabaseTest {
     @Test
     public void backendServiceAddressIsSavedPrivatelyAndUsedByOAuthImmediately() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             String address = "https://gateway.example/sub";
             Object blogHost = value(db, "host");
             var saved = controller(HttpMethod.POST, "/api/admin/website/admin",
@@ -92,7 +96,7 @@ public class WebSiteControllerDatabaseTest {
             assertEquals(address, value(db, "backend_server_url"));
             assertEquals(blogHost, value(db, "host"));
             assertEquals(address, controller(HttpMethod.GET, "/api/admin/website/admin", null).admin().getData().getBackend_server_url());
-            var oauth = new com.zrlog.admin.business.service.OAuthService(com.zrlog.admin.support.ApplicationServicesFixture.backend(com.zrlog.common.Constants.zrLogConfig)::configured, com.zrlog.admin.support.ApplicationServicesFixture.available(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.web.McpWebSetup.class));
+            var oauth = new com.zrlog.admin.business.service.OAuthService(com.zrlog.admin.support.ApplicationServicesFixture.backend(db.config())::configured, com.zrlog.admin.support.ApplicationServicesFixture.available(db.config(), com.zrlog.admin.web.McpWebSetup.class));
             assertEquals(address, oauth.metadata().issuer);
             assertEquals(address + "/mcp", oauth.mcpResourceMetadata().resource);
             assertEquals(address + "/api/webhook/message-center/notice", oauth.page().notificationEndpoint);
@@ -104,13 +108,14 @@ public class WebSiteControllerDatabaseTest {
             assertEquals(address, value(db, "backend_server_url"));
             controller(HttpMethod.POST, "/api/admin/website/admin", "{\"session_timeout\":90,\"backend_server_url\":\"\"}").admin();
             assertEquals("", value(db, "backend_server_url"));
-            assertFalse(new com.zrlog.admin.business.service.OAuthService(com.zrlog.admin.support.ApplicationServicesFixture.backend(com.zrlog.common.Constants.zrLogConfig)::configured, com.zrlog.admin.support.ApplicationServicesFixture.available(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.web.McpWebSetup.class)).issuer().contains("gateway.example"));
+            assertFalse(new com.zrlog.admin.business.service.OAuthService(com.zrlog.admin.support.ApplicationServicesFixture.backend(db.config())::configured, com.zrlog.admin.support.ApplicationServicesFixture.available(db.config(), com.zrlog.admin.web.McpWebSetup.class)).issuer().contains("gateway.example"));
         }
     }
 
     @Test
     public void invalidBackendAddressesCannotOverwriteSavedAddress() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             db.putWebsite("backend_server_url", "https://gateway.example");
             for (String invalid : java.util.List.of("/sub", "//gateway.example", "gateway.example", "http://gateway.example",
                     "ftp://gateway.example", "https://user:password@gateway.example", "https://gateway.example?x=1",
@@ -130,6 +135,7 @@ public class WebSiteControllerDatabaseTest {
     @Test
     public void staticSettingsExportAndNonAdministratorsCannotReadBackendAddress() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             db.putWebsite("backend_server_url", "https://gateway.example/sub");
             WebSiteController staticController = controller(HttpMethod.GET, "/api/admin/website/admin", null);
             setControllerField(staticController, "request", request(HttpMethod.GET, "/api/admin/website/admin", null,
@@ -150,6 +156,7 @@ public class WebSiteControllerDatabaseTest {
     @Test
     public void shouldUpdateBasicWebsiteSettingsThroughRealWebsiteTable() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             WebSiteController controller = controller(HttpMethod.POST, "/api/admin/website",
                     "{\"title\":\"<b>Demo</b>\",\"second_title\":\"Second\","
                             + "\"description\":\"<script>x</script>Desc\",\"keywords\":\"zrlog,java\","
@@ -170,6 +177,7 @@ public class WebSiteControllerDatabaseTest {
     @Test
     public void shouldUpdateBlogArticleEditAndFeatureLabSettingsThroughRealWebsiteTable() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             AdminPageDataResponse<BlogWebSiteInfo> blog = controller(HttpMethod.POST, "/api/admin/website/blog",
                     "{\"generator_html_status\":true,\"host\":\"https://example.com\","
                             + "\"disable_comment_status\":true,\"article_thumbnail_status\":false,"
@@ -211,6 +219,7 @@ public class WebSiteControllerDatabaseTest {
     public void shouldReadAndUpdateOtherAdminContentProtectorAndUpgradeSettingsThroughRealWebsiteTable()
             throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             AdminPageDataResponse<BasicWebSiteInfo> index =
                     controller(HttpMethod.GET, "/api/admin/website", null).index();
             AdminPageDataResponse<OtherWebSiteInfo> other =
@@ -244,6 +253,7 @@ public class WebSiteControllerDatabaseTest {
     @Test
     public void shouldMaskAndReuseExistingAiKeysWhenUpdatingAiSettings() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             db.putWebsite("ai_provider", "OPEN_AI");
             db.putWebsite("ai_model", "gpt-5");
             db.putWebsite("ai_api_key", "existing-key");
@@ -292,6 +302,7 @@ public class WebSiteControllerDatabaseTest {
     @Test
     public void shouldAllowCustomImageEndpointWithoutReusingExistingImageKey() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             db.putWebsite("ai_provider", "OPEN_AI");
             db.putWebsite("ai_model", "gpt-5");
             db.putWebsite("ai_api_key", "existing-key");
@@ -320,6 +331,7 @@ public class WebSiteControllerDatabaseTest {
     @Test
     public void shouldRejectUnknownImageModelForProviderDefaultEndpoint() throws Exception {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
+            applicationConfig = ignored.config();
             AIWebSiteController controller = aiController(HttpMethod.POST, "/api/admin/website/ai",
                     "{\"ai_provider\":\"OPEN_AI\",\"ai_model\":\"gpt-5\","
                             + "\"ai_api_key\":\"text-key\","
@@ -335,6 +347,7 @@ public class WebSiteControllerDatabaseTest {
     @Test
     public void shouldNotReuseExistingAiKeyForChangedCustomEndpoint() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             db.putWebsite("ai_provider", "OPEN_AI");
             db.putWebsite("ai_model", "gpt-5");
             db.putWebsite("ai_api_key", "existing-key");
@@ -356,6 +369,7 @@ public class WebSiteControllerDatabaseTest {
     @Test
     public void shouldDefaultAiReasoningEnabledWhenUnset() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             db.putWebsite("ai_provider", "OPEN_AI");
             db.putWebsite("ai_model", "gpt-5");
             db.putWebsite("ai_api_key", "existing-key");
@@ -371,6 +385,7 @@ public class WebSiteControllerDatabaseTest {
     @Test
     public void shouldRejectAiUpdateWithoutNewOrExistingApiKey() throws Exception {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
+            applicationConfig = ignored.config();
             AIWebSiteController controller = aiController(HttpMethod.POST, "/api/admin/website/ai",
                     "{\"ai_provider\":\"OPEN_AI\",\"ai_model\":\"gpt-5-mini\",\"ai_api_key\":\"\"}");
 
@@ -381,6 +396,7 @@ public class WebSiteControllerDatabaseTest {
     @Test
     public void shouldReadWebsiteVersionPayloadWithoutDatabaseWrites() throws Exception {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
+            applicationConfig = ignored.config();
             WebSiteController controller = controller(HttpMethod.GET, "/api/admin/website/version", null);
 
             AdminPageDataResponse<VersionResponse> response = controller.version();
@@ -396,15 +412,15 @@ public class WebSiteControllerDatabaseTest {
         return row == null ? null : row.get("value");
     }
 
-    private static WebSiteController controller(HttpMethod method, String uri, String body) throws Exception {
-        WebSiteController controller = new TestWebSiteController();
+    private WebSiteController controller(HttpMethod method, String uri, String body) throws Exception {
+        WebSiteController controller = new TestWebSiteController(applicationConfig);
         setControllerField(controller, "request", request(method, uri, body));
         setControllerField(controller, "response", response());
         return controller;
     }
 
-    private static AIWebSiteController aiController(HttpMethod method, String uri, String body) throws Exception {
-        AIWebSiteController controller = new AIWebSiteController(new WebSiteSettingsService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.common.Constants.zrLogConfig == null ? null : com.zrlog.common.Constants.zrLogConfig.getTokenService(), () -> com.zrlog.common.Constants.zrLogConfig == null ? null : com.zrlog.common.Constants.zrLogConfig.getPlugin(com.zrlog.business.updater.UpdateVersionInfoPlugin.class)), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
+    private AIWebSiteController aiController(HttpMethod method, String uri, String body) throws Exception {
+        AIWebSiteController controller = new AIWebSiteController(new WebSiteSettingsService(new InMemoryZrLogDatabase.TestCacheService(), applicationConfig == null ? null : applicationConfig.getTokenService(), () -> applicationConfig == null ? null : applicationConfig.getPlugin(com.zrlog.business.updater.UpdateVersionInfoPlugin.class)), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
         setControllerField(controller, "request", request(method, uri, body));
         setControllerField(controller, "response", response());
         return controller;
@@ -459,8 +475,8 @@ public class WebSiteControllerDatabaseTest {
     }
 
     private static class TestWebSiteController extends WebSiteController {
-        public TestWebSiteController() {
-            super(new WebSiteSettingsService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.common.Constants.zrLogConfig == null ? null : com.zrlog.common.Constants.zrLogConfig.getTokenService(), () -> com.zrlog.common.Constants.zrLogConfig == null ? null : com.zrlog.common.Constants.zrLogConfig.getPlugin(com.zrlog.business.updater.UpdateVersionInfoPlugin.class)), new com.zrlog.admin.business.service.UpgradeSettingsService(new WebSiteSettingsService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.common.Constants.zrLogConfig == null ? null : com.zrlog.common.Constants.zrLogConfig.getTokenService(), () -> com.zrlog.common.Constants.zrLogConfig == null ? null : com.zrlog.common.Constants.zrLogConfig.getPlugin(com.zrlog.business.updater.UpdateVersionInfoPlugin.class)), () -> com.zrlog.common.adapter.UpdaterHosts.dockerControl(com.zrlog.common.Constants.zrLogConfig == null ? null : com.zrlog.common.Constants.zrLogConfig.getUpdater())), new com.zrlog.admin.business.service.FeatureLabService(() -> true), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
+        public TestWebSiteController(com.zrlog.common.ZrLogConfig config) {
+            super(new WebSiteSettingsService(new InMemoryZrLogDatabase.TestCacheService(), config == null ? null : config.getTokenService(), () -> config == null ? null : config.getPlugin(com.zrlog.business.updater.UpdateVersionInfoPlugin.class)), new com.zrlog.admin.business.service.UpgradeSettingsService(new WebSiteSettingsService(new InMemoryZrLogDatabase.TestCacheService(), config == null ? null : config.getTokenService(), () -> config == null ? null : config.getPlugin(com.zrlog.business.updater.UpdateVersionInfoPlugin.class)), () -> com.zrlog.common.adapter.UpdaterHosts.dockerControl(config == null ? null : config.getUpdater())), new com.zrlog.admin.business.service.FeatureLabService(() -> true), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(config), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
         }
 
 

@@ -26,6 +26,8 @@ import static org.junit.Assert.assertTrue;
 
 public class AdminDevControllerTest {
 
+    private com.zrlog.common.ZrLogConfig applicationConfig;
+
     private final String previousRunMode = System.getProperty("sws.run.mode");
 
     @After
@@ -40,6 +42,7 @@ public class AdminDevControllerTest {
     @Test
     public void shouldProvideReadOnlyUiReviewWithoutChangingDevelopmentMode() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             String runMode = System.getProperty("sws.run.mode");
             Object before = db.queryOne("select value from website where name=?", "admin_audit_log");
             AdminPageDataResponse<Boolean> result = controller(Map.of()).ui();
@@ -56,6 +59,7 @@ public class AdminDevControllerTest {
     @Test
     public void shouldLoadDevInfoFromRealCacheStore() throws Exception {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
+            applicationConfig = ignored.config();
             AdminDevController controller = controller(Map.of());
 
             AdminPageDataResponse<DevInfoResponse> response = controller.index();
@@ -69,6 +73,7 @@ public class AdminDevControllerTest {
     @Test
     public void shouldEnableAndDisableDevModeWithAuditRecord() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             ServerConfig serverConfig = new ServerConfig();
             AdminDevController enable = controller(Map.of(), serverConfig);
 
@@ -86,8 +91,9 @@ public class AdminDevControllerTest {
     @Test
     public void shouldSetDevModeThroughModeEndpoint() throws Exception {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
+            applicationConfig = ignored.config();
             ServerConfig config = new ServerConfig();
-            var resources = new com.zrlog.admin.business.service.AdminResourceService(com.zrlog.admin.business.rest.response.AdminResourceInfoResponse.Capabilities::new, new com.zrlog.admin.business.service.FeatureLabService(() -> true), com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), () -> new com.zrlog.model.WebSite().getStringValueByName("admin_static_resource_base_url"));
+            var resources = new com.zrlog.admin.business.service.AdminResourceService(com.zrlog.admin.business.rest.response.AdminResourceInfoResponse.Capabilities::new, new com.zrlog.admin.business.service.FeatureLabService(() -> true), com.zrlog.admin.support.ApplicationServicesFixture.site(ignored.config()), () -> new com.zrlog.model.WebSite().getStringValueByName("admin_static_resource_base_url"));
             assertFalse(resources.adminResourceInfo(request(Map.of(), config)).isDevMode());
             ApiStandardResponse<Boolean> enabled = controller(Map.of("enabled", "true")).mode();
 
@@ -102,6 +108,7 @@ public class AdminDevControllerTest {
     @Test
     public void shouldReleaseDevLocksAndRecordAudit() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             assertEquals(0, controller(Map.of()).releaseLocks().getError());
 
             assertTrue(String.valueOf(db.queryOne("select value from website where name=?", "admin_audit_log")
@@ -109,13 +116,13 @@ public class AdminDevControllerTest {
         }
     }
 
-    private static AdminDevController controller(Map<String, String> params) throws Exception {
+    private AdminDevController controller(Map<String, String> params) throws Exception {
         return controller(params, new ServerConfig());
     }
 
-    private static AdminDevController controller(Map<String, String> params, ServerConfig serverConfig)
+    private AdminDevController controller(Map<String, String> params, ServerConfig serverConfig)
             throws Exception {
-        AdminDevController controller = new AdminDevController(new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
+        AdminDevController controller = new AdminDevController(new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
         Field requestField = Controller.class.getDeclaredField("request");
         requestField.setAccessible(true);
         requestField.set(controller, request(params, serverConfig));

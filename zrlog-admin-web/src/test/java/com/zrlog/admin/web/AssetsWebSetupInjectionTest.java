@@ -9,7 +9,6 @@ import com.zrlog.admin.business.service.WebSiteService;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.controller.api.FileManagerController;
 import com.zrlog.admin.web.interceptor.AdminInterceptor;
-import com.zrlog.common.Constants;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -26,27 +25,21 @@ public class AssetsWebSetupInjectionTest {
     public void eachRequestUsesItsApplicationContextAndSeesUpdatedArticleReferences() throws Exception {
         String previousRoot = PathUtil.getRootPath();
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-            var previousConfig = Constants.zrLogConfig;
-            try {
-                PathUtil.setRootPath(temporaryFolder.newFolder().getAbsolutePath());
-                db.putWebsite(WebSiteService.FEATURE_RESOURCE_REFERENCE_ENABLED_KEY, true);
-                db.execute("insert into log(logId,userId,typeId,title,content,version) values(?,?,?,?,?,?)",
-                        7, 1, 1, "References", "<img src=\"/blog/attached/old.png\">", 0);
-                ServerConfig server = new ServerConfig();
-                server.setContextPath("/blog");
-                server.getInterceptors().add(AdminInterceptor.class);
-                server.getBindings().instance(com.zrlog.admin.business.service.AdminPageDataFactory.class,
-                        new com.zrlog.admin.business.service.AdminPageDataFactory(db.cacheService()::getPublicWebSiteInfo, () -> ""));
-                new AssetsWebSetup(server, () -> null).setup();
-                Constants.zrLogConfig = null;
+            PathUtil.setRootPath(temporaryFolder.newFolder().getAbsolutePath());
+            db.putWebsite(WebSiteService.FEATURE_RESOURCE_REFERENCE_ENABLED_KEY, true);
+            db.execute("insert into log(logId,userId,typeId,title,content,version) values(?,?,?,?,?,?)",
+                    7, 1, 1, "References", "<img src=\"/blog/attached/old.png\">", 0);
+            ServerConfig server = new ServerConfig();
+            server.setContextPath("/blog");
+            server.getInterceptors().add(AdminInterceptor.class);
+            server.getBindings().instance(com.zrlog.admin.business.service.AdminPageDataFactory.class,
+                    new com.zrlog.admin.business.service.AdminPageDataFactory(db.cacheService()::getPublicWebSiteInfo, () -> ""));
+            new AssetsWebSetup(server, () -> null).setup();
 
-                assertEquals(List.of("/attached/old.png"), missingReferences(server));
-                db.execute("update log set content=?,version=version+1 where logId=7",
-                        "<img src=\"/blog/attached/new.png\">");
-                assertEquals(List.of("/attached/new.png"), missingReferences(server));
-            } finally {
-                Constants.zrLogConfig = previousConfig;
-            }
+            assertEquals(List.of("/attached/old.png"), missingReferences(server));
+            db.execute("update log set content=?,version=version+1 where logId=7",
+                    "<img src=\"/blog/attached/new.png\">");
+            assertEquals(List.of("/attached/new.png"), missingReferences(server));
         } finally {
             PathUtil.setRootPath(previousRoot);
         }

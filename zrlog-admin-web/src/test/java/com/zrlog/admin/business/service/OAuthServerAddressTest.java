@@ -6,16 +6,17 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class OAuthServerAddressTest {
+
     @Test public void unconfiguredLocalSiteCanLoadApplicationPagesAndDiscovery() throws Exception {
         try (var db = com.zrlog.admin.support.InMemoryZrLogDatabase.open()) {
-            var config = com.zrlog.common.Constants.zrLogConfig.getServerConfig();
+            var config = db.config().getServerConfig();
             for (String host : java.util.Arrays.asList(null, "", " ")) {
                 db.cacheService().getPublicWebSiteInfo().setHost(host);
                 for (String context : java.util.List.of("", "/sub")) {
                     config.setContextPath(context);
                     for (int port : new int[]{80, 8080, 18080}) {
                         config.setPort(port);
-                        OAuthService service = new OAuthService(com.zrlog.admin.support.ApplicationServicesFixture.backend(com.zrlog.common.Constants.zrLogConfig)::configured, com.zrlog.admin.support.ApplicationServicesFixture.available(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.web.McpWebSetup.class));
+                        OAuthService service = new OAuthService(com.zrlog.admin.support.ApplicationServicesFixture.backend(db.config())::configured, com.zrlog.admin.support.ApplicationServicesFixture.available(db.config(), com.zrlog.admin.web.McpWebSetup.class));
                         String origin = "http://localhost" + (port == 80 ? "" : ":" + port);
                         String issuer = origin + context;
                         var page = service.page();

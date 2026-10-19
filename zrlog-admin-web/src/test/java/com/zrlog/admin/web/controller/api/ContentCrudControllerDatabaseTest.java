@@ -27,9 +27,12 @@ import static org.junit.Assert.assertTrue;
 
 public class ContentCrudControllerDatabaseTest {
 
+    private com.zrlog.common.ZrLogConfig applicationConfig;
+
     @Test
     public void shouldManageTypesThroughRealDatabase() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             typeController(Map.of(), "{\"typeName\":\"News\",\"alias\":\"news\",\"remark\":\"<b>Remark</b>\"}")
                     .add();
             Number typeId = (Number) db.queryOne("select typeId from type where alias=?", "news").get("typeId");
@@ -51,6 +54,7 @@ public class ContentCrudControllerDatabaseTest {
     @Test
     public void shouldManageBlogNavigationThroughRealDatabase() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             blogNavController(Map.of(),
                     "{\"navName\":\"Docs\",\"url\":\"https://example.com/docs\",\"icon\":\"book\",\"sort\":3}")
                     .add();
@@ -79,6 +83,7 @@ public class ContentCrudControllerDatabaseTest {
     @Test
     public void shouldManageLinksThroughRealDatabase() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             linkController(Map.of(),
                     "{\"linkName\":\"ZrLog\",\"url\":\"https://www.zrlog.com\","
                             + "\"alt\":\"<b>Blog</b>\",\"icon\":\"link\",\"sort\":5}")
@@ -108,26 +113,27 @@ public class ContentCrudControllerDatabaseTest {
     @Test
     public void shouldRejectInvalidLinkDeleteIdBeforeTouchingDatabase() throws Exception {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
+            applicationConfig = ignored.config();
             LinkController controller = linkController(Map.of("id", "0"), null);
 
             assertThrows(ArgsException.class, controller::delete);
         }
     }
 
-    private static TypeController typeController(Map<String, String> params, String body) throws Exception {
-        TypeController controller = new TypeController(new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)), com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig));
+    private TypeController typeController(Map<String, String> params, String body) throws Exception {
+        TypeController controller = new TypeController(new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)), com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig));
         setControllerFields(controller, params, body, "/api/admin/type");
         return controller;
     }
 
-    private static BlogNavController blogNavController(Map<String, String> params, String body) throws Exception {
-        BlogNavController controller = new BlogNavController(new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
+    private BlogNavController blogNavController(Map<String, String> params, String body) throws Exception {
+        BlogNavController controller = new BlogNavController(new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
         setControllerFields(controller, params, body, "/api/admin/nav");
         return controller;
     }
 
-    private static LinkController linkController(Map<String, String> params, String body) throws Exception {
-        LinkController controller = new LinkController(new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
+    private LinkController linkController(Map<String, String> params, String body) throws Exception {
+        LinkController controller = new LinkController(new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
         setControllerFields(controller, params, body, "/api/admin/link");
         return controller;
     }

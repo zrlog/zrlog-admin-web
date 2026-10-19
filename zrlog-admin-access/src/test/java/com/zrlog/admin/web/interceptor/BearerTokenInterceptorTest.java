@@ -13,7 +13,6 @@ import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.util.AdminLanguageContext;
 import com.zrlog.admin.web.annotation.RequiresAction;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
-import com.zrlog.common.Constants;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.I18nUtil;
@@ -25,6 +24,8 @@ import java.util.*;
 import static org.junit.Assert.*;
 
 public class BearerTokenInterceptorTest {
+
+    private com.zrlog.common.ZrLogConfig applicationConfig;
     public static class TestController extends Controller {
         @ResponseBody @RequiresAction(value=AccountAction.TAXONOMY_READ, descriptionKey="taxonomy.list")
         public ApiStandardResponse<Boolean> read() { return new ApiStandardResponse<>(DelegatedAccess.active() && !AccountPermissionService.current().canPublish()); }
@@ -38,13 +39,14 @@ public class BearerTokenInterceptorTest {
     }
     @Test public void localizesResponsesAndControllerErrorsForTheTokenOwnerAndRestoresTheThread() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open(); var language = AdminLanguageContext.open("zh_CN")) {
-            var config = Constants.zrLogConfig.getServerConfig();
+            applicationConfig = db.config();
+            var config = applicationConfig.getServerConfig();
             config.getRouter().addMapper("/api/admin/test", TestController.class);
             db.putWebsite("language", "zh_CN");
             db.execute("update user set preferences=? where userId=1", "{\"language\":\"en_US\"}");
             PersonalTokenModels.Create body = new PersonalTokenModels.Create();
             body.name = "language"; body.permissionMode = "custom"; body.permissions = List.of("taxonomy.read");
-            String token = new PersonalAccessTokenService(new OAuthService(com.zrlog.admin.support.ApplicationServicesFixture.backend(com.zrlog.common.Constants.zrLogConfig)::configured, com.zrlog.admin.support.ApplicationServicesFixture.available(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.web.McpWebSetup.class)).mcpResource()).create(body).token;
+            String token = new PersonalAccessTokenService(new OAuthService(com.zrlog.admin.support.ApplicationServicesFixture.backend(applicationConfig)::configured, com.zrlog.admin.support.ApplicationServicesFixture.available(applicationConfig, com.zrlog.admin.web.McpWebSetup.class)).mcpResource()).create(body).token;
             AdminTokenThreadLocal.remove();
             var parent = I18nUtil.threadLocal.get();
             assertEquals("en_US", ((ApiStandardResponse<?>) call("/api/admin/test/language", token).rendered).getData());
@@ -64,9 +66,10 @@ public class BearerTokenInterceptorTest {
     }
     @Test public void bearerReusesActionBindingsWithoutCookieOrSessionFallback() throws Exception {
         try (InMemoryZrLogDatabase db=InMemoryZrLogDatabase.open()) {
-            var config=Constants.zrLogConfig.getServerConfig(); config.getRouter().addMapper("/api/admin/test",TestController.class);
+            applicationConfig = db.config();
+            var config=db.config().getServerConfig(); config.getRouter().addMapper("/api/admin/test",TestController.class);
             PersonalTokenModels.Create body=new PersonalTokenModels.Create(); body.name="test"; body.permissionMode="custom"; body.permissions=List.of("taxonomy.read");
-            var service=new PersonalAccessTokenService(new OAuthService(com.zrlog.admin.support.ApplicationServicesFixture.backend(com.zrlog.common.Constants.zrLogConfig)::configured, com.zrlog.admin.support.ApplicationServicesFixture.available(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.web.McpWebSetup.class)).mcpResource());
+            var service=new PersonalAccessTokenService(new OAuthService(com.zrlog.admin.support.ApplicationServicesFixture.backend(db.config())::configured, com.zrlog.admin.support.ApplicationServicesFixture.available(db.config(), com.zrlog.admin.web.McpWebSetup.class)).mcpResource());
             String token=service.create(body).token;
             var previous=AdminTokenThreadLocal.getUser();
             Recorder success=call("/api/admin/test/read",token);
@@ -81,8 +84,8 @@ public class BearerTokenInterceptorTest {
             assertFalse(DelegatedAccess.active()); assertSame(previous,AdminTokenThreadLocal.getUser());
         }
     }
-    private static Recorder call(String uri,String token) throws Exception {
-        var config=Constants.zrLogConfig.getServerConfig(); RequestConfig requestConfig=new RequestConfig(); requestConfig.setRouter(config.getRouter());
+    private Recorder call(String uri,String token) throws Exception {
+        var config=applicationConfig.getServerConfig(); RequestConfig requestConfig=new RequestConfig(); requestConfig.setRouter(config.getRouter());
         HttpRequest request=(HttpRequest)Proxy.newProxyInstance(BearerTokenInterceptorTest.class.getClassLoader(),new Class[]{HttpRequest.class},(proxy,method,args)->{
             switch(method.getName()) {
                 case "getUri":return uri;
@@ -97,7 +100,7 @@ public class BearerTokenInterceptorTest {
                 default:return method.getReturnType().isPrimitive() ? 0 : null;
             }
         });
-        Recorder recorder=new Recorder(); BearerTokenInterceptor interceptor=new BearerTokenInterceptor(() -> com.zrlog.admin.support.ApplicationServicesFixture.dispatcher(null, com.zrlog.common.Constants.zrLogConfig), new com.zrlog.admin.business.service.OAuthService(com.zrlog.admin.support.ApplicationServicesFixture.backend(com.zrlog.common.Constants.zrLogConfig)::configured, com.zrlog.admin.support.ApplicationServicesFixture.available(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.web.McpWebSetup.class)));
+        Recorder recorder=new Recorder(); BearerTokenInterceptor interceptor=new BearerTokenInterceptor(() -> com.zrlog.admin.support.ApplicationServicesFixture.dispatcher(null, applicationConfig), new com.zrlog.admin.business.service.OAuthService(com.zrlog.admin.support.ApplicationServicesFixture.backend(applicationConfig)::configured, com.zrlog.admin.support.ApplicationServicesFixture.available(applicationConfig, com.zrlog.admin.web.McpWebSetup.class)));
         assertTrue(interceptor.isHandleAble(request)); assertFalse(interceptor.doInterceptor(request,recorder.response())); return recorder;
     }
     private static class Recorder {

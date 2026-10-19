@@ -66,7 +66,6 @@ public class MfaServiceTest {
     @Test
     public void shouldCreateEnableAndDisableMfaThroughRealUserTable() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-            com.zrlog.common.Constants.zrLogConfig = null;
             MfaService service = new MfaService();
 
             MfaStatusResponse initial = service.getMfaStatus(1, db.cacheService().getPublicWebSiteInfo().getTitle());

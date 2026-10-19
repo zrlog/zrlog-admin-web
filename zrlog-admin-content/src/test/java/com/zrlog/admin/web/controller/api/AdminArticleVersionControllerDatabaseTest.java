@@ -23,9 +23,12 @@ import static org.junit.Assert.assertTrue;
 
 public class AdminArticleVersionControllerDatabaseTest {
 
+    private com.zrlog.common.ZrLogConfig applicationConfig;
+
     @Test
     public void shouldListAndCompareArticleVersionsThroughRealDatabase() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             insertArticle(db);
             new LogVersion().savePatch(10, 2,
                     "{\"title\":{\"type\":\"value\",\"old\":\"Old Title\"},"
@@ -75,8 +78,8 @@ public class AdminArticleVersionControllerDatabaseTest {
                 "markdown");
     }
 
-    private static AdminArticleVersionController controller(Map<String, String> params) throws Exception {
-        AdminArticleVersionController controller = new AdminArticleVersionController(new AdminArticleService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource))), com.zrlog.admin.support.ApplicationServicesFixture.cacheRefresh(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.common.Constants.zrLogConfig));
+    private AdminArticleVersionController controller(Map<String, String> params) throws Exception {
+        AdminArticleVersionController controller = new AdminArticleVersionController(new AdminArticleService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(applicationConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource))), com.zrlog.admin.support.ApplicationServicesFixture.cacheRefresh(new InMemoryZrLogDatabase.TestCacheService(), applicationConfig));
         Field requestField = Controller.class.getDeclaredField("request");
         requestField.setAccessible(true);
         requestField.set(controller, request(params));

@@ -9,7 +9,6 @@ import com.hibegin.http.server.config.RequestConfig;
 import com.hibegin.http.server.config.ServerConfig;
 import com.hibegin.http.server.web.Controller;
 import com.hibegin.http.server.web.Router;
-import com.zrlog.common.Constants;
 import com.zrlog.common.TokenService;
 import com.zrlog.common.ZrLogConfig;
 import com.zrlog.common.rest.response.ApiStandardResponse;
@@ -29,11 +28,13 @@ import static org.junit.Assert.assertEquals;
 
 public class AdminStaticResourceInterceptorTest {
 
+    private com.zrlog.common.ZrLogConfig applicationConfig;
+
     @Test
     public void shouldRenderAdminMainJsWithJavascriptContentType() throws Exception {
         ResponseRecorder response = new ResponseRecorder();
 
-        new AdminStaticResourceInterceptor(() -> com.zrlog.common.Constants.zrLogConfig.getPlugin(com.zrlog.admin.web.plugin.AdminStaticResourcePlugin.class)).doInterceptor(
+        new AdminStaticResourceInterceptor(() -> applicationConfig.getPlugin(com.zrlog.admin.web.plugin.AdminStaticResourcePlugin.class)).doInterceptor(
                 request("/admin/static/js/main.missing.js", new ServerConfig(), requestConfig(new Router())),
                 response.response());
 
@@ -50,7 +51,7 @@ public class AdminStaticResourceInterceptorTest {
         router.addMapper("/admin/static/fallback", StaticFallbackController.class, "index");
 
         withConfig(new TestZrLogConfig(), () ->
-                new AdminStaticResourceInterceptor(() -> com.zrlog.common.Constants.zrLogConfig.getPlugin(com.zrlog.admin.web.plugin.AdminStaticResourcePlugin.class)).doInterceptor(
+                new AdminStaticResourceInterceptor(() -> applicationConfig.getPlugin(com.zrlog.admin.web.plugin.AdminStaticResourcePlugin.class)).doInterceptor(
                         request("/admin/static/fallback", serverConfig, requestConfig(router)), response.response()));
 
         assertEquals("fallback", ((ApiStandardResponse<?>) response.rendered).getData());
@@ -89,14 +90,9 @@ public class AdminStaticResourceInterceptorTest {
                 });
     }
 
-    private static void withConfig(ZrLogConfig config, ThrowingRunnable runnable) throws Exception {
-        ZrLogConfig previous = Constants.zrLogConfig;
-        try {
-            Constants.zrLogConfig = config;
-            runnable.run();
-        } finally {
-            Constants.zrLogConfig = previous;
-        }
+    private void withConfig(ZrLogConfig config, ThrowingRunnable runnable) throws Exception {
+        applicationConfig = config;
+        runnable.run();
     }
 
     private interface ThrowingRunnable {
@@ -104,7 +100,6 @@ public class AdminStaticResourceInterceptorTest {
     }
 
     public static class StaticFallbackController extends Controller {
-
         @ResponseBody
         public ApiStandardResponse<String> index() {
             return new ApiStandardResponse<>("fallback");
@@ -150,7 +145,6 @@ public class AdminStaticResourceInterceptorTest {
     }
 
     private static class TestZrLogConfig extends ZrLogConfig {
-
         TestZrLogConfig() {
             super(18080, null, "");
         }

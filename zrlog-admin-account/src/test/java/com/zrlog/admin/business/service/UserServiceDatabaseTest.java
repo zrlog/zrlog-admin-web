@@ -26,6 +26,7 @@ import static org.junit.Assert.assertTrue;
 
 public class UserServiceDatabaseTest {
 
+
     @Test
     public void accountCacheMetadataComesFromInjectedResourcesWithoutGlobals() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
@@ -33,7 +34,6 @@ public class UserServiceDatabaseTest {
             var users = new UserService(() -> uris);
             var previousResources = com.zrlog.admin.business.AdminConstants.adminResource;
             try {
-                com.zrlog.common.Constants.zrLogConfig = null;
                 com.zrlog.admin.business.AdminConstants.adminResource = null;
                 var first = users.getBasicUserInfo(1, "first");
                 assertEquals(java.util.Set.of("/api/admin/site-a"), first.getCacheableApiUris());
@@ -203,9 +203,7 @@ public class UserServiceDatabaseTest {
     @Test
     public void profileUsesTheSuppliedAvatarStorageAndRejectsMissingStorageWithoutChangingTheUser() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-            var config = com.zrlog.common.Constants.zrLogConfig;
-            com.zrlog.common.Constants.zrLogConfig = null;
-            try {
+            {
                 UserService service = new UserService(java.util.Collections::emptySet);
                 UpdateAdminRequest input = profileRequest("data:image/webp;base64,AQID");
                 assertThrows(com.zrlog.admin.business.exception.PermissionErrorException.class,
@@ -221,8 +219,6 @@ public class UserServiceDatabaseTest {
                 };
                 assertEquals("https://assets.example/avatars/profile.webp", service.update(1, input, null, storage).getHeader());
                 assertEquals("https://assets.example/avatars/profile.webp", db.scalar("select header from user where userId=1"));
-            } finally {
-                com.zrlog.common.Constants.zrLogConfig = config;
             }
         }
     }

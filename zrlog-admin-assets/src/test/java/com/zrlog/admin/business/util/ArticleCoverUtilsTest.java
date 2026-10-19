@@ -2,7 +2,6 @@ package com.zrlog.admin.business.util;
 
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.util.PathUtil;
-import com.zrlog.common.Constants;
 import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
@@ -22,12 +21,10 @@ public class ArticleCoverUtilsTest {
     @Rule
     public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-    private final com.zrlog.common.ZrLogConfig previousConfig = Constants.zrLogConfig;
     private final String previousRootPath = System.getProperty("sws.root.path");
 
     @After
     public void tearDown() {
-        Constants.zrLogConfig = previousConfig;
         if (previousRootPath == null) {
             System.clearProperty("sws.root.path");
         } else {
@@ -49,7 +46,6 @@ public class ArticleCoverUtilsTest {
     @Test
     public void shouldCreateThumbnailForFirstLocalImage() throws Exception {
         withRootPath();
-        Constants.zrLogConfig = null;
         File source = PathUtil.getStaticFile("/attached/cover.png");
         source.getParentFile().mkdirs();
         Files.writeString(source.toPath(), "image", StandardCharsets.UTF_8);

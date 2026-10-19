@@ -6,7 +6,6 @@ import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.rest.response.AdminResourceInfoResponse;
 import com.zrlog.admin.business.service.AdminResource;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
-import com.zrlog.common.Constants;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -99,7 +98,7 @@ public class AdminNativeImageUtilsTest {
         }
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             db.loadAdminWebModules();
-            Set<Method> routes = new HashSet<>(Constants.zrLogConfig.getServerConfig().getRouter().getRouterMap().values());
+            Set<Method> routes = new HashSet<>(db.config().getServerConfig().getRouter().getRouterMap().values());
             assertTrue("Expected the real admin routes", routes.size() > 100);
             for (Method method : routes) {
                 if (!method.getDeclaringClass().getName().startsWith("com.zrlog.admin.")) continue;
@@ -111,7 +110,6 @@ public class AdminNativeImageUtilsTest {
     }
 
     private static class TestAdminResource implements AdminResource {
-
         private final Set<String> staticResourceUris;
 
         private TestAdminResource(Set<String> staticResourceUris) {

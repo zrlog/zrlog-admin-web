@@ -24,9 +24,12 @@ import static org.junit.Assert.assertTrue;
 
 public class ArticlePinningServiceDatabaseTest {
 
+    private com.zrlog.common.ZrLogConfig applicationConfig;
+
     @Test
     public void shouldPinMoveUnpinAndCompressPriorities() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             Long first = createArticle("First", false, false);
             Long second = createArticle("Second", false, false);
             Long third = createArticle("Third", false, false);
@@ -50,6 +53,7 @@ public class ArticlePinningServiceDatabaseTest {
     @Test
     public void shouldRejectDraftAndPrivateArticles() throws Exception {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
+            applicationConfig = ignored.config();
             Long draft = createArticle("Draft", false, true);
             Long privateArticle = createArticle("Private", true, false);
             ArticlePinningService service = new ArticlePinningService();
@@ -63,6 +67,7 @@ public class ArticlePinningServiceDatabaseTest {
     @Test
     public void shouldSerializeConcurrentPinsWithDatabaseLock() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             Long first = createArticle("Concurrent First", false, false);
             Long second = createArticle("Concurrent Second", false, false);
             CountDownLatch ready = new CountDownLatch(2);
@@ -101,6 +106,7 @@ public class ArticlePinningServiceDatabaseTest {
     @Test
     public void shouldPersistMoreThanD1BindingLimitWithNumericLiterals() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             ArticlePinningService service = new ArticlePinningService();
             for (int i = 1; i <= 40; i++) {
                 service.pin(createArticle("Pinned " + i, false, false));
@@ -130,7 +136,7 @@ public class ArticlePinningServiceDatabaseTest {
         }
     }
 
-    private static Long createArticle(String title, boolean privacy, boolean rubbish) throws Exception {
+    private Long createArticle(String title, boolean privacy, boolean rubbish) throws Exception {
         CreateArticleRequest request = new CreateArticleRequest();
         request.setTitle(title);
         request.setAlias(title.toLowerCase().replace(' ', '-'));
@@ -141,7 +147,7 @@ public class ArticlePinningServiceDatabaseTest {
         request.setPrivacy(privacy);
         request.setRubbish(rubbish);
         request.setEditorType("markdown");
-        CreateOrUpdateArticleResponse response = new AdminArticleService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource))).create(token(), request);
+        CreateOrUpdateArticleResponse response = new AdminArticleService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(applicationConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource))).create(token(), request);
         return response.getLogId();
     }
 

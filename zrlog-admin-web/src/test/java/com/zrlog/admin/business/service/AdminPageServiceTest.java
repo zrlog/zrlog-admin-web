@@ -45,6 +45,8 @@ import static org.junit.Assert.assertTrue;
 
 public class AdminPageServiceTest {
 
+    private com.zrlog.common.ZrLogConfig applicationConfig;
+
     private AdminResource previousResource;
 
     @Before
@@ -62,7 +64,7 @@ public class AdminPageServiceTest {
 
     @Test
     public void shouldBuildServerSideDataForAnonymousRequest() throws Throwable {
-        ServerSideDataResponse<Object> response = new AdminPageService(new InMemoryZrLogDatabase.TestCacheService(), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)), com.zrlog.admin.business.AdminConstants.adminResource, com.zrlog.admin.support.ApplicationServicesFixture.staticResourceUrl()).serverSide(
+        ServerSideDataResponse<Object> response = new AdminPageService(new InMemoryZrLogDatabase.TestCacheService(), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)), com.zrlog.admin.business.AdminConstants.adminResource, com.zrlog.admin.support.ApplicationServicesFixture.staticResourceUrl()).serverSide(
                 "/admin/index", request("/admin/index", "/blog"), response());
 
         assertNull(response.getUser());
@@ -75,8 +77,9 @@ public class AdminPageServiceTest {
     @Test
     public void backendAddressIsAbsentFromAnonymousAndStaticPageData() throws Throwable {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             db.putWebsite("backend_server_url", "https://private-setting.example/sub");
-            AdminConstants.adminResource = new AdminResourceImpl("", () -> 0L, () -> new com.zrlog.admin.business.service.AdminResourceService(com.zrlog.admin.business.rest.response.AdminResourceInfoResponse.Capabilities::new, new com.zrlog.admin.business.service.FeatureLabService(() -> true), com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), () -> new com.zrlog.model.WebSite().getStringValueByName("admin_static_resource_base_url")));
+            AdminConstants.adminResource = new AdminResourceImpl("", () -> 0L, () -> new com.zrlog.admin.business.service.AdminResourceService(com.zrlog.admin.business.rest.response.AdminResourceInfoResponse.Capabilities::new, new com.zrlog.admin.business.service.FeatureLabService(() -> true), com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), () -> new com.zrlog.model.WebSite().getStringValueByName("admin_static_resource_base_url")));
             AdminTokenThreadLocal.remove();
             for (String userAgent : java.util.List.of("Browser", com.zrlog.plugin.BaseStaticSitePlugin.STATIC_USER_AGENT)) {
                 HttpRequest request = (HttpRequest) Proxy.newProxyInstance(getClass().getClassLoader(), new Class[]{HttpRequest.class},
@@ -84,7 +87,7 @@ public class AdminPageServiceTest {
                             if (method.getName().equals("getHeader") && "User-Agent".equals(args[0])) return userAgent;
                             return method.invoke(request("/admin/website/admin", ""), args);
                         });
-                String data = new com.google.gson.Gson().toJson(new AdminPageService(db.cacheService(), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)), com.zrlog.admin.business.AdminConstants.adminResource, com.zrlog.admin.support.ApplicationServicesFixture.staticResourceUrl()).serverSide("/admin/website/admin", request, response()));
+                String data = new com.google.gson.Gson().toJson(new AdminPageService(db.cacheService(), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)), com.zrlog.admin.business.AdminConstants.adminResource, com.zrlog.admin.support.ApplicationServicesFixture.staticResourceUrl()).serverSide("/admin/website/admin", request, response()));
                 assertFalse(data.contains("backend_server_url"));
                 assertFalse(data.contains("private-setting.example"));
             }
@@ -94,10 +97,11 @@ public class AdminPageServiceTest {
     @Test
     public void shouldGenerateProxyAndDeveloperShellsWithPublicResourcesOnly() throws Throwable {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             db.loadAdminWebModules();
             AccountAuthorizationTest.login(db, 1, "owner");
             for (String contextPath : java.util.List.of("", "/blog")) {
-                AdminConstants.adminResource = new AdminResourceImpl(contextPath, () -> 0L, () -> new com.zrlog.admin.business.service.AdminResourceService(com.zrlog.admin.business.rest.response.AdminResourceInfoResponse.Capabilities::new, new com.zrlog.admin.business.service.FeatureLabService(() -> true), com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), () -> new com.zrlog.model.WebSite().getStringValueByName("admin_static_resource_base_url")));
+                AdminConstants.adminResource = new AdminResourceImpl(contextPath, () -> 0L, () -> new com.zrlog.admin.business.service.AdminResourceService(com.zrlog.admin.business.rest.response.AdminResourceInfoResponse.Capabilities::new, new com.zrlog.admin.business.service.FeatureLabService(() -> true), com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), () -> new com.zrlog.model.WebSite().getStringValueByName("admin_static_resource_base_url")));
                 for (String page : java.util.List.of("/admin/system/proxy", "/admin/dev", "/admin/dev/ui")) {
                     assertTrue(AdminConstants.adminResource.getAdminStaticCacheUris().contains(contextPath + page));
                     HttpRequest request = (HttpRequest) Proxy.newProxyInstance(getClass().getClassLoader(),
@@ -109,14 +113,14 @@ public class AdminPageServiceTest {
                                 if (method.getName().equals("getScheme")) return "http";
                                 return method.invoke(request(page, contextPath), args);
                             });
-                    String rendered = new AdminPageService(db.cacheService(), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)), com.zrlog.admin.business.AdminConstants.adminResource, com.zrlog.admin.support.ApplicationServicesFixture.staticResourceUrl()).buildHtml(request, response(), html(
+                    String rendered = new AdminPageService(db.cacheService(), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)), com.zrlog.admin.business.AdminConstants.adminResource, com.zrlog.admin.support.ApplicationServicesFixture.staticResourceUrl()).buildHtml(request, response(), html(
                             "<html><head><base href=\"/\"><link rel=\"manifest\" href=\"/admin/manifest.json\">"
                                     + "<script src=\"/admin/static/app.js\"></script></head>"
                                     + "<body><div id=\"__SS_DATA__\"></div></body></html>"));
                     Document document = Jsoup.parse(rendered);
                     com.google.gson.JsonObject data = com.google.gson.JsonParser.parseString(
                             document.getElementById("__SS_DATA__").text()).getAsJsonObject();
-                    assertEquals(AdminConstants.getAdminDocumentTitleByUri(page, com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig).get()), document.title());
+                    assertEquals(AdminConstants.getAdminDocumentTitleByUri(page, com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()).get()), document.title());
                     assertEquals(contextPath + "/", document.selectFirst("base").attr("href"));
                     assertEquals(contextPath + "/admin/static/app.js", document.selectFirst("script").attr("src"));
                     assertTrue(data.getAsJsonObject("resourceInfo").get("staticPage").getAsBoolean());
@@ -131,13 +135,14 @@ public class AdminPageServiceTest {
     @Test
     public void shouldInjectUiReviewReadinessAndPersonalAppearanceIntoTheFirstPage() throws Throwable {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             db.loadAdminWebModules();
             RequestConfig config = new RequestConfig();
-            config.setRouter(com.zrlog.common.Constants.zrLogConfig.getServerConfig().getRouter());
+            config.setRouter(db.config().getServerConfig().getRouter());
             String page = "/admin/dev/ui";
-            AdminPageService service = new AdminPageService(db.cacheService(), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)), com.zrlog.admin.business.AdminConstants.adminResource, com.zrlog.admin.support.ApplicationServicesFixture.staticResourceUrl());
+            AdminPageService service = new AdminPageService(db.cacheService(), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)), com.zrlog.admin.business.AdminConstants.adminResource, com.zrlog.admin.support.ApplicationServicesFixture.staticResourceUrl());
             for (String contextPath : java.util.List.of("", "/blog")) {
-                AdminConstants.adminResource = new AdminResourceImpl(contextPath, () -> 0L, () -> new com.zrlog.admin.business.service.AdminResourceService(com.zrlog.admin.business.rest.response.AdminResourceInfoResponse.Capabilities::new, new com.zrlog.admin.business.service.FeatureLabService(() -> true), com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), () -> new com.zrlog.model.WebSite().getStringValueByName("admin_static_resource_base_url")));
+                AdminConstants.adminResource = new AdminResourceImpl(contextPath, () -> 0L, () -> new com.zrlog.admin.business.service.AdminResourceService(com.zrlog.admin.business.rest.response.AdminResourceInfoResponse.Capabilities::new, new com.zrlog.admin.business.service.FeatureLabService(() -> true), com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), () -> new com.zrlog.model.WebSite().getStringValueByName("admin_static_resource_base_url")));
                 for (String role : java.util.List.of("owner", "admin")) {
                     AccountAuthorizationTest.login(db, 1, role);
                     new UserPreferenceService().updateBody("{\"language\":\"en_US\",\"appearance\":{"
@@ -160,7 +165,7 @@ public class AdminPageServiceTest {
                     assertFalse(resource.get("staticPage").getAsBoolean());
                     assertTrue(document.body().hasClass("dark"));
                     assertEquals(contextPath + "/", document.selectFirst("base").attr("href"));
-                    assertEquals(AdminConstants.getAdminDocumentTitleByUri(page, com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig).get()), document.title());
+                    assertEquals(AdminConstants.getAdminDocumentTitleByUri(page, com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()).get()), document.title());
                     assertEquals(Boolean.TRUE, service.serverSide(page,
                             request("/admin/ssJson", contextPath, config), response()).getData());
                 }
@@ -177,7 +182,7 @@ public class AdminPageServiceTest {
 
     @Test
     public void shouldRewriteAdminHtmlForNormalPage() throws Throwable {
-        String html = new AdminPageService(new InMemoryZrLogDatabase.TestCacheService(), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)), com.zrlog.admin.business.AdminConstants.adminResource, r -> com.zrlog.admin.util.AdminWebTools.getAdminStaticResourceBaseUrl(r, () -> "")).buildHtml(
+        String html = new AdminPageService(new InMemoryZrLogDatabase.TestCacheService(), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)), com.zrlog.admin.business.AdminConstants.adminResource, r -> com.zrlog.admin.util.AdminWebTools.getAdminStaticResourceBaseUrl(r, () -> "")).buildHtml(
                 request("/admin/index", "/blog"),
                 response(),
                 html("<html><head>"
@@ -207,7 +212,7 @@ public class AdminPageServiceTest {
 
     @Test
     public void shouldRemoveManifestOnLoginPage() throws Throwable {
-        String html = new AdminPageService(new InMemoryZrLogDatabase.TestCacheService(), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)), com.zrlog.admin.business.AdminConstants.adminResource, r -> com.zrlog.admin.util.AdminWebTools.getAdminStaticResourceBaseUrl(r, () -> "")).buildHtml(
+        String html = new AdminPageService(new InMemoryZrLogDatabase.TestCacheService(), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)), com.zrlog.admin.business.AdminConstants.adminResource, r -> com.zrlog.admin.util.AdminWebTools.getAdminStaticResourceBaseUrl(r, () -> "")).buildHtml(
                 request("/admin/login", "/"),
                 response(),
                 html("<html><head>"
@@ -224,10 +229,11 @@ public class AdminPageServiceTest {
     @Test
     public void shouldRewriteStaticResourcesWithConfiguredCdnHostFromRealWebsiteTable() throws Throwable {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             AdminTokenThreadLocal.remove();
             db.putWebsite("admin_static_resource_base_url", "https://cdn.example");
 
-            String html = new AdminPageService(db.cacheService(), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)), com.zrlog.admin.business.AdminConstants.adminResource, com.zrlog.admin.support.ApplicationServicesFixture.staticResourceUrl()).buildHtml(
+            String html = new AdminPageService(db.cacheService(), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)), com.zrlog.admin.business.AdminConstants.adminResource, com.zrlog.admin.support.ApplicationServicesFixture.staticResourceUrl()).buildHtml(
                     request("/admin/index", "/blog"),
                     response(),
                     html("<html><head>"
@@ -254,10 +260,11 @@ public class AdminPageServiceTest {
     @Test
     public void shouldBuildServerSideDataForAdminPageResponseThroughRouterAndRealUser() throws Throwable {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
+            applicationConfig = ignored.config();
             setAdminToken();
             RequestConfig requestConfig = requestConfig();
 
-            ServerSideDataResponse<Object> response = new AdminPageService(ignored.cacheService(), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)), com.zrlog.admin.business.AdminConstants.adminResource, com.zrlog.admin.support.ApplicationServicesFixture.staticResourceUrl()).serverSide(
+            ServerSideDataResponse<Object> response = new AdminPageService(ignored.cacheService(), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(ignored.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)), com.zrlog.admin.business.AdminConstants.adminResource, com.zrlog.admin.support.ApplicationServicesFixture.staticResourceUrl()).serverSide(
                     "/admin/ssr/page", request("/admin/ssr/page", "/blog", requestConfig), response());
 
             assertEquals("admin", response.getUser().getUserName());
@@ -270,11 +277,12 @@ public class AdminPageServiceTest {
     @Test
     public void shouldKeepAuthenticatedShellWhenFeatureRouteIsNotRegistered() throws Throwable {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
+            applicationConfig = ignored.config();
             setAdminToken();
             RequestConfig config = new RequestConfig();
             config.setRouter(new Router());
             for (String uri : java.util.List.of("/admin/website/ai", "/admin/user/applications/tokens")) {
-                ServerSideDataResponse<Object> data = new AdminPageService(ignored.cacheService(), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)), com.zrlog.admin.business.AdminConstants.adminResource, com.zrlog.admin.support.ApplicationServicesFixture.staticResourceUrl()).serverSide(
+                ServerSideDataResponse<Object> data = new AdminPageService(ignored.cacheService(), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(ignored.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)), com.zrlog.admin.business.AdminConstants.adminResource, com.zrlog.admin.support.ApplicationServicesFixture.staticResourceUrl()).serverSide(
                         uri, request(uri, "/blog", config), response());
                 assertEquals("admin", data.getUser().getUserName());
                 assertEquals("session-1", data.getKey());
@@ -287,10 +295,11 @@ public class AdminPageServiceTest {
     @Test
     public void shouldUseEmptyObjectWhenServerSideControllerReturnsNull() throws Throwable {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
+            applicationConfig = ignored.config();
             setAdminToken();
             RequestConfig requestConfig = requestConfig();
 
-            ServerSideDataResponse<Object> response = new AdminPageService(ignored.cacheService(), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)), com.zrlog.admin.business.AdminConstants.adminResource, com.zrlog.admin.support.ApplicationServicesFixture.staticResourceUrl()).serverSide(
+            ServerSideDataResponse<Object> response = new AdminPageService(ignored.cacheService(), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(ignored.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)), com.zrlog.admin.business.AdminConstants.adminResource, com.zrlog.admin.support.ApplicationServicesFixture.staticResourceUrl()).serverSide(
                     "/admin/ssr/empty", request("/admin/ssr/empty", "/blog", requestConfig), response());
 
             assertNotNull(response.getData());
@@ -301,11 +310,12 @@ public class AdminPageServiceTest {
     @Test
     public void shouldHydrateAccountSecurityWithOnlyTheCurrentUsersPasskeySummaries() throws Throwable {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             AccountAuthorizationTest.login(db, 1, "owner");
             db.loadAdminWebModules();
             RequestConfig config = new RequestConfig();
-            config.setRouter(com.zrlog.common.Constants.zrLogConfig.getServerConfig().getRouter());
-            AdminPageService service = new AdminPageService(db.cacheService(), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)), com.zrlog.admin.business.AdminConstants.adminResource, com.zrlog.admin.support.ApplicationServicesFixture.staticResourceUrl());
+            config.setRouter(db.config().getServerConfig().getRouter());
+            AdminPageService service = new AdminPageService(db.cacheService(), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)), com.zrlog.admin.business.AdminConstants.adminResource, com.zrlog.admin.support.ApplicationServicesFixture.staticResourceUrl());
             String page = "/admin/user/security";
             com.google.gson.Gson gson = new com.google.gson.Gson();
 
@@ -339,17 +349,18 @@ public class AdminPageServiceTest {
     @Test
     public void shouldLoadNestedAccountPagesThroughExistingApisWithoutWeakeningPermissions() throws Throwable {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             AccountAuthorizationTest.login(db, 1, "owner");
             db.loadAdminWebModules();
-            Router router = com.zrlog.common.Constants.zrLogConfig.getServerConfig().getRouter();
+            Router router = db.config().getServerConfig().getRouter();
             RequestConfig config = new RequestConfig();
             config.setRouter(router);
-            AdminPageService service = new AdminPageService(db.cacheService(), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)), com.zrlog.admin.business.AdminConstants.adminResource, com.zrlog.admin.support.ApplicationServicesFixture.staticResourceUrl());
+            AdminPageService service = new AdminPageService(db.cacheService(), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)), com.zrlog.admin.business.AdminConstants.adminResource, com.zrlog.admin.support.ApplicationServicesFixture.staticResourceUrl());
             for (String page : com.zrlog.admin.web.config.AdminAccountPages.PAGE_APIS.keySet()) {
                 if (page.equals(com.zrlog.admin.web.config.AdminAccountPages.AUTHORIZE)) continue;
                 ServerSideDataResponse<Object> data = service.serverSide(page, request(page, "/blog", config), response());
                 assertNotNull(page, data.getData());
-                assertEquals(AdminConstants.getAdminDocumentTitleByUri(page, com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig).get()), data.getDocumentTitle());
+                assertEquals(AdminConstants.getAdminDocumentTitleByUri(page, com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()).get()), data.getDocumentTitle());
             }
             assertTrue(service.serverSide("/admin/user/preferences/appearance", request("/admin/user/preferences/appearance", "/blog", config), response()).getData()
                     instanceof com.zrlog.admin.business.rest.response.UserPreferencesResponse);
@@ -389,11 +400,12 @@ public class AdminPageServiceTest {
     @Test
     public void shouldLoadProxyPageForAdministratorsAndRejectOtherRoles() throws Throwable {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             db.loadAdminWebModules();
             NetworkProxy.save("http://proxy.example:3128", ".internal.example");
             RequestConfig config = new RequestConfig();
-            config.setRouter(com.zrlog.common.Constants.zrLogConfig.getServerConfig().getRouter());
-            AdminPageService service = new AdminPageService(db.cacheService(), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)), com.zrlog.admin.business.AdminConstants.adminResource, com.zrlog.admin.support.ApplicationServicesFixture.staticResourceUrl());
+            config.setRouter(db.config().getServerConfig().getRouter());
+            AdminPageService service = new AdminPageService(db.cacheService(), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)), com.zrlog.admin.business.AdminConstants.adminResource, com.zrlog.admin.support.ApplicationServicesFixture.staticResourceUrl());
             String page = "/admin/system/proxy";
             for (String contextPath : java.util.List.of("", "/blog")) {
                 for (String uri : java.util.List.of(page, "/admin/ssJson")) {
@@ -404,7 +416,7 @@ public class AdminPageServiceTest {
                         ProxySettingsResponse settings = (ProxySettingsResponse) response.getData();
                         assertEquals("http://proxy.example:3128", settings.getUrl());
                         assertEquals(".internal.example", settings.getNoProxy());
-                        assertEquals(AdminConstants.getAdminDocumentTitleByUri(page, com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig).get()), response.getDocumentTitle());
+                        assertEquals(AdminConstants.getAdminDocumentTitleByUri(page, com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()).get()), response.getDocumentTitle());
                     }
                     for (String role : java.util.List.of("editor", "author", "contributor")) {
                         AccountAuthorizationTest.login(db, 1, role);
@@ -419,10 +431,11 @@ public class AdminPageServiceTest {
     @Test
     public void shouldLoadCompleteSystemInformationWithMatchingPermissionsAndTitle() throws Throwable {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             db.loadAdminWebModules();
             RequestConfig config = new RequestConfig();
-            config.setRouter(com.zrlog.common.Constants.zrLogConfig.getServerConfig().getRouter());
-            AdminPageService service = new AdminPageService(db.cacheService(), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)), com.zrlog.admin.business.AdminConstants.adminResource, com.zrlog.admin.support.ApplicationServicesFixture.staticResourceUrl());
+            config.setRouter(db.config().getServerConfig().getRouter());
+            AdminPageService service = new AdminPageService(db.cacheService(), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)), com.zrlog.admin.business.AdminConstants.adminResource, com.zrlog.admin.support.ApplicationServicesFixture.staticResourceUrl());
             for (String page : java.util.List.of("/admin/system")) {
                 assertNotNull(config.getRouter().getMethod(page, HttpMethod.GET));
                 Method api = config.getRouter().getMethod("/api" + page, HttpMethod.GET);
@@ -438,7 +451,7 @@ public class AdminPageServiceTest {
                             SystemResponse data = (SystemResponse) result.getData();
                             assertFalse(data.getServerInfos().isEmpty());
                             assertFalse(data.getServerInfos2().isEmpty());
-                            assertEquals(AdminConstants.getAdminDocumentTitleByUri(page, com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig).get()), result.getDocumentTitle());
+                            assertEquals(AdminConstants.getAdminDocumentTitleByUri(page, com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()).get()), result.getDocumentTitle());
                         }
                         for (String role : java.util.List.of("editor", "author", "contributor")) {
                             AccountAuthorizationTest.login(db, 1, role);
@@ -454,9 +467,10 @@ public class AdminPageServiceTest {
     @Test(timeout = 30000)
     public void shouldLoadCanonicalVersionPageWithExistingPermissionsAndTitle() throws Throwable {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             db.loadAdminWebModules();
             RequestConfig config = new RequestConfig();
-            config.setRouter(com.zrlog.common.Constants.zrLogConfig.getServerConfig().getRouter());
+            config.setRouter(db.config().getServerConfig().getRouter());
             String page = "/admin/system/version";
             assertNotNull(config.getRouter().getMethod(page, HttpMethod.GET));
             assertEquals(config.getRouter().getMethod("/api/admin/website/version", HttpMethod.GET),
@@ -465,8 +479,12 @@ public class AdminPageServiceTest {
                     config.getRouter().getMethod("/api" + page, HttpMethod.GET)
                             .getAnnotation(com.zrlog.admin.web.annotation.RequiresAction.class).value());
             // Keep the real version response logic, with a local changelog instead of a public HTTP request.
+            db.config().getServerConfig().getBindings().controller(OfflineVersionController.class,
+                    (r, request, response) -> new OfflineVersionController(r.get(WebSiteSettingsService.class),
+                            r.get(UpgradeSettingsService.class), r.get(FeatureLabService.class),
+                            r.get(AdminPageDataFactory.class)));
             config.getRouter().addMapper("/api" + page, OfflineVersionController.class, "version");
-            AdminPageService service = new AdminPageService(db.cacheService(), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)), com.zrlog.admin.business.AdminConstants.adminResource, com.zrlog.admin.support.ApplicationServicesFixture.staticResourceUrl());
+            AdminPageService service = new AdminPageService(db.cacheService(), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)), com.zrlog.admin.business.AdminConstants.adminResource, com.zrlog.admin.support.ApplicationServicesFixture.staticResourceUrl());
             for (String contextPath : java.util.List.of("", "/blog")) {
                 for (String uri : java.util.List.of(page, "/admin/ssJson")) {
                     HttpRequest request = request(uri, contextPath, config);
@@ -475,7 +493,7 @@ public class AdminPageServiceTest {
                         ServerSideDataResponse<Object> result = service.serverSide(page, request, response());
                         assertNotNull(((VersionResponse) result.getData()).getVersion());
                         assertEquals("test changelog", ((VersionResponse) result.getData()).getChangelog());
-                        assertEquals(AdminConstants.getAdminDocumentTitleByUri(page, com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig).get()), result.getDocumentTitle());
+                        assertEquals(AdminConstants.getAdminDocumentTitleByUri(page, com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()).get()), result.getDocumentTitle());
                     }
                     for (String role : java.util.List.of("editor", "author", "contributor")) {
                         AccountAuthorizationTest.login(db, 1, role);
@@ -490,9 +508,10 @@ public class AdminPageServiceTest {
     @Test
     public void shouldRedirectExistingSystemSettingsPagesPreservingContextAndEncodedQuery() throws Throwable {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             db.loadAdminWebModules();
             RequestConfig config = new RequestConfig();
-            config.setRouter(com.zrlog.common.Constants.zrLogConfig.getServerConfig().getRouter());
+            config.setRouter(db.config().getServerConfig().getRouter());
             for (String page : java.util.List.of("version", "upgrade")) {
                 Method route = config.getRouter().getMethod("/admin/website/" + page, HttpMethod.GET);
                 for (String contextPath : java.util.List.of("", "/", "/blog")) {
@@ -518,8 +537,9 @@ public class AdminPageServiceTest {
     @Test
     public void shouldReuseUpgradeSettingsApiAndPermissionAtTheSystemPage() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             db.loadAdminWebModules();
-            Router router = com.zrlog.common.Constants.zrLogConfig.getServerConfig().getRouter();
+            Router router = db.config().getServerConfig().getRouter();
             assertNotNull(router.getMethod("/admin/system/upgrade", HttpMethod.GET));
             for (HttpMethod method : java.util.List.of(HttpMethod.GET, HttpMethod.POST)) {
                 Method route = router.getMethod("/api/admin/system/upgrade", method);
@@ -527,18 +547,19 @@ public class AdminPageServiceTest {
                 assertEquals(router.getMethod("/api/admin/website/upgrade", method), route);
                 assertEquals(AccountAction.SITE_CONFIGURE, route.getAnnotation(RequiresAction.class).value());
             }
-            assertEquals(AdminConstants.getAdminDocumentTitleByUri("/admin/website/upgrade", com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig).get()),
-                    AdminConstants.getAdminDocumentTitleByUri("/admin/system/upgrade", com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig).get()));
+            assertEquals(AdminConstants.getAdminDocumentTitleByUri("/admin/website/upgrade", com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()).get()),
+                    AdminConstants.getAdminDocumentTitleByUri("/admin/system/upgrade", com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()).get()));
         }
     }
 
     @Test
     public void shouldReturnNullDataForNonPageServerSideResponse() throws Throwable {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
+            applicationConfig = ignored.config();
             setAdminToken();
             RequestConfig requestConfig = requestConfig();
 
-            ServerSideDataResponse<Object> response = new AdminPageService(ignored.cacheService(), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)), com.zrlog.admin.business.AdminConstants.adminResource, com.zrlog.admin.support.ApplicationServicesFixture.staticResourceUrl()).serverSide(
+            ServerSideDataResponse<Object> response = new AdminPageService(ignored.cacheService(), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(ignored.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)), com.zrlog.admin.business.AdminConstants.adminResource, com.zrlog.admin.support.ApplicationServicesFixture.staticResourceUrl()).serverSide(
                     "/admin/ssr/plain", request("/admin/ssr/plain", "/blog", requestConfig), response());
 
             assertNull(response.getData());
@@ -549,11 +570,12 @@ public class AdminPageServiceTest {
     @Test
     public void shouldPropagateServerSideControllerTargetException() throws Exception {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
+            applicationConfig = ignored.config();
             setAdminToken();
             RequestConfig requestConfig = requestConfig();
 
             IllegalStateException exception = org.junit.Assert.assertThrows(IllegalStateException.class,
-                    () -> new AdminPageService(ignored.cacheService(), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)), com.zrlog.admin.business.AdminConstants.adminResource, com.zrlog.admin.support.ApplicationServicesFixture.staticResourceUrl()).serverSide(
+                    () -> new AdminPageService(ignored.cacheService(), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(ignored.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)), com.zrlog.admin.business.AdminConstants.adminResource, com.zrlog.admin.support.ApplicationServicesFixture.staticResourceUrl()).serverSide(
                             "/admin/ssr/explode", request("/admin/ssr/explode", "/blog", requestConfig), response()));
 
             assertEquals("boom", exception.getMessage());
@@ -564,11 +586,11 @@ public class AdminPageServiceTest {
         return new ByteArrayInputStream(value.getBytes(StandardCharsets.UTF_8));
     }
 
-    private static HttpRequest request(String uri, String contextPath) {
+    private HttpRequest request(String uri, String contextPath) {
         return request(uri, contextPath, null);
     }
 
-    private static HttpRequest request(String uri, String contextPath, RequestConfig requestConfig) {
+    private HttpRequest request(String uri, String contextPath, RequestConfig requestConfig) {
         return (HttpRequest) Proxy.newProxyInstance(
                 AdminPageServiceTest.class.getClassLoader(),
                 new Class[]{HttpRequest.class},
@@ -595,7 +617,7 @@ public class AdminPageServiceTest {
                         return requestConfig;
                     }
                     if ("getServerConfig".equals(method.getName())) {
-                        return com.zrlog.common.Constants.zrLogConfig.getServerConfig();
+                        return applicationConfig.getServerConfig();
                     }
                     if ("toString".equals(method.getName())) {
                         return "HttpRequestProxy";
@@ -611,7 +633,12 @@ public class AdminPageServiceTest {
                 (proxy, method, args) -> null);
     }
 
-    private static RequestConfig requestConfig() {
+    private RequestConfig requestConfig() {
+        applicationConfig.getServerConfig().getBindings().instance(AdminPageDataFactory.class,
+                new AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig),
+                        com.zrlog.admin.support.ApplicationServicesFixture.buildId(AdminConstants.adminResource)))
+                .controller(FakePageController.class,
+                        (r, request, response) -> new FakePageController(r.get(AdminPageDataFactory.class)));
         Router router = new Router();
         router.addMapper("/api/admin/ssr", FakePageController.class);
         RequestConfig requestConfig = new RequestConfig();
@@ -630,8 +657,9 @@ public class AdminPageServiceTest {
     }
 
     public static class OfflineVersionController extends WebSiteController {
-        public OfflineVersionController() {
-            super(new WebSiteSettingsService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.common.Constants.zrLogConfig == null ? null : com.zrlog.common.Constants.zrLogConfig.getTokenService(), () -> com.zrlog.common.Constants.zrLogConfig == null ? null : com.zrlog.common.Constants.zrLogConfig.getPlugin(com.zrlog.business.updater.UpdateVersionInfoPlugin.class)), new com.zrlog.admin.business.service.UpgradeSettingsService(new WebSiteSettingsService(new InMemoryZrLogDatabase.TestCacheService(), com.zrlog.common.Constants.zrLogConfig == null ? null : com.zrlog.common.Constants.zrLogConfig.getTokenService(), () -> com.zrlog.common.Constants.zrLogConfig == null ? null : com.zrlog.common.Constants.zrLogConfig.getPlugin(com.zrlog.business.updater.UpdateVersionInfoPlugin.class)), () -> com.zrlog.common.adapter.UpdaterHosts.dockerControl(com.zrlog.common.Constants.zrLogConfig == null ? null : com.zrlog.common.Constants.zrLogConfig.getUpdater())), new com.zrlog.admin.business.service.FeatureLabService(() -> true), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
+        public OfflineVersionController(WebSiteSettingsService settings, UpgradeSettingsService upgrades,
+                                        FeatureLabService features, AdminPageDataFactory pages) {
+            super(settings, upgrades, features, pages);
         }
 
 
@@ -649,11 +677,16 @@ public class AdminPageServiceTest {
     }
 
     public static class FakePageController extends Controller {
+        private final AdminPageDataFactory pages;
+
+        public FakePageController(AdminPageDataFactory pages) {
+            this.pages = pages;
+        }
 
         @com.zrlog.admin.web.annotation.RequiresAction(value = com.zrlog.data.security.AccountAction.SESSION, descriptionKey = "admin.pageData")
         @ResponseBody
         public AdminPageDataResponse<String> page() {
-            return new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)).response("page-data", "", request.getUri());
+            return pages.response("page-data", "", request.getUri());
         }
 
         @com.zrlog.admin.web.annotation.RequiresAction(value = com.zrlog.data.security.AccountAction.SESSION, descriptionKey = "admin.pageData")
@@ -676,7 +709,6 @@ public class AdminPageServiceTest {
     }
 
     private static class FakeAdminResource implements AdminResource {
-
         @Override
         public Set<String> getAdminStaticResourceUris() {
             return Collections.emptySet();

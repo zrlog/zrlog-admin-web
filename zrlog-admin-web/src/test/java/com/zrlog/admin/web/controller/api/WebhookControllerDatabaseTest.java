@@ -29,10 +29,13 @@ import static org.junit.Assert.assertTrue;
 
 public class WebhookControllerDatabaseTest {
 
+    private com.zrlog.common.ZrLogConfig applicationConfig;
+
     @Test
     @SuppressWarnings("unchecked")
     public void shouldReadAndUpdateWebhookConfigThroughRealWebsiteTable() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             AdminPageDataResponse<WebhookConfigResponse> initial =
                     (AdminPageDataResponse<WebhookConfigResponse>) controller(HttpMethod.GET, Map.of(), Map.of(), null)
                             .config();
@@ -56,6 +59,7 @@ public class WebhookControllerDatabaseTest {
     @Test
     public void shouldRotateAcceptAndRevokeWebhookTokenThroughRealWebsiteTable() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             ApiStandardResponse<WebhookTokenResponse> tokenResponse =
                     controller(HttpMethod.POST, Map.of(), Map.of(), null).token();
             String token = tokenResponse.getData().getToken();
@@ -87,6 +91,7 @@ public class WebhookControllerDatabaseTest {
     @Test
     public void shouldRejectWebhookActionsWithWrongMethodOrToken() throws Exception {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
+            applicationConfig = ignored.config();
             assertThrows(ArgsException.class,
                     () -> controller(HttpMethod.GET, Map.of(), Map.of(), null).token());
             assertThrows(PermissionErrorException.class,
@@ -97,6 +102,7 @@ public class WebhookControllerDatabaseTest {
 
     @Test public void personalNotificationsRequireTheSharedPermissionAndTheActualReceivingSwitch() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            applicationConfig = db.config();
             var config = new com.zrlog.admin.business.rest.request.WebhookConfigRequest(); config.setEnabled(true);
             new WebhookService().updateConfig(config);
             var identity = new com.zrlog.admin.business.security.OAuthModels.Identity();
@@ -117,9 +123,9 @@ public class WebhookControllerDatabaseTest {
         }
     }
 
-    private static WebhookController controller(HttpMethod method, Map<String, String> headers,
+    private WebhookController controller(HttpMethod method, Map<String, String> headers,
                                                 Map<String, String> params, String body) throws Exception {
-        WebhookController controller = new WebhookController(new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
+        WebhookController controller = new WebhookController(new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(applicationConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
         Field requestField = Controller.class.getDeclaredField("request");
         requestField.setAccessible(true);
         requestField.set(controller, request(method, headers, params, body));

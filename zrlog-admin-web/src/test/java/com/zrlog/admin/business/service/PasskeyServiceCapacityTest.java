@@ -36,7 +36,7 @@ public class PasskeyServiceCapacityTest {
             long now = System.currentTimeMillis();
             assertTrue(new UserPasskeyChallenge().save("expired", "authentication", null,
                     "{}", now - 1, now - 1_000));
-            PasskeyService service = new PasskeyService(1, com.zrlog.admin.support.ApplicationServicesFixture.siteHost(com.zrlog.common.Constants.zrLogConfig), new com.zrlog.admin.business.service.UserService(java.util.Collections::emptySet));
+            PasskeyService service = new PasskeyService(1, com.zrlog.admin.support.ApplicationServicesFixture.siteHost(db.config()), new com.zrlog.admin.business.service.UserService(java.util.Collections::emptySet));
 
             List<Object> results = runConcurrently(
                     () -> startAuthentication(service),
@@ -60,7 +60,7 @@ public class PasskeyServiceCapacityTest {
                         "seed-public-key", 0, "", "Seed " + index, "seed-aaguid", true, false,
                         "http://localhost:18080", "localhost", System.currentTimeMillis()));
             }
-            PasskeyService service = new PasskeyService(4, com.zrlog.admin.support.ApplicationServicesFixture.siteHost(com.zrlog.common.Constants.zrLogConfig), new com.zrlog.admin.business.service.UserService(java.util.Collections::emptySet));
+            PasskeyService service = new PasskeyService(4, com.zrlog.admin.support.ApplicationServicesFixture.siteHost(db.config()), new com.zrlog.admin.business.service.UserService(java.util.Collections::emptySet));
             PasskeyService.ChallengeState state = new PasskeyService.ChallengeState(
                     "challenge", "localhost", "http://localhost:18080", "user-handle", "Concurrent passkey");
 

@@ -50,7 +50,7 @@ public class AccountAuthorizationTest {
     @Test public void everyRegisteredAdminRouteRequiresAnExplicitAuthenticationPolicy() throws Exception {
         try(InMemoryZrLogDatabase db=InMemoryZrLogDatabase.open()) {
             db.loadAdminWebModules();
-            ServerConfig config=com.zrlog.common.Constants.zrLogConfig.getServerConfig();
+            ServerConfig config=db.config().getServerConfig();
             assertFalse(config.getRouter().getRouterMap().containsKey("/api/admin/knowledge/chat"));
             assertNotNull(config.getRouter().getMethod("/api/admin/article/ai", com.hibegin.http.HttpMethod.POST));
             java.lang.reflect.Method commentAnalyze = AICommentController.class.getMethod("analyze");
@@ -81,7 +81,7 @@ public class AccountAuthorizationTest {
         try(InMemoryZrLogDatabase db=InMemoryZrLogDatabase.open()) {
             db.execute("insert into user(userId,userName,role) values(?,?,?)",2,"writer","author");
             login(db,1,"owner");
-            AdminArticleService service=new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
+            AdminArticleService service=new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(db.config(), com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource)));
             CreateArticleRequest create=new CreateArticleRequest();create.setTitle("Private");create.setTypeId(1L);create.setPrivacy(true);create.setRubbish(true);create.setContent("secret");
             long id=service.create(AdminTokenThreadLocal.getUser(),create).getLogId();
             login(db,2,"editor");

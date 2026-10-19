@@ -17,6 +17,7 @@ import static org.junit.Assert.assertTrue;
 
 public class AdminSseEmitterTest {
 
+
     @Test
     public void shouldWriteSseHeadersAndPayload() throws Exception {
         CapturedResponse capturedResponse = new CapturedResponse();
@@ -70,7 +71,7 @@ public class AdminSseEmitterTest {
                     var request = new com.zrlog.admin.business.rest.request.CreateArticleRequest();
                     request.setTitle("Must not publish"); request.setTypeId(1L); request.setRubbish(false); request.setContent("content");
                     org.junit.Assert.assertThrows(com.zrlog.admin.business.exception.PermissionErrorException.class,
-                            () -> new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(com.zrlog.common.Constants.zrLogConfig, com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(com.zrlog.common.Constants.zrLogConfig), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource))).create(com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser(), request));
+                            () -> new AdminArticleService(db.cacheService(), com.zrlog.admin.support.ApplicationServicesFixture.capability(db.config(), com.zrlog.admin.business.content.ArticleAssistant.class), new com.zrlog.admin.business.service.AdminPageDataFactory(com.zrlog.admin.support.ApplicationServicesFixture.site(db.config()), com.zrlog.admin.support.ApplicationServicesFixture.buildId(com.zrlog.admin.business.AdminConstants.adminResource))).create(com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser(), request));
                     emitter.send("checked", true);
                 });
                 return null;

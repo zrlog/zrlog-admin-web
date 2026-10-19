@@ -69,7 +69,6 @@ public class TagManagementServiceTest {
             db.execute("insert into tag(tagId,text,count) values(?,?,?)", 2, "java", 3);
             db.execute("insert into tag(tagId,text,count) values(?,?,?)", 3, "zrlog", 2);
 
-            com.zrlog.common.Constants.zrLogConfig = null;
             PageData<TagManagementEntryResponse> page =
                     new TagManagementService().find("//localhost/", new PageRequestImpl(1L, 2L), "", false);
             PageData<TagManagementEntryResponse> filtered =

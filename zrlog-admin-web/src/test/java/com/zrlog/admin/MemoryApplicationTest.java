@@ -26,11 +26,9 @@ public class MemoryApplicationTest {
 
     @org.junit.Rule public org.junit.rules.TemporaryFolder temporary = new org.junit.rules.TemporaryFolder();
     private String originalUserDir;
-    private com.zrlog.common.ZrLogConfig previousConfig;
 
     @org.junit.Before public void useIsolatedProject() throws Exception {
         originalUserDir = System.getProperty("user.dir");
-        previousConfig = com.zrlog.common.Constants.zrLogConfig;
         Path source = com.zrlog.test.support.MemoryRuntime.projectRoot();
         Path project = temporary.newFolder("project").toPath();
         Files.createDirectory(project.resolve("conf"));
@@ -42,7 +40,6 @@ public class MemoryApplicationTest {
 
     @org.junit.After public void restoreUserDir() {
         System.setProperty("user.dir", originalUserDir);
-        com.zrlog.common.Constants.zrLogConfig = previousConfig;
     }
 
     private static final Gson GSON = new Gson();
