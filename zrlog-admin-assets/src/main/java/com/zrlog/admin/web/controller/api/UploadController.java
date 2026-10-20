@@ -7,6 +7,7 @@ import com.hibegin.http.server.web.Controller;
 import com.zrlog.admin.business.rest.response.UploadFileResponse;
 import com.zrlog.admin.business.service.UploadService;
 import com.zrlog.admin.web.annotation.RequiresAction;
+import com.zrlog.admin.web.security.AdminRequestIdentity;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.rest.response.ApiStandardResponse;
@@ -22,10 +23,12 @@ public class UploadController extends Controller {
 
     //private static final Logger LOGGER = LoggerUtil.getLogger(UploadController.class);
     private final UploadService uploadService;
+    private final AdminRequestIdentity requestIdentity;
 
     @Inject
-    public UploadController(UploadService uploadService) {
+    public UploadController(UploadService uploadService, AdminRequestIdentity requestIdentity) {
         this.uploadService = uploadService;
+        this.requestIdentity = requestIdentity;
     }
 
     @ResponseBody
@@ -55,7 +58,7 @@ public class UploadController extends Controller {
             throw new ArgsException("imgFile");
         }
         return new ApiStandardResponse<>(uploadService.saveUploadedFile(
-                imgFile, request.getParaToStr("dir"), request.getParaToStr("name"),
+                requestIdentity.current(), imgFile, request.getParaToStr("dir"), request.getParaToStr("name"),
                 getRequest(), AdminTokenThreadLocal.getUser()));
     }
 }

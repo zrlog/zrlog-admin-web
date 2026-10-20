@@ -72,15 +72,15 @@ public class AttachmentStorageTest {
                                             ""));
             AssetsWebSetup storage=new AssetsWebSetup(db.config().getServerConfig(), () -> null);
             byte[] bytes="actual attachment".getBytes(java.nio.charset.StandardCharsets.UTF_8);
-            String url=storage.saveAttachment(bytes,"cover.PNG",request);
+            String url=storage.saveAttachment(account.requestIdentity().current(), bytes,"cover.PNG",request, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser());
             assertTrue(url,url.startsWith("/sub/attached/users/1/"));assertTrue(url.endsWith(".png"));
             assertFalse(url.contains("/sub/sub/"));
             assertArrayEquals(bytes,Files.readAllBytes(PathUtil.getStaticFile(url.substring("/sub".length())).toPath()));
             assertThrows(PermissionErrorException.class,()->DelegatedAccess.withPermissions(Set.of("article.read"),false,
-                    ()->storage.saveAttachment(bytes,"cover.png",request)));
+                    ()->storage.saveAttachment(account.requestIdentity().current(), bytes,"cover.png",request, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser())));
             assertThrows(
                     ArgsException.class,
-                    () -> storage.saveAttachment(bytes, "cover.png/escape", request));
+                    () -> storage.saveAttachment(account.requestIdentity().current(), bytes, "cover.png/escape", request, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser()));
         } finally {
             if(previous==null) System.clearProperty("sws.root.path");else System.setProperty("sws.root.path",previous);
         }

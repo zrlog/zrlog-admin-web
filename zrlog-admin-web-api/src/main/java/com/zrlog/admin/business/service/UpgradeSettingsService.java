@@ -1,12 +1,13 @@
 package com.zrlog.admin.business.service;
 
-import com.hibegin.http.server.api.HttpRequest;
+import com.zrlog.admin.business.audit.AdminAuditContext;
 import com.zrlog.admin.business.rest.request.UpgradeSettingsRequest;
 import com.zrlog.admin.business.rest.response.UpgradeSettingsResponse;
 import com.zrlog.business.rest.base.UpgradeWebSiteInfo;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.updater.docker.DockerUpdaterProtocol;
 import com.zrlog.data.security.AccountAction;
+import com.zrlog.data.security.AccountAccess;
 import com.zrlog.updater.spi.DockerControl;
 import com.zrlog.util.ZrLogUtil;
 
@@ -21,6 +22,7 @@ import java.util.function.Supplier;
 public class UpgradeSettingsService {
     private final WebSiteService webSiteService;
 
+    private final AccountIdentityService identities;
     private final AccountPermissionService permissionService;
 
     private final WebSiteSettingsService settingsService;
@@ -31,21 +33,24 @@ public class UpgradeSettingsService {
             WebSiteSettingsService settingsService,
             Supplier<DockerControl> docker,
             AccountPermissionService permissionService,
+            AccountIdentityService identities,
             WebSiteService webSiteService) {
         this.webSiteService = webSiteService;
 
         this.permissionService = permissionService;
+        this.identities = identities;
 
         this.docker = docker;
         this.settingsService = settingsService;
     }
 
-    public UpgradeSettingsResponse read(String requestedChannel) throws SQLException {
+    public UpgradeSettingsResponse read(AccountAccess actor, String requestedChannel) throws SQLException {
+        actor = authorize(actor);
         UpgradeSettingsResponse response =
                 new UpgradeSettingsResponse(
                         this.webSiteService.upgradeWebSiteInfo(), isDockerMode());
         if (!response.isDockerMode()) { return response; }
-        requireDockerPermission();
+        requireDockerPermission(actor);
         String channel = requestedChannel == null ? channel(response.getUpgradePreview()) : requestedChannel;
         if (!"preview".equals(channel) && !"release".equals(channel)) { throw new ArgsException("channel"); }
         try {
@@ -58,10 +63,11 @@ public class UpgradeSettingsService {
         return response;
     }
 
-    public void save(UpgradeSettingsRequest input, HttpRequest request) throws SQLException {
+    public void save(AccountAccess actor, UpgradeSettingsRequest input, AdminAuditContext audit) throws SQLException {
+        actor = authorize(actor);
         input.doValid();
         boolean docker = isDockerMode();
-        if (docker) { requireDockerPermission(); }
+        if (docker) { requireDockerPermission(actor); }
         if (!docker && input.getDockerRepository() != null) { throw new ArgsException("dockerRepository"); }
         // Persist only the website fields. Never pass response/runtime fields to the generic KV writer.
         UpgradeWebSiteInfo settings = new UpgradeWebSiteInfo();
@@ -70,7 +76,8 @@ public class UpgradeSettingsService {
         settings.setUpgradePackageSource(docker ? null : input.getUpgradePackageSource());
         settingsService.validateUpgrade(settings);
         if (input.getDockerRepository() == null) {
-            settingsService.updateUpgrade(settings, request);
+            identities.revalidate(actor);
+            settingsService.updateUpgrade(settings, audit);
             return;
         }
         DockerControl client = dockerClient();
@@ -80,9 +87,11 @@ public class UpgradeSettingsService {
         if (!repository.isEmpty() && previous.images.stream().noneMatch(image -> repository.equals(image.repository))) {
             throw new ArgsException("dockerRepository");
         }
+        identities.revalidate(actor);
         client.saveSettings(repository, channel);
         try {
-            settingsService.updateUpgrade(settings, request);
+            identities.revalidate(actor);
+            settingsService.updateUpgrade(settings, audit);
         } catch (SQLException | RuntimeException error) {
             try {
                 client.saveSettings(previous.settings.repository, previous.settings.channel);
@@ -96,8 +105,14 @@ public class UpgradeSettingsService {
     protected boolean isDockerMode() { return ZrLogUtil.isDockerMode(); }
     protected DockerControl dockerClient() { return docker.get(); }
 
-    protected void requireDockerPermission() {
-        permissionService.require(AccountAction.SYSTEM_MANAGE);
+    private AccountAccess authorize(AccountAccess actor) {
+        actor = identities.revalidate(actor);
+        permissionService.require(actor, AccountAction.SITE_CONFIGURE);
+        return actor;
+    }
+
+    private void requireDockerPermission(AccountAccess actor) {
+        permissionService.require(actor, AccountAction.SYSTEM_MANAGE);
     }
 
     private String channel(Boolean preview) { return Boolean.TRUE.equals(preview) ? "preview" : "release"; }

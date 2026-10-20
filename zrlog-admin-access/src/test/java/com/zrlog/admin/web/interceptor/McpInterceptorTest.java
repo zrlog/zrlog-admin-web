@@ -11,6 +11,7 @@ import com.hibegin.http.server.config.ServerConfig;
 import com.zrlog.admin.business.content.ArticleAssistant;
 import com.zrlog.admin.business.content.AttachmentStorage;
 import com.zrlog.admin.business.knowledge.ContentToolFactory;
+import com.zrlog.admin.business.security.GrantAuthority;
 import com.zrlog.admin.business.security.OAuthModels.*;
 import com.zrlog.admin.business.security.PersonalTokenModels;
 import com.zrlog.admin.business.service.*;
@@ -135,12 +136,15 @@ public class McpInterceptorTest {
                                                     ApplicationServicesFixture.available(
                                                             db.config(), McpWebSetup.class),
                                                     AccountServicesFixture.component(db.dataSource())
-                                                            .permissions(),
+                                                            .permissions(), AccountServicesFixture.component(db.dataSource())
+                                                            .identities(),
                                                     AccountServicesFixture.component(db.dataSource()).security(),
                                                     tokenResource ->
                                                             new PersonalAccessTokenService(
                                                                     tokenResource,
                                                                     AccountServicesFixture
+                                                                            .component(db.dataSource())
+                                                                            .identities(), AccountServicesFixture
                                                                             .component(db.dataSource())
                                                                             .permissions(),
                                                                     AccountServicesFixture
@@ -148,9 +152,9 @@ public class McpInterceptorTest {
                                                                             .security()),
                                                     AccountServicesFixture.component(db.dataSource()).backend())
                                             .mcpResource(),
-                                    AccountServicesFixture.component(db.dataSource()).permissions(),
+                                    AccountServicesFixture.component(db.dataSource()).identities(), AccountServicesFixture.component(db.dataSource()).permissions(),
                                     AccountServicesFixture.component(db.dataSource()).security())
-                            .create(input)
+                            .create(new GrantAuthority(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), !com.zrlog.admin.business.security.DelegatedAccess.restricted()), input)
                             .token;
             AdminTokenThreadLocal.remove();
             JsonObject created=call(token,"tools/call","{\"name\":\"create_article\",\"arguments\":{\"title\":\"Remote draft\",\"typeId\":1,\"status\":\"draft\",\"content\":\""+"a".repeat(20000)+"\"}}", db.dataSource()).result();
@@ -217,13 +221,16 @@ public class McpInterceptorTest {
                                                         ApplicationServicesFixture.available(
                                                                 db.config(), McpWebSetup.class),
                                                         AccountServicesFixture.component(db.dataSource())
-                                                                .permissions(),
+                                                                .permissions(), AccountServicesFixture.component(db.dataSource())
+                                                                .identities(),
                                                         AccountServicesFixture.component(db.dataSource())
                                                                 .security(),
                                                         tokenResource ->
                                                                 new PersonalAccessTokenService(
                                                                         tokenResource,
                                                                         AccountServicesFixture
+                                                                                .component(db.dataSource())
+                                                                                .identities(), AccountServicesFixture
                                                                                 .component(db.dataSource())
                                                                                 .permissions(),
                                                                         AccountServicesFixture
@@ -232,9 +239,9 @@ public class McpInterceptorTest {
                                                         AccountServicesFixture.component(db.dataSource())
                                                                 .backend())
                                                 .mcpResource(),
-                                        AccountServicesFixture.component(db.dataSource()).permissions(),
+                                        AccountServicesFixture.component(db.dataSource()).identities(), AccountServicesFixture.component(db.dataSource()).permissions(),
                                         AccountServicesFixture.component(db.dataSource()).security())
-                                .create(input)
+                                .create(new GrantAuthority(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), !com.zrlog.admin.business.security.DelegatedAccess.restricted()), input)
                                 .token;
             }
             AdminTokenThreadLocal.remove();
@@ -305,20 +312,21 @@ public class McpInterceptorTest {
                                                 ::configured,
                                         ApplicationServicesFixture.available(
                                                 applicationConfig, McpWebSetup.class),
-                                        AccountServicesFixture.component(testDataSource).permissions(),
+                                        AccountServicesFixture.component(testDataSource).permissions(), AccountServicesFixture.component(testDataSource).identities(),
                                         AccountServicesFixture.component(testDataSource).security(),
                                         tokenResource ->
                                                 new PersonalAccessTokenService(
                                                         tokenResource,
                                                         AccountServicesFixture.component(testDataSource)
+                                                                .identities(), AccountServicesFixture.component(testDataSource)
                                                                 .permissions(),
                                                         AccountServicesFixture.component(testDataSource)
                                                                 .security()),
                                         AccountServicesFixture.component(testDataSource).backend())
                                 .mcpResource(),
-                        AccountServicesFixture.component(testDataSource).permissions(),
+                        AccountServicesFixture.component(testDataSource).identities(), AccountServicesFixture.component(testDataSource).permissions(),
                         AccountServicesFixture.component(testDataSource).security())
-                .create(request)
+                .create(new GrantAuthority(AccountServicesFixture.component(testDataSource).requestIdentity().current(), !com.zrlog.admin.business.security.DelegatedAccess.restricted()), request)
                 .token;
     }
 
@@ -334,28 +342,28 @@ public class McpInterceptorTest {
                 new OAuthService(
                         ApplicationServicesFixture.backend(applicationConfig)::configured,
                         ApplicationServicesFixture.available(applicationConfig, McpWebSetup.class),
-                        AccountServicesFixture.component(testDataSource).permissions(),
+                        AccountServicesFixture.component(testDataSource).permissions(), AccountServicesFixture.component(testDataSource).identities(),
                         AccountServicesFixture.component(testDataSource).security(),
                         tokenResource ->
                                 new PersonalAccessTokenService(
                                         tokenResource,
-                                        AccountServicesFixture.component(testDataSource).permissions(),
+                                        AccountServicesFixture.component(testDataSource).identities(), AccountServicesFixture.component(testDataSource).permissions(),
                                         AccountServicesFixture.component(testDataSource).security()),
                         AccountServicesFixture.component(testDataSource).backend());
         Client client = new Client(); client.name = "MCP language test"; client.redirectUris = List.of("http://127.0.0.1:3000/callback");
-        client = oauth.register(client);
+        client = oauth.register(AccountServicesFixture.component(testDataSource).requestIdentity().current(), client);
         String verifier = OAuthService.random();
         AuthorizationRequest request = new AuthorizationRequest();
         request.client_id = client.clientId; request.redirect_uri = client.redirectUris.get(0);
         request.response_type = "code"; request.scope = scopes; request.resource = oauth.mcpResource();
         request.state = "language-test"; request.code_challenge = OAuthService.hash(verifier); request.code_challenge_method = "S256";
         String requestId = OAuthInterceptor.parameters(URI.create(oauth.authorize(request)).getRawQuery()).get("request_id");
-        Consent consent = oauth.consent(requestId);
+        Consent consent = oauth.consent(new GrantAuthority(AccountServicesFixture.component(testDataSource).requestIdentity().current(), !com.zrlog.admin.business.security.DelegatedAccess.restricted()), AdminTokenThreadLocal.getUser().getSessionId(), requestId);
         Decision decision = new Decision(); decision.requestId = requestId; decision.csrf = consent.csrf;
         decision.approve = true; decision.scopes = consent.availableScopes;
         TokenRequest exchange = new TokenRequest(); exchange.grant_type = "authorization_code";
         exchange.client_id = client.clientId; exchange.redirect_uri = request.redirect_uri;
-        exchange.code = OAuthInterceptor.parameters(URI.create(oauth.decide(decision).redirectUri).getRawQuery()).get("code");
+        exchange.code = OAuthInterceptor.parameters(URI.create(oauth.decide(new GrantAuthority(AccountServicesFixture.component(testDataSource).requestIdentity().current(), !com.zrlog.admin.business.security.DelegatedAccess.restricted()), AdminTokenThreadLocal.getUser().getSessionId(), decision).redirectUri).getRawQuery()).get("code");
         exchange.code_verifier = verifier; exchange.resource = request.resource;
         return oauth.token(exchange).access_token;
     }
@@ -389,8 +397,7 @@ public class McpInterceptorTest {
                         new AdminPageDataFactory(
                                 ApplicationServicesFixture.site(applicationConfig),
                                 () -> "test",
-                                ApplicationServicesFixture.messages(testDataSource),
-                                AccountServicesFixture.component(testDataSource).permissions()));
+                                ApplicationServicesFixture.messages(testDataSource)));
         var data =
                 DaggerDataComponent.factory()
                         .create(

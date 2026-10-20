@@ -25,7 +25,7 @@ public class AIConversationServiceTest {
                         ApplicationServicesFixture.websiteKv(null),
                         () -> { throw new IllegalStateException("Database is unavailable in this test"); },
                         new AIFileService(),
-                        AIServiceDependencies.approvals(null));
+                        AIServiceDependencies.approvals(null)).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId()));
         AIWebSiteInfoWithAIMessages info = new AIWebSiteInfoWithAIMessages();
 
         service.fillAiMessages(info, Map.of("ai_chat_message_7",
@@ -48,7 +48,7 @@ public class AIConversationServiceTest {
                         ApplicationServicesFixture.websiteKv(null),
                         () -> { throw new IllegalStateException("Database is unavailable in this test"); },
                         new AIFileService(),
-                        AIServiceDependencies.approvals(null));
+                        AIServiceDependencies.approvals(null)).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId()));
         List<AIResponseEntry.AIContentEntry> messages = new ArrayList<>();
         messages.add(new AIResponseEntry.AIContentEntry("user", "question"));
 
@@ -69,7 +69,7 @@ public class AIConversationServiceTest {
                         ApplicationServicesFixture.websiteKv(null),
                         () -> { throw new IllegalStateException("Database is unavailable in this test"); },
                         new AIFileService(),
-                        AIServiceDependencies.approvals(null));
+                        AIServiceDependencies.approvals(null)).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId()));
         AIResponseEntry.AIContentEntry existing = new AIResponseEntry.AIContentEntry("user", "existing");
         existing.setMessageId("existing-id");
         AIResponseEntry.AIContentEntry missing = new AIResponseEntry.AIContentEntry("assistant", "missing");

@@ -6,11 +6,9 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.hibegin.common.util.LoggerUtil;
 import com.hibegin.common.util.StringUtils;
-import com.hibegin.http.server.api.HttpRequest;
+import com.zrlog.admin.business.audit.AdminAuditContext;
 import com.zrlog.admin.business.rest.response.AdminAuditLogEntryResponse;
 import com.zrlog.admin.business.type.AdminAuditAction;
-import com.zrlog.admin.web.token.AdminTokenThreadLocal;
-import com.zrlog.blog.web.util.WebTools;
 import com.zrlog.business.service.WebsiteKvService;
 import com.zrlog.util.I18nUtil;
 import com.zrlog.util.UserAgentUtils;
@@ -40,26 +38,26 @@ public class AdminAuditService {
     private static final Gson GSON = new Gson();
     private static final Logger LOGGER = LoggerUtil.getLogger(AdminAuditService.class);
 
-    public void record(HttpRequest request, AdminAuditAction action) {
-        record(request, action, "");
+    public void record(AdminAuditContext context, AdminAuditAction action) {
+        record(context, action, "");
     }
 
-    public void record(HttpRequest request, AdminAuditAction action, String content) {
+    public void record(AdminAuditContext context, AdminAuditAction action, String content) {
         try {
             WebsiteKvService kvService = this.websiteKvService;
             String json = kvService.getString(AUDIT_LOG_KEY);
             List<AdminAuditLogEntryResponse> logs = readLogs(json);
 
             AdminAuditLogEntryResponse newLog = new AdminAuditLogEntryResponse();
-            newLog.setActorUserId(AdminTokenThreadLocal.getUserId());
+            newLog.setActorUserId(context.getActorUserId());
             newLog.setTimestamp(System.currentTimeMillis());
-            newLog.setIp(WebTools.getRealIp(request));
+            newLog.setIp(context.getIp());
             newLog.setAction(action.name());
             newLog.setType(action.getType());
             newLog.setContent(sanitizeContent(action, content));
 
-            boolean mcpRequest = "/mcp".equals(request.getUri());
-            String uaString = request.getHeader("User-Agent");
+            boolean mcpRequest = "/mcp".equals(context.getUri());
+            String uaString = context.getUserAgent();
             if (uaString != null && !uaString.isBlank()) {
                 UserAgentUtils.UserAgentInfo uaInfo = UserAgentUtils.parse(uaString);
                 newLog.setOs(uaInfo.getOs());
@@ -87,12 +85,12 @@ public class AdminAuditService {
 
             if (!kvService.putString(AUDIT_LOG_KEY, serializeLogs(logs))) {
                 LOGGER.warning("Record admin audit log failed: action=" + action.name()
-                        + ", uri=" + request.getUri() + ", reason=no rows affected");
+                        + ", uri=" + context.getUri() + ", reason=no rows affected");
             }
         } catch (SQLException e) {
             // The business operation is already saved, but an audit failure must remain diagnosable.
             LOGGER.log(Level.WARNING, "Record admin audit log failed: action=" + action.name()
-                    + ", uri=" + request.getUri(), e);
+                    + ", uri=" + context.getUri(), e);
         }
     }
 

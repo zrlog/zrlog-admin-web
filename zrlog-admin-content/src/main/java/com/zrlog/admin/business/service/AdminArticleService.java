@@ -13,7 +13,6 @@ import com.zrlog.admin.business.rest.request.UpdateArticleRequest;
 import com.zrlog.admin.business.rest.response.*;
 import com.zrlog.common.exception.ResourceLockedException;
 import com.zrlog.common.exception.UnknownException;
-import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.data.service.DistributedLock;
@@ -36,6 +35,7 @@ import java.util.function.Supplier;
 public class AdminArticleService {
     private final DistributedLock.Factory locks;
     private final Supplier<ArticleAssistant> assistant;
+    private final AccountIdentityService identities;
     private final AccountPermissionService permissionService;
     private final UserPreferenceService userPreferenceService;
     private final ArticleVersionService articleVersionService;
@@ -46,6 +46,7 @@ public class AdminArticleService {
     public AdminArticleService(
             Supplier<ArticleAssistant> assistant,
             AccountPermissionService permissionService,
+            AccountIdentityService identities,
             UserPreferenceService userPreferenceService,
             ArticleVersionService articleVersionService,
             ArticlePinningService articlePinningService,
@@ -53,6 +54,7 @@ public class AdminArticleService {
             DistributedLock.Factory locks) {
         this.assistant = Objects.requireNonNull(assistant);
         this.permissionService = permissionService;
+        this.identities = identities;
         this.userPreferenceService = userPreferenceService;
         this.articleVersionService = articleVersionService;
         this.articlePinningService = articlePinningService;
@@ -81,17 +83,17 @@ public class AdminArticleService {
 
     // Re-read and recompute inside the same lock as editor saves. Never apply a scanned snapshot.
     int replaceResourceReferences(
-            AdminTokenVO user,
+            AccountAccess actor,
             Integer logId,
             String from,
             String to,
             boolean prefix,
             ArticleResourceReferences references)
             throws SQLException {
-        AccountAccess access = permissionService.account(user);
-        if (!AccountAction.FILE_MANAGE.allowed(access)) throw new PermissionErrorException();
         Lock lock = lockForWrite(logId);
         try {
+            AccountAccess access = identities.revalidate(actor);
+            permissionService.require(access, AccountAction.FILE_MANAGE);
             Map<String, Object> oldLog = permissionService.article(access, logId, false);
             Map<String, Object> updates = references.replace(oldLog, from, to, prefix);
             if (updates.isEmpty()) return 0;
@@ -103,7 +105,7 @@ public class AdminArticleService {
             }
             updates.put("last_update_date", new Date());
             commitUpdate(
-                    oldLog, updates, ((Number) oldLog.get("version")).intValue(), user.getUserId());
+                    oldLog, updates, ((Number) oldLog.get("version")).intValue(), actor.getUserId());
             return changedFields;
         } finally {
             lock.unlock();
@@ -135,35 +137,36 @@ public class AdminArticleService {
         articleVersionService.recordReversePatch(oldLog, saved, userId);
     }
 
-    public CreateOrUpdateArticleResponse create(AdminTokenVO adminTokenVO, CreateArticleRequest createArticleRequest) throws SQLException {
-        CreateOrUpdateArticleResponse response = save(adminTokenVO, createArticleRequest);
+    public CreateOrUpdateArticleResponse create(AccountAccess actor, CreateArticleRequest createArticleRequest) throws SQLException {
+        CreateOrUpdateArticleResponse response = save(actor, createArticleRequest);
         if (!createArticleRequest.isPreserveDraftAiMessages()) {
-            Objects.requireNonNullElse(assistant.get(), ArticleAssistant.NONE).articleCreated(response.getLogId(), adminTokenVO.getUserId());
+            Objects.requireNonNullElse(assistant.get(), ArticleAssistant.NONE).articleCreated(response.getLogId(), actor.getUserId());
         }
         return response;
     }
 
-    public CreateOrUpdateArticleResponse update(AdminTokenVO adminTokenVO, UpdateArticleRequest updateArticleRequest) throws SQLException {
-        return save(adminTokenVO, updateArticleRequest);
+    public CreateOrUpdateArticleResponse update(AccountAccess actor, UpdateArticleRequest updateArticleRequest) throws SQLException {
+        return save(actor, updateArticleRequest);
     }
 
-    private CreateOrUpdateArticleResponse save(AdminTokenVO adminTokenVO, CreateArticleRequest createArticleRequest) throws SQLException {
+    private CreateOrUpdateArticleResponse save(AccountAccess actor, CreateArticleRequest createArticleRequest) throws SQLException {
         if (Objects.isNull(createArticleRequest) || StringUtils.isEmpty(createArticleRequest.getTitle())) {
             throw new ArticleMissingTitleException();
         }
         if (Objects.isNull(createArticleRequest.getTypeId()) || createArticleRequest.getTypeId() < 1) {
             throw new ArticleMissingTypeException();
         }
-        AccountAccess access = permissionService.account(adminTokenVO);
         createArticleRequest.validateArrangePlugin();
-        if ("contributor".equals(access.getRole()) && !createArticleRequest.isRubbish())
-            throw new PermissionErrorException();
-        if (!createArticleRequest.isRubbish()
-                && !createArticleRequest.isPrivacy()
-                && !access.canPublish()) throw new PermissionErrorException();
         Integer logId = (createArticleRequest instanceof UpdateArticleRequest ? ((UpdateArticleRequest) createArticleRequest).getLogId() : null);
         Lock lock = lockForWrite(logId);
         try {
+            AccountAccess access = identities.revalidate(actor);
+            permissionService.require(access, createArticleRequest instanceof UpdateArticleRequest
+                    ? AccountAction.ARTICLE_UPDATE : AccountAction.ARTICLE_CREATE);
+            if ("contributor".equals(access.getRole()) && !createArticleRequest.isRubbish())
+                throw new PermissionErrorException();
+            if (!createArticleRequest.isRubbish() && !createArticleRequest.isPrivacy() && !access.canPublish())
+                throw new PermissionErrorException();
             Map<String, Object> oldLog = null;
             if (createArticleRequest instanceof UpdateArticleRequest) {
                 oldLog =
@@ -184,21 +187,21 @@ public class AdminArticleService {
                 return articlePinningService.withOrderLock(
                         () ->
                                 persistArticle(
-                                        adminTokenVO, createArticleRequest, previousLog, true));
+                                        actor, createArticleRequest, previousLog, true));
             }
-            return persistArticle(adminTokenVO, createArticleRequest, previousLog, false);
+            return persistArticle(actor, createArticleRequest, previousLog, false);
         } finally {
             lock.unlock();
         }
 
     }
 
-    public boolean delete(Long logId) throws SQLException {
-        AccountAccess access = permissionService.current();
-        if (!access.scopes().contains("articles:delete")) throw new PermissionErrorException();
+    public boolean delete(AccountAccess actor, Long logId) throws SQLException {
         boolean deleted;
         Lock lock = lockForWrite(Math.toIntExact(logId));
         try {
+            AccountAccess access = identities.revalidate(actor);
+            permissionService.require(access, AccountAction.ARTICLE_DELETE);
             permissionService.article(access, logId, false);
             deleted =
                     articlePinningService.withOrderLock(
@@ -219,17 +222,17 @@ public class AdminArticleService {
         return deleted;
     }
 
-    private CreateOrUpdateArticleResponse persistArticle(AdminTokenVO adminTokenVO,
+    private CreateOrUpdateArticleResponse persistArticle(AccountAccess actor,
                                                          CreateArticleRequest createArticleRequest,
                                                          Map<String, Object> oldLog,
                                                          boolean normalizePinning) throws SQLException {
-        Map<String, Object> log = getLog(adminTokenVO, createArticleRequest, oldLog);
+        Map<String, Object> log = getLog(actor, createArticleRequest, oldLog);
         if (createArticleRequest instanceof UpdateArticleRequest) {
             UpdateArticleRequest updateRequest = (UpdateArticleRequest) createArticleRequest;
             Map<String, Object> updates = new HashMap<>(log);
             updates.remove("logId");
             if (!normalizePinning) updates.remove("sticky");
-            commitUpdate(oldLog, updates, updateRequest.getVersion(), adminTokenVO.getUserId());
+            commitUpdate(oldLog, updates, updateRequest.getVersion(), actor.getUserId());
             if (normalizePinning) {
                 this.articlePinningService.normalizeOrderLocked();
             }
@@ -254,7 +257,7 @@ public class AdminArticleService {
                 && !ResultValueConvertUtils.toBoolean(log.get("rubbish"));
     }
 
-    private Map<String, Object> getLog(AdminTokenVO adminTokenVO, CreateArticleRequest createArticleRequest,
+    private Map<String, Object> getLog(AccountAccess actor, CreateArticleRequest createArticleRequest,
                                        Map<String, Object> oldLog) throws SQLException {
         Map<String, Object> log;
         long articleId;
@@ -283,7 +286,7 @@ public class AdminArticleService {
         }
         log.put("markdown", createArticleRequest.getMarkdown());
         if (!(createArticleRequest instanceof UpdateArticleRequest)) {
-            log.put("userId", adminTokenVO.getUserId());
+            log.put("userId", actor.getUserId());
         }
         log.put("typeId", createArticleRequest.getTypeId());
         log.put("last_update_date", new Date());
@@ -304,7 +307,7 @@ public class AdminArticleService {
         // 自动摘要
         if (StringUtils.isEmpty(parseInputDigest) && Objects.equals(createArticleRequest.isRubbish(), false)) {
             long autoSize =
-                    this.userPreferenceService.effective(adminTokenVO.getUserId())
+                    this.userPreferenceService.effective(actor)
                             .editor
                             .autoDigestLength;
             if (autoSize < 0) {

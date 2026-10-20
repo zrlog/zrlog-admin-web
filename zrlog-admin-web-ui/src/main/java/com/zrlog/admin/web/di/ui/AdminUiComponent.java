@@ -2,6 +2,7 @@ package com.zrlog.admin.web.di.ui;
 
 import com.zrlog.admin.business.service.*;
 import com.zrlog.admin.util.AdminStaticSiteSsePublisher;
+import com.zrlog.admin.web.page.AdminPageRequestHandler;
 import com.zrlog.admin.web.controller.api.AdminStaticSiteController;
 import com.zrlog.admin.web.controller.page.*;
 import com.zrlog.admin.web.di.AdminComponent;
@@ -35,6 +36,8 @@ import java.util.function.Supplier;
         })
 public interface AdminUiComponent {
     AdminPageService pages();
+
+    AdminPageRequestHandler pageRequests();
 
     AdminPageController pageController();
 

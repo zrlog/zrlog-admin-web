@@ -91,11 +91,13 @@ public class AssetsWebSetup implements AvatarStorage, AttachmentStorage {
     @Override public String saveAvatar(byte[] bytes, String extension, com.hibegin.http.server.api.HttpRequest request) {
         return components()
                 .uploads()
-                .saveBytes(bytes, extension, "image", request, AdminTokenThreadLocal.getUser())
+                .saveAvatarBytes(components().requestIdentity().current(), bytes, extension, request, AdminTokenThreadLocal.getUser())
                 .getUrl();
     }
-    @Override public String saveAttachment(byte[] bytes, String filename, com.hibegin.http.server.api.HttpRequest request) throws Exception {
-        components().permissions().require(AccountAction.ASSET_UPLOAD);
+    @Override public String saveAttachment(com.zrlog.data.security.AccountAccess actor, byte[] bytes, String filename,
+                                            com.hibegin.http.server.api.HttpRequest request,
+                                            com.zrlog.common.vo.AdminTokenVO credential) throws Exception {
+        components().permissions().require(actor, AccountAction.ASSET_UPLOAD);
         if (ZrLogUtil.isPreviewMode()) throw new PermissionErrorException();
         String extension =
                 filename.substring(filename.lastIndexOf('.') + 1).toLowerCase(Locale.ROOT);
@@ -106,11 +108,12 @@ public class AssetsWebSetup implements AvatarStorage, AttachmentStorage {
             return components()
                     .uploads()
                     .saveUploadedFile(
+                            actor,
                             temporary.toFile(),
                             "mcp",
                             null,
                             request,
-                            AdminTokenThreadLocal.getUser())
+                            credential)
                     .getUrl();
         } finally { java.nio.file.Files.deleteIfExists(temporary); }
     }

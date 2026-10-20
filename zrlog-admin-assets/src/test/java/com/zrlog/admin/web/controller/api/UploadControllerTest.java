@@ -166,9 +166,9 @@ public class UploadControllerTest {
                 new UploadController(
                         new UploadService(
                                 () -> null,
-                                AccountServicesFixture.component(source).permissions(),
+                                AccountServicesFixture.component(source).identities(), AccountServicesFixture.component(source).permissions(),
                                 new DbFileService(
-                                        ApplicationServicesFixture.websiteKv(source), () -> new WebSite(source))));
+                                        ApplicationServicesFixture.websiteKv(source), () -> new WebSite(source))), AccountServicesFixture.component(source).requestIdentity());
         setControllerField(controller, "request", request(params, files));
         setControllerField(controller, "response", response());
         return controller;

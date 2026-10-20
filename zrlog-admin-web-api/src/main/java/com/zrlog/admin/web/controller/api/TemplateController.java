@@ -1,5 +1,7 @@
 package com.zrlog.admin.web.controller.api;
 
+import com.zrlog.admin.web.security.AdminRequestIdentity;
+import com.zrlog.admin.web.audit.AdminAuditContexts;
 import com.hibegin.common.util.EnvKit;
 import com.hibegin.common.util.StringUtils;
 import com.hibegin.http.HttpMethod;
@@ -33,6 +35,8 @@ import java.util.List;
 import java.util.Objects;
 
 public class TemplateController extends BaseController {
+    private final AdminRequestIdentity requestIdentity;
+
     private final AdminPageDataFactory pages;
 
 
@@ -40,7 +44,9 @@ public class TemplateController extends BaseController {
     private final TemplateService templateService;
 
     @Inject
-    public TemplateController(TemplateService templateService, AdminPageDataFactory pages) {
+    public TemplateController(TemplateService templateService, AdminPageDataFactory pages,
+            AdminRequestIdentity requestIdentity) {
+        this.requestIdentity = requestIdentity;
         this.pages = pages;
         this.templateService = templateService;
     }
@@ -53,7 +59,7 @@ public class TemplateController extends BaseController {
     public ApiStandardResponse<Void> apply() throws SQLException {
         ApiStandardResponse<Void> apiStandardResponse = new ApiStandardResponse<>();
         String template = AdminTemplateUtils.loadTemplatePathByRequestInfo(this);
-        if (templateService.apply(template, request)) {
+        if (templateService.apply(template, AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()))) {
             Cookie cookie = new Cookie();
             cookie.setName("template");
             cookie.setValue("");
@@ -89,7 +95,7 @@ public class TemplateController extends BaseController {
     @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "template.delete")
     public DeleteResponse delete() {
         String shortTemplate = getParamWithEmptyCheck("shortTemplate");
-        return templateService.delete(shortTemplate, request);
+        return templateService.delete(shortTemplate, AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()));
     }
 
     @ResponseBody
@@ -105,7 +111,7 @@ public class TemplateController extends BaseController {
         }
         String shortTemplate = getParamWithEmptyCheck("shortTemplate");
         boolean overwrite = Boolean.parseBoolean(request.getParaToStr("overwrite", "false"));
-        return templateService.uploadAndRecord(shortTemplate, overwrite, uploadFile, request);
+        return templateService.uploadAndRecord(shortTemplate, overwrite, uploadFile, AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()));
     }
 
     @RefreshCache(updateStaticSites = StaticSiteType.BLOG)
@@ -118,7 +124,7 @@ public class TemplateController extends BaseController {
         String template = param.getTemplate();
         if (StringUtils.isNotEmpty(template)) {
             param.remove("template");
-            return templateService.saveAndRecord(template, param, request);
+            return templateService.saveAndRecord(template, param, AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()));
         }
         return new UpdateRecordResponse();
     }
@@ -127,7 +133,7 @@ public class TemplateController extends BaseController {
     @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "template.readConfig")
     public AdminPageDataResponse<TemplateVO> configParams() throws IOException {
         String template = AdminTemplateUtils.loadTemplatePathByRequestInfo(this);
-        return pages.response(templateService.loadTemplateConfig(template, request), "", request.getUri());
+        return pages.response(requestIdentity.optional(), templateService.loadTemplateConfig(template, request), "", request.getUri());
     }
 
     @ResponseBody
@@ -140,7 +146,7 @@ public class TemplateController extends BaseController {
     @ResponseBody
     @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "template.list")
     public AdminPageDataResponse<List<TemplateEntryResponse>> index() throws IOException {
-        return pages.response(templateService.getAllTemplates(templateService.getTemplatePath(getRequest())),
+        return pages.response(requestIdentity.optional(), templateService.getAllTemplates(templateService.getTemplatePath(getRequest())),
                 "", request.getUri());
     }
 
@@ -158,6 +164,6 @@ public class TemplateController extends BaseController {
         }
         TemplateDownloadResponse downloadResponse = templateService.templateCenter(
                 AdminTokenThreadLocal.getUserProtocol(), host, request.getContextPath());
-        return pages.response(downloadResponse, "", request.getUri());
+        return pages.response(requestIdentity.optional(), downloadResponse, "", request.getUri());
     }
 }

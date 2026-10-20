@@ -12,6 +12,7 @@ import com.zrlog.admin.business.service.AdminCommentService;
 import com.zrlog.admin.business.service.AdminPageDataFactory;
 import com.zrlog.admin.web.annotation.RefreshCache;
 import com.zrlog.admin.web.annotation.RequiresAction;
+import com.zrlog.admin.web.security.AdminRequestIdentity;
 import com.zrlog.business.plugin.type.StaticSiteType;
 import com.zrlog.business.util.ControllerUtil;
 import com.zrlog.common.controller.BaseController;
@@ -25,8 +26,10 @@ import java.sql.SQLException;
 public class CommentController extends BaseController {
 
     @Inject
-    public CommentController(AdminPageDataFactory pages, AdminCommentService commentService) {
+    public CommentController(AdminPageDataFactory pages, AdminCommentService commentService,
+                             AdminRequestIdentity requestIdentity) {
         this.commentService = commentService;
+        this.requestIdentity = requestIdentity;
 
         this.pages = pages;
     }
@@ -34,33 +37,36 @@ public class CommentController extends BaseController {
     private final AdminPageDataFactory pages;
 
     private final AdminCommentService commentService;
+    private final AdminRequestIdentity requestIdentity;
 
     @RefreshCache(updateStaticSites = StaticSiteType.BLOG)
     @ResponseBody
     @RequiresAction(value = AccountAction.COMMENT_MANAGE, descriptionKey = "comment.delete")
     @RequestMethod(method = HttpMethod.POST)
     public DeleteResponse delete() throws SQLException {
-        return commentService.delete(getParamWithEmptyCheck("id").split(","));
+        return commentService.delete(requestIdentity.current(), getParamWithEmptyCheck("id").split(","));
     }
 
     @ResponseBody
     @RequiresAction(value = AccountAction.COMMENT_MANAGE, descriptionKey = "comment.read")
     @RequestMethod(method = HttpMethod.POST)
-    public UpdateRecordResponse read() {
-        return commentService.read(getRequestBodyWithNullCheck(ReadCommentRequest.class));
+    public UpdateRecordResponse read() throws SQLException {
+        return commentService.read(requestIdentity.current(), getRequestBodyWithNullCheck(ReadCommentRequest.class));
     }
 
     @ResponseBody
     @RequestMethod(method = HttpMethod.POST)
     @RequiresAction(value = AccountAction.COMMENT_MANAGE, descriptionKey = "comment.readAll")
     public UpdateRecordResponse readAll() throws SQLException {
-        commentService.readAll();
+        commentService.readAll(requestIdentity.current());
         return new UpdateRecordResponse(true);
     }
 
     @ResponseBody
     @RequiresAction(value = AccountAction.COMMENT_MANAGE, descriptionKey = "comment.list")
     public AdminPageDataResponse<PageData<CommentDTO>> index() throws SQLException {
-        return pages.response(commentService.page(ControllerUtil.getPageRequest(this)), "", request.getUri());
+        var actor = requestIdentity.current();
+        return new AdminPageDataResponse<>(commentService.page(actor, ControllerUtil.getPageRequest(this)), "",
+                pages.metadata(actor, request.getUri()));
     }
 }

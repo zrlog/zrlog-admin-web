@@ -64,7 +64,7 @@ public class AIChatServiceTest {
             for (int turn = 1; turn <= 3; turn++) {
                 ChatRequest input = new ChatRequest(); input.articleId = 36; input.input = "Question " + turn;
                 // Each browser request creates a new service and restores history from storage.
-                String payload = new String(new NoSleepAIChatService(applicationConfig, client).start(input)
+                String payload = new String(new NoSleepAIChatService(applicationConfig, client).start(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), input, com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(db.dataSource()), com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser())
                         .getInputStream().readAllBytes(), StandardCharsets.UTF_8);
                 assertTrue(payload, payload.contains("\"type\":\"done\""));
                 assertFalse(payload, payload.contains("\"type\":\"error\""));
@@ -111,7 +111,7 @@ public class AIChatServiceTest {
                     OpenAIResponsesAdapterTest.frame("{\"type\":\"response.reasoning_summary_text.delta\",\"item_id\":\"rs_1\",\"summary_index\":0,\"delta\":\"检查文章🙂\"}")
                     + OpenAIResponsesAdapterTest.frame("{\"type\":\"response.output_text.delta\",\"delta\":\"Answer\"}")
                     + OpenAIResponsesAdapterTest.terminal(OpenAIResponsesAdapterTest.REASONING + "," + OpenAIResponsesAdapterTest.MESSAGE)));
-            String payload = new String(new NoSleepAIChatService(applicationConfig, client).startStreamResponse("Question", 36L)
+            String payload = new String(new NoSleepAIChatService(applicationConfig, client).startStreamResponse(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), "Question", 36L, com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(db.dataSource()), com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser())
                     .getInputStream().readAllBytes(), StandardCharsets.UTF_8);
             String stored = String.valueOf(db.queryOne("select value from website where name=?", "ai_chat_message_u1_36").get("value"));
             assertEquals("https://gateway.example/v1/responses?route=test", client.requests.get(0).uri().toString());
@@ -139,7 +139,7 @@ public class AIChatServiceTest {
                     .replace("\"status\":\"completed\",\"output\"", "\"status\":\"incomplete\",\"incomplete_details\":{\"reason\":\"max_output_tokens\"},\"output\"");
             FakeHttpClient client = new FakeHttpClient(streamResponse(OpenAIResponsesAdapterTest.frame("{\"type\":\"response.incomplete\",\"response\":" + partial + "}")),
                     streamResponse(OpenAIResponsesAdapterTest.terminal(OpenAIResponsesAdapterTest.MESSAGE.replace("Answer", " continued"))));
-            String payload = new String(new NoSleepAIChatService(applicationConfig, client).startStreamResponse("Question", 36L)
+            String payload = new String(new NoSleepAIChatService(applicationConfig, client).startStreamResponse(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), "Question", 36L, com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(db.dataSource()), com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser())
                     .getInputStream().readAllBytes(), StandardCharsets.UTF_8);
             assertTrue(payload, payload.contains("\"content\":\"Answer continued\""));
             assertTrue(client.requestBodies.get(1).toString().contains("opaque-state"));
@@ -164,9 +164,9 @@ public class AIChatServiceTest {
                             + "data: [DONE]\n\n"));
             AIChatService service = new NoSleepAIChatService(applicationConfig, client);
 
-            AIStreamResponse first = service.startStreamResponse("Question", 36L);
+            AIStreamResponse first = service.startStreamResponse(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), "Question", 36L, com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(db.dataSource()), com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser());
             String firstPayload = new String(first.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-            AIStreamResponse second = service.startStreamResponse("Question", 37L, null, null);
+            AIStreamResponse second = service.startStreamResponse(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), "Question", 37L, null, null, com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(db.dataSource()), com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser());
             String secondPayload = new String(second.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
 
             assertEquals(200, first.getStatusCode());
@@ -197,7 +197,7 @@ public class AIChatServiceTest {
                             + "data: [DONE]\n\n"));
             AIChatService service = new NoSleepAIChatService(applicationConfig, client);
 
-            AIStreamResponse response = service.startStreamResponse("Question", 39L);
+            AIStreamResponse response = service.startStreamResponse(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), "Question", 39L, com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(db.dataSource()), com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser());
             String payload = new String(response.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
             String stored = String.valueOf(db.queryOne(
                     "select value from website where name=?", "ai_chat_message_u1_39").get("value"));
@@ -220,7 +220,7 @@ public class AIChatServiceTest {
                             + "data: {\"error\":null,\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}],"
                             + "\"usage\":{\"completion_tokens\":3}}\n\n"
                             + "data: [DONE]\n\n"));
-            String payload = new String(new NoSleepAIChatService(applicationConfig, client).startStreamResponse("Question", 36L)
+            String payload = new String(new NoSleepAIChatService(applicationConfig, client).startStreamResponse(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), "Question", 36L, com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(db.dataSource()), com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser())
                     .getInputStream().readAllBytes(), StandardCharsets.UTF_8);
             assertTrue(payload, payload.contains("\"type\":\"delta\""));
             assertTrue(payload, payload.contains("\"type\":\"answer\""));
@@ -245,7 +245,7 @@ public class AIChatServiceTest {
                             + "data: [DONE]\n\n"));
             AIChatService service = new NoSleepAIChatService(applicationConfig, client);
 
-            AIStreamResponse response = service.startStreamResponse("Question", 33L, null, null);
+            AIStreamResponse response = service.startStreamResponse(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), "Question", 33L, null, null, com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(db.dataSource()), com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser());
             String payload = new String(response.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
             String stored = String.valueOf(db.queryOne(
                     "select value from website where name=?", "ai_chat_message_u1_33").get("value"));
@@ -279,7 +279,7 @@ public class AIChatServiceTest {
                             + "data: {\"choices\":[{\"finish_reason\":\"length\"}]}\n\n"));
             AIChatService service = new NoSleepAIChatService(applicationConfig, client);
 
-            AIStreamResponse response = service.startStreamResponse("Question", 38L, null, null);
+            AIStreamResponse response = service.startStreamResponse(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), "Question", 38L, null, null, com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(db.dataSource()), com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser());
             String payload = new String(response.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
 
             assertEquals(200, response.getStatusCode());
@@ -304,7 +304,7 @@ public class AIChatServiceTest {
                             + "data: [DONE]\n\n"));
             AIChatService service = new NoSleepAIChatService(applicationConfig, client);
 
-            AIStreamResponse response = service.startStreamResponse("Retry", 34L, null, null);
+            AIStreamResponse response = service.startStreamResponse(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), "Retry", 34L, null, null, com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(db.dataSource()), com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser());
             String payload = new String(response.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
 
             assertEquals(200, response.getStatusCode());
@@ -321,7 +321,7 @@ public class AIChatServiceTest {
             FakeHttpClient client = new FakeHttpClient(streamResponse(429, "{\"error\":{\"message\":\"quota\"}}"));
             AIChatService service = new NoSleepAIChatService(applicationConfig, client);
 
-            AIStreamResponse response = service.startStreamResponse("Retry", 35L, null, null);
+            AIStreamResponse response = service.startStreamResponse(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), "Retry", 35L, null, null, com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(db.dataSource()), com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser());
 
             assertEquals(200, response.getStatusCode());
             String payload = new String(response.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
@@ -397,12 +397,13 @@ public class AIChatServiceTest {
     }
 
     private static class NoSleepAIChatService extends AIChatService {
+        private final com.hibegin.common.dao.DataSourceWrapper actorSource;
         private NoSleepAIChatService(ZrLogConfig config, HttpClient client) {
             super(
                     client,
                     null,
                     ContentToolsFixture.from(config),
-                    AccountServicesFixture.component((DataSourceWrapper) config.getDataSource()).permissions(),
+                    AccountServicesFixture.component((DataSourceWrapper) config.getDataSource()).permissions(), AccountServicesFixture.component((DataSourceWrapper) config.getDataSource()).identities(),
                     AccountServicesFixture.component((DataSourceWrapper) config.getDataSource()).preferences(),
                     AIServiceDependencies.approvals((DataSourceWrapper) config.getDataSource()),
                     new AIFileService(),
@@ -410,6 +411,7 @@ public class AIChatServiceTest {
                     AIServiceDependencies.conversations((DataSourceWrapper) config.getDataSource()),
                     AIServiceDependencies.writingTools((DataSourceWrapper) config.getDataSource()),
                     AIServiceDependencies.references(ContentToolsFixture.from(config), (DataSourceWrapper) config.getDataSource()));
+            this.actorSource = config == null ? null : (com.hibegin.common.dao.DataSourceWrapper) config.getDataSource();
         }
 
         @Override

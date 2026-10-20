@@ -4,6 +4,7 @@ import com.zrlog.admin.business.rest.request.CreateArticleRequest;
 import com.zrlog.admin.business.rest.response.ArticleGlobalResponse;
 import com.zrlog.admin.util.AdminSseEmitter;
 import com.zrlog.web.WebSetup;
+import com.zrlog.data.security.AccountAccess;
 
 /** Optional article assistance supplied by an enabled WebSetup. Content also works without it. */
 public interface ArticleAssistant extends WebSetup {
@@ -12,8 +13,8 @@ public interface ArticleAssistant extends WebSetup {
     @Override default void setup() { }
     default void articleCreated(long articleId, int userId) { }
     default void articleDeleted(long articleId) { }
-    default ArticleGlobalResponse enrichEditor(ArticleGlobalResponse article, long articleId) { return article; }
-    default PublishProgress beginPublishCheck(ArticleGlobalResponse article, CreateArticleRequest request,
+    default ArticleGlobalResponse enrichEditor(ArticleGlobalResponse article, long articleId, int userId) { return article; }
+    default PublishProgress beginPublishCheck(AccountAccess actor, ArticleGlobalResponse article, CreateArticleRequest request,
                                              AdminSseEmitter emitter) throws Exception {
         return PublishProgress.NONE;
     }

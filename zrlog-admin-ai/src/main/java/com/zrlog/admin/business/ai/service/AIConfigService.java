@@ -1,9 +1,9 @@
 package com.zrlog.admin.business.ai.service;
 
+import com.zrlog.admin.business.audit.AdminAuditContext;
 import com.hibegin.common.dao.ResultBeanUtils;
 import com.hibegin.common.util.BeanUtil;
 import com.hibegin.common.util.StringUtils;
-import com.hibegin.http.server.api.HttpRequest;
 import com.zrlog.admin.business.ai.model.AIProviderType;
 import com.zrlog.admin.business.rest.base.AIWebSiteInfo;
 import com.zrlog.admin.business.rest.response.AIWebSiteInfoResponse;
@@ -45,9 +45,9 @@ public class AIConfigService {
         return ResultBeanUtils.convert(webSiteByNameIn, clazz);
     }
 
-    public void updateAi(AIWebSiteInfo settings, HttpRequest request, WebSiteSettingsService settingsService) throws SQLException {
+    public void updateAi(AIWebSiteInfo settings, AdminAuditContext audit, WebSiteSettingsService settingsService) throws SQLException {
         mergeRetainedApiKeys(settings, ai());
-        settingsService.update(settings, request);
+        settingsService.update(settings, audit);
     }
 
     public AIWebSiteInfoResponse aiResponse() {

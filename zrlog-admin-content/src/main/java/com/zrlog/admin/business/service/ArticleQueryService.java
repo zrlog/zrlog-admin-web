@@ -7,6 +7,7 @@ import com.hibegin.common.util.*;
 import com.hibegin.http.server.api.HttpRequest;
 import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.content.ArticleAssistant;
+import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.rest.base.UserPreferences;
 import com.zrlog.admin.business.rest.response.*;
 import com.zrlog.business.plugin.StaticSitePlugin;
@@ -65,11 +66,11 @@ public class ArticleQueryService {
         this.logProvider = logProvider;
     }
 
-    public int resolveAdminPageSize(int requestedSize) {
+    public int resolveAdminPageSize(AccountAccess access, int requestedSize) {
         if (requestedSize > 0) {
             return requestedSize;
         }
-        return this.userPreferenceService.effective().articlePageSize;
+        return this.userPreferenceService.effective(access).articlePageSize;
     }
 
     private String getAccessUrl(ArticleResponseEntry articleResponseEntry, HttpRequest request) {
@@ -112,8 +113,8 @@ public class ArticleQueryService {
         return pageData;
     }
 
-    public ArticleStatusCountResponse getStatusCounts() {
-        AccountAccess access = permissionService.current();
+    public ArticleStatusCountResponse getStatusCounts(AccountAccess access) {
+        if (access == null || !access.isEnabled()) throw new PermissionErrorException();
         return getStatusCounts(
                 access.managesAllArticles() ? null : access.getUserId(),
                 access.isAdministrator() ? null : access.getUserId());
@@ -180,12 +181,13 @@ public class ArticleQueryService {
     }
 
     public ArticlePageData adminPage(
+            AccountAccess access,
             PageRequest pageRequest,
             String keywords,
             String typeAlias,
             String status,
             HttpRequest request) {
-        AccountAccess access = permissionService.current();
+        if (access == null || !access.isEnabled()) throw new PermissionErrorException();
         Integer authorId = access.managesAllArticles() ? null : access.getUserId();
         Integer privateOwnerId = access.isAdministrator() ? null : access.getUserId();
         ExecutorService executorService = ThreadUtils.newFixedThreadPool(3);
@@ -279,16 +281,17 @@ public class ArticleQueryService {
     }
 
     public AdminPageDataResponse<ArticleGlobalResponse> loadDetailById(
-            String id, HttpRequest request) throws SQLException {
-        int draftContextId = -permissionService.current().getUserId();
+            AccountAccess access, String id, HttpRequest request) throws SQLException {
+        if (access == null || !access.isEnabled()) throw new PermissionErrorException();
+        int draftContextId = -access.getUserId();
         ArticleGlobalResponse response = new ArticleGlobalResponse();
         response.setArticle(
                 StringUtils.isNotEmpty(id)
-                        ? loadDetail(id, request)
+                        ? loadDetail(access, id, request)
                         : new LoadEditArticleResponse());
         response.setTags(cacheService.getTags());
         response.setTypes(cacheService.getArticleTypes());
-        UserPreferences.Editor editor = this.userPreferenceService.effective().editor;
+        UserPreferences.Editor editor = this.userPreferenceService.effective(access).editor;
         response.setLinkPreviewEnabled(editor.linkPreviewEnabled);
         response.setPublishCheckEnabled(editor.publishCheckEnabled);
         response.setArticleCoverAspectRatio(editor.coverAspectRatio);
@@ -296,8 +299,8 @@ public class ArticleQueryService {
         Integer articleId = response.getArticle().getId();
         response =
                 Objects.requireNonNullElse(assistant.get(), ArticleAssistant.NONE)
-                        .enrichEditor(response, articleId == null ? draftContextId : articleId);
-        AdminPageDataResponse<ArticleGlobalResponse> standardResponse = pages.response(response);
+                        .enrichEditor(response, articleId == null ? draftContextId : articleId, access.getUserId());
+        AdminPageDataResponse<ArticleGlobalResponse> standardResponse = pages.response(access, response);
         StringJoiner sj = new StringJoiner(AdminConstants.ADMIN_TITLE_CHAR);
         if (Objects.nonNull(response.getArticle().getTitle())) {
             sj.add(response.getArticle().getTitle());
@@ -386,12 +389,12 @@ public class ArticleQueryService {
         return sj.toString();
     }
 
-    public LoadEditArticleResponse loadDetail(String id, HttpRequest request) throws SQLException {
+    public LoadEditArticleResponse loadDetail(AccountAccess access, String id, HttpRequest request) throws SQLException {
         ArticleBasicDTO log = this.logProvider.get().adminFindByIdOrAlias(id);
         if (log == null) {
             throw new NotFindDbEntryException();
         }
-        permissionService.readArticle(log.getLogId());
+        permissionService.readArticle(access, log.getLogId());
         return toResponse(log, request);
     }
 

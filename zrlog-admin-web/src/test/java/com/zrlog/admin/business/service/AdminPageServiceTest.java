@@ -1,5 +1,6 @@
 package com.zrlog.admin.business.service;
 
+import com.zrlog.admin.web.page.AdminPageRequestHandler;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -143,7 +144,7 @@ public class AdminPageServiceTest {
                                                 return method.invoke(
                                                         request(page, contextPath), args);
                                             });
-                    String rendered = db.component(AdminUiComponent.class).pages().buildHtml(request, response(), html(
+                    String rendered = db.component(AdminUiComponent.class).pageRequests().buildHtml(request, response(), html(
                             "<html><head><base href=\"/\"><link rel=\"manifest\" href=\"/admin/manifest.json\">"
                                     + "<script src=\"/admin/static/app.js\"></script></head>"
                                     + "<body><div id=\"__SS_DATA__\"></div></body></html>"));
@@ -176,12 +177,11 @@ public class AdminPageServiceTest {
             String page = "/admin/dev/ui";
             for (String contextPath : java.util.List.of("", "/blog")) {
                 resources = new AdminResourceImpl(contextPath, () -> 0L, resourceService(db.dataSource())::staticResourceBaseUrl);
-                AdminPageService service = db.component(AdminUiComponent.class).pages();
+                AdminPageRequestHandler service = db.component(AdminUiComponent.class).pageRequests();
                 for (String role : java.util.List.of("owner", "admin")) {
                     AccountAuthorizationTest.login(db, 1, role);
                     db.component(AccountComponent.class).preferences()
-                            .updateBody(
-                                    "{\"language\":\"en_US\",\"appearance\":{"
+                            .updateBody(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), "{\"language\":\"en_US\",\"appearance\":{"
                                             + "\"theme\":\"antd\",\"darkMode\":true,\"compactMode\":true,\"colorPrimary\":\"#00875a\"}}");
                     Document document = Jsoup.parse(service.buildHtml(request(page, contextPath, config), response(),
                             html("<html><head><base href=\"/\"></head><body><pre id=\"__SS_DATA__\"></pre></body></html>")));
@@ -364,7 +364,7 @@ public class AdminPageServiceTest {
             db.loadAdminWebModules();
             RequestConfig config = new RequestConfig();
             config.setRouter(db.config().getServerConfig().getRouter());
-            AdminPageService service = db.component(AdminUiComponent.class).pages();
+            AdminPageRequestHandler service = db.component(AdminUiComponent.class).pageRequests();
             String page = "/admin/user/security";
             com.google.gson.Gson gson = new com.google.gson.Gson();
 
@@ -405,7 +405,7 @@ public class AdminPageServiceTest {
             Router router = db.config().getServerConfig().getRouter();
             RequestConfig config = new RequestConfig();
             config.setRouter(router);
-            AdminPageService service = db.component(AdminUiComponent.class).pages();
+            AdminPageRequestHandler service = db.component(AdminUiComponent.class).pageRequests();
             for (String page : AdminAccountPages.PAGE_APIS.keySet()) {
                 if (page.equals(AdminAccountPages.AUTHORIZE)) continue;
                 ServerSideDataResponse<Object> data = service.serverSide(page, request(page, "/blog", config), response());
@@ -504,7 +504,7 @@ public class AdminPageServiceTest {
             NetworkProxy.save("http://proxy.example:3128", ".internal.example");
             RequestConfig config = new RequestConfig();
             config.setRouter(db.config().getServerConfig().getRouter());
-            AdminPageService service = db.component(AdminUiComponent.class).pages();
+            AdminPageRequestHandler service = db.component(AdminUiComponent.class).pageRequests();
             String page = "/admin/system/proxy";
             for (String contextPath : java.util.List.of("", "/blog")) {
                 for (String uri : java.util.List.of(page, "/admin/ssJson")) {
@@ -539,7 +539,7 @@ public class AdminPageServiceTest {
             db.loadAdminWebModules();
             RequestConfig config = new RequestConfig();
             config.setRouter(db.config().getServerConfig().getRouter());
-            AdminPageService service = db.component(AdminUiComponent.class).pages();
+            AdminPageRequestHandler service = db.component(AdminUiComponent.class).pageRequests();
             for (String page : java.util.List.of("/admin/system")) {
                 assertNotNull(config.getRouter().getMethod(page, HttpMethod.GET));
                 Method api = config.getRouter().getMethod("/api" + page, HttpMethod.GET);
@@ -599,7 +599,7 @@ public class AdminPageServiceTest {
                             .getMethod("/api" + page, HttpMethod.GET)
                             .getAnnotation(RequiresAction.class)
                             .value());
-            AdminPageService service = db.component(AdminUiComponent.class).pages();
+            AdminPageRequestHandler service = db.component(AdminUiComponent.class).pageRequests();
             for (String contextPath : java.util.List.of("", "/blog")) {
                 for (String uri : java.util.List.of(page, "/admin/ssJson")) {
                     HttpRequest request = request(uri, contextPath, config);
@@ -712,20 +712,24 @@ public class AdminPageServiceTest {
         }
     }
 
-    private AdminPageService pageService(CacheService cache, DataSourceWrapper testDataSource) {
+    private AdminPageRequestHandler pageService(CacheService cache, DataSourceWrapper testDataSource) {
         AdminResource ownedResources = resources;
-        return new AdminPageService(
-                cache,
-                new AdminPageDataFactory(
-                        ApplicationServicesFixture.site(applicationConfig),
-                        ownedResources::getStaticResourceBuildId,
-                        ApplicationServicesFixture.messages(testDataSource),
-                        AccountServicesFixture.component(testDataSource).permissions()),
-                resourceService(testDataSource),
+        var pages = new AdminPageDataFactory(
+                ApplicationServicesFixture.site(applicationConfig),
                 ownedResources::getStaticResourceBuildId,
-                AccountServicesFixture.component(testDataSource).permissions(),
-                AccountServicesFixture.component(testDataSource).preferences(),
-                AccountServicesFixture.component(testDataSource).users());
+                ApplicationServicesFixture.messages(testDataSource));
+        return new AdminPageRequestHandler(
+                AccountServicesFixture.component(testDataSource).requestIdentity(),
+                AccountServicesFixture.component(testDataSource).routeAuthorizer(),
+                new AdminPageService(
+                        cache,
+                        pages,
+                        resourceService(testDataSource),
+                        ownedResources::getStaticResourceBuildId,
+                        AccountServicesFixture.component(testDataSource).identities(),
+                        AccountServicesFixture.component(testDataSource).preferences(),
+                        AccountServicesFixture.component(testDataSource).users()),
+                pages);
     }
 
     private AdminResourceService resourceService(DataSourceWrapper testDataSource) {
@@ -825,8 +829,7 @@ public class AdminPageServiceTest {
                         new AdminPageDataFactory(
                                 ApplicationServicesFixture.site(applicationConfig),
                                 ApplicationServicesFixture.buildId(resources),
-                                ApplicationServicesFixture.messages(testDataSource),
-                                AccountServicesFixture.component(testDataSource).permissions()))
+                                ApplicationServicesFixture.messages(testDataSource)))
                 .controller(
                         FakePageController.class,
                         (r, request, response) ->
@@ -851,7 +854,8 @@ public class AdminPageServiceTest {
     public static class OfflineVersionController extends WebSiteController {
         public OfflineVersionController(WebSiteSettingsService settings, UpgradeSettingsService upgrades,
                                         FeatureLabService features, AdminPageDataFactory pages, DataSourceWrapper testDataSource) {
-            super(settings, upgrades, features, pages, ApplicationServicesFixture.settings(testDataSource));
+            super(settings, upgrades, features, pages, ApplicationServicesFixture.settings(testDataSource),
+                    AccountServicesFixture.component(testDataSource).requestIdentity());
         }
 
 
@@ -878,7 +882,7 @@ public class AdminPageServiceTest {
         @RequiresAction(value = AccountAction.SESSION, descriptionKey = "admin.pageData")
         @ResponseBody
         public AdminPageDataResponse<String> page() {
-            return pages.response("page-data", "", request.getUri());
+            return pages.response(null, "page-data", "", request.getUri());
         }
 
         @RequiresAction(value = AccountAction.SESSION, descriptionKey = "admin.pageData")

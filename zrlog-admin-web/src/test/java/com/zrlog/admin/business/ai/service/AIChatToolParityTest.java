@@ -71,7 +71,8 @@ public class AIChatToolParityTest {
                                     request(),
                                     "en_US",
                                     this::tools,
-                                    ApplicationServicesFixture.backend(db.config())::configured);
+                                    ApplicationServicesFixture.backend(db.config())::configured,
+                AccountServicesFixture.component(db.dataSource()).identities());
                     JsonArray expected =
                             new McpService(
                                             ApplicationServicesFixture.siteTitle(db.config()),
@@ -235,7 +236,7 @@ public class AIChatToolParityTest {
                         .collect(Collectors.toList());
         identity.scopes =
                 new ArrayList<>(
-                        AccountServicesFixture.component(testDataSource).permissions().current().scopes());
+                        AccountServicesFixture.component(testDataSource).requestIdentity().current().scopes());
         return identity;
     }
 
@@ -253,13 +254,11 @@ public class AIChatToolParityTest {
 
                         @Override
                         public String saveAttachment(
-                                byte[] bytes, String filename, HttpRequest request) {
+                                com.zrlog.data.security.AccountAccess actor, byte[] bytes, String filename, HttpRequest request,
+                                com.zrlog.common.vo.AdminTokenVO credential) {
                             assertEquals(
                                     1,
-                                    AccountServicesFixture.component(source)
-                                            .permissions()
-                                            .current()
-                                            .getUserId());
+                                    actor.getUserId());
                             assertEquals("/api/admin/article/ai", request.getUri());
                             assertEquals("hello", new String(bytes, StandardCharsets.UTF_8));
                             return "/attachment/" + filename;
@@ -294,6 +293,7 @@ public class AIChatToolParityTest {
     }
 
     private static class Model extends AIChatService {
+        private final com.hibegin.common.dao.DataSourceWrapper actorSource;
         final List<String> responses;
         final List<JsonObject> requests = new ArrayList<>();
         Runnable afterRequest = () -> {};
@@ -302,7 +302,7 @@ public class AIChatToolParityTest {
             super(
                     AIChatToolParityTest.request(),
                     tools,
-                    AccountServicesFixture.component(testDataSource).permissions(),
+                    AccountServicesFixture.component(testDataSource).permissions(), AccountServicesFixture.component(testDataSource).identities(),
                     AccountServicesFixture.component(testDataSource).preferences(),
                     AIServiceDependencies.approvals(testDataSource),
                     new AIFileService(),
@@ -310,6 +310,7 @@ public class AIChatToolParityTest {
                     AIServiceDependencies.conversations(testDataSource),
                     AIServiceDependencies.writingTools(testDataSource),
                     AIServiceDependencies.references(tools, testDataSource));
+            this.actorSource = testDataSource;
             this.responses = List.of(responses);
         }
 
@@ -319,7 +320,7 @@ public class AIChatToolParityTest {
         String chat(long articleId) throws Exception {
             ChatRequest input = new ChatRequest(); input.input = "Save and publish the article as requested";
             input.articleId = articleId;
-            String chunk = new String(start(input).getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+            String chunk = new String(start(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(actorSource), input, com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(actorSource), com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser()).getInputStream().readAllBytes(), StandardCharsets.UTF_8);
             StringBuilder wire = new StringBuilder(chunk);
             for (int i = 0; i < 8; i++) {
                 var paused = chunk.lines().filter(line -> line.startsWith("data: "))
@@ -330,12 +331,12 @@ public class AIChatToolParityTest {
                 var confirmation = new AIChatModels.ApprovalRequest();
                 confirmation.articleId = articleId; confirmation.runId = view.get("runId").getAsString();
                 confirmation.approvalId = view.getAsJsonObject("approval").get("id").getAsString(); confirmation.decision = "approve";
-                chunk = new String(resume(confirmation).getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+                chunk = new String(resume(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(actorSource), confirmation, com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(actorSource), com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser()).getInputStream().readAllBytes(), StandardCharsets.UTF_8);
                 wire.append(chunk);
             }
             return wire.toString();
         }
-        @Override protected AIProviderResponses.Choice complete(AIWebSiteInfo info, String body, AIChatStreamReader.Progress progress) throws IOException {
+        @Override protected AIProviderResponses.Choice complete(com.zrlog.data.security.AccountAccess actor, AIWebSiteInfo info, String body, AIChatStreamReader.Progress progress) throws IOException {
             requests.add(JsonParser.parseString(body).getAsJsonObject());
             afterRequest.run();
             return new Gson().fromJson(responses.get(requests.size() - 1), AIProviderResponses.Choice.class);

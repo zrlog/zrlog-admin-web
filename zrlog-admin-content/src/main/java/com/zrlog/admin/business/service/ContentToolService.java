@@ -1,5 +1,6 @@
 package com.zrlog.admin.business.service;
 
+import com.zrlog.admin.business.audit.AdminAuditContext;
 import com.google.gson.JsonObject;
 import com.hibegin.http.server.api.HttpRequest;
 import com.zrlog.admin.business.exception.PermissionErrorException;
@@ -8,7 +9,6 @@ import com.zrlog.admin.business.knowledge.ContentToolModels.*;
 import com.zrlog.admin.business.rest.request.CreateArticleRequest;
 import com.zrlog.admin.business.rest.request.UpdateArticleRequest;
 import com.zrlog.admin.business.rest.response.CreateOrUpdateArticleResponse;
-import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.data.security.ArticleAccess;
@@ -64,9 +64,8 @@ public final class ContentToolService {
         this.refresh = refresh;
     }
 
-    public ArticleDetails details(int id, Set<String> scopes) throws SQLException {
-        permissionService.require(AccountAction.ARTICLE_READ);
-        AccountAccess account = permissionService.current();
+    public ArticleDetails details(AccountAccess account, int id, Set<String> scopes) throws SQLException {
+        permissionService.require(account, AccountAction.ARTICLE_READ);
         Map<String, Object> row = permissionService.article(account, id, false);
         if (!ArticleAccess.canRead(account, scopes, number(row, "userId"), bool(row, "rubbish"), bool(row, "privacy"))) throw new PermissionErrorException();
         ArticleDetails details = new ArticleDetails();
@@ -78,8 +77,8 @@ public final class ContentToolService {
         return details;
     }
 
-    public TaxonomyList taxonomy(boolean categories, int offset, int limit) throws SQLException {
-        permissionService.require(AccountAction.TAXONOMY_READ);
+    public TaxonomyList taxonomy(AccountAccess account, boolean categories, int offset, int limit) throws SQLException {
+        permissionService.require(account, AccountAction.TAXONOMY_READ);
         List<Map<String, Object>> rows =
                 categories
                         ? this.typeProvider
@@ -105,12 +104,11 @@ public final class ContentToolService {
         return result;
     }
 
-    public SavedArticle save(String operation, JsonObject args, Set<String> scopes, HttpRequest request) throws SQLException {
+    public SavedArticle save(AccountAccess account, String operation,
+                             JsonObject args, Set<String> scopes, HttpRequest request, AdminAuditContext audit) throws SQLException {
         boolean create = operation.equals("create_article");
-        permissionService.require(
-                create ? AccountAction.ARTICLE_CREATE : AccountAction.ARTICLE_UPDATE);
+        permissionService.require(account, create ? AccountAction.ARTICLE_CREATE : AccountAction.ARTICLE_UPDATE);
         if (ZrLogUtil.isPreviewMode()) throw new PermissionErrorException();
-        AccountAccess account = permissionService.current();
         Map<String,Object> old = null;
         CreateArticleRequest body;
         int version = 0;
@@ -138,8 +136,8 @@ public final class ContentToolService {
             throw invalid("admin.mcp.validation.htmlRequired");
         }
         CreateOrUpdateArticleResponse saved = create
-                ? publishing.create(AdminTokenThreadLocal.getUser(), body, request)
-                : publishing.update(AdminTokenThreadLocal.getUser(), (UpdateArticleRequest) body, request);
+                ? publishing.create(account, body, audit)
+                : publishing.update(account, (UpdateArticleRequest) body, audit);
         SavedArticle result = new SavedArticle(); result.id = saved.getLogId(); result.version = create ? 0 : version + 1;
         result.status = status(Boolean.TRUE.equals(saved.getRubbish()), Boolean.TRUE.equals(saved.getPrivacy()));
         if (saved.isPublicCacheRefreshRequired()) {

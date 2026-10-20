@@ -1,5 +1,7 @@
 package com.zrlog.admin.web.controller.api;
 
+import com.zrlog.admin.web.security.AdminRequestIdentity;
+import com.zrlog.admin.web.audit.AdminAuditContexts;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.RequestMethod;
 import com.hibegin.http.annotation.ResponseBody;
@@ -25,6 +27,8 @@ import java.util.*;
 import java.util.function.BooleanSupplier;
 
 public class AccountSessionController extends BaseController {
+    private final AdminRequestIdentity requestIdentity;
+
     private final AdminAuditService adminAuditService;
 
     private final AdminPageDataFactory pages;
@@ -40,7 +44,9 @@ public class AccountSessionController extends BaseController {
             BooleanSupplier installed,
             AdminPageDataFactory pages,
             PasskeyService passkeyService,
-            AdminAuditService adminAuditService) {
+            AdminAuditService adminAuditService,
+            AdminRequestIdentity requestIdentity) {
+        this.requestIdentity = requestIdentity;
         this.adminAuditService = adminAuditService;
 
         this.passkeyService = passkeyService;
@@ -62,11 +68,10 @@ public class AccountSessionController extends BaseController {
         UserLoginDTO dto = userService.login(loginRequest);
         tokenService.setAdminToken(dto.getId(), dto.getSecretKey(), dto.getUserBasicInfoResponse().getKey(),
                 Objects.equals(loginRequest.getHttps(), true) ? "https" : "http", getRequest(), getResponse());
-        this.adminAuditService.record(
-                request,
+        this.adminAuditService.record(AdminAuditContexts.from(request, dto.getId()),
                 AdminAuditAction.LOGIN_SUCCESS,
                 dto.getUserBasicInfoResponse().getUserName());
-        return pages.response(dto.getUserBasicInfoResponse());
+        return pages.response(requestIdentity.optional(), dto.getUserBasicInfoResponse());
     }
 
     @ResponseBody
@@ -92,11 +97,10 @@ public class AccountSessionController extends BaseController {
         String protocol = passkeyService.requestProtocol(getRequest());
         tokenService.setAdminToken(dto.getId(), dto.getSecretKey(),
                 dto.getUserBasicInfoResponse().getKey(), protocol, getRequest(), getResponse());
-        this.adminAuditService.record(
-                request,
+        this.adminAuditService.record(AdminAuditContexts.from(request, dto.getId()),
                 AdminAuditAction.LOGIN_WITH_PASSKEY,
                 dto.getUserBasicInfoResponse().getUserName());
-        return pages.response(dto.getUserBasicInfoResponse());
+        return pages.response(requestIdentity.optional(), dto.getUserBasicInfoResponse());
     }
 
 }

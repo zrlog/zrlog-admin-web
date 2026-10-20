@@ -50,6 +50,7 @@ import java.util.regex.Pattern;
 @Singleton
 public class AdminDashboardService {
     private final UserPreferenceService userPreferenceService;
+    private final AccountIdentityService identities;
 
     public static final String DASHBOARD_CONFIG_KEY = "admin_dashboard_config";
     public static final String FIRST_USE_CHECKLIST_KEY = "admin_first_use_v4";
@@ -86,14 +87,16 @@ public class AdminDashboardService {
             AdminStatisticsService statisticsService,
             ArticleQueryService articleService,
             Supplier<PluginCorePlugin> pluginCore,
-            UserPreferenceService userPreferenceService) {
+            UserPreferenceService userPreferenceService,
+            AccountIdentityService identities) {
         this(
                 kvService,
                 statisticsService,
                 articleService,
                 DEFAULT_SURFACE_PRELOAD_TIMEOUT_MILLIS,
                 pluginCore,
-                userPreferenceService);
+                userPreferenceService,
+                identities);
     }
 
     AdminDashboardService(
@@ -102,7 +105,9 @@ public class AdminDashboardService {
             ArticleQueryService articleService,
             long surfacePreloadTimeoutMillis,
             Supplier<PluginCorePlugin> pluginCore,
-            UserPreferenceService userPreferenceService) {
+            UserPreferenceService userPreferenceService,
+            AccountIdentityService identities) {
+        this.identities = identities;
         this.userPreferenceService = userPreferenceService;
 
         this.kvService = Objects.requireNonNull(kvService);
@@ -209,7 +214,7 @@ public class AdminDashboardService {
 
     public AdminDashboardConfigResponse getConfig(HttpRequest request, AdminTokenVO adminTokenVO, boolean preloadSurfaces) {
         AdminDashboardConfigResponse savedConfig =
-                this.userPreferenceService.dashboard(adminTokenVO);
+                this.userPreferenceService.dashboard(adminTokenVO == null ? null : identities.account(adminTokenVO));
         if (savedConfig == null) savedConfig = readSavedConfig();
         List<AdminDashboardCardConfigResponse> cards = mergeCards(extractCardItems(savedConfig.getCards()));
         List<AdminDashboardCardResponse> pluginPanels = mergePluginPanels(
@@ -234,7 +239,7 @@ public class AdminDashboardService {
         AdminDashboardConfigResponse config = new AdminDashboardConfigResponse();
         config.setCards(dashboardCards);
         fillRefreshConfig(config, request);
-        this.userPreferenceService.saveDashboard(adminTokenVO, config);
+        this.userPreferenceService.saveDashboard(identities.account(adminTokenVO), config);
         return getConfig(httpRequest, adminTokenVO, true);
     }
 

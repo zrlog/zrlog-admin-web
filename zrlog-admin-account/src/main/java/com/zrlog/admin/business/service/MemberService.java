@@ -5,9 +5,7 @@ import com.hibegin.common.util.SecurityUtils;
 import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.security.MemberModels.*;
 import com.zrlog.admin.business.security.SecurityStore;
-import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.exception.ArgsException;
-import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.ZrLogUtil;
@@ -38,26 +36,25 @@ public final class MemberService {
 
     private final SecurityStore store;
 
-    public Page list() throws SQLException {
-        permissionService.administrator();
+    public Page list(AccountAccess actor) throws SQLException {
+        permissionService.require(actor, AccountAction.MEMBER_MANAGE);
         Page page = new Page();
-        page.currentRole = permissionService.current().getRole();
+        page.currentRole = actor.getRole();
         page.members = store.withSession(c -> store.list(c, "select userId,userName,email,role,enabled from user order by userId"))
                 .stream().map(MemberService::member).collect(Collectors.toList());
         return page;
     }
-    public Member create(Create body) throws SQLException {
-        permissionService.administrator();
+    public Member create(AccountAccess actor, Create body) throws SQLException {
+        permissionService.require(actor, AccountAction.MEMBER_MANAGE);
         checkMutation();
         if (body == null || body.userName == null || !body.userName.matches("[A-Za-z0-9_.-]{2,16}")) throw new ArgsException("userName");
-        validateRole(body.role);
+        validateRole(actor, body.role);
         if (body.email != null && body.email.length() > 64) throw new ArgsException("email");
         validatePassword(body.password);
         String name = body.userName.toLowerCase(Locale.ROOT);
         String hash = PasswordHashUtils.hash(SecurityUtils.md5(body.password));
-        AccountAccess actor = permissionService.current();
         return store.withSession(c -> {
-            lockMembership(c);
+            lockMembership(c, actor);
             if (store.one(c, "select userId from user where lower(userName)=?", name) != null) throw new ArgsException("userName");
             // Persist an unset avatar as "" for older NOT NULL schemas; UserService supplies the default image on read.
             if (c.isWebApi()) {
@@ -73,16 +70,15 @@ public final class MemberService {
             return member(store.one(c, "select userId,userName,email,role,enabled from user where userName=?", name));
         });
     }
-    public Member update(Update body) throws SQLException {
-        permissionService.administrator();
+    public Member update(AccountAccess actor, Update body) throws SQLException {
+        permissionService.require(actor, AccountAction.MEMBER_MANAGE);
         checkMutation();
-        AccountAccess actor = permissionService.current();
         if (body == null || body.userId == null || body.enabled == null) throw new ArgsException("userId/enabled");
-        validateRole(body.role);
+        validateRole(actor, body.role);
         if (body.password != null && !body.password.isEmpty()) validatePassword(body.password);
         return store.withSession(
                 c -> {
-                    lockMembership(c);
+                    lockMembership(c, actor);
                     Map<String, Object> row =
                             store.one(c, "select * from user where userId=?", body.userId);
                     if (row == null
@@ -147,8 +143,8 @@ public final class MemberService {
                                     body.userId));
                 });
     }
-    public void transfer(Transfer body) throws SQLException {
-        AccountAccess actor = permissionService.current();
+    public void transfer(AccountAccess actor, Transfer body) throws SQLException {
+        permissionService.require(actor, AccountAction.OWNERSHIP_TRANSFER);
         checkMutation();
         if (body == null || body.userId == null || body.password == null || !actor.isOwner() || body.userId == actor.getUserId()) throw new PermissionErrorException();
         userService.verifyCurrentCredentials(
@@ -165,7 +161,7 @@ public final class MemberService {
                         actor.getUserId(), "admin", "owner") != 2) throw new PermissionErrorException();
                 return null;
             }
-            lockMembership(c);
+            lockMembership(c, actor);
             Map<String,Object> target = store.one(c, "select * from user where userId=?", body.userId);
             if (!AccountAccess.from(target).isEnabled()) throw new PermissionErrorException();
             if (store.update(c, "update user set role=?,authVersion=authVersion+1 where userId=? and role=?", "admin", actor.getUserId(), "owner") != 1) throw new PermissionErrorException();
@@ -174,20 +170,19 @@ public final class MemberService {
             return null;
         });
     }
-    private void lockMembership(SecurityStore.Session c) throws SQLException {
+    private void lockMembership(SecurityStore.Session c, AccountAccess actor) throws SQLException {
         // A single owner row gives all member mutations a consistent lock order.
         store.lock(c, "update user set authVersion=authVersion where role=?", "owner");
-        AdminTokenVO token = AdminTokenThreadLocal.getUser();
-        AccountAccess current = AccountAccess.from(store.one(c, "select * from user where userId=?", token.getUserId()));
-        if (!current.isAdministrator() || current.getAuthVersion() != token.getAuthVersion()) throw new PermissionErrorException();
+        AccountAccess current = AccountAccess.from(store.one(c, "select * from user where userId=?", actor.getUserId()));
+        if (!current.isAdministrator() || current.getAuthVersion() != actor.getAuthVersion()) throw new PermissionErrorException();
     }
 
     private static void checkMutation() { if (ZrLogUtil.isPreviewMode()) throw new PermissionErrorException(); }
 
-    private void validateRole(String role) {
+    private static void validateRole(AccountAccess actor, String role) {
         if (role == null || !AccountAccess.ROLES.contains(role) || "owner".equals(role)) throw new ArgsException("role");
         if ("admin".equals(role)
-                && !AccountAction.ADMIN_APPOINT.allowed(permissionService.current()))
+                && !AccountAction.ADMIN_APPOINT.allowed(actor))
             throw new PermissionErrorException();
     }
     private static void validatePassword(String password) { if (password == null || password.length() < 12 || password.length() > 256) throw new ArgsException("password"); }

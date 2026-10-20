@@ -1,10 +1,12 @@
 package com.zrlog.admin.web.interceptor;
 
+import com.zrlog.admin.web.token.AdminTokenThreadLocal;
+import com.zrlog.admin.web.audit.AdminAuditContexts;
+import com.zrlog.admin.web.security.AdminRequestIdentity;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.server.api.HandleAbleInterceptor;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
-import com.zrlog.admin.business.service.AccountPermissionService;
 import com.zrlog.admin.business.service.AdminAuditService;
 import com.zrlog.admin.business.type.AdminAuditAction;
 import com.zrlog.admin.util.AdminWebTools;
@@ -32,7 +34,7 @@ import java.util.function.Supplier;
 public class AdminPluginInterceptor implements HandleAbleInterceptor {
     private final AdminAuditService adminAuditService;
 
-    private final AccountPermissionService permissionService;
+    private final AdminRequestIdentity requestIdentity;
 
     protected final Supplier<TokenService> tokenService;
 
@@ -44,11 +46,11 @@ public class AdminPluginInterceptor implements HandleAbleInterceptor {
             Supplier<TokenService> tokenService,
             Supplier<PluginCorePlugin> pluginCore,
             @Named("installed") BooleanSupplier installed,
-            AccountPermissionService permissionService,
+            AdminRequestIdentity requestIdentity,
             AdminAuditService adminAuditService) {
         this.adminAuditService = adminAuditService;
 
-        this.permissionService = permissionService;
+        this.requestIdentity = requestIdentity;
 
         this.tokenService = Objects.requireNonNull(tokenService);
         this.pluginCore = Objects.requireNonNull(pluginCore);
@@ -85,7 +87,7 @@ public class AdminPluginInterceptor implements HandleAbleInterceptor {
             AdminWebTools.blockUnLoginRequestHandler(request, response, installed.getAsBoolean());
             return;
         }
-        if (!permissionService.account(entry).isAdministrator()) {
+        if (!requestIdentity.account(entry).isAdministrator()) {
             response.renderCode(403);
             return;
         }
@@ -106,7 +108,7 @@ public class AdminPluginInterceptor implements HandleAbleInterceptor {
         if (!pluginPath.endsWith("/surfaceAction")) {
             return;
         }
-        this.adminAuditService.record(request, AdminAuditAction.PLUGIN_SURFACE_ACTION, pluginPath);
+        this.adminAuditService.record(AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()), AdminAuditAction.PLUGIN_SURFACE_ACTION, pluginPath);
     }
 
     static boolean isPluginPwaResource(String target) {

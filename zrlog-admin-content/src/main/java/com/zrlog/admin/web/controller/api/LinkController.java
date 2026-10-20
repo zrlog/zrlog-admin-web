@@ -1,5 +1,6 @@
 package com.zrlog.admin.web.controller.api;
 
+import com.zrlog.admin.web.security.AdminRequestIdentity;
 import com.hibegin.common.dao.dto.PageData;
 import com.hibegin.http.annotation.ResponseBody;
 import com.zrlog.admin.business.rest.request.CreateLinkRequest;
@@ -25,9 +26,13 @@ import java.io.IOException;
 import java.sql.SQLException;
 
 public class LinkController extends BaseController {
+    private final AdminRequestIdentity requestIdentity;
+
 
     @Inject
-    public LinkController(AdminPageDataFactory pages, LinkService linkService) {
+    public LinkController(AdminPageDataFactory pages, LinkService linkService,
+            AdminRequestIdentity requestIdentity) {
+        this.requestIdentity = requestIdentity;
         this.linkService = linkService;
 
         this.pages = pages;
@@ -62,7 +67,7 @@ public class LinkController extends BaseController {
     @ResponseBody
     @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "link.list")
     public AdminPageDataResponse<PageData<LinkDTO>> index() throws SQLException {
-        return pages.response(linkService.find(ControllerUtil.unPageRequest()), "", request.getUri());
+        return pages.response(requestIdentity.optional(), linkService.find(ControllerUtil.unPageRequest()), "", request.getUri());
     }
 
     @RefreshCache(async = true, updateStaticSites = StaticSiteType.BLOG)

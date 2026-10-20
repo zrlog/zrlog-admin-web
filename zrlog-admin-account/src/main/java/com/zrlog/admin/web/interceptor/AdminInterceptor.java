@@ -1,8 +1,9 @@
 package com.zrlog.admin.web.interceptor;
 
+import com.zrlog.admin.web.security.AdminRequestIdentity;
+import com.zrlog.admin.web.security.AdminRouteAuthorizer;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
-import com.zrlog.admin.business.service.AccountPermissionService;
 import com.zrlog.admin.business.service.UserPreferenceService;
 import com.zrlog.admin.util.AdminWebTools;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
@@ -23,7 +24,8 @@ import java.util.function.Supplier;
  * 负责全部后台请求的处理（/admin/plugins/*,/api/admin/plugins/* 除外）
  */
 public class AdminInterceptor extends AdminMethodInterceptor {
-    private final AccountPermissionService permissionService;
+    private final AdminRequestIdentity requestIdentity;
+    private final AdminRouteAuthorizer routeAuthorizer;
 
     private final UserPreferenceService userPreferenceService;
 
@@ -36,9 +38,11 @@ public class AdminInterceptor extends AdminMethodInterceptor {
             Supplier<AdminActionDispatcher> dispatcher,
             BooleanSupplier installed,
             UserPreferenceService userPreferenceService,
-            AccountPermissionService permissionService) {
+            AdminRouteAuthorizer routeAuthorizer,
+            AdminRequestIdentity requestIdentity) {
         super(dispatcher);
-        this.permissionService = permissionService;
+        this.routeAuthorizer = routeAuthorizer;
+        this.requestIdentity = requestIdentity;
 
         this.userPreferenceService = userPreferenceService;
 
@@ -68,13 +72,13 @@ public class AdminInterceptor extends AdminMethodInterceptor {
                 response.addHeader("X-Frame-Options", "DENY");
                 if (java.util.Set.of("/admin", "/admin/", "/admin/index", "/admin/index.html")
                                 .contains(request.getUri())
-                        && !permissionService.current().isAdministrator()) {
+                        && !requestIdentity.current().isAdministrator()) {
                     response.redirect(request.getContextPath() + "/admin/article"); return false;
                 }
-                permissionService.checkRoute(method, request);
+                routeAuthorizer.checkRoute(requestIdentity.current(), method, request);
                 I18nVO locale = I18nUtil.threadLocal.get();
                 if (locale != null) {
-                    locale.setLocale(this.userPreferenceService.effective().language);
+                    locale.setLocale(this.userPreferenceService.effective(requestIdentity.current()).language);
                 }
             }
             doMethodInterceptor(request, response, method);

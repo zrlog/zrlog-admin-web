@@ -1,5 +1,7 @@
 package com.zrlog.admin.business.ai.service;
 
+import com.zrlog.admin.business.service.AccountIdentityService;
+import com.zrlog.admin.business.audit.AdminAuditContext;
 import com.google.gson.*;
 import com.zrlog.admin.business.ai.dto.AIStreamResponse;
 import com.zrlog.admin.business.ai.exception.*;
@@ -22,11 +24,9 @@ import com.zrlog.admin.business.rest.base.AIWebSiteInfoWithAIMessages;
 import com.zrlog.admin.business.rest.base.UserPreferences;
 import com.zrlog.admin.business.rest.request.GenerateArticleFieldRequest;
 import com.zrlog.admin.business.rest.response.AIResponseEntry;
-import com.zrlog.admin.business.security.DelegatedAccess;
 import com.zrlog.admin.business.service.AccountPermissionService;
 import com.zrlog.admin.business.service.UserPreferenceService;
 import com.zrlog.admin.util.AdminLanguageContext;
-import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.data.security.AccountAccess;
@@ -57,6 +57,7 @@ public class AIChatService extends AIService {
     private final AIFileService files;
     private final AIWritingSkillService.Factory writingSkills;
 
+    private final AccountIdentityService identities;
     private final AccountPermissionService permissionService;
 
     private static final Logger LOGGER = Logger.getLogger(AIChatService.class.getName());
@@ -68,6 +69,7 @@ public class AIChatService extends AIService {
 
     public AIChatService(
             AccountPermissionService permissionService,
+            AccountIdentityService identities,
             UserPreferenceService userPreferenceService,
             AIApprovalStore approvalStore,
             AIFileService files,
@@ -78,7 +80,7 @@ public class AIChatService extends AIService {
         this(
                 null,
                 null,
-                permissionService,
+                permissionService, identities,
                 userPreferenceService,
                 approvalStore,
                 files,
@@ -93,6 +95,7 @@ public class AIChatService extends AIService {
             com.hibegin.http.server.api.HttpRequest request,
             ContentToolFactory tools,
             AccountPermissionService permissionService,
+            AccountIdentityService identities,
             UserPreferenceService userPreferenceService,
             AIApprovalStore approvalStore,
             AIFileService files,
@@ -111,6 +114,7 @@ public class AIChatService extends AIService {
         this.writingSkills = writingSkills;
 
         this.permissionService = permissionService;
+        this.identities = identities;
 
         this.request = request;
         this.tools = tools;
@@ -121,6 +125,7 @@ public class AIChatService extends AIService {
             com.hibegin.http.server.api.HttpRequest request,
             ContentToolFactory tools,
             AccountPermissionService permissionService,
+            AccountIdentityService identities,
             UserPreferenceService userPreferenceService,
             AIApprovalStore approvalStore,
             AIFileService files,
@@ -140,51 +145,52 @@ public class AIChatService extends AIService {
         this.writingSkills = writingSkills;
 
         this.permissionService = permissionService;
+        this.identities = identities;
 
         this.request = request;
         this.tools = tools;
     }
 
-    public AIStreamResponse startStreamResponse(String input, Long articleId)
+    public AIStreamResponse startStreamResponse(AccountAccess actor, String input, Long articleId,
+                                                 AdminAuditContext audit, AdminTokenVO credential)
             throws IOException, InterruptedException, SQLException {
-        return startStreamResponse(input, articleId, null, null);
+        return startStreamResponse(actor, input, articleId, null, null, audit, credential);
     }
 
-    public AIStreamResponse startStreamResponse(String input, Long articleId, String tool,
-                                                GenerateArticleFieldRequest articleContext)
+    public AIStreamResponse startStreamResponse(AccountAccess actor, String input, Long articleId, String tool,
+                                                GenerateArticleFieldRequest articleContext, AdminAuditContext audit,
+                                                AdminTokenVO credential)
             throws IOException, InterruptedException, SQLException {
-        AdminTokenVO token = AdminTokenThreadLocal.getUser();
-        permissionService.account(token);
-        if (articleId < 0 && articleId != -(long) token.getUserId()) throw new PermissionErrorException();
+        identities.revalidate(actor);
+        if (articleId < 0 && articleId != -(long) actor.getUserId()) throw new PermissionErrorException();
         long id = articleId <= 0 ? 0 : articleId;
-        authorizeArticle(token, id);
+        authorizeArticle(actor, id);
         if (tool != null && !tool.isBlank()) {
-            return writingSkillService()
+            return writingSkillService(actor)
                     .startStreamResponse(input, articleId, tool, articleContext);
         }
         ChatRequest request = new ChatRequest();
         request.input = input; request.articleId = id;
-        return start(request);
+        return start(actor, request, audit, credential);
     }
 
-    public AIStreamResponse start(ChatRequest input) throws IOException, SQLException {
+    public AIStreamResponse start(AccountAccess actor, ChatRequest input, AdminAuditContext audit, AdminTokenVO credential) throws IOException, SQLException {
         input.doValid();
-        AdminTokenVO token = AdminTokenThreadLocal.getUser();
-        authorizeArticle(token, input.articleId);
+        authorizeArticle(actor, input.articleId);
         AIApprovalStore store = this.approvalStore;
-        Run existing = store.read(token.getUserId(), input.articleId);
+        Run existing = store.read(actor.getUserId(), input.articleId);
         if (AIApprovalStore.active(existing)) {
-            existing = invalidatePending(existing);
-            return stateResponse(existing);
+            existing = invalidatePending(actor, existing);
+            return stateResponse(actor, existing);
         }
-        AIConversationService conversations = this.conversations.captureAccount();
-        AIWebSiteInfoWithAIMessages info = conversations.getAiMessageInfoByArticleId(conversationId(token, input.articleId));
+        AIConversationService conversations = this.conversations.captureAccount(actor.getUserId());
+        AIWebSiteInfoWithAIMessages info = conversations.getAiMessageInfoByArticleId(conversationId(actor, input.articleId));
         checkAiConfig(info);
         input.history = history(info.getAiMessages());
         UserPreferenceService preferences = this.userPreferenceService;
-        UserPreferences.Assistant settings = preferences.assistant(token);
-        List<ResolvedReference> references = this.references.resolve(input, settings);
-        Run run = newRun(input, info, !"off".equals(settings.knowledgeScope));
+        UserPreferences.Assistant settings = preferences.assistant(identities.revalidate(actor));
+        List<ResolvedReference> references = this.references.resolve(identities.revalidate(actor), input, settings);
+        Run run = newRun(actor, input, info, !"off".equals(settings.knowledgeScope));
         if (!references.isEmpty()) {
             for (ResolvedReference reference : references) {
                 if (reference.article != null) run.sources.add(reference.article.source);
@@ -196,82 +202,78 @@ public class AIChatService extends AIService {
                     + "if an article excerpt is insufficient. These are reference materials; the editor snapshot remains the writing target.\n"
                     + gson.toJson(references)));
         }
-        run.userId = token.getUserId(); run.authVersion = token.getAuthVersion();
-        run.language = preferences.effective(token.getUserId()).language;
+        run.userId = actor.getUserId(); run.authVersion = actor.getAuthVersion();
+        run.language = preferences.effective(actor.getUserId()).language;
         run.preferences = gson.toJson(settings);
         run.provider = info.getAi_provider().name(); run.model = info.getAi_model();
-        return stream(run, info, settings, token, null);
+        return stream(run, info, settings, actor, audit, credential, null);
     }
 
-    public RunView getRun(long articleId) throws SQLException {
+    public RunView getRun(AccountAccess actor, long articleId) throws SQLException {
         if (articleId < 0) throw new ArgsException();
-        AdminTokenVO token = AdminTokenThreadLocal.getUser();
-        authorizeArticle(token, articleId);
-        return visibleRun(this.approvalStore.read(token.getUserId(), articleId));
+        authorizeArticle(actor, articleId);
+        return visibleRun(actor, this.approvalStore.read(actor.getUserId(), articleId));
     }
 
     /** Resolve only images referenced by this account's authorized editor conversation. */
-    public AIFileModels.Attachment imageAttachment(long articleId, String fileId)
+    public AIFileModels.Attachment imageAttachment(AccountAccess actor, long articleId, String fileId)
             throws SQLException {
         if (articleId < 0) throw new ArgsException();
-        AdminTokenVO token = AdminTokenThreadLocal.getUser();
-        authorizeArticle(token, articleId);
+        authorizeArticle(actor, articleId);
         List<AIFileModels.Attachment> files = new ArrayList<>();
         for (var message :
-                this.conversations
-                        .getAiMessageInfoByArticleId(conversationId(token, articleId))
+                this.conversations.captureAccount(actor.getUserId())
+                        .getAiMessageInfoByArticleId(conversationId(actor, articleId))
                         .getAiMessages()) {
             if (message.getAttachments() != null) files.addAll(message.getAttachments());
         }
-        Run run = this.approvalStore.read(token.getUserId(), articleId);
+        Run run = this.approvalStore.read(actor.getUserId(), articleId);
         if (run != null && !"cancelled".equals(run.status) && run.attachments != null) files.addAll(run.attachments);
         return files.stream().filter(file -> file.id != null && file.id.equals(fileId)
                         && Set.of("image/png", "image/jpeg", "image/webp").contains(Objects.toString(file.mimeType, "")))
                 .findFirst().orElseThrow(() -> AIFileService.error("unavailable"));
     }
 
-    public AIStreamResponse resume(ApprovalRequest input) throws IOException, SQLException {
+    public AIStreamResponse resume(AccountAccess actor, ApprovalRequest input, AdminAuditContext audit, AdminTokenVO credential) throws IOException, SQLException {
         input.doValid();
-        AdminTokenVO token = AdminTokenThreadLocal.getUser();
-        authorizeArticle(token, input.articleId);
+        authorizeArticle(actor, input.articleId);
         AIApprovalStore store = this.approvalStore;
-        Run run = store.read(token.getUserId(), input.articleId);
+        Run run = store.read(actor.getUserId(), input.articleId);
         if (run == null || !run.id.equals(input.runId)) throw new PermissionErrorException();
-        run = invalidatePending(run);
+        run = invalidatePending(actor, run);
         if (!"awaiting_approval".equals(AIApprovalStore.view(run).status)
-                || run.approval == null || !run.approval.id.equals(input.approvalId)) return stateResponse(run);
-        UserPreferences.Assistant settings = this.userPreferenceService.assistant(token);
+                || run.approval == null || !run.approval.id.equals(input.approvalId)) return stateResponse(actor, run);
+        UserPreferences.Assistant settings = this.userPreferenceService.assistant(identities.revalidate(actor));
         AIWebSiteInfoWithAIMessages info =
-                this.conversations.getAiMessageInfoByArticleId(
-                        conversationId(token, input.articleId));
-        if (!sameContext(run, token, settings, info)) {
-            run.error = "permission"; store.save(run, "failed"); return stateResponse(run);
+                this.conversations.captureAccount(actor.getUserId()).getAiMessageInfoByArticleId(
+                        conversationId(actor, input.articleId));
+        if (!sameContext(run, actor, settings, info)) {
+            run.error = "permission"; store.save(run, "failed"); return stateResponse(actor, run);
         }
         checkAiConfig(info);
         try { store.save(run, "running"); }
-        catch (AIApprovalStore.Changed e) { return stateResponse(store.read(token.getUserId(), input.articleId)); }
-        return stream(run, info, settings, token, input.decision);
+        catch (AIApprovalStore.Changed e) { return stateResponse(actor, store.read(actor.getUserId(), input.articleId)); }
+        return stream(run, info, settings, actor, audit, credential, input.decision);
     }
 
-    public AIStreamResponse resumeInput(InputRequest input) throws IOException, SQLException {
+    public AIStreamResponse resumeInput(AccountAccess actor, InputRequest input, AdminAuditContext audit, AdminTokenVO credential) throws IOException, SQLException {
         input.doValid();
-        AdminTokenVO token = AdminTokenThreadLocal.getUser();
-        authorizeArticle(token, input.articleId);
+        authorizeArticle(actor, input.articleId);
         AIApprovalStore store = this.approvalStore;
-        Run run = store.read(token.getUserId(), input.articleId);
+        Run run = store.read(actor.getUserId(), input.articleId);
         if (run == null || !run.id.equals(input.runId)) throw new PermissionErrorException();
-        run = invalidatePending(run);
+        run = invalidatePending(actor, run);
         if (!"awaiting_input".equals(AIApprovalStore.view(run).status) || run.interaction == null
-                || !run.interaction.id.equals(input.interactionId)) return stateResponse(run);
-        UserPreferences.Assistant settings = this.userPreferenceService.assistant(token);
+                || !run.interaction.id.equals(input.interactionId)) return stateResponse(actor, run);
+        UserPreferences.Assistant settings = this.userPreferenceService.assistant(identities.revalidate(actor));
         AIWebSiteInfoWithAIMessages info =
-                this.conversations.getAiMessageInfoByArticleId(
-                        conversationId(token, input.articleId));
-        if (!sameContext(run, token, settings, info)) {
-            run.error = "permission"; store.save(run, "failed"); return stateResponse(run);
+                this.conversations.captureAccount(actor.getUserId()).getAiMessageInfoByArticleId(
+                        conversationId(actor, input.articleId));
+        if (!sameContext(run, actor, settings, info)) {
+            run.error = "permission"; store.save(run, "failed"); return stateResponse(actor, run);
         }
         if (!Objects.equals(run.contextRevision, input.contextRevision)) {
-            run.error = "contextChanged"; store.save(run, "failed"); return stateResponse(run);
+            run.error = "contextChanged"; store.save(run, "failed"); return stateResponse(actor, run);
         }
         Interaction interaction = run.interaction;
         if ("submit".equals(input.decision) && (input.value == null || input.value.isBlank()
@@ -307,44 +309,47 @@ public class AIChatService extends AIService {
             skipped.toolCallId = run.toolCalls.get(run.nextTool++).id; run.messages.add(skipped);
         }
         try { store.save(run, "running"); }
-        catch (AIApprovalStore.Changed e) { return stateResponse(store.read(token.getUserId(), input.articleId)); }
-        return stream(run, info, settings, token, null);
+        catch (AIApprovalStore.Changed e) { return stateResponse(actor, store.read(actor.getUserId(), input.articleId)); }
+        return stream(run, info, settings, actor, audit, credential, null);
     }
 
-    private static long conversationId(AdminTokenVO token, long articleId) {
-        return articleId == 0 ? -(long) token.getUserId() : articleId;
+    private static long conversationId(AccountAccess actor, long articleId) {
+        return articleId == 0 ? -(long) actor.getUserId() : articleId;
     }
 
-    private boolean sameContext(Run run, AdminTokenVO token, UserPreferences.Assistant settings, AIWebSiteInfo info) {
-        return run.authVersion == token.getAuthVersion() && Objects.equals(run.preferences, gson.toJson(settings))
+    private boolean sameContext(Run run, AccountAccess actor, UserPreferences.Assistant settings, AIWebSiteInfo info) {
+        return run.userId == actor.getUserId() && run.authVersion == actor.getAuthVersion() && Objects.equals(run.preferences, gson.toJson(settings))
                 && info.getAi_provider() != null && Objects.equals(run.provider, info.getAi_provider().name())
                 && Objects.equals(run.model, info.getAi_model());
     }
 
     /** GET remains read-only; stale previews must not expose content after access has changed. */
-    private RunView visibleRun(Run run) throws SQLException {
+    private RunView visibleRun(AccountAccess actor, Run run) throws SQLException {
         RunView view = AIApprovalStore.view(run);
-        if (view == null || "cancelled".equals(view.status)) return view;
-        AdminTokenVO token = AdminTokenThreadLocal.getUser();
-        UserPreferences.Assistant settings = this.userPreferenceService.assistant(token);
-        AIWebSiteInfo info =
-                this.conversations.getAiMessageInfoByArticleId(
-                        conversationId(token, run.articleId));
-        boolean allowed = sameContext(run, token, settings, info);
-        if (allowed && run.approval != null && run.nextTool < run.toolCalls.size()) {
-            AIProviderRequests.ToolCall call = run.toolCalls.get(run.nextTool);
-            try { approvalArticle(call.function.name, JsonParser.parseString(call.function.arguments).getAsJsonObject(), scopes(settings)); }
-            catch (PermissionErrorException e) { allowed = false; }
-        }
+        if (view == null) return null;
+        boolean allowed = false;
+        try {
+            authorizeArticle(actor, editorArticleId(run));
+            UserPreferences.Assistant settings = userPreferenceService.assistant(actor);
+            AIWebSiteInfo info = conversations.captureAccount(actor.getUserId())
+                    .getAiMessageInfoByArticleId(conversationId(actor, run.articleId));
+            allowed = sameContext(run, actor, settings, info);
+            if (allowed && run.approval != null && run.nextTool < run.toolCalls.size()) {
+                AIProviderRequests.ToolCall call = run.toolCalls.get(run.nextTool);
+                approvalArticle(actor, call.function.name,
+                        JsonParser.parseString(call.function.arguments).getAsJsonObject(), scopes(settings));
+            }
+        } catch (PermissionErrorException ignored) { allowed = false; }
         if (!allowed) {
             view.status = "failed"; view.error = "permission";
+            view.input = null; view.attachments = List.of();
             view.approval = null; view.interaction = null; view.skillMessages = List.of(); view.answer = null; view.articleUpdates = List.of();
         }
         return view;
     }
 
-    private Run invalidatePending(Run run) throws SQLException {
-        if (Set.of("awaiting_approval", "awaiting_input").contains(Objects.toString(run.status, "")) && "permission".equals(visibleRun(run).error)) {
+    private Run invalidatePending(AccountAccess actor, Run run) throws SQLException {
+        if (Set.of("awaiting_approval", "awaiting_input").contains(Objects.toString(run.status, "")) && "permission".equals(visibleRun(actor, run).error)) {
             run.error = "permission";
             AIApprovalStore store = this.approvalStore;
             try { store.save(run, "failed"); }
@@ -353,15 +358,15 @@ public class AIChatService extends AIService {
         return run;
     }
 
-    private AIStreamResponse stateResponse(Run run) throws IOException {
+    private AIStreamResponse stateResponse(AccountAccess actor, Run run) throws IOException {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-        emitState(out, run);
+        emitState(actor, out, run);
         return new AIStreamResponse(200, "", new ByteArrayInputStream(out.toByteArray()));
     }
 
-    private void emitState(OutputStream out, Run run) throws IOException {
+    private void emitState(AccountAccess actor, OutputStream out, Run run) throws IOException {
         RunView view;
-        try { view = visibleRun(run); } catch (SQLException e) { throw new IOException(e); }
+        try { view = visibleRun(actor, run); } catch (SQLException e) { throw new IOException(e); }
         if (view == null) throw new IOException("Assistant checkpoint is missing");
         Event event = new Event("awaiting_approval".equals(view.status) ? "approval-required"
                 : "awaiting_input".equals(view.status) ? "interaction-required" : "run-state");
@@ -370,26 +375,27 @@ public class AIChatService extends AIService {
     }
 
     private AIStreamResponse stream(Run run, AIWebSiteInfo info, UserPreferences.Assistant settings,
-                                    AdminTokenVO token, String decision) throws IOException {
+                                    AccountAccess actor, AdminAuditContext audit, AdminTokenVO credential, String decision) throws IOException {
         AIApprovalStore store = this.approvalStore;
-        AIConversationService conversations = this.conversations.captureAccount();
+        AIConversationService conversations = this.conversations.captureAccount(actor.getUserId());
         Runnable reauthorize =
                 () -> {
-                    authorizeArticle(token, editorArticleId(run));
-                    if (run.authVersion != token.getAuthVersion()
+                    authorizeArticle(actor, editorArticleId(run));
+                    if (run.authVersion != actor.getAuthVersion()
                             || !run.preferences.equals(
-                                    gson.toJson(this.userPreferenceService.assistant(token))))
+                                    gson.toJson(this.userPreferenceService.assistant(identities.revalidate(actor)))))
                         throw new PermissionErrorException();
                 };
         ToolProvider knowledge = !"off".equals(settings.knowledgeScope)
-                ? Objects.requireNonNull(tools, "Content tools are required for an assisted conversation").create(scopes(settings), request, run.language) : null;
+                ? Objects.requireNonNull(tools, "Content tools are required for an assisted conversation").create(identities.revalidate(actor), scopes(settings), request, run.language,
+                        audit, credential) : null;
         PipedInputStream in = new PipedInputStream(16384);
         PipedOutputStream out = new PipedOutputStream(in);
-        var task = DelegatedAccess.capture(() -> AdminTokenThreadLocal.withUser(token, () -> {
+        Runnable task = () -> {
             try (AdminLanguageContext ignored = AdminLanguageContext.open(run.language); OutputStream sink = out) {
                 try {
                     Event started = new Event("run-start"); started.runId = run.id; emit(sink, started);
-                    execute(run, info, knowledge, sink, reauthorize, decision, answer -> {
+                    execute(actor, run, info, knowledge, sink, reauthorize, decision, answer -> {
                         reauthorize.run();
                         store.check(run);
                         AIResponseEntry.AIContentEntry question = new AIResponseEntry.AIContentEntry("user", run.input.trim());
@@ -401,11 +407,11 @@ public class AIChatService extends AIService {
                         reply.setProvider(info.getAi_provider().name()); reply.setModel(info.getAi_model());
                         List<AIResponseEntry.AIContentEntry> entries = new ArrayList<>();
                         entries.add(question); entries.addAll(run.skillMessages); entries.add(reply);
-                        if (!conversations.appendAIMessageEntries(entries, conversationId(token, editorArticleId(run)))) throw new AIMessageSaveException();
+                        if (!conversations.appendAIMessageEntries(entries, conversationId(actor, editorArticleId(run)))) throw new AIMessageSaveException();
                         answer.messages = entries;
                     });
                 } catch (AIApprovalStore.Changed e) {
-                    emitState(sink, store.read(run.userId, run.articleId));
+                    emitState(actor, sink, store.read(run.userId, run.articleId));
                 } catch (Exception e) {
                     run.error = errorCode(e);
                     if (run.revision != null && !Set.of("awaiting_approval", "awaiting_input", "completed").contains(run.status)) {
@@ -413,16 +419,13 @@ public class AIChatService extends AIService {
                         catch (Exception saveError) { LOGGER.warning("Unable to save assistant failure checkpoint"); }
                     }
                     LOGGER.warning("Assistant request failed: error=" + run.error + ", exception=" + e.getClass().getSimpleName());
-                    if (run.revision != null) emitState(sink, run);
+                    if (run.revision != null) emitState(actor, sink, run);
                     Event event = new Event("error"); event.error = run.error; emit(sink, event);
                 }
             } catch (IOException ignored) { /* State is durable even if the client disconnects. */ }
-            return null;
-        }));
-        ThreadUtils.start(() -> {
-            try { task.call(); }
-            catch (Exception e) { LOGGER.warning("Assistant worker failed: exception=" + e.getClass().getSimpleName()); }
-        });
+            catch (SQLException e) { LOGGER.warning("Unable to reload assistant checkpoint"); }
+        };
+        ThreadUtils.start(task);
         return new AIStreamResponse(200, "", in);
     }
 
@@ -437,8 +440,8 @@ public class AIChatService extends AIService {
         return "requestFailed";
     }
 
-    private void authorizeArticle(AdminTokenVO token, long articleId) {
-        AccountAccess account = permissionService.account(token);
+    private void authorizeArticle(AccountAccess actor, long articleId) {
+        AccountAccess account = identities.revalidate(actor);
         if (!AccountAction.ARTICLE_ASSIST.allowed(account)) throw new PermissionErrorException();
         if (articleId > 0) {
             try {
@@ -474,11 +477,11 @@ public class AIChatService extends AIService {
         return scopes;
     }
 
-    void run(ChatRequest input, AIWebSiteInfo info, ToolProvider knowledge, OutputStream out, Runnable reauthorize) throws Exception {
-        execute(newRun(input, info, knowledge != null), info, knowledge, out, reauthorize, null, answer -> {});
+    void run(AccountAccess actor, ChatRequest input, AIWebSiteInfo info, ToolProvider knowledge, OutputStream out, Runnable reauthorize) throws Exception {
+        execute(actor, newRun(actor, input, info, knowledge != null), info, knowledge, out, reauthorize, null, answer -> {});
     }
 
-    private Run newRun(ChatRequest input, AIWebSiteInfo info, boolean toolsEnabled) throws IOException {
+    private Run newRun(AccountAccess actor, ChatRequest input, AIWebSiteInfo info, boolean toolsEnabled) throws IOException {
         input.doValid();
         List<AIProviderRequests.Message> messages = new ArrayList<>();
         if (info.getAi_prompt() != null && !info.getAi_prompt().isBlank()) {
@@ -540,7 +543,7 @@ public class AIChatService extends AIService {
         messages.add(new AIProviderRequests.Message("user", ""));
         AIProviderRequests.Message question = new AIProviderRequests.Message("user", input.input);
         question.attachments =
-                input.files.isEmpty() ? List.of() : this.files.save(input.files, info);
+                input.files.isEmpty() ? List.of() : this.files.save(actor.getUserId(), input.files, info);
         messages.add(question);
         Run run = new Run(); run.input = input.input; run.articleId = input.articleId; run.attachments = question.attachments;
         run.editorContext = input.editorContext; run.contextRevision = input.contextRevision;
@@ -548,11 +551,11 @@ public class AIChatService extends AIService {
         return run;
     }
 
-    private void execute(Run run, AIWebSiteInfo info, ToolProvider knowledge, OutputStream out,
+    private void execute(AccountAccess actor, Run run, AIWebSiteInfo info, ToolProvider knowledge, OutputStream out,
                          Runnable reauthorize, String decision, SaveAnswer saveAnswer) throws Exception {
         AIApprovalStore store = this.approvalStore;
         List<AIProviderRequests.Message> messages = run.messages;
-        AIWritingToolProvider writing = writingTools.create(run, writingSkillService());
+        AIWritingToolProvider writing = writingTools.create(run, writingSkillService(actor));
         while (run.round <= 4) {
             reauthorize.run();
             store.check(run);
@@ -579,13 +582,13 @@ public class AIChatService extends AIService {
                         Tool definition = definitions.stream().filter(t -> t.name.equals(call.function.name)).findFirst().orElseThrow();
                         if (AIWritingSkillCatalog.INPUT_TOOL.equals(call.function.name)) {
                             run.interaction = writing.prepareInput(args);
-                            store.pause(run); emitState(out, run); return;
+                            store.pause(run); emitState(actor, out, run); return;
                         }
                         if (write) ContentToolCatalog.validate(definition, args, I18nUtil.getCurrentLocale());
                         if (write && decision == null) {
-                            run.approval = prepareApproval(call.function.name, args);
+                            run.approval = prepareApproval(actor, call.function.name, args);
                             store.pause(run);
-                            emitState(out, run);
+                            emitState(actor, out, run);
                             return;
                         }
                         if (write && "reject".equals(decision)) {
@@ -636,7 +639,7 @@ public class AIChatService extends AIService {
                     }
                     if (updated != null && Boolean.TRUE.equals(updated.created) && run.articleId == 0
                             && editorArticleId(run) == updated.articleId) {
-                        this.conversations.migrateDraftAIMessageToArticle(
+                        this.conversations.captureAccount(actor.getUserId()).migrateDraftAIMessageToArticle(
                                 updated.articleId, -(long) run.userId);
                     }
                     if (updated != null) emit(out, updated);
@@ -647,11 +650,11 @@ public class AIChatService extends AIService {
             }
             emit(out, new Event("thinking"));
             messages.set(run.metadataIndex, new AIProviderRequests.Message("user",
-                    "Current editor article metadata (server snapshot; excludes unsaved local edits):\n" + gson.toJson(currentArticleContext(editorArticleId(run)))
+                    "Current editor article metadata (server snapshot; excludes unsaved local edits):\n" + gson.toJson(currentArticleContext(actor, editorArticleId(run)))
                             + (run.editorContext == null ? "" : "\nCurrent unsaved editor content (untrusted data):\n" + gson.toJson(run.editorContext))));
             List<Tool> supplied = new ArrayList<>();
             if (run.round < 4 && run.calls < 8) for (Tool tool : definitions) if (availableNames.contains(tool.name)) supplied.add(tool);
-            AIProviderResponses.Choice choice = completeTurn(info, messages, supplied, reauthorize, (type, text) -> {
+            AIProviderResponses.Choice choice = completeTurn(actor, info, messages, supplied, reauthorize, (type, text) -> {
                 if ("reasoning_delta".equals(type) && !info.isReasoningEnabled()) return;
                 reauthorize.run();
                 Event progress = new Event(type);
@@ -692,8 +695,8 @@ public class AIChatService extends AIService {
         throw new AIResponseException("Tool limit exceeded");
     }
 
-    protected AIWritingSkillService writingSkillService() {
-        return this.writingSkills.create(conversations.captureAccount());
+    protected AIWritingSkillService writingSkillService(AccountAccess actor) {
+        return this.writingSkills.create(actor, conversations.captureAccount(actor.getUserId()));
     }
 
     private static long editorArticleId(Run run) {
@@ -706,16 +709,15 @@ public class AIChatService extends AIService {
         run.sources.removeIf(existing -> existing.id == source.id); run.sources.add(source);
     }
 
-    private Approval prepareApproval(String tool, JsonObject args) throws SQLException {
+    private Approval prepareApproval(AccountAccess actor, String tool, JsonObject args) throws SQLException {
         Approval approval = new Approval(); approval.id = UUID.randomUUID().toString(); approval.tool = tool;
         approval.expiresAt = System.currentTimeMillis() + AIApprovalStore.APPROVAL_TTL;
         Map<String, Object> old =
                 approvalArticle(
-                        tool,
+                        actor, tool,
                         args,
                         scopes(
-                                this.userPreferenceService.assistant(
-                                        AdminTokenThreadLocal.getUser())));
+                                this.userPreferenceService.assistant(identities.revalidate(actor))));
         if (args.has("id")) {
             approval.articleId = args.get("id").getAsLong(); approval.version = args.get("version").getAsInt();
             if (approval.version != ((Number) old.get("version")).intValue())
@@ -748,9 +750,12 @@ public class AIChatService extends AIService {
         return approval;
     }
 
-    private Map<String, Object> approvalArticle(String tool, JsonObject args, Set<String> scopes) throws SQLException {
-        if (tool.equals("upload_attachment")) return Map.of();
-        AccountAccess account = permissionService.current();
+    private Map<String, Object> approvalArticle(AccountAccess actor, String tool, JsonObject args, Set<String> scopes) throws SQLException {
+        AccountAccess account = identities.revalidate(actor);
+        if (tool.equals("upload_attachment")) {
+            permissionService.require(account, AccountAction.ASSET_UPLOAD);
+            return Map.of();
+        }
         Map<String, Object> old =
                 args.has("id")
                         ? permissionService.article(account, args.get("id").getAsLong(), false)
@@ -764,7 +769,7 @@ public class AIChatService extends AIService {
         return old;
     }
 
-    private CurrentArticleContext currentArticleContext(long articleId) throws SQLException {
+    private CurrentArticleContext currentArticleContext(AccountAccess actor, long articleId) throws SQLException {
         CurrentArticleContext context = new CurrentArticleContext();
         context.articleId = articleId;
         if (articleId == 0) {
@@ -772,7 +777,7 @@ public class AIChatService extends AIService {
             return context;
         }
         Map<String, Object> row =
-                permissionService.article(permissionService.current(), articleId, false);
+                permissionService.article(identities.revalidate(actor), articleId, false);
         context.title = Objects.toString(row.get("title"), "");
         context.version = ((Number) Objects.requireNonNullElse(row.get("version"), 0)).intValue();
         context.typeId = ((Number) Objects.requireNonNullElse(row.get("typeId"), 0)).longValue();
@@ -783,7 +788,7 @@ public class AIChatService extends AIService {
         return context;
     }
 
-    private AIProviderResponses.Choice completeTurn(AIWebSiteInfo info, List<AIProviderRequests.Message> messages,
+    private AIProviderResponses.Choice completeTurn(AccountAccess actor, AIWebSiteInfo info, List<AIProviderRequests.Message> messages,
             List<Tool> definitions, Runnable reauthorize, AIChatStreamReader.Progress progress) throws IOException, InterruptedException {
         List<AIProviderRequests.Message> currentMessages = messages;
         StringBuilder content = new StringBuilder(), reasoning = new StringBuilder();
@@ -793,7 +798,7 @@ public class AIChatService extends AIService {
             for (int attempt = 0; ; attempt++) {
                 reauthorize.run();
                 try {
-                    choice = complete(info, request(info, currentMessages, continuation == 0 ? definitions : List.of()), progress);
+                    choice = complete(actor, info, request(info, currentMessages, continuation == 0 ? definitions : List.of()), progress);
                     break;
                 } catch (AIRequestException e) {
                     if (!Objects.equals(e.getStatusCode(), 503) || attempt >= 2) throw e;
@@ -847,7 +852,7 @@ public class AIChatService extends AIService {
         }
         return gson.toJson(request);
     }
-    protected AIProviderResponses.Choice complete(AIWebSiteInfo info, String body, AIChatStreamReader.Progress progress)
+    protected AIProviderResponses.Choice complete(AccountAccess actor, AIWebSiteInfo info, String body, AIChatStreamReader.Progress progress)
             throws IOException, InterruptedException {
         boolean responses = info.getAi_provider() == AIProviderType.OPEN_AI;
         OpenAIResponsesAdapter adapter = new OpenAIResponsesAdapter();
@@ -865,7 +870,7 @@ public class AIChatService extends AIService {
                 if (storage == null) storage = this.files;
             for (var file : message.attachments) {
                 if ((size += file.size) > AIFileService.MAX_CONTEXT_BYTES) throw AIFileService.error("size");
-                files.put(file.id, storage.dataUrl(file));
+                files.put(file.id, storage.dataUrl(actor.getUserId(), file));
             }
         }
         if (responses) body = gson.toJson(adapter.request(completion, info.isReasoningEnabled(), files));

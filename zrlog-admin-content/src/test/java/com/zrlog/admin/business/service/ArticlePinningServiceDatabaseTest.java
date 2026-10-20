@@ -170,22 +170,21 @@ public class ArticlePinningServiceDatabaseTest {
         request.setRubbish(rubbish);
         request.setEditorType("markdown");
         CreateOrUpdateArticleResponse response =
-                new AdminArticleService(
-                                ApplicationServicesFixture.capability(
+                new AdminArticleService(ApplicationServicesFixture.capability(
                                         applicationConfig, ArticleAssistant.class),
                                 AccountServicesFixture.component(testDataSource).permissions(),
+                                AccountServicesFixture.component(testDataSource).identities(),
                                 AccountServicesFixture.component(testDataSource).preferences(),
-                                new ArticleVersionService(
-                                        AccountServicesFixture.component(testDataSource)
+                                new ArticleVersionService(AccountServicesFixture.component(testDataSource)
                                                 .permissions(),
-                                        () -> new Log(testDataSource),
-                                        () -> new LogVersion(testDataSource)),
+                                () -> new Log(testDataSource),
+                                () -> new LogVersion(testDataSource)),
                                 new ArticlePinningService(
                                         () -> new Log(testDataSource),
                                         ApplicationServicesFixture.locks(testDataSource)),
                                 () -> new Log(testDataSource),
                                 ApplicationServicesFixture.locks(testDataSource))
-                        .create(token(), request);
+                        .create(AccountServicesFixture.component(testDataSource).requestIdentity().account(token()), request);
         return response.getLogId();
     }
 

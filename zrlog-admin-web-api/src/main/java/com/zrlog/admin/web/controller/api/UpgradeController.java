@@ -1,5 +1,8 @@
 package com.zrlog.admin.web.controller.api;
 
+import com.zrlog.admin.web.security.AdminRequestIdentity;
+import com.zrlog.admin.web.token.AdminTokenThreadLocal;
+import com.zrlog.admin.web.audit.AdminAuditContexts;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.RequestMethod;
 import com.hibegin.http.annotation.ResponseBody;
@@ -35,6 +38,8 @@ import java.util.Objects;
 import java.util.function.Supplier;
 
 public class UpgradeController extends BaseController {
+    private final AdminRequestIdentity requestIdentity;
+
     private final DockerUpgradeProgressService dockerUpgradeProgressService;
     private final AdminAuditService adminAuditService;
     private final MessageCenterOperationService messageCenterOperationService;
@@ -53,7 +58,9 @@ public class UpgradeController extends BaseController {
             AdminPageDataFactory pages,
             DockerUpgradeProgressService dockerUpgradeProgressService,
             AdminAuditService adminAuditService,
-            MessageCenterOperationService messageCenterOperationService) {
+            MessageCenterOperationService messageCenterOperationService,
+            AdminRequestIdentity requestIdentity) {
+        this.requestIdentity = requestIdentity;
         this.dockerUpgradeProgressService = dockerUpgradeProgressService;
         this.adminAuditService = adminAuditService;
         this.messageCenterOperationService = messageCenterOperationService;
@@ -73,7 +80,7 @@ public class UpgradeController extends BaseController {
         boolean apiCheck = request.getUri().endsWith("/api" + Constants.ADMIN_URI_BASE_PATH + "/upgrade");
         boolean fetch = "true".equals(request.getParaToStr("fetch", apiCheck ? "true" : "false"));
         PreCheckVersionResponse preCheckVersionResponse = upgrades.preUpgradeVersion(fetch, updatePlugin.get());
-        return pages.response(preCheckVersionResponse,
+        return pages.response(requestIdentity.optional(), preCheckVersionResponse,
                 Objects.equals(preCheckVersionResponse.getUpgrade(), true) ? "" : I18nUtil.getAdminBackendStringFromRes("admin.upgrade.version.notFound"), request.getUri());
     }
 
@@ -189,8 +196,7 @@ public class UpgradeController extends BaseController {
     }
 
     private void recordUpgradeAudit(ExecuteUpgradeRequest requestBody) {
-        this.adminAuditService.record(
-                request,
+        this.adminAuditService.record(AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()),
                 AdminAuditAction.EXECUTE_UPGRADE,
                 requestBody.isUpgradeRiskAccepted() ? "upgradeRiskAccepted" : "");
     }

@@ -1,5 +1,6 @@
 package com.zrlog.admin.business.service;
 
+import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.hibegin.common.util.FileUtils;
 import com.hibegin.common.util.IOUtil;
 import com.hibegin.common.util.LoggerUtil;
@@ -12,6 +13,7 @@ import com.zrlog.admin.util.UploadFileUtils;
 import com.zrlog.business.plugin.PluginCorePlugin;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.data.security.AccountAccess;
+import com.zrlog.data.security.AccountAction;
 
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
@@ -35,7 +37,8 @@ import java.util.logging.Logger;
 @Singleton
 public class UploadService {
 
-    private final AccountPermissionService permissionService;
+    private final AccountIdentityService identities;
+    private final AccountPermissionService permissions;
 
     private static final Logger LOGGER = LoggerUtil.getLogger(UploadService.class);
     private final DbFileService dbFileService;
@@ -44,24 +47,26 @@ public class UploadService {
     @Inject
     public UploadService(
             Supplier<PluginCorePlugin> pluginCore,
-            AccountPermissionService permissionService,
+            AccountIdentityService identities,
+            AccountPermissionService permissions,
             DbFileService dbFileService) {
         this.dbFileService = dbFileService;
 
-        this.permissionService = permissionService;
+        this.identities = identities;
+        this.permissions = permissions;
 
         this.pluginCore = Objects.requireNonNull(pluginCore);
     }
 
-    public UploadFileResponse saveUploadedFile(File file, String dir, HttpRequest request,
+    public UploadFileResponse saveUploadedFile(AccountAccess actor, File file, String dir, HttpRequest request,
                                                AdminTokenVO adminTokenVO) throws IOException, SQLException {
-        return saveUploadedFile(file, dir, null, request, adminTokenVO);
+        return saveUploadedFile(actor, file, dir, null, request, adminTokenVO);
     }
 
-    public UploadFileResponse saveUploadedFile(File file, String dir, String name, HttpRequest request,
+    public UploadFileResponse saveUploadedFile(AccountAccess actor, File file, String dir, String name, HttpRequest request,
                                                AdminTokenVO adminTokenVO) throws IOException, SQLException {
+        authorize(actor, adminTokenVO, AccountAction.ASSET_UPLOAD);
         String resolvedDir = UploadFileUtils.resolveUploadDir(dir);
-        AccountAccess actor = permissionService.account(adminTokenVO);
         if (!actor.isAdministrator()) {
             resolvedDir = normalizeTemporaryDir(resolvedDir) == null
                     ? "users/" + actor.getUserId()
@@ -110,16 +115,29 @@ public class UploadService {
         return new UploadFileResponse(url);
     }
 
-    public UploadFileResponse saveThumbnailBytes(byte[] bytes, String extension, HttpRequest request,
+    public UploadFileResponse saveThumbnailBytes(AccountAccess actor, byte[] bytes, String extension, HttpRequest request,
                                                  AdminTokenVO adminTokenVO) {
+        authorize(actor, adminTokenVO, AccountAction.ASSET_UPLOAD);
         String uri = buildGeneratedThumbnailUri(bytes, extension);
         return saveBytesToUri(bytes, uri, request, adminTokenVO);
     }
 
-    public UploadFileResponse saveBytes(byte[] bytes, String extension, String dir, HttpRequest request,
+    public UploadFileResponse saveAvatarBytes(AccountAccess actor, byte[] bytes, String extension, HttpRequest request,
                                         AdminTokenVO adminTokenVO) {
+        authorize(actor, adminTokenVO, AccountAction.ACCOUNT_SELF);
+        String dir = actor.isAdministrator() ? "image" : "users/" + actor.getUserId();
         String uri = UploadFileUtils.generatorUri(dir, "upload." + normalizeExtension(extension));
         return saveBytesToUri(bytes, uri, request, adminTokenVO);
+    }
+
+    private void authorize(AccountAccess actor, AdminTokenVO credential, AccountAction action) {
+        identities.revalidate(actor);
+        permissions.require(actor, action);
+        // A transport credential must belong to the same operation's explicit actor.
+        if (credential != null && (credential.getUserId() != actor.getUserId()
+                || credential.getAuthVersion() != actor.getAuthVersion())) {
+            throw new PermissionErrorException();
+        }
     }
 
     String buildTemporaryUri(String dir, File file) {

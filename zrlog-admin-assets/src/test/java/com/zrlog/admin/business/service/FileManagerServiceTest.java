@@ -17,6 +17,8 @@ import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.model.Log;
+import com.zrlog.data.security.AccountAccess;
+import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.model.WebSite;
 
 import org.junit.Rule;
@@ -27,6 +29,8 @@ import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 public class FileManagerServiceTest {
 
@@ -41,7 +45,7 @@ public class FileManagerServiceTest {
                             new FileManagerService(
                                     new UploadService(
                                             () -> null,
-                                            AccountServicesFixture.component(null).permissions(),
+                                            AccountServicesFixture.component(null).identities(), AccountServicesFixture.component(null).permissions(),
                                             new DbFileService(
                                                     ApplicationServicesFixture.websiteKv(null),
                                                     () -> {
@@ -103,7 +107,7 @@ public class FileManagerServiceTest {
                 new FileManagerService(
                         new UploadService(
                                 () -> null,
-                                AccountServicesFixture.component(null).permissions(),
+                                AccountServicesFixture.component(null).identities(), AccountServicesFixture.component(null).permissions(),
                                 new DbFileService(
                                         ApplicationServicesFixture.websiteKv(null),
                                         () -> {
@@ -146,7 +150,7 @@ public class FileManagerServiceTest {
                 new FileManagerService(
                         new UploadService(
                                 () -> null,
-                                AccountServicesFixture.component(null).permissions(),
+                                AccountServicesFixture.component(null).identities(), AccountServicesFixture.component(null).permissions(),
                                 new DbFileService(
                                         ApplicationServicesFixture.websiteKv(null),
                                         () -> {
@@ -233,7 +237,7 @@ public class FileManagerServiceTest {
                             new FileManagerService(
                                     new UploadService(
                                             () -> null,
-                                            AccountServicesFixture.component(null).permissions(),
+                                            AccountServicesFixture.component(null).identities(), AccountServicesFixture.component(null).permissions(),
                                             new DbFileService(
                                                     ApplicationServicesFixture.websiteKv(null),
                                                     () -> {
@@ -269,6 +273,13 @@ public class FileManagerServiceTest {
                     assertArrayEquals(
                             "hello".getBytes(StandardCharsets.UTF_8),
                             service.read("/attached/docs/a.txt"));
+                    var readOnlyManager = AccountAccess.from(Map.of(
+                            "userId", 1, "role", "admin", "enabled", true, "authVersion", 0))
+                            .restrictActions(Set.of());
+                    assertThrows(PermissionErrorException.class, () -> service.rename(
+                            "/attached/docs/a.txt", "b.txt", true, readOnlyManager));
+                    assertTrue(file.exists());
+                    assertFalse(PathUtil.getStaticFile("/attached/docs/b.txt").exists());
                     assertTrue(service.rename("/attached/docs/a.txt", "b.txt"));
                     assertFalse(file.exists());
                     assertTrue(PathUtil.getStaticFile("/attached/docs/b.txt").exists());
@@ -287,7 +298,7 @@ public class FileManagerServiceTest {
                             new FileManagerService(
                                     new UploadService(
                                             () -> null,
-                                            AccountServicesFixture.component(null).permissions(),
+                                            AccountServicesFixture.component(null).identities(), AccountServicesFixture.component(null).permissions(),
                                             new DbFileService(
                                                     ApplicationServicesFixture.websiteKv(null),
                                                     () -> {
@@ -336,7 +347,7 @@ public class FileManagerServiceTest {
                     new FileManagerService(
                             new UploadService(
                                     () -> null,
-                                    AccountServicesFixture.component(db.dataSource()).permissions(),
+                                    AccountServicesFixture.component(db.dataSource()).identities(), AccountServicesFixture.component(db.dataSource()).permissions(),
                                     new DbFileService(
                                             ApplicationServicesFixture.websiteKv(db.dataSource()),
                                             () -> new WebSite(db.dataSource()))),
@@ -397,6 +408,7 @@ public class FileManagerServiceTest {
                                         new UploadService(
                                                 () -> null,
                                                 AccountServicesFixture.component(db.dataSource())
+                                                        .identities(), AccountServicesFixture.component(db.dataSource())
                                                         .permissions(),
                                                 new DbFileService(
                                                         ApplicationServicesFixture.websiteKv(
@@ -474,6 +486,7 @@ public class FileManagerServiceTest {
                                         new UploadService(
                                                 () -> null,
                                                 AccountServicesFixture.component(db.dataSource())
+                                                        .identities(), AccountServicesFixture.component(db.dataSource())
                                                         .permissions(),
                                                 new DbFileService(
                                                         ApplicationServicesFixture.websiteKv(
@@ -508,7 +521,7 @@ public class FileManagerServiceTest {
                             new FileManagerService(
                                     new UploadService(
                                             () -> null,
-                                            AccountServicesFixture.component(null).permissions(),
+                                            AccountServicesFixture.component(null).identities(), AccountServicesFixture.component(null).permissions(),
                                             new DbFileService(
                                                     ApplicationServicesFixture.websiteKv(null),
                                                     () -> {

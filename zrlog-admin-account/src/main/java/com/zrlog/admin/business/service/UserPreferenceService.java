@@ -1,11 +1,11 @@
 package com.zrlog.admin.business.service;
 
 import com.google.gson.*;
+import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.rest.base.*;
 import com.zrlog.admin.business.rest.response.*;
-import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.exception.ArgsException;
-import com.zrlog.common.vo.AdminTokenVO;
+import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.service.UserPreferenceStore;
 
 import jakarta.inject.Inject;
@@ -17,17 +17,12 @@ import java.util.*;
 /** Personal configuration only. Never use this JSON for authorization or public resources. */
 @Singleton
 public class UserPreferenceService {
-    private final AccountPermissionService permissionService;
-
     private final WebSiteService webSiteService;
 
     @Inject
     public UserPreferenceService(
             WebSiteService webSiteService,
-            UserPreferenceStore store,
-            AccountPermissionService permissionService) {
-        this.permissionService = permissionService;
-
+            UserPreferenceStore store) {
         this.webSiteService = webSiteService;
         this.store = store;
     }
@@ -41,19 +36,20 @@ public class UserPreferenceService {
             "writing", Set.of("articlePageSize", "editor", "articleList"),
             "assistant", Set.of("assistant"), "session", Set.of("session"));
 
-    public UserPreferencesResponse current() throws SQLException {
+    public UserPreferencesResponse current(AccountAccess actor) throws SQLException {
         UserPreferencesResponse response = new UserPreferencesResponse();
-        response.overrides = read(permissionService.current().getUserId());
+        response.overrides = read(userId(actor));
         response.defaults = defaults();
         response.effective = merge(response.defaults, response.overrides);
         return response;
     }
 
-    public UserPreferences effective() {
+    /** A null actor explicitly selects the public site defaults. */
+    public UserPreferences effective(AccountAccess actor) {
         UserPreferences defaults = defaults();
-        if (AdminTokenThreadLocal.getUser() == null) return defaults;
+        if (actor == null) return defaults;
         try {
-            return merge(defaults, read(permissionService.current().getUserId()));
+            return merge(defaults, read(userId(actor)));
         } catch (SQLException e) {
             throw new IllegalStateException("Unable to read account preferences", e);
         }
@@ -64,23 +60,23 @@ public class UserPreferenceService {
         return merge(defaults(), read(userId));
     }
 
-    public UserPreferencesResponse updateBody(String body) throws SQLException { return updateBody(body, null); }
+    public UserPreferencesResponse updateBody(AccountAccess actor, String body) throws SQLException { return updateBody(actor, body, null); }
 
-    public UserPreferencesResponse updateBody(String body, String section) throws SQLException {
+    public UserPreferencesResponse updateBody(AccountAccess actor, String body, String section) throws SQLException {
         try {
             JsonElement parsed = JsonParser.parseString(body);
             if (!parsed.isJsonObject()) throw new ArgsException("preferences");
-            return update(parsed.getAsJsonObject(), section);
+            return update(actor, parsed.getAsJsonObject(), section);
         } catch (JsonParseException e) { throw new ArgsException("preferences"); }
     }
 
-    public UserPreferencesResponse update(JsonObject body) throws SQLException { return update(body, null); }
+    public UserPreferencesResponse update(AccountAccess actor, JsonObject body) throws SQLException { return update(actor, body, null); }
 
-    public UserPreferencesResponse update(JsonObject body, String section) throws SQLException {
+    public UserPreferencesResponse update(AccountAccess actor, JsonObject body, String section) throws SQLException {
         Set<String> keys = section == null ? KEYS : SECTIONS.get(section);
         if (keys == null) throw new ArgsException("section");
         UserPreferences preferences = validate(body);
-        int userId = permissionService.current().getUserId();
+        int userId = userId(actor);
         JsonObject values = GSON.toJsonTree(preferences).getAsJsonObject();
         store.mutate(userId, root -> {
             // Old clients know only autoSaveInterval; preserve newly introduced editor fields.
@@ -101,7 +97,7 @@ public class UserPreferenceService {
                 }
             }
         });
-        return current();
+        return current(actor);
     }
 
     private UserPreferences read(int userId) throws SQLException {
@@ -117,9 +113,9 @@ public class UserPreferenceService {
         return validate(known);
     }
 
-    public AdminDashboardConfigResponse dashboard(AdminTokenVO token) {
-        if (token == null) return null; // Public static rendering uses the site default only.
-        int userId = permissionService.account(token).getUserId();
+    public AdminDashboardConfigResponse dashboard(AccountAccess actor) {
+        if (actor == null) return null; // Public static rendering uses the site default only.
+        int userId = userId(actor);
         try {
             JsonElement value = store.read(userId).get("dashboard");
             return value == null || !value.isJsonObject() ? null : GSON.fromJson(value, AdminDashboardConfigResponse.class);
@@ -127,8 +123,8 @@ public class UserPreferenceService {
         catch (SQLException e) { throw new IllegalStateException("Unable to read dashboard preferences", e); }
     }
 
-    public void saveDashboard(AdminTokenVO token, AdminDashboardConfigResponse config) {
-        int userId = permissionService.account(token).getUserId();
+    public void saveDashboard(AccountAccess actor, AdminDashboardConfigResponse config) {
+        int userId = userId(actor);
         try { store.mutate(userId, root -> root.add("dashboard", GSON.toJsonTree(config))); }
         catch (SQLException e) { throw new IllegalStateException("Unable to save dashboard preferences", e); }
     }
@@ -175,12 +171,17 @@ public class UserPreferenceService {
         return result;
     }
 
-    public UserPreferences.Assistant assistant(AdminTokenVO token) {
-        int userId = permissionService.account(token).getUserId();
+    public UserPreferences.Assistant assistant(AccountAccess actor) {
+        int userId = userId(actor);
         UserPreferences defaults = new UserPreferences();
         defaults.assistant = assistantDefaults();
         try { return merge(defaults, read(userId)).assistant; }
         catch (SQLException e) { throw new IllegalStateException("Unable to read assistant settings", e); }
+    }
+
+    private static int userId(AccountAccess actor) {
+        if (actor == null || !actor.isEnabled()) throw new PermissionErrorException();
+        return actor.getUserId();
     }
 
     static UserPreferences merge(UserPreferences defaults, UserPreferences overrides) {

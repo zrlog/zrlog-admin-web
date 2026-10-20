@@ -293,7 +293,8 @@ public class AdminWebSetup implements WebSetup, TokenServiceProvider {
                                         () -> r.get(AdminActionDispatcher.class),
                                         zrLogConfig::isInstalled,
                                         r.get(AccountComponent.class).preferences(),
-                                        r.get(AccountComponent.class).permissions()))
+                                        r.get(AccountComponent.class).routeAuthorizer(),
+                                        r.get(AccountComponent.class).requestIdentity()))
                 .interceptor(
                         AdminLoginInterceptor.class,
                         r -> new AdminLoginInterceptor(() -> r.get(TokenService.class)))
@@ -302,7 +303,7 @@ public class AdminWebSetup implements WebSetup, TokenServiceProvider {
                         r ->
                                 new AdminDevFileInterceptor(
                                         () -> r.get(TokenService.class),
-                                        r.get(AccountComponent.class).permissions()))
+                                        r.get(AccountComponent.class).requestIdentity()))
                 .interceptor(
                         AdminRefreshCacheInterceptor.class,
                         r ->
@@ -310,7 +311,7 @@ public class AdminWebSetup implements WebSetup, TokenServiceProvider {
                                         () -> r.get(TokenService.class),
                                         r.get(PluginTokenValidator.class),
                                         () -> r.get(AdminActionDispatcher.class),
-                                        r.get(AccountComponent.class).permissions()));
+                                        r.get(AccountComponent.class).requestIdentity()));
         List<Class<? extends Interceptor>> interceptors = zrLogConfig.getServerConfig().getInterceptors();
         interceptors.add(AdminCrossOriginInterceptor.class);
         interceptors.add(AdminLoginInterceptor.class);

@@ -10,7 +10,7 @@ import com.zrlog.admin.business.rest.response.FileReferenceIndexCacheVO;
 import com.zrlog.admin.business.rest.response.FileReferenceVO;
 import com.zrlog.admin.business.rest.response.ReplaceArticleResourceUrlResponse;
 import com.zrlog.admin.business.util.FileEntryUtils;
-import com.zrlog.common.vo.AdminTokenVO;
+import com.zrlog.data.security.AccountAccess;
 import com.zrlog.model.Log;
 
 import jakarta.inject.Inject;
@@ -132,18 +132,18 @@ public class FileManagerReferenceService {
         return entries;
     }
 
-    public ReplaceArticleResourceUrlResponse replaceArticleResourceUrl(AdminTokenVO user,
+    public ReplaceArticleResourceUrlResponse replaceArticleResourceUrl(AccountAccess actor,
                                                                        ReplaceArticleResourceUrlRequest request)
             throws SQLException {
-        return replaceArticleResourceReferences(user, request.getFromUrl(), request.getToUrl(),
+        return replaceArticleResourceReferences(actor, request.getFromUrl(), request.getToUrl(),
                 !FileEntryUtils.isExternalUrl(request.getFromUrl()));
     }
 
-    public ReplaceArticleResourceUrlResponse replaceArticleResourceReferences(AdminTokenVO user, String fromUrl,
+    public ReplaceArticleResourceUrlResponse replaceArticleResourceReferences(AccountAccess actor, String fromUrl,
                                                                               String toUrl, boolean prefix)
             throws SQLException {
         ReplaceArticleResourceUrlResponse response =
-                articles.get().replaceReferences(user, fromUrl, toUrl, prefix, references);
+                articles.get().replaceReferences(actor, fromUrl, toUrl, prefix, references);
         if (response.getUpdatedArticles() > 0) {
             requestReferenceIndex = null;
             clearReferenceIndexCache();

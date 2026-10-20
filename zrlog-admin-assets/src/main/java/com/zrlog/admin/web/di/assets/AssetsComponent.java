@@ -1,5 +1,6 @@
 package com.zrlog.admin.web.di.assets;
 
+import com.zrlog.admin.web.security.AdminRequestIdentity;
 import com.zrlog.admin.business.service.*;
 import com.zrlog.admin.web.controller.api.*;
 import com.zrlog.admin.web.di.account.AccountBindingsModule;
@@ -31,6 +32,8 @@ public interface AssetsComponent {
     UploadService uploads();
 
     AccountPermissionService permissions();
+
+    AdminRequestIdentity requestIdentity();
 
     UploadController uploadController();
 

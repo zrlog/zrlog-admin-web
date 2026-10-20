@@ -1,9 +1,9 @@
 package com.zrlog.admin.business.service;
 
+import com.zrlog.admin.business.audit.AdminAuditContext;
 import com.hibegin.common.util.BeanUtil;
 import com.hibegin.common.util.IOUtil;
 import com.hibegin.common.util.StringUtils;
-import com.hibegin.http.server.api.HttpRequest;
 import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.rest.base.AdminWebSiteInfo;
 import com.zrlog.admin.business.rest.response.VersionResponse;
@@ -74,11 +74,10 @@ public class WebSiteSettingsService {
         return response;
     }
 
-    public void update(Object settings, HttpRequest request) throws SQLException {
-        this.adminAuditService.record(
-                request,
+    public void update(Object settings, AdminAuditContext audit) throws SQLException {
+        this.adminAuditService.record(audit,
                 AdminAuditAction.UPDATE_SETTING,
-                settingAuditContent(settings, request.getUri()));
+                settingAuditContent(settings, audit.getUri()));
         Map<String, Object> values = BeanUtil.convert(settings, Map.class);
         if (values != null) {
             WebSite webSite = this.webSiteProvider.get();
@@ -92,20 +91,20 @@ public class WebSiteSettingsService {
         }
     }
 
-    public void updateAdmin(AdminWebSiteInfo settings, HttpRequest request) throws SQLException {
+    public void updateAdmin(AdminWebSiteInfo settings, AdminAuditContext audit) throws SQLException {
         // Older clients omit the new field; only an explicit empty string clears it.
         if (settings.getBackend_server_url() == null) {
             settings.setBackend_server_url(
                     this.webSiteProvider.get().getStringValueByName(BackendServerUrl.SETTING_KEY));
         }
-        update(settings, request);
+        update(settings, audit);
         tokenService.updateSessionTimeout(settings.getSession_timeout());
     }
 
-    public void updateUpgrade(UpgradeWebSiteInfo settings, HttpRequest request) throws SQLException {
+    public void updateUpgrade(UpgradeWebSiteInfo settings, AdminAuditContext audit) throws SQLException {
         validateUpgrade(settings);
         UpdateVersionInfoPlugin plugin = updatePlugin.get();
-        update(settings, request);
+        update(settings, audit);
         plugin.stop();
         if (AutoUpgradeVersionType.cycle(settings.getAutoUpgradeVersion()) != AutoUpgradeVersionType.NEVER) {
             plugin.start();

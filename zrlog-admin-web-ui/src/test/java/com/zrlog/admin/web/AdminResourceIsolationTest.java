@@ -10,7 +10,7 @@ import com.hibegin.http.server.api.HttpResponse;
 import com.hibegin.http.server.web.Controller;
 import com.zrlog.admin.business.rest.response.AdminResourceInfoResponse;
 import com.zrlog.admin.business.service.AdminPageDataFactory;
-import com.zrlog.admin.business.service.AdminPageService;
+import com.zrlog.admin.web.page.AdminPageRequestHandler;
 import com.zrlog.admin.business.service.AdminResource;
 import com.zrlog.admin.business.service.AdminResourceProvider;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
@@ -52,7 +52,7 @@ public class AdminResourceIsolationTest {
             TestApplication apiOnly =
                     new TestApplication(db.dataSource(), "/api-only", "API site", 200, false);
             assertEquals("", apiOnly.getServerConfig().getBindings().build()
-                    .get(AdminPageDataFactory.class).metadata("/admin/index").getPageBuildId());
+                    .get(AdminPageDataFactory.class).metadata(null, "/admin/index").getPageBuildId());
             assertNull(apiOnly.getServerConfig().getRouter().getMethod("/admin", HttpMethod.GET));
             assertEquals("API site", publicResources(apiOnly).getWebsiteTitle());
 
@@ -71,13 +71,13 @@ public class AdminResourceIsolationTest {
     }
 
     private static void assertPage(TestApplication app, String title, String version) throws Throwable {
-        var pages = app.getServerConfig().getBindings().build().get(AdminPageService.class);
+        var pages = app.getServerConfig().getBindings().build().get(AdminPageRequestHandler.class);
         HttpRequest request = request(app);
         var page = pages.serverSide("/admin/index", request, response());
         assertEquals(title, page.getResourceInfo().getWebsiteTitle());
         assertEquals(new Gson().toJson(publicResources(app)), new Gson().toJson(page.getResourceInfo()));
         assertEquals(version, app.getServerConfig().getBindings().build()
-                .get(AdminPageDataFactory.class).metadata("/admin/index").getPageBuildId());
+                .get(AdminPageDataFactory.class).metadata(null, "/admin/index").getPageBuildId());
         String source = "<html><head><base href='/'>"
                 + "<link rel='manifest' href='/admin/manifest.json'>"
                 + "<script src='/admin/static/app.js'></script></head>"

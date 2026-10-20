@@ -19,10 +19,10 @@ public class OAuthAdminOriginTest {
         return new OAuthService(
                 () -> "https://api.example/sub",
                 () -> true,
-                accounts.permissions(),
+                accounts.permissions(), accounts.identities(),
                 accounts.security(),
                 resource -> new PersonalAccessTokenService(
-                        resource, accounts.permissions(), accounts.security()),
+                        resource, accounts.identities(), accounts.permissions(), accounts.security()),
                 accounts.backend());
     }
 

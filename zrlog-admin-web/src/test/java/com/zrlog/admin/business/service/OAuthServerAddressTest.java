@@ -29,19 +29,20 @@ public class OAuthServerAddressTest {
                                         ApplicationServicesFixture.backend(db.config())::configured,
                                         ApplicationServicesFixture.available(
                                                 db.config(), McpWebSetup.class),
-                                        AccountServicesFixture.component(db.dataSource()).permissions(),
+                                        AccountServicesFixture.component(db.dataSource()).permissions(), AccountServicesFixture.component(db.dataSource()).identities(),
                                         AccountServicesFixture.component(db.dataSource()).security(),
                                         tokenResource ->
                                                 new PersonalAccessTokenService(
                                                         tokenResource,
                                                         AccountServicesFixture.component(db.dataSource())
+                                                                .identities(), AccountServicesFixture.component(db.dataSource())
                                                                 .permissions(),
                                                         AccountServicesFixture.component(db.dataSource())
                                                                 .security()),
                                         AccountServicesFixture.component(db.dataSource()).backend());
                         String origin = "http://localhost" + (port == 80 ? "" : ":" + port);
                         String issuer = origin + context;
-                        var page = service.page();
+                        var page = service.page(AccountServicesFixture.component(db.dataSource()).requestIdentity().current());
                         assertEquals(issuer, page.issuer);
                         assertEquals(issuer + "/api/oauth", page.resource);
                         assertEquals(issuer + "/mcp", page.mcpResource);
@@ -69,12 +70,12 @@ public class OAuthServerAddressTest {
                                             "xiaochun.zrlog.com",
                                             ""),
                             () -> true,
-                            accounts.permissions(),
+                            accounts.permissions(), accounts.identities(),
                             accounts.security(),
                             tokenResource ->
                                     new PersonalAccessTokenService(
                                             tokenResource,
-                                            accounts.permissions(),
+                                            accounts.identities(), accounts.permissions(),
                                             accounts.security()),
                             accounts.backend());
             assertEquals("https://xiaochun-admin.zrlog.com", service.issuer());
@@ -86,13 +87,13 @@ public class OAuthServerAddressTest {
             assertEquals("https://xiaochun-admin.zrlog.com/.well-known/oauth-protected-resource/mcp", service.mcpResourceMetadataUrl());
             assertEquals("https://xiaochun-admin.zrlog.com/api/admin", service.adminResource());
             assertEquals("https://xiaochun-admin.zrlog.com/api/oauth", service.resource());
-            var page = service.page();
+            var page = service.page(AccountServicesFixture.component(db.dataSource()).requestIdentity().current());
             assertEquals(service.issuer(), page.issuer);
             assertEquals(service.mcpResource(), page.mcpResource);
             assertEquals(service.issuer() + WebhookService.MESSAGE_CENTER_NOTICE_ENDPOINT, page.notificationEndpoint);
             var app = new OAuthModels.Client();
             app.name = "MCP test"; app.redirectUris = java.util.List.of("https://chatgpt.com/connector/oauth/test");
-            app = service.register(app);
+            app = service.register(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), app);
             var request = new OAuthModels.AuthorizationRequest();
             request.client_id = app.clientId; request.redirect_uri = app.redirectUris.get(0); request.response_type = "code";
             request.code_challenge_method = "S256"; request.code_challenge = OAuthService.hash(OAuthService.random());

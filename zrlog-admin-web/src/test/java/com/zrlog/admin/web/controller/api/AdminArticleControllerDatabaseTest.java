@@ -103,12 +103,9 @@ public class AdminArticleControllerDatabaseTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             db.loadAdminWebModules();
             applicationConfig = db.config();
-            new UserPreferenceService(
-                            ApplicationServicesFixture.settings(db.dataSource()),
-                            new UserPreferenceStore(() -> new User(db.dataSource())),
-                            AccountServicesFixture.component(db.dataSource()).permissions())
-                    .updateBody(
-                            "{\"articleList\":{\"sort\":\"click,ASC\",\"status\":\"draft\",\"columns\":[\"click\"]}}",
+            new UserPreferenceService(ApplicationServicesFixture.settings(db.dataSource()),
+                            new UserPreferenceStore(() -> new User(db.dataSource())))
+                    .updateBody(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), "{\"articleList\":{\"sort\":\"click,ASC\",\"status\":\"draft\",\"columns\":[\"click\"]}}",
                             "writing");
             ArticlePageData defaults = controller(db.cacheService(), Map.of(), null, new ResponseRecorder(), db.dataSource()).index().getData();
             assertEquals("draft", defaults.getStatus());
@@ -514,7 +511,9 @@ public class AdminArticleControllerDatabaseTest {
                             ApplicationServicesFixture.settings(db.dataSource()),
                             ApplicationServicesFixture.operations(db.dataSource()),
                             AIServiceDependencies.writing(db.dataSource()),
-                            AIServiceDependencies.conversations(db.dataSource()));
+                            AIServiceDependencies.conversations(db.dataSource()),
+                        com.zrlog.admin.support.AccountServicesFixture.component(db.dataSource()).identities(),
+                        com.zrlog.admin.support.AccountServicesFixture.component(db.dataSource()).permissions());
 
             publishingService.recordPublishCheckSuccess(7L, "Checked Article",
                     Map.of("score", 90, "items", List.of("ok")));
@@ -544,7 +543,7 @@ public class AdminArticleControllerDatabaseTest {
                                     ApplicationServicesFixture.websiteKv(db.dataSource()),
                                     () -> new WebSite(db.dataSource()),
                                     new AIFileService(),
-                                    AIServiceDependencies.approvals(db.dataSource()))
+                                    AIServiceDependencies.approvals(db.dataSource())).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId()))
                             .appendAIMessageEntries(List.of(message), 9L));
 
             ApiStandardResponse<Boolean> updated = aiController(Map.of("id", "9"),
@@ -581,7 +580,7 @@ public class AdminArticleControllerDatabaseTest {
                                     ApplicationServicesFixture.websiteKv(db.dataSource()),
                                     () -> new WebSite(db.dataSource()),
                                     new AIFileService(),
-                                    AIServiceDependencies.approvals(db.dataSource()))
+                                    AIServiceDependencies.approvals(db.dataSource())).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId()))
                             .appendAIMessageEntries(List.of(message), 9L));
             String messageId = message.getMessageId();
 
@@ -608,9 +607,7 @@ public class AdminArticleControllerDatabaseTest {
             db.execute("insert into log(logId,userId,typeId,title,privacy,rubbish) values(?,?,?,?,?,?)",
                     9, 2, 1, "Private article", true, false);
             String body = "{\"input\":\"Read this article\",\"articleId\":9}";
-            AccountServicesFixture.component(db.dataSource())
-                    .permissions()
-                    .checkRoute(AIArticleController.class.getMethod("ai"), request(Map.of(), body));
+            AccountServicesFixture.component(db.dataSource()).routeAuthorizer().checkRoute(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), AIArticleController.class.getMethod("ai"), request(Map.of(), body));
             org.junit.Assert.assertThrows(
                     PermissionErrorException.class,
                     () -> aiController(Map.of(), body, new ResponseRecorder(), db.dataSource()).ai());
@@ -652,34 +649,30 @@ public class AdminArticleControllerDatabaseTest {
             applicationConfig = db.config();
             ArticlePublishingService publishingService =
                     new ArticlePublishingService(
-                            new AdminArticleService(
-                                    ApplicationServicesFixture.capability(
+                            new AdminArticleService(ApplicationServicesFixture.capability(
                                             db.config(), ArticleAssistant.class),
-                                    AccountServicesFixture.component(db.dataSource()).permissions(),
-                                    AccountServicesFixture.component(db.dataSource()).preferences(),
-                                    new ArticleVersionService(
-                                            AccountServicesFixture.component(db.dataSource())
+                                AccountServicesFixture.component(db.dataSource()).permissions(),
+                                AccountServicesFixture.component(db.dataSource()).identities(),
+                                AccountServicesFixture.component(db.dataSource()).preferences(),
+                                new ArticleVersionService(AccountServicesFixture.component(db.dataSource())
                                                     .permissions(),
-                                            () -> new Log(db.dataSource()),
-                                            () -> new LogVersion(db.dataSource())),
-                                    new ArticlePinningService(
+                                () -> new Log(db.dataSource()),
+                                () -> new LogVersion(db.dataSource())),
+                                new ArticlePinningService(
                                             () -> new Log(db.dataSource()),
                                             ApplicationServicesFixture.locks(db.dataSource())),
-                                    () -> new Log(db.dataSource()),
-                                    ApplicationServicesFixture.locks(db.dataSource())),
-                            new ArticleQueryService(
-                                    db.cacheService(),
-                                    ApplicationServicesFixture.capability(
+                                () -> new Log(db.dataSource()),
+                                ApplicationServicesFixture.locks(db.dataSource())),
+                            new ArticleQueryService(db.cacheService(),
+                                ApplicationServicesFixture.capability(
                                             db.config(), ArticleAssistant.class),
-                                    new AdminPageDataFactory(
+                                new AdminPageDataFactory(
                                             ApplicationServicesFixture.site(db.config()),
                                             ApplicationServicesFixture.buildId(db.resources()),
-                                            ApplicationServicesFixture.messages(db.dataSource()),
-                                            AccountServicesFixture.component(db.dataSource())
-                                                    .permissions()),
-                                    AccountServicesFixture.component(db.dataSource()).permissions(),
-                                    AccountServicesFixture.component(db.dataSource()).preferences(),
-                                    () -> new Log(db.dataSource())),
+                                            ApplicationServicesFixture.messages(db.dataSource())),
+                                AccountServicesFixture.component(db.dataSource()).permissions(),
+                                AccountServicesFixture.component(db.dataSource()).preferences(),
+                                () -> new Log(db.dataSource())),
                             ApplicationServicesFixture.cacheRefresh(db.cacheService(), db.config()),
                             markdown -> null,
                             ApplicationServicesFixture.audit(db.dataSource()),
@@ -695,9 +688,8 @@ public class AdminArticleControllerDatabaseTest {
                     new AdminPageDataFactory(
                                     ApplicationServicesFixture.site(db.config()),
                                     ApplicationServicesFixture.buildId(db.resources()),
-                                    ApplicationServicesFixture.messages(db.dataSource()),
-                                    AccountServicesFixture.component(db.dataSource()).permissions())
-                            .response(global);
+                                    ApplicationServicesFixture.messages(db.dataSource()))
+                            .response(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), global);
 
             assertTrue(publishingService.shouldUseTransparentPublishStream(request));
             assertNull(
@@ -705,8 +697,10 @@ public class AdminArticleControllerDatabaseTest {
                                     ApplicationServicesFixture.settings(db.dataSource()),
                                     ApplicationServicesFixture.operations(db.dataSource()),
                                     AIServiceDependencies.writing(db.dataSource()),
-                                    AIServiceDependencies.conversations(db.dataSource()))
-                            .startPublishCheck(detail.getData(), request));
+                                    AIServiceDependencies.conversations(db.dataSource()),
+                        com.zrlog.admin.support.AccountServicesFixture.component(db.dataSource()).identities(),
+                        com.zrlog.admin.support.AccountServicesFixture.component(db.dataSource()).permissions())
+                            .startPublishCheck(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), detail.getData(), request));
 
             request.setPrivacy(true);
             global.setPublishCheckEnabled(true);
@@ -718,8 +712,10 @@ public class AdminArticleControllerDatabaseTest {
                                     ApplicationServicesFixture.settings(db.dataSource()),
                                     ApplicationServicesFixture.operations(db.dataSource()),
                                     AIServiceDependencies.writing(db.dataSource()),
-                                    AIServiceDependencies.conversations(db.dataSource()))
-                            .startPublishCheck(detail.getData(), request));
+                                    AIServiceDependencies.conversations(db.dataSource()),
+                        com.zrlog.admin.support.AccountServicesFixture.component(db.dataSource()).identities(),
+                        com.zrlog.admin.support.AccountServicesFixture.component(db.dataSource()).permissions())
+                            .startPublishCheck(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), detail.getData(), request));
 
             String successPayload = emitPublishCheck(
                     CompletableFuture.completedFuture(new PublishCheckResponse(
@@ -786,7 +782,7 @@ public class AdminArticleControllerDatabaseTest {
                                                                         .websiteKv(db.dataSource()),
                                                                 () -> new WebSite(db.dataSource()),
                                                                 new AIFileService(),
-                                                                AIServiceDependencies.approvals(db.dataSource()))
+                                                                AIServiceDependencies.approvals(db.dataSource())).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId()))
                                                         .appendAIMessageEntries(
                                                                 List.of(entry), 42L);
                                                 new MessageCenterOperationService(
@@ -937,6 +933,7 @@ public class AdminArticleControllerDatabaseTest {
             CreateArticleRequest request = articleRequest("Publish Check");
             request.setMarkdown("");
             request.setContent("Publish Check content");
+            db.execute("insert into log(logId,userId,typeId,title,rubbish,privacy) values(42,1,1,'Publish Check',false,false)");
             LoadEditArticleResponse article = new LoadEditArticleResponse();
             article.setLogId(42);
             AIArticleGlobalResponse global = new AIArticleGlobalResponse();
@@ -947,17 +944,18 @@ public class AdminArticleControllerDatabaseTest {
                     new AdminPageDataFactory(
                                     ApplicationServicesFixture.site(db.config()),
                                     ApplicationServicesFixture.buildId(db.resources()),
-                                    ApplicationServicesFixture.messages(db.dataSource()),
-                                    AccountServicesFixture.component(db.dataSource()).permissions())
-                            .response(global);
+                                    ApplicationServicesFixture.messages(db.dataSource()))
+                            .response(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), global);
 
             PublishCheckTask task =
                     new AIPublishCheckService(
                                     ApplicationServicesFixture.settings(db.dataSource()),
                                     ApplicationServicesFixture.operations(db.dataSource()),
                                     AIServiceDependencies.writing(db.dataSource()),
-                                    AIServiceDependencies.conversations(db.dataSource()))
-                            .startPublishCheck(detail.getData(), request);
+                                    AIServiceDependencies.conversations(db.dataSource()),
+                        com.zrlog.admin.support.AccountServicesFixture.component(db.dataSource()).identities(),
+                        com.zrlog.admin.support.AccountServicesFixture.component(db.dataSource()).permissions())
+                            .startPublishCheck(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), detail.getData(), request);
 
             assertNotNull(task);
             String payload = emitPublishCheck(task, true, null);
@@ -1077,7 +1075,8 @@ public class AdminArticleControllerDatabaseTest {
                         ApplicationServicesFixture.capability(
                                 applicationConfig, ArticleAssistant.class),
                         account.pages(),
-                        account.preferences());
+                        account.preferences(),
+                        account.requestIdentity());
         setControllerField(controller, "request", request(params, body));
         setControllerField(controller, "response", response.response());
         return controller;
@@ -1089,23 +1088,22 @@ public class AdminArticleControllerDatabaseTest {
                 new AIArticleController(
                         new UploadService(
                                 () -> null,
-                                AccountServicesFixture.component(testDataSource).permissions(),
+                                AccountServicesFixture.component(testDataSource).identities(), AccountServicesFixture.component(testDataSource).permissions(),
                                 new DbFileService(
                                         ApplicationServicesFixture.websiteKv(testDataSource), () -> new WebSite(testDataSource))),
-                        new AIChatService(
-                                AccountServicesFixture.component(testDataSource).permissions(),
-                                AccountServicesFixture.component(testDataSource).preferences(),
-                                AIServiceDependencies.approvals(testDataSource),
-                                new AIFileService(),
-                                AIServiceDependencies.writing(testDataSource),
-                                AIServiceDependencies.conversations(testDataSource),
-                                AIServiceDependencies.writingTools(testDataSource),
-                                AIServiceDependencies.references(null, testDataSource)),
-                        new AIReferenceService(
-                                null,
-                                AccountServicesFixture.component(testDataSource).permissions(),
+                        new AIChatService(AccountServicesFixture.component(testDataSource).permissions(),
+                        AccountServicesFixture.component(testDataSource).identities(),
+                        AccountServicesFixture.component(testDataSource).preferences(),
+                        AIServiceDependencies.approvals(testDataSource),
+                        new AIFileService(),
+                        AIServiceDependencies.writing(testDataSource),
+                        AIServiceDependencies.conversations(testDataSource),
+                        AIServiceDependencies.writingTools(testDataSource),
+                        AIServiceDependencies.references(null, testDataSource)),
+                        new AIReferenceService(null,
+                                AccountServicesFixture.component(testDataSource).identities(),
                                 AccountServicesFixture.component(testDataSource).preferences()),
-                        AccountServicesFixture.component(testDataSource).permissions(),
+                        AccountServicesFixture.component(testDataSource).requestIdentity(),
                         new AIFileService(),
                         AIServiceDependencies.publishing(testDataSource),
                         AIServiceDependencies.images(testDataSource),

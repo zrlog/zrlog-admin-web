@@ -6,14 +6,17 @@ import com.hibegin.common.dao.DataSourceWrapper;
 import com.hibegin.common.util.PasswordHashUtils;
 import com.hibegin.common.util.SecurityUtils;
 import com.zrlog.admin.business.exception.PermissionErrorException;
+import com.zrlog.admin.business.security.GrantAuthority;
 import com.zrlog.admin.business.security.MemberModels;
 import com.zrlog.admin.business.security.OAuthException;
 import com.zrlog.admin.business.security.OAuthModels.*;
 import com.zrlog.admin.business.security.PersonalTokenModels;
 import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
+import com.zrlog.admin.web.di.account.AccountComponent;
 import com.zrlog.admin.web.interceptor.OAuthInterceptor;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
+import com.zrlog.data.security.AccountAccess;
 
 import org.junit.Test;
 
@@ -24,19 +27,28 @@ import java.util.concurrent.*;
 
 /** Exercises interleavings between separate autocommitted statements, without a shared process lock. */
 public class D1AccountStorageTest {
+    private AccountComponent accounts;
+
+    private AccountAccess actor() { return accounts.requestIdentity().current(); }
+    private GrantAuthority authority() {
+        return new GrantAuthority(actor(), !com.zrlog.admin.business.security.DelegatedAccess.restricted());
+    }
+    private String sessionId() { return AdminTokenThreadLocal.getUser().getSessionId(); }
+
     private OAuthService oauth;
 
     private void initializeServices(DataSourceWrapper testDataSource) {
+        accounts = AccountServicesFixture.component(testDataSource);
         oauth =
                 new OAuthService(
                         () -> "https://blog.example/sub",
                         () -> true,
-                        AccountServicesFixture.component(testDataSource).permissions(),
+                        AccountServicesFixture.component(testDataSource).permissions(), AccountServicesFixture.component(testDataSource).identities(),
                         AccountServicesFixture.component(testDataSource).security(),
                         tokenResource ->
                                 new PersonalAccessTokenService(
                                         tokenResource,
-                                        AccountServicesFixture.component(testDataSource).permissions(),
+                                        AccountServicesFixture.component(testDataSource).identities(), AccountServicesFixture.component(testDataSource).permissions(),
                                         AccountServicesFixture.component(testDataSource).security()),
                         AccountServicesFixture.component(testDataSource).backend());
     }
@@ -45,7 +57,7 @@ public class D1AccountStorageTest {
 
     private Client client() throws Exception {
         Client client = new Client(); client.name = "D1 assistant"; client.redirectUris = List.of("http://127.0.0.1:3000/callback");
-        return oauth.register(client);
+        return oauth.register(actor(), client);
     }
 
     private String pending(Client client) throws Exception {
@@ -64,7 +76,7 @@ public class D1AccountStorageTest {
 
     private TokenRequest code(Client client, Consent consent) throws Exception {
         TokenRequest request = new TokenRequest(); request.grant_type = "authorization_code";
-        request.code = parameters(oauth.decide(decision(consent)).redirectUri).get("code");
+        request.code = parameters(oauth.decide(authority(), sessionId(), decision(consent)).redirectUri).get("code");
         request.client_id = client.clientId; request.redirect_uri = client.redirectUris.get(0);
         request.resource = oauth.mcpResource(); request.code_verifier = verifier;
         return request;
@@ -90,7 +102,7 @@ public class D1AccountStorageTest {
         for (boolean refresh : List.of(false, true)) {
             try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.openWebApi()) {
                 initializeServices(db.dataSource());
-                Client client = client(); TokenRequest request = code(client, oauth.consent(pending(client)));
+                Client client = client(); TokenRequest request = code(client, oauth.consent(authority(), sessionId(), pending(client)));
                 if (refresh) {
                     TokenResponse previous = oauth.token(request);
                     request.grant_type = "refresh_token"; request.refresh_token = previous.refresh_token;
@@ -135,14 +147,14 @@ public class D1AccountStorageTest {
     private Consent consentAs(InMemoryZrLogDatabase db, String id, int userId, String role) throws Exception {
         try {
             AccountAuthorizationTest.login(db, userId, role);
-            try { return oauth.consent(id); } catch (OAuthException e) { assertEquals("invalid_grant", e.getOAuthError()); return null; }
+            try { return oauth.consent(authority(), sessionId(), id); } catch (OAuthException e) { assertEquals("invalid_grant", e.getOAuthError()); return null; }
         } finally { AdminTokenThreadLocal.remove(); }
     }
 
     @Test public void issuanceFailureDoesNotRestoreConsumedCredentials() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.openWebApi()) {
             initializeServices(db.dataSource());
-            Client client = client(); TokenRequest request = code(client, oauth.consent(pending(client)));
+            Client client = client(); TokenRequest request = code(client, oauth.consent(authority(), sessionId(), pending(client)));
             db.beforeWebApiUpdate((sql, args) -> {
                 if (sql.startsWith("insert into oauth_credential") && "refresh".equals(args[1])) throw new SQLException("Simulated interruption");
             });
@@ -183,20 +195,20 @@ public class D1AccountStorageTest {
                             AccountServicesFixture.component(db.dataSource()).users(),
                             AccountServicesFixture.component(db.dataSource()).permissions());
             MemberModels.Create create = new MemberModels.Create(); create.userName = "writer"; create.role = "author"; create.password = "previous-password";
-            int id = members.create(create).userId;
+            int id = members.create(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), create).userId;
             AccountAuthorizationTest.login(db, id, "author");
             PersonalTokenModels.Create pat = new PersonalTokenModels.Create();
             pat.name = "Assistant";
             String token =
                     new PersonalAccessTokenService(
                                     oauth.mcpResource(),
-                                    AccountServicesFixture.component(db.dataSource()).permissions(),
+                                    AccountServicesFixture.component(db.dataSource()).identities(), AccountServicesFixture.component(db.dataSource()).permissions(),
                                     AccountServicesFixture.component(db.dataSource()).security())
-                            .create(pat)
+                            .create(new GrantAuthority(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), !com.zrlog.admin.business.security.DelegatedAccess.restricted()), pat)
                             .token;
             AccountAuthorizationTest.login(db, 1, "owner");
             MemberModels.Update update = new MemberModels.Update(); update.userId = id; update.role = "editor"; update.enabled = false; update.password = "replacement-password";
-            members.update(update);
+            members.update(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), update);
             Map<String, Object> row = db.queryOne("select * from user where userId=?", id);
             assertEquals("editor", row.get("role")); assertEquals(0, ((Number) row.get("enabled")).intValue());
             assertEquals(1, ((Number) row.get("authVersion")).intValue());
@@ -215,19 +227,19 @@ public class D1AccountStorageTest {
                             AccountServicesFixture.component(db.dataSource()).users(),
                             AccountServicesFixture.component(db.dataSource()).permissions());
             MemberModels.Create create = new MemberModels.Create(); create.userName = "writer"; create.role = "author"; create.password = "previous-password";
-            int id = members.create(create).userId;
+            int id = members.create(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), create).userId;
             MemberModels.Update update = new MemberModels.Update(); update.userId = id; update.role = "contributor"; update.enabled = false;
             db.beforeWebApiUpdate((sql, args) -> {
                 if (sql.startsWith("update user set role=?")) db.execute("update user set role='admin',authVersion=authVersion+1 where userId=?", id);
             });
-            assertThrows(PermissionErrorException.class, () -> members.update(update));
+            assertThrows(PermissionErrorException.class, () -> members.update(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), update));
             assertEquals("admin", db.scalar("select role from user where userId=?", id));
             assertEquals(1, ((Number) db.scalar("select enabled from user where userId=?", id)).intValue());
             db.beforeWebApiUpdate((sql, args) -> {
                 if (sql.startsWith("insert into user ")) db.execute("update user set role='author',authVersion=authVersion+1 where userId=1");
             });
             create.userName = "too-late";
-            assertThrows(PermissionErrorException.class, () -> members.create(create));
+            assertThrows(PermissionErrorException.class, () -> members.create(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), create));
             assertEquals(0, ((Number) db.scalar("select count(*) from user where userName='too-late'")).intValue());
         }
     }
@@ -257,7 +269,7 @@ public class D1AccountStorageTest {
                                 AccountServicesFixture.component(db.dataSource()).security(),
                                 AccountServicesFixture.component(db.dataSource()).users(),
                                 AccountServicesFixture.component(db.dataSource()).permissions())
-                        .transfer(transfer);
+                        .transfer(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), transfer);
                 return true;
             } catch (PermissionErrorException e) {
                 return false;

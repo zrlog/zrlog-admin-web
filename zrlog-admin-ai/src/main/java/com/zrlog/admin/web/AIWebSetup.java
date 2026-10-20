@@ -28,6 +28,7 @@ import com.zrlog.admin.web.interceptor.PluginTokenValidator;
 import com.zrlog.business.di.ServiceComponent;
 import com.zrlog.data.di.DataComponent;
 import com.zrlog.util.I18nUtil;
+import com.zrlog.data.security.AccountAccess;
 
 import java.io.IOException;
 import java.util.Objects;
@@ -83,7 +84,7 @@ public class AIWebSetup implements ArticleAssistant {
 
     @Override public void articleCreated(long articleId, int userId) {
         try {
-            components().conversations().migrateDraftAIMessageToArticle(articleId, -(long) userId);
+            components().conversations().captureAccount(userId).migrateDraftAIMessageToArticle(articleId, -(long) userId);
         } catch (Exception e) {
             LOGGER.log(Level.FINE, "Migrate draft article AI messages failed, articleId=" + articleId, e); }
     }
@@ -95,9 +96,9 @@ public class AIWebSetup implements ArticleAssistant {
             LOGGER.log(Level.FINE, "Remove article AI messages failed, articleId=" + articleId, e); }
     }
 
-    @Override public ArticleGlobalResponse enrichEditor(ArticleGlobalResponse article, long articleId) {
+    @Override public ArticleGlobalResponse enrichEditor(ArticleGlobalResponse article, long articleId, int userId) {
         AIWebSiteInfoWithAIMessages ai =
-                components().conversations().getAiMessageInfoByArticleId(articleId);
+                components().conversations().captureAccount(userId).getAiMessageInfoByArticleId(articleId);
         AIArticleGlobalResponse response = new AIArticleGlobalResponse(article);
         response.setAiProvider(ai.getAi_provider());
         response.setAiModel(ai.getAi_model());
@@ -108,9 +109,9 @@ public class AIWebSetup implements ArticleAssistant {
         return response;
     }
 
-    @Override public PublishProgress beginPublishCheck(ArticleGlobalResponse article, CreateArticleRequest request,
+    @Override public PublishProgress beginPublishCheck(AccountAccess actor, ArticleGlobalResponse article, CreateArticleRequest request,
                                                        AdminSseEmitter emitter) throws Exception {
-        PublishCheckTask task = components().publishing().startPublishCheck(article, request);
+        PublishCheckTask task = components().publishing().startPublishCheck(actor, article, request);
         if (task == null) return PublishProgress.NONE;
         emitter.send("publish-check-start", AdminSsePayloads.tool("publishCheck"));
         return new PublishProgress() {

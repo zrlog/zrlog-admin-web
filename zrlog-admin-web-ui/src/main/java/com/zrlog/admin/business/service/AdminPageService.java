@@ -4,18 +4,13 @@ import com.google.gson.Gson;
 import com.hibegin.common.util.IOUtil;
 import com.hibegin.common.util.StringUtils;
 import com.hibegin.http.server.api.HttpRequest;
-import com.hibegin.http.server.api.HttpResponse;
-import com.hibegin.http.server.web.Controller;
-import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
 import com.zrlog.admin.business.rest.response.AdminResourceInfoResponse;
 import com.zrlog.admin.business.rest.response.ServerSideDataResponse;
 import com.zrlog.admin.business.rest.response.UserInfoResponse;
-import com.zrlog.admin.web.config.AdminAccountPages;
-import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.blog.web.util.WebTools;
 import com.zrlog.common.CacheService;
+import com.zrlog.data.security.AccountAccess;
 import com.zrlog.common.TokenService;
-import com.zrlog.common.rest.response.StandardResponse;
 import com.zrlog.common.vo.PublicWebSiteInfo;
 import com.zrlog.plugin.BaseStaticSitePlugin;
 import com.zrlog.util.I18nUtil;
@@ -29,8 +24,8 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 import java.io.InputStream;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
+import java.io.IOException;
+import java.sql.SQLException;
 import java.util.Objects;
 import java.util.function.Supplier;
 
@@ -40,7 +35,7 @@ public class AdminPageService {
 
     private final UserPreferenceService userPreferenceService;
 
-    private final AccountPermissionService permissionService;
+    private final AccountIdentityService identities;
 
     private final CacheService cacheService;
     private final AdminPageDataFactory pages;
@@ -53,14 +48,14 @@ public class AdminPageService {
             AdminPageDataFactory pages,
             AdminResourceService resources,
             Supplier<String> buildId,
-            AccountPermissionService permissionService,
+            AccountIdentityService identities,
             UserPreferenceService userPreferenceService,
             UserService userService) {
         this.userService = userService;
 
         this.userPreferenceService = userPreferenceService;
 
-        this.permissionService = permissionService;
+        this.identities = identities;
 
         this.buildId = Objects.requireNonNull(buildId);
         this.pages = pages;
@@ -68,7 +63,8 @@ public class AdminPageService {
         this.cacheService = cacheService;
     }
 
-    public String buildHtml(HttpRequest request, HttpResponse httpResponse, InputStream htmlInputStream) throws Throwable {
+    public String buildHtml(HttpRequest request, InputStream htmlInputStream,
+                            ServerSideDataResponse<Object> serverSideDataResponse) throws IOException {
         Document document = Jsoup.parse(IOUtil.getStringInputStream(htmlInputStream));
         //clean history
         document.body().removeClass("dark");
@@ -130,7 +126,6 @@ public class AdminPageService {
 
         Elements base = document.head().select("base");
         base.attr("href", WebTools.getHomeUrl(request));
-        ServerSideDataResponse<Object> serverSideDataResponse = serverSide(request.getUri(), request, httpResponse);
         Objects.requireNonNull(document.getElementById("__SS_DATA__")).text(new Gson().toJson(serverSideDataResponse));
         document.body().removeClass("dark").removeClass("light")
                 .addClass(Boolean.TRUE.equals(serverSideDataResponse.getResourceInfo().getAdmin_darkMode()) ? "dark" : "light");
@@ -148,40 +143,18 @@ public class AdminPageService {
         link.attr("href", newUrl + "?v=" + buildId.get());
     }
 
-    public ServerSideDataResponse<Object> serverSide(String uri, HttpRequest request, HttpResponse response) throws Throwable {
+    public ServerSideDataResponse<Object> serverSide(AccountAccess actor, String sessionId, String uri,
+                                                      HttpRequest request, Object data, String documentTitle) throws SQLException {
         AdminResourceInfoResponse resourceInfo = resources.adminResourceInfo(request);
-        if (Objects.isNull(AdminTokenThreadLocal.getUser()) || BaseStaticSitePlugin.isStaticPluginRequest(request)) {
-            return new ServerSideDataResponse<>(null, resourceInfo, null, null, pages.title(request.getUri()), pages.metadata(uri));
+        if (actor == null || BaseStaticSitePlugin.isStaticPluginRequest(request)) {
+            return new ServerSideDataResponse<>(null, resourceInfo, null, null,
+                    pages.title(request.getUri()), pages.metadata(null, uri));
         }
-        UserInfoResponse userInfo =
-                userService.getUserInfoWithCache(
-                        AdminTokenThreadLocal.getUserId(),
-                        AdminTokenThreadLocal.getUser().getSessionId(),
-                        cacheService);
-        this.userPreferenceService.apply(
-                resourceInfo, userInfo.getLanguage(), userInfo.getAppearance());
-        Method method = request.getRequestConfig().getRouter().getMethod(AdminAccountPages.apiUri(uri), request.getMethod());
-        // Disabled features have no API route; retain the shell so the UI can render its 404 page.
-        if (method == null) {
-            return new ServerSideDataResponse<>(userInfo, resourceInfo, null,
-                    AdminTokenThreadLocal.getUser().getSessionId(), pages.title(uri), pages.metadata(uri));
-        }
-        try {
-            permissionService.checkRoute(method, request);
-            Controller controller = Controller.buildController(method, request, response);
-            StandardResponse result = (StandardResponse) method.invoke(controller);
-            if (Objects.isNull(result)) {
-                return new ServerSideDataResponse<>(userInfo, resourceInfo, new Object(), AdminTokenThreadLocal.getUser().getSessionId(), pages.title(request.getUri()), pages.metadata(uri));
-            }
-            if (result instanceof AdminPageDataResponse<?>) {
-                AdminPageDataResponse<?> data = (AdminPageDataResponse<?>) result;
-                return new ServerSideDataResponse<>(userInfo, resourceInfo, data.getData(), AdminTokenThreadLocal.getUser().getSessionId(),
-                        AdminAccountPages.PAGE_APIS.containsKey(uri) ? pages.title(uri) : data.getDocumentTitle(), pages.metadata(uri));
-            }
-        } catch (InvocationTargetException e) {
-            throw e.getTargetException();
-        }
-        return new ServerSideDataResponse<>(userInfo, resourceInfo, null, AdminTokenThreadLocal.getUser().getSessionId(), pages.title(request.getUri()), pages.metadata(uri));
+        identities.revalidate(actor);
+        UserInfoResponse userInfo = userService.getUserInfoWithCache(actor.getUserId(), sessionId, cacheService);
+        userPreferenceService.apply(resourceInfo, userInfo.getLanguage(), userInfo.getAppearance());
+        return new ServerSideDataResponse<>(userInfo, resourceInfo, data, sessionId,
+                documentTitle, pages.metadata(actor, uri));
     }
 
 }

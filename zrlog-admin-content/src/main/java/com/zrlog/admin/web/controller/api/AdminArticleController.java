@@ -1,5 +1,6 @@
 package com.zrlog.admin.web.controller.api;
 
+import com.zrlog.admin.web.audit.AdminAuditContexts;
 import com.hibegin.common.dao.dto.Direction;
 import com.hibegin.common.dao.dto.OrderBy;
 import com.hibegin.common.dao.dto.PageRequest;
@@ -21,11 +22,11 @@ import com.zrlog.admin.util.AdminStaticSiteSsePublisher;
 import com.zrlog.admin.web.annotation.RefreshCache;
 import com.zrlog.admin.web.annotation.RequiresAction;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
+import com.zrlog.admin.web.security.AdminRequestIdentity;
 import com.zrlog.business.plugin.type.StaticSiteType;
 import com.zrlog.business.util.ControllerUtil;
 import com.zrlog.common.controller.BaseController;
 import com.zrlog.common.exception.ArgsException;
-import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.util.ZrLogUtil;
 
@@ -40,6 +41,7 @@ import java.util.function.Supplier;
 
 public class AdminArticleController extends BaseController {
     private final UserPreferenceService userPreferenceService;
+    private final AdminRequestIdentity requestIdentity;
 
     private final AdminPageDataFactory pages;
 
@@ -53,7 +55,9 @@ public class AdminArticleController extends BaseController {
             AdminStaticSiteSsePublisher staticSitePublisher,
             Supplier<ArticleAssistant> assistant,
             AdminPageDataFactory pages,
-            UserPreferenceService userPreferenceService) {
+            UserPreferenceService userPreferenceService,
+            AdminRequestIdentity requestIdentity) {
+        this.requestIdentity = requestIdentity;
         this.userPreferenceService = userPreferenceService;
 
         this.pages = pages;
@@ -77,7 +81,7 @@ public class AdminArticleController extends BaseController {
         if (StringUtils.isEmpty(idStr)) {
             throw new ArgsException("id");
         }
-        return publishingService.deleteArticles(idStr, request);
+        return publishingService.deleteArticles(requestIdentity.current(), idStr, AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()));
     }
 
     @RequestMethod(method = HttpMethod.POST)
@@ -85,12 +89,13 @@ public class AdminArticleController extends BaseController {
     public void create() throws SQLException, IOException {
         CreateArticleRequest body = getRequestBodyWithNullCheck(CreateArticleRequest.class);
         publishingService.prepareRequest(body);
-        AdminTokenVO adminToken = AdminTokenThreadLocal.getUser();
+        var actor = requestIdentity.current();
+        var audit = AdminAuditContexts.from(request, actor.getUserId());
         if (publishingService.shouldUseTransparentPublishStream(body)) {
-            writeTransparentPublishStream(body, () -> publishingService.create(adminToken, body, request));
+            writeTransparentPublishStream(body, () -> publishingService.create(actor, body, audit));
             return;
         }
-        CreateOrUpdateArticleResponse create = publishingService.create(adminToken, body, request);
+        CreateOrUpdateArticleResponse create = publishingService.create(actor, body, audit);
         renderArticleSaveResponse(body, create);
     }
 
@@ -99,12 +104,13 @@ public class AdminArticleController extends BaseController {
     public void update() throws SQLException, IOException {
         UpdateArticleRequest body = getRequestBodyWithNullCheck(UpdateArticleRequest.class);
         publishingService.prepareRequest(body);
-        AdminTokenVO adminToken = AdminTokenThreadLocal.getUser();
+        var actor = requestIdentity.current();
+        var audit = AdminAuditContexts.from(request, actor.getUserId());
         if (publishingService.shouldUseTransparentPublishStream(body)) {
-            writeTransparentPublishStream(body, () -> publishingService.update(adminToken, body, request));
+            writeTransparentPublishStream(body, () -> publishingService.update(actor, body, audit));
             return;
         }
-        CreateOrUpdateArticleResponse update = publishingService.update(adminToken, body, request);
+        CreateOrUpdateArticleResponse update = publishingService.update(actor, body, audit);
         renderArticleSaveResponse(body, update);
     }
 
@@ -112,7 +118,7 @@ public class AdminArticleController extends BaseController {
             throws SQLException, IOException {
         boolean transparentPublish = publishingService.isTransparentPublish(body, saveResponse);
         AdminPageDataResponse<ArticleGlobalResponse> detail =
-                publishingService.articleResponse(saveResponse, !transparentPublish, request);
+                publishingService.articleResponse(requestIdentity.current(), saveResponse, !transparentPublish, request);
         if (!transparentPublish) {
             response.renderJson(detail);
             return;
@@ -125,7 +131,7 @@ public class AdminArticleController extends BaseController {
         writeTransparentPublishStream(body, detailRef, emitter -> {
             CreateOrUpdateArticleResponse saveResponse = saveTask.save();
             AdminPageDataResponse<ArticleGlobalResponse> detail =
-                    publishingService.articleResponse(saveResponse, false, request);
+                    publishingService.articleResponse(requestIdentity.current(), saveResponse, false, request);
             detailRef.set(detail);
             emitter.send("publish-start", AdminSsePayloads.message(detail.getMessage()));
             emitter.send("article", detail);
@@ -159,7 +165,7 @@ public class AdminArticleController extends BaseController {
                 siteTypes,
                 emitter -> {
                     AdminPageDataResponse<ArticleGlobalResponse> detail = publishStartWriter.write(emitter);
-                    progressRef.set(Objects.requireNonNullElse(assistant.get(), ArticleAssistant.NONE).beginPublishCheck(detail.getData(), body, emitter));
+                    progressRef.set(Objects.requireNonNullElse(assistant.get(), ArticleAssistant.NONE).beginPublishCheck(requestIdentity.current(), detail.getData(), body, emitter));
                 },
                 () -> publishingService.updateBlogCacheWithStaticSyncNotice(request),
                 emitter -> progressRef.get().progress(emitter),
@@ -188,12 +194,13 @@ public class AdminArticleController extends BaseController {
     @RequestMethod(method = HttpMethod.GET)
     public AdminPageDataResponse<ArticlePageData> index()
             throws SQLException, ExecutionException, InterruptedException {
+        var actor = requestIdentity.current();
         String key = request.getParaToStr("key", "");
         String types = request.getParaToStr("types", "");
         UserPreferences.ArticleList preferences =
-                this.userPreferenceService.effective().articleList;
+                this.userPreferenceService.effective(actor).articleList;
         String status = request.decodeParamMap().containsKey("status") ? request.getParaToStr("status", "") : preferences.status;
-        int pageSize = articleService.resolveAdminPageSize(request.getParaToInt("size", -1));
+        int pageSize = articleService.resolveAdminPageSize(actor, request.getParaToInt("size", -1));
         PageRequest requested = ControllerUtil.toPageRequest(this, pageSize);
         PageRequestImpl page = new PageRequestImpl(requested.getPage(), requested.getSize());
         page.setOrders(requested.getSorts());
@@ -201,17 +208,17 @@ public class AdminArticleController extends BaseController {
             String[] sort = preferences.sort.split(",");
             page.setOrders(java.util.List.of(new OrderBy(sort[0], Direction.valueOf(sort[1]))));
         }
-        ArticlePageData pageData = articleService.adminPage(page, key, types, status, request);
+        ArticlePageData pageData = articleService.adminPage(actor, page, key, types, status, request);
         pageData.setColumns(preferences.columns);
-        return pages.response(pageData, "", request.getUri());
+        return pages.response(actor, pageData, "", request.getUri());
     }
 
     @ResponseBody
-    @RequiresAction(value = AccountAction.ARTICLE_READ, articleQuery = true, descriptionKey = "article.editor")
+    @RequiresAction(value = AccountAction.ARTICLE_READ, articleQuery = true, optionalArticleId = true, descriptionKey = "article.editor")
     @RequestMethod(method = HttpMethod.GET)
     public AdminPageDataResponse<ArticleGlobalResponse> articleEdit() throws SQLException {
         String id = request.getParaToStr("id", "");
-        return articleService.loadDetailById(id, request);
+        return articleService.loadDetailById(requestIdentity.current(), id, request);
     }
 
     /**
@@ -224,7 +231,8 @@ public class AdminArticleController extends BaseController {
     @Deprecated
     @RequiresAction(value = AccountAction.ARTICLE_READ, articleQuery = true, descriptionKey = "article.detail")
     public AdminPageDataResponse<LoadEditArticleResponse> detail() throws SQLException {
-        return pages.response(articleService.loadDetail(getParamWithEmptyCheck("id"), request));
+        var actor = requestIdentity.current();
+        return pages.response(actor, articleService.loadDetail(actor, getParamWithEmptyCheck("id"), request));
     }
 
 }

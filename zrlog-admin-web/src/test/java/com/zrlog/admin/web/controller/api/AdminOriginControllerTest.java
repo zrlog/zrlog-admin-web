@@ -3,7 +3,6 @@ package com.zrlog.admin.web.controller.api;
 import static org.junit.Assert.*;
 
 import com.google.gson.Gson;
-import com.hibegin.common.dao.DataSourceWrapper;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
@@ -13,11 +12,10 @@ import com.zrlog.admin.business.security.OAuthException;
 import com.zrlog.admin.business.security.OAuthModels;
 import com.zrlog.admin.business.service.AdminPageDataFactory;
 import com.zrlog.admin.business.service.OAuthService;
-import com.zrlog.admin.business.service.PersonalAccessTokenService;
 import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
-import com.zrlog.admin.web.McpWebSetup;
+import com.zrlog.admin.web.di.access.AccessComponent;
 import com.zrlog.admin.web.interceptor.OAuthInterceptor;
 import com.zrlog.common.ZrLogConfig;
 
@@ -41,33 +39,23 @@ public class AdminOriginControllerTest {
     private void configure(InMemoryZrLogDatabase db) throws Exception {
         db.putWebsite("backend_server_url", "https://api.example/sub");
         db.putWebsite("admin_static_resource_base_url", FRONTEND + "/assets/");
+        db.loadAdminWebModules();
     }
 
     @Test public void configuredFrontendCanRegisterAuthorizeAndRevokeApplicationsAndTokens() throws Exception {
         try (var db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
             configure(db);
-            OAuthService service =
-                    new OAuthService(
-                            ApplicationServicesFixture.backend(db.config())::configured,
-                            ApplicationServicesFixture.available(db.config(), McpWebSetup.class),
-                            AccountServicesFixture.component(db.dataSource()).permissions(),
-                            AccountServicesFixture.component(db.dataSource()).security(),
-                            tokenResource ->
-                                    new PersonalAccessTokenService(
-                                            tokenResource,
-                                            AccountServicesFixture.component(db.dataSource()).permissions(),
-                                            AccountServicesFixture.component(db.dataSource()).security()),
-                            AccountServicesFixture.component(db.dataSource()).backend());
+            OAuthService service = db.component(AccessComponent.class).oauth();
             var client = oauth(FRONTEND, Map.of("name", "Static admin application",
-                    "redirectUris", List.of("https://client.example/callback")), db.dataSource()).register().getData();
+                    "redirectUris", List.of("https://client.example/callback"))).register().getData();
             assertNotNull(client.clientId);
 
             var token = oauth(FRONTEND, Map.of("name", "Static admin token",
-                    "permissionMode", "custom", "permissions", List.of("article.read")), db.dataSource())
+                    "permissionMode", "custom", "permissions", List.of("article.read")))
                     .createPersonalToken().getData();
             assertEquals(1, service.authenticate(token.token, service.adminResource(), Set.of()).userId);
-            assertTrue(oauth(FRONTEND, Map.of("id", token.info.id), db.dataSource()).revokePersonalToken().getData());
+            assertTrue(oauth(FRONTEND, Map.of("id", token.info.id)).revokePersonalToken().getData());
             assertThrows(OAuthException.class, () -> service.authenticate(token.token, service.adminResource(), Set.of()));
 
             var request = new OAuthModels.AuthorizationRequest();
@@ -79,22 +67,24 @@ public class AdminOriginControllerTest {
             request.code_challenge_method = "S256";
             request.code_challenge = OAuthService.hash(OAuthService.random());
             String requestId = OAuthInterceptor.parameters(URI.create(service.authorize(request)).getRawQuery()).get("request_id");
-            var consent = service.consent(requestId);
+            var actor = AccountServicesFixture.component(db.dataSource()).requestIdentity().current();
+            var consent = service.consent(new com.zrlog.admin.business.security.GrantAuthority(actor, true),
+                    com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser().getSessionId(), requestId);
             var decision = new OAuthModels.Decision();
             decision.requestId = requestId;
             decision.csrf = "wrong";
             decision.approve = true;
             decision.scopes = consent.availableScopes;
             assertEquals("access_denied", assertThrows(OAuthException.class,
-                    () -> oauth(FRONTEND, decision, db.dataSource()).decide()).getOAuthError());
+                    () -> oauth(FRONTEND, decision).decide()).getOAuthError());
             decision.csrf = consent.csrf;
-            String redirect = oauth(FRONTEND, decision, db.dataSource()).decide().getData().redirectUri;
+            String redirect = oauth(FRONTEND, decision).decide().getData().redirectUri;
             assertTrue(redirect.startsWith("https://client.example/callback?code="));
             assertEquals(service.issuer(), OAuthInterceptor.parameters(URI.create(redirect).getRawQuery()).get("iss"));
-            String grantId = service.page().grants.get(0).id;
-            assertTrue(oauth(FRONTEND, Map.of("id", grantId), db.dataSource()).revokeGrant().getData());
-            assertTrue(service.page().grants.get(0).revoked);
-            assertTrue(oauth(FRONTEND, Map.of("id", client.clientId), db.dataSource()).disableClient().getData());
+            String grantId = service.page(actor).grants.get(0).id;
+            assertTrue(oauth(FRONTEND, Map.of("id", grantId)).revokeGrant().getData());
+            assertTrue(service.page(actor).grants.get(0).revoked);
+            assertTrue(oauth(FRONTEND, Map.of("id", client.clientId)).disableClient().getData());
             assertThrows(OAuthException.class, () -> service.authorize(request));
         }
     }
@@ -106,14 +96,13 @@ public class AdminOriginControllerTest {
             var member =
                     controller(
                                     new MemberController(
-                                            ApplicationServicesFixture.backend(db.config()),
+                                            new com.zrlog.admin.web.security.AdminRouteAuthorizer(AccountServicesFixture.component(db.dataSource()).permissions(), ApplicationServicesFixture.backend(db.config())),
+                        AccountServicesFixture.component(db.dataSource()).requestIdentity(),
                                             new AdminPageDataFactory(
                                                     ApplicationServicesFixture.site(db.config()),
                                                     ApplicationServicesFixture.buildId(
                                                             db.resources()),
-                                                    ApplicationServicesFixture.messages(db.dataSource()),
-                                                    AccountServicesFixture.component(db.dataSource())
-                                                            .permissions()),
+                                                    ApplicationServicesFixture.messages(db.dataSource())),
                                             AccountServicesFixture.component(db.dataSource()).members(),
                                             ApplicationServicesFixture.audit(db.dataSource())),
                                     FRONTEND,
@@ -130,14 +119,13 @@ public class AdminOriginControllerTest {
             var updated =
                     controller(
                                     new MemberController(
-                                            ApplicationServicesFixture.backend(db.config()),
+                                            new com.zrlog.admin.web.security.AdminRouteAuthorizer(AccountServicesFixture.component(db.dataSource()).permissions(), ApplicationServicesFixture.backend(db.config())),
+                        AccountServicesFixture.component(db.dataSource()).requestIdentity(),
                                             new AdminPageDataFactory(
                                                     ApplicationServicesFixture.site(db.config()),
                                                     ApplicationServicesFixture.buildId(
                                                             db.resources()),
-                                                    ApplicationServicesFixture.messages(db.dataSource()),
-                                                    AccountServicesFixture.component(db.dataSource())
-                                                            .permissions()),
+                                                    ApplicationServicesFixture.messages(db.dataSource())),
                                             AccountServicesFixture.component(db.dataSource()).members(),
                                             ApplicationServicesFixture.audit(db.dataSource())),
                                     FRONTEND,
@@ -160,16 +148,16 @@ public class AdminOriginControllerTest {
             applicationConfig = db.config();
             configure(db);
             for (String origin : List.of("https://evil.example", "https://admin.example.evil.example")) {
-                var oauth = oauth(origin, Map.of(), db.dataSource());
+                var oauth = oauth(origin, Map.of());
                 var members =
                         controller(
                                 new MemberController(
-                                        ApplicationServicesFixture.backend(db.config()),
+                                        new com.zrlog.admin.web.security.AdminRouteAuthorizer(AccountServicesFixture.component(db.dataSource()).permissions(), ApplicationServicesFixture.backend(db.config())),
+                        AccountServicesFixture.component(db.dataSource()).requestIdentity(),
                                         new AdminPageDataFactory(
                                                 ApplicationServicesFixture.site(db.config()),
                                                 ApplicationServicesFixture.buildId(db.resources()),
-                                                ApplicationServicesFixture.messages(db.dataSource()),
-                                                AccountServicesFixture.component(db.dataSource()).permissions()),
+                                                ApplicationServicesFixture.messages(db.dataSource())),
                                         AccountServicesFixture.component(db.dataSource()).members(),
                                         ApplicationServicesFixture.audit(db.dataSource())),
                                 origin,
@@ -190,34 +178,11 @@ public class AdminOriginControllerTest {
         }
     }
 
-    private OAuthAdminController oauth(String origin, Object body, DataSourceWrapper testDataSource) throws Exception {
+    private OAuthAdminController oauth(String origin, Object body) throws Exception {
         return controller(
-                new OAuthAdminController(
-                        new OAuthService(
-                                ApplicationServicesFixture.backend(applicationConfig)::configured,
-                                ApplicationServicesFixture.available(
-                                        applicationConfig, McpWebSetup.class),
-                                AccountServicesFixture.component(testDataSource).permissions(),
-                                AccountServicesFixture.component(testDataSource).security(),
-                                tokenResource ->
-                                        new PersonalAccessTokenService(
-                                                tokenResource,
-                                                AccountServicesFixture.component(testDataSource).permissions(),
-                                                AccountServicesFixture.component(testDataSource).security()),
-                                AccountServicesFixture.component(testDataSource).backend()),
-                        new AdminPageDataFactory(
-                                ApplicationServicesFixture.site(applicationConfig),
-                                () -> "test",
-                                ApplicationServicesFixture.messages(testDataSource),
-                                AccountServicesFixture.component(testDataSource).permissions()),
-                        ApplicationServicesFixture.audit(testDataSource),
-                        resource ->
-                                new PersonalAccessTokenService(
-                                        resource,
-                                        AccountServicesFixture.component(testDataSource).permissions(),
-                                        AccountServicesFixture.component(testDataSource).security())),
-                origin,
-                body);
+                applicationConfig.getServerConfig().getBindings().build()
+                        .get(AccessComponent.class).oauthController(),
+                origin, body);
     }
 
     private <T extends Controller> T controller(T controller, String origin, Object body) throws Exception {

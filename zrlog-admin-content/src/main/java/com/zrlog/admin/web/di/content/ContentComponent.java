@@ -39,6 +39,8 @@ public interface ContentComponent {
 
     ArticleResourceService resources();
 
+    AdminCommentService comments();
+
     ArticlePublishingService publishing();
 
     ContentToolService contentTools();

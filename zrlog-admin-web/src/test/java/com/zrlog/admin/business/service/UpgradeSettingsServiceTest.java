@@ -2,6 +2,13 @@ package com.zrlog.admin.business.service;
 
 import static org.junit.Assert.*;
 
+import com.zrlog.admin.business.audit.AdminAuditContext;
+import com.zrlog.admin.web.audit.AdminAuditContexts;
+import com.zrlog.admin.web.token.AdminTokenThreadLocal;
+import com.zrlog.admin.web.di.account.AccountComponent;
+import com.zrlog.admin.web.di.AdminComponent;
+import com.zrlog.common.vo.AdminTokenVO;
+import com.zrlog.data.security.AccountAction;
 import com.google.gson.Gson;
 import com.hibegin.common.dao.DataSourceWrapper;
 import com.hibegin.http.server.api.HttpRequest;
@@ -27,12 +34,101 @@ import java.lang.reflect.Proxy;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class UpgradeSettingsServiceTest {
 
     private ZrLogConfig applicationConfig;
     private static final String HUB = "docker.io/zrlog/zrlog";
     private static final String ALIYUN = "registry.cn-chengdu.aliyuncs.com/hibegin/zrlog";
+
+    @Test
+    public void explicitActorOwnsPackageSettingsAndDockerDelegationWithoutThreadIdentity() throws Exception {
+        for (boolean sqlite : List.of(false, true)) {
+            try (var db = sqlite ? InMemoryZrLogDatabase.openSqlite() : InMemoryZrLogDatabase.open()) {
+                applicationConfig = db.config();
+                plugin(db.dataSource());
+                db.execute("insert into user(userId,userName,role) values(2,'operator','admin')");
+                var credentials = new AdminTokenVO();
+                credentials.setUserId(2);
+                var actor = db.component(AccountComponent.class).identities().account(credentials);
+                var graph = db.component(AdminComponent.class);
+                var packages = graph.upgradeSettings();
+                var siteOnly = actor.restrictActions(Set.of(AccountAction.SITE_CONFIGURE.getId()));
+                var audit = new AdminAuditContext(2, "127.0.0.2", "/api/admin/website/upgrade", "Test worker");
+                assertEquals(1, AdminTokenThreadLocal.getUserId());
+                packages.save(siteOnly, input(null), audit);
+                AdminTokenThreadLocal.remove();
+                assertEquals(Integer.valueOf(-1), packages.read(siteOnly, null).getAutoUpgradeVersion());
+                var logs = new Gson().fromJson(value(db, "admin_audit_log").toString(),
+                        com.zrlog.admin.business.rest.response.AdminAuditLogEntryResponse[].class);
+                assertEquals(Integer.valueOf(2), logs[0].getActorUserId());
+                Client client = new Client();
+                var containers = service(client, true, graph.settings(), db.dataSource());
+                assertThrows(PermissionErrorException.class, () -> containers.read(siteOnly, null));
+                assertThrows(PermissionErrorException.class, () -> containers.save(siteOnly, input(ALIYUN), audit));
+                assertEquals(0, client.reads);
+                assertTrue(client.saves.isEmpty());
+                containers.save(actor, input(ALIYUN), audit);
+                assertEquals(ALIYUN, client.repository);
+                db.execute("update user set enabled=false where userId=2");
+                assertThrows(PermissionErrorException.class, () -> packages.read(actor, null));
+                assertThrows(PermissionErrorException.class, () -> packages.save(actor, input(null), audit));
+                assertThrows(PermissionErrorException.class, () -> containers.save(actor, input(HUB), audit));
+                assertEquals(List.of(ALIYUN + ":preview"), client.saves);
+                assertNull(AdminTokenThreadLocal.getUser());
+            }
+        }
+    }
+
+    @Test
+    public void revocationDuringDockerCallsPreventsWebsiteWritesAndCompensatesRemoteChanges() throws Exception {
+        for (String stage : List.of("read", "write")) {
+            try (var db = InMemoryZrLogDatabase.open()) {
+                applicationConfig = db.config();
+                plugin(db.dataSource());
+                db.putWebsite("autoUpgradeVersion", 86400);
+                var credentials = new AdminTokenVO();
+                credentials.setUserId(1);
+                var actor = db.component(AccountComponent.class).identities().account(credentials);
+                var graph = db.component(AdminComponent.class);
+                Runnable revoke = () -> {
+                    try {
+                        db.execute("update user set authVersion=authVersion+1 where userId=1");
+                    } catch (SQLException error) {
+                        throw new IllegalStateException(error);
+                    }
+                };
+                AtomicBoolean revoked = new AtomicBoolean();
+                Client client = new Client() {
+                    @Override
+                    public DockerUpdaterProtocol.SettingsResponse settings(String channel) {
+                        var response = super.settings(channel);
+                        if (stage.equals("read") && revoked.compareAndSet(false, true)) revoke.run();
+                        return response;
+                    }
+
+                    @Override
+                    public DockerUpdaterProtocol.Settings saveSettings(String repository, String channel) {
+                        var saved = super.saveSettings(repository, channel);
+                        if (stage.equals("write") && revoked.compareAndSet(false, true)) revoke.run();
+                        return saved;
+                    }
+                };
+                var service = service(client, true, graph.settings(), db.dataSource());
+                AdminTokenThreadLocal.remove();
+                var audit = new AdminAuditContext(1, "127.0.0.1", "/api/admin/website/upgrade", "Test worker");
+                assertThrows(PermissionErrorException.class, () -> service.save(actor, input(ALIYUN), audit));
+                assertTrue(revoked.get());
+                assertEquals("86400", value(db, "autoUpgradeVersion"));
+                assertEquals(HUB, client.repository);
+                assertEquals("release", client.channel);
+                assertEquals(stage.equals("write") ? List.of(ALIYUN + ":preview", HUB + ":release") : List.of(), client.saves);
+                assertNull(AdminTokenThreadLocal.getUser());
+            }
+        }
+    }
 
     @Test public void savesOneRequestWithoutPersistingRuntimeFieldsOrHiddenPackageSource() throws Exception {
         try (var db = InMemoryZrLogDatabase.open()) {
@@ -58,7 +154,7 @@ public class UpgradeSettingsServiceTest {
                                     () -> new WebSite(db.dataSource())), db.dataSource());
             UpgradeSettingsRequest input = new Gson().fromJson("{\"autoUpgradeVersion\":-1,\"upgradePreview\":true,"
                     + "\"upgradePackageSource\":\"dl\",\"dockerRepository\":\"" + ALIYUN + "\",\"dockerMode\":false}", UpgradeSettingsRequest.class);
-            service.save(input, request());
+            service.save(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), input, AdminAuditContexts.from(request(), AdminTokenThreadLocal.getUserId()));
             assertEquals(ALIYUN, client.repository);
             assertEquals("preview", client.channel);
             assertEquals("github", value(db, "upgradePackageSource"));
@@ -67,7 +163,7 @@ public class UpgradeSettingsServiceTest {
             assertNull(value(db, "dockerRepository"));
             assertNull(value(db, "dockerMode"));
             assertNull(value(db, "dockerSettings"));
-            var response = service.read(null);
+            var response = service.read(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), null);
             assertTrue(response.isDockerMode());
             assertNull(response.getUpgradePackageSource());
             assertEquals(ALIYUN, response.getDockerSettings().settings.repository);
@@ -96,11 +192,11 @@ public class UpgradeSettingsServiceTest {
                                     ApplicationServicesFixture.audit(db.dataSource()),
                                     ApplicationServicesFixture.websiteKv(db.dataSource()),
                                     () -> new WebSite(db.dataSource())), db.dataSource());
-            assertThrows(ArgsException.class, () -> service.save(input("unlisted.example/zrlog"), request()));
+            assertThrows(ArgsException.class, () -> service.save(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), input("unlisted.example/zrlog"), AdminAuditContexts.from(request(), AdminTokenThreadLocal.getUserId())));
             assertEquals("86400", value(db, "autoUpgradeVersion"));
             assertTrue(client.saves.isEmpty());
             client.failSave = true;
-            assertThrows(DockerControl.RequestException.class, () -> service.save(input(ALIYUN), request()));
+            assertThrows(DockerControl.RequestException.class, () -> service.save(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), input(ALIYUN), AdminAuditContexts.from(request(), AdminTokenThreadLocal.getUserId())));
             assertEquals("86400", value(db, "autoUpgradeVersion"));
             assertEquals(HUB, client.repository);
         }
@@ -127,11 +223,11 @@ public class UpgradeSettingsServiceTest {
                                     ApplicationServicesFixture.audit(db.dataSource()),
                                     ApplicationServicesFixture.websiteKv(db.dataSource()),
                                     () -> new WebSite(db.dataSource())), db.dataSource());
-            service.save(input(null), request());
+            service.save(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), input(null), AdminAuditContexts.from(request(), AdminTokenThreadLocal.getUserId()));
             assertEquals("-1", value(db, "autoUpgradeVersion"));
             assertEquals(0, client.reads);
             assertTrue(client.saves.isEmpty());
-            var page = service.read(null);
+            var page = service.read(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), null);
             assertTrue(page.isDockerMode());
             assertEquals("metadata_unavailable", page.getDockerErrorCode());
             assertNull(page.getDockerSettings());
@@ -160,12 +256,12 @@ public class UpgradeSettingsServiceTest {
                                     () -> new WebSite(db.dataSource())) {
                                 @Override
                                 public void updateUpgrade(
-                                        UpgradeWebSiteInfo settings, HttpRequest request)
+                                        UpgradeWebSiteInfo settings, AdminAuditContext audit)
                                         throws SQLException {
                                     throw new SQLException("test failure");
                                 }
                             }, db.dataSource());
-            assertThrows(SQLException.class, () -> service.save(input(ALIYUN), request()));
+            assertThrows(SQLException.class, () -> service.save(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), input(ALIYUN), AdminAuditContexts.from(request(), AdminTokenThreadLocal.getUserId())));
             assertEquals(List.of(ALIYUN + ":preview", HUB + ":release"), client.saves);
             assertEquals(HUB, client.repository);
             assertEquals("release", client.channel);
@@ -193,10 +289,10 @@ public class UpgradeSettingsServiceTest {
                                     ApplicationServicesFixture.websiteKv(db.dataSource()),
                                     () -> new WebSite(db.dataSource())), db.dataSource());
             var input = input(null); input.setUpgradePackageSource("github");
-            service.save(input, request());
-            assertEquals("github", service.read(null).getUpgradePackageSource());
-            assertFalse(service.read(null).isDockerMode());
-            assertThrows(ArgsException.class, () -> service.save(input(ALIYUN), request()));
+            service.save(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), input, AdminAuditContexts.from(request(), AdminTokenThreadLocal.getUserId()));
+            assertEquals("github", service.read(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), null).getUpgradePackageSource());
+            assertFalse(service.read(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), null).isDockerMode());
+            assertThrows(ArgsException.class, () -> service.save(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), input(ALIYUN), AdminAuditContexts.from(request(), AdminTokenThreadLocal.getUserId())));
             assertEquals(0, client.reads);
             assertTrue(client.saves.isEmpty());
         }
@@ -222,11 +318,11 @@ public class UpgradeSettingsServiceTest {
                                     ApplicationServicesFixture.audit(db.dataSource()),
                                     ApplicationServicesFixture.websiteKv(db.dataSource()),
                                     () -> new WebSite(db.dataSource())), db.dataSource());
-            assertThrows(IllegalStateException.class, () -> service.save(input(ALIYUN), request()));
+            assertThrows(IllegalStateException.class, () -> service.save(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), input(ALIYUN), AdminAuditContexts.from(request(), AdminTokenThreadLocal.getUserId())));
             assertEquals(0, client.reads);
             plugin(db.dataSource()); db.execute("update user set role = 'editor' where userId = 1");
-            assertThrows(PermissionErrorException.class, () -> service.save(input(ALIYUN), request()));
-            assertThrows(PermissionErrorException.class, () -> service.read(null));
+            assertThrows(PermissionErrorException.class, () -> service.save(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), input(ALIYUN), AdminAuditContexts.from(request(), AdminTokenThreadLocal.getUserId())));
+            assertThrows(PermissionErrorException.class, () -> service.read(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), null));
             assertTrue(client.saves.isEmpty());
         }
     }
@@ -251,13 +347,13 @@ public class UpgradeSettingsServiceTest {
                         });
     }
     private UpgradeSettingsService service(Client client, boolean docker, WebSiteSettingsService settings, DataSourceWrapper testDataSource) {
-        return new UpgradeSettingsService(
-                settings,
-                () ->
+        return new UpgradeSettingsService(settings,
+                        () ->
                         UpdaterHosts.dockerControl(
                                 applicationConfig == null ? null : applicationConfig.getUpdater()),
-                AccountServicesFixture.component(testDataSource).permissions(),
-                ApplicationServicesFixture.settings(testDataSource)) {
+                        AccountServicesFixture.component(testDataSource).permissions(),
+                        AccountServicesFixture.component(testDataSource).identities(),
+                        ApplicationServicesFixture.settings(testDataSource)) {
             @Override
             protected boolean isDockerMode() {
                 return docker;

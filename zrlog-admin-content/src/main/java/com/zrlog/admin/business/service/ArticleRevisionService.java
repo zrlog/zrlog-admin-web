@@ -6,7 +6,7 @@ import com.zrlog.admin.business.rest.request.ArticleVersionRollbackRequest;
 import com.zrlog.admin.business.rest.request.UpdateArticleRequest;
 import com.zrlog.admin.business.rest.response.*;
 import com.zrlog.common.exception.ArgsException;
-import com.zrlog.common.vo.AdminTokenVO;
+import com.zrlog.data.security.AccountAccess;
 
 import jakarta.inject.Inject;
 
@@ -28,9 +28,9 @@ public class ArticleRevisionService {
     }
 
     public ArticleVersionCompareResponse compare(
-            Integer id, Integer fromVersion, Integer toVersion, HttpRequest request)
+            AccountAccess actor, Integer id, Integer fromVersion, Integer toVersion, HttpRequest request)
             throws SQLException {
-        LoadEditArticleResponse current = queries.loadDetail(id.toString(), request);
+        LoadEditArticleResponse current = queries.loadDetail(actor, id.toString(), request);
         return versions.compare(
                 fromVersion,
                 toVersion,
@@ -39,19 +39,19 @@ public class ArticleRevisionService {
     }
 
     public CreateOrUpdateArticleResponse rollback(
-            AdminTokenVO user, ArticleVersionRollbackRequest body, HttpRequest request)
+            AccountAccess actor, ArticleVersionRollbackRequest body, HttpRequest request)
             throws SQLException {
         if (body.getLogId() == null
                 || body.getVersion() == null
                 || body.getTargetVersion() == null) {
             throw new ArgsException("logId/version/targetVersion");
         }
-        LoadEditArticleResponse current = queries.loadDetail(body.getLogId().toString(), request);
+        LoadEditArticleResponse current = queries.loadDetail(actor, body.getLogId().toString(), request);
         LoadEditArticleResponse target =
                 versions.loadVersion(body.getLogId(), body.getTargetVersion(), current);
         UpdateArticleRequest update = BeanUtil.convert(target, UpdateArticleRequest.class);
         update.setLogId(body.getLogId());
         update.setVersion(body.getVersion());
-        return articles.update(user, update);
+        return articles.update(actor, update);
     }
 }

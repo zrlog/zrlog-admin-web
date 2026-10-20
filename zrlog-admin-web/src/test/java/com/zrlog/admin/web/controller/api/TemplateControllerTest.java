@@ -241,8 +241,8 @@ public class TemplateControllerTest {
                         new AdminPageDataFactory(
                                 ApplicationServicesFixture.site(applicationConfig),
                                 () -> "test",
-                                ApplicationServicesFixture.messages(testDataSource),
-                                AccountServicesFixture.component(testDataSource).permissions()));
+                                ApplicationServicesFixture.messages(testDataSource)),
+                        AccountServicesFixture.component(testDataSource).requestIdentity());
         setControllerField(controller, "request", request(params, body, file));
         setControllerField(controller, "response", response.response());
         return controller;

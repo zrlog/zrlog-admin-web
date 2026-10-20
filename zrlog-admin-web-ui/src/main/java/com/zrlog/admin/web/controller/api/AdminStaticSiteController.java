@@ -1,5 +1,7 @@
 package com.zrlog.admin.web.controller.api;
 
+import com.zrlog.admin.web.security.AdminRequestIdentity;
+import com.zrlog.admin.web.audit.AdminAuditContexts;
 import com.hibegin.http.annotation.ResponseBody;
 import com.hibegin.http.server.execption.NotFindResourceException;
 import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
@@ -28,6 +30,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 
 public class AdminStaticSiteController extends BaseController {
+    private final AdminRequestIdentity requestIdentity;
+
     private final AdminAuditService adminAuditService;
     private final MessageCenterOperationService messageCenterOperationService;
 
@@ -44,7 +48,9 @@ public class AdminStaticSiteController extends BaseController {
             Supplier<AdminStaticResourcePlugin> staticSite,
             AdminPageDataFactory pages,
             AdminAuditService adminAuditService,
-            MessageCenterOperationService messageCenterOperationService) {
+            MessageCenterOperationService messageCenterOperationService,
+            AdminRequestIdentity requestIdentity) {
+        this.requestIdentity = requestIdentity;
         this.adminAuditService = adminAuditService;
         this.messageCenterOperationService = messageCenterOperationService;
 
@@ -72,7 +78,7 @@ public class AdminStaticSiteController extends BaseController {
         if (!isSseRequest()) {
             boolean synced = cacheRefresh.refreshStaticSiteCache(request, siteTypes);
             this.messageCenterOperationService.recordStaticSiteSync(siteTypes, synced);
-            this.adminAuditService.record(request, AdminAuditAction.SYNC_ADMIN_STATIC_SITE);
+            this.adminAuditService.record(AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()), AdminAuditAction.SYNC_ADMIN_STATIC_SITE);
             response.renderJson(new ApiStandardResponse<>(new AdminStaticSiteSyncResponse(synced)));
             return;
         }
@@ -86,7 +92,7 @@ public class AdminStaticSiteController extends BaseController {
                 emitter -> {
                     this.messageCenterOperationService.recordStaticSiteSync(
                             siteTypes, synced.get());
-                    this.adminAuditService.record(request, AdminAuditAction.SYNC_ADMIN_STATIC_SITE);
+                    this.adminAuditService.record(AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()), AdminAuditAction.SYNC_ADMIN_STATIC_SITE);
                     emitter.send(
                             "response",
                             new ApiStandardResponse<>(
@@ -103,12 +109,12 @@ public class AdminStaticSiteController extends BaseController {
     @RequiresAction(value = AccountAction.SYSTEM_MANAGE, descriptionKey = "system.adminSyncStatus")
     public AdminPageDataResponse<AdminStaticSiteSyncResponse> index() {
         if (cacheRefresh.isStaticSiteDisabled()) {
-            return pages.response(new AdminStaticSiteSyncResponse(true), "", request.getUri());
+            return pages.response(requestIdentity.optional(), new AdminStaticSiteSyncResponse(true), "", request.getUri());
         }
         AdminStaticResourcePlugin adminStaticResourcePlugin = staticSite.get();
         if (Objects.isNull(adminStaticResourcePlugin)) {
             throw new NotFindResourceException("plugin not found");
         }
-        return pages.response(new AdminStaticSiteSyncResponse(adminStaticResourcePlugin.isSynchronized(AdminTokenThreadLocal.getUserProtocol())), "", request.getUri());
+        return pages.response(requestIdentity.optional(), new AdminStaticSiteSyncResponse(adminStaticResourcePlugin.isSynchronized(AdminTokenThreadLocal.getUserProtocol())), "", request.getUri());
     }
 }

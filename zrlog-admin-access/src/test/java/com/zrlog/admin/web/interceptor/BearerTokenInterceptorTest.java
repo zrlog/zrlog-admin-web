@@ -11,9 +11,9 @@ import com.hibegin.http.server.config.RequestConfig;
 import com.hibegin.http.server.web.Controller;
 import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.security.DelegatedAccess;
+import com.zrlog.admin.business.security.GrantAuthority;
 import com.zrlog.admin.business.security.PersonalTokenModels;
 import com.zrlog.admin.business.service.*;
-import com.zrlog.admin.business.service.AccountPermissionService;
 import com.zrlog.admin.business.service.OAuthService;
 import com.zrlog.admin.business.service.PersonalAccessTokenService;
 import com.zrlog.admin.business.service.WebhookService;
@@ -23,6 +23,7 @@ import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.util.AdminLanguageContext;
 import com.zrlog.admin.web.McpWebSetup;
 import com.zrlog.admin.web.annotation.RequiresAction;
+import com.zrlog.admin.web.security.AdminRequestIdentity;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.ZrLogConfig;
 import com.zrlog.common.rest.response.ApiStandardResponse;
@@ -39,9 +40,9 @@ public class BearerTokenInterceptorTest {
     private ZrLogConfig applicationConfig;
 
     public static class TestController extends Controller {
-        private final AccountPermissionService permissions;
+        private final AdminRequestIdentity permissions;
 
-        TestController(AccountPermissionService permissions) {
+        TestController(AdminRequestIdentity permissions) {
             this.permissions = permissions;
         }
 
@@ -71,7 +72,7 @@ public class BearerTokenInterceptorTest {
             applicationConfig = db.config();
             applicationConfig.getServerConfig().getBindings().controller(
                     TestController.class,
-                    (resolver, request, response) -> new TestController(AccountServicesFixture.component(db.dataSource()).permissions()));
+                    (resolver, request, response) -> new TestController(AccountServicesFixture.component(db.dataSource()).requestIdentity()));
             var config = applicationConfig.getServerConfig();
             config.getRouter().addMapper("/api/admin/test", TestController.class);
             db.putWebsite("language", "zh_CN");
@@ -87,12 +88,15 @@ public class BearerTokenInterceptorTest {
                                                     ApplicationServicesFixture.available(
                                                             applicationConfig, McpWebSetup.class),
                                                     AccountServicesFixture.component(db.dataSource())
-                                                            .permissions(),
+                                                            .permissions(), AccountServicesFixture.component(db.dataSource())
+                                                            .identities(),
                                                     AccountServicesFixture.component(db.dataSource()).security(),
                                                     tokenResource ->
                                                             new PersonalAccessTokenService(
                                                                     tokenResource,
                                                                     AccountServicesFixture
+                                                                            .component(db.dataSource())
+                                                                            .identities(), AccountServicesFixture
                                                                             .component(db.dataSource())
                                                                             .permissions(),
                                                                     AccountServicesFixture
@@ -100,9 +104,9 @@ public class BearerTokenInterceptorTest {
                                                                             .security()),
                                                     AccountServicesFixture.component(db.dataSource()).backend())
                                             .mcpResource(),
-                                    AccountServicesFixture.component(db.dataSource()).permissions(),
+                                    AccountServicesFixture.component(db.dataSource()).identities(), AccountServicesFixture.component(db.dataSource()).permissions(),
                                     AccountServicesFixture.component(db.dataSource()).security())
-                            .create(body)
+                            .create(new GrantAuthority(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), !com.zrlog.admin.business.security.DelegatedAccess.restricted()), body)
                             .token;
             AdminTokenThreadLocal.remove();
             var parent = I18nUtil.threadLocal.get();
@@ -126,7 +130,7 @@ public class BearerTokenInterceptorTest {
             applicationConfig = db.config();
             applicationConfig.getServerConfig().getBindings().controller(
                     TestController.class,
-                    (resolver, request, response) -> new TestController(AccountServicesFixture.component(db.dataSource()).permissions()));
+                    (resolver, request, response) -> new TestController(AccountServicesFixture.component(db.dataSource()).requestIdentity()));
             var config=db.config().getServerConfig(); config.getRouter().addMapper("/api/admin/test",TestController.class);
             PersonalTokenModels.Create body=new PersonalTokenModels.Create(); body.name="test"; body.permissionMode="custom"; body.permissions=List.of("taxonomy.read");
             var service =
@@ -136,20 +140,21 @@ public class BearerTokenInterceptorTest {
                                                     ::configured,
                                             ApplicationServicesFixture.available(
                                                     db.config(), McpWebSetup.class),
-                                            AccountServicesFixture.component(db.dataSource()).permissions(),
+                                            AccountServicesFixture.component(db.dataSource()).permissions(), AccountServicesFixture.component(db.dataSource()).identities(),
                                             AccountServicesFixture.component(db.dataSource()).security(),
                                             tokenResource ->
                                                     new PersonalAccessTokenService(
                                                             tokenResource,
                                                             AccountServicesFixture.component(db.dataSource())
+                                                                    .identities(), AccountServicesFixture.component(db.dataSource())
                                                                     .permissions(),
                                                             AccountServicesFixture.component(db.dataSource())
                                                                     .security()),
                                             AccountServicesFixture.component(db.dataSource()).backend())
                                     .mcpResource(),
-                            AccountServicesFixture.component(db.dataSource()).permissions(),
+                            AccountServicesFixture.component(db.dataSource()).identities(), AccountServicesFixture.component(db.dataSource()).permissions(),
                             AccountServicesFixture.component(db.dataSource()).security());
-            String token=service.create(body).token;
+            String token=service.create(new GrantAuthority(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), !com.zrlog.admin.business.security.DelegatedAccess.restricted()), body).token;
             var previous=AdminTokenThreadLocal.getUser();
             Recorder success=call("/api/admin/test/read",token, db.dataSource());
             assertEquals(Boolean.TRUE,((ApiStandardResponse<?>)success.rendered).getData());
@@ -159,7 +164,7 @@ public class BearerTokenInterceptorTest {
             assertEquals(403,call("/admin/user",token, db.dataSource()).status);
             assertEquals(401,call("/api/admin/test/read","bad-token", db.dataSource()).status);
             body.permissionMode=null; body.scopes=List.of("articles:read"); body.permissions=List.of();
-            assertEquals(401,call("/api/admin/test/read",service.create(body).token, db.dataSource()).status);
+            assertEquals(401,call("/api/admin/test/read",service.create(new GrantAuthority(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), !com.zrlog.admin.business.security.DelegatedAccess.restricted()), body).token, db.dataSource()).status);
             assertFalse(DelegatedAccess.active()); assertSame(previous,AdminTokenThreadLocal.getUser());
         }
     }
@@ -187,15 +192,15 @@ public class BearerTokenInterceptorTest {
                                 ApplicationServicesFixture.backend(applicationConfig)::configured,
                                 ApplicationServicesFixture.available(
                                         applicationConfig, McpWebSetup.class),
-                                AccountServicesFixture.component(testDataSource).permissions(),
+                                AccountServicesFixture.component(testDataSource).permissions(), AccountServicesFixture.component(testDataSource).identities(),
                                 AccountServicesFixture.component(testDataSource).security(),
                                 tokenResource ->
                                         new PersonalAccessTokenService(
                                                 tokenResource,
-                                                AccountServicesFixture.component(testDataSource).permissions(),
+                                                AccountServicesFixture.component(testDataSource).identities(), AccountServicesFixture.component(testDataSource).permissions(),
                                                 AccountServicesFixture.component(testDataSource).security()),
                                 AccountServicesFixture.component(testDataSource).backend()),
-                        AccountServicesFixture.component(testDataSource).permissions(),
+                        AccountServicesFixture.component(testDataSource).routeAuthorizer(), AccountServicesFixture.component(testDataSource).requestIdentity(),
                         AccountServicesFixture.component(testDataSource).preferences(),
                         new WebhookService(
                                 ApplicationServicesFixture.messages(testDataSource),

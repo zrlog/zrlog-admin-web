@@ -100,35 +100,37 @@ public class AdminSseEmitterTest {
                                     org.junit.Assert.assertThrows(
                                             PermissionErrorException.class,
                                             () ->
-                                                    new AdminArticleService(
-                                                                    ApplicationServicesFixture
+                                                    new AdminArticleService(ApplicationServicesFixture
                                                                             .capability(
                                                                                     db.config(),
                                                                                     ArticleAssistant
                                                                                             .class),
-                                                                    AccountServicesFixture
+                                AccountServicesFixture
                                                                             .component(
                                                                                     db.dataSource())
                                                                             .permissions(),
-                                                                    AccountServicesFixture
+                                AccountServicesFixture
+                                                                            .component(
+                                                                                    db.dataSource())
+                                                                            .identities(),
+                                AccountServicesFixture
                                                                             .component(
                                                                                     db.dataSource())
                                                                             .preferences(),
-                                                                    new ArticleVersionService(
-                                                                            AccountServicesFixture
+                                new ArticleVersionService(AccountServicesFixture
                                                                                     .component(
                                                                                             db
                                                                                                     .dataSource())
                                                                                     .permissions(),
-                                                                            () ->
+                                () ->
                                                                                     new Log(
                                                                                             db
                                                                                                     .dataSource()),
-                                                                            () ->
+                                () ->
                                                                                     new LogVersion(
                                                                                             db
                                                                                                     .dataSource())),
-                                                                    new ArticlePinningService(
+                                new ArticlePinningService(
                                                                             () ->
                                                                                     new Log(
                                                                                             db
@@ -137,11 +139,11 @@ public class AdminSseEmitterTest {
                                                                                     .locks(
                                                                                             db
                                                                                                     .dataSource())),
-                                                                    () -> new Log(db.dataSource()),
-                                                                    ApplicationServicesFixture
+                                () -> new Log(db.dataSource()),
+                                ApplicationServicesFixture
                                                                             .locks(db.dataSource()))
                                                             .create(
-                                                                    AdminTokenThreadLocal.getUser(),
+                                                                    AccountServicesFixture.component(db.dataSource()).requestIdentity().account(AdminTokenThreadLocal.getUser()),
                                                                     request));
                                     emitter.send("checked", true);
                                 });
@@ -149,7 +151,7 @@ public class AdminSseEmitterTest {
                     });
             assertTrue(response.body().contains("event: checked"));
             org.junit.Assert.assertFalse(DelegatedAccess.active());
-            assertTrue(AccountServicesFixture.component(db.dataSource()).permissions().current().canPublish());
+            assertTrue(AccountServicesFixture.component(db.dataSource()).requestIdentity().current().canPublish());
         }
     }
 

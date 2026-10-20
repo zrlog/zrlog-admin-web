@@ -13,6 +13,8 @@ import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 
 import org.junit.After;
+import org.junit.Before;
+import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -28,9 +30,15 @@ public class UploadServiceTest {
     public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
     private final String previousRootPath = System.getProperty("sws.root.path");
+    private InMemoryZrLogDatabase database;
+
+    @Before
+    public void setUpIdentity() throws Exception { database = InMemoryZrLogDatabase.open(); }
+
 
     @After
-    public void tearDown() {
+    public void tearDown() throws Exception {
+        database.close();
         if (previousRootPath == null) {
             System.clearProperty("sws.root.path");
         } else {
@@ -43,7 +51,7 @@ public class UploadServiceTest {
         UploadFileResponse response =
                 new UploadService(
                                 () -> null,
-                                AccountServicesFixture.component(null).permissions(),
+                                AccountServicesFixture.component(database.dataSource()).identities(), AccountServicesFixture.component(database.dataSource()).permissions(),
                                 new DbFileService(
                                         ApplicationServicesFixture.websiteKv(null), () -> { throw new IllegalStateException("Database is unavailable in this test"); }))
                         .getCloudUrl("/attached/a.png", "/tmp/a.png", request("/blog"), null);
@@ -58,13 +66,13 @@ public class UploadServiceTest {
         UploadFileResponse response =
                 new UploadService(
                                 () -> null,
-                                AccountServicesFixture.component(null).permissions(),
+                                AccountServicesFixture.component(database.dataSource()).identities(), AccountServicesFixture.component(database.dataSource()).permissions(),
                                 new DbFileService(
                                         ApplicationServicesFixture.websiteKv(null), () -> { throw new IllegalStateException("Database is unavailable in this test"); }))
-                        .saveBytes(
+                        .saveAvatarBytes(
+                                AccountServicesFixture.component(database.dataSource()).requestIdentity().current(),
                                 "hello".getBytes(StandardCharsets.UTF_8),
                                 "",
-                                "image",
                                 request("/blog"),
                                 null);
         String uri = response.getUrl().substring("/blog".length());
@@ -82,10 +90,11 @@ public class UploadServiceTest {
         UploadFileResponse response =
                 new UploadService(
                                 () -> null,
-                                AccountServicesFixture.component(null).permissions(),
+                                AccountServicesFixture.component(database.dataSource()).identities(), AccountServicesFixture.component(database.dataSource()).permissions(),
                                 new DbFileService(
                                         ApplicationServicesFixture.websiteKv(null), () -> { throw new IllegalStateException("Database is unavailable in this test"); }))
                         .saveThumbnailBytes(
+                                AccountServicesFixture.component(database.dataSource()).requestIdentity().current(),
                                 "abc".getBytes(StandardCharsets.UTF_8), "jpg", request(""), null);
         String uri = response.getUrl();
         File file = PathUtil.getStaticFile(uri);
@@ -101,7 +110,7 @@ public class UploadServiceTest {
         UploadService service =
                 new UploadService(
                         () -> null,
-                        AccountServicesFixture.component(null).permissions(),
+                        AccountServicesFixture.component(database.dataSource()).identities(), AccountServicesFixture.component(database.dataSource()).permissions(),
                         new DbFileService(ApplicationServicesFixture.websiteKv(null), () -> { throw new IllegalStateException("Database is unavailable in this test"); }));
 
         assertEquals("png", service.normalizeExtension(null));
@@ -114,7 +123,7 @@ public class UploadServiceTest {
         UploadService service =
                 new UploadService(
                         () -> null,
-                        AccountServicesFixture.component(null).permissions(),
+                        AccountServicesFixture.component(database.dataSource()).identities(), AccountServicesFixture.component(database.dataSource()).permissions(),
                         new DbFileService(ApplicationServicesFixture.websiteKv(null), () -> { throw new IllegalStateException("Database is unavailable in this test"); }));
 
         assertEquals("/", service.normalizeTemporaryDir(AdminConstants.ADMIN_DB_ATTACHED_TMP));
@@ -132,7 +141,7 @@ public class UploadServiceTest {
         UploadService service =
                 new UploadService(
                         () -> null,
-                        AccountServicesFixture.component(null).permissions(),
+                        AccountServicesFixture.component(database.dataSource()).identities(), AccountServicesFixture.component(database.dataSource()).permissions(),
                         new DbFileService(ApplicationServicesFixture.websiteKv(null), () -> { throw new IllegalStateException("Database is unavailable in this test"); }));
 
         String rootUri = service.buildTemporaryUri(AdminConstants.ADMIN_DB_ATTACHED_TMP, file);

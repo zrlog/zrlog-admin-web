@@ -1,5 +1,6 @@
 package com.zrlog.admin.web.controller.api;
 
+import com.zrlog.admin.web.security.AdminRequestIdentity;
 import com.hibegin.common.dao.dto.PageData;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.RequestMethod;
@@ -25,9 +26,13 @@ import java.io.IOException;
 import java.sql.SQLException;
 
 public class BlogNavController extends BaseController {
+    private final AdminRequestIdentity requestIdentity;
+
 
     @Inject
-    public BlogNavController(AdminPageDataFactory pages, BlogNavService blogNavService) {
+    public BlogNavController(AdminPageDataFactory pages, BlogNavService blogNavService,
+            AdminRequestIdentity requestIdentity) {
+        this.requestIdentity = requestIdentity;
         this.blogNavService = blogNavService;
 
         this.pages = pages;
@@ -50,7 +55,7 @@ public class BlogNavController extends BaseController {
     @RequestMethod(method = HttpMethod.GET)
     @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "navigation.list")
     public AdminPageDataResponse<PageData<LogNavDTO>> index() throws SQLException {
-        return pages.response(blogNavService.find(), "", request.getUri());
+        return pages.response(requestIdentity.optional(), blogNavService.find(), "", request.getUri());
     }
 
     @RefreshCache(async = true, updateStaticSites = StaticSiteType.BLOG)

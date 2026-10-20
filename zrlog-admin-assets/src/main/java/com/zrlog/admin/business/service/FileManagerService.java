@@ -1,5 +1,6 @@
 package com.zrlog.admin.business.service;
 
+import com.zrlog.admin.business.audit.AdminAuditContext;
 import static com.zrlog.admin.business.AdminConstants.ADMIN_DB_ATTACHED_TMP;
 
 import com.hibegin.common.util.EnvKit;
@@ -21,6 +22,9 @@ import com.zrlog.admin.business.type.FileEntryAccess;
 import com.zrlog.admin.business.type.FileEntryAction;
 import com.zrlog.admin.business.util.FileEntryUtils;
 import com.zrlog.common.vo.AdminTokenVO;
+import com.zrlog.data.security.AccountAccess;
+import com.zrlog.data.security.AccountAction;
+import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.util.I18nUtil;
 
 import jakarta.inject.Inject;
@@ -74,13 +78,12 @@ public class FileManagerService {
         return response;
     }
 
-    public ReplaceArticleResourceUrlResponse replaceArticleResourceUrlAndRecord(AdminTokenVO user,
+    public ReplaceArticleResourceUrlResponse replaceArticleResourceUrlAndRecord(AccountAccess actor,
                                                                                  ReplaceArticleResourceUrlRequest body,
-                                                                                 HttpRequest request)
+                                                                                 AdminAuditContext audit)
             throws SQLException {
-        ReplaceArticleResourceUrlResponse response = replaceArticleResourceUrl(user, body);
-        this.adminAuditService.record(
-                request,
+        ReplaceArticleResourceUrlResponse response = replaceArticleResourceUrl(actor, body);
+        this.adminAuditService.record(audit,
                 AdminAuditAction.REPLACE_ARTICLE_RESOURCE_URL,
                 body.getFromUrl() + " -> " + body.getToUrl());
         this.messageCenterOperationService.recordReplaceArticleResourceUrl(
@@ -91,35 +94,34 @@ public class FileManagerService {
     }
 
     public UploadFileResponse reuploadMissingLocalResourceAndRecord(String path, File uploadFile,
-                                                                    HttpRequest request, AdminTokenVO user)
+                                                                    HttpRequest request, AdminTokenVO user, AdminAuditContext audit)
             throws IOException {
         UploadFileResponse response = reuploadMissingLocalResource(path, uploadFile, request, user);
-        this.adminAuditService.record(request, AdminAuditAction.REUPLOAD_MISSING_FILE, path);
+        this.adminAuditService.record(audit, AdminAuditAction.REUPLOAD_MISSING_FILE, path);
         return response;
     }
 
-    public boolean deleteAndRecord(String path, HttpRequest request) throws SQLException {
+    public boolean deleteAndRecord(String path, AdminAuditContext audit) throws SQLException {
         boolean deleted = delete(path);
         if (deleted) {
-            this.adminAuditService.record(request, AdminAuditAction.DELETE_FILE, path);
+            this.adminAuditService.record(audit, AdminAuditAction.DELETE_FILE, path);
         }
         return deleted;
     }
 
     public boolean renameAndRecord(String path, String newName, boolean syncArticleReferences,
-                                   AdminTokenVO user, HttpRequest request) throws SQLException {
-        boolean renamed = rename(path, newName, syncArticleReferences, user);
+                                   AccountAccess actor, AdminAuditContext audit) throws SQLException {
+        boolean renamed = rename(path, newName, syncArticleReferences, actor);
         if (renamed) {
-            this.adminAuditService.record(
-                    request, AdminAuditAction.RENAME_FILE, path + " -> " + newName);
+            this.adminAuditService.record(audit, AdminAuditAction.RENAME_FILE, path + " -> " + newName);
         }
         return renamed;
     }
 
-    public boolean mkdirAndRecord(String path, HttpRequest request) {
+    public boolean mkdirAndRecord(String path, AdminAuditContext audit) {
         boolean created = mkdir(path);
         if (created) {
-            this.adminAuditService.record(request, AdminAuditAction.CREATE_DIRECTORY, path);
+            this.adminAuditService.record(audit, AdminAuditAction.CREATE_DIRECTORY, path);
         }
         return created;
     }
@@ -327,10 +329,10 @@ public class FileManagerService {
         return actions.stream().distinct().collect(Collectors.toList());
     }
 
-    public ReplaceArticleResourceUrlResponse replaceArticleResourceUrl(AdminTokenVO user,
+    public ReplaceArticleResourceUrlResponse replaceArticleResourceUrl(AccountAccess actor,
                                                                        ReplaceArticleResourceUrlRequest request)
             throws SQLException {
-        return referenceService.replaceArticleResourceUrl(user, request);
+        return referenceService.replaceArticleResourceUrl(actor, request);
     }
 
     public UploadFileResponse reuploadMissingLocalResource(String path, File uploadFile, HttpRequest request,
@@ -388,7 +390,10 @@ public class FileManagerService {
         return rename(path, newName, false, null);
     }
 
-    public boolean rename(String path, String newName, boolean syncArticleReferences, AdminTokenVO user) throws SQLException {
+    public boolean rename(String path, String newName, boolean syncArticleReferences, AccountAccess actor) throws SQLException {
+        if (syncArticleReferences && (actor == null || !AccountAction.FILE_MANAGE.allowed(actor))) {
+            throw new PermissionErrorException();
+        }
         if (!hasAction(path, FileEntryAction.RENAME)) {
             return false;
         }
@@ -397,7 +402,7 @@ public class FileManagerService {
         boolean directory = target.isDirectory();
         boolean renamed = target.renameTo(dest);
         if (renamed && syncArticleReferences && hasAction(path, FileEntryAction.UPDATE_REFERENCES)) {
-            referenceService.replaceArticleResourceReferences(user, referenceService.normalizePath(path),
+            referenceService.replaceArticleResourceReferences(actor, referenceService.normalizePath(path),
                     referenceService.normalizePath(toRelativePath(path, newName)), directory);
         }
         return renamed;

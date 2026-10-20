@@ -29,29 +29,27 @@ public class AdminPageDataFactoryTest {
                     new AdminPageDataFactory(
                             () -> site,
                             version::get,
-                            ApplicationServicesFixture.messages(db.dataSource()),
-                            AccountServicesFixture.component(db.dataSource()).permissions());
+                            ApplicationServicesFixture.messages(db.dataSource()));
             var otherSite = new InMemoryZrLogDatabase.TestCacheService().getPublicWebSiteInfo();
             otherSite.setTitle("Site B");
             var other =
                     new AdminPageDataFactory(
                             () -> otherSite,
                             () -> "build-b",
-                            ApplicationServicesFixture.messages(db.dataSource()),
-                            AccountServicesFixture.component(db.dataSource()).permissions());
+                            ApplicationServicesFixture.messages(db.dataSource()));
 
-            JsonObject first = new Gson().toJsonTree(pages.response("content", "", "/admin/system")).getAsJsonObject();
+            JsonObject first = new Gson().toJsonTree(pages.response(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), "content", "", "/admin/system")).getAsJsonObject();
             assertEquals("content", first.get("data").getAsString());
             assertEquals("build-a", first.get("pageBuildId").getAsString());
             assertEquals("Maintenance A", first.get("systemNotification").getAsString());
             assertTrue(first.get("documentTitle").getAsString().contains("Site A"));
             assertTrue(first.get("documentTitle").getAsString().contains("System"));
             assertFalse(first.has("metadata"));
-            assertTrue(other.response(null, "", "/admin/system").getDocumentTitle().contains("Site B"));
+            assertTrue(other.response(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), null, "", "/admin/system").getDocumentTitle().contains("Site B"));
 
             site.setTitle("Renamed site");
             version.set("build-a-2");
-            var next = pages.response(null, "", "/admin/unmapped-page");
+            var next = pages.response(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), null, "", "/admin/unmapped-page");
             assertEquals("build-a-2", next.getPageBuildId());
             assertTrue(next.getDocumentTitle().contains("Renamed site"));
             assertFalse(next.getDocumentTitle().contains("Site B"));
@@ -69,13 +67,12 @@ public class AdminPageDataFactoryTest {
                     new AdminPageDataFactory(
                             db.unitCacheService()::getPublicWebSiteInfo,
                             () -> "",
-                            ApplicationServicesFixture.messages(db.dataSource()),
-                            AccountServicesFixture.component(db.dataSource()).permissions());
+                            ApplicationServicesFixture.messages(db.dataSource()));
             new MessageCenterStateService(ApplicationServicesFixture.websiteCache(db.dataSource()), () -> new WebSite(db.dataSource()))
                     .markMayHaveUnread();
-            assertTrue(pages.response(null).getMessageCenter().isHasUnread());
+            assertTrue(pages.response(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), null).getMessageCenter().isHasUnread());
             db.execute("update user set role='editor' where userId=1");
-            var response = pages.response(null);
+            var response = pages.response(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), null);
             assertFalse(response.getMessageCenter().isHasUnread());
             assertEquals(0, response.getMessageCenter().getRevision());
             assertEquals("", response.getPageBuildId());

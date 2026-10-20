@@ -1,12 +1,13 @@
 package com.zrlog.admin.web.interceptor;
 
+import com.zrlog.admin.web.security.AdminRequestIdentity;
+
 import static com.zrlog.util.CrossUtils.cross;
 
 import com.hibegin.http.server.api.HandleAbleInterceptor;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
 import com.zrlog.admin.business.AdminConstants;
-import com.zrlog.admin.business.service.AccountPermissionService;
 import com.zrlog.admin.business.service.DbFileService;
 import com.zrlog.admin.business.util.FileEntryUtils;
 import com.zrlog.common.TokenService;
@@ -22,7 +23,7 @@ import java.util.function.Supplier;
 public class AdminTemporaryResourceInterceptor implements HandleAbleInterceptor {
     private final DbFileService dbFileService;
 
-    private final AccountPermissionService permissionService;
+    private final AdminRequestIdentity requestIdentity;
 
     protected final Supplier<TokenService> tokenService;
 
@@ -32,11 +33,11 @@ public class AdminTemporaryResourceInterceptor implements HandleAbleInterceptor 
     public AdminTemporaryResourceInterceptor(
             Supplier<TokenService> tokenService,
             BooleanSupplier staticHtml,
-            AccountPermissionService permissionService,
+            AdminRequestIdentity requestIdentity,
             DbFileService dbFileService) {
         this.dbFileService = dbFileService;
 
-        this.permissionService = permissionService;
+        this.requestIdentity = requestIdentity;
 
         this.staticHtml = Objects.requireNonNull(staticHtml);
         this.tokenService = Objects.requireNonNull(tokenService);
@@ -50,7 +51,7 @@ public class AdminTemporaryResourceInterceptor implements HandleAbleInterceptor 
             return false;
         }
         AccountAccess actor =
-                permissionService.account(
+                requestIdentity.account(
                         AdminInterceptorSupport.getAdminToken(tokenService.get(), request));
         String uri = request.getUri();
         if (!actor.isAdministrator() && (!uri.startsWith(AdminConstants.ADMIN_DB_ATTACHED_TMP + "/users/" + actor.getUserId() + "/") || uri.contains("..") || uri.contains("%") || uri.contains("\\"))) {

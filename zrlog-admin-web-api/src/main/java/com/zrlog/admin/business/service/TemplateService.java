@@ -1,5 +1,6 @@
 package com.zrlog.admin.business.service;
 
+import com.zrlog.admin.business.audit.AdminAuditContext;
 import com.hibegin.common.util.*;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.util.PathUtil;
@@ -91,28 +92,27 @@ public class TemplateService {
 
     private static final String SHORT_TEMPLATE_PATTERN = "[A-Za-z0-9][A-Za-z0-9._-]{0,127}";
 
-    public boolean apply(String template, HttpRequest request) throws SQLException {
+    public boolean apply(String template, AdminAuditContext audit) throws SQLException {
         boolean updated = this.webSiteProvider.get().updateByKV("template", template);
-        this.adminAuditService.record(request, AdminAuditAction.APPLY_TEMPLATE, template);
+        this.adminAuditService.record(audit, AdminAuditAction.APPLY_TEMPLATE, template);
         return updated;
     }
 
-    public DeleteResponse delete(String shortTemplate, HttpRequest request) {
+    public DeleteResponse delete(String shortTemplate, AdminAuditContext audit) {
         File file = PathUtil.safeAppendFilePath(
                 PathUtil.getStaticPath() + Constants.TEMPLATE_BASE_PATH, shortTemplate);
         boolean deleted = file.exists() && FileUtils.deleteFile(file.toString());
         if (deleted) {
-            this.adminAuditService.record(request, AdminAuditAction.DELETE_TEMPLATE, shortTemplate);
+            this.adminAuditService.record(audit, AdminAuditAction.DELETE_TEMPLATE, shortTemplate);
         }
         return new DeleteResponse(deleted);
     }
 
     public UploadTemplateResponse uploadAndRecord(String shortTemplate, boolean overwrite, File file,
-                                                  HttpRequest request) throws IOException {
+                                                  AdminAuditContext audit) throws IOException {
         UploadTemplateResponse response = upload(shortTemplate, overwrite, file);
         if (response.getError() == 0 && response.getData() != null) {
-            this.adminAuditService.record(
-                    request,
+            this.adminAuditService.record(audit,
                     AdminAuditAction.UPLOAD_TEMPLATE,
                     response.getData().getShortTemplate());
         }
@@ -120,9 +120,9 @@ public class TemplateService {
     }
 
     public UpdateRecordResponse saveAndRecord(String template, Map<String, Object> settings,
-                                              HttpRequest request) throws SQLException, IOException {
+                                              AdminAuditContext audit) throws SQLException, IOException {
         UpdateRecordResponse response = save(template, settings);
-        this.adminAuditService.record(request, AdminAuditAction.UPDATE_TEMPLATE_CONFIG, template);
+        this.adminAuditService.record(audit, AdminAuditAction.UPDATE_TEMPLATE_CONFIG, template);
         return response;
     }
 

@@ -7,7 +7,6 @@ import com.zrlog.admin.business.ai.model.AIProviderType;
 import com.zrlog.admin.business.exception.AdminErrorCode;
 import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.rest.base.AIWebSiteInfo;
-import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 
 import jakarta.inject.Inject;
 
@@ -67,16 +66,16 @@ public final class AIFileService {
         for (String name : names) if (!supported.contains(extension(name))) throw error("unsupported");
     }
 
-    public List<Attachment> save(List<Input> inputs, AIWebSiteInfo info) throws IOException {
+    public List<Attachment> save(int userId, List<Input> inputs, AIWebSiteInfo info) throws IOException {
         validateInputs(inputs);
         requireSupported(info, inputs.stream().map(file -> file.name).collect(Collectors.toList()));
         if (inputs.isEmpty()) return List.of();
         // The server runs in one process; concurrent article requests share the account quota.
-        synchronized (WRITE_LOCK) { return write(inputs); }
+        synchronized (WRITE_LOCK) { return write(userId, inputs); }
     }
 
-    private List<Attachment> write(List<Input> inputs) throws IOException {
-        Path directory = directory();
+    private List<Attachment> write(int userId, List<Input> inputs) throws IOException {
+        Path directory = directory(userId);
         Files.createDirectories(directory);
         long used = 0, now = System.currentTimeMillis();
         try (var entries = Files.list(directory)) {
@@ -99,16 +98,16 @@ public final class AIFileService {
                 result.add(file);
             }
             return result;
-        } catch (IOException | RuntimeException e) { remove(result); throw e; }
+        } catch (IOException | RuntimeException e) { remove(userId, result); throw e; }
     }
 
-    public String dataUrl(Attachment file) throws IOException {
-        byte[] bytes = read(file);
+    public String dataUrl(int userId, Attachment file) throws IOException {
+        byte[] bytes = read(userId, file);
         return "data:" + file.mimeType + ";base64," + Base64.getEncoder().encodeToString(bytes);
     }
 
-    public byte[] read(Attachment file) throws IOException {
-        Path path = path(file);
+    public byte[] read(int userId, Attachment file) throws IOException {
+        Path path = path(userId, file);
         if (file.expiresAt < System.currentTimeMillis() || !Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS)
                 || file.size <= 0 || file.size > 4 * 1024 * 1024 || Files.size(path) != file.size) throw error("unavailable");
         byte[] bytes;
@@ -119,22 +118,21 @@ public final class AIFileService {
         return bytes;
     }
 
-    public void remove(Collection<Attachment> files) throws IOException {
+    public void remove(int userId, Collection<Attachment> files) throws IOException {
         if (files == null) return;
-        for (Attachment file : files) Files.deleteIfExists(path(file));
+        for (Attachment file : files) Files.deleteIfExists(path(userId, file));
     }
 
-    private Path directory() {
-        Integer userId = AdminTokenThreadLocal.getUserId();
-        if (userId == null || userId <= 0) throw new PermissionErrorException();
-        Path directory = root.resolve(userId.toString());
+    private Path directory(int userId) {
+        if (userId <= 0) throw new PermissionErrorException();
+        Path directory = root.resolve(Integer.toString(userId));
         if (Files.isSymbolicLink(root) || Files.isSymbolicLink(directory)) throw new PermissionErrorException();
         return directory;
     }
 
-    private Path path(Attachment file) {
+    private Path path(int userId, Attachment file) {
         if (file == null || file.id == null || !file.id.matches("[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}")) throw error("unavailable");
-        return directory().resolve(file.id);
+        return directory(userId).resolve(file.id);
     }
 
     private static String extension(String name) {

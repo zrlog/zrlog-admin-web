@@ -1,5 +1,7 @@
 package com.zrlog.admin.web.interceptor;
 
+import com.zrlog.admin.web.security.AdminRequestIdentity;
+import com.zrlog.admin.web.security.AdminRouteAuthorizer;
 import com.google.gson.Gson;
 import com.hibegin.http.server.api.HandleAbleInterceptor;
 import com.hibegin.http.server.api.HttpRequest;
@@ -9,7 +11,6 @@ import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.security.DelegatedAccess;
 import com.zrlog.admin.business.security.OAuthException;
 import com.zrlog.admin.business.security.OAuthModels;
-import com.zrlog.admin.business.service.AccountPermissionService;
 import com.zrlog.admin.business.service.OAuthService;
 import com.zrlog.admin.business.service.UserPreferenceService;
 import com.zrlog.admin.business.service.WebhookService;
@@ -31,7 +32,8 @@ public final class BearerTokenInterceptor implements HandleAbleInterceptor {
     private final UserPreferenceService userPreferenceService;
     private final WebhookService webhookService;
 
-    private final AccountPermissionService permissionService;
+    private final AdminRequestIdentity requestIdentity;
+    private final AdminRouteAuthorizer routeAuthorizer;
 
     private final Supplier<AdminActionDispatcher> dispatcher;
     private final OAuthService oauth;
@@ -40,13 +42,15 @@ public final class BearerTokenInterceptor implements HandleAbleInterceptor {
     public BearerTokenInterceptor(
             Supplier<AdminActionDispatcher> dispatcher,
             OAuthService oauth,
-            AccountPermissionService permissionService,
+            AdminRouteAuthorizer routeAuthorizer,
+            AdminRequestIdentity requestIdentity,
             UserPreferenceService userPreferenceService,
             WebhookService webhookService) {
         this.userPreferenceService = userPreferenceService;
         this.webhookService = webhookService;
 
-        this.permissionService = permissionService;
+        this.routeAuthorizer = routeAuthorizer;
+        this.requestIdentity = requestIdentity;
 
         this.dispatcher = Objects.requireNonNull(dispatcher);
         this.oauth = Objects.requireNonNull(oauth);
@@ -91,7 +95,7 @@ public final class BearerTokenInterceptor implements HandleAbleInterceptor {
                                     "inherit".equals(identity.permissionMode),
                                     () -> {
                                         try {
-                                            permissionService.checkRoute(method, request);
+                                            routeAuthorizer.checkRoute(requestIdentity.current(), method, request);
                                         } catch (PermissionErrorException denied) {
                                             throw new OAuthException("insufficient_scope", 403);
                                         }

@@ -310,7 +310,7 @@ public class FileManagerReferenceServiceTest {
                             () -> new Log(db.dataSource()));
 
             ReplaceArticleResourceUrlResponse response = service.replaceArticleResourceReferences(
-                    token(), "/attached/images", "/attached/media", true);
+                    AccountServicesFixture.component(db.dataSource()).identities().account(token()), "/attached/images", "/attached/media", true);
             Map<String, Object> row = db.queryOne(
                     "select thumbnail, content, markdown, plain_content, version from log where logId=?", 12);
             Map<String, Object> versionRow = db.queryOne(

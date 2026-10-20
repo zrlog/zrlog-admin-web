@@ -11,6 +11,17 @@ import com.zrlog.model.WebSite;
 public final class AIServiceDependencies {
     private AIServiceDependencies() {}
 
+    public static com.zrlog.data.security.AccountAccess actor(DataSourceWrapper source) {
+        if (source == null) return com.zrlog.data.security.AccountAccess.from(java.util.Map.of(
+                "userId", 1, "role", "owner", "enabled", true, "authVersion", 0));
+        return AccountServicesFixture.component(source).requestIdentity().current();
+    }
+
+    public static com.zrlog.admin.business.audit.AdminAuditContext audit(DataSourceWrapper source) {
+        return new com.zrlog.admin.business.audit.AdminAuditContext(actor(source).getUserId(),
+                "127.0.0.1", "/api/admin/article/ai", null);
+    }
+
     public static AIConfigService config(DataSourceWrapper source) {
         return new AIConfigService(() -> new WebSite(source));
     }
@@ -41,11 +52,14 @@ public final class AIServiceDependencies {
                 AccountServicesFixture.component(source).preferences(),
                 config(source),
                 dbFiles(source),
-                conversations(source));
+                conversations(source),
+                        AccountServicesFixture.component(source).identities());
     }
 
     public static AIWritingSkillService.Factory writing(DataSourceWrapper source) {
-        return store -> new AIWritingSkillService(store, tools(source), images(source));
+        return (actor, store) -> new AIWritingSkillService(actor, store, tools(source), images(source),
+                        com.zrlog.admin.support.AccountServicesFixture.component(source).identities(),
+                        com.zrlog.admin.support.AccountServicesFixture.component(source).permissions());
     }
 
     public static AIPublishCheckService publishing(DataSourceWrapper source) {
@@ -53,7 +67,9 @@ public final class AIServiceDependencies {
                 ApplicationServicesFixture.settings(source),
                 ApplicationServicesFixture.operations(source),
                 writing(source),
-                conversations(source));
+                conversations(source),
+                        com.zrlog.admin.support.AccountServicesFixture.component(source).identities(),
+                        com.zrlog.admin.support.AccountServicesFixture.component(source).permissions());
     }
 
     public static AIWritingToolProvider.Factory writingTools(DataSourceWrapper source) {
@@ -61,9 +77,8 @@ public final class AIServiceDependencies {
     }
 
     public static AIReferenceService references(ContentToolFactory tools, DataSourceWrapper source) {
-        return new AIReferenceService(
-                tools,
-                AccountServicesFixture.component(source).permissions(),
-                AccountServicesFixture.component(source).preferences());
+        return new AIReferenceService(tools,
+                                AccountServicesFixture.component(source).identities(),
+                                AccountServicesFixture.component(source).preferences());
     }
 }

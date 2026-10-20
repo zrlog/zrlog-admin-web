@@ -28,6 +28,7 @@ import com.zrlog.common.ZrLogConfig;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.common.vo.AdminTokenVO;
+import com.zrlog.data.security.AccountAccess;
 import com.zrlog.model.Log;
 import com.zrlog.model.WebSite;
 
@@ -103,25 +104,27 @@ public class FileManagerControllerTest {
 
     @Test
     public void shouldReturnFalseForNoopFileActionsWithoutAuditing() throws Exception {
-        FakeFileManagerService service = new FakeFileManagerService(null);
-        FileManagerController deleteController = controller(Map.of("path", "/attached/missing.txt"), service,
-                new ResponseRecorder(), null);
-        FileManagerController mkdirController = controller(Map.of("path", "/attached/existing"), service,
-                new ResponseRecorder(), null);
-        FileManagerController renameController = controller(Map.of(
-                "path", "/attached/a.txt",
-                "newName", "b.txt",
-                "syncArticleReferences", "true"), service, new ResponseRecorder(), null);
+        try (var db = InMemoryZrLogDatabase.open()) {
+            FakeFileManagerService service = new FakeFileManagerService(db.dataSource());
+            FileManagerController deleteController = controller(Map.of("path", "/attached/missing.txt"), service,
+                    new ResponseRecorder(), db.dataSource());
+            FileManagerController mkdirController = controller(Map.of("path", "/attached/existing"), service,
+                    new ResponseRecorder(), db.dataSource());
+            FileManagerController renameController = controller(Map.of(
+                    "path", "/attached/a.txt",
+                    "newName", "b.txt",
+                    "syncArticleReferences", "true"), service, new ResponseRecorder(), db.dataSource());
 
-        assertEquals(Boolean.FALSE, deleteController.delete().getData());
-        assertEquals(Boolean.FALSE, mkdirController.mkdir().getData());
-        assertEquals(Boolean.FALSE, renameController.rename().getData());
+            assertEquals(Boolean.FALSE, deleteController.delete().getData());
+            assertEquals(Boolean.FALSE, mkdirController.mkdir().getData());
+            assertEquals(Boolean.FALSE, renameController.rename().getData());
 
-        assertEquals("/attached/missing.txt", service.deletedPath);
-        assertEquals("/attached/existing", service.mkdirPath);
-        assertEquals("/attached/a.txt", service.renamedPath);
-        assertEquals("b.txt", service.newName);
-        assertTrue(service.syncArticleReferences);
+            assertEquals("/attached/missing.txt", service.deletedPath);
+            assertEquals("/attached/existing", service.mkdirPath);
+            assertEquals("/attached/a.txt", service.renamedPath);
+            assertEquals("b.txt", service.newName);
+            assertTrue(service.syncArticleReferences);
+        }
     }
 
     @Test
@@ -261,8 +264,8 @@ public class FileManagerControllerTest {
                         new AdminPageDataFactory(
                                 ApplicationServicesFixture.site(applicationConfig),
                                 () -> "test",
-                                ApplicationServicesFixture.messages(testDataSource),
-                                AccountServicesFixture.component(testDataSource).permissions()));
+                                ApplicationServicesFixture.messages(testDataSource)),
+                        AccountServicesFixture.component(testDataSource).requestIdentity());
         setControllerField(controller, "request", request(params, body, files));
         setControllerField(controller, "response", responseRecorder.response());
         return controller;
@@ -276,6 +279,7 @@ public class FileManagerControllerTest {
                                 new UploadService(
                                         () -> null,
                                         AccountServicesFixture.component(testDataSource)
+                                                .identities(), AccountServicesFixture.component(testDataSource)
                                                 .permissions(),
                                         new DbFileService(
                                                 ApplicationServicesFixture.websiteKv(
@@ -295,8 +299,8 @@ public class FileManagerControllerTest {
                         new AdminPageDataFactory(
                                 ApplicationServicesFixture.site(applicationConfig),
                                 () -> "test",
-                                ApplicationServicesFixture.messages(testDataSource),
-                                AccountServicesFixture.component(testDataSource).permissions()));
+                                ApplicationServicesFixture.messages(testDataSource)),
+                        AccountServicesFixture.component(testDataSource).requestIdentity());
         setControllerField(controller, "request", request(params));
         setControllerField(controller, "response", responseRecorder.response());
         return controller;
@@ -352,7 +356,7 @@ public class FileManagerControllerTest {
             super(
                     new UploadService(
                             () -> null,
-                            AccountServicesFixture.component(testDataSource).permissions(),
+                            AccountServicesFixture.component(testDataSource).identities(), AccountServicesFixture.component(testDataSource).permissions(),
                             new DbFileService(
                                     ApplicationServicesFixture.websiteKv(testDataSource),
                                     () -> new WebSite(testDataSource))),
@@ -405,7 +409,7 @@ public class FileManagerControllerTest {
 
         @Override
         public boolean rename(
-                String path, String newName, boolean syncArticleReferences, AdminTokenVO user) {
+                String path, String newName, boolean syncArticleReferences, AccountAccess actor) {
             renamedPath = path;
             this.newName = newName;
             this.syncArticleReferences = syncArticleReferences;
@@ -433,7 +437,7 @@ public class FileManagerControllerTest {
 
         @Override
         public ReplaceArticleResourceUrlResponse replaceArticleResourceUrl(
-                AdminTokenVO user, ReplaceArticleResourceUrlRequest request) {
+                AccountAccess actor, ReplaceArticleResourceUrlRequest request) {
             replaceRequest = request;
             return replaceResponse;
         }

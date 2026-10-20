@@ -40,6 +40,18 @@ scan() {
 section "Admin guardrail scans"
 echo "Review matches before changing code. Some matches can be comments, test data, SVG ids, or intentional reset styles."
 
+section "Business identity boundary"
+if rg -n 'AdminTokenThreadLocal|AdminRequestIdentity|DelegatedAccess' \
+    zrlog-admin-*/src/main/java/com/zrlog/admin/business \
+    --glob '*.java' --glob '!**/security/DelegatedAccess.java'; then
+    echo "Business operations must receive explicit actors; request identity belongs to protocol adapters." >&2
+    exit 1
+else
+    status=$?
+    if [ "$status" -ne 1 ]; then exit "$status"; fi
+fi
+echo "OK"
+
 scan "Frontend i18n access and fallback candidates" \
     'getRes\(\)\[|\bres\[|adminI18nAliases|getRes\(\)(\.[A-Za-z0-9_]+)+\s*\|\|\s*["'\'']' \
     zrlog-admin-web-ui/src \

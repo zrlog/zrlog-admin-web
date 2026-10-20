@@ -1,5 +1,6 @@
 package com.zrlog.admin.web.controller.api;
 
+import com.zrlog.admin.web.security.AdminRequestIdentity;
 import com.hibegin.common.dao.dto.PageData;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.RequestMethod;
@@ -29,12 +30,16 @@ import java.sql.SQLException;
 import java.util.function.Supplier;
 
 public class TypeController extends BaseController {
+    private final AdminRequestIdentity requestIdentity;
+
 
     @Inject
     public TypeController(
             AdminPageDataFactory pages,
             Supplier<PublicWebSiteInfo> site,
-            ArticleTypeService articleTypeService) {
+            ArticleTypeService articleTypeService,
+            AdminRequestIdentity requestIdentity) {
+        this.requestIdentity = requestIdentity;
         this.articleTypeService = articleTypeService;
 
         this.pages = pages;
@@ -60,7 +65,7 @@ public class TypeController extends BaseController {
     @RequestMethod(method = HttpMethod.GET)
     public AdminPageDataResponse<PageData<TypeDTO>> index() throws SQLException {
         PublicWebSiteInfo website = site.get();
-        return pages.response(articleTypeService.find(ZrLogUtil.getHomeUrlWithHost(request, website.getHost()),
+        return pages.response(requestIdentity.optional(), articleTypeService.find(ZrLogUtil.getHomeUrlWithHost(request, website.getHost()),
                 ControllerUtil.unPageRequest(), Boolean.TRUE.equals(website.getGenerator_html_status())), "", request.getUri());
     }
 

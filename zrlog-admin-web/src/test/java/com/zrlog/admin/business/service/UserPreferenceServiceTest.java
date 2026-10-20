@@ -2,6 +2,7 @@ package com.zrlog.admin.business.service;
 
 import static org.junit.Assert.*;
 
+import com.zrlog.admin.support.AccountServicesFixture;
 import com.google.gson.*;
 import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.rest.response.AdminDashboardConfigResponse;
@@ -49,34 +50,34 @@ public class UserPreferenceServiceTest {
             db.putWebsite("article_edit_auto_save_interval", 5);
             UserPreferenceService service =
                     db.component(AccountComponent.class).preferences();
-            service.update(json("{\"language\":\"en_US\",\"appearance\":{\"darkMode\":true},\"articlePageSize\":40,\"editor\":{\"autoSaveInterval\":10}}"));
+            service.update(actor(db), json("{\"language\":\"en_US\",\"appearance\":{\"darkMode\":true},\"articlePageSize\":40,\"editor\":{\"autoSaveInterval\":10}}"));
             assertEquals(
-                    40, db.component(ContentComponent.class).queries().resolveAdminPageSize(0));
-            assertEquals(7, db.component(ContentComponent.class).queries().resolveAdminPageSize(7));
-            assertEquals(Long.valueOf(10), service.effective().editor.autoSaveInterval);
-            assertTrue(service.effective().appearance.darkMode);
+                    40, db.component(ContentComponent.class).queries().resolveAdminPageSize(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), 0));
+            assertEquals(7, db.component(ContentComponent.class).queries().resolveAdminPageSize(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), 7));
+            assertEquals(Long.valueOf(10), service.effective(actor(db)).editor.autoSaveInterval);
+            assertTrue(service.effective(actor(db)).appearance.darkMode);
             assertEquals("20", db.scalar("select value from website where name='admin_article_page_size'"));
             assertEquals(0, ((Number) db.scalar("select authVersion from user where userId=1")).intValue());
             assertEquals(
-                    "admin", db.component(AccountComponent.class).permissions().current().getRole());
+                    "admin", actor(db).getRole());
             login(2);
             assertEquals(
-                    20, db.component(ContentComponent.class).queries().resolveAdminPageSize(0));
-            service.update(json("{\"articlePageSize\":15}"));
+                    20, db.component(ContentComponent.class).queries().resolveAdminPageSize(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), 0));
+            service.update(actor(db), json("{\"articlePageSize\":15}"));
             assertEquals(
-                    15, db.component(ContentComponent.class).queries().resolveAdminPageSize(0));
+                    15, db.component(ContentComponent.class).queries().resolveAdminPageSize(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), 0));
             login(1);
             assertEquals(
-                    40, db.component(ContentComponent.class).queries().resolveAdminPageSize(0));
-            service.update(json("{}"));
+                    40, db.component(ContentComponent.class).queries().resolveAdminPageSize(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), 0));
+            service.update(actor(db), json("{}"));
             assertEquals(
-                    20, db.component(ContentComponent.class).queries().resolveAdminPageSize(0));
+                    20, db.component(ContentComponent.class).queries().resolveAdminPageSize(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), 0));
             db.putWebsite("admin_article_page_size", 30);
             assertEquals(
-                    30, db.component(ContentComponent.class).queries().resolveAdminPageSize(0));
+                    30, db.component(ContentComponent.class).queries().resolveAdminPageSize(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), 0));
             login(2);
             assertEquals(
-                    15, db.component(ContentComponent.class).queries().resolveAdminPageSize(0));
+                    15, db.component(ContentComponent.class).queries().resolveAdminPageSize(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), 0));
         }
     }
 
@@ -87,34 +88,34 @@ public class UserPreferenceServiceTest {
             db.putWebsite("article_auto_digest_length", 250);
             UserPreferenceService service =
                     db.component(AccountComponent.class).preferences();
-            service.updateBody("{\"session\":{\"timeoutMinutes\":60}}", "session");
-            service.updateBody("{\"editor\":{\"autoDigestLength\":0,\"linkPreviewEnabled\":true,\"publishCheckEnabled\":false,\"coverAspectRatio\":\"1:1\"},\"articleList\":{\"status\":\"draft\",\"sort\":\"click,ASC\",\"columns\":[]}}", "writing");
-            assertEquals(Long.valueOf(0), service.effective().editor.autoDigestLength);
-            assertFalse(service.effective().editor.publishCheckEnabled);
-            assertEquals("1:1", service.effective().editor.coverAspectRatio);
-            assertEquals("draft", service.effective().articleList.status);
-            assertTrue(service.effective().articleList.columns.isEmpty());
+            service.updateBody(actor(db), "{\"session\":{\"timeoutMinutes\":60}}", "session");
+            service.updateBody(actor(db), "{\"editor\":{\"autoDigestLength\":0,\"linkPreviewEnabled\":true,\"publishCheckEnabled\":false,\"coverAspectRatio\":\"1:1\"},\"articleList\":{\"status\":\"draft\",\"sort\":\"click,ASC\",\"columns\":[]}}", "writing");
+            assertEquals(Long.valueOf(0), service.effective(actor(db)).editor.autoDigestLength);
+            assertFalse(service.effective(actor(db)).editor.publishCheckEnabled);
+            assertEquals("1:1", service.effective(actor(db)).editor.coverAspectRatio);
+            assertEquals("draft", service.effective(actor(db)).articleList.status);
+            assertTrue(service.effective(actor(db)).articleList.columns.isEmpty());
             assertEquals(60, new UserPreferenceStore(() -> new User(db.dataSource())).sessionTimeoutMinutes(1, 90));
             // A stale appearance page must not write its stale session/editor snapshot.
-            service.updateBody("{\"appearance\":{\"darkMode\":true},\"session\":{\"timeoutMinutes\":10},\"editor\":{\"autoDigestLength\":99}}", "appearance");
-            assertEquals(Long.valueOf(60), service.effective().session.timeoutMinutes);
-            assertEquals(Long.valueOf(0), service.effective().editor.autoDigestLength);
+            service.updateBody(actor(db), "{\"appearance\":{\"darkMode\":true},\"session\":{\"timeoutMinutes\":10},\"editor\":{\"autoDigestLength\":99}}", "appearance");
+            assertEquals(Long.valueOf(60), service.effective(actor(db)).session.timeoutMinutes);
+            assertEquals(Long.valueOf(0), service.effective(actor(db)).editor.autoDigestLength);
             // Old clients cannot erase fields introduced after their version.
-            service.updateBody("{\"editor\":{\"autoSaveInterval\":10}}");
-            assertEquals(Long.valueOf(0), service.effective().editor.autoDigestLength);
-            assertEquals(Long.valueOf(60), service.effective().session.timeoutMinutes);
-            assertEquals("draft", service.effective().articleList.status);
+            service.updateBody(actor(db), "{\"editor\":{\"autoSaveInterval\":10}}");
+            assertEquals(Long.valueOf(0), service.effective(actor(db)).editor.autoDigestLength);
+            assertEquals(Long.valueOf(60), service.effective(actor(db)).session.timeoutMinutes);
+            assertEquals("draft", service.effective(actor(db)).articleList.status);
             login(2);
-            assertEquals(Long.valueOf(90), service.effective().session.timeoutMinutes);
-            assertEquals(Long.valueOf(250), service.effective().editor.autoDigestLength);
-            assertEquals("", service.effective().articleList.status);
+            assertEquals(Long.valueOf(90), service.effective(actor(db)).session.timeoutMinutes);
+            assertEquals(Long.valueOf(250), service.effective(actor(db)).editor.autoDigestLength);
+            assertEquals("", service.effective(actor(db)).articleList.status);
             login(1);
-            service.updateBody("{}", "writing");
-            assertEquals(Long.valueOf(250), service.effective().editor.autoDigestLength);
-            assertEquals(Long.valueOf(60), service.effective().session.timeoutMinutes);
-            service.updateBody("{}", "session");
+            service.updateBody(actor(db), "{}", "writing");
+            assertEquals(Long.valueOf(250), service.effective(actor(db)).editor.autoDigestLength);
+            assertEquals(Long.valueOf(60), service.effective(actor(db)).session.timeoutMinutes);
+            service.updateBody(actor(db), "{}", "session");
             db.putWebsite("session_timeout", 120);
-            assertEquals(Long.valueOf(120), service.effective().session.timeoutMinutes);
+            assertEquals(Long.valueOf(120), service.effective(actor(db)).session.timeoutMinutes);
             assertEquals(0, ((Number) db.scalar("select authVersion from user where userId=1")).intValue());
         }
     }
@@ -130,12 +131,12 @@ public class UserPreferenceServiceTest {
                     "{\"editor\":{\"coverAspectRatio\":\"bad\"}}", "{\"editor\":{\"publishCheckEnabled\":1}}",
                     "{\"articleList\":{\"sort\":\"secretKey,DESC\"}}", "{\"articleList\":{\"status\":\"all\"}}",
                     "{\"articleList\":{\"columns\":[\"click\",\"click\"]}}", "{\"articleList\":{\"columns\":[\"secretKey\"]}}")) {
-                assertThrows(invalid, ArgsException.class, () -> service.updateBody(invalid));
+                assertThrows(invalid, ArgsException.class, () -> service.updateBody(actor(db), invalid));
             }
-            assertThrows(ArgsException.class, () -> service.updateBody("{}", "unknown"));
+            assertThrows(ArgsException.class, () -> service.updateBody(actor(db), "{}", "unknown"));
             db.execute("update user set preferences=? where userId=1", "{\"appearance\":{\"theme\":\"broken\"},\"session\":{\"timeoutMinutes\":60}}");
-            assertEquals(Long.valueOf(60), service.current().effective.session.timeoutMinutes);
-            assertNull(service.current().overrides.appearance);
+            assertEquals(Long.valueOf(60), service.current(actor(db)).effective.session.timeoutMinutes);
+            assertNull(service.current(actor(db)).overrides.appearance);
         }
     }
 
@@ -144,17 +145,17 @@ public class UserPreferenceServiceTest {
             db.execute("insert into user(userId,userName,role) values(2,'writer','author')");
             UserPreferenceService service =
                     db.component(AccountComponent.class).preferences();
-            assertEquals("own_public", service.current().effective.assistant.knowledgeScope);
-            service.update(json("{\"assistant\":{\"knowledgeScope\":\"own_all\"}}"));
-            assertEquals("own_all", service.assistant(AdminTokenThreadLocal.getUser()).knowledgeScope);
+            assertEquals("own_public", service.current(actor(db)).effective.assistant.knowledgeScope);
+            service.update(actor(db), json("{\"assistant\":{\"knowledgeScope\":\"own_all\"}}"));
+            assertEquals("own_all", service.assistant(actor(db)).knowledgeScope);
             login(2);
-            assertEquals("own_public", service.assistant(AdminTokenThreadLocal.getUser()).knowledgeScope);
-            service.update(json("{\"assistant\":{\"knowledgeScope\":\"off\"}}"));
-            assertEquals("off", service.current().effective.assistant.knowledgeScope);
+            assertEquals("own_public", service.assistant(actor(db)).knowledgeScope);
+            service.update(actor(db), json("{\"assistant\":{\"knowledgeScope\":\"off\"}}"));
+            assertEquals("off", service.current(actor(db)).effective.assistant.knowledgeScope);
             login(1);
-            assertEquals("own_all", service.current().effective.assistant.knowledgeScope);
-            service.update(json("{}"));
-            assertEquals("own_public", service.current().effective.assistant.knowledgeScope);
+            assertEquals("own_all", service.current(actor(db)).effective.assistant.knowledgeScope);
+            service.update(actor(db), json("{}"));
+            assertEquals("own_public", service.current(actor(db)).effective.assistant.knowledgeScope);
         }
     }
 
@@ -169,16 +170,16 @@ public class UserPreferenceServiceTest {
                     "{\"articlePageSize\":1.1}", "{\"articlePageSize\":\"10\"}", "{\"editor\":{\"autoSaveInterval\":30}}",
                     "{\"editor\":{\"publishCheck\":false}}", "{\"assistant\":{\"knowledgeScope\":true}}",
                     "{\"assistant\":{\"knowledgeScope\":\"everything\"}}", "{\"assistant\":{\"role\":\"owner\"}}")) {
-                assertThrows(invalid, ArgsException.class, () -> service.update(json(invalid)));
+                assertThrows(invalid, ArgsException.class, () -> service.update(actor(db), json(invalid)));
             }
             for (String invalid : List.of("[]", "null", "true", "{broken")) {
-                assertThrows(ArgsException.class, () -> service.updateBody(invalid));
+                assertThrows(ArgsException.class, () -> service.updateBody(actor(db), invalid));
             }
             assertNull(db.scalar("select preferences from user where userId=1"));
-            service.update(json("{\"appearance\":{\"darkMode\":false},\"language\":null}"));
-            assertEquals(Boolean.FALSE, service.current().overrides.appearance.darkMode);
+            service.update(actor(db), json("{\"appearance\":{\"darkMode\":false},\"language\":null}"));
+            assertEquals(Boolean.FALSE, service.current(actor(db)).overrides.appearance.darkMode);
             db.execute("update user set enabled=false where userId=1");
-            assertThrows(PermissionErrorException.class, () -> service.update(json("{}")));
+            assertThrows(PermissionErrorException.class, () -> service.update(actor(db), json("{}")));
         }
     }
 
@@ -187,21 +188,21 @@ public class UserPreferenceServiceTest {
             UserPreferenceService service =
                     db.component(AccountComponent.class).preferences();
             db.execute("update user set preferences=? where userId=1", "{\"future\":{\"key\":1},\"dashboard\":{\"autoRefreshEnabled\":true}}");
-            service.update(json("{\"articlePageSize\":50}"));
-            assertTrue(service.dashboard(AdminTokenThreadLocal.getUser()).getAutoRefreshEnabled());
+            service.update(actor(db), json("{\"articlePageSize\":50}"));
+            assertTrue(service.dashboard(actor(db)).getAutoRefreshEnabled());
             AdminDashboardConfigResponse dashboard = new AdminDashboardConfigResponse();
             dashboard.setAutoRefreshIntervalSeconds(120);
-            service.saveDashboard(AdminTokenThreadLocal.getUser(), dashboard);
-            assertEquals(Integer.valueOf(50), service.effective().articlePageSize);
+            service.saveDashboard(actor(db), dashboard);
+            assertEquals(Integer.valueOf(50), service.effective(actor(db)).articlePageSize);
             JsonObject stored = json(db.scalar("select preferences from user where userId=1").toString());
             assertTrue(stored.has("future"));
-            UserPreferencesResponse response = service.current();
+            UserPreferencesResponse response = service.current(actor(db));
             assertFalse(new Gson().toJson(response).contains("dashboard"));
             assertNull(service.dashboard(null));
             db.execute("update user set preferences=? where userId=1", "{broken");
-            assertNull(service.current().overrides.articlePageSize);
-            service.update(json("{\"articlePageSize\":25}"));
-            assertEquals(Integer.valueOf(25), service.effective().articlePageSize);
+            assertNull(service.current(actor(db)).overrides.articlePageSize);
+            service.update(actor(db), json("{\"articlePageSize\":25}"));
+            assertEquals(Integer.valueOf(25), service.effective(actor(db)).articlePageSize);
         }
     }
     @Test public void concurrentSectionsDoNotOverwriteEachOther() throws Exception {
@@ -218,8 +219,7 @@ public class UserPreferenceServiceTest {
                                         start.await();
                                         for (int i = 1; i <= 10; i++)
                                             db.component(AccountComponent.class).preferences()
-                                                    .update(
-                                                            json(
+                                                    .update(actor(db), json(
                                                                     "{\"articlePageSize\":"
                                                                             + i
                                                                             + "}"));
@@ -240,8 +240,7 @@ public class UserPreferenceServiceTest {
                                                     new AdminDashboardConfigResponse();
                                             config.setAutoRefreshIntervalSeconds(i * 10);
                                             db.component(AccountComponent.class).preferences()
-                                                    .saveDashboard(
-                                                            AdminTokenThreadLocal.getUser(),
+                                                    .saveDashboard(actor(db),
                                                             config);
                                         }
                                     } catch (Exception e) {
@@ -256,15 +255,19 @@ public class UserPreferenceServiceTest {
                 assertEquals(
                         Integer.valueOf(10),
                         db.component(AccountComponent.class).preferences()
-                                .effective()
+                                .effective(actor(db))
                                 .articlePageSize);
                 assertEquals(
                         Integer.valueOf(100),
                         db.component(AccountComponent.class).preferences()
-                                .dashboard(AdminTokenThreadLocal.getUser())
+                                .dashboard(actor(db))
                                 .getAutoRefreshIntervalSeconds());
             } finally { pool.shutdownNow(); }
         }
+    }
+
+    private static com.zrlog.data.security.AccountAccess actor(InMemoryZrLogDatabase db) {
+        return AccountServicesFixture.component(db.dataSource()).requestIdentity().current();
     }
 
 }

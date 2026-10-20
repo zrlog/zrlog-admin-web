@@ -24,6 +24,7 @@ import com.zrlog.admin.business.service.FeatureLabService;
 import com.zrlog.admin.business.service.OAuthService;
 import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
+import com.zrlog.admin.web.audit.AdminAuditContexts;
 import com.zrlog.admin.web.controller.ai.AIArticleController;
 import com.zrlog.admin.web.interceptor.AdminLoginInterceptor;
 import com.zrlog.admin.web.interceptor.BearerTokenInterceptor;
@@ -123,7 +124,7 @@ public class AdminModuleSwitchTest {
                                 .build()
                                 .get(AdminPageDataFactory.class);
                 {
-                    var page = pages.response("metadata", "", "/admin/system");
+                    var page = pages.response(null, "metadata", "", "/admin/system");
                     assertEquals("metadata", page.getData());
                     assertTrue(page.getDocumentTitle().contains("ZrLog Test"));
                     if (ui) assertFalse(page.getPageBuildId().isBlank());
@@ -158,7 +159,7 @@ public class AdminModuleSwitchTest {
             {
             if (access) {
                     var oauth = services.get(OAuthService.class);
-                assertEquals(mcp, oauth.page().mcpResource != null);
+                assertEquals(mcp, oauth.page(AccountServicesFixture.component(db.dataSource()).requestIdentity().current()).mcpResource != null);
                     var token = new OAuthModels.TokenRequest();
                 token.resource = oauth.mcpResource();
                 token.grant_type = "authorization_code";
@@ -203,14 +204,18 @@ public class AdminModuleSwitchTest {
                 assertFalse(features.featureLab().getFeature_webhook_enabled());
             }
             var articles = services.get(ArticleQueryService.class);
-            var saved = services.get(ArticlePublishingService.class).create(AdminTokenThreadLocal.getUser(), article, request);
-            var detail = articles.loadDetailById(saved.getLogId().toString(), request);
+            var saved = services.get(ArticlePublishingService.class).create(AccountServicesFixture.component(db.dataSource()).requestIdentity().account(AdminTokenThreadLocal.getUser()), article,
+                    AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()));
+            var detail = articles.loadDetailById(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), saved.getLogId().toString(), request);
             var tools =
                     services.get(ContentToolFactory.class)
                             .create(
+                                    AccountServicesFixture.component(db.dataSource()).requestIdentity().current(),
                                     java.util.Set.of("articles:read", "articles:read_drafts"),
                                     request,
-                                    "en_US");
+                                    "en_US",
+                                    AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()),
+                                    AdminTokenThreadLocal.getUser());
             {
                 assertEquals(assets, tools.definitions("en_US").stream().anyMatch(tool -> "upload_attachment".equals(tool.name)));
                 var arguments = new com.google.gson.JsonObject();
@@ -223,7 +228,7 @@ public class AdminModuleSwitchTest {
             // The same article tools serve MCP without AI, and internal AI without external access.
             var knowledge =
                     new KnowledgeService(
-                            AccountServicesFixture.component(db.dataSource()).permissions()::current,
+                            AccountServicesFixture.component(db.dataSource()).requestIdentity()::current,
                             java.util.Set.of("articles:read", "articles:read_drafts"),
                             () -> "https://blog.example",
                             () -> false,
@@ -252,10 +257,10 @@ public class AdminModuleSwitchTest {
                         Objects.requireNonNullElse(
                                         config.getWebSetup(ArticleAssistant.class),
                                         ArticleAssistant.NONE)
-                                .beginPublishCheck(detail.getData(), article, null));
+                                .beginPublishCheck(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), detail.getData(), article, null));
             assertTrue(
                     services.get(com.zrlog.admin.business.service.AdminArticleService.class)
-                            .delete(saved.getLogId()));
+                            .delete(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), saved.getLogId()));
         }
     }
 }

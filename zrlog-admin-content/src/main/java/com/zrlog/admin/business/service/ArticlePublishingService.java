@@ -1,5 +1,6 @@
 package com.zrlog.admin.business.service;
 
+import com.zrlog.admin.business.audit.AdminAuditContext;
 import com.hibegin.common.util.LoggerUtil;
 import com.hibegin.common.util.StringUtils;
 import com.hibegin.http.server.api.HttpRequest;
@@ -13,7 +14,7 @@ import com.zrlog.admin.business.type.AdminAuditAction;
 import com.zrlog.business.plugin.type.StaticSiteType;
 import com.zrlog.business.service.CacheRefreshService;
 import com.zrlog.business.service.MarkdownRenderer;
-import com.zrlog.common.vo.AdminTokenVO;
+import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.exception.DAOException;
 import com.zrlog.util.I18nUtil;
 
@@ -68,16 +69,15 @@ public class ArticlePublishingService {
         }
     }
 
-    public DeleteResponse deleteArticles(String ids, HttpRequest request) throws SQLException {
+    public DeleteResponse deleteArticles(AccountAccess actor, String ids, AdminAuditContext audit) throws SQLException {
         boolean deleted =
                 Arrays.stream(ids.split(","))
                         .allMatch(
                                 id -> {
                                     try {
-                                        boolean removed = articleService.delete(Long.valueOf(id));
+                                        boolean removed = articleService.delete(actor, Long.valueOf(id));
                                         if (removed) {
-                                            this.adminAuditService.record(
-                                                    request, AdminAuditAction.DELETE_ARTICLE, id);
+                                            this.adminAuditService.record(audit, AdminAuditAction.DELETE_ARTICLE, id);
                                         }
                                         return removed;
                                     } catch (SQLException e) {
@@ -96,34 +96,33 @@ public class ArticlePublishingService {
                 && !Objects.equals(response.getPrivacy(), true);
     }
 
-    public CreateOrUpdateArticleResponse create(AdminTokenVO token, CreateArticleRequest body, HttpRequest request)
+    public CreateOrUpdateArticleResponse create(AccountAccess actor, CreateArticleRequest body, AdminAuditContext audit)
             throws SQLException {
-        CreateOrUpdateArticleResponse response = articleService.create(token, body);
-        this.adminAuditService.record(request, AdminAuditAction.CREATE_ARTICLE, body.getTitle());
-        recordPublication(body, response, request);
+        CreateOrUpdateArticleResponse response = articleService.create(actor, body);
+        this.adminAuditService.record(audit, AdminAuditAction.CREATE_ARTICLE, body.getTitle());
+        recordPublication(body, response, audit);
         return response;
     }
 
-    public CreateOrUpdateArticleResponse update(AdminTokenVO token, UpdateArticleRequest body, HttpRequest request)
+    public CreateOrUpdateArticleResponse update(AccountAccess actor, UpdateArticleRequest body, AdminAuditContext audit)
             throws SQLException {
-        CreateOrUpdateArticleResponse response = articleService.update(token, body);
-        recordPublication(body, response, request);
+        CreateOrUpdateArticleResponse response = articleService.update(actor, body);
+        recordPublication(body, response, audit);
         return response;
     }
 
-    private void recordPublication(CreateArticleRequest body, CreateOrUpdateArticleResponse saved, HttpRequest request) {
+    private void recordPublication(CreateArticleRequest body, CreateOrUpdateArticleResponse saved, AdminAuditContext audit) {
         // Admin APIs, MCP and the built-in assistant share the same publication policy.
         if (Objects.equals(saved.getRubbish(), false) && Objects.equals(saved.getPrivacy(), false)) {
-            this.adminAuditService.record(
-                    request, AdminAuditAction.PUBLISH_ARTICLE, body.getTitle());
+            this.adminAuditService.record(audit, AdminAuditAction.PUBLISH_ARTICLE, body.getTitle());
         }
     }
 
-    public AdminPageDataResponse<ArticleGlobalResponse> articleResponse(CreateOrUpdateArticleResponse saveResponse,
+    public AdminPageDataResponse<ArticleGlobalResponse> articleResponse(AccountAccess actor, CreateOrUpdateArticleResponse saveResponse,
                                                                         boolean refreshCache,
                                                                         HttpRequest request) throws SQLException {
         AdminPageDataResponse<ArticleGlobalResponse> detail =
-                queries.loadDetailById(saveResponse.getLogId() + "", request);
+                queries.loadDetailById(actor, saveResponse.getLogId() + "", request);
         if (refreshCache && saveResponse.isPublicCacheRefreshRequired()) {
             // The article is already saved. Refresh public data now, but do not hold
             // the editor's acknowledgement while plugins regenerate the static site.

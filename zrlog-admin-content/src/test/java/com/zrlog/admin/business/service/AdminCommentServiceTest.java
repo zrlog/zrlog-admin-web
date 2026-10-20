@@ -22,8 +22,8 @@ public class AdminCommentServiceTest {
     @Test
     public void shouldParseCommentIdsWithTrimAndStableDeduplication() throws Exception {
         AdminCommentService service =
-                new AdminCommentService(
-                        AccountServicesFixture.component(null).permissions(),
+                new AdminCommentService(AccountServicesFixture.component(null).permissions(),
+                        AccountServicesFixture.component(null).identities(),
                         ApplicationServicesFixture.messages(null),
                         () -> { throw new IllegalStateException("Database is unavailable in this test"); });
 
@@ -37,8 +37,8 @@ public class AdminCommentServiceTest {
     @Test
     public void shouldBuildSqlPlaceholdersForIds() throws Exception {
         AdminCommentService service =
-                new AdminCommentService(
-                        AccountServicesFixture.component(null).permissions(),
+                new AdminCommentService(AccountServicesFixture.component(null).permissions(),
+                        AccountServicesFixture.component(null).identities(),
                         ApplicationServicesFixture.messages(null),
                         () -> { throw new IllegalStateException("Database is unavailable in this test"); });
 
@@ -48,13 +48,13 @@ public class AdminCommentServiceTest {
     }
 
     @Test
-    public void shouldReturnFailureWhenReadRequestIsMissing() {
+    public void shouldReturnFailureWhenReadRequestIsMissing() throws Exception {
         UpdateRecordResponse response =
-                new AdminCommentService(
-                                AccountServicesFixture.component(null).permissions(),
-                                ApplicationServicesFixture.messages(null),
-                                () -> { throw new IllegalStateException("Database is unavailable in this test"); })
-                        .read(null);
+                new AdminCommentService(AccountServicesFixture.component(null).permissions(),
+                        AccountServicesFixture.component(null).identities(),
+                        ApplicationServicesFixture.messages(null),
+                        () -> { throw new IllegalStateException("Database is unavailable in this test"); })
+                        .read(null, null);
 
         assertEquals(1, response.getError());
     }
@@ -64,18 +64,19 @@ public class AdminCommentServiceTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             seedComments(db);
             AdminCommentService service =
-                    new AdminCommentService(
-                            AccountServicesFixture.component(db.dataSource()).permissions(),
-                            ApplicationServicesFixture.messages(db.dataSource()),
-                            () -> new Comment(db.dataSource()));
+                    new AdminCommentService(AccountServicesFixture.component(db.dataSource()).permissions(),
+                        AccountServicesFixture.component(db.dataSource()).identities(),
+                        ApplicationServicesFixture.messages(db.dataSource()),
+                        () -> new Comment(db.dataSource()));
+            var actor = AccountServicesFixture.component(db.dataSource()).identities().account(com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser());
             ReadCommentRequest readRequest = new ReadCommentRequest();
             readRequest.setId(1L);
 
-            UpdateRecordResponse readResponse = service.read(readRequest);
+            UpdateRecordResponse readResponse = service.read(actor, readRequest);
             int unreadAfterRead = service.countUnread();
-            service.readAll();
-            DeleteResponse deleteResponse = service.delete(new String[]{"2", "3"});
-            DeleteResponse missingDeleteResponse = service.delete(new String[]{"999"});
+            service.readAll(actor);
+            DeleteResponse deleteResponse = service.delete(actor, new String[]{"2", "3"});
+            DeleteResponse missingDeleteResponse = service.delete(actor, new String[]{"999"});
             Map<String, Object> status = db.queryOne("select value from website where name=?",
                     "admin_cache:message_center_status");
 

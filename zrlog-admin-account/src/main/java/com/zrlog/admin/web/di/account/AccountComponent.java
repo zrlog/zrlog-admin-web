@@ -1,5 +1,7 @@
 package com.zrlog.admin.web.di.account;
 
+import com.zrlog.admin.web.security.AdminRouteAuthorizer;
+import com.zrlog.admin.web.security.AdminRequestIdentity;
 import com.zrlog.admin.business.account.AvatarStorage;
 import com.zrlog.admin.business.security.SecurityStore;
 import com.zrlog.admin.business.service.*;
@@ -36,6 +38,12 @@ public interface AccountComponent {
     MfaService mfa();
 
     UserPreferenceService preferences();
+
+    AccountIdentityService identities();
+
+    AdminRequestIdentity requestIdentity();
+
+    AdminRouteAuthorizer routeAuthorizer();
 
     AccountPermissionService permissions();
 

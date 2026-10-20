@@ -83,12 +83,12 @@ public class MemberHttpOriginTest {
                 });
         MemberController controller =
                 new MemberController(
-                        ApplicationServicesFixture.backend(applicationConfig),
+                        new com.zrlog.admin.web.security.AdminRouteAuthorizer(AccountServicesFixture.component(testDataSource).permissions(), ApplicationServicesFixture.backend(applicationConfig)),
+                        AccountServicesFixture.component(testDataSource).requestIdentity(),
                         new AdminPageDataFactory(
                                 ApplicationServicesFixture.site(applicationConfig),
                                 () -> "test",
-                                ApplicationServicesFixture.messages(testDataSource),
-                                AccountServicesFixture.component(testDataSource).permissions()),
+                                ApplicationServicesFixture.messages(testDataSource)),
                         AccountServicesFixture.component(testDataSource).members(),
                         ApplicationServicesFixture.audit(testDataSource));
         var field = Controller.class.getDeclaredField("request");

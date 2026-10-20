@@ -192,9 +192,8 @@ public class WebhookControllerDatabaseTest {
                         new AdminPageDataFactory(
                                 ApplicationServicesFixture.site(applicationConfig),
                                 () -> "test",
-                                ApplicationServicesFixture.messages(testDataSource),
-                                AccountServicesFixture.component(testDataSource).permissions()),
-                        AccountServicesFixture.component(testDataSource).permissions(),
+                                ApplicationServicesFixture.messages(testDataSource)),
+                        AccountServicesFixture.component(testDataSource).permissions(), AccountServicesFixture.component(testDataSource).requestIdentity(),
                         new WebhookService(
                                 ApplicationServicesFixture.messages(testDataSource),
                                 ApplicationServicesFixture.websiteCache(testDataSource)),

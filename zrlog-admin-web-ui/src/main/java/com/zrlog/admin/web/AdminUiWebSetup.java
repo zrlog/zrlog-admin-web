@@ -33,6 +33,7 @@ import com.zrlog.data.di.DataComponent;
 import com.zrlog.plugin.Plugins;
 import com.zrlog.web.WebSetup;
 import com.zrlog.web.WebSiteInfoProvider;
+import com.zrlog.admin.web.page.AdminPageRequestHandler;
 
 import java.util.List;
 
@@ -77,6 +78,7 @@ public class AdminUiWebSetup implements WebSetup, AdminResourceProvider {
                                                 resources::getStaticResourceBuildId,
                                                 config::isInstalled))
                 .singleton(AdminPageService.class, r -> r.get(AdminUiComponent.class).pages())
+                .singleton(AdminPageRequestHandler.class, r -> r.get(AdminUiComponent.class).pageRequests())
                 .controller(
                         AdminStaticSiteController.class,
                         (r, request, response) -> r.get(AdminUiComponent.class).staticSites())

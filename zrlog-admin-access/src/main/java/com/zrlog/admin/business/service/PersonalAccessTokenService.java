@@ -1,6 +1,7 @@
 package com.zrlog.admin.business.service;
 
-import com.zrlog.admin.business.security.DelegatedAccess;
+import com.zrlog.admin.business.exception.PermissionErrorException;
+import com.zrlog.admin.business.security.GrantAuthority;
 import com.zrlog.admin.business.security.OAuthException;
 import com.zrlog.admin.business.security.OAuthModels.Identity;
 import com.zrlog.admin.business.security.PersonalTokenModels.*;
@@ -21,7 +22,8 @@ import java.util.stream.Collectors;
 /** Account-owned credentials using the account action catalog; OAuth scopes remain a protocol adapter. */
 public final class PersonalAccessTokenService {
 
-    private final AccountPermissionService permissionService;
+    private final AccountIdentityService identities;
+    private final AccountPermissionService permissions;
 
     public static final String PREFIX = "zrpat_";
     public static final String LEGACY_PREFIX = "zrmcp_";
@@ -34,11 +36,13 @@ public final class PersonalAccessTokenService {
     @AssistedInject
     public PersonalAccessTokenService(
             @Assisted String mcpResource,
-            AccountPermissionService permissionService,
+            AccountIdentityService identities,
+            AccountPermissionService permissions,
             SecurityStore store) {
         this.store = store;
 
-        this.permissionService = permissionService;
+        this.identities = identities;
+        this.permissions = permissions;
         this.resource = mcpResource;
     }
 
@@ -59,8 +63,8 @@ public final class PersonalAccessTokenService {
                 .map(AccountAction::getId).collect(Collectors.toList());
     }
 
-    public Created create(Create request) throws SQLException {
-        AccountAccess account = permissionService.current();
+    public Created create(GrantAuthority authority, Create request) throws SQLException {
+        AccountAccess account = authorize(authority.actor());
         if (ZrLogUtil.isPreviewMode()) throw new OAuthException("access_denied", 403);
         if (request == null) throw new ArgsException();
         request.doValid();
@@ -72,7 +76,7 @@ public final class PersonalAccessTokenService {
             storedPermissions = String.join(" ", SCOPES.stream().filter(selected::contains).collect(Collectors.toList()));
         } else if ("inherit".equals(request.permissionMode)) {
             // A limited credential cannot mint one that inherits its owner's broader rights.
-            if (!request.permissions.isEmpty() || DelegatedAccess.restricted()) throw new OAuthException("invalid_scope");
+            if (!request.permissions.isEmpty() || !authority.permitsInheritance()) throw new OAuthException("invalid_scope");
             storedPermissions = INHERIT;
         } else {
             Set<String> selected = new LinkedHashSet<>(request.permissions);
@@ -87,15 +91,23 @@ public final class PersonalAccessTokenService {
         info.resource = legacy ? resource : siteResource();
         describePermissions(info, storedPermissions, account);
         info.createdAt = System.currentTimeMillis(); info.expiresAt = info.createdAt + request.expiresInDays * 86_400_000L;
-        store.withSession(c -> store.update(c,
-                "insert into user_access_token(id,userId,name,tokenHash,scope,resource,authVersion,createdAt,expiresAt,revoked) values(?,?,?,?,?,?,?,?,?,?)",
-                info.id, info.userId, info.name, OAuthService.hash(result.token), storedPermissions, info.resource,
-                account.getAuthVersion(), info.createdAt, info.expiresAt, false));
+        store.withSession(c -> {
+            if (store.update(c,
+                    "insert into user_access_token(id,userId,name,tokenHash,scope,resource,authVersion,createdAt,expiresAt,revoked) "
+                            + "select ?,?,?,?,?,?,?,?,?,? where exists (select 1 from user where userId=? and role=? and enabled=? and authVersion=?)",
+                    info.id, info.userId, info.name, OAuthService.hash(result.token), storedPermissions, info.resource,
+                    account.getAuthVersion(), info.createdAt, info.expiresAt, false,
+                    account.getUserId(), account.getRole(), true, account.getAuthVersion()) != 1) {
+                throw new PermissionErrorException();
+            }
+            return null;
+        });
         result.info = info;
         return result;
     }
 
-    public List<Info> list(AccountAccess account) throws SQLException {
+    public List<Info> list(AccountAccess actor) throws SQLException {
+        AccountAccess account = authorize(actor);
         return store.withSession(c -> {
             List<Info> result = new ArrayList<>();
             for (Map<String,Object> row : store.list(c,
@@ -132,9 +144,21 @@ public final class PersonalAccessTokenService {
         return info;
     }
 
-    public void revoke(String id) throws SQLException {
-        AccountAccess account = permissionService.current();
-        store.withSession(c -> store.update(c, "update user_access_token set revoked=? where id=? and userId=?", true, id, account.getUserId()));
+    public void revoke(AccountAccess actor, String id) throws SQLException {
+        AccountAccess account = authorize(actor);
+        store.withSession(c -> {
+            int changed = store.update(c, "update user_access_token set revoked=? where id=? and userId=? "
+                            + "and exists (select 1 from user where userId=? and role=? and enabled=? and authVersion=?)",
+                    true, id, account.getUserId(), account.getUserId(), account.getRole(), true, account.getAuthVersion());
+            if (changed == 0) identities.revalidate(account);
+            return null;
+        });
+    }
+
+    private AccountAccess authorize(AccountAccess actor) {
+        AccountAccess account = identities.revalidate(actor);
+        permissions.require(account, AccountAction.OAUTH_GRANT_MANAGE);
+        return account;
     }
 
     public Identity authenticate(String token, String requestedResource, Set<String> required) throws SQLException {

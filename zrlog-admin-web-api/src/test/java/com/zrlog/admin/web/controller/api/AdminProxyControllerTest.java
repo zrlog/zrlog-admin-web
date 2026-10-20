@@ -63,9 +63,7 @@ public class AdminProxyControllerTest {
                 assertThrows(
                         PermissionErrorException.class,
                         () ->
-                                AccountServicesFixture.component(null)
-                                        .permissions()
-                                        .checkRoute(method, null));
+                                AccountServicesFixture.component(null).routeAuthorizer().checkRoute(null, method, null));
             }
         }
     }
@@ -78,9 +76,9 @@ public class AdminProxyControllerTest {
                         new AdminPageDataFactory(
                                 ApplicationServicesFixture.site(applicationConfig),
                                 () -> "test",
-                                ApplicationServicesFixture.messages(null),
-                                AccountServicesFixture.component(null).permissions()),
-                        new AdminProxyService());
+                                ApplicationServicesFixture.messages(null)),
+                        new AdminProxyService(),
+                        AccountServicesFixture.component(null).requestIdentity());
         HttpRequest request = (HttpRequest) Proxy.newProxyInstance(getClass().getClassLoader(), new Class[]{HttpRequest.class},
                 (proxy, method, args) -> method.getName().equals("getMethod") ? HttpMethod.DELETE : null);
         HttpResponse response = (HttpResponse) Proxy.newProxyInstance(getClass().getClassLoader(), new Class[]{HttpResponse.class},
@@ -106,9 +104,9 @@ public class AdminProxyControllerTest {
                             new AdminPageDataFactory(
                                     ApplicationServicesFixture.site(database.config()),
                                     ApplicationServicesFixture.buildId(database.resources()),
-                                    ApplicationServicesFixture.messages(database.dataSource()),
-                                    AccountServicesFixture.component(database.dataSource()).permissions()),
-                            new AdminProxyService());
+                                    ApplicationServicesFixture.messages(database.dataSource())),
+                            new AdminProxyService(),
+                        AccountServicesFixture.component(database.dataSource()).requestIdentity());
             set(controller, "request", request(HttpMethod.POST,
                     "{\"url\":\"" + proxyUrl + "\",\"noProxy\":\".internal.example\"}"));
             var saved = controller.index().getData();

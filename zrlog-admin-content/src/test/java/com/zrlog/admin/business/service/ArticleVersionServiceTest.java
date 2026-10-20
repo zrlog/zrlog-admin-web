@@ -143,7 +143,7 @@ public class ArticleVersionServiceTest {
         ArticleVersionService service = newService(null);
 
         ArticleVersionCompareResponse response =
-                new ArticleRevisionService(fake.queries, service, fake).compare(5, 3, 3, null);
+                new ArticleRevisionService(fake.queries, service, fake).compare(null, 5, 3, 3, null);
 
         assertEquals(Integer.valueOf(3), response.getFromVersion());
         assertEquals(Integer.valueOf(3), response.getToVersion());
@@ -216,10 +216,9 @@ public class ArticleVersionServiceTest {
     }
 
     private static ArticleVersionService newService(DataSourceWrapper testDataSource) {
-        return new ArticleVersionService(
-                AccountServicesFixture.component(testDataSource).permissions(),
-                () -> new Log(testDataSource),
-                () -> new LogVersion(testDataSource));
+        return new ArticleVersionService(AccountServicesFixture.component(testDataSource).permissions(),
+                                () -> new Log(testDataSource),
+                                () -> new LogVersion(testDataSource));
     }
 
     private static FakeAdminArticleService fakeArticleService(LoadEditArticleResponse current, DataSourceWrapper testDataSource) throws Exception {
@@ -232,7 +231,7 @@ public class ArticleVersionServiceTest {
         private FakeAdminArticleService(DataSourceWrapper testDataSource) {
             super(
                     () -> null,
-                    AccountServicesFixture.component(testDataSource).permissions(),
+                    AccountServicesFixture.component(testDataSource).permissions(), AccountServicesFixture.component(testDataSource).identities(),
                     AccountServicesFixture.component(testDataSource).preferences(),
                     newService(testDataSource),
                     new ArticlePinningService(
@@ -246,7 +245,7 @@ public class ArticleVersionServiceTest {
         private UpdateArticleRequest updatedRequest;
 
         @Override
-        public CreateOrUpdateArticleResponse update(AdminTokenVO adminTokenVO, UpdateArticleRequest updateArticleRequest)
+        public CreateOrUpdateArticleResponse update(com.zrlog.data.security.AccountAccess actor, UpdateArticleRequest updateArticleRequest)
                 throws SQLException {
             updatedRequest = updateArticleRequest;
             CreateOrUpdateArticleResponse response = new CreateOrUpdateArticleResponse();
@@ -266,7 +265,7 @@ public class ArticleVersionServiceTest {
         }
 
         @Override
-        public LoadEditArticleResponse loadDetail(String id, HttpRequest request) {
+        public LoadEditArticleResponse loadDetail(com.zrlog.data.security.AccountAccess actor, String id, HttpRequest request) {
             loadedId = id;
             return current;
         }

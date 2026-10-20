@@ -1,5 +1,7 @@
 package com.zrlog.admin.web.controller.api;
 
+import com.zrlog.admin.web.audit.AdminAuditContexts;
+import com.zrlog.admin.web.security.AdminRequestIdentity;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.RequestMethod;
 import com.hibegin.http.annotation.ResponseBody;
@@ -34,13 +36,16 @@ import java.util.List;
 
 public class FileManagerController extends BaseController {
     private final AdminPageDataFactory pages;
+    private final AdminRequestIdentity requestIdentity;
 
 
     private final FileManagerService fileManagerService;
 
     @Inject
     public FileManagerController(
-            FileManagerService fileManagerService, AdminPageDataFactory pages) {
+            FileManagerService fileManagerService, AdminPageDataFactory pages,
+            AdminRequestIdentity requestIdentity) {
+        this.requestIdentity = requestIdentity;
         this.pages = pages;
         this.fileManagerService = fileManagerService;
     }
@@ -51,7 +56,9 @@ public class FileManagerController extends BaseController {
         String path = request.getParaToStr("path", "");
         String key = request.getParaToStr("key", "");
         String resourceType = request.getParaToStr("resourceType", "");
-        return pages.response(fileManagerService.page(path, key, resourceType), "", request.getUri());
+        var actor = requestIdentity.current();
+        return new AdminPageDataResponse<>(fileManagerService.page(path, key, resourceType), "",
+                pages.metadata(actor, request.getUri()));
     }
 
     @ResponseBody
@@ -81,8 +88,9 @@ public class FileManagerController extends BaseController {
             throw new PermissionErrorException();
         }
         ReplaceArticleResourceUrlRequest body = getRequestBodyWithNullCheck(ReplaceArticleResourceUrlRequest.class);
+        var actor = requestIdentity.current();
         ReplaceArticleResourceUrlResponse response = fileManagerService.replaceArticleResourceUrlAndRecord(
-                AdminTokenThreadLocal.getUser(), body, request);
+                actor, body, AdminAuditContexts.from(request, actor.getUserId()));
         return new ApiStandardResponse<>(response);
     }
 
@@ -106,7 +114,7 @@ public class FileManagerController extends BaseController {
             throw new ArgsException("imgFile");
         }
         UploadFileResponse response = fileManagerService.reuploadMissingLocalResourceAndRecord(
-                path, uploadFile, request, AdminTokenThreadLocal.getUser());
+                path, uploadFile, request, AdminTokenThreadLocal.getUser(), AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()));
         return new ApiStandardResponse<>(response);
     }
 
@@ -118,7 +126,7 @@ public class FileManagerController extends BaseController {
         if (path.isEmpty()) {
             throw new ArgsException("path");
         }
-        return new ApiStandardResponse<>(fileManagerService.deleteAndRecord(path, request));
+        return new ApiStandardResponse<>(fileManagerService.deleteAndRecord(path, AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId())));
     }
 
     @RequestMethod(method = HttpMethod.POST)
@@ -131,8 +139,9 @@ public class FileManagerController extends BaseController {
             throw new ArgsException("newName");
         }
         boolean syncArticleReferences = request.getParaToBool("syncArticleReferences", false);
+        var actor = requestIdentity.current();
         return new ApiStandardResponse<>(fileManagerService.renameAndRecord(
-                path, newName, syncArticleReferences, AdminTokenThreadLocal.getUser(), request));
+                path, newName, syncArticleReferences, actor, AdminAuditContexts.from(request, actor.getUserId())));
     }
 
     @RequestMethod(method = HttpMethod.POST)
@@ -143,7 +152,7 @@ public class FileManagerController extends BaseController {
         if (path.isEmpty()) {
             throw new ArgsException("path");
         }
-        return new ApiStandardResponse<>(fileManagerService.mkdirAndRecord(path, request));
+        return new ApiStandardResponse<>(fileManagerService.mkdirAndRecord(path, AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId())));
     }
 
     @ResponseBody

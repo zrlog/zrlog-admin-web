@@ -200,8 +200,8 @@ public class AdminComponentTest {
             var firstBindings = first.config().getServerConfig().getBindings().build();
             var secondBindings = second.config().getServerConfig().getBindings().build();
             org.junit.Assert.assertNull(DAO.getDefaultDataSource());
-            var firstPermissions = firstBindings.get(AccountComponent.class).permissions();
-            var secondPermissions = secondBindings.get(AccountComponent.class).permissions();
+            var firstPermissions = firstBindings.get(AccountComponent.class).requestIdentity();
+            var secondPermissions = secondBindings.get(AccountComponent.class).requestIdentity();
             assertTrue(firstPermissions.current().isAdministrator());
             assertFalse(secondPermissions.current().isAdministrator());
             second.execute("update user set authVersion=1 where userId=1");
@@ -209,7 +209,7 @@ public class AdminComponentTest {
             assertTrue(firstPermissions.current().isAdministrator());
 
             AIConversationService captured =
-                    firstBindings.get(AIComponent.class).conversations().captureAccount();
+                    firstBindings.get(AIComponent.class).conversations().captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId()));
             AdminTokenThreadLocal.getUser().setUserId(2);
             CompletableFuture.runAsync(
                             () -> {

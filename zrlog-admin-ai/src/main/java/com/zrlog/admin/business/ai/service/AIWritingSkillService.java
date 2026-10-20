@@ -16,6 +16,11 @@ import com.zrlog.admin.business.rest.request.ScoreArticleRequest;
 import com.zrlog.admin.business.rest.response.*;
 import com.zrlog.admin.business.rest.response.GenerateArticleCoverResponse;
 import com.zrlog.common.exception.ArgsException;
+import com.zrlog.data.security.AccountAccess;
+import com.zrlog.data.security.AccountAction;
+import com.zrlog.admin.business.service.AccountIdentityService;
+import com.zrlog.admin.business.service.AccountPermissionService;
+import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.util.I18nUtil;
 
 import dagger.assisted.Assisted;
@@ -30,15 +35,22 @@ import java.util.Objects;
 
 public class AIWritingSkillService extends AIService {
     private final AIToolService toolService;
+    private final AccountAccess actor;
+    private final AccountIdentityService identities;
+    private final AccountPermissionService permissions;
     private final AIImageService imageService;
 
     private final AIConversationService conversationStore;
 
     @AssistedInject
     public AIWritingSkillService(
+            @Assisted AccountAccess actor,
             @Assisted AIConversationService conversationStore,
             AIToolService toolService,
-            AIImageService imageService) {
+            AIImageService imageService, AccountIdentityService identities, AccountPermissionService permissions) {
+        this.actor = actor;
+        this.identities = identities;
+        this.permissions = permissions;
         this.toolService = toolService;
         this.imageService = imageService;
         this.conversationStore = conversationStore;
@@ -46,7 +58,7 @@ public class AIWritingSkillService extends AIService {
 
     @AssistedFactory
     public interface Factory {
-        AIWritingSkillService create(AIConversationService conversationStore);
+        AIWritingSkillService create(AccountAccess actor, AIConversationService conversationStore);
     }
 
     public AIStreamResponse startStreamResponse(String input, Long articleId, String tool,
@@ -60,6 +72,7 @@ public class AIWritingSkillService extends AIService {
             throws SQLException, IOException, InterruptedException {
         List<AIResponseEntry.AIContentEntry> generatedMessages =
                 runToolResponseWithoutPersistence(input, articleId, tool, articleContext);
+        authorize(articleId);
         if (!conversationStore.appendAIMessageEntries(generatedMessages, articleId)) {
             throw new AIMessageSaveException();
         }
@@ -72,6 +85,7 @@ public class AIWritingSkillService extends AIService {
         if (articleContext == null) {
             throw new ArgsException("articleContext");
         }
+        authorize(articleId);
         AIWebSiteInfoWithAIMessages info = conversationStore.getAiMessageInfoByArticleId(articleId);
         List<AIResponseEntry.AIContentEntry> messages = prepareMessages(input, info, tool);
         AIResponseEntry.AIContentEntry userMessage = messages.get(messages.size() - 1);
@@ -85,6 +99,7 @@ public class AIWritingSkillService extends AIService {
         if (articleContext == null) {
             throw new ArgsException("articleContext");
         }
+        authorize(articleId);
         AIWebSiteInfoWithAIMessages info = conversationStore.getAiMessageInfoByArticleId(articleId);
         List<AIResponseEntry.AIContentEntry> messages = prepareMessages(input, info, tool);
         try {
@@ -97,6 +112,14 @@ public class AIWritingSkillService extends AIService {
         } catch (Exception e) {
             return buildStreamErrorResponse(e, info, tool);
         }
+    }
+
+    private void authorize(Long articleId) throws SQLException {
+        identities.revalidate(actor);
+        permissions.require(actor, AccountAction.ARTICLE_ASSIST);
+        if (articleId == null || articleId < 0 && articleId != -(long) actor.getUserId())
+            throw new PermissionErrorException();
+        if (articleId > 0) permissions.article(actor, articleId, false);
     }
 
     private ToolResult runTool(String tool, GenerateArticleFieldRequest articleContext, String conversationContext)
@@ -175,7 +198,7 @@ public class AIWritingSkillService extends AIService {
             case "cover": {
                     GenerateArticleCoverResponse response =
                             this.imageService.generateArticleCover(
-                                    articleContext, conversationContext);
+                                    actor, articleContext, conversationContext);
                 return new ToolResult(I18nUtil.getAdminBackendStringFromRes("admin.ai.cover.success"),
                         new AIStreamPayloads.CoverPayload(response.getUrl()));
             }
@@ -435,6 +458,7 @@ public class AIWritingSkillService extends AIService {
     private AIResponseEntry.AIContentEntry saveToolMessage(List<AIResponseEntry.AIContentEntry> messages, Long articleId,
                                                            String tool, ToolResult toolResult,
                                                            AIWebSiteInfoWithAIMessages info) throws SQLException {
+        authorize(articleId);
         AIResponseEntry.AIContentEntry entry = buildToolMessage(tool, toolResult, info);
         AIResponseEntry.AIContentEntry userMessage = messages.get(messages.size() - 1);
         if (!conversationStore.appendAIMessageEntries(List.of(userMessage, entry), articleId)) {

@@ -13,5 +13,7 @@ public @interface RequiresAction {
     AccountAction[] conditional() default {};
     /** Resource IDs in query parameters are checked in addition to the route action. JSON writes check inside services. */
     boolean articleQuery() default false;
+    /** The editor route also accepts an omitted ID when opening a new draft. */
+    boolean optionalArticleId() default false;
     boolean articleIds() default false;
 }

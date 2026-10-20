@@ -17,6 +17,10 @@ import com.zrlog.admin.business.service.WebSiteService;
 import com.zrlog.admin.util.AdminLanguageContext;
 import com.zrlog.business.plugin.StaticSitePlugin;
 import com.zrlog.util.I18nUtil;
+import com.zrlog.data.security.AccountAccess;
+import com.zrlog.data.security.AccountAction;
+import com.zrlog.admin.business.service.AccountIdentityService;
+import com.zrlog.admin.business.service.AccountPermissionService;
 
 import jakarta.inject.Inject;
 
@@ -30,6 +34,8 @@ import java.util.logging.Logger;
 
 public class AIPublishCheckService {
     private final AIConversationService conversations;
+    private final AccountIdentityService identities;
+    private final AccountPermissionService permissions;
 
     private final AIWritingSkillService.Factory writing;
 
@@ -41,7 +47,9 @@ public class AIPublishCheckService {
             WebSiteService webSiteService,
             MessageCenterOperationService messageCenterOperationService,
             AIWritingSkillService.Factory writing,
-            AIConversationService conversations) {
+            AIConversationService conversations, AccountIdentityService identities, AccountPermissionService permissions) {
+        this.identities = identities;
+        this.permissions = permissions;
         this.conversations = conversations;
 
         this.writing = writing;
@@ -52,21 +60,23 @@ public class AIPublishCheckService {
 
     private static final Logger LOGGER = LoggerUtil.getLogger(AIPublishCheckService.class);
 
-    public PublishCheckTask startPublishCheck(ArticleGlobalResponse detail,
+    public PublishCheckTask startPublishCheck(AccountAccess actor, ArticleGlobalResponse detail,
                                               CreateArticleRequest body) {
         if (!(detail instanceof AIArticleGlobalResponse) || !Objects.equals(detail.getPublishCheckEnabled(), true)
                 || !Objects.equals(((AIArticleGlobalResponse) detail).getAiConfigured(), true)) {
             return null;
         }
+        identities.revalidate(actor);
+        if (!AccountAction.ARTICLE_ASSIST.allowed(actor)) return null;
         Long articleId = Long.valueOf(detail.getArticle().getLogId());
         GenerateArticleFieldRequest context = publishCheckContext(body);
         PublishCheckPersistenceGuard guard = new PublishCheckPersistenceGuard();
-        AIConversationService conversationStore = this.conversations.captureAccount();
+        AIConversationService conversationStore = this.conversations.captureAccount(actor.getUserId());
         String language = I18nUtil.getCurrentLocale();
         CompletableFuture<PublishCheckResponse> future = CompletableFuture.supplyAsync(
                 () -> {
                     try (AdminLanguageContext ignored = AdminLanguageContext.open(language)) {
-                        return buildPublishCheckPayload(articleId, context, guard, conversationStore);
+                        return buildPublishCheckPayload(actor, articleId, context, guard, conversationStore);
                     }
                 });
         return new PublishCheckTask(future, guard, articleId, context.getTitle());
@@ -100,14 +110,16 @@ public class AIPublishCheckService {
         return context;
     }
 
-    PublishCheckResponse buildPublishCheckPayload(Long articleId, GenerateArticleFieldRequest context,
+    PublishCheckResponse buildPublishCheckPayload(AccountAccess actor, Long articleId, GenerateArticleFieldRequest context,
                                                           PublishCheckPersistenceGuard guard, AIConversationService conversationStore) {
         try {
+            authorize(actor, articleId);
             List<AIResponseEntry.AIContentEntry> messages =
-                    writing.create(conversationStore)
+                    writing.create(actor, conversationStore)
                             .runToolResponseWithoutPersistence(
                                     "publish-check", articleId, "publishCheck", context);
             return guard.commit(() -> {
+                authorize(actor, articleId);
                 if (!conversationStore.appendAIMessageEntries(messages, articleId)) {
                     throw new AIMessageSaveException();
                 }
@@ -124,6 +136,12 @@ public class AIPublishCheckService {
         } catch (Exception e) {
             throw new CompletionException(e);
         }
+    }
+
+    private void authorize(AccountAccess actor, long articleId) throws java.sql.SQLException {
+        identities.revalidate(actor);
+        permissions.require(actor, AccountAction.ARTICLE_ASSIST);
+        permissions.article(actor, articleId, false);
     }
 
     public void recordPublishCheckSuccess(Long articleId, String articleTitle, Object payload) {

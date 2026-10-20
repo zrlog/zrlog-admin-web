@@ -63,7 +63,7 @@ public class AdminPluginInterceptorTest {
                         () -> applicationConfig.getTokenService(),
                         () -> applicationConfig.getPlugin(PluginCorePlugin.class),
                         ApplicationServicesFixture.installed(applicationConfig),
-                        AccountServicesFixture.component(null).permissions(),
+                        AccountServicesFixture.component(null).requestIdentity(),
                         ApplicationServicesFixture.audit(null))
                 .doInterceptor(request(HttpMethod.GET, "/admin/plugins"), response.response());
 
@@ -81,7 +81,7 @@ public class AdminPluginInterceptorTest {
                                         () -> applicationConfig.getTokenService(),
                                         () -> applicationConfig.getPlugin(PluginCorePlugin.class),
                                         ApplicationServicesFixture.installed(applicationConfig),
-                                        AccountServicesFixture.component(null).permissions(),
+                                        AccountServicesFixture.component(null).requestIdentity(),
                                         ApplicationServicesFixture.audit(null))
                                 .doInterceptor(
                                         request(
@@ -105,7 +105,7 @@ public class AdminPluginInterceptorTest {
                                         () -> applicationConfig.getTokenService(),
                                         () -> applicationConfig.getPlugin(PluginCorePlugin.class),
                                         ApplicationServicesFixture.installed(applicationConfig),
-                                        AccountServicesFixture.component(null).permissions(),
+                                        AccountServicesFixture.component(null).requestIdentity(),
                                         ApplicationServicesFixture.audit(null))
                                 .doInterceptor(
                                         request(
@@ -127,7 +127,7 @@ public class AdminPluginInterceptorTest {
                                         () -> applicationConfig.getTokenService(),
                                         () -> applicationConfig.getPlugin(PluginCorePlugin.class),
                                         ApplicationServicesFixture.installed(applicationConfig),
-                                        AccountServicesFixture.component(null).permissions(),
+                                        AccountServicesFixture.component(null).requestIdentity(),
                                         ApplicationServicesFixture.audit(null))
                                 .doInterceptor(
                                         request(HttpMethod.GET, "/admin/plugins/reminder/index"),
@@ -152,7 +152,7 @@ public class AdminPluginInterceptorTest {
                                                     applicationConfig.getPlugin(
                                                             PluginCorePlugin.class),
                                             ApplicationServicesFixture.installed(applicationConfig),
-                                            AccountServicesFixture.component(db.dataSource()).permissions(),
+                                            AccountServicesFixture.component(db.dataSource()).requestIdentity(),
                                             ApplicationServicesFixture.audit(db.dataSource()))
                                     .doInterceptor(
                                             request(
@@ -179,7 +179,7 @@ public class AdminPluginInterceptorTest {
                                                     applicationConfig.getPlugin(
                                                             PluginCorePlugin.class),
                                             ApplicationServicesFixture.installed(applicationConfig),
-                                            AccountServicesFixture.component(db.dataSource()).permissions(),
+                                            AccountServicesFixture.component(db.dataSource()).requestIdentity(),
                                             ApplicationServicesFixture.audit(db.dataSource()))
                                     .doInterceptor(
                                             request(

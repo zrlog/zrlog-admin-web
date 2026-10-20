@@ -10,6 +10,7 @@ import com.zrlog.admin.business.rest.response.ArticleVersionResponse;
 import com.zrlog.admin.business.rest.response.LoadEditArticleResponse;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.exception.NotFindDbEntryException;
+import com.zrlog.data.security.AccountAccess;
 import com.zrlog.model.Log;
 import com.zrlog.model.LogVersion;
 
@@ -70,8 +71,8 @@ public class ArticleVersionService {
                         articleVersion - 1);
     }
 
-    public List<ArticleVersionResponse> listVersions(Integer logId) throws SQLException {
-        permissionService.readArticle(logId);
+    public List<ArticleVersionResponse> listVersions(AccountAccess actor, Integer logId) throws SQLException {
+        permissionService.readArticle(actor, logId);
         List<ArticleVersionResponse> responses = new ArrayList<>();
         responses.add(loadCurrentVersion(logId));
 
@@ -117,7 +118,7 @@ public class ArticleVersionService {
         return currentVersion;
     }
 
-    public LoadEditArticleResponse loadVersion(
+    LoadEditArticleResponse loadVersion(
             Integer logId, Integer targetVersion, LoadEditArticleResponse current)
             throws SQLException {
         if (logId == null || targetVersion == null) {

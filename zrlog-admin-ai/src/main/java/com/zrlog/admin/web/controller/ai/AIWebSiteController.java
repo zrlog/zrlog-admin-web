@@ -1,5 +1,8 @@
 package com.zrlog.admin.web.controller.ai;
 
+import com.zrlog.admin.web.security.AdminRequestIdentity;
+import com.zrlog.admin.web.token.AdminTokenThreadLocal;
+import com.zrlog.admin.web.audit.AdminAuditContexts;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.ResponseBody;
 import com.zrlog.admin.business.ai.service.AIConfigService;
@@ -26,6 +29,8 @@ import java.io.IOException;
 import java.sql.SQLException;
 
 public class AIWebSiteController extends BaseController {
+    private final AdminRequestIdentity requestIdentity;
+
     private final AIConfigService aIConfigService;
     private final AIToolService aIToolService;
 
@@ -38,7 +43,9 @@ public class AIWebSiteController extends BaseController {
             WebSiteSettingsService settingsService,
             AdminPageDataFactory pages,
             AIConfigService aIConfigService,
-            AIToolService aIToolService) {
+            AIToolService aIToolService,
+            AdminRequestIdentity requestIdentity) {
+        this.requestIdentity = requestIdentity;
         this.aIConfigService = aIConfigService;
         this.aIToolService = aIToolService;
 
@@ -68,8 +75,7 @@ public class AIWebSiteController extends BaseController {
     @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "website.ai")
     public AdminPageDataResponse<AIWebSiteInfoResponse> ai() throws SQLException {
         if (isPost()) {
-            this.aIConfigService.updateAi(
-                    getRequestBodyWithNullCheck(AIWebSiteInfo.class), request, settingsService);
+            this.aIConfigService.updateAi(getRequestBodyWithNullCheck(AIWebSiteInfo.class), AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()), settingsService);
         }
         return page(this.aIConfigService.aiResponse());
     }
@@ -80,6 +86,6 @@ public class AIWebSiteController extends BaseController {
 
     private <T> AdminPageDataResponse<T> page(T data) {
         String message = isPost() ? I18nUtil.getAdminBackendStringFromRes("admin.common.update.success") : "";
-        return pages.response(data, message, request.getUri());
+        return pages.response(requestIdentity.optional(), data, message, request.getUri());
     }
 }

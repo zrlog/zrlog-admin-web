@@ -20,7 +20,8 @@ public class AIServiceUtilityTest {
                         AccountServicesFixture.component(null).preferences(),
                         AIServiceDependencies.config(null),
                         AIServiceDependencies.dbFiles(null),
-                        AIServiceDependencies.conversations(null));
+                        AIServiceDependencies.conversations(null),
+                        AccountServicesFixture.component(null).identities());
 
         assertEquals("1024x1024", service.resolveImageRequestSize("1:1"));
         assertEquals("1536x1024", service.resolveImageRequestSize("16:9"));
@@ -53,7 +54,8 @@ public class AIServiceUtilityTest {
                         AccountServicesFixture.component(null).preferences(),
                         AIServiceDependencies.config(null),
                         AIServiceDependencies.dbFiles(null),
-                        AIServiceDependencies.conversations(null));
+                        AIServiceDependencies.conversations(null),
+                        AccountServicesFixture.component(null).identities());
 
         try {
             service.decodeDataUrl("data:image/png;base64", "");
@@ -67,10 +69,13 @@ public class AIServiceUtilityTest {
     @Test
     public void shouldExposeWritingSkillContextPolicy() {
         AIWritingSkillService service =
-                new AIWritingSkillService(
-                        AIServiceDependencies.conversations(null).captureAccount(),
+                new AIWritingSkillService(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(null),
+
+                        AIServiceDependencies.conversations(null).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId())),
                         AIServiceDependencies.tools(null),
-                        AIServiceDependencies.images(null));
+                        AIServiceDependencies.images(null),
+                        com.zrlog.admin.support.AccountServicesFixture.component(null).identities(),
+                        com.zrlog.admin.support.AccountServicesFixture.component(null).permissions());
 
         assertEquals(AIWritingSkillService.ToolContextPolicy.FULL_CONVERSATION, service.getToolContextPolicy("title"));
         assertEquals(AIWritingSkillService.ToolContextPolicy.CHAT_ONLY, service.getToolContextPolicy("seo"));

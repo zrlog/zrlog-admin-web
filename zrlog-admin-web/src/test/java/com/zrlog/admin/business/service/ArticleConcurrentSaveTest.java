@@ -1,13 +1,16 @@
 package com.zrlog.admin.business.service;
 
+import com.zrlog.admin.support.AccountServicesFixture;
 import static org.junit.Assert.*;
 
 import com.hibegin.common.dao.DataSourceWrapper;
 import com.zrlog.admin.business.exception.UpdateArticleExpireException;
+import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.rest.request.CreateArticleRequest;
 import com.zrlog.admin.business.rest.request.UpdateArticleRequest;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.di.content.ContentComponent;
+import com.zrlog.admin.web.di.account.AccountComponent;
 import com.zrlog.common.ZrLogConfig;
 import com.zrlog.common.vo.AdminTokenVO;
 
@@ -20,6 +23,40 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ArticleConcurrentSaveTest {
+
+    @Test
+    public void revocationWhileAcquiringTheWriteLockStopsEveryArticleMutation() throws Exception {
+        for (String operation : List.of("create", "update", "delete")) {
+            try (var db = InMemoryZrLogDatabase.openWebApi()) {
+                db.loadAdminWebModules();
+                var actor = db.component(AccountComponent.class).identities().account(token(1));
+                var writer = db.component(ContentComponent.class).articles();
+                long id = writer.create(actor, article("Original")).getLogId();
+                String lockKey = "distributed_lock_write_article_"
+                        + (operation.equals("create") ? "create" : id);
+                AtomicBoolean revoked = new AtomicBoolean();
+                db.beforeWebApiUpdate((sql, params) -> {
+                    if (sql.startsWith("insert into website") && Arrays.asList(params).contains(lockKey)
+                            && revoked.compareAndSet(false, true)) {
+                        db.execute("update user set authVersion=authVersion+1 where userId=1");
+                    }
+                });
+                assertThrows(operation, PermissionErrorException.class, () -> {
+                    switch (operation) {
+                        case "create": writer.create(actor, article("Too late")); break;
+                        case "update": writer.update(actor, update((int) id, 0, "Too late")); break;
+                        case "delete": writer.delete(actor, id); break;
+                        default: throw new AssertionError(operation);
+                    }
+                });
+                assertTrue("The revocation must happen during lock acquisition", revoked.get());
+                assertEquals(1, ((Number) db.scalar("select count(*) from log")).intValue());
+                assertEquals("Original", db.scalar("select title from log where logId=?", id));
+                assertEquals(0, ((Number) db.scalar("select version from log where logId=?", id)).intValue());
+                assertEquals(0, ((Number) db.scalar("select count(*) from log_version")).intValue());
+            }
+        }
+    }
 
     private ZrLogConfig applicationConfig;
 
@@ -38,7 +75,7 @@ public class ArticleConcurrentSaveTest {
                                     () -> {
                                         start.await(10, TimeUnit.SECONDS);
                                         return db.component(ContentComponent.class).articles()
-                                                .create(token(1), article("First"))
+                                                .create(AccountServicesFixture.component(db.dataSource()).requestIdentity().account(token(1)), article("First"))
                                                 .getLogId();
                                     });
                     Future<Long> second =
@@ -46,7 +83,7 @@ public class ArticleConcurrentSaveTest {
                                     () -> {
                                         start.await(10, TimeUnit.SECONDS);
                                         return db.component(ContentComponent.class).articles()
-                                                .create(token(2), article("Second"))
+                                                .create(AccountServicesFixture.component(db.dataSource()).requestIdentity().account(token(2)), article("Second"))
                                                 .getLogId();
                                     });
                     Long firstId = first.get(30, TimeUnit.SECONDS);
@@ -71,7 +108,7 @@ public class ArticleConcurrentSaveTest {
                 db.execute("insert into user(userId,userName,role) values(?,?,?)", 2, "other-admin", "admin");
                 AdminArticleService service =
                         db.component(ContentComponent.class).articles();
-                int id = service.create(token(1), article("Original")).getLogId().intValue();
+                int id = service.create(AccountServicesFixture.component(db.dataSource()).requestIdentity().account(token(1)), article("Original")).getLogId().intValue();
                 CyclicBarrier start = new CyclicBarrier(2);
                 ExecutorService pool = Executors.newFixedThreadPool(2);
                 try {
@@ -91,7 +128,7 @@ public class ArticleConcurrentSaveTest {
                     assertEquals(0, ((Number) patch.get("from_version")).intValue());
                     assertEquals(1, ((Number) patch.get("article_version")).intValue());
                     assertTrue(patch.get("patch_json").toString().contains("Original"));
-                    service.update(token(2), update(id, 1, "Next"));
+                    service.update(AccountServicesFixture.component(db.dataSource()).requestIdentity().account(token(2)), update(id, 1, "Next"));
                     assertEquals(2, ((Number) db.scalar("select version from log where logId=?", id)).intValue());
                     assertEquals(2, ((Number) db.scalar("select count(*) from log_version where log_id=?", id)).intValue());
                 } finally {
@@ -109,7 +146,7 @@ public class ArticleConcurrentSaveTest {
                 applicationConfig = db.config();
             AdminArticleService service =
                     db.component(ContentComponent.class).articles();
-            int id = service.create(token(1), article("Original")).getLogId().intValue();
+            int id = service.create(AccountServicesFixture.component(db.dataSource()).requestIdentity().account(token(1)), article("Original")).getLogId().intValue();
             AtomicBoolean raced = new AtomicBoolean();
             db.beforeWebApiUpdate((sql, args) -> {
                 if (sql.startsWith("update log ") && raced.compareAndSet(false, true)) {
@@ -118,7 +155,7 @@ public class ArticleConcurrentSaveTest {
                             "Other writer", "Other body", id);
                 }
             });
-            assertThrows(UpdateArticleExpireException.class, () -> service.update(token(1), update(id, 0, "Stale")));
+            assertThrows(UpdateArticleExpireException.class, () -> service.update(AccountServicesFixture.component(db.dataSource()).requestIdentity().account(token(1)), update(id, 0, "Stale")));
             assertTrue(raced.get());
             assertEquals("Other writer", db.scalar("select title from log where logId=?", id));
             assertEquals("Other body", db.scalar("select content from log where logId=?", id));
@@ -135,9 +172,9 @@ public class ArticleConcurrentSaveTest {
                 applicationConfig = db.config();
                 AdminArticleService service =
                         db.component(ContentComponent.class).articles();
-                int id = service.create(token(1), article("Original")).getLogId().intValue();
+                int id = service.create(AccountServicesFixture.component(db.dataSource()).requestIdentity().account(token(1)), article("Original")).getLogId().intValue();
                 for (Integer version : Arrays.asList(null, -1, 1, Integer.MAX_VALUE)) {
-                    assertThrows(UpdateArticleExpireException.class, () -> service.update(token(1), update(id, version, "Invalid")));
+                    assertThrows(UpdateArticleExpireException.class, () -> service.update(AccountServicesFixture.component(db.dataSource()).requestIdentity().account(token(1)), update(id, version, "Invalid")));
                 }
                 assertEquals("Original", db.scalar("select title from log where logId=?", id));
                 assertEquals(0, ((Number) db.scalar("select version from log where logId=?", id)).intValue());
@@ -150,7 +187,7 @@ public class ArticleConcurrentSaveTest {
         start.await(10, TimeUnit.SECONDS);
         try {
             applicationConfig.getServerConfig().getBindings().build().get(ContentComponent.class).articles()
-                    .update(token, request);
+                    .update(AccountServicesFixture.component(testDataSource).requestIdentity().account(token), request);
             return true;
         } catch (UpdateArticleExpireException expected) {
             return false; }

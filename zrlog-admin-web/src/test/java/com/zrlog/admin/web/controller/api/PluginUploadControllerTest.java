@@ -6,6 +6,7 @@ import com.hibegin.common.dao.DataSourceWrapper;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
+import com.zrlog.admin.business.security.GrantAuthority;
 import com.zrlog.admin.business.security.PersonalTokenModels;
 import com.zrlog.admin.business.service.OAuthService;
 import com.zrlog.admin.business.service.PersonalAccessTokenService;
@@ -81,20 +82,21 @@ public class PluginUploadControllerTest {
                                                 ::configured,
                                         ApplicationServicesFixture.available(
                                                 applicationConfig, McpWebSetup.class),
-                                        AccountServicesFixture.component(testDataSource).permissions(),
+                                        AccountServicesFixture.component(testDataSource).permissions(), AccountServicesFixture.component(testDataSource).identities(),
                                         AccountServicesFixture.component(testDataSource).security(),
                                         tokenResource ->
                                                 new PersonalAccessTokenService(
                                                         tokenResource,
                                                         AccountServicesFixture.component(testDataSource)
+                                                                .identities(), AccountServicesFixture.component(testDataSource)
                                                                 .permissions(),
                                                         AccountServicesFixture.component(testDataSource)
                                                                 .security()),
                                         AccountServicesFixture.component(testDataSource).backend())
                                 .mcpResource(),
-                        AccountServicesFixture.component(testDataSource).permissions(),
+                        AccountServicesFixture.component(testDataSource).identities(), AccountServicesFixture.component(testDataSource).permissions(),
                         AccountServicesFixture.component(testDataSource).security())
-                .create(create)
+                .create(new GrantAuthority(AccountServicesFixture.component(testDataSource).requestIdentity().current(), !com.zrlog.admin.business.security.DelegatedAccess.restricted()), create)
                 .token;
     }
 
@@ -130,15 +132,15 @@ public class PluginUploadControllerTest {
                                 ApplicationServicesFixture.backend(applicationConfig)::configured,
                                 ApplicationServicesFixture.available(
                                         applicationConfig, McpWebSetup.class),
-                                AccountServicesFixture.component(testDataSource).permissions(),
+                                AccountServicesFixture.component(testDataSource).permissions(), AccountServicesFixture.component(testDataSource).identities(),
                                 AccountServicesFixture.component(testDataSource).security(),
                                 tokenResource ->
                                         new PersonalAccessTokenService(
                                                 tokenResource,
-                                                AccountServicesFixture.component(testDataSource).permissions(),
+                                                AccountServicesFixture.component(testDataSource).identities(), AccountServicesFixture.component(testDataSource).permissions(),
                                                 AccountServicesFixture.component(testDataSource).security()),
                                 AccountServicesFixture.component(testDataSource).backend()),
-                        AccountServicesFixture.component(testDataSource).permissions(),
+                        AccountServicesFixture.component(testDataSource).routeAuthorizer(), AccountServicesFixture.component(testDataSource).requestIdentity(),
                         AccountServicesFixture.component(testDataSource).preferences(),
                         new WebhookService(
                                 ApplicationServicesFixture.messages(testDataSource),

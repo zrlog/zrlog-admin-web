@@ -2,6 +2,7 @@ package com.zrlog.admin.business.service;
 
 import static org.junit.Assert.*;
 
+import com.zrlog.admin.support.AccountServicesFixture;
 import com.hibegin.common.util.PasswordHashUtils;
 import com.hibegin.common.util.SecurityUtils;
 import com.hibegin.http.HttpMethod;
@@ -89,9 +90,7 @@ public class AccountAuthorizationTest {
             assertThrows(
                     PermissionErrorException.class,
                     () ->
-                            db.component(AccountComponent.class)
-                                    .permissions()
-                                    .checkRoute(Object.class.getMethod("toString"), null));
+                            db.component(AccountComponent.class).routeAuthorizer().checkRoute(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), Object.class.getMethod("toString"), null));
         }
     }
     @Test public void articleServiceMustPreserveAuthorAndRejectForeignPrivateAndPublishedWrites() throws Exception {
@@ -101,34 +100,33 @@ public class AccountAuthorizationTest {
             AdminArticleService service =
                     db.component(ContentComponent.class).articles();
             CreateArticleRequest create=new CreateArticleRequest();create.setTitle("Private");create.setTypeId(1L);create.setPrivacy(true);create.setRubbish(true);create.setContent("secret");
-            long id=service.create(AdminTokenThreadLocal.getUser(),create).getLogId();
+            long id=service.create(AccountServicesFixture.component(db.dataSource()).requestIdentity().account(AdminTokenThreadLocal.getUser()),create).getLogId();
             login(db,2,"editor");
             assertThrows(
                     PermissionErrorException.class,
-                    () -> db.component(AccountComponent.class).permissions().readArticle(id));
+                    () -> db.component(AccountComponent.class).permissions().readArticle(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), id));
             assertThrows(
                     PermissionErrorException.class,
                     () ->
-                            new ArticleVersionService(
-                                            db.component(AccountComponent.class).permissions(),
-                                            () -> new Log(db.dataSource()),
-                                            () -> new LogVersion(db.dataSource()))
-                                    .listVersions((int) id));
+                            new ArticleVersionService(db.component(AccountComponent.class).permissions(),
+                                () -> new Log(db.dataSource()),
+                                () -> new LogVersion(db.dataSource()))
+                                    .listVersions(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), (int) id));
             db.execute("update log set privacy=? where logId=?",false,id);
             UpdateArticleRequest update=new UpdateArticleRequest();update.setLogId((int)id);update.setTitle("Edited");update.setTypeId(1L);update.setVersion(0);update.setRubbish(true);update.setContent("edited");
-            service.update(AdminTokenThreadLocal.getUser(),update);
+            service.update(AccountServicesFixture.component(db.dataSource()).requestIdentity().account(AdminTokenThreadLocal.getUser()),update);
             assertEquals(1,((Number)db.scalar("select userId from log where logId=?",id)).intValue());
             login(db,2,"author");
-            assertThrows(PermissionErrorException.class,()->service.update(AdminTokenThreadLocal.getUser(),update));
-            assertThrows(PermissionErrorException.class,()->service.delete(id));
+            assertThrows(PermissionErrorException.class,()->service.update(AccountServicesFixture.component(db.dataSource()).requestIdentity().account(AdminTokenThreadLocal.getUser()),update));
+            assertThrows(PermissionErrorException.class,()->service.delete(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), id));
             login(db,2,"contributor");create.setPrivacy(false);create.setRubbish(false);
-            assertThrows(PermissionErrorException.class,()->service.create(AdminTokenThreadLocal.getUser(),create));
-            create.setRubbish(true);long own=service.create(AdminTokenThreadLocal.getUser(),create).getLogId();
-            assertThrows(PermissionErrorException.class,()->service.delete(own));
+            assertThrows(PermissionErrorException.class,()->service.create(AccountServicesFixture.component(db.dataSource()).requestIdentity().account(AdminTokenThreadLocal.getUser()),create));
+            create.setRubbish(true);long own=service.create(AccountServicesFixture.component(db.dataSource()).requestIdentity().account(AdminTokenThreadLocal.getUser()),create).getLogId();
+            assertThrows(PermissionErrorException.class,()->service.delete(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), own));
             db.execute("update user set authVersion=authVersion+1 where userId=2");
             assertThrows(
                     PermissionErrorException.class,
-                    db.component(AccountComponent.class).permissions()::current);
+                    db.component(AccountComponent.class).requestIdentity()::current);
         }
     }
     @Test public void membersCannotEscalateOrModifyOwnerAndTransferRevokesBothSessions() throws Exception {
@@ -138,23 +136,23 @@ public class AccountAuthorizationTest {
                 MemberService service =
                         db.component(AccountComponent.class).members();
                 MemberModels.Create create=new MemberModels.Create();create.userName="second";create.password="a-long-new-password";create.role="admin";
-                int admin=service.create(create).userId;
+                int admin=service.create(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), create).userId;
                 assertFalse(String.valueOf(db.scalar("select password from user where userId=?",admin)).contains(create.password));
                 login(db,admin,"admin");
-                assertThrows(PermissionErrorException.class,()->service.create(create));
+                assertThrows(PermissionErrorException.class,()->service.create(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), create));
                 MemberModels.Update update=new MemberModels.Update();update.userId=1;update.role="author";update.enabled=false;
-                assertThrows(PermissionErrorException.class,()->service.update(update));
+                assertThrows(PermissionErrorException.class,()->service.update(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), update));
                 login(db,1,"owner");
                 db.execute(
                         "update user set password=? where userId=1",
                         PasswordHashUtils.hash(SecurityUtils.md5("owner-password")));
-                MemberModels.Transfer transfer=new MemberModels.Transfer();transfer.userId=admin;transfer.password="owner-password";service.transfer(transfer);
+                MemberModels.Transfer transfer=new MemberModels.Transfer();transfer.userId=admin;transfer.password="owner-password";service.transfer(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), transfer);
                 assertEquals(1,((Number)db.scalar("select count(*) from user where role='owner'")).intValue());
                 assertEquals("owner",db.scalar("select role from user where userId=?",admin));
                 assertEquals("admin",db.scalar("select role from user where userId=1"));
                 assertThrows(
                         PermissionErrorException.class,
-                        db.component(AccountComponent.class).permissions()::current);
+                        db.component(AccountComponent.class).requestIdentity()::current);
                 assertEquals(1,((Number)db.scalar("select authVersion from user where userId=?",admin)).intValue());
             }
         }

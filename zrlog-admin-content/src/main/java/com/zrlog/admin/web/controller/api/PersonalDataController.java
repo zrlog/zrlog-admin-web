@@ -1,5 +1,7 @@
 package com.zrlog.admin.web.controller.api;
 
+import com.zrlog.admin.web.security.AdminRequestIdentity;
+import com.zrlog.admin.web.audit.AdminAuditContexts;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.ResponseBody;
 import com.zrlog.admin.business.rest.request.PersonalDataPreviewRequest;
@@ -22,13 +24,17 @@ import jakarta.inject.Inject;
 import java.sql.SQLException;
 
 public class PersonalDataController extends BaseController {
+    private final AdminRequestIdentity requestIdentity;
+
     private final AdminAuditService adminAuditService;
 
     @Inject
     public PersonalDataController(
             AdminPageDataFactory pages,
             AdminAuditService adminAuditService,
-            PersonalDataService personalDataService) {
+            PersonalDataService personalDataService,
+            AdminRequestIdentity requestIdentity) {
+        this.requestIdentity = requestIdentity;
         this.adminAuditService = adminAuditService;
         this.personalDataService = personalDataService;
 
@@ -42,7 +48,7 @@ public class PersonalDataController extends BaseController {
     @ResponseBody
     @RequiresAction(value = AccountAction.SITE_CONFIGURE, descriptionKey = "privacy.page")
     public AdminPageDataResponse<PersonalDataPreviewResponse> index() {
-        return pages.response(new PersonalDataPreviewResponse(), "", request.getUri());
+        return pages.response(requestIdentity.optional(), new PersonalDataPreviewResponse(), "", request.getUri());
     }
 
     @ResponseBody
@@ -59,7 +65,7 @@ public class PersonalDataController extends BaseController {
         requirePost();
         PersonalDataPreviewRequest body = getRequestBodyWithNullCheck(PersonalDataPreviewRequest.class);
         PersonalDataCommentExportResponse response = personalDataService.exportComments(body);
-        this.adminAuditService.record(request, AdminAuditAction.EXPORT_PERSONAL_DATA);
+        this.adminAuditService.record(AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()), AdminAuditAction.EXPORT_PERSONAL_DATA);
         return new ApiStandardResponse<>(response);
     }
 

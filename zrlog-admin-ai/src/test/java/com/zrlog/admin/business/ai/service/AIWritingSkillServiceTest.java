@@ -50,10 +50,13 @@ public class AIWritingSkillServiceTest {
         for (String language : List.of("zh_CN", "en_US")) {
             try (var ignored = AdminLanguageContext.open(language)) {
                 AIWritingSkillService service =
-                        new AIWritingSkillService(
-                                AIServiceDependencies.conversations(null).captureAccount(),
+                        new AIWritingSkillService(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(null),
+
+                                AIServiceDependencies.conversations(null).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId())),
                                 AIServiceDependencies.tools(null),
-                                AIServiceDependencies.images(null));
+                                AIServiceDependencies.images(null),
+                        com.zrlog.admin.support.AccountServicesFixture.component(null).identities(),
+                        com.zrlog.admin.support.AccountServicesFixture.component(null).permissions());
                 AIResponseException failure = new AIResponseException("title response is invalid");
                 var payload = service.buildStreamErrorPayload(failure, null);
                 assertEquals(
@@ -92,10 +95,13 @@ public class AIWritingSkillServiceTest {
         AIWebSiteInfoWithAIMessages info = new AIWebSiteInfoWithAIMessages();
         info.setAi_model("gpt-test");
         AIStreamPayloads.ErrorPayload payload =
-                new AIWritingSkillService(
-                                AIServiceDependencies.conversations(null).captureAccount(),
+                new AIWritingSkillService(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(null),
+
+                                AIServiceDependencies.conversations(null).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId())),
                                 AIServiceDependencies.tools(null),
-                                AIServiceDependencies.images(null))
+                                AIServiceDependencies.images(null),
+                        com.zrlog.admin.support.AccountServicesFixture.component(null).identities(),
+                        com.zrlog.admin.support.AccountServicesFixture.component(null).permissions())
                         .buildStreamErrorPayload(
                                 new AIIncompleteResponseException("length", 3), info);
 
@@ -108,10 +114,13 @@ public class AIWritingSkillServiceTest {
     @Test
     public void shouldClassifyProviderStreamErrors() {
         AIWritingSkillService service =
-                new AIWritingSkillService(
-                        AIServiceDependencies.conversations(null).captureAccount(),
+                new AIWritingSkillService(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(null),
+
+                        AIServiceDependencies.conversations(null).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId())),
                         AIServiceDependencies.tools(null),
-                        AIServiceDependencies.images(null));
+                        AIServiceDependencies.images(null),
+                        com.zrlog.admin.support.AccountServicesFixture.component(null).identities(),
+                        com.zrlog.admin.support.AccountServicesFixture.component(null).permissions());
 
         assertEquals("provider_request",
                 service.buildStreamErrorPayload(new AIRequestException("429"), null).getErrorType());
@@ -122,10 +131,13 @@ public class AIWritingSkillServiceTest {
     @Test
     public void shouldClassifyUnsupportedToolStreamErrors() {
         AIWritingSkillService service =
-                new AIWritingSkillService(
-                        AIServiceDependencies.conversations(null).captureAccount(),
+                new AIWritingSkillService(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(null),
+
+                        AIServiceDependencies.conversations(null).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId())),
                         AIServiceDependencies.tools(null),
-                        AIServiceDependencies.images(null));
+                        AIServiceDependencies.images(null),
+                        com.zrlog.admin.support.AccountServicesFixture.component(null).identities(),
+                        com.zrlog.admin.support.AccountServicesFixture.component(null).permissions());
 
         assertEquals("unsupported_tool",
                 service.buildStreamErrorPayload(new UnsupportedAIToolException("x"), null).getErrorType());
@@ -142,10 +154,13 @@ public class AIWritingSkillServiceTest {
         info.setAi_image_model("gpt-image-test");
 
         AIStreamPayloads.ErrorPayload payload =
-                new AIWritingSkillService(
-                                AIServiceDependencies.conversations(null).captureAccount(),
+                new AIWritingSkillService(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(null),
+
+                                AIServiceDependencies.conversations(null).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId())),
                                 AIServiceDependencies.tools(null),
-                                AIServiceDependencies.images(null))
+                                AIServiceDependencies.images(null),
+                        com.zrlog.admin.support.AccountServicesFixture.component(null).identities(),
+                        com.zrlog.admin.support.AccountServicesFixture.component(null).permissions())
                         .buildStreamErrorPayload(
                                 new UnsupportedAIImageGenerationException("model: gpt-image-test"),
                                 info,
@@ -159,10 +174,13 @@ public class AIWritingSkillServiceTest {
     @Test
     public void shouldMapArticleContextToToolRequests() throws Exception {
         AIWritingSkillService service =
-                new AIWritingSkillService(
-                        AIServiceDependencies.conversations(null).captureAccount(),
+                new AIWritingSkillService(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(null),
+
+                        AIServiceDependencies.conversations(null).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId())),
                         AIServiceDependencies.tools(null),
-                        AIServiceDependencies.images(null));
+                        AIServiceDependencies.images(null),
+                        com.zrlog.admin.support.AccountServicesFixture.component(null).identities(),
+                        com.zrlog.admin.support.AccountServicesFixture.component(null).permissions());
         GenerateArticleFieldRequest context = articleContext();
 
         GenerateArticleTitleRequest titleRequest = (GenerateArticleTitleRequest) invoke(service, "toTitleRequest",
@@ -184,10 +202,13 @@ public class AIWritingSkillServiceTest {
     @Test
     public void shouldBuildToolConversationContextByPolicy() throws Exception {
         AIWritingSkillService service =
-                new AIWritingSkillService(
-                        AIServiceDependencies.conversations(null).captureAccount(),
+                new AIWritingSkillService(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(null),
+
+                        AIServiceDependencies.conversations(null).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId())),
                         AIServiceDependencies.tools(null),
-                        AIServiceDependencies.images(null));
+                        AIServiceDependencies.images(null),
+                        com.zrlog.admin.support.AccountServicesFixture.component(null).identities(),
+                        com.zrlog.admin.support.AccountServicesFixture.component(null).permissions());
         AIResponseEntry.AIContentEntry system = new AIResponseEntry.AIContentEntry("system", "system");
         AIResponseEntry.AIContentEntry article = new AIResponseEntry.AIContentEntry("user", "article");
         article.setMessageType("articleContext");
@@ -216,10 +237,13 @@ public class AIWritingSkillServiceTest {
     @Test
     public void shouldRejectMissingToolArticleContextBeforeLoadingWebsiteConfig() {
         AIWritingSkillService service =
-                new AIWritingSkillService(
-                        AIServiceDependencies.conversations(null).captureAccount(),
+                new AIWritingSkillService(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(null),
+
+                        AIServiceDependencies.conversations(null).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId())),
                         AIServiceDependencies.tools(null),
-                        AIServiceDependencies.images(null));
+                        AIServiceDependencies.images(null),
+                        com.zrlog.admin.support.AccountServicesFixture.component(null).identities(),
+                        com.zrlog.admin.support.AccountServicesFixture.component(null).permissions());
 
         assertThrows(ArgsException.class, () -> service.runToolResponse("input", 1L, "score", null));
         assertThrows(ArgsException.class, () -> service.startStreamResponse("input", 1L, "score", null));
@@ -228,10 +252,13 @@ public class AIWritingSkillServiceTest {
     @Test
     public void shouldFormatToolResponsesForChatOutput() throws Exception {
         AIWritingSkillService service =
-                new AIWritingSkillService(
-                        AIServiceDependencies.conversations(null).captureAccount(),
+                new AIWritingSkillService(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(null),
+
+                        AIServiceDependencies.conversations(null).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId())),
                         AIServiceDependencies.tools(null),
-                        AIServiceDependencies.images(null));
+                        AIServiceDependencies.images(null),
+                        com.zrlog.admin.support.AccountServicesFixture.component(null).identities(),
+                        com.zrlog.admin.support.AccountServicesFixture.component(null).permissions());
         GenerateArticleTitleResponse titles = new GenerateArticleTitleResponse();
         titles.setTitles(List.of("One", "Two"));
         GenerateArticleTagsResponse tags = new GenerateArticleTagsResponse();
@@ -266,10 +293,13 @@ public class AIWritingSkillServiceTest {
     @Test
     public void shouldBuildAndSendStreamErrorEvents() throws Exception {
         AIWritingSkillService service =
-                new AIWritingSkillService(
-                        AIServiceDependencies.conversations(null).captureAccount(),
+                new AIWritingSkillService(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(null),
+
+                        AIServiceDependencies.conversations(null).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId())),
                         AIServiceDependencies.tools(null),
-                        AIServiceDependencies.images(null));
+                        AIServiceDependencies.images(null),
+                        com.zrlog.admin.support.AccountServicesFixture.component(null).identities(),
+                        com.zrlog.admin.support.AccountServicesFixture.component(null).permissions());
         AIWebSiteInfoWithAIMessages info = new AIWebSiteInfoWithAIMessages();
         info.setAi_provider(AIProviderType.DEEP_SEEK);
         info.setAi_model("deepseek-chat");
@@ -300,10 +330,13 @@ public class AIWritingSkillServiceTest {
         };
 
         invoke(
-                new AIWritingSkillService(
-                        AIServiceDependencies.conversations(null).captureAccount(),
+                new AIWritingSkillService(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(null),
+
+                        AIServiceDependencies.conversations(null).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId())),
                         AIServiceDependencies.tools(null),
-                        AIServiceDependencies.images(null)),
+                        AIServiceDependencies.images(null),
+                        com.zrlog.admin.support.AccountServicesFixture.component(null).identities(),
+                        com.zrlog.admin.support.AccountServicesFixture.component(null).permissions()),
                 "sendStreamError",
                 closed,
                 new AIResponseException("bad chunk"),
@@ -314,16 +347,22 @@ public class AIWritingSkillServiceTest {
     @Test
     public void shouldClassifyUnknownStreamErrorPayload() {
         AIStreamPayloads.ErrorPayload payload =
-                new AIWritingSkillService(
-                                AIServiceDependencies.conversations(null).captureAccount(),
+                new AIWritingSkillService(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(null),
+
+                                AIServiceDependencies.conversations(null).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId())),
                                 AIServiceDependencies.tools(null),
-                                AIServiceDependencies.images(null))
+                                AIServiceDependencies.images(null),
+                        com.zrlog.admin.support.AccountServicesFixture.component(null).identities(),
+                        com.zrlog.admin.support.AccountServicesFixture.component(null).permissions())
                         .buildStreamErrorPayload(new RuntimeException(), null);
         AIStreamPayloads.ErrorPayload incomplete =
-                new AIWritingSkillService(
-                                AIServiceDependencies.conversations(null).captureAccount(),
+                new AIWritingSkillService(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(null),
+
+                                AIServiceDependencies.conversations(null).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId())),
                                 AIServiceDependencies.tools(null),
-                                AIServiceDependencies.images(null))
+                                AIServiceDependencies.images(null),
+                        com.zrlog.admin.support.AccountServicesFixture.component(null).identities(),
+                        com.zrlog.admin.support.AccountServicesFixture.component(null).permissions())
                         .buildStreamErrorPayload(new AIIncompleteResponseException(""), null);
 
         assertEquals("unknown", payload.getErrorType());

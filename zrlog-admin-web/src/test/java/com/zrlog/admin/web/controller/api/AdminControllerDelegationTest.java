@@ -213,10 +213,10 @@ public class AdminControllerDelegationTest {
                         new AdminPageDataFactory(
                                 ApplicationServicesFixture.site(applicationConfig),
                                 () -> "test",
-                                ApplicationServicesFixture.messages(null),
-                                AccountServicesFixture.component(null).permissions()),
+                                ApplicationServicesFixture.messages(null)),
                         ApplicationServicesFixture.audit(null),
-                        new PersonalDataService(() -> { throw new IllegalStateException("Database is unavailable in this test"); }, () -> { throw new IllegalStateException("Database is unavailable in this test"); }));
+                        new PersonalDataService(() -> { throw new IllegalStateException("Database is unavailable in this test"); }, () -> { throw new IllegalStateException("Database is unavailable in this test"); }),
+                        AccountServicesFixture.component(null).requestIdentity());
         FakePersonalDataService service = new FakePersonalDataService(null);
         setControllerRequest(controller, request(HttpMethod.GET, "/api/admin/personal-data/preview", Map.of(),
                 Map.of(), "{\"query\":\"user@example.com\"}"));
@@ -233,10 +233,10 @@ public class AdminControllerDelegationTest {
                         new AdminPageDataFactory(
                                 ApplicationServicesFixture.site(applicationConfig),
                                 () -> "test",
-                                ApplicationServicesFixture.messages(null),
-                                AccountServicesFixture.component(null).permissions()),
+                                ApplicationServicesFixture.messages(null)),
                         ApplicationServicesFixture.audit(null),
-                        new PersonalDataService(() -> { throw new IllegalStateException("Database is unavailable in this test"); }, () -> { throw new IllegalStateException("Database is unavailable in this test"); }));
+                        new PersonalDataService(() -> { throw new IllegalStateException("Database is unavailable in this test"); }, () -> { throw new IllegalStateException("Database is unavailable in this test"); }),
+                        AccountServicesFixture.component(null).requestIdentity());
         FakePersonalDataService service = new FakePersonalDataService(null);
         PersonalDataPreviewResponse preview = new PersonalDataPreviewResponse();
         preview.setQuery("user@example.com");
@@ -264,10 +264,10 @@ public class AdminControllerDelegationTest {
                             new AdminPageDataFactory(
                                     ApplicationServicesFixture.site(db.config()),
                                     ApplicationServicesFixture.buildId(db.resources()),
-                                    ApplicationServicesFixture.messages(db.dataSource()),
-                                    AccountServicesFixture.component(db.dataSource()).permissions()),
+                                    ApplicationServicesFixture.messages(db.dataSource())),
                             ApplicationServicesFixture.audit(db.dataSource()),
-                            new PersonalDataService(() -> new User(db.dataSource()), () -> new Comment(db.dataSource())));
+                            new PersonalDataService(() -> new User(db.dataSource()), () -> new Comment(db.dataSource())),
+                        AccountServicesFixture.component(db.dataSource()).requestIdentity());
             setControllerRequest(controller, request(HttpMethod.GET, "/api/admin/personal-data", Map.of(), Map.of(),
                     null));
 
@@ -294,56 +294,34 @@ public class AdminControllerDelegationTest {
     }
 
     @Test
-    public void shouldDelegateCommentDeleteAndReadRequests() throws Exception {
-        CommentController controller =
-                new CommentController(
-                        new AdminPageDataFactory(
-                                ApplicationServicesFixture.site(applicationConfig),
-                                () -> "test",
-                                ApplicationServicesFixture.messages(null),
-                                AccountServicesFixture.component(null).permissions()),
-                        new AdminCommentService(
-                                AccountServicesFixture.component(null).permissions(),
-                                ApplicationServicesFixture.messages(null),
-                                () -> { throw new IllegalStateException("Database is unavailable in this test"); }));
-        FakeAdminCommentService service = new FakeAdminCommentService(null);
-        service.deleteResponse = new DeleteResponse(true);
-        service.readResponse = new UpdateRecordResponse(true);
-        setField(controller, CommentController.class, "commentService", service);
-
-        setControllerRequest(controller, request(HttpMethod.POST, "/api/admin/comment/delete",
-                Map.of("id", "1,2, 3"), Map.of(), null));
-        assertSame(service.deleteResponse, controller.delete());
-        assertEquals(List.of("1", "2", " 3"), List.of(service.deletedIds));
-
-        setControllerRequest(controller, request(HttpMethod.POST, "/api/admin/comment/read", Map.of(), Map.of(),
-                "{\"id\":7}"));
-        assertSame(service.readResponse, controller.read());
-        assertEquals(Long.valueOf(7), service.readRequest.getId());
+    public void shouldDeleteAndReadCommentsThroughTheProductionControllerGraph() throws Exception {
+        try (var db = InMemoryZrLogDatabase.open()) {
+            var controller = db.component(com.zrlog.admin.web.di.content.ContentComponent.class).commentController();
+            for (int id : List.of(1, 2, 3, 7)) {
+                db.execute("insert into comment(commentId,userComment,have_read,logId) values(?,?,?,?)",
+                        id, "Comment " + id, false, 1);
+            }
+            setControllerRequest(controller, request(HttpMethod.POST, "/api/admin/comment/delete",
+                    Map.of("id", "1,2, 3"), Map.of(), null));
+            assertTrue(controller.delete().getData().getDelete());
+            assertEquals(1, ((Number) db.scalar("select count(*) from comment")).intValue());
+            setControllerRequest(controller, request(HttpMethod.POST, "/api/admin/comment/read", Map.of(), Map.of(),
+                    "{\"id\":7}"));
+            assertEquals(0, controller.read().getError());
+            assertTrue(com.zrlog.data.security.AccountAccess.truth(
+                    db.scalar("select have_read from comment where commentId=7")));
+        }
     }
 
     @Test
-    public void shouldDelegateCommentReadAllRequest() throws Exception {
-        CommentController controller =
-                new CommentController(
-                        new AdminPageDataFactory(
-                                ApplicationServicesFixture.site(applicationConfig),
-                                () -> "test",
-                                ApplicationServicesFixture.messages(null),
-                                AccountServicesFixture.component(null).permissions()),
-                        new AdminCommentService(
-                                AccountServicesFixture.component(null).permissions(),
-                                ApplicationServicesFixture.messages(null),
-                                () -> { throw new IllegalStateException("Database is unavailable in this test"); }));
-        FakeAdminCommentService service = new FakeAdminCommentService(null);
-        setField(controller, CommentController.class, "commentService", service);
-        setControllerRequest(controller, request(HttpMethod.POST, "/api/admin/comment/readAll", Map.of(), Map.of(),
-                null));
-
-        UpdateRecordResponse response = controller.readAll();
-
-        assertEquals(1, service.readAllCount);
-        assertEquals(0, response.getError());
+    public void shouldReadAllCommentsThroughTheProductionControllerGraph() throws Exception {
+        try (var db = InMemoryZrLogDatabase.open()) {
+            db.execute("insert into comment(commentId,userComment,have_read,logId) values(1,'Unread',false,1)");
+            var controller = db.component(com.zrlog.admin.web.di.content.ContentComponent.class).commentController();
+            setControllerRequest(controller, request(HttpMethod.POST, "/api/admin/comment/readAll", Map.of(), Map.of(), null));
+            assertEquals(0, controller.readAll().getError());
+            assertEquals(0, ((Number) db.scalar("select count(*) from comment where have_read=false")).intValue());
+        }
     }
 
     @Test
@@ -353,10 +331,10 @@ public class AdminControllerDelegationTest {
                         new AdminPageDataFactory(
                                 ApplicationServicesFixture.site(applicationConfig),
                                 () -> "test",
-                                ApplicationServicesFixture.messages(null),
-                                AccountServicesFixture.component(null).permissions()),
+                                ApplicationServicesFixture.messages(null)),
                         ApplicationServicesFixture.site(applicationConfig),
-                        new TagManagementService(() -> { throw new IllegalStateException("Database is unavailable in this test"); }, () -> { throw new IllegalStateException("Database is unavailable in this test"); }));
+                        new TagManagementService(() -> { throw new IllegalStateException("Database is unavailable in this test"); }, () -> { throw new IllegalStateException("Database is unavailable in this test"); }),
+                        AccountServicesFixture.component(null).requestIdentity());
         FakeTagManagementService service = new FakeTagManagementService(null);
         TagManagementPreviewResponse preview = new TagManagementPreviewResponse();
         preview.setOperation("merge");
@@ -381,10 +359,10 @@ public class AdminControllerDelegationTest {
                         new AdminPageDataFactory(
                                 ApplicationServicesFixture.site(applicationConfig),
                                 () -> "test",
-                                ApplicationServicesFixture.messages(null),
-                                AccountServicesFixture.component(null).permissions()),
+                                ApplicationServicesFixture.messages(null)),
                         ApplicationServicesFixture.site(applicationConfig),
-                        new TagManagementService(() -> { throw new IllegalStateException("Database is unavailable in this test"); }, () -> { throw new IllegalStateException("Database is unavailable in this test"); }));
+                        new TagManagementService(() -> { throw new IllegalStateException("Database is unavailable in this test"); }, () -> { throw new IllegalStateException("Database is unavailable in this test"); }),
+                        AccountServicesFixture.component(null).requestIdentity());
         FakeTagManagementService service = new FakeTagManagementService(null);
         setField(controller, AdminTagController.class, "tagManagementService", service);
         setControllerRequest(controller, request(HttpMethod.POST, "/api/admin/tag/preview",
@@ -402,10 +380,10 @@ public class AdminControllerDelegationTest {
                         new AdminPageDataFactory(
                                 ApplicationServicesFixture.site(applicationConfig),
                                 () -> "test",
-                                ApplicationServicesFixture.messages(null),
-                                AccountServicesFixture.component(null).permissions()),
+                                ApplicationServicesFixture.messages(null)),
                         ApplicationServicesFixture.site(applicationConfig),
-                        new TagManagementService(() -> { throw new IllegalStateException("Database is unavailable in this test"); }, () -> { throw new IllegalStateException("Database is unavailable in this test"); }));
+                        new TagManagementService(() -> { throw new IllegalStateException("Database is unavailable in this test"); }, () -> { throw new IllegalStateException("Database is unavailable in this test"); }),
+                        AccountServicesFixture.component(null).requestIdentity());
         setField(missingTarget, AdminTagController.class, "tagManagementService", new FakeTagManagementService(null));
         setControllerRequest(missingTarget, request(HttpMethod.POST, "/api/admin/tag/rename", Map.of(), Map.of(),
                 "{\"sourceTag\":\"old\"}"));
@@ -416,10 +394,10 @@ public class AdminControllerDelegationTest {
                         new AdminPageDataFactory(
                                 ApplicationServicesFixture.site(applicationConfig),
                                 () -> "test",
-                                ApplicationServicesFixture.messages(null),
-                                AccountServicesFixture.component(null).permissions()),
+                                ApplicationServicesFixture.messages(null)),
                         ApplicationServicesFixture.site(applicationConfig),
-                        new TagManagementService(() -> { throw new IllegalStateException("Database is unavailable in this test"); }, () -> { throw new IllegalStateException("Database is unavailable in this test"); }));
+                        new TagManagementService(() -> { throw new IllegalStateException("Database is unavailable in this test"); }, () -> { throw new IllegalStateException("Database is unavailable in this test"); }),
+                        AccountServicesFixture.component(null).requestIdentity());
         setField(sameTarget, AdminTagController.class, "tagManagementService", new FakeTagManagementService(null));
         setControllerRequest(sameTarget, request(HttpMethod.POST, "/api/admin/tag/merge", Map.of(), Map.of(),
                 "{\"sourceTag\":\"old\",\"targetTag\":\"old\"}"));
@@ -433,10 +411,10 @@ public class AdminControllerDelegationTest {
                         new AdminPageDataFactory(
                                 ApplicationServicesFixture.site(applicationConfig),
                                 () -> "test",
-                                ApplicationServicesFixture.messages(null),
-                                AccountServicesFixture.component(null).permissions()),
+                                ApplicationServicesFixture.messages(null)),
                         ApplicationServicesFixture.site(applicationConfig),
-                        new TagManagementService(() -> { throw new IllegalStateException("Database is unavailable in this test"); }, () -> { throw new IllegalStateException("Database is unavailable in this test"); }));
+                        new TagManagementService(() -> { throw new IllegalStateException("Database is unavailable in this test"); }, () -> { throw new IllegalStateException("Database is unavailable in this test"); }),
+                        AccountServicesFixture.component(null).requestIdentity());
         FakeTagManagementService service = new FakeTagManagementService(null);
         TagManagementPreviewResponse deleted = new TagManagementPreviewResponse();
         deleted.setOperation("delete");
@@ -520,12 +498,12 @@ public class AdminControllerDelegationTest {
                         new AdminPageDataFactory(
                                 ApplicationServicesFixture.site(applicationConfig),
                                 () -> "test",
-                                ApplicationServicesFixture.messages(null),
-                                AccountServicesFixture.component(null).permissions()),
+                                ApplicationServicesFixture.messages(null)),
                         ApplicationServicesFixture.audit(null),
                         ApplicationServicesFixture.websiteCache(null),
                         new DistributedLockManager(
-                                () -> { throw new IllegalStateException("Database is unavailable in this test"); }, ApplicationServicesFixture.locks(null)));
+                                () -> { throw new IllegalStateException("Database is unavailable in this test"); }, ApplicationServicesFixture.locks(null)),
+                        AccountServicesFixture.component(null).requestIdentity());
         setControllerRequest(controller, request(HttpMethod.POST, "/api/admin/dev/mode",
                 Map.of(), Map.of(), null, serverConfig));
         Method method = AdminDevController.class.getDeclaredMethod("setDevMode", boolean.class);
@@ -555,8 +533,7 @@ public class AdminControllerDelegationTest {
                         new AdminPageDataFactory(
                                 ApplicationServicesFixture.site(applicationConfig),
                                 () -> "test",
-                                ApplicationServicesFixture.messages(null),
-                                AccountServicesFixture.component(null).permissions()),
+                                ApplicationServicesFixture.messages(null)),
                         new PasskeyService(
                                 ApplicationServicesFixture.siteHost(applicationConfig),
                                 new UserService(
@@ -570,7 +547,8 @@ public class AdminControllerDelegationTest {
                                 ApplicationServicesFixture.locks(null)),
                         AccountServicesFixture.component(null).mfa(),
                         AccountServicesFixture.component(null).preferences(),
-                        ApplicationServicesFixture.audit(null));
+                        ApplicationServicesFixture.audit(null),
+                        AccountServicesFixture.component(null).requestIdentity());
         setControllerRequest(controller, request(HttpMethod.GET, "/api/admin/user", Map.of(), Map.of(), null));
 
         assertThrows(AdminAuthException.class, controller::index);
@@ -601,8 +579,7 @@ public class AdminControllerDelegationTest {
                         new AdminPageDataFactory(
                                 ApplicationServicesFixture.site(applicationConfig),
                                 () -> "test",
-                                ApplicationServicesFixture.messages(null),
-                                AccountServicesFixture.component(null).permissions()),
+                                ApplicationServicesFixture.messages(null)),
                         new PasskeyService(
                                 ApplicationServicesFixture.siteHost(applicationConfig),
                                 new UserService(
@@ -616,7 +593,8 @@ public class AdminControllerDelegationTest {
                                 ApplicationServicesFixture.locks(null)),
                         AccountServicesFixture.component(null).mfa(),
                         AccountServicesFixture.component(null).preferences(),
-                        ApplicationServicesFixture.audit(null));
+                        ApplicationServicesFixture.audit(null),
+                        AccountServicesFixture.component(null).requestIdentity());
         FakeMfaService service = new FakeMfaService(null);
         MfaStatusResponse status = new MfaStatusResponse();
         status.setAccountName("admin");
@@ -644,8 +622,7 @@ public class AdminControllerDelegationTest {
                             new AdminPageDataFactory(
                                     ApplicationServicesFixture.site(db.config()),
                                     ApplicationServicesFixture.buildId(db.resources()),
-                                    ApplicationServicesFixture.messages(db.dataSource()),
-                                    AccountServicesFixture.component(db.dataSource()).permissions()),
+                                    ApplicationServicesFixture.messages(db.dataSource())),
                             new PasskeyService(
                                     ApplicationServicesFixture.siteHost(db.config()),
                                     new UserService(
@@ -659,7 +636,8 @@ public class AdminControllerDelegationTest {
                                     ApplicationServicesFixture.locks(db.dataSource())),
                             AccountServicesFixture.component(db.dataSource()).mfa(),
                             AccountServicesFixture.component(db.dataSource()).preferences(),
-                            ApplicationServicesFixture.audit(db.dataSource()));
+                            ApplicationServicesFixture.audit(db.dataSource()),
+                        AccountServicesFixture.component(db.dataSource()).requestIdentity());
             db.execute("update user set password=? where userId=?",
                     PasswordHashUtils.hash(SecurityUtils.md5("old-password")), 1);
 
@@ -744,30 +722,28 @@ public class AdminControllerDelegationTest {
                                             throw new IllegalStateException(
                                                     "Database is unavailable in this test");
                                         }),
-                                new ArticleQueryService(
-                                        new InMemoryZrLogDatabase.TestCacheService(),
-                                        ApplicationServicesFixture.capability(
+                                new ArticleQueryService(new InMemoryZrLogDatabase.TestCacheService(),
+                                ApplicationServicesFixture.capability(
                                                 applicationConfig, ArticleAssistant.class),
-                                        new AdminPageDataFactory(
+                                new AdminPageDataFactory(
                                                 ApplicationServicesFixture.site(applicationConfig),
                                                 () -> "test",
-                                                ApplicationServicesFixture.messages(null),
-                                                AccountServicesFixture.component(null)
-                                                        .permissions()),
-                                        AccountServicesFixture.component(null).permissions(),
-                                        AccountServicesFixture.component(null).preferences(),
-                                        () -> {
+                                                ApplicationServicesFixture.messages(null)),
+                                AccountServicesFixture.component(null).permissions(),
+                                AccountServicesFixture.component(null).preferences(),
+                                () -> {
                                             throw new IllegalStateException(
                                                     "Database is unavailable in this test");
                                         }),
                                 () -> applicationConfig.getPlugin(PluginCorePlugin.class),
-                                AccountServicesFixture.component(null).preferences()),
+                                AccountServicesFixture.component(null).preferences(),
+                        AccountServicesFixture.component(null).identities()),
                         new AdminPageDataFactory(
                                 ApplicationServicesFixture.site(applicationConfig),
                                 () -> "test",
-                                ApplicationServicesFixture.messages(null),
-                                AccountServicesFixture.component(null).permissions()),
-                        ApplicationServicesFixture.audit(null));
+                                ApplicationServicesFixture.messages(null)),
+                        ApplicationServicesFixture.audit(null),
+                        AccountServicesFixture.component(null).requestIdentity());
         setControllerRequest(controller, request(HttpMethod.GET, "/api/admin/error",
                 Map.of("message", "not found"), Map.of(), null));
 
@@ -831,11 +807,11 @@ public class AdminControllerDelegationTest {
                             new AdminPageDataFactory(
                                     ApplicationServicesFixture.site(applicationConfig),
                                     () -> "test",
-                                    ApplicationServicesFixture.messages(db.dataSource()),
-                                    AccountServicesFixture.component(db.dataSource()).permissions()),
+                                    ApplicationServicesFixture.messages(db.dataSource())),
                             new DockerUpgradeProgressService(),
                             ApplicationServicesFixture.audit(db.dataSource()),
-                            ApplicationServicesFixture.operations(db.dataSource()));
+                            ApplicationServicesFixture.operations(db.dataSource()),
+                        AccountServicesFixture.component(db.dataSource()).requestIdentity());
             for (String path : List.of("/admin/upgrade", "/admin/ssJson")) {
                 setControllerRequest(controller, request(HttpMethod.GET, path, Map.of(), Map.of(), null));
                 AdminPageDataResponse<PreCheckVersionResponse> page = controller.index();
@@ -888,11 +864,11 @@ public class AdminControllerDelegationTest {
                             new AdminPageDataFactory(
                                     ApplicationServicesFixture.site(db.config()),
                                     ApplicationServicesFixture.buildId(db.resources()),
-                                    ApplicationServicesFixture.messages(db.dataSource()),
-                                    AccountServicesFixture.component(db.dataSource()).permissions()),
+                                    ApplicationServicesFixture.messages(db.dataSource())),
                             new DockerUpgradeProgressService(),
                             ApplicationServicesFixture.audit(db.dataSource()),
-                            ApplicationServicesFixture.operations(db.dataSource()));
+                            ApplicationServicesFixture.operations(db.dataSource()),
+                        AccountServicesFixture.component(db.dataSource()).requestIdentity());
             setControllerRequest(controller, request(HttpMethod.GET, "/api/admin/upgrade", Map.of(), Map.of(), null));
 
             AdminPageDataResponse<PreCheckVersionResponse> index = controller.index();
@@ -954,8 +930,7 @@ public class AdminControllerDelegationTest {
                                     ApplicationServicesFixture.audit(db.dataSource()),
                                     ApplicationServicesFixture.websiteKv(db.dataSource()),
                                     () -> new WebSite(db.dataSource())),
-                            new UpgradeSettingsService(
-                                    new WebSiteSettingsService(
+                            new UpgradeSettingsService(new WebSiteSettingsService(
                                             db.unitCacheService(),
                                             db.config() == null
                                                     ? null
@@ -970,13 +945,14 @@ public class AdminControllerDelegationTest {
                                             ApplicationServicesFixture.audit(db.dataSource()),
                                             ApplicationServicesFixture.websiteKv(db.dataSource()),
                                             () -> new WebSite(db.dataSource())),
-                                    () ->
+                        () ->
                                             UpdaterHosts.dockerControl(
                                                     db.config() == null
                                                             ? null
                                                             : db.config().getUpdater()),
-                                    AccountServicesFixture.component(db.dataSource()).permissions(),
-                                    ApplicationServicesFixture.settings(db.dataSource())),
+                        AccountServicesFixture.component(db.dataSource()).permissions(),
+                        AccountServicesFixture.component(db.dataSource()).identities(),
+                        ApplicationServicesFixture.settings(db.dataSource())),
                             new FeatureLabService(
                                     () -> true,
                                     new WebhookService(
@@ -986,13 +962,12 @@ public class AdminControllerDelegationTest {
                             new AdminPageDataFactory(
                                     ApplicationServicesFixture.site(db.config()),
                                     ApplicationServicesFixture.buildId(db.resources()),
-                                    ApplicationServicesFixture.messages(db.dataSource()),
-                                    AccountServicesFixture.component(db.dataSource()).permissions()),
-                            ApplicationServicesFixture.settings(db.dataSource())) {
+                                    ApplicationServicesFixture.messages(db.dataSource())),
+                            ApplicationServicesFixture.settings(db.dataSource()),
+                            AccountServicesFixture.component(db.dataSource()).requestIdentity()) {
                         @Override
                         protected UpgradeSettingsService upgradeSettingsService() {
-                            return new UpgradeSettingsService(
-                                    new WebSiteSettingsService(
+                            return new UpgradeSettingsService(new WebSiteSettingsService(
                                             db.unitCacheService(),
                                             db.config() == null
                                                     ? null
@@ -1007,13 +982,14 @@ public class AdminControllerDelegationTest {
                                             ApplicationServicesFixture.audit(db.dataSource()),
                                             ApplicationServicesFixture.websiteKv(db.dataSource()),
                                             () -> new WebSite(db.dataSource())),
-                                    () ->
+                        () ->
                                             UpdaterHosts.dockerControl(
                                                     db.config() == null
                                                             ? null
                                                             : db.config().getUpdater()),
-                                    AccountServicesFixture.component(db.dataSource()).permissions(),
-                                    ApplicationServicesFixture.settings(db.dataSource())) {
+                        AccountServicesFixture.component(db.dataSource()).permissions(),
+                        AccountServicesFixture.component(db.dataSource()).identities(),
+                        ApplicationServicesFixture.settings(db.dataSource())) {
                                 @Override
                                 protected boolean isDockerMode() {
                                     return true;
@@ -1077,11 +1053,11 @@ public class AdminControllerDelegationTest {
                             new AdminPageDataFactory(
                                     ApplicationServicesFixture.site(db.config()),
                                     ApplicationServicesFixture.buildId(db.resources()),
-                                    ApplicationServicesFixture.messages(db.dataSource()),
-                                    AccountServicesFixture.component(db.dataSource()).permissions()),
+                                    ApplicationServicesFixture.messages(db.dataSource())),
                             new DockerUpgradeProgressService(),
                             ApplicationServicesFixture.audit(db.dataSource()),
-                            ApplicationServicesFixture.operations(db.dataSource())) {
+                            ApplicationServicesFixture.operations(db.dataSource()),
+                        AccountServicesFixture.component(db.dataSource()).requestIdentity()) {
                         @Override
                         protected DockerControl dockerClient() {
                             return client;
@@ -1146,34 +1122,32 @@ public class AdminControllerDelegationTest {
                                             ApplicationServicesFixture.audit(db.dataSource()),
                                             () -> new Log(db.dataSource()),
                                             () -> new Comment(db.dataSource())),
-                                    new ArticleQueryService(
-                                            db.unitCacheService(),
-                                            ApplicationServicesFixture.capability(
+                                    new ArticleQueryService(db.unitCacheService(),
+                                ApplicationServicesFixture.capability(
                                                     db.config(), ArticleAssistant.class),
-                                            new AdminPageDataFactory(
+                                new AdminPageDataFactory(
                                                     ApplicationServicesFixture.site(db.config()),
                                                     ApplicationServicesFixture.buildId(
                                                             db.resources()),
                                                     ApplicationServicesFixture.messages(
-                                                            db.dataSource()),
-                                                    AccountServicesFixture.component(
-                                                                    db.dataSource())
-                                                            .permissions()),
-                                            AccountServicesFixture.component(db.dataSource())
+                                                            db.dataSource())),
+                                AccountServicesFixture.component(db.dataSource())
                                                     .permissions(),
-                                            AccountServicesFixture.component(db.dataSource())
+                                AccountServicesFixture.component(db.dataSource())
                                                     .preferences(),
-                                            () -> new Log(db.dataSource())),
+                                () -> new Log(db.dataSource())),
                                     () -> db.config().getPlugin(PluginCorePlugin.class),
                                     AccountServicesFixture.component(db.dataSource())
-                                            .preferences()),
+                                            .preferences(),
+                        AccountServicesFixture.component(db.dataSource())
+                                            .identities()),
                             new AdminPageDataFactory(
                                     ApplicationServicesFixture.site(db.config()),
                                     ApplicationServicesFixture.buildId(db.resources()),
-                                    ApplicationServicesFixture.messages(db.dataSource()),
-                                    AccountServicesFixture.component(db.dataSource())
-                                            .permissions()),
-                            ApplicationServicesFixture.audit(db.dataSource()));
+                                    ApplicationServicesFixture.messages(db.dataSource())),
+                            ApplicationServicesFixture.audit(db.dataSource()),
+                        AccountServicesFixture.component(
+                                                                    db.dataSource()).requestIdentity());
             setControllerRequest(controller, request(HttpMethod.GET, "/api/admin/manifest", Map.of(),
                     Map.of("User-Agent", "Browser"), null));
 
@@ -1231,35 +1205,33 @@ public class AdminControllerDelegationTest {
                                             ApplicationServicesFixture.audit(ignored.dataSource()),
                                             () -> new Log(ignored.dataSource()),
                                             () -> new Comment(ignored.dataSource())),
-                                    new ArticleQueryService(
-                                            ignored.unitCacheService(),
-                                            ApplicationServicesFixture.capability(
+                                    new ArticleQueryService(ignored.unitCacheService(),
+                                ApplicationServicesFixture.capability(
                                                     ignored.config(), ArticleAssistant.class),
-                                            new AdminPageDataFactory(
+                                new AdminPageDataFactory(
                                                     ApplicationServicesFixture.site(
                                                             ignored.config()),
                                                     ApplicationServicesFixture.buildId(
                                                             ignored.resources()),
                                                     ApplicationServicesFixture.messages(
-                                                            ignored.dataSource()),
-                                                    AccountServicesFixture.component(
-                                                                    ignored.dataSource())
-                                                            .permissions()),
-                                            AccountServicesFixture.component(ignored.dataSource())
+                                                            ignored.dataSource())),
+                                AccountServicesFixture.component(ignored.dataSource())
                                                     .permissions(),
-                                            AccountServicesFixture.component(ignored.dataSource())
+                                AccountServicesFixture.component(ignored.dataSource())
                                                     .preferences(),
-                                            () -> new Log(ignored.dataSource())),
+                                () -> new Log(ignored.dataSource())),
                                     () -> ignored.config().getPlugin(PluginCorePlugin.class),
                                     AccountServicesFixture.component(ignored.dataSource())
-                                            .preferences()),
+                                            .preferences(),
+                        AccountServicesFixture.component(ignored.dataSource())
+                                            .identities()),
                             new AdminPageDataFactory(
                                     ApplicationServicesFixture.site(ignored.config()),
                                     ApplicationServicesFixture.buildId(ignored.resources()),
-                                    ApplicationServicesFixture.messages(ignored.dataSource()),
-                                    AccountServicesFixture.component(ignored.dataSource())
-                                            .permissions()),
-                            ApplicationServicesFixture.audit(ignored.dataSource()));
+                                    ApplicationServicesFixture.messages(ignored.dataSource())),
+                            ApplicationServicesFixture.audit(ignored.dataSource()),
+                        AccountServicesFixture.component(
+                                                                    ignored.dataSource()).requestIdentity());
             setControllerRequest(controller, request(HttpMethod.GET, "/api/admin", Map.of(), Map.of(), null));
 
             AdminPageDataResponse<IndexResponse> response = controller.index();
@@ -1300,15 +1272,13 @@ public class AdminControllerDelegationTest {
                                     throw new IllegalStateException(
                                             "Database is unavailable in this test");
                                 }),
-                        new ArticleQueryService(
-                                new InMemoryZrLogDatabase.TestCacheService(),
+                        new ArticleQueryService(new InMemoryZrLogDatabase.TestCacheService(),
                                 ApplicationServicesFixture.capability(
                                         applicationConfig, ArticleAssistant.class),
                                 new AdminPageDataFactory(
                                         ApplicationServicesFixture.site(applicationConfig),
                                         () -> "test",
-                                        ApplicationServicesFixture.messages(null),
-                                        AccountServicesFixture.component(null).permissions()),
+                                        ApplicationServicesFixture.messages(null)),
                                 AccountServicesFixture.component(null).permissions(),
                                 AccountServicesFixture.component(null).preferences(),
                                 () -> {
@@ -1316,7 +1286,8 @@ public class AdminControllerDelegationTest {
                                             "Database is unavailable in this test");
                                 }),
                         () -> applicationConfig.getPlugin(PluginCorePlugin.class),
-                        AccountServicesFixture.component(null).preferences());
+                        AccountServicesFixture.component(null).preferences(),
+                        AccountServicesFixture.component(null).identities());
         AdminDashboardConfigResponse config = new AdminDashboardConfigResponse();
         AdminDashboardCardResponse welcome = card("welcome");
         AdminDashboardCardResponse quickAction = card("quickAction");
@@ -1377,15 +1348,13 @@ public class AdminControllerDelegationTest {
                                     throw new IllegalStateException(
                                             "Database is unavailable in this test");
                                 }),
-                        new ArticleQueryService(
-                                new InMemoryZrLogDatabase.TestCacheService(),
+                        new ArticleQueryService(new InMemoryZrLogDatabase.TestCacheService(),
                                 ApplicationServicesFixture.capability(
                                         applicationConfig, ArticleAssistant.class),
                                 new AdminPageDataFactory(
                                         ApplicationServicesFixture.site(applicationConfig),
                                         () -> "test",
-                                        ApplicationServicesFixture.messages(null),
-                                        AccountServicesFixture.component(null).permissions()),
+                                        ApplicationServicesFixture.messages(null)),
                                 AccountServicesFixture.component(null).permissions(),
                                 AccountServicesFixture.component(null).preferences(),
                                 () -> {
@@ -1393,7 +1362,8 @@ public class AdminControllerDelegationTest {
                                             "Database is unavailable in this test");
                                 }),
                         () -> applicationConfig.getPlugin(PluginCorePlugin.class),
-                        AccountServicesFixture.component(null).preferences());
+                        AccountServicesFixture.component(null).preferences(),
+                        AccountServicesFixture.component(null).identities());
         Method method = AdminDashboardService.class.getDeclaredMethod("isCardEnabled", AdminDashboardConfigResponse.class,
                 String.class);
         method.setAccessible(true);
@@ -1604,10 +1574,10 @@ public class AdminControllerDelegationTest {
                             ApplicationServicesFixture.websiteCache((DataSourceWrapper) config.getDataSource())),
                     ApplicationServicesFixture.messages((DataSourceWrapper) config.getDataSource()),
                     ApplicationServicesFixture.operations((DataSourceWrapper) config.getDataSource()),
-                    new AdminCommentService(
-                            AccountServicesFixture.component((DataSourceWrapper) config.getDataSource()).permissions(),
-                            ApplicationServicesFixture.messages((DataSourceWrapper) config.getDataSource()),
-                            () -> new Comment((DataSourceWrapper) config.getDataSource())));
+                    new AdminCommentService(AccountServicesFixture.component((DataSourceWrapper) config.getDataSource()).permissions(),
+                        AccountServicesFixture.component((DataSourceWrapper) config.getDataSource()).identities(),
+                        ApplicationServicesFixture.messages((DataSourceWrapper) config.getDataSource()),
+                        () -> new Comment((DataSourceWrapper) config.getDataSource())));
         }
 
         private List<MessageCenterNoticeResponse> notices = List.of();
@@ -1640,43 +1610,6 @@ public class AdminControllerDelegationTest {
             query = request.getQuery();
             userId = currentUserId;
             return response;
-        }
-    }
-
-    private static class FakeAdminCommentService extends AdminCommentService {
-        FakeAdminCommentService(DataSourceWrapper testDataSource) {
-            super(
-                    AccountServicesFixture.component(testDataSource).permissions(),
-                    ApplicationServicesFixture.messages(testDataSource),
-                    () -> new Comment(testDataSource));
-        }
-
-        private DeleteResponse deleteResponse;
-        private UpdateRecordResponse readResponse;
-        private String[] deletedIds = new String[0];
-        private ReadCommentRequest readRequest;
-        private int readAllCount;
-
-        @Override
-        public DeleteResponse delete(String[] ids) {
-            deletedIds = ids;
-            return deleteResponse;
-        }
-
-        @Override
-        public UpdateRecordResponse read(ReadCommentRequest commentRequest) {
-            readRequest = commentRequest;
-            return readResponse;
-        }
-
-        @Override
-        public void readAll() {
-            readAllCount++;
-        }
-
-        @Override
-        public PageData<CommentDTO> page(PageRequest pageable) {
-            return new PageData<>();
         }
     }
 

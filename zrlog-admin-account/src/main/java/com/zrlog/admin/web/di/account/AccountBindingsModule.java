@@ -1,5 +1,7 @@
 package com.zrlog.admin.web.di.account;
 
+import com.zrlog.admin.web.security.AdminRouteAuthorizer;
+import com.zrlog.admin.web.security.AdminRequestIdentity;
 import com.zrlog.admin.business.security.SecurityStore;
 import com.zrlog.admin.business.service.*;
 import com.zrlog.admin.util.BackendServerUrl;
@@ -11,6 +13,21 @@ import dagger.Provides;
 @Module
 public final class AccountBindingsModule {
     private AccountBindingsModule() {}
+
+    @Provides
+    static AccountIdentityService identities(AccountComponent account) {
+        return account.identities();
+    }
+
+    @Provides
+    static AdminRequestIdentity requestIdentity(AccountComponent account) {
+        return account.requestIdentity();
+    }
+
+    @Provides
+    static AdminRouteAuthorizer routeAuthorizer(AccountComponent account) {
+        return account.routeAuthorizer();
+    }
 
     @Provides
     static AccountPermissionService permissions(AccountComponent account) {

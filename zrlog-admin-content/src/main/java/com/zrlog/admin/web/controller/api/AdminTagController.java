@@ -1,5 +1,6 @@
 package com.zrlog.admin.web.controller.api;
 
+import com.zrlog.admin.web.security.AdminRequestIdentity;
 import com.hibegin.common.dao.dto.PageData;
 import com.hibegin.common.util.StringUtils;
 import com.hibegin.http.annotation.ResponseBody;
@@ -29,12 +30,16 @@ import java.util.Set;
 import java.util.function.Supplier;
 
 public class AdminTagController extends BaseController {
+    private final AdminRequestIdentity requestIdentity;
+
 
     @Inject
     public AdminTagController(
             AdminPageDataFactory pages,
             Supplier<PublicWebSiteInfo> site,
-            TagManagementService tagManagementService) {
+            TagManagementService tagManagementService,
+            AdminRequestIdentity requestIdentity) {
+        this.requestIdentity = requestIdentity;
         this.tagManagementService = tagManagementService;
 
         this.pages = pages;
@@ -58,7 +63,7 @@ public class AdminTagController extends BaseController {
                 ZrLogUtil.getHomeUrlWithHost(request, website.getHost()),
                 ControllerUtil.getPageRequest(this),
                 key, Boolean.TRUE.equals(website.getGenerator_html_status()));
-        return pages.response(data, "", request.getUri());
+        return pages.response(requestIdentity.optional(), data, "", request.getUri());
     }
 
     @ResponseBody

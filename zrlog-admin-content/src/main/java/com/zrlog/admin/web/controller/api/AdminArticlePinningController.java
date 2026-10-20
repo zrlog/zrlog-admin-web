@@ -1,5 +1,7 @@
 package com.zrlog.admin.web.controller.api;
 
+import com.zrlog.admin.web.token.AdminTokenThreadLocal;
+import com.zrlog.admin.web.audit.AdminAuditContexts;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.RequestMethod;
 import com.hibegin.http.annotation.ResponseBody;
@@ -77,7 +79,6 @@ public class AdminArticlePinningController extends BaseController {
     }
 
     private void record(String operation, Long logId) {
-        this.adminAuditService.record(
-                request, AdminAuditAction.UPDATE_ARTICLE_PINNING, operation + ": " + logId);
+        this.adminAuditService.record(AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()), AdminAuditAction.UPDATE_ARTICLE_PINNING, operation + ": " + logId);
     }
 }

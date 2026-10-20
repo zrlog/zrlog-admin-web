@@ -1,5 +1,6 @@
 package com.zrlog.admin.web.controller.api;
 
+import com.zrlog.admin.web.security.AdminRequestIdentity;
 import com.hibegin.common.util.EnvKit;
 import com.hibegin.http.annotation.ResponseBody;
 import com.hibegin.http.server.web.Controller;
@@ -17,13 +18,17 @@ import jakarta.inject.Inject;
 import java.sql.SQLException;
 
 public class AdminSystemController extends Controller {
+    private final AdminRequestIdentity requestIdentity;
+
     private final AdminPageDataFactory pages;
 
 
     private final SystemInfoUtils systemInfo;
 
     @Inject
-    public AdminSystemController(SystemInfoUtils systemInfo, AdminPageDataFactory pages) {
+    public AdminSystemController(SystemInfoUtils systemInfo, AdminPageDataFactory pages,
+            AdminRequestIdentity requestIdentity) {
+        this.requestIdentity = requestIdentity;
         this.pages = pages;
         this.systemInfo = systemInfo;
     }
@@ -31,7 +36,7 @@ public class AdminSystemController extends Controller {
     @ResponseBody
     @RequiresAction(value = AccountAction.SYSTEM_MANAGE, descriptionKey = "system.status")
     public AdminPageDataResponse<SystemResponse> index() throws SQLException {
-        return pages.response(
+        return pages.response(requestIdentity.optional(),
                 new SystemResponse(systemInfo.systemIOInfoVO(), systemInfo.serverInfo(getRequest()), ZrLogUtil.isDockerMode(), EnvKit.isNativeImage()),
                 "", AdminConstants.ADMIN_URI_BASE_PATH + "/system");
     }

@@ -1,5 +1,6 @@
 package com.zrlog.admin.business.service;
 
+import com.zrlog.admin.support.AccountServicesFixture;
 import static org.junit.Assert.*;
 
 import com.zrlog.admin.business.content.ArticleResourceReferences;
@@ -10,12 +11,17 @@ import com.zrlog.admin.business.rest.request.UpdateArticleRequest;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.di.content.ContentComponent;
 import com.zrlog.common.vo.AdminTokenVO;
+import com.zrlog.admin.web.di.account.AccountComponent;
+import com.zrlog.admin.web.token.AdminTokenThreadLocal;
+import com.zrlog.data.security.AccountAction;
 
 import org.junit.Test;
 
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.Arrays;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -29,7 +35,7 @@ public class ArticleResourceServiceDatabaseTest {
         for (String backend : List.of("h2", "sqlite", "webapi")) {
             try (var db = open(backend)) {
                 var graph = db.component(ContentComponent.class);
-                int id = graph.articles().create(token(), article()).getLogId().intValue();
+                int id = graph.articles().create(AccountServicesFixture.component(db.dataSource()).requestIdentity().account(token()), article()).getLogId().intValue();
                 db.execute(
                         "update log set sticky=1,digest=? where logId=?",
                         "<img src=\"/blog/attached/old/digest.png\">",
@@ -38,7 +44,7 @@ public class ArticleResourceServiceDatabaseTest {
                 var result =
                         graph.resources()
                                 .replaceReferences(
-                                        token(),
+                                        AccountServicesFixture.component(db.dataSource()).identities().account(token()),
                                         "/attached/old",
                                         "/attached/new",
                                         true,
@@ -83,7 +89,7 @@ public class ArticleResourceServiceDatabaseTest {
                 var unchanged =
                         graph.resources()
                                 .replaceReferences(
-                                        token(),
+                                        AccountServicesFixture.component(db.dataSource()).identities().account(token()),
                                         "/attached/old",
                                         "/attached/new",
                                         true,
@@ -92,7 +98,7 @@ public class ArticleResourceServiceDatabaseTest {
                 assertEquals(0, unchanged.getUpdatedFields());
                 assertThrows(
                         UpdateArticleExpireException.class,
-                        () -> graph.articles().update(token(), edit(id)));
+                        () -> graph.articles().update(AccountServicesFixture.component(db.dataSource()).requestIdentity().account(token()), edit(id)));
                 assertEquals(
                         1,
                         ((Number) db.scalar("select count(*) from log_version where log_id=?", id))
@@ -106,7 +112,7 @@ public class ArticleResourceServiceDatabaseTest {
             throws Exception {
         try (var db = InMemoryZrLogDatabase.openWebApi()) {
             var graph = db.component(ContentComponent.class);
-            int id = graph.articles().create(token(), article()).getLogId().intValue();
+            int id = graph.articles().create(AccountServicesFixture.component(db.dataSource()).requestIdentity().account(token()), article()).getLogId().intValue();
             CountDownLatch editorHasLock = new CountDownLatch(1);
             CountDownLatch resourceScanned = new CountDownLatch(1);
             CountDownLatch releaseEditor = new CountDownLatch(1);
@@ -125,14 +131,14 @@ public class ArticleResourceServiceDatabaseTest {
                     });
             ExecutorService pool = Executors.newFixedThreadPool(2);
             try {
-                Future<?> editor = pool.submit(() -> graph.articles().update(token(), edit(id)));
+                Future<?> editor = pool.submit(() -> graph.articles().update(AccountServicesFixture.component(db.dataSource()).requestIdentity().account(token()), edit(id)));
                 assertTrue(editorHasLock.await(10, TimeUnit.SECONDS));
                 Future<?> replacement =
                         pool.submit(
                                 () ->
                                         graph.resources()
                                                 .replaceReferences(
-                                                        token(),
+                                                        AccountServicesFixture.component(db.dataSource()).identities().account(token()),
                                                         "/attached/old",
                                                         "/attached/new",
                                                         true,
@@ -164,7 +170,7 @@ public class ArticleResourceServiceDatabaseTest {
     public void resourceCasFailureDoesNotOverwriteAnotherWriterOrCreateHistory() throws Exception {
         try (var db = InMemoryZrLogDatabase.openWebApi()) {
             var graph = db.component(ContentComponent.class);
-            int id = graph.articles().create(token(), article()).getLogId().intValue();
+            int id = graph.articles().create(AccountServicesFixture.component(db.dataSource()).requestIdentity().account(token()), article()).getLogId().intValue();
             AtomicBoolean raced = new AtomicBoolean();
             db.beforeWebApiUpdate(
                     (sql, args) -> {
@@ -180,7 +186,7 @@ public class ArticleResourceServiceDatabaseTest {
                     () ->
                             graph.resources()
                                     .replaceReferences(
-                                            token(),
+                                            AccountServicesFixture.component(db.dataSource()).identities().account(token()),
                                             "/attached/old",
                                             "/attached/new",
                                             true,
@@ -202,14 +208,14 @@ public class ArticleResourceServiceDatabaseTest {
             throws Exception {
         try (var db = InMemoryZrLogDatabase.open()) {
             var graph = db.component(ContentComponent.class);
-            int id = graph.articles().create(token(), article()).getLogId().intValue();
+            int id = graph.articles().create(AccountServicesFixture.component(db.dataSource()).requestIdentity().account(token()), article()).getLogId().intValue();
             db.execute("update user set role='author' where userId=1");
             assertThrows(
                     PermissionErrorException.class,
                     () ->
                             graph.resources()
                                     .replaceReferences(
-                                            token(),
+                                            AccountServicesFixture.component(db.dataSource()).identities().account(token()),
                                             "/attached/old",
                                             "/attached/new",
                                             true,
@@ -217,6 +223,66 @@ public class ArticleResourceServiceDatabaseTest {
             assertEquals(
                     0,
                     ((Number) db.scalar("select version from log where logId=?", id)).intValue());
+        }
+    }
+
+    @Test
+    public void explicitResourceActorOwnsHistoryWithoutBorrowingThreadIdentity() throws Exception {
+        for (String backend : List.of("h2", "sqlite")) {
+            try (var db = open(backend)) {
+                db.execute("insert into user(userId,userName,role) values(2,'resource-manager','admin')");
+                var content = db.component(ContentComponent.class);
+                var identities = db.component(AccountComponent.class).identities();
+                var managerToken = new AdminTokenVO();
+                managerToken.setUserId(2);
+                var manager = identities.account(managerToken);
+                long id = content.articles().create(manager, article()).getLogId();
+                assertEquals(1, AdminTokenThreadLocal.getUserId());
+                var replaced = content.resources().replaceReferences(
+                        manager, "/attached/old", "/attached/new", true, REFERENCES);
+                assertEquals(1, replaced.getUpdatedArticles());
+                assertEquals(2, ((Number) db.scalar(
+                        "select user_id from log_version where log_id=?", id)).intValue());
+                AdminTokenThreadLocal.remove();
+                var restored = content.resources().replaceReferences(
+                        manager, "/attached/new", "/attached/old", true, REFERENCES);
+                assertEquals(1, restored.getUpdatedArticles());
+                assertEquals(2, ((Number) db.scalar(
+                        "select count(*) from log_version where log_id=? and user_id=2", id)).intValue());
+                var readOnly = manager.restrictActions(Set.of(AccountAction.ARTICLE_READ.getId()));
+                assertThrows(PermissionErrorException.class, () -> content.resources().replaceReferences(
+                        readOnly, "/attached/old", "/attached/new", true, REFERENCES));
+                db.execute("update user set authVersion=authVersion+1 where userId=2");
+                assertThrows(PermissionErrorException.class, () -> content.resources().replaceReferences(
+                        manager, "/attached/old", "/attached/new", true, REFERENCES));
+                assertEquals(2, ((Number) db.scalar("select version from log where logId=?", id)).intValue());
+                assertEquals(2, ((Number) db.scalar("select count(*) from log_version where log_id=?", id)).intValue());
+                assertNull(AdminTokenThreadLocal.getUser());
+            }
+        }
+    }
+
+    @Test
+    public void revocationDuringResourceWriteLockLeavesContentAndHistoryUnchanged() throws Exception {
+        try (var db = InMemoryZrLogDatabase.openWebApi()) {
+            var content = db.component(ContentComponent.class);
+            var actor = db.component(AccountComponent.class).identities().account(token());
+            long id = content.articles().create(actor, article()).getLogId();
+            var before = db.queryOne("select thumbnail,content,markdown,digest from log where logId=?", id);
+            AtomicBoolean revoked = new AtomicBoolean();
+            db.beforeWebApiUpdate((sql, params) -> {
+                if (sql.startsWith("insert into website")
+                        && Arrays.asList(params).contains("distributed_lock_write_article_" + id)
+                        && revoked.compareAndSet(false, true)) {
+                    db.execute("update user set authVersion=authVersion+1 where userId=1");
+                }
+            });
+            assertThrows(PermissionErrorException.class, () -> content.resources().replaceReferences(
+                    actor, "/attached/old", "/attached/new", true, REFERENCES));
+            assertTrue(revoked.get());
+            assertEquals(before, db.queryOne("select thumbnail,content,markdown,digest from log where logId=?", id));
+            assertEquals(0, ((Number) db.scalar("select version from log where logId=?", id)).intValue());
+            assertEquals(0, ((Number) db.scalar("select count(*) from log_version where log_id=?", id)).intValue());
         }
     }
 

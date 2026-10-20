@@ -33,12 +33,9 @@ public class UserPreferenceConcurrencyTest {
                 if (!sql.startsWith("update user set preferences=") || competing.getAndIncrement() != 0) return;
                 db.execute("update user set preferences=? where userId=1", "{\"session\":{\"timeoutMinutes\":60},\"appearance\":{\"darkMode\":true}}");
             });
-            new UserPreferenceService(
-                            ApplicationServicesFixture.settings(db.dataSource()),
-                            new UserPreferenceStore(() -> new User(db.dataSource())),
-                            AccountServicesFixture.component(db.dataSource()).permissions())
-                    .updateBody(
-                            "{\"session\":{\"timeoutMinutes\":30},\"editor\":{\"autoDigestLength\":0}}",
+            new UserPreferenceService(ApplicationServicesFixture.settings(db.dataSource()),
+                            new UserPreferenceStore(() -> new User(db.dataSource())))
+                    .updateBody(actor(db), "{\"session\":{\"timeoutMinutes\":30},\"editor\":{\"autoDigestLength\":0}}",
                             "writing");
             JsonObject saved = stored(db);
             assertEquals(60, saved.getAsJsonObject("session").get("timeoutMinutes").getAsInt());
@@ -61,15 +58,13 @@ public class UserPreferenceConcurrencyTest {
                 db.execute("update user set preferences=? where userId=1", latest.toString());
             });
             UserPreferenceService service =
-                    new UserPreferenceService(
-                            ApplicationServicesFixture.settings(db.dataSource()),
-                            new UserPreferenceStore(() -> new User(db.dataSource())),
-                            AccountServicesFixture.component(db.dataSource()).permissions());
-            if (personal) service.update(json("{\"articlePageSize\":50}"));
+                    new UserPreferenceService(ApplicationServicesFixture.settings(db.dataSource()),
+                            new UserPreferenceStore(() -> new User(db.dataSource())));
+            if (personal) service.update(actor(db), json("{\"articlePageSize\":50}"));
             else {
                 AdminDashboardConfigResponse dashboard = new AdminDashboardConfigResponse();
                 dashboard.setAutoRefreshIntervalSeconds(90);
-                service.saveDashboard(AdminTokenThreadLocal.getUser(), dashboard);
+                service.saveDashboard(actor(db), dashboard);
             }
             JsonObject saved = stored(db);
             assertEquals(12, competingWrites.get());
@@ -92,12 +87,9 @@ public class UserPreferenceConcurrencyTest {
                     assertThrows(
                             SQLException.class,
                             () ->
-                                    new UserPreferenceService(
-                                                    ApplicationServicesFixture.settings(db.dataSource()),
-                                                    new UserPreferenceStore(() -> new User(db.dataSource())),
-                                                    AccountServicesFixture.component(db.dataSource())
-                                                            .permissions())
-                                            .update(json("{\"articlePageSize\":50}")));
+                                    new UserPreferenceService(ApplicationServicesFixture.settings(db.dataSource()),
+                            new UserPreferenceStore(() -> new User(db.dataSource())))
+                                            .update(actor(db), json("{\"articlePageSize\":50}")));
             assertTrue(error.getMessage().contains("Concurrent account preference update"));
             JsonObject saved = stored(db);
             assertFalse(saved.has("articlePageSize"));
@@ -118,12 +110,9 @@ public class UserPreferenceConcurrencyTest {
                         assertThrows(
                                 SQLException.class,
                                 () ->
-                                        new UserPreferenceService(
-                                                        ApplicationServicesFixture.settings(db.dataSource()),
-                                                        new UserPreferenceStore(() -> new User(db.dataSource())),
-                                                        AccountServicesFixture.component(db.dataSource())
-                                                                .permissions())
-                                                .update(json("{\"articlePageSize\":50}")));
+                                        new UserPreferenceService(ApplicationServicesFixture.settings(db.dataSource()),
+                            new UserPreferenceStore(() -> new User(db.dataSource())))
+                                                .update(actor(db), json("{\"articlePageSize\":50}")));
                 assertTrue(error.getCause() instanceof InterruptedException);
                 assertTrue(Thread.currentThread().isInterrupted());
             } finally { Thread.interrupted(); }
@@ -146,12 +135,9 @@ public class UserPreferenceConcurrencyTest {
                     assertThrows(
                             SQLException.class,
                             () ->
-                                    new UserPreferenceService(
-                                                    ApplicationServicesFixture.settings(db.dataSource()),
-                                                    new UserPreferenceStore(() -> new User(db.dataSource())),
-                                                    AccountServicesFixture.component(db.dataSource())
-                                                            .permissions())
-                                            .update(json("{\"articlePageSize\":50}"))));
+                                    new UserPreferenceService(ApplicationServicesFixture.settings(db.dataSource()),
+                            new UserPreferenceStore(() -> new User(db.dataSource())))
+                                            .update(actor(db), json("{\"articlePageSize\":50}"))));
             assertEquals(1, writes.get());
             assertEquals(new JsonObject(), stored(db));
         }
@@ -163,4 +149,8 @@ public class UserPreferenceConcurrencyTest {
     }
 
     private static JsonObject json(String value) { return JsonParser.parseString(value).getAsJsonObject(); }
+    private static com.zrlog.data.security.AccountAccess actor(InMemoryZrLogDatabase db) {
+        return AccountServicesFixture.component(db.dataSource()).requestIdentity().current();
+    }
+
 }

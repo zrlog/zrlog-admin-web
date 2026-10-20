@@ -44,7 +44,7 @@ public class MemberServiceTest {
                                     AccountServicesFixture.component(db.dataSource()).security(),
                                     AccountServicesFixture.component(db.dataSource()).users(),
                                     AccountServicesFixture.component(db.dataSource()).permissions())
-                            .create(create);
+                            .create(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), create);
 
             assertTrue(member.userId > 1);
             assertEquals("newwriter", member.userName);

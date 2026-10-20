@@ -1,5 +1,8 @@
 package com.zrlog.admin.web.controller.api;
 
+import com.zrlog.admin.web.token.AdminTokenThreadLocal;
+import com.zrlog.admin.web.audit.AdminAuditContexts;
+import com.zrlog.admin.web.security.AdminRequestIdentity;
 import com.hibegin.common.util.StringUtils;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.RequestMethod;
@@ -27,18 +30,21 @@ import jakarta.inject.Inject;
 public class WebhookController extends BaseController {
     private final AdminAuditService adminAuditService;
 
+    private final AdminRequestIdentity requestIdentity;
     private final AccountPermissionService permissionService;
 
     @Inject
     public WebhookController(
             AdminPageDataFactory pages,
             AccountPermissionService permissionService,
+            AdminRequestIdentity requestIdentity,
             WebhookService webhookService,
             AdminAuditService adminAuditService) {
         this.webhookService = webhookService;
         this.adminAuditService = adminAuditService;
 
         this.permissionService = permissionService;
+        this.requestIdentity = requestIdentity;
 
         this.pages = pages;
     }
@@ -53,13 +59,13 @@ public class WebhookController extends BaseController {
         if (request.getMethod() == HttpMethod.POST) {
             WebhookConfigRequest configRequest = getRequestBodyWithNullCheck(WebhookConfigRequest.class);
             WebhookConfigResponse response = webhookService.updateConfig(configRequest);
-            this.adminAuditService.record(request, AdminAuditAction.UPDATE_WEBHOOK_CONFIG);
+            this.adminAuditService.record(AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()), AdminAuditAction.UPDATE_WEBHOOK_CONFIG);
             return new ApiStandardResponse<>(
                     response,
                     I18nUtil.getAdminBackendStringFromRes("admin.common.update.success")
             );
         }
-        return pages.response(webhookService.getConfigResponse(), "", request.getUri());
+        return pages.response(requestIdentity.optional(), webhookService.getConfigResponse(), "", request.getUri());
     }
 
     @ResponseBody
@@ -67,7 +73,7 @@ public class WebhookController extends BaseController {
     public ApiStandardResponse<WebhookTokenResponse> token() {
         requirePost();
         WebhookTokenResponse response = webhookService.rotateToken();
-        this.adminAuditService.record(request, AdminAuditAction.ROTATE_WEBHOOK_TOKEN);
+        this.adminAuditService.record(AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()), AdminAuditAction.ROTATE_WEBHOOK_TOKEN);
         return new ApiStandardResponse<>(response);
     }
 
@@ -76,7 +82,7 @@ public class WebhookController extends BaseController {
     public ApiStandardResponse<WebhookConfigResponse> revokeToken() {
         requirePost();
         WebhookConfigResponse response = webhookService.revokeToken();
-        this.adminAuditService.record(request, AdminAuditAction.REVOKE_WEBHOOK_TOKEN);
+        this.adminAuditService.record(AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()), AdminAuditAction.REVOKE_WEBHOOK_TOKEN);
         return new ApiStandardResponse<>(response);
     }
 
@@ -86,7 +92,7 @@ public class WebhookController extends BaseController {
     public ApiStandardResponse<WebhookMessageNoticeCreateResponse> messageCenterNotice() {
         requirePost();
         boolean personal = DelegatedAccess.active();
-        if (personal) permissionService.require(AccountAction.NOTIFICATION_CREATE);
+        if (personal) permissionService.require(requestIdentity.current(), AccountAction.NOTIFICATION_CREATE);
         if (!webhookService.getConfigResponse().getEnabled() || (!personal && !webhookService.verifyToken(readToken()))) {
             throw new PermissionErrorException();
         }

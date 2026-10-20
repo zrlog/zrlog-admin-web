@@ -54,6 +54,7 @@ public class AIWritingToolsTest {
                 + "\",\"type\":\"function\",\"function\":{\"name\":\"" + name + "\",\"arguments\":" + JSON.toJson(args) + "}}]}}";
     }
     private static class Model extends AIChatService {
+        private final com.hibegin.common.dao.DataSourceWrapper actorSource;
         private final DataSourceWrapper testDataSource;
         final List<String> replies;
         final List<JsonObject> requests = new ArrayList<>();
@@ -62,7 +63,7 @@ public class AIWritingToolsTest {
 
         Model(DataSourceWrapper testDataSource, String... replies) {
             super(
-                    AccountServicesFixture.component(testDataSource).permissions(),
+                    AccountServicesFixture.component(testDataSource).permissions(), AccountServicesFixture.component(testDataSource).identities(),
                     AccountServicesFixture.component(testDataSource).preferences(),
                     AIServiceDependencies.approvals(testDataSource),
                     new AIFileService(),
@@ -70,17 +71,20 @@ public class AIWritingToolsTest {
                     AIServiceDependencies.conversations(testDataSource),
                     AIServiceDependencies.writingTools(testDataSource),
                     AIServiceDependencies.references(null, testDataSource));
+            this.actorSource = testDataSource;
             this.testDataSource = testDataSource;
             this.replies = List.of(replies);
         }
 
-        String begin(ChatRequest request) throws Exception { return new String(start(request).getInputStream().readAllBytes(), StandardCharsets.UTF_8); }
-        String submit(InputRequest request) throws Exception { return new String(resumeInput(request).getInputStream().readAllBytes(), StandardCharsets.UTF_8); }
-        @Override protected AIWritingSkillService writingSkillService() {
-            return new AIWritingSkillService(
-                    AIServiceDependencies.conversations(testDataSource).captureAccount(),
+        String begin(ChatRequest request) throws Exception { return new String(start(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(actorSource), request, com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(actorSource), com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser()).getInputStream().readAllBytes(), StandardCharsets.UTF_8); }
+        String submit(InputRequest request) throws Exception { return new String(resumeInput(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(actorSource), request, com.zrlog.admin.business.ai.service.AIServiceDependencies.audit(actorSource), com.zrlog.admin.web.token.AdminTokenThreadLocal.getUser()).getInputStream().readAllBytes(), StandardCharsets.UTF_8); }
+        @Override protected AIWritingSkillService writingSkillService(com.zrlog.data.security.AccountAccess actor) {
+            return new AIWritingSkillService(actor,
+                    AIServiceDependencies.conversations(testDataSource).captureAccount(actor.getUserId()),
                     AIServiceDependencies.tools(testDataSource),
-                    AIServiceDependencies.images(testDataSource)) {
+                    AIServiceDependencies.images(testDataSource),
+                        com.zrlog.admin.support.AccountServicesFixture.component(testDataSource).identities(),
+                        com.zrlog.admin.support.AccountServicesFixture.component(testDataSource).permissions()) {
                 @Override
                 AIContentEntry generate(
                         String key, GenerateArticleFieldRequest context, String instruction) {
@@ -99,7 +103,7 @@ public class AIWritingToolsTest {
                 }
             };
         }
-        @Override protected AIProviderResponses.Choice complete(AIWebSiteInfo info, String body, AIChatStreamReader.Progress progress) {
+        @Override protected AIProviderResponses.Choice complete(com.zrlog.data.security.AccountAccess actor, AIWebSiteInfo info, String body, AIChatStreamReader.Progress progress) {
             JsonObject request = JsonParser.parseString(body).getAsJsonObject(); requests.add(request);
             if (requests.size() > replies.size()) throw new AssertionError("Unexpected model turn");
             String reply = replies.get(requests.size()-1);
@@ -120,8 +124,8 @@ public class AIWritingToolsTest {
         String wire = model.begin(input());
         assertTrue(wire, wire.contains("interaction-required"));
         assertFalse(wire, wire.contains("\"type\":\"done\""));
-        return new AIChatService(
-                        AccountServicesFixture.component(testDataSource).permissions(),
+        return new AIChatService(AccountServicesFixture.component(testDataSource).permissions(),
+                        AccountServicesFixture.component(testDataSource).identities(),
                         AccountServicesFixture.component(testDataSource).preferences(),
                         AIServiceDependencies.approvals(testDataSource),
                         new AIFileService(),
@@ -129,7 +133,7 @@ public class AIWritingToolsTest {
                         AIServiceDependencies.conversations(testDataSource),
                         AIServiceDependencies.writingTools(testDataSource),
                         AIServiceDependencies.references(null, testDataSource))
-                .getRun(7);
+                .getRun(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(testDataSource), 7);
     }
     private static Model titles(DataSourceWrapper testDataSource) { return new Model(testDataSource, call("writing_title", "{\"instruction\":\"Two titles\"}"), call("request_writing_input", "{\"question\":\"Which title?\",\"resultId\":\"RESULT_ID\"}")); }
     private static InputRequest response(RunView view, String value) {
@@ -161,7 +165,7 @@ public class AIWritingToolsTest {
                                     ApplicationServicesFixture.websiteKv(db.dataSource()),
                                     () -> new WebSite(db.dataSource()),
                                     new AIFileService(),
-                                    AIServiceDependencies.approvals(db.dataSource()))
+                                    AIServiceDependencies.approvals(db.dataSource())).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId()))
                             .exportAIMessage(7L)
                             .getMessages();
             assertEquals(2, stored.stream().filter(m -> m.getSkillContract() != null).count());
@@ -176,7 +180,7 @@ public class AIWritingToolsTest {
                                     ApplicationServicesFixture.websiteKv(db.dataSource()),
                                     () -> new WebSite(db.dataSource()),
                                     new AIFileService(),
-                                    AIServiceDependencies.approvals(db.dataSource()))
+                                    AIServiceDependencies.approvals(db.dataSource())).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId()))
                             .exportAIMessage(7L)
                             .getMessages()
                             .size());
@@ -188,16 +192,16 @@ public class AIWritingToolsTest {
             assertThrows(ArgsException.class, () -> new Model(db.dataSource()).submit(response(view, "Invented title")));
             assertEquals(
                     "awaiting_input",
-                    new AIChatService(
-                                    AccountServicesFixture.component(db.dataSource()).permissions(),
-                                    AccountServicesFixture.component(db.dataSource()).preferences(),
-                                    AIServiceDependencies.approvals(db.dataSource()),
-                                    new AIFileService(),
-                                    AIServiceDependencies.writing(db.dataSource()),
-                                    AIServiceDependencies.conversations(db.dataSource()),
-                                    AIServiceDependencies.writingTools(db.dataSource()),
-                                    AIServiceDependencies.references(null, db.dataSource()))
-                            .getRun(7)
+                    new AIChatService(AccountServicesFixture.component(db.dataSource()).permissions(),
+                        AccountServicesFixture.component(db.dataSource()).identities(),
+                        AccountServicesFixture.component(db.dataSource()).preferences(),
+                        AIServiceDependencies.approvals(db.dataSource()),
+                        new AIFileService(),
+                        AIServiceDependencies.writing(db.dataSource()),
+                        AIServiceDependencies.conversations(db.dataSource()),
+                        AIServiceDependencies.writingTools(db.dataSource()),
+                        AIServiceDependencies.references(null, db.dataSource()))
+                            .getRun(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), 7)
                             .status);
             InputRequest wrong = response(view, "First title"); wrong.articleId = 0;
             assertThrows(PermissionErrorException.class, () -> new Model(db.dataSource()).submit(wrong));
@@ -209,16 +213,16 @@ public class AIWritingToolsTest {
             assertTrue(new Model(db.dataSource()).submit(changed).contains("contextChanged"));
             assertEquals(
                     "failed",
-                    new AIChatService(
-                                    AccountServicesFixture.component(db.dataSource()).permissions(),
-                                    AccountServicesFixture.component(db.dataSource()).preferences(),
-                                    AIServiceDependencies.approvals(db.dataSource()),
-                                    new AIFileService(),
-                                    AIServiceDependencies.writing(db.dataSource()),
-                                    AIServiceDependencies.conversations(db.dataSource()),
-                                    AIServiceDependencies.writingTools(db.dataSource()),
-                                    AIServiceDependencies.references(null, db.dataSource()))
-                            .getRun(7)
+                    new AIChatService(AccountServicesFixture.component(db.dataSource()).permissions(),
+                        AccountServicesFixture.component(db.dataSource()).identities(),
+                        AccountServicesFixture.component(db.dataSource()).preferences(),
+                        AIServiceDependencies.approvals(db.dataSource()),
+                        new AIFileService(),
+                        AIServiceDependencies.writing(db.dataSource()),
+                        AIServiceDependencies.conversations(db.dataSource()),
+                        AIServiceDependencies.writingTools(db.dataSource()),
+                        AIServiceDependencies.references(null, db.dataSource()))
+                            .getRun(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), 7)
                             .status);
         }
     }
@@ -239,16 +243,16 @@ public class AIWritingToolsTest {
             assertTrue(new Model(db.dataSource()).submit(response(view, "First title")).contains("expired"));
             view = pause(titles(db.dataSource()), db.dataSource()); db.putWebsite("ai_model", "different-model");
             RunView hidden =
-                    new AIChatService(
-                                    AccountServicesFixture.component(db.dataSource()).permissions(),
-                                    AccountServicesFixture.component(db.dataSource()).preferences(),
-                                    AIServiceDependencies.approvals(db.dataSource()),
-                                    new AIFileService(),
-                                    AIServiceDependencies.writing(db.dataSource()),
-                                    AIServiceDependencies.conversations(db.dataSource()),
-                                    AIServiceDependencies.writingTools(db.dataSource()),
-                                    AIServiceDependencies.references(null, db.dataSource()))
-                            .getRun(7);
+                    new AIChatService(AccountServicesFixture.component(db.dataSource()).permissions(),
+                        AccountServicesFixture.component(db.dataSource()).identities(),
+                        AccountServicesFixture.component(db.dataSource()).preferences(),
+                        AIServiceDependencies.approvals(db.dataSource()),
+                        new AIFileService(),
+                        AIServiceDependencies.writing(db.dataSource()),
+                        AIServiceDependencies.conversations(db.dataSource()),
+                        AIServiceDependencies.writingTools(db.dataSource()),
+                        AIServiceDependencies.references(null, db.dataSource()))
+                            .getRun(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), 7);
             assertNull(hidden.interaction);
             assertTrue(hidden.skillMessages.isEmpty());
             assertTrue(new Model(db.dataSource()).submit(response(view, "First title")).contains("permission"));
@@ -259,20 +263,20 @@ public class AIWritingToolsTest {
                                     ApplicationServicesFixture.websiteKv(db.dataSource()),
                                     () -> new WebSite(db.dataSource()),
                                     new AIFileService(),
-                                    AIServiceDependencies.approvals(db.dataSource()))
+                                    AIServiceDependencies.approvals(db.dataSource())).captureAccount(Math.max(1, com.zrlog.admin.web.token.AdminTokenThreadLocal.getUserId()))
                             .clearAIMessage(7L));
             assertTrue(new Model(db.dataSource()).submit(response(view, "First title")).contains("cancelled"));
             assertTrue(
-                    new AIChatService(
-                                    AccountServicesFixture.component(db.dataSource()).permissions(),
-                                    AccountServicesFixture.component(db.dataSource()).preferences(),
-                                    AIServiceDependencies.approvals(db.dataSource()),
-                                    new AIFileService(),
-                                    AIServiceDependencies.writing(db.dataSource()),
-                                    AIServiceDependencies.conversations(db.dataSource()),
-                                    AIServiceDependencies.writingTools(db.dataSource()),
-                                    AIServiceDependencies.references(null, db.dataSource()))
-                            .getRun(7)
+                    new AIChatService(AccountServicesFixture.component(db.dataSource()).permissions(),
+                        AccountServicesFixture.component(db.dataSource()).identities(),
+                        AccountServicesFixture.component(db.dataSource()).preferences(),
+                        AIServiceDependencies.approvals(db.dataSource()),
+                        new AIFileService(),
+                        AIServiceDependencies.writing(db.dataSource()),
+                        AIServiceDependencies.conversations(db.dataSource()),
+                        AIServiceDependencies.writingTools(db.dataSource()),
+                        AIServiceDependencies.references(null, db.dataSource()))
+                            .getRun(com.zrlog.admin.business.ai.service.AIServiceDependencies.actor(db.dataSource()), 7)
                             .skillMessages
                             .isEmpty());
         }

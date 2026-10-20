@@ -10,9 +10,7 @@ import com.zrlog.admin.business.rest.base.*;
 import com.zrlog.admin.business.rest.response.AIResponseEntry;
 import com.zrlog.admin.business.rest.response.ArticleAIMessageExportResponse;
 import com.zrlog.admin.business.security.SecurityStore;
-import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.business.service.WebsiteKvService;
-import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.model.WebSite;
 
 import jakarta.inject.Inject;
@@ -62,16 +60,15 @@ public class AIConversationService {
         this.conversationUserId = userId;
     }
 
-    /** Capture on the request thread before dispatching asynchronous AI work. */
-    public AIConversationService captureAccount() {
-        return new AIConversationService(
-                conversationUserId(), store, websiteKvService, websites, files, approvals);
+    /** Bind trusted ownership explicitly before reading, writing or dispatching work. */
+    public AIConversationService captureAccount(int userId) {
+        if (userId <= 0) throw new PermissionErrorException();
+        return new AIConversationService(userId, store, websiteKvService, websites, files, approvals);
     }
 
     private Integer conversationUserId() {
-        if (conversationUserId != null) return conversationUserId;
-        AdminTokenVO token = AdminTokenThreadLocal.getUser();
-        return token == null ? null : token.getUserId();
+        if (conversationUserId == null) throw new PermissionErrorException();
+        return conversationUserId;
     }
 
     private String conversationKey(Long articleId) {
@@ -153,7 +150,7 @@ public class AIConversationService {
             // A draft checkpoint may still reference files moved into a saved article.
             Set<String> retained = referencedFileIds();
             files.removeIf(file -> retained.contains(file.id));
-            this.files.remove(files);
+            this.files.remove(conversationUserId(), files);
             return true;
         } catch (SQLException | java.io.IOException | AIApprovalStore.Changed e) { return false; }
     }

@@ -27,7 +27,7 @@ public class PluginTokenAuthenticationTest {
                         () -> null,
                         tokens,
                         () -> null,
-                        AccountServicesFixture.component(null).permissions()) {
+                        AccountServicesFixture.component(null).requestIdentity()) {
                     @Override
                     protected Method getMethod(HttpRequest request) {
                         return null;

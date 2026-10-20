@@ -157,15 +157,13 @@ public class AdminDashboardServiceTest {
                                     throw new IllegalStateException(
                                             "Database is unavailable in this test");
                                 }),
-                        new ArticleQueryService(
-                                new InMemoryZrLogDatabase.TestCacheService(),
+                        new ArticleQueryService(new InMemoryZrLogDatabase.TestCacheService(),
                                 ApplicationServicesFixture.capability(
                                         applicationConfig, ArticleAssistant.class),
                                 new AdminPageDataFactory(
                                         ApplicationServicesFixture.site(applicationConfig),
                                         () -> "test",
-                                        ApplicationServicesFixture.messages(null),
-                                        AccountServicesFixture.component(null).permissions()),
+                                        ApplicationServicesFixture.messages(null)),
                                 AccountServicesFixture.component(null).permissions(),
                                 AccountServicesFixture.component(null).preferences(),
                                 () -> {
@@ -173,7 +171,8 @@ public class AdminDashboardServiceTest {
                                             "Database is unavailable in this test");
                                 }),
                         () -> applicationConfig.getPlugin(PluginCorePlugin.class),
-                        AccountServicesFixture.component(null).preferences());
+                        AccountServicesFixture.component(null).preferences(),
+                        AccountServicesFixture.component(null).identities());
         AdminDashboardCardRequest request = new AdminDashboardCardRequest();
         request.setKind("plugin");
         request.setId("reminder");
@@ -228,15 +227,13 @@ public class AdminDashboardServiceTest {
                                     throw new IllegalStateException(
                                             "Database is unavailable in this test");
                                 }),
-                        new ArticleQueryService(
-                                new InMemoryZrLogDatabase.TestCacheService(),
+                        new ArticleQueryService(new InMemoryZrLogDatabase.TestCacheService(),
                                 ApplicationServicesFixture.capability(
                                         applicationConfig, ArticleAssistant.class),
                                 new AdminPageDataFactory(
                                         ApplicationServicesFixture.site(applicationConfig),
                                         () -> "test",
-                                        ApplicationServicesFixture.messages(null),
-                                        AccountServicesFixture.component(null).permissions()),
+                                        ApplicationServicesFixture.messages(null)),
                                 AccountServicesFixture.component(null).permissions(),
                                 AccountServicesFixture.component(null).preferences(),
                                 () -> {
@@ -244,7 +241,8 @@ public class AdminDashboardServiceTest {
                                             "Database is unavailable in this test");
                                 }),
                         () -> applicationConfig.getPlugin(PluginCorePlugin.class),
-                        AccountServicesFixture.component(null).preferences());
+                        AccountServicesFixture.component(null).preferences(),
+                        AccountServicesFixture.component(null).identities());
         AdminDashboardConfigResponse target = new AdminDashboardConfigResponse();
         AdminDashboardConfigResponse source = new AdminDashboardConfigResponse();
         source.setAutoRefreshEnabled(true);
@@ -284,15 +282,13 @@ public class AdminDashboardServiceTest {
                                     throw new IllegalStateException(
                                             "Database is unavailable in this test");
                                 }),
-                        new ArticleQueryService(
-                                new InMemoryZrLogDatabase.TestCacheService(),
+                        new ArticleQueryService(new InMemoryZrLogDatabase.TestCacheService(),
                                 ApplicationServicesFixture.capability(
                                         applicationConfig, ArticleAssistant.class),
                                 new AdminPageDataFactory(
                                         ApplicationServicesFixture.site(applicationConfig),
                                         () -> "test",
-                                        ApplicationServicesFixture.messages(null),
-                                        AccountServicesFixture.component(null).permissions()),
+                                        ApplicationServicesFixture.messages(null)),
                                 AccountServicesFixture.component(null).permissions(),
                                 AccountServicesFixture.component(null).preferences(),
                                 () -> {
@@ -300,7 +296,8 @@ public class AdminDashboardServiceTest {
                                             "Database is unavailable in this test");
                                 }),
                         () -> applicationConfig.getPlugin(PluginCorePlugin.class),
-                        AccountServicesFixture.component(null).preferences());
+                        AccountServicesFixture.component(null).preferences(),
+                        AccountServicesFixture.component(null).identities());
         AdminDashboardCardConfigResponse welcome = cardConfig("welcome", false, 90);
         AdminDashboardCardConfigResponse localDraft = cardConfig("localDraft", false, 5);
         AdminDashboardCardConfigResponse unknown = cardConfig("unknown", false, 1);
@@ -339,15 +336,13 @@ public class AdminDashboardServiceTest {
                                     throw new IllegalStateException(
                                             "Database is unavailable in this test");
                                 }),
-                        new ArticleQueryService(
-                                new InMemoryZrLogDatabase.TestCacheService(),
+                        new ArticleQueryService(new InMemoryZrLogDatabase.TestCacheService(),
                                 ApplicationServicesFixture.capability(
                                         applicationConfig, ArticleAssistant.class),
                                 new AdminPageDataFactory(
                                         ApplicationServicesFixture.site(applicationConfig),
                                         () -> "test",
-                                        ApplicationServicesFixture.messages(null),
-                                        AccountServicesFixture.component(null).permissions()),
+                                        ApplicationServicesFixture.messages(null)),
                                 AccountServicesFixture.component(null).permissions(),
                                 AccountServicesFixture.component(null).preferences(),
                                 () -> {
@@ -355,7 +350,8 @@ public class AdminDashboardServiceTest {
                                             "Database is unavailable in this test");
                                 }),
                         () -> applicationConfig.getPlugin(PluginCorePlugin.class),
-                        AccountServicesFixture.component(null).preferences());
+                        AccountServicesFixture.component(null).preferences(),
+                        AccountServicesFixture.component(null).identities());
         AdminDashboardCardResponse standard = panel("reminder", "surface", 20);
         standard.setTitle("Reminder");
         standard.setSurfaceUrl("/admin/plugins/reminder/surface");
@@ -405,15 +401,13 @@ public class AdminDashboardServiceTest {
                                     throw new IllegalStateException(
                                             "Database is unavailable in this test");
                                 }),
-                        new ArticleQueryService(
-                                new InMemoryZrLogDatabase.TestCacheService(),
+                        new ArticleQueryService(new InMemoryZrLogDatabase.TestCacheService(),
                                 ApplicationServicesFixture.capability(
                                         applicationConfig, ArticleAssistant.class),
                                 new AdminPageDataFactory(
                                         ApplicationServicesFixture.site(applicationConfig),
                                         () -> "test",
-                                        ApplicationServicesFixture.messages(null),
-                                        AccountServicesFixture.component(null).permissions()),
+                                        ApplicationServicesFixture.messages(null)),
                                 AccountServicesFixture.component(null).permissions(),
                                 AccountServicesFixture.component(null).preferences(),
                                 () -> {
@@ -421,7 +415,8 @@ public class AdminDashboardServiceTest {
                                             "Database is unavailable in this test");
                                 }),
                         () -> applicationConfig.getPlugin(PluginCorePlugin.class),
-                        AccountServicesFixture.component(null).preferences());
+                        AccountServicesFixture.component(null).preferences(),
+                        AccountServicesFixture.component(null).identities());
         AdminDashboardCardResponse cardItem = new AdminDashboardCardResponse();
         cardItem.setKind("card");
         cardItem.setId("welcome");
@@ -498,15 +493,13 @@ public class AdminDashboardServiceTest {
                                     throw new IllegalStateException(
                                             "Database is unavailable in this test");
                                 }),
-                        new ArticleQueryService(
-                                new InMemoryZrLogDatabase.TestCacheService(),
+                        new ArticleQueryService(new InMemoryZrLogDatabase.TestCacheService(),
                                 ApplicationServicesFixture.capability(
                                         applicationConfig, ArticleAssistant.class),
                                 new AdminPageDataFactory(
                                         ApplicationServicesFixture.site(applicationConfig),
                                         () -> "test",
-                                        ApplicationServicesFixture.messages(null),
-                                        AccountServicesFixture.component(null).permissions()),
+                                        ApplicationServicesFixture.messages(null)),
                                 AccountServicesFixture.component(null).permissions(),
                                 AccountServicesFixture.component(null).preferences(),
                                 () -> {
@@ -514,7 +507,8 @@ public class AdminDashboardServiceTest {
                                             "Database is unavailable in this test");
                                 }),
                         () -> applicationConfig.getPlugin(PluginCorePlugin.class),
-                        AccountServicesFixture.component(null).preferences());
+                        AccountServicesFixture.component(null).preferences(),
+                        AccountServicesFixture.component(null).identities());
 
         assertTrue(service.hasEntry(List.of("/surface", "other"), "surface"));
         assertTrue(service.hasEntry(List.of("surfaceAction?scope=dashboard"), "surfaceAction"));
@@ -553,21 +547,19 @@ public class AdminDashboardServiceTest {
                                     ApplicationServicesFixture.audit(db.dataSource()),
                                     () -> new Log(db.dataSource()),
                                     () -> new Comment(db.dataSource())),
-                            new ArticleQueryService(
-                                    db.unitCacheService(),
-                                    ApplicationServicesFixture.capability(
+                            new ArticleQueryService(db.unitCacheService(),
+                                ApplicationServicesFixture.capability(
                                             db.config(), ArticleAssistant.class),
-                                    new AdminPageDataFactory(
+                                new AdminPageDataFactory(
                                             ApplicationServicesFixture.site(db.config()),
                                             ApplicationServicesFixture.buildId(db.resources()),
-                                            ApplicationServicesFixture.messages(db.dataSource()),
-                                            AccountServicesFixture.component(db.dataSource())
-                                                    .permissions()),
-                                    AccountServicesFixture.component(db.dataSource()).permissions(),
-                                    AccountServicesFixture.component(db.dataSource()).preferences(),
-                                    () -> new Log(db.dataSource())),
+                                            ApplicationServicesFixture.messages(db.dataSource())),
+                                AccountServicesFixture.component(db.dataSource()).permissions(),
+                                AccountServicesFixture.component(db.dataSource()).preferences(),
+                                () -> new Log(db.dataSource())),
                             () -> db.config().getPlugin(PluginCorePlugin.class),
-                            AccountServicesFixture.component(db.dataSource()).preferences());
+                            AccountServicesFixture.component(db.dataSource()).preferences(),
+                        AccountServicesFixture.component(db.dataSource()).identities());
             AdminDashboardConfigRequest request = new AdminDashboardConfigRequest();
             request.setAutoRefreshEnabled(true);
             request.setAutoRefreshIntervalSeconds(20);
@@ -616,26 +608,23 @@ public class AdminDashboardServiceTest {
                                             ApplicationServicesFixture.audit(db.dataSource()),
                                             () -> new Log(db.dataSource()),
                                             () -> new Comment(db.dataSource())),
-                                    new ArticleQueryService(
-                                            db.unitCacheService(),
-                                            ApplicationServicesFixture.capability(
+                                    new ArticleQueryService(db.unitCacheService(),
+                                ApplicationServicesFixture.capability(
                                                     db.config(), ArticleAssistant.class),
-                                            new AdminPageDataFactory(
+                                new AdminPageDataFactory(
                                                     ApplicationServicesFixture.site(db.config()),
                                                     ApplicationServicesFixture.buildId(
                                                             db.resources()),
                                                     ApplicationServicesFixture.messages(
-                                                            db.dataSource()),
-                                                    AccountServicesFixture.component(
-                                                                    db.dataSource())
-                                                            .permissions()),
-                                            AccountServicesFixture.component(db.dataSource())
+                                                            db.dataSource())),
+                                AccountServicesFixture.component(db.dataSource())
                                                     .permissions(),
-                                            AccountServicesFixture.component(db.dataSource())
+                                AccountServicesFixture.component(db.dataSource())
                                                     .preferences(),
-                                            () -> new Log(db.dataSource())),
+                                () -> new Log(db.dataSource())),
                                     () -> db.config().getPlugin(PluginCorePlugin.class),
-                                    AccountServicesFixture.component(db.dataSource()).preferences())
+                                    AccountServicesFixture.component(db.dataSource()).preferences(),
+                        AccountServicesFixture.component(db.dataSource()).identities())
                             .getConfig(null, token(), true);
             AdminDashboardCardResponse pluginItem = findDashboardItem(config.getCards(), "missing");
 
@@ -656,26 +645,23 @@ public class AdminDashboardServiceTest {
                                             ApplicationServicesFixture.audit(db.dataSource()),
                                             () -> new Log(db.dataSource()),
                                             () -> new Comment(db.dataSource())),
-                                    new ArticleQueryService(
-                                            db.unitCacheService(),
-                                            ApplicationServicesFixture.capability(
+                                    new ArticleQueryService(db.unitCacheService(),
+                                ApplicationServicesFixture.capability(
                                                     db.config(), ArticleAssistant.class),
-                                            new AdminPageDataFactory(
+                                new AdminPageDataFactory(
                                                     ApplicationServicesFixture.site(db.config()),
                                                     ApplicationServicesFixture.buildId(
                                                             db.resources()),
                                                     ApplicationServicesFixture.messages(
-                                                            db.dataSource()),
-                                                    AccountServicesFixture.component(
-                                                                    db.dataSource())
-                                                            .permissions()),
-                                            AccountServicesFixture.component(db.dataSource())
+                                                            db.dataSource())),
+                                AccountServicesFixture.component(db.dataSource())
                                                     .permissions(),
-                                            AccountServicesFixture.component(db.dataSource())
+                                AccountServicesFixture.component(db.dataSource())
                                                     .preferences(),
-                                            () -> new Log(db.dataSource())),
+                                () -> new Log(db.dataSource())),
                                     () -> db.config().getPlugin(PluginCorePlugin.class),
-                                    AccountServicesFixture.component(db.dataSource()).preferences())
+                                    AccountServicesFixture.component(db.dataSource()).preferences(),
+                        AccountServicesFixture.component(db.dataSource()).identities())
                             .getConfig(null, token());
 
             assertEquals(7, fallback.getCards().size());
@@ -696,21 +682,19 @@ public class AdminDashboardServiceTest {
                                     ApplicationServicesFixture.audit(db.dataSource()),
                                     () -> new Log(db.dataSource()),
                                     () -> new Comment(db.dataSource())),
-                            new ArticleQueryService(
-                                    db.unitCacheService(),
-                                    ApplicationServicesFixture.capability(
+                            new ArticleQueryService(db.unitCacheService(),
+                                ApplicationServicesFixture.capability(
                                             db.config(), ArticleAssistant.class),
-                                    new AdminPageDataFactory(
+                                new AdminPageDataFactory(
                                             ApplicationServicesFixture.site(db.config()),
                                             ApplicationServicesFixture.buildId(db.resources()),
-                                            ApplicationServicesFixture.messages(db.dataSource()),
-                                            AccountServicesFixture.component(db.dataSource())
-                                                    .permissions()),
-                                    AccountServicesFixture.component(db.dataSource()).permissions(),
-                                    AccountServicesFixture.component(db.dataSource()).preferences(),
-                                    () -> new Log(db.dataSource())),
+                                            ApplicationServicesFixture.messages(db.dataSource())),
+                                AccountServicesFixture.component(db.dataSource()).permissions(),
+                                AccountServicesFixture.component(db.dataSource()).preferences(),
+                                () -> new Log(db.dataSource())),
                             () -> db.config().getPlugin(PluginCorePlugin.class),
-                            AccountServicesFixture.component(db.dataSource()).preferences());
+                            AccountServicesFixture.component(db.dataSource()).preferences(),
+                        AccountServicesFixture.component(db.dataSource()).identities());
 
             assertNull(service.getFirstUseChecklist());
 
@@ -751,29 +735,27 @@ public class AdminDashboardServiceTest {
                                                 ApplicationServicesFixture.audit(db.dataSource()),
                                                 () -> new Log(db.dataSource()),
                                                 () -> new Comment(db.dataSource())),
-                                        new ArticleQueryService(
-                                                db.unitCacheService(),
-                                                ApplicationServicesFixture.capability(
+                                        new ArticleQueryService(db.unitCacheService(),
+                                ApplicationServicesFixture.capability(
                                                         db.config(), ArticleAssistant.class),
-                                                new AdminPageDataFactory(
+                                new AdminPageDataFactory(
                                                         ApplicationServicesFixture.site(
                                                                 db.config()),
                                                         ApplicationServicesFixture.buildId(
                                                                 db.resources()),
                                                         ApplicationServicesFixture.messages(
-                                                                db.dataSource()),
-                                                        AccountServicesFixture.component(
-                                                                        db.dataSource())
-                                                                .permissions()),
-                                                AccountServicesFixture.component(db.dataSource())
+                                                                db.dataSource())),
+                                AccountServicesFixture.component(db.dataSource())
                                                         .permissions(),
-                                                AccountServicesFixture.component(db.dataSource())
+                                AccountServicesFixture.component(db.dataSource())
                                                         .preferences(),
-                                                () -> new Log(db.dataSource())),
+                                () -> new Log(db.dataSource())),
                                         50,
                                         () -> db.config().getPlugin(PluginCorePlugin.class),
                                         AccountServicesFixture.component(db.dataSource())
-                                                .preferences())
+                                                .preferences(),
+                        AccountServicesFixture.component(db.dataSource())
+                                                .identities())
                                 .getConfig(null, token(), true);
                 long elapsedMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
                 AdminDashboardCardResponse pluginItem = findDashboardItem(config.getCards(), "reminder");

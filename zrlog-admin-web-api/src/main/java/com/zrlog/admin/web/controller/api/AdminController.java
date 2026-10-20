@@ -1,5 +1,7 @@
 package com.zrlog.admin.web.controller.api;
 
+import com.zrlog.admin.web.security.AdminRequestIdentity;
+import com.zrlog.admin.web.audit.AdminAuditContexts;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.RequestMethod;
 import com.hibegin.http.annotation.ResponseBody;
@@ -25,6 +27,8 @@ import java.sql.SQLException;
 import java.util.*;
 
 public class AdminController extends BaseController {
+    private final AdminRequestIdentity requestIdentity;
+
     private final AdminAuditService adminAuditService;
 
     private final AdminPageDataFactory pages;
@@ -36,7 +40,9 @@ public class AdminController extends BaseController {
     public AdminController(
             AdminDashboardService dashboardService,
             AdminPageDataFactory pages,
-            AdminAuditService adminAuditService) {
+            AdminAuditService adminAuditService,
+            AdminRequestIdentity requestIdentity) {
+        this.requestIdentity = requestIdentity;
         this.adminAuditService = adminAuditService;
 
         this.pages = pages;
@@ -50,27 +56,27 @@ public class AdminController extends BaseController {
     @RefreshCache(updateStaticSites = {StaticSiteType.ADMIN, StaticSiteType.BLOG})
     @RequiresAction(value = AccountAction.SYSTEM_MANAGE, descriptionKey = "system.refreshCache")
     public UpdateRecordResponse refreshCache() {
-        this.adminAuditService.record(request, AdminAuditAction.REFRESH_CACHE);
+        this.adminAuditService.record(AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()), AdminAuditAction.REFRESH_CACHE);
         return new UpdateRecordResponse();
     }
 
     @ResponseBody
     @RequiresAction(value = AccountAction.SESSION, descriptionKey = "admin.error")
     public AdminPageDataResponse<ErrorPageResponse> error() {
-        return pages.response(new ErrorPageResponse(request.getParaToStr("message", "")), "", request.getUri());
+        return pages.response(requestIdentity.optional(), new ErrorPageResponse(request.getParaToStr("message", "")), "", request.getUri());
     }
 
     @ResponseBody
     @RequiresAction(value = AccountAction.PLUGIN_MANAGE, descriptionKey = "plugin.list")
     public AdminPageDataResponse<PluginInfoResponse> plugin() {
         String page = getRequest().getParaToStr("page", "");
-        return pages.response(new PluginInfoResponse("admin/plugins/" + page), "", request.getUri());
+        return pages.response(requestIdentity.optional(), new PluginInfoResponse("admin/plugins/" + page), "", request.getUri());
     }
 
     @ResponseBody
     @RequiresAction(value = AccountAction.DASHBOARD_READ, descriptionKey = "dashboard.read")
     public AdminPageDataResponse<IndexResponse> index() throws SQLException {
-        return pages.response(dashboardService.loadIndex(request, AdminTokenThreadLocal.getUser()),
+        return pages.response(requestIdentity.optional(), dashboardService.loadIndex(request, AdminTokenThreadLocal.getUser()),
                 "", request.getUri());
     }
 
@@ -85,7 +91,7 @@ public class AdminController extends BaseController {
                             getRequestBodyWithNullCheck(AdminDashboardConfigRequest.class),
                             request,
                             AdminTokenThreadLocal.getUser());
-            this.adminAuditService.record(request, AdminAuditAction.UPDATE_DASHBOARD_CONFIG);
+            this.adminAuditService.record(AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()), AdminAuditAction.UPDATE_DASHBOARD_CONFIG);
             message = I18nUtil.getAdminBackendStringFromRes("admin.common.update.success");
         } else {
             config = dashboardService.getConfig(request, AdminTokenThreadLocal.getUser());

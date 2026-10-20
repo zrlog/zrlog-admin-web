@@ -1,5 +1,8 @@
 package com.zrlog.admin.web.controller.api;
 
+import com.zrlog.admin.web.security.AdminRequestIdentity;
+import com.zrlog.admin.web.token.AdminTokenThreadLocal;
+import com.zrlog.admin.web.audit.AdminAuditContexts;
 import com.hibegin.common.util.EnvKit;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.RequestMethod;
@@ -24,6 +27,8 @@ import jakarta.inject.Inject;
 import java.util.List;
 
 public class AdminDevController extends Controller {
+    private final AdminRequestIdentity requestIdentity;
+
     private final AdminAuditService adminAuditService;
     private final WebsiteCacheService websiteCacheService;
     private final DistributedLockManager lockManager;
@@ -33,7 +38,9 @@ public class AdminDevController extends Controller {
             AdminPageDataFactory pages,
             AdminAuditService adminAuditService,
             WebsiteCacheService websiteCacheService,
-            DistributedLockManager lockManager) {
+            DistributedLockManager lockManager,
+            AdminRequestIdentity requestIdentity) {
+        this.requestIdentity = requestIdentity;
         this.adminAuditService = adminAuditService;
         this.websiteCacheService = websiteCacheService;
         this.lockManager = lockManager;
@@ -49,7 +56,7 @@ public class AdminDevController extends Controller {
     @RequiresAction(value = AccountAction.SYSTEM_MANAGE, descriptionKey = "system.development")
     public AdminPageDataResponse<Boolean> ui() {
         // A ready marker for page hydration; component fixtures live entirely in the browser.
-        return pages.response(Boolean.TRUE, "", "/admin/dev/ui");
+        return pages.response(requestIdentity.optional(), Boolean.TRUE, "", "/admin/dev/ui");
     }
 
     @ResponseBody
@@ -60,8 +67,7 @@ public class AdminDevController extends Controller {
         for (LockVO lockDTO : lockDTOS) {
             lockManager.releaseLock(lockDTO.getName());
         }
-        this.adminAuditService.record(
-                request, AdminAuditAction.RELEASE_DEV_LOCKS, String.valueOf(lockDTOS.size()));
+        this.adminAuditService.record(AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()), AdminAuditAction.RELEASE_DEV_LOCKS, String.valueOf(lockDTOS.size()));
         return new UpdateRecordResponse(true);
     }
 
@@ -73,14 +79,14 @@ public class AdminDevController extends Controller {
         devInfoResponse.setLocks(lockManager.getLocks());
         devInfoResponse.setCacheEntries(this.websiteCacheService.listEntries());
         devInfoResponse.setDevMode(EnvKit.isDevMode());
-        return pages.response(devInfoResponse, "", getRequest().getUri());
+        return pages.response(requestIdentity.optional(), devInfoResponse, "", getRequest().getUri());
     }
 
     @ResponseBody
     @RequiresAction(value = AccountAction.SYSTEM_MANAGE, descriptionKey = "system.enableDevelopment")
     public ApiStandardResponse<Void> enable() {
         setDevMode(true);
-        this.adminAuditService.record(request, AdminAuditAction.ENABLE_DEV_MODE);
+        this.adminAuditService.record(AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()), AdminAuditAction.ENABLE_DEV_MODE);
         return new ApiStandardResponse<>();
     }
 
@@ -89,8 +95,7 @@ public class AdminDevController extends Controller {
     public ApiStandardResponse<Boolean> mode() {
         boolean enabled = request.getParaToBool("enabled", false);
         setDevMode(enabled);
-        this.adminAuditService.record(
-                request,
+        this.adminAuditService.record(AdminAuditContexts.from(request, AdminTokenThreadLocal.getUserId()),
                 enabled ? AdminAuditAction.ENABLE_DEV_MODE : AdminAuditAction.DISABLE_DEV_MODE);
         return new ApiStandardResponse<>(EnvKit.isDevMode());
     }

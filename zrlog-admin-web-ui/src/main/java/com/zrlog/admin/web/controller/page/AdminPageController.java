@@ -5,8 +5,7 @@ import com.hibegin.http.server.web.Controller;
 import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
 import com.zrlog.admin.business.rest.response.ServerSideDataResponse;
-import com.zrlog.admin.business.service.AdminPageDataFactory;
-import com.zrlog.admin.business.service.AdminPageService;
+import com.zrlog.admin.web.page.AdminPageRequestHandler;
 import com.zrlog.admin.web.annotation.RequiresAction;
 import com.zrlog.common.Constants;
 import com.zrlog.common.TokenService;
@@ -19,18 +18,15 @@ import java.io.InputStream;
 import java.util.Objects;
 
 public class AdminPageController extends Controller {
-    private final AdminPageDataFactory pages;
 
 
-    private final AdminPageService adminPageService;
+    private final AdminPageRequestHandler adminPageService;
     private final TokenService tokenService;
 
     @Inject
     public AdminPageController(
-            AdminPageService adminPageService,
-            TokenService tokenService,
-            AdminPageDataFactory pages) {
-        this.pages = pages;
+            AdminPageRequestHandler adminPageService,
+            TokenService tokenService) {
         this.tokenService = tokenService;
         this.adminPageService = adminPageService;
     }
@@ -68,7 +64,7 @@ public class AdminPageController extends Controller {
     @ResponseBody
     @RequiresAction(value = AccountAction.SESSION, descriptionKey = "admin.pageData")
     public AdminPageDataResponse<ServerSideDataResponse<Object>> ssJson() throws Throwable {
-        return pages.response(adminPageService.serverSide(request.getParaToStr("uri"), request, response));
+        return adminPageService.response(request.getParaToStr("uri"), request, response);
     }
 
     @RequiresAction(value = AccountAction.SESSION, descriptionKey = "account.logout")

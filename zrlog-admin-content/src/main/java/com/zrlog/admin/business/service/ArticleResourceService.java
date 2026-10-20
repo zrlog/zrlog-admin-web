@@ -3,7 +3,7 @@ package com.zrlog.admin.business.service;
 import com.zrlog.admin.business.content.ArticleResourceReferences;
 import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.rest.response.ReplaceArticleResourceUrlResponse;
-import com.zrlog.common.vo.AdminTokenVO;
+import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.AccountAction;
 import com.zrlog.model.Log;
 
@@ -19,27 +19,28 @@ import java.util.Map;
 @Singleton
 public class ArticleResourceService {
     private final AdminArticleService articles;
-    private final AccountPermissionService permissions;
+    private final AccountIdentityService identities;
     private final Provider<Log> logs;
 
     @Inject
     public ArticleResourceService(
             AdminArticleService articles,
-            AccountPermissionService permissions,
+            AccountIdentityService identities,
             Provider<Log> logs) {
         this.articles = articles;
-        this.permissions = permissions;
+        this.identities = identities;
         this.logs = logs;
     }
 
     public ReplaceArticleResourceUrlResponse replaceReferences(
-            AdminTokenVO user,
+            AccountAccess actor,
             String from,
             String to,
             boolean prefix,
             ArticleResourceReferences references)
             throws SQLException {
-        if (!AccountAction.FILE_MANAGE.allowed(permissions.account(user)))
+        actor = identities.revalidate(actor);
+        if (!AccountAction.FILE_MANAGE.allowed(actor))
             throw new PermissionErrorException();
         List<Map<String, Object>> candidates =
                 logs.get()
@@ -52,7 +53,7 @@ public class ArticleResourceService {
             if (references.replace(candidate, from, to, prefix).isEmpty()) continue;
             int fields =
                     articles.replaceResourceReferences(
-                            user,
+                            actor,
                             ((Number) candidate.get("logId")).intValue(),
                             from,
                             to,

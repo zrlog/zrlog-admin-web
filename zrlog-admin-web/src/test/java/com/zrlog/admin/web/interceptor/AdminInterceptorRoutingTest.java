@@ -66,7 +66,7 @@ public class AdminInterceptorRoutingTest {
                         () -> applicationConfig.getTokenService(),
                         () -> applicationConfig.getPlugin(PluginCorePlugin.class),
                         ApplicationServicesFixture.installed(applicationConfig),
-                        AccountServicesFixture.component(null).permissions(),
+                        AccountServicesFixture.component(null).requestIdentity(),
                         ApplicationServicesFixture.audit(null));
 
         assertTrue(interceptor.isHandleAble(request("/admin/plugins")));
@@ -82,7 +82,7 @@ public class AdminInterceptorRoutingTest {
                         () -> ApplicationServicesFixture.dispatcher(null, applicationConfig),
                         ApplicationServicesFixture.installed(applicationConfig),
                         AccountServicesFixture.component(null).preferences(),
-                        AccountServicesFixture.component(null).permissions());
+                        AccountServicesFixture.component(null).routeAuthorizer(), AccountServicesFixture.component(null).requestIdentity());
 
         assertTrue(interceptor.isHandleAble(request("/admin")));
         assertTrue(interceptor.isHandleAble(request("/api/admin")));
@@ -100,7 +100,7 @@ public class AdminInterceptorRoutingTest {
                         new PluginTokenValidator(
                                 () -> applicationConfig.getPlugin(PluginCorePlugin.class)),
                         () -> ApplicationServicesFixture.dispatcher(null, applicationConfig),
-                        AccountServicesFixture.component(null).permissions());
+                        AccountServicesFixture.component(null).requestIdentity());
 
         assertTrue(loginInterceptor.isHandleAble(request(AdminConstants.ADMIN_LOGIN_URI_PATH)));
         assertTrue(loginInterceptor.isHandleAble(request("/admin/logout")));
@@ -116,7 +116,7 @@ public class AdminInterceptorRoutingTest {
                 new AdminTemporaryResourceInterceptor(
                                 () -> applicationConfig.getTokenService(),
                                 () -> false,
-                                AccountServicesFixture.component(null).permissions(),
+                                AccountServicesFixture.component(null).requestIdentity(),
                                 new DbFileService(
                                         ApplicationServicesFixture.websiteKv(null), () -> { throw new IllegalStateException("Database is unavailable in this test"); }))
                         .isHandleAble(
@@ -125,19 +125,19 @@ public class AdminInterceptorRoutingTest {
                 new AdminTemporaryResourceInterceptor(
                                 () -> applicationConfig.getTokenService(),
                                 () -> false,
-                                AccountServicesFixture.component(null).permissions(),
+                                AccountServicesFixture.component(null).requestIdentity(),
                                 new DbFileService(
                                         ApplicationServicesFixture.websiteKv(null), () -> { throw new IllegalStateException("Database is unavailable in this test"); }))
                         .isHandleAble(request("/attached/tmp/image.png")));
         assertTrue(
                 new AdminDevFileInterceptor(
                                 () -> applicationConfig.getTokenService(),
-                                AccountServicesFixture.component(null).permissions())
+                                AccountServicesFixture.component(null).requestIdentity())
                         .isHandleAble(request("/admin/dev/file/tmp/a.txt")));
         assertFalse(
                 new AdminDevFileInterceptor(
                                 () -> applicationConfig.getTokenService(),
-                                AccountServicesFixture.component(null).permissions())
+                                AccountServicesFixture.component(null).requestIdentity())
                         .isHandleAble(request("/admin/dev")));
 
         PwaInterceptor pwaInterceptor = new PwaInterceptor();
@@ -167,7 +167,7 @@ public class AdminInterceptorRoutingTest {
                                                         null, applicationConfig),
                                         ApplicationServicesFixture.installed(applicationConfig),
                                         AccountServicesFixture.component(null).preferences(),
-                                        AccountServicesFixture.component(null).permissions())
+                                        AccountServicesFixture.component(null).routeAuthorizer(), AccountServicesFixture.component(null).requestIdentity())
                                 .doInterceptor(
                                         adminRequest(HttpMethod.GET, "/admin/interceptor/plain"),
                                         response.response()));
@@ -192,7 +192,7 @@ public class AdminInterceptorRoutingTest {
                                                             null, applicationConfig),
                                             ApplicationServicesFixture.installed(applicationConfig),
                                             AccountServicesFixture.component(ignored.dataSource()).preferences(),
-                                            AccountServicesFixture.component(ignored.dataSource()).permissions())
+                                            AccountServicesFixture.component(ignored.dataSource()).routeAuthorizer(), AccountServicesFixture.component(ignored.dataSource()).requestIdentity())
                                     .doInterceptor(
                                             adminRequest(
                                                     HttpMethod.GET, "/admin/interceptor/plain"),
@@ -218,7 +218,7 @@ public class AdminInterceptorRoutingTest {
                                                             null, applicationConfig),
                                             ApplicationServicesFixture.installed(applicationConfig),
                                             AccountServicesFixture.component(ignored.dataSource()).preferences(),
-                                            AccountServicesFixture.component(ignored.dataSource()).permissions())
+                                            AccountServicesFixture.component(ignored.dataSource()).routeAuthorizer(), AccountServicesFixture.component(ignored.dataSource()).requestIdentity())
                                     .doInterceptor(
                                             adminRequest(
                                                     HttpMethod.POST, "/admin/interceptor/locked"),
@@ -244,7 +244,7 @@ public class AdminInterceptorRoutingTest {
                                                             null, applicationConfig),
                                             ApplicationServicesFixture.installed(applicationConfig),
                                             AccountServicesFixture.component(ignored.dataSource()).preferences(),
-                                            AccountServicesFixture.component(ignored.dataSource()).permissions())
+                                            AccountServicesFixture.component(ignored.dataSource()).routeAuthorizer(), AccountServicesFixture.component(ignored.dataSource()).requestIdentity())
                                     .doInterceptor(
                                             adminRequest(
                                                     HttpMethod.GET,

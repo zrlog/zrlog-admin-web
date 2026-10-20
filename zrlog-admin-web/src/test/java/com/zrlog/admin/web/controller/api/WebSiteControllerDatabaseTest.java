@@ -96,7 +96,7 @@ public class WebSiteControllerDatabaseTest {
             create.setTypeId(1L);
             create.setRubbish(true);
             create.setArrange_plugin("retro-runtime");
-            int id = articles.create(AdminTokenThreadLocal.getUser(), create).getLogId().intValue();
+            int id = articles.create(AccountServicesFixture.component(db.dataSource()).requestIdentity().account(AdminTokenThreadLocal.getUser()), create).getLogId().intValue();
             Map<String, Object> original = db.queryOne("select * from log where logId=?", id);
 
             for (boolean enabled : new boolean[]{true, false}) {
@@ -110,15 +110,15 @@ public class WebSiteControllerDatabaseTest {
                 assertEquals(
                         "retro-runtime",
                         content.queries()
-                                .loadDetail("layout-visibility", editorRequest)
+                                .loadDetail(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), "layout-visibility", editorRequest)
                                 .getArrange_plugin());
             }
 
             UpdateArticleRequest update =
-                    content.queries().loadDetail("layout-visibility", editorRequest);
+                    content.queries().loadDetail(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(), "layout-visibility", editorRequest);
             update.setArrange_plugin("another-arranger");
             update.setRubbish(false);
-            articles.update(AdminTokenThreadLocal.getUser(), update);
+            articles.update(AccountServicesFixture.component(db.dataSource()).requestIdentity().account(AdminTokenThreadLocal.getUser()), update);
             assertEquals("another-arranger", db.scalar("select arrange_plugin from log where logId=?", id));
             assertEquals(Boolean.FALSE, db.scalar("select rubbish from log where logId=?", id));
         }
@@ -140,17 +140,17 @@ public class WebSiteControllerDatabaseTest {
                     new OAuthService(
                             ApplicationServicesFixture.backend(db.config())::configured,
                             ApplicationServicesFixture.available(db.config(), McpWebSetup.class),
-                            AccountServicesFixture.component(db.dataSource()).permissions(),
+                            AccountServicesFixture.component(db.dataSource()).permissions(), AccountServicesFixture.component(db.dataSource()).identities(),
                             AccountServicesFixture.component(db.dataSource()).security(),
                             tokenResource ->
                                     new PersonalAccessTokenService(
                                             tokenResource,
-                                            AccountServicesFixture.component(db.dataSource()).permissions(),
+                                            AccountServicesFixture.component(db.dataSource()).identities(), AccountServicesFixture.component(db.dataSource()).permissions(),
                                             AccountServicesFixture.component(db.dataSource()).security()),
                             AccountServicesFixture.component(db.dataSource()).backend());
             assertEquals(address, oauth.metadata().issuer);
             assertEquals(address + "/mcp", oauth.mcpResourceMetadata().resource);
-            assertEquals(address + "/api/webhook/message-center/notice", oauth.page().notificationEndpoint);
+            assertEquals(address + "/api/webhook/message-center/notice", oauth.page(AccountServicesFixture.component(db.dataSource()).requestIdentity().current()).notificationEndpoint);
             String publicInfo = new com.google.gson.Gson().toJson(new WebSite(db.dataSource()).getPublicWebSite());
             assertFalse(publicInfo.contains("backend_server_url"));
             assertFalse(publicInfo.contains("gateway.example"));
@@ -164,12 +164,13 @@ public class WebSiteControllerDatabaseTest {
                                     ApplicationServicesFixture.backend(db.config())::configured,
                                     ApplicationServicesFixture.available(
                                             db.config(), McpWebSetup.class),
-                                    AccountServicesFixture.component(db.dataSource()).permissions(),
+                                    AccountServicesFixture.component(db.dataSource()).permissions(), AccountServicesFixture.component(db.dataSource()).identities(),
                                     AccountServicesFixture.component(db.dataSource()).security(),
                                     tokenResource ->
                                             new PersonalAccessTokenService(
                                                     tokenResource,
                                                     AccountServicesFixture.component(db.dataSource())
+                                                            .identities(), AccountServicesFixture.component(db.dataSource())
                                                             .permissions(),
                                                     AccountServicesFixture.component(db.dataSource()).security()),
                                     AccountServicesFixture.component(db.dataSource()).backend())
@@ -220,9 +221,7 @@ public class WebSiteControllerDatabaseTest {
             assertThrows(
                     PermissionErrorException.class,
                     () ->
-                            AccountServicesFixture.component(db.dataSource())
-                                    .permissions()
-                                    .checkRoute(
+                            AccountServicesFixture.component(db.dataSource()).routeAuthorizer().checkRoute(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(),
                                             method,
                                             request(
                                                     HttpMethod.GET,
@@ -232,9 +231,7 @@ public class WebSiteControllerDatabaseTest {
             assertThrows(
                     PermissionErrorException.class,
                     () ->
-                            AccountServicesFixture.component(db.dataSource())
-                                    .permissions()
-                                    .checkRoute(
+                            AccountServicesFixture.component(db.dataSource()).routeAuthorizer().checkRoute(AccountServicesFixture.component(db.dataSource()).requestIdentity().current(),
                                             method,
                                             request(
                                                     HttpMethod.GET,
@@ -528,10 +525,10 @@ public class WebSiteControllerDatabaseTest {
                         new AdminPageDataFactory(
                                 ApplicationServicesFixture.site(applicationConfig),
                                 () -> "test",
-                                ApplicationServicesFixture.messages(testDataSource),
-                                AccountServicesFixture.component(testDataSource).permissions()),
+                                ApplicationServicesFixture.messages(testDataSource)),
                         AIServiceDependencies.config(testDataSource),
-                        AIServiceDependencies.tools(testDataSource));
+                        AIServiceDependencies.tools(testDataSource),
+                        AccountServicesFixture.component(testDataSource).requestIdentity());
         setControllerField(controller, "request", request(method, uri, body));
         setControllerField(controller, "response", response());
         return controller;
@@ -598,8 +595,7 @@ public class WebSiteControllerDatabaseTest {
                             ApplicationServicesFixture.audit((DataSourceWrapper) config.getDataSource()),
                             ApplicationServicesFixture.websiteKv((DataSourceWrapper) config.getDataSource()),
                             () -> new WebSite((DataSourceWrapper) config.getDataSource())),
-                    new UpgradeSettingsService(
-                            new WebSiteSettingsService(
+                    new UpgradeSettingsService(new WebSiteSettingsService(
                                     new InMemoryZrLogDatabase.TestCacheService(),
                                     config == null ? null : config.getTokenService(),
                                     () ->
@@ -610,11 +606,12 @@ public class WebSiteControllerDatabaseTest {
                                     ApplicationServicesFixture.audit((DataSourceWrapper) config.getDataSource()),
                                     ApplicationServicesFixture.websiteKv((DataSourceWrapper) config.getDataSource()),
                                     () -> new WebSite((DataSourceWrapper) config.getDataSource())),
-                            () ->
+                        () ->
                                     UpdaterHosts.dockerControl(
                                             config == null ? null : config.getUpdater()),
-                            AccountServicesFixture.component((DataSourceWrapper) config.getDataSource()).permissions(),
-                            ApplicationServicesFixture.settings((DataSourceWrapper) config.getDataSource())),
+                        AccountServicesFixture.component((DataSourceWrapper) config.getDataSource()).permissions(),
+                        AccountServicesFixture.component((DataSourceWrapper) config.getDataSource()).identities(),
+                        ApplicationServicesFixture.settings((DataSourceWrapper) config.getDataSource())),
                     new FeatureLabService(
                             () -> true,
                             new WebhookService(
@@ -624,9 +621,9 @@ public class WebSiteControllerDatabaseTest {
                     new AdminPageDataFactory(
                             ApplicationServicesFixture.site(config),
                             () -> "test",
-                            ApplicationServicesFixture.messages((DataSourceWrapper) config.getDataSource()),
-                            AccountServicesFixture.component((DataSourceWrapper) config.getDataSource()).permissions()),
-                    ApplicationServicesFixture.settings((DataSourceWrapper) config.getDataSource()));
+                            ApplicationServicesFixture.messages((DataSourceWrapper) config.getDataSource())),
+                    ApplicationServicesFixture.settings((DataSourceWrapper) config.getDataSource()),
+                    AccountServicesFixture.component((DataSourceWrapper) config.getDataSource()).requestIdentity());
         }
 
 

@@ -5,9 +5,9 @@ import com.hibegin.http.annotation.RequestMethod;
 import com.hibegin.http.annotation.ResponseBody;
 import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
 import com.zrlog.admin.business.security.AccessModels;
-import com.zrlog.admin.business.service.AccountPermissionService;
 import com.zrlog.admin.business.service.AdminPageDataFactory;
 import com.zrlog.admin.web.annotation.RequiresAction;
+import com.zrlog.admin.web.security.AdminRequestIdentity;
 import com.zrlog.common.controller.BaseController;
 import com.zrlog.data.security.AccountAction;
 
@@ -16,12 +16,12 @@ import jakarta.inject.Inject;
 import java.util.*;
 
 public class AccessController extends BaseController {
-    private final AccountPermissionService permissionService;
+    private final AdminRequestIdentity requestIdentity;
 
     @Inject
     public AccessController(
-            AdminPageDataFactory pages, AccountPermissionService permissionService) {
-        this.permissionService = permissionService;
+            AdminPageDataFactory pages, AdminRequestIdentity requestIdentity) {
+        this.requestIdentity = requestIdentity;
 
         this.pages = pages;
     }
@@ -31,8 +31,9 @@ public class AccessController extends BaseController {
     @ResponseBody @RequestMethod(method = HttpMethod.GET)
     @RequiresAction(value = AccountAction.PERMISSION_READ, descriptionKey = "permission.inspect")
     public AdminPageDataResponse<AccessModels.Page> index() {
+        var actor = requestIdentity.current();
         AccessModels.Page page = new AccessModels.Page();
-        page.currentRole = permissionService.current().getRole();
+        page.currentRole = actor.getRole();
         page.roles = List.of("owner", "admin", "editor", "author", "contributor");
         page.actions = new ArrayList<>();
         for (AccountAction action : AccountAction.values()) {
@@ -53,6 +54,6 @@ public class AccessController extends BaseController {
             item.routeDetails.sort(Comparator.comparing(route -> route.path));
             page.actions.add(item);
         }
-        return pages.response(page, "", request.getUri());
+        return new AdminPageDataResponse<>(page, "", pages.metadata(actor, request.getUri()));
     }
 }

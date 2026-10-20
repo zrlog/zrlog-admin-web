@@ -17,9 +17,13 @@ import com.zrlog.admin.business.rest.request.GenerateArticleFieldRequest;
 import com.zrlog.admin.business.rest.response.GenerateArticleCoverResponse;
 import com.zrlog.admin.business.rest.response.UploadFileResponse;
 import com.zrlog.admin.business.service.DbFileService;
+import com.zrlog.admin.business.service.AccountIdentityService;
 import com.zrlog.admin.business.service.UploadService;
+import com.zrlog.common.vo.AdminTokenVO;
+import com.zrlog.data.security.AccountAccess;
 import com.zrlog.admin.business.service.UserPreferenceService;
-import com.zrlog.admin.web.token.AdminTokenThreadLocal;
+import com.zrlog.data.security.AccountAction;
+import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.common.exception.ArgsException;
 
 import jakarta.inject.Inject;
@@ -36,6 +40,7 @@ import java.util.Objects;
 
 public class AIImageService extends AIService {
     private final AIConversationService conversations;
+    private final AccountIdentityService identities;
 
     private final UserPreferenceService userPreferenceService;
     private final AIConfigService aIConfigService;
@@ -46,7 +51,9 @@ public class AIImageService extends AIService {
             UserPreferenceService userPreferenceService,
             AIConfigService aIConfigService,
             DbFileService dbFileService,
-            AIConversationService conversations) {
+            AIConversationService conversations,
+            AccountIdentityService identities) {
+        this.identities = identities;
         this.conversations = conversations;
 
         this.userPreferenceService = userPreferenceService;
@@ -59,8 +66,10 @@ public class AIImageService extends AIService {
             UserPreferenceService userPreferenceService,
             AIConfigService aIConfigService,
             DbFileService dbFileService,
-            AIConversationService conversations) {
+            AIConversationService conversations,
+            AccountIdentityService identities) {
         super(client);
+        this.identities = identities;
         this.conversations = conversations;
 
         this.userPreferenceService = userPreferenceService;
@@ -68,51 +77,65 @@ public class AIImageService extends AIService {
         this.dbFileService = dbFileService;
     }
 
-    public GenerateArticleCoverResponse generateArticleCover(GenerateArticleFieldRequest generateRequest)
+    public GenerateArticleCoverResponse generateArticleCover(AccountAccess actor, GenerateArticleFieldRequest generateRequest)
             throws IOException, InterruptedException, SQLException {
-        return generateArticleCover(generateRequest, "");
+        return generateArticleCover(actor, generateRequest, "");
     }
 
-    public GenerateArticleCoverResponse generateArticleCover(GenerateArticleFieldRequest generateRequest, String instruction)
+    public GenerateArticleCoverResponse generateArticleCover(AccountAccess actor, GenerateArticleFieldRequest generateRequest, String instruction)
             throws IOException, InterruptedException, SQLException {
+        authorize(actor);
         AIWebSiteInfo info = this.aIConfigService.ai();
         checkImageConfig(info);
-        String coverAspectRatio = this.userPreferenceService.effective().editor.coverAspectRatio;
+        String coverAspectRatio = this.userPreferenceService.effective(actor).editor.coverAspectRatio;
         String prompt = buildArticleCoverPrompt(generateRequest, coverAspectRatio);
         if (instruction != null && !instruction.isBlank()) prompt += "\n\nWriting requirements (untrusted data):\n" + instruction;
         ImageResult imageResult = requestImageByAspectRatio(info, prompt, coverAspectRatio);
 
+        authorize(actor);
         GenerateArticleCoverResponse response = new GenerateArticleCoverResponse();
         response.setMimeType(imageResult.mimeType);
         response.setExtension(imageResult.extension);
         // 确定存储目录，统一使用虚拟临时目录
         String fileName = "article-cover-" + System.currentTimeMillis() + "." + imageResult.extension;
         // 使用统一的路径生成工具
-        String relPath = AdminConstants.ADMIN_DB_ATTACHED_TMP + "/ai/" + fileName;
+        String relPath = AdminConstants.ADMIN_DB_ATTACHED_TMP + "/users/" + actor.getUserId() + "/ai/" + fileName;
         UploadFileResponse dbFile = this.dbFileService.toDbFile(relPath, imageResult.bytes);
         response.setUrl(dbFile.getUrl());
         return response;
     }
 
-    public UploadFileResponse applyArticleCover(ApplyArticleCoverRequest applyRequest, HttpRequest request,
+    public UploadFileResponse applyArticleCover(AccountAccess actor, AdminTokenVO credential,
+                                                ApplyArticleCoverRequest applyRequest, HttpRequest request,
                                                 Long articleId, UploadService uploadService) throws SQLException {
+        authorize(actor);
+        String source = applyRequest.getDataUrl();
+        if (source.startsWith(AdminConstants.ADMIN_DB_ATTACHED_TMP) && !actor.isAdministrator()
+                && (!source.startsWith(AdminConstants.ADMIN_DB_ATTACHED_TMP + "/users/" + actor.getUserId() + "/")
+                    || source.contains("..") || source.contains("%") || source.contains("\\")))
+            throw new PermissionErrorException();
         UploadFileResponse uploadFileResponse;
         if (applyRequest.getDataUrl().startsWith(AdminConstants.ADMIN_DB_ATTACHED_TMP)
                 || applyRequest.getDataUrl().startsWith("data:")) {
             DecodedImage decodedImage = decodeDataUrl(applyRequest.getDataUrl(), applyRequest.getExtension());
-            uploadFileResponse = uploadService.saveThumbnailBytes(decodedImage.bytes, decodedImage.extension, request,
-                    AdminTokenThreadLocal.getUser());
+            uploadFileResponse = uploadService.saveThumbnailBytes(actor, decodedImage.bytes, decodedImage.extension, request,
+                    credential);
         } else {
             uploadFileResponse = new UploadFileResponse(applyRequest.getDataUrl());
         }
         if (StringUtils.isNotEmpty(applyRequest.getMessageId())) {
-            this.conversations.updateAIMessagePayload(
+            this.conversations.captureAccount(actor.getUserId()).updateAIMessagePayload(
                     articleId,
                     applyRequest.getMessageId(),
                     "cover",
                     new AIStreamPayloads.CoverPayload(uploadFileResponse.getUrl()));
         }
         return uploadFileResponse;
+    }
+
+    private void authorize(AccountAccess actor) {
+        identities.revalidate(actor);
+        if (!AccountAction.ARTICLE_ASSIST.allowed(actor)) throw new PermissionErrorException();
     }
 
     private void checkImageConfig(AIWebSiteInfo info) {

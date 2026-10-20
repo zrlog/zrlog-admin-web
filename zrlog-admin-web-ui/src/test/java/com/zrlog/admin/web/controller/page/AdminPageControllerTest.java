@@ -1,5 +1,6 @@
 package com.zrlog.admin.web.controller.page;
 
+import com.zrlog.admin.web.page.AdminPageRequestHandler;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
@@ -69,8 +70,7 @@ public class AdminPageControllerTest {
                 new AdminPageDataFactory(
                         site,
                         () -> "test",
-                        ApplicationServicesFixture.messages(testDataSource),
-                        AccountServicesFixture.component(testDataSource).permissions());
+                        ApplicationServicesFixture.messages(testDataSource));
         var resources =
                 new AdminResourceService(
                         AdminResourceInfoResponse.Capabilities::new,
@@ -85,16 +85,18 @@ public class AdminPageControllerTest {
                         () -> new UserPasskey(testDataSource));
         AdminPageController controller =
                 new AdminPageController(
-                        new AdminPageService(
+                        new AdminPageRequestHandler(
+                                AccountServicesFixture.component(testDataSource).requestIdentity(),
+                                AccountServicesFixture.component(testDataSource).routeAuthorizer(),
+                                new AdminPageService(
                                 new InMemoryZrLogDatabase.TestCacheService(),
                                 pages,
                                 resources,
                                 () -> "test",
-                                AccountServicesFixture.component(testDataSource).permissions(),
+                                AccountServicesFixture.component(testDataSource).identities(),
                                 AccountServicesFixture.component(testDataSource).preferences(),
-                                AccountServicesFixture.component(testDataSource).users()),
-                        applicationConfig == null ? null : applicationConfig.getTokenService(),
-                        pages);
+                                AccountServicesFixture.component(testDataSource).users()), pages),
+                        applicationConfig == null ? null : applicationConfig.getTokenService());
         Field requestField = Controller.class.getDeclaredField("request");
         requestField.setAccessible(true);
         requestField.set(controller, request(uri, params));

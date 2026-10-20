@@ -153,12 +153,12 @@ public class AdminDevControllerTest {
                         new AdminPageDataFactory(
                                 ApplicationServicesFixture.site(applicationConfig),
                                 () -> "test",
-                                ApplicationServicesFixture.messages(testDataSource),
-                                AccountServicesFixture.component(testDataSource).permissions()),
+                                ApplicationServicesFixture.messages(testDataSource)),
                         ApplicationServicesFixture.audit(testDataSource),
                         ApplicationServicesFixture.websiteCache(testDataSource),
                         new DistributedLockManager(
-                                () -> new WebSite(testDataSource), ApplicationServicesFixture.locks(testDataSource)));
+                                () -> new WebSite(testDataSource), ApplicationServicesFixture.locks(testDataSource)),
+                        AccountServicesFixture.component(testDataSource).requestIdentity());
         Field requestField = Controller.class.getDeclaredField("request");
         requestField.setAccessible(true);
         requestField.set(controller, request(params, serverConfig));
