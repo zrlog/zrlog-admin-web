@@ -53,7 +53,7 @@ public class AdminPwaInterceptorTest {
             ResponseRecorder response = new ResponseRecorder();
             ServerConfig serverConfig = new ServerConfig();
             serverConfig.getBindings().controller(AdminManifestController.class,
-                    (r, request, responseHandle) -> new AdminManifestController(ignored.cacheService()::getPublicWebSiteInfo));
+                    (r, request, responseHandle) -> new AdminManifestController(ignored.unitCacheService()::getPublicWebSiteInfo));
             Router router = serverConfig.getRouter();
             router.addMapper(AdminConstants.ADMIN_PWA_MANIFEST_API_URI_PATH, AdminManifestController.class, "manifest");
 

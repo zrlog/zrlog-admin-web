@@ -117,7 +117,7 @@ public class UserServiceDatabaseTest {
                                     AccountServicesFixture.component(db.dataSource()).mfa(),
                                     AccountServicesFixture.component(db.dataSource()).preferences(),
                                     () -> new User(db.dataSource()))
-                            .getUserInfoWithCache(1, "session-key", db.cacheService());
+                            .getUserInfoWithCache(1, "session-key", db.unitCacheService());
 
             assertEquals("admin", response.getUserName());
             assertEquals("/avatar.png", response.getHeader());
@@ -141,8 +141,8 @@ public class UserServiceDatabaseTest {
                             AccountServicesFixture.component(db.dataSource()).mfa(),
                             AccountServicesFixture.component(db.dataSource()).preferences(),
                             () -> new User(db.dataSource()));
-            UserInfoResponse owner = service.getUserInfoWithCache(1, "owner-session", db.cacheService());
-            UserInfoResponse writer = service.getUserInfoWithCache(2, "writer-session", db.cacheService());
+            UserInfoResponse owner = service.getUserInfoWithCache(1, "owner-session", db.unitCacheService());
+            UserInfoResponse writer = service.getUserInfoWithCache(2, "writer-session", db.unitCacheService());
             assertEquals("en_US", owner.getLanguage());
             assertEquals("zh_CN", writer.getLanguage());
             assertEquals("antd", owner.getAppearance().theme);
@@ -159,13 +159,13 @@ public class UserServiceDatabaseTest {
                             .getLanguage());
 
             db.putWebsite("admin_theme", "desk");
-            assertEquals("desk", service.getUserInfoWithCache(1, "owner-session", db.cacheService()).getAppearance().theme);
+            assertEquals("desk", service.getUserInfoWithCache(1, "owner-session", db.unitCacheService()).getAppearance().theme);
             new UserPreferenceService(
                             ApplicationServicesFixture.settings(db.dataSource()),
                             new UserPreferenceStore(() -> new User(db.dataSource())),
                             AccountServicesFixture.component(db.dataSource()).permissions())
                     .updateBody("{}", "appearance");
-            UserInfoResponse reset = service.getUserInfoWithCache(1, "owner-session", db.cacheService());
+            UserInfoResponse reset = service.getUserInfoWithCache(1, "owner-session", db.unitCacheService());
             assertEquals("zh_CN", reset.getLanguage());
             assertTrue(reset.getAppearance().darkMode);
             assertEquals("desk", reset.getAppearance().theme);

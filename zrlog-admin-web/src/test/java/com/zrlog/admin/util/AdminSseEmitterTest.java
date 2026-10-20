@@ -102,7 +102,7 @@ public class AdminSseEmitterTest {
                                             PermissionErrorException.class,
                                             () ->
                                                     new AdminArticleService(
-                                                                    db.cacheService(),
+                                                                    db.unitCacheService(),
                                                                     ApplicationServicesFixture
                                                                             .capability(
                                                                                     db.config(),

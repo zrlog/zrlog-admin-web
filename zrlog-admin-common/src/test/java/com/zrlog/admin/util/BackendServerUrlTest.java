@@ -21,7 +21,7 @@ public class BackendServerUrlTest {
             var backend = ApplicationServicesFixture.backend(db.config());
             var server = db.config().getServerConfig();
             for (String host : List.of("192.168.1.12:8080", "blog.example", "blog.example:80", "[fd00::1]:8080")) {
-                db.cacheService().getPublicWebSiteInfo().setHost(host);
+                db.unitCacheService().getPublicWebSiteInfo().setHost(host);
                 for (String context : List.of("", "/sub")) {
                     server.setContextPath(context);
                     backend.requireAdminRequestOrigin(request("http://" + host, "http"));
@@ -30,7 +30,7 @@ public class BackendServerUrlTest {
                             () -> backend.requireAdminRequestOrigin(request("https://" + host, "http")));
                 }
             }
-            db.cacheService().getPublicWebSiteInfo().setHost("blog.example");
+            db.unitCacheService().getPublicWebSiteInfo().setHost("blog.example");
             backend.requireAdminRequestOrigin(request("http://blog.example:80", "http"));
             assertThrows(IllegalArgumentException.class, () -> BackendServerUrl.normalize("http://blog.example"));
             assertThrows(
@@ -66,7 +66,7 @@ public class BackendServerUrlTest {
         try (var db = InMemoryZrLogDatabase.open()) {
             var backend = ApplicationServicesFixture.backend(db.config());
             var server = db.config().getServerConfig();
-            db.cacheService().getPublicWebSiteInfo().setHost("blog.example");
+            db.unitCacheService().getPublicWebSiteInfo().setHost("blog.example");
             for (String origin : Arrays.asList(null, "", "null", "http://evil.example", "http://blog.example.evil.example",
                     "http://blog.example:8080", "https://blog.example", "http://blog.example:0", "http://blog.example:65536",
                     "http://blog.example/sub", "http://blog.example?x=1", "http://blog.example#x",
@@ -102,9 +102,9 @@ public class BackendServerUrlTest {
             var backend = ApplicationServicesFixture.backend(db.config());
             var server = db.config().getServerConfig();
             server.setContextPath("/sub");
-            db.cacheService().getPublicWebSiteInfo().setHost("blog.example");
+            db.unitCacheService().getPublicWebSiteInfo().setHost("blog.example");
             assertEquals("https://blog.example/sub", backend.configured());
-            db.cacheService().getPublicWebSiteInfo().setHost("");
+            db.unitCacheService().getPublicWebSiteInfo().setHost("");
             db.putWebsite(BackendServerUrl.SETTING_KEY, "https://api.example/proxy/sub/");
             assertEquals("https://api.example/proxy/sub", backend.configured());
             for (String invalid : List.of("/sub", "http://api.example", "https://user@api.example",
@@ -122,7 +122,7 @@ public class BackendServerUrlTest {
         try (var db = InMemoryZrLogDatabase.open()) {
             var backend = ApplicationServicesFixture.backend(db.config());
             var server = db.config().getServerConfig();
-            db.cacheService().getPublicWebSiteInfo().setHost("");
+            db.unitCacheService().getPublicWebSiteInfo().setHost("");
             for (Integer port : Arrays.asList(null, -1, 0, 65536)) {
                 server.setPort(port);
                 assertThrows(IllegalArgumentException.class, backend::configured);

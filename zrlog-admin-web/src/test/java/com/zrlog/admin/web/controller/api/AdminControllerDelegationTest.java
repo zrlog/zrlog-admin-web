@@ -642,7 +642,7 @@ public class AdminControllerDelegationTest {
                     new AdminUserController(
                             AccountServicesFixture.component(db.dataSource()).users(),
                             AccountServicesFixture.component(db.dataSource()).profiles(),
-                            db.cacheService(),
+                            db.unitCacheService(),
                             ApplicationServicesFixture.capability(db.config(), AvatarStorage.class),
                             new AdminPageDataFactory(
                                     ApplicationServicesFixture.site(db.config()),
@@ -939,7 +939,7 @@ public class AdminControllerDelegationTest {
             WebSiteController controller =
                     new WebSiteController(
                             new WebSiteSettingsService(
-                                    db.cacheService(),
+                                    db.unitCacheService(),
                                     db.config() == null ? null : db.config().getTokenService(),
                                     () ->
                                             db.config() == null
@@ -952,7 +952,7 @@ public class AdminControllerDelegationTest {
                                     () -> new WebSite(db.dataSource())),
                             new UpgradeSettingsService(
                                     new WebSiteSettingsService(
-                                            db.cacheService(),
+                                            db.unitCacheService(),
                                             db.config() == null
                                                     ? null
                                                     : db.config().getTokenService(),
@@ -989,7 +989,7 @@ public class AdminControllerDelegationTest {
                         protected UpgradeSettingsService upgradeSettingsService() {
                             return new UpgradeSettingsService(
                                     new WebSiteSettingsService(
-                                            db.cacheService(),
+                                            db.unitCacheService(),
                                             db.config() == null
                                                     ? null
                                                     : db.config().getTokenService(),
@@ -1137,13 +1137,13 @@ public class AdminControllerDelegationTest {
                             new AdminDashboardService(
                                     new WebsiteKvService(() -> new WebSite(db.dataSource())),
                                     new AdminStatisticsService(
-                                            db.cacheService(),
+                                            db.unitCacheService(),
                                             RuntimeInfoFixture.from(db.config()),
                                             ApplicationServicesFixture.audit(db.dataSource()),
                                             () -> new Log(db.dataSource()),
                                             () -> new Comment(db.dataSource())),
                                     new AdminArticleService(
-                                            db.cacheService(),
+                                            db.unitCacheService(),
                                             ApplicationServicesFixture.capability(
                                                     db.config(), ArticleAssistant.class),
                                             new AdminPageDataFactory(
@@ -1178,7 +1178,7 @@ public class AdminControllerDelegationTest {
                     Map.of("User-Agent", "Browser"), null));
 
             var manifestController =
-                    new AdminManifestController(db.cacheService()::getPublicWebSiteInfo);
+                    new AdminManifestController(db.unitCacheService()::getPublicWebSiteInfo);
             setControllerRequest(manifestController, request(HttpMethod.GET, "/api/admin/manifest", Map.of(),
                     Map.of("User-Agent", "Browser"), null));
             AdminManifestResponse manifest = manifestController.manifest();
@@ -1226,13 +1226,13 @@ public class AdminControllerDelegationTest {
                             new AdminDashboardService(
                                     new WebsiteKvService(() -> new WebSite(ignored.dataSource())),
                                     new AdminStatisticsService(
-                                            ignored.cacheService(),
+                                            ignored.unitCacheService(),
                                             RuntimeInfoFixture.from(ignored.config()),
                                             ApplicationServicesFixture.audit(ignored.dataSource()),
                                             () -> new Log(ignored.dataSource()),
                                             () -> new Comment(ignored.dataSource())),
                                     new AdminArticleService(
-                                            ignored.cacheService(),
+                                            ignored.unitCacheService(),
                                             ApplicationServicesFixture.capability(
                                                     ignored.config(), ArticleAssistant.class),
                                             new AdminPageDataFactory(

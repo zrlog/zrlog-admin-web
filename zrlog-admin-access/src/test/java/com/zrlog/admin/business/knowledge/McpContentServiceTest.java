@@ -206,7 +206,7 @@ public class McpContentServiceTest {
             McpContentService tools = tools(
                     token(db.dataSource()), "en_US",
                     new ContentToolService(
-                            publishing(db.cacheService(), db.dataSource(), audit),
+                            publishing(db.unitCacheService(), db.dataSource(), audit),
                             request -> {},
                             AccountServicesFixture.component(db.dataSource()).permissions(),
                             () -> new Tag(db.dataSource()),
@@ -271,7 +271,7 @@ public class McpContentServiceTest {
             McpContentService tools = tools(
                     token(db.dataSource()), "en_US",
                     new ContentToolService(
-                            publishing(db.cacheService(), db.dataSource(), new AdminAuditService(auditStore)),
+                            publishing(db.unitCacheService(), db.dataSource(), new AdminAuditService(auditStore)),
                             request -> {},
                             AccountServicesFixture.component(db.dataSource()).permissions(),
                             () -> new Tag(db.dataSource()),
@@ -518,7 +518,7 @@ public class McpContentServiceTest {
                             new ContentToolService(
                                     new ArticlePublishingService(
                                             new AdminArticleService(
-                                                    db.cacheService(),
+                                                    db.unitCacheService(),
                                                     ApplicationServicesFixture.capability(
                                                             db.config(), ArticleAssistant.class),
                                                     new AdminPageDataFactory(
@@ -546,7 +546,7 @@ public class McpContentServiceTest {
                                                     () -> new Log(db.dataSource()),
                                                     ApplicationServicesFixture.locks(db.dataSource())),
                                             ApplicationServicesFixture.cacheRefresh(
-                                                    db.cacheService(), db.config()),
+                                                    db.unitCacheService(), db.config()),
                                             markdown -> null,
                                             ApplicationServicesFixture.audit(db.dataSource()),
                                             ApplicationServicesFixture.operations(db.dataSource())),
@@ -584,7 +584,7 @@ public class McpContentServiceTest {
                                 new ContentToolService(
                                         new ArticlePublishingService(
                                                 new AdminArticleService(
-                                                        db.cacheService(),
+                                                        db.unitCacheService(),
                                                         ApplicationServicesFixture.capability(
                                                                 applicationConfig,
                                                                 ArticleAssistant.class),
@@ -613,7 +613,7 @@ public class McpContentServiceTest {
                                                         () -> new Log(db.dataSource()),
                                                         ApplicationServicesFixture.locks(db.dataSource())),
                                                 ApplicationServicesFixture.cacheRefresh(
-                                                        db.cacheService(), applicationConfig),
+                                                        db.unitCacheService(), applicationConfig),
                                                 markdown -> null,
                                                 ApplicationServicesFixture.audit(db.dataSource()),
                                                 ApplicationServicesFixture.operations(db.dataSource())),

@@ -112,7 +112,7 @@ public class AdminSystemAndStaticSiteControllerTest {
     @Test
     public void shouldRejectAdminStaticSiteRequestsWhenEnabledPluginIsMissing() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-            db.cacheService().getPublicWebSiteInfo().setGenerator_html_status(true);
+            db.unitCacheService().getPublicWebSiteInfo().setGenerator_html_status(true);
             AdminStaticSiteController controller =
                     new AdminStaticSiteController(
                             ApplicationServicesFixture.cacheRefresh(null, db.config()),

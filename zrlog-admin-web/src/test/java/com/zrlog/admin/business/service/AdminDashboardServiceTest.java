@@ -513,13 +513,13 @@ public class AdminDashboardServiceTest {
                     new AdminDashboardService(
                             new WebsiteKvService(() -> new WebSite(db.dataSource())),
                             new AdminStatisticsService(
-                                    db.cacheService(),
+                                    db.unitCacheService(),
                                     RuntimeInfoFixture.from(db.config()),
                                     ApplicationServicesFixture.audit(db.dataSource()),
                                     () -> new Log(db.dataSource()),
                                     () -> new Comment(db.dataSource())),
                             new AdminArticleService(
-                                    db.cacheService(),
+                                    db.unitCacheService(),
                                     ApplicationServicesFixture.capability(
                                             db.config(), ArticleAssistant.class),
                                     new AdminPageDataFactory(
@@ -582,13 +582,13 @@ public class AdminDashboardServiceTest {
                     new AdminDashboardService(
                                     new WebsiteKvService(() -> new WebSite(db.dataSource())),
                                     new AdminStatisticsService(
-                                            db.cacheService(),
+                                            db.unitCacheService(),
                                             RuntimeInfoFixture.from(db.config()),
                                             ApplicationServicesFixture.audit(db.dataSource()),
                                             () -> new Log(db.dataSource()),
                                             () -> new Comment(db.dataSource())),
                                     new AdminArticleService(
-                                            db.cacheService(),
+                                            db.unitCacheService(),
                                             ApplicationServicesFixture.capability(
                                                     db.config(), ArticleAssistant.class),
                                             new AdminPageDataFactory(
@@ -628,13 +628,13 @@ public class AdminDashboardServiceTest {
                     new AdminDashboardService(
                                     new WebsiteKvService(() -> new WebSite(db.dataSource())),
                                     new AdminStatisticsService(
-                                            db.cacheService(),
+                                            db.unitCacheService(),
                                             RuntimeInfoFixture.from(db.config()),
                                             ApplicationServicesFixture.audit(db.dataSource()),
                                             () -> new Log(db.dataSource()),
                                             () -> new Comment(db.dataSource())),
                                     new AdminArticleService(
-                                            db.cacheService(),
+                                            db.unitCacheService(),
                                             ApplicationServicesFixture.capability(
                                                     db.config(), ArticleAssistant.class),
                                             new AdminPageDataFactory(
@@ -674,13 +674,13 @@ public class AdminDashboardServiceTest {
                     new AdminDashboardService(
                             new WebsiteKvService(() -> new WebSite(db.dataSource())),
                             new AdminStatisticsService(
-                                    db.cacheService(),
+                                    db.unitCacheService(),
                                     RuntimeInfoFixture.from(db.config()),
                                     ApplicationServicesFixture.audit(db.dataSource()),
                                     () -> new Log(db.dataSource()),
                                     () -> new Comment(db.dataSource())),
                             new AdminArticleService(
-                                    db.cacheService(),
+                                    db.unitCacheService(),
                                     ApplicationServicesFixture.capability(
                                             db.config(), ArticleAssistant.class),
                                     new AdminPageDataFactory(
@@ -735,13 +735,13 @@ public class AdminDashboardServiceTest {
                         new AdminDashboardService(
                                         new WebsiteKvService(() -> new WebSite(db.dataSource())),
                                         new AdminStatisticsService(
-                                                db.cacheService(),
+                                                db.unitCacheService(),
                                                 RuntimeInfoFixture.from(db.config()),
                                                 ApplicationServicesFixture.audit(db.dataSource()),
                                                 () -> new Log(db.dataSource()),
                                                 () -> new Comment(db.dataSource())),
                                         new AdminArticleService(
-                                                db.cacheService(),
+                                                db.unitCacheService(),
                                                 ApplicationServicesFixture.capability(
                                                         db.config(), ArticleAssistant.class),
                                                 new AdminPageDataFactory(

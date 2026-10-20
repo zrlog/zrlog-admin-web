@@ -13,22 +13,13 @@ import com.hibegin.http.server.api.HttpResponse;
 import com.hibegin.http.server.web.Controller;
 import com.zrlog.admin.business.rest.response.AdminPageDataResponse;
 import com.zrlog.admin.business.rest.response.DeleteResponse;
-import com.zrlog.admin.business.service.AdminPageDataFactory;
-import com.zrlog.admin.business.service.ArticleTypeService;
-import com.zrlog.admin.business.service.BlogNavService;
-import com.zrlog.admin.business.service.LinkService;
-import com.zrlog.admin.support.AccountServicesFixture;
-import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
+import com.zrlog.admin.web.di.content.ContentComponent;
 import com.zrlog.common.ZrLogConfig;
 import com.zrlog.common.cache.dto.LinkDTO;
 import com.zrlog.common.cache.dto.LogNavDTO;
 import com.zrlog.common.cache.dto.TypeDTO;
 import com.zrlog.common.exception.ArgsException;
-import com.zrlog.model.Link;
-import com.zrlog.model.Log;
-import com.zrlog.model.LogNav;
-import com.zrlog.model.Type;
 
 import org.junit.Test;
 
@@ -45,6 +36,7 @@ public class ContentCrudControllerDatabaseTest {
     @Test
     public void shouldManageTypesThroughRealDatabase() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            db.loadAdminWebModules();
             applicationConfig = db.config();
             typeController(Map.of(), "{\"typeName\":\"News\",\"alias\":\"news\",\"remark\":\"<b>Remark</b>\"}", db.dataSource())
                     .add();
@@ -67,6 +59,7 @@ public class ContentCrudControllerDatabaseTest {
     @Test
     public void shouldManageBlogNavigationThroughRealDatabase() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            db.loadAdminWebModules();
             applicationConfig = db.config();
             blogNavController(Map.of(),
                     "{\"navName\":\"Docs\",\"url\":\"https://example.com/docs\",\"icon\":\"book\",\"sort\":3}", db.dataSource())
@@ -96,6 +89,7 @@ public class ContentCrudControllerDatabaseTest {
     @Test
     public void shouldManageLinksThroughRealDatabase() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
+            db.loadAdminWebModules();
             applicationConfig = db.config();
             linkController(Map.of(),
                     "{\"linkName\":\"ZrLog\",\"url\":\"https://www.zrlog.com\","
@@ -126,6 +120,7 @@ public class ContentCrudControllerDatabaseTest {
     @Test
     public void shouldRejectInvalidLinkDeleteIdBeforeTouchingDatabase() throws Exception {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
+            ignored.loadAdminWebModules();
             applicationConfig = ignored.config();
             LinkController controller = linkController(Map.of("id", "0"), null, ignored.dataSource());
 
@@ -135,40 +130,21 @@ public class ContentCrudControllerDatabaseTest {
 
     private TypeController typeController(Map<String, String> params, String body, DataSourceWrapper testDataSource) throws Exception {
         TypeController controller =
-                new TypeController(
-                        new AdminPageDataFactory(
-                                ApplicationServicesFixture.site(applicationConfig),
-                                () -> "test",
-                                ApplicationServicesFixture.messages(testDataSource),
-                                AccountServicesFixture.component(testDataSource).permissions()),
-                        ApplicationServicesFixture.site(applicationConfig),
-                        new ArticleTypeService(() -> new Log(testDataSource), () -> new Type(testDataSource)));
+                applicationConfig.getServerConfig().getBindings().build().get(ContentComponent.class).typeController();
         setControllerFields(controller, params, body, "/api/admin/type");
         return controller;
     }
 
     private BlogNavController blogNavController(Map<String, String> params, String body, DataSourceWrapper testDataSource) throws Exception {
         BlogNavController controller =
-                new BlogNavController(
-                        new AdminPageDataFactory(
-                                ApplicationServicesFixture.site(applicationConfig),
-                                () -> "test",
-                                ApplicationServicesFixture.messages(testDataSource),
-                                AccountServicesFixture.component(testDataSource).permissions()),
-                        new BlogNavService(() -> new LogNav(testDataSource)));
+                applicationConfig.getServerConfig().getBindings().build().get(ContentComponent.class).blogNavController();
         setControllerFields(controller, params, body, "/api/admin/nav");
         return controller;
     }
 
     private LinkController linkController(Map<String, String> params, String body, DataSourceWrapper testDataSource) throws Exception {
         LinkController controller =
-                new LinkController(
-                        new AdminPageDataFactory(
-                                ApplicationServicesFixture.site(applicationConfig),
-                                () -> "test",
-                                ApplicationServicesFixture.messages(testDataSource),
-                                AccountServicesFixture.component(testDataSource).permissions()),
-                        new LinkService(() -> new Link(testDataSource)));
+                applicationConfig.getServerConfig().getBindings().build().get(ContentComponent.class).linkController();
         setControllerFields(controller, params, body, "/api/admin/link");
         return controller;
     }

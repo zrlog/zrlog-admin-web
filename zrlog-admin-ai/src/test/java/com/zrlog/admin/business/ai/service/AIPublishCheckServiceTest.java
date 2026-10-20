@@ -45,7 +45,7 @@ public class AIPublishCheckServiceTest {
     }
     @Test public void publishWorkerUsesTheRequestLanguageEvenWhenTheSiteAndLaterRequestDiffer() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-            db.cacheService().getPublicWebSiteInfo().setLanguage("zh_CN");
+            db.unitCacheService().getPublicWebSiteInfo().setLanguage("zh_CN");
             for (String language : List.of("en_US", "zh_CN")) {
                 var started = new CountDownLatch(1);
                 var proceed = new CountDownLatch(1);

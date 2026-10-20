@@ -19,7 +19,7 @@ public class OAuthServerAddressTest {
         try (var db = InMemoryZrLogDatabase.open()) {
             var config = db.config().getServerConfig();
             for (String host : Arrays.asList(null, "", " ")) {
-                db.cacheService().getPublicWebSiteInfo().setHost(host);
+                db.unitCacheService().getPublicWebSiteInfo().setHost(host);
                 for (String context : java.util.List.of("", "/sub")) {
                     config.setContextPath(context);
                     for (int port : new int[]{80, 8080, 18080}) {

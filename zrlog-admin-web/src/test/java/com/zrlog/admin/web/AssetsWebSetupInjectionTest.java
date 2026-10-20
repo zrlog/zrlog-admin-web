@@ -7,18 +7,9 @@ import com.hibegin.http.server.config.ServerConfig;
 import com.hibegin.http.server.util.PathUtil;
 import com.hibegin.http.server.web.Controller;
 import com.zrlog.admin.business.rest.response.FileEntryVO;
-import com.zrlog.admin.business.service.AdminPageDataFactory;
 import com.zrlog.admin.business.service.WebSiteService;
-import com.zrlog.admin.support.AccountServicesFixture;
-import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.controller.api.FileManagerController;
-import com.zrlog.admin.web.di.account.AccountComponent;
-import com.zrlog.admin.web.interceptor.AdminInterceptor;
-import com.zrlog.business.di.DaggerServiceComponent;
-import com.zrlog.business.di.ServiceComponent;
-import com.zrlog.data.di.DaggerDataComponent;
-import com.zrlog.data.di.DataComponent;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -39,31 +30,9 @@ public class AssetsWebSetupInjectionTest {
             db.putWebsite(WebSiteService.FEATURE_RESOURCE_REFERENCE_ENABLED_KEY, true);
             db.execute("insert into log(logId,userId,typeId,title,content,version) values(?,?,?,?,?,?)",
                     7, 1, 1, "References", "<img src=\"/blog/attached/old.png\">", 0);
-            ServerConfig server = new ServerConfig();
+            ServerConfig server = db.config().getServerConfig();
             server.setContextPath("/blog");
-            server.getInterceptors().add(AdminInterceptor.class);
-            server.getBindings()
-                    .instance(
-                            AdminPageDataFactory.class,
-                            new AdminPageDataFactory(
-                                    db.cacheService()::getPublicWebSiteInfo,
-                                    () -> "",
-                                    ApplicationServicesFixture.messages(db.dataSource()),
-                                    AccountServicesFixture.component(db.dataSource()).permissions()));
-            var data = DaggerDataComponent.factory().create(db::dataSource, () -> true);
-            server.getBindings()
-                    .instance(DataComponent.class, data)
-                    .instance(
-                            ServiceComponent.class,
-                            DaggerServiceComponent.factory()
-                                    .create(
-                                            data,
-                                            () -> true,
-                                            () -> null,
-                                            () -> null,
-                                            java.util.Collections::emptyList))
-                    .instance(AccountComponent.class, AccountServicesFixture.component(db.dataSource()));
-            new AssetsWebSetup(server, () -> null).setup();
+            db.loadAdminWebModules();
 
             assertEquals(List.of("/attached/old.png"), missingReferences(server));
             db.execute("update log set content=?,version=version+1 where logId=7",

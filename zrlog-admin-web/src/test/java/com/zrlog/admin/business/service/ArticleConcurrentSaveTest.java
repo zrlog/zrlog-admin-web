@@ -3,17 +3,13 @@ package com.zrlog.admin.business.service;
 import static org.junit.Assert.*;
 
 import com.hibegin.common.dao.DataSourceWrapper;
-import com.zrlog.admin.business.content.ArticleAssistant;
 import com.zrlog.admin.business.exception.UpdateArticleExpireException;
 import com.zrlog.admin.business.rest.request.CreateArticleRequest;
 import com.zrlog.admin.business.rest.request.UpdateArticleRequest;
-import com.zrlog.admin.support.AccountServicesFixture;
-import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
+import com.zrlog.admin.web.di.content.ContentComponent;
 import com.zrlog.common.ZrLogConfig;
 import com.zrlog.common.vo.AdminTokenVO;
-import com.zrlog.model.Log;
-import com.zrlog.model.LogVersion;
 
 import org.junit.Test;
 
@@ -31,6 +27,7 @@ public class ArticleConcurrentSaveTest {
     public void competingAccountsAllocateDistinctArticleIds() throws Exception {
         for (String backend : List.of("h2", "sqlite", "webapi")) {
             try (InMemoryZrLogDatabase db = open(backend)) {
+                db.loadAdminWebModules();
                 applicationConfig = db.config();
                 db.execute("insert into user(userId,userName,role) values(?,?,?)", 2, "other-admin", "admin");
                 CyclicBarrier start = new CyclicBarrier(2);
@@ -40,36 +37,7 @@ public class ArticleConcurrentSaveTest {
                             pool.submit(
                                     () -> {
                                         start.await(10, TimeUnit.SECONDS);
-                                        return new AdminArticleService(
-                                                        db.cacheService(),
-                                                        ApplicationServicesFixture.capability(
-                                                                db.config(),
-                                                                ArticleAssistant.class),
-                                                        new AdminPageDataFactory(
-                                                                ApplicationServicesFixture.site(
-                                                                        db.config()),
-                                                                ApplicationServicesFixture.buildId(
-                                                                        db.resources()),
-                                                                ApplicationServicesFixture
-                                                                        .messages(db.dataSource()),
-                                                                AccountServicesFixture.component(db.dataSource())
-                                                                        .permissions()),
-                                                        AccountServicesFixture.component(db.dataSource())
-                                                                .permissions(),
-                                                        AccountServicesFixture.component(db.dataSource())
-                                                                .preferences(),
-                                                        new ArticleVersionService(
-                                                                AccountServicesFixture.component(db.dataSource())
-                                                                        .permissions(),
-                                                                () -> new Log(db.dataSource()),
-                                                                () ->
-                                                                        new LogVersion(
-                                                                                db.dataSource())),
-                                                        new ArticlePinningService(
-                                                                () -> new Log(db.dataSource()),
-                                                                ApplicationServicesFixture.locks(db.dataSource())),
-                                                        () -> new Log(db.dataSource()),
-                                                        ApplicationServicesFixture.locks(db.dataSource()))
+                                        return db.component(ContentComponent.class).articles()
                                                 .create(token(1), article("First"))
                                                 .getLogId();
                                     });
@@ -77,36 +45,7 @@ public class ArticleConcurrentSaveTest {
                             pool.submit(
                                     () -> {
                                         start.await(10, TimeUnit.SECONDS);
-                                        return new AdminArticleService(
-                                                        db.cacheService(),
-                                                        ApplicationServicesFixture.capability(
-                                                                db.config(),
-                                                                ArticleAssistant.class),
-                                                        new AdminPageDataFactory(
-                                                                ApplicationServicesFixture.site(
-                                                                        db.config()),
-                                                                ApplicationServicesFixture.buildId(
-                                                                        db.resources()),
-                                                                ApplicationServicesFixture
-                                                                        .messages(db.dataSource()),
-                                                                AccountServicesFixture.component(db.dataSource())
-                                                                        .permissions()),
-                                                        AccountServicesFixture.component(db.dataSource())
-                                                                .permissions(),
-                                                        AccountServicesFixture.component(db.dataSource())
-                                                                .preferences(),
-                                                        new ArticleVersionService(
-                                                                AccountServicesFixture.component(db.dataSource())
-                                                                        .permissions(),
-                                                                () -> new Log(db.dataSource()),
-                                                                () ->
-                                                                        new LogVersion(
-                                                                                db.dataSource())),
-                                                        new ArticlePinningService(
-                                                                () -> new Log(db.dataSource()),
-                                                                ApplicationServicesFixture.locks(db.dataSource())),
-                                                        () -> new Log(db.dataSource()),
-                                                        ApplicationServicesFixture.locks(db.dataSource()))
+                                        return db.component(ContentComponent.class).articles()
                                                 .create(token(2), article("Second"))
                                                 .getLogId();
                                     });
@@ -127,28 +66,11 @@ public class ArticleConcurrentSaveTest {
     public void competingAccountsSaveOnlyOneSnapshotAndOneHistoryEntry() throws Exception {
         for (String backend : List.of("h2", "sqlite", "webapi")) {
             try (InMemoryZrLogDatabase db = open(backend)) {
+                db.loadAdminWebModules();
                 applicationConfig = db.config();
                 db.execute("insert into user(userId,userName,role) values(?,?,?)", 2, "other-admin", "admin");
                 AdminArticleService service =
-                        new AdminArticleService(
-                                db.cacheService(),
-                                ApplicationServicesFixture.capability(
-                                        db.config(), ArticleAssistant.class),
-                                new AdminPageDataFactory(
-                                        ApplicationServicesFixture.site(db.config()),
-                                        ApplicationServicesFixture.buildId(db.resources()),
-                                        ApplicationServicesFixture.messages(db.dataSource()),
-                                        AccountServicesFixture.component(db.dataSource()).permissions()),
-                                AccountServicesFixture.component(db.dataSource()).permissions(),
-                                AccountServicesFixture.component(db.dataSource()).preferences(),
-                                new ArticleVersionService(
-                                        AccountServicesFixture.component(db.dataSource()).permissions(),
-                                        () -> new Log(db.dataSource()),
-                                        () -> new LogVersion(db.dataSource())),
-                                new ArticlePinningService(
-                                        () -> new Log(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource())),
-                                () -> new Log(db.dataSource()),
-                                ApplicationServicesFixture.locks(db.dataSource()));
+                        db.component(ContentComponent.class).articles();
                 int id = service.create(token(1), article("Original")).getLogId().intValue();
                 CyclicBarrier start = new CyclicBarrier(2);
                 ExecutorService pool = Executors.newFixedThreadPool(2);
@@ -183,26 +105,10 @@ public class ArticleConcurrentSaveTest {
     @Test
     public void versionChangedAfterReadCannotBeOverwrittenOrRecordedInHistory() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.openWebApi()) {
-            applicationConfig = db.config();
+            db.loadAdminWebModules();
+                applicationConfig = db.config();
             AdminArticleService service =
-                    new AdminArticleService(
-                            db.cacheService(),
-                            ApplicationServicesFixture.capability(
-                                    db.config(), ArticleAssistant.class),
-                            new AdminPageDataFactory(
-                                    ApplicationServicesFixture.site(db.config()),
-                                    ApplicationServicesFixture.buildId(db.resources()),
-                                    ApplicationServicesFixture.messages(db.dataSource()),
-                                    AccountServicesFixture.component(db.dataSource()).permissions()),
-                            AccountServicesFixture.component(db.dataSource()).permissions(),
-                            AccountServicesFixture.component(db.dataSource()).preferences(),
-                            new ArticleVersionService(
-                                    AccountServicesFixture.component(db.dataSource()).permissions(),
-                                    () -> new Log(db.dataSource()),
-                                    () -> new LogVersion(db.dataSource())),
-                            new ArticlePinningService(() -> new Log(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource())),
-                            () -> new Log(db.dataSource()),
-                            ApplicationServicesFixture.locks(db.dataSource()));
+                    db.component(ContentComponent.class).articles();
             int id = service.create(token(1), article("Original")).getLogId().intValue();
             AtomicBoolean raced = new AtomicBoolean();
             db.beforeWebApiUpdate((sql, args) -> {
@@ -225,27 +131,10 @@ public class ArticleConcurrentSaveTest {
     public void missingStaleAndFutureVersionsCannotChangeContentOrHistory() throws Exception {
         for (String backend : List.of("h2", "sqlite", "webapi")) {
             try (InMemoryZrLogDatabase db = open(backend)) {
+                db.loadAdminWebModules();
                 applicationConfig = db.config();
                 AdminArticleService service =
-                        new AdminArticleService(
-                                db.cacheService(),
-                                ApplicationServicesFixture.capability(
-                                        db.config(), ArticleAssistant.class),
-                                new AdminPageDataFactory(
-                                        ApplicationServicesFixture.site(db.config()),
-                                        ApplicationServicesFixture.buildId(db.resources()),
-                                        ApplicationServicesFixture.messages(db.dataSource()),
-                                        AccountServicesFixture.component(db.dataSource()).permissions()),
-                                AccountServicesFixture.component(db.dataSource()).permissions(),
-                                AccountServicesFixture.component(db.dataSource()).preferences(),
-                                new ArticleVersionService(
-                                        AccountServicesFixture.component(db.dataSource()).permissions(),
-                                        () -> new Log(db.dataSource()),
-                                        () -> new LogVersion(db.dataSource())),
-                                new ArticlePinningService(
-                                        () -> new Log(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource())),
-                                () -> new Log(db.dataSource()),
-                                ApplicationServicesFixture.locks(db.dataSource()));
+                        db.component(ContentComponent.class).articles();
                 int id = service.create(token(1), article("Original")).getLogId().intValue();
                 for (Integer version : Arrays.asList(null, -1, 1, Integer.MAX_VALUE)) {
                     assertThrows(UpdateArticleExpireException.class, () -> service.update(token(1), update(id, version, "Invalid")));
@@ -260,24 +149,7 @@ public class ArticleConcurrentSaveTest {
     private boolean save(CyclicBarrier start, AdminTokenVO token, UpdateArticleRequest request, DataSourceWrapper testDataSource) throws Exception {
         start.await(10, TimeUnit.SECONDS);
         try {
-            new AdminArticleService(
-                            new InMemoryZrLogDatabase.TestCacheService(),
-                            ApplicationServicesFixture.capability(
-                                    applicationConfig, ArticleAssistant.class),
-                            new AdminPageDataFactory(
-                                    ApplicationServicesFixture.site(applicationConfig),
-                                    () -> "test",
-                                    ApplicationServicesFixture.messages(testDataSource),
-                                    AccountServicesFixture.component(testDataSource).permissions()),
-                            AccountServicesFixture.component(testDataSource).permissions(),
-                            AccountServicesFixture.component(testDataSource).preferences(),
-                            new ArticleVersionService(
-                                    AccountServicesFixture.component(testDataSource).permissions(),
-                                    () -> new Log(testDataSource),
-                                    () -> new LogVersion(testDataSource)),
-                            new ArticlePinningService(() -> new Log(testDataSource), ApplicationServicesFixture.locks(testDataSource)),
-                            () -> new Log(testDataSource),
-                            ApplicationServicesFixture.locks(testDataSource))
+            applicationConfig.getServerConfig().getBindings().build().get(ContentComponent.class).articles()
                     .update(token, request);
             return true;
         } catch (UpdateArticleExpireException expected) {

@@ -20,7 +20,7 @@ public class AdminPageDataFactoryTest {
         var previousLanguage = I18nUtil.threadLocal.get();
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             I18nUtil.removeI18n();
-            var site = db.cacheService().getPublicWebSiteInfo();
+            var site = db.unitCacheService().getPublicWebSiteInfo();
             site.setTitle("Site A");
             site.setLanguage("en_US");
             site.setSystem_notification("Maintenance A");
@@ -67,7 +67,7 @@ public class AdminPageDataFactoryTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             var pages =
                     new AdminPageDataFactory(
-                            db.cacheService()::getPublicWebSiteInfo,
+                            db.unitCacheService()::getPublicWebSiteInfo,
                             () -> "",
                             ApplicationServicesFixture.messages(db.dataSource()),
                             AccountServicesFixture.component(db.dataSource()).permissions());

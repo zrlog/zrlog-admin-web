@@ -34,7 +34,7 @@ public class MemberHttpOriginTest {
         for (String host : List.of("192.168.1.12:8080", "blog.internal", "blog.example:8080")) {
             try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
                 applicationConfig = db.config();
-                db.cacheService().getPublicWebSiteInfo().setHost(host);
+                db.unitCacheService().getPublicWebSiteInfo().setHost(host);
                 db.config().getServerConfig().setContextPath("/sub");
                 AccountAuthorizationTest.login(db, 1, "owner");
                 db.execute("update user set password=? where userId=1", PasswordHashUtils.hash(SecurityUtils.md5("owner-password")));
@@ -54,7 +54,7 @@ public class MemberHttpOriginTest {
     public void allMemberMutationsStillRejectForeignOrigins() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
-            db.cacheService().getPublicWebSiteInfo().setHost("blog.internal");
+            db.unitCacheService().getPublicWebSiteInfo().setHost("blog.internal");
             AccountAuthorizationTest.login(db, 1, "owner");
             assertThrows(AdminOriginException.class, () -> controller("http://evil.example", "{}", db.dataSource()).create());
             assertThrows(AdminOriginException.class, () -> controller("http://evil.example", "{}", db.dataSource()).update());

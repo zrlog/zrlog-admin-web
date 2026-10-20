@@ -70,7 +70,7 @@ public class MfaServiceTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             MfaService service = new MfaService(() -> new User(db.dataSource()));
 
-            MfaStatusResponse initial = service.getMfaStatus(1, db.cacheService().getPublicWebSiteInfo().getTitle());
+            MfaStatusResponse initial = service.getMfaStatus(1, db.unitCacheService().getPublicWebSiteInfo().getTitle());
             String secret = String.valueOf(db.queryOne(
                     "select mfaSecret from user where userId=?", 1).get("mfaSecret"));
             UpdateMfaRequest enableRequest = mfaRequest(currentCode(secret));
@@ -84,7 +84,7 @@ public class MfaServiceTest {
             assertEquals(0, service.enableMfa(1, enableRequest).getError());
             assertTrue(service.isMfaEnabled(1));
 
-            MfaStatusResponse enabled = service.getMfaStatus(1, db.cacheService().getPublicWebSiteInfo().getTitle());
+            MfaStatusResponse enabled = service.getMfaStatus(1, db.unitCacheService().getPublicWebSiteInfo().getTitle());
             assertTrue(enabled.isEnabled());
             assertEquals("", enabled.getOtpauthUrl());
             assertEquals(secret, enabled.getSecret());

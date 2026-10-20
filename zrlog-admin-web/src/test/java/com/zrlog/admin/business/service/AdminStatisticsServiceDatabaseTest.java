@@ -31,11 +31,11 @@ public class AdminStatisticsServiceDatabaseTest {
             insertComment(db, 1, "CURRENT_TIMESTAMP");
             insertComment(db, 2, "CURRENT_TIMESTAMP");
             insertComment(db, 3, "DATEADD('DAY', -1, CURRENT_TIMESTAMP)");
-            db.cacheService().getTags().add(tag("zrlog", 3L));
+            db.unitCacheService().getTags().add(tag("zrlog", 3L));
 
             StatisticsInfoResponse response =
                     new AdminStatisticsService(
-                                    db.cacheService(),
+                                    db.unitCacheService(),
                                     RuntimeInfoFixture.from(db.config()),
                                     ApplicationServicesFixture.audit(db.dataSource()),
                                     () -> new Log(db.dataSource()),
@@ -69,7 +69,7 @@ public class AdminStatisticsServiceDatabaseTest {
             try (TestLogCapture logs = TestLogCapture.forClass(AdminStatisticsService.class)) {
                 response =
                         new AdminStatisticsService(
-                                        db.cacheService(),
+                                        db.unitCacheService(),
                                         RuntimeInfoFixture.from(db.config()),
                                         ApplicationServicesFixture.audit(db.dataSource()),
                                         () -> new Log(db.dataSource()),

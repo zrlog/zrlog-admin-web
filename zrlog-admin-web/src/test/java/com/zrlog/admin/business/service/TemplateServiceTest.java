@@ -42,14 +42,14 @@ public class TemplateServiceTest {
         withRootPath(
                 () -> {
                     try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-                        db.cacheService()
+                        db.unitCacheService()
                                 .getPublicWebSiteInfo()
                                 .setTemplate(Constants.getDefaultTemplatePath());
                         String templatePath = createLocalTemplate("local-theme");
                         db.putWebsite(templatePath + "_setting", "{\"accent\":\"db-blue\"}");
                         TemplateService service =
                                 new TemplateService(
-                                        db.cacheService(),
+                                        db.unitCacheService(),
                                         () -> null,
                                         () -> null,
                                         ApplicationServicesFixture.audit(db.dataSource()),
@@ -101,7 +101,7 @@ public class TemplateServiceTest {
                         db.putWebsite(templatePath + "_setting", "{\"accent\":\"db-blue\"}");
                         TemplateService service =
                                 new TemplateService(
-                                        db.cacheService(),
+                                        db.unitCacheService(),
                                         () -> null,
                                         () -> null,
                                         ApplicationServicesFixture.audit(db.dataSource()),
@@ -144,10 +144,10 @@ public class TemplateServiceTest {
                 () -> {
                     try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
                         String templatePath = createLocalTemplate("active-local-theme");
-                        db.cacheService().getPublicWebSiteInfo().setTemplate(templatePath);
+                        db.unitCacheService().getPublicWebSiteInfo().setTemplate(templatePath);
                         List<TemplateEntryResponse> entries =
                                 new TemplateService(
-                                                db.cacheService(),
+                                                db.unitCacheService(),
                                                 () -> null,
                                                 () -> null,
                                                 ApplicationServicesFixture.audit(db.dataSource()),
@@ -185,13 +185,13 @@ public class TemplateServiceTest {
         withRootPath(
                 () -> {
                     try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-                        db.cacheService()
+                        db.unitCacheService()
                                 .getPublicWebSiteInfo()
                                 .setTemplate(Constants.getDefaultTemplatePath());
                         String templatePath = createLocalTemplate("sanitize-theme");
                         TemplateService service =
                                 new TemplateService(
-                                        db.cacheService(),
+                                        db.unitCacheService(),
                                         () -> null,
                                         () -> null,
                                         ApplicationServicesFixture.audit(db.dataSource()),

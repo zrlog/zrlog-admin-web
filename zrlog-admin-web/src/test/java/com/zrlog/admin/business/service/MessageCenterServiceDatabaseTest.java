@@ -7,10 +7,8 @@ import static org.junit.Assert.assertTrue;
 import com.google.gson.Gson;
 import com.zrlog.admin.business.rest.response.MessageCenterNoticeResponse;
 import com.zrlog.admin.business.rest.response.MessageCenterStatusResponse;
-import com.zrlog.admin.support.AccountServicesFixture;
-import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
-import com.zrlog.model.Comment;
+import com.zrlog.admin.web.di.AdminComponent;
 
 import org.junit.Test;
 
@@ -25,17 +23,7 @@ public class MessageCenterServiceDatabaseTest {
             seedUnreadComment(db);
 
             List<MessageCenterNoticeResponse> notices =
-                    new MessageCenterService(
-                                    ApplicationServicesFixture.upgradeNotices(db.config()),
-                                    new WebhookService(
-                                            ApplicationServicesFixture.messages(db.dataSource()),
-                                            ApplicationServicesFixture.websiteCache(db.dataSource())),
-                                    ApplicationServicesFixture.messages(db.dataSource()),
-                                    ApplicationServicesFixture.operations(db.dataSource()),
-                                    new AdminCommentService(
-                                            AccountServicesFixture.component(db.dataSource()).permissions(),
-                                            ApplicationServicesFixture.messages(db.dataSource()),
-                                            () -> new Comment(db.dataSource())))
+                    db.component(AdminComponent.class).messages()
                             .listNotices();
             Map<String, Object> statusRow = db.queryOne("select value from website where name=?",
                     "admin_cache:message_center_status");

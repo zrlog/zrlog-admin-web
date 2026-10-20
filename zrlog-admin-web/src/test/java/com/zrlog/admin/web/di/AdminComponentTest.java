@@ -12,24 +12,67 @@ import com.zrlog.admin.business.rest.response.AIResponseEntry.AIContentEntry;
 import com.zrlog.admin.business.service.AdminDashboardService;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.di.account.AccountComponent;
-import com.zrlog.admin.web.di.account.DaggerAccountComponent;
 import com.zrlog.admin.web.di.ai.AIComponent;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
-import com.zrlog.business.di.DaggerServiceComponent;
 import com.zrlog.business.service.WebsiteKvService;
+import com.zrlog.common.CacheService;
 import com.zrlog.common.TokenService;
 import com.zrlog.common.vo.AdminFullTokenVO;
-import com.zrlog.data.di.DaggerDataComponent;
+import com.zrlog.data.di.DataComponent;
+import com.zrlog.web.WebSiteInfoProvider;
 
 import org.junit.Test;
 
 import java.lang.reflect.Proxy;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class AdminComponentTest {
+    @Test
+    public void isolatedCacheStubsCannotReplaceALoadedApplicationsCache() throws Exception {
+        try (InMemoryZrLogDatabase database = InMemoryZrLogDatabase.open()) {
+            var stub = database.unitCacheService();
+            stub.getPublicWebSiteInfo().setTitle("Unit test only");
+            var productionCache = database.cacheService();
+            assertEquals("ZrLog Test", productionCache.getPublicWebSiteInfo().getTitle());
+            assertThrows(IllegalStateException.class, database::unitCacheService);
+            database.putWebsite("title", "Database title");
+            productionCache.refreshInitData();
+            assertEquals("Database title", database.component(DataComponent.class).cache()
+                    .getPublicWebSiteInfo().getTitle());
+            assertEquals("Unit test only", stub.getPublicWebSiteInfo().getTitle());
+        }
+    }
+
+    @Test
+    public void webBindingsShareCacheRefreshesAndSessionSettingsWithTheProductionGraphs()
+            throws Exception {
+        try (InMemoryZrLogDatabase database = InMemoryZrLogDatabase.open()) {
+            database.loadAdminWebModules();
+            var bindings = database.config().getServerConfig().getBindings().build();
+            var data = bindings.get(DataComponent.class);
+            var account = bindings.get(AccountComponent.class);
+            assertTrue(database.config().isInstalled());
+            assertSame(data.cache(), database.cacheService());
+            assertSame(data.cache(), bindings.get(CacheService.class));
+            assertSame(account.tokens(), database.config().getTokenService());
+            assertSame(account.tokens(), bindings.get(TokenService.class));
+            assertSame(account, database.component(AccountComponent.class));
+
+            database.putWebsite("title", "Refreshed application");
+            data.cache().refreshInitData();
+            assertEquals("Refreshed application", database.cacheService().getPublicWebSiteInfo().getTitle());
+            assertEquals("Refreshed application", database.config()
+                    .getWebSetup(WebSiteInfoProvider.class)
+                    .getPublicWebSiteInfo().getTitle());
+
+            database.execute("update user set secretKey=? where userId=1", "shared-secret");
+            database.config().getTokenService().updateSessionTimeout(23);
+            assertSession(account.tokens(), issue(account.tokens(), 1, "shared-secret"), 1, 23);
+        }
+    }
+
     @Test
     public void sharedTokensKeepAccountPreferencesAndApplicationSecretsIsolated() throws Exception {
         try (InMemoryZrLogDatabase first = InMemoryZrLogDatabase.open();
@@ -73,12 +116,7 @@ public class AdminComponentTest {
     }
 
     private static AccountComponent accountGraph(InMemoryZrLogDatabase database) {
-        var data = DaggerDataComponent.factory().create(database::dataSource, () -> true);
-        var services = DaggerServiceComponent.factory()
-                .create(data, () -> true, () -> null, () -> null, Collections::emptyList);
-        return DaggerAccountComponent.factory().create(
-                data, services, () -> true, () -> null, Collections::emptySet,
-                database.cacheService()::getPublicWebSiteInfo, () -> "test", () -> 18080, () -> "");
+        return database.component(AccountComponent.class);
     }
 
     private static Cookie issue(TokenService tokens, int userId, String secret) throws Exception {

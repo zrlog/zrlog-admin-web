@@ -46,10 +46,14 @@ import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.util.AdminSseEmitter;
+import com.zrlog.admin.util.AdminStaticSiteSsePublisher;
 import com.zrlog.admin.web.AIWebSetup;
 import com.zrlog.admin.web.controller.ai.AIArticleController;
+import com.zrlog.admin.web.di.account.AccountComponent;
+import com.zrlog.admin.web.di.content.ContentComponent;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.business.plugin.PluginCorePlugin;
+import com.zrlog.business.service.CacheRefreshService;
 import com.zrlog.business.service.MarkdownRenderer;
 import com.zrlog.common.CacheService;
 import com.zrlog.common.ZrLogConfig;
@@ -270,12 +274,12 @@ public class AdminArticleControllerDatabaseTest {
                     (AdminPageDataResponse<ArticleGlobalResponse>) createResponse.rendered;
             Long logId = Long.valueOf(created.getData().getArticle().getLogId());
             new ArticlePinningService(() -> new Log(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource())).pin(logId);
-            int refreshCountBeforeDraft = db.cacheService().getRefreshCount();
+            long versionBeforeDraft = db.cacheService().getInitData().getVersion();
 
             controller(db.cacheService(), Map.of(), updateBody(logId.intValue(), "Pinned Draft", "pinned-draft", true),
                     new ResponseRecorder(), db.dataSource()).update();
 
-            assertEquals(refreshCountBeforeDraft + 1, db.cacheService().getRefreshCount());
+            assertTrue(db.cacheService().getInitData().getVersion() > versionBeforeDraft);
             assertEquals(0, ((Number) db.scalar("select sticky from log where logId=?", logId)).intValue());
         }
     }
@@ -321,7 +325,7 @@ public class AdminArticleControllerDatabaseTest {
                     AdminTokenThreadLocal.remove();
                 }
             });
-            int refreshCount = db.cacheService().getRefreshCount();
+            long versionBeforeSave = db.cacheService().getInitData().getVersion();
             try {
                 saveThread.start();
                 assertTrue(refreshStarted.await(5, TimeUnit.SECONDS));
@@ -331,7 +335,8 @@ public class AdminArticleControllerDatabaseTest {
                 assertEquals("Manual edit", response.getData().getArticle().getTitle());
                 assertTrue(response.getData().getArticle().isRubbish());
                 assertEquals(1, response.getData().getArticle().getVersion().intValue());
-                assertEquals(refreshCount + 1, db.cacheService().getRefreshCount());
+                assertTrue(db.cacheService().getInitData().getVersion() > versionBeforeSave);
+                long refreshedVersion = db.cacheService().getInitData().getVersion();
                 assertEquals(true, db.scalar("select rubbish from log where logId=?", id));
 
                 String nextBody = updateBody(id, "Second edit", "published", true)
@@ -339,7 +344,7 @@ public class AdminArticleControllerDatabaseTest {
                 controller(db.cacheService(), Map.of(), nextBody, new ResponseRecorder(), db.dataSource()).update();
                 assertEquals("Second edit", db.scalar("select title from log where logId=?", id));
                 assertEquals(2, ((Number) db.scalar("select version from log where logId=?", id)).intValue());
-                assertEquals(refreshCount + 1, db.cacheService().getRefreshCount());
+                assertEquals(refreshedVersion, db.cacheService().getInitData().getVersion().longValue());
             } finally {
                 releaseRefresh.countDown();
                 saveThread.join(5000);
@@ -1027,7 +1032,11 @@ public class AdminArticleControllerDatabaseTest {
     private AdminArticleController controller(
             CacheService cache, Map<String, String> params, String body, ResponseRecorder response, DataSourceWrapper testDataSource)
             throws Exception {
-        return controller(cache, params, body, response, markdown -> null, testDataSource);
+        AdminArticleController controller = applicationConfig.getServerConfig().getBindings().build()
+                .get(ContentComponent.class).adminArticleController();
+        setControllerField(controller, "request", request(params, body));
+        setControllerField(controller, "response", response.response());
+        return controller;
     }
 
     private AdminArticleController controller(
@@ -1037,43 +1046,19 @@ public class AdminArticleControllerDatabaseTest {
             ResponseRecorder response,
             MarkdownRenderer renderer, DataSourceWrapper testDataSource)
             throws Exception {
-        AdminArticleService articles =
-                new AdminArticleService(
-                        cache,
-                        ApplicationServicesFixture.capability(
-                                applicationConfig, ArticleAssistant.class),
-                        new AdminPageDataFactory(
-                                ApplicationServicesFixture.site(applicationConfig),
-                                () -> "test",
-                                ApplicationServicesFixture.messages(testDataSource),
-                                AccountServicesFixture.component(testDataSource).permissions()),
-                        AccountServicesFixture.component(testDataSource).permissions(),
-                        AccountServicesFixture.component(testDataSource).preferences(),
-                        new ArticleVersionService(
-                                AccountServicesFixture.component(testDataSource).permissions(),
-                                () -> new Log(testDataSource),
-                                () -> new LogVersion(testDataSource)),
-                        new ArticlePinningService(() -> new Log(testDataSource), ApplicationServicesFixture.locks(testDataSource)),
-                        () -> new Log(testDataSource),
-                        ApplicationServicesFixture.locks(testDataSource));
-        AdminArticleController controller =
-                new AdminArticleController(
-                        articles,
-                        new ArticlePublishingService(
-                                articles,
-                                ApplicationServicesFixture.cacheRefresh(cache, applicationConfig),
-                                renderer,
-                                ApplicationServicesFixture.audit(testDataSource),
-                                ApplicationServicesFixture.operations(testDataSource)),
-                        ApplicationServicesFixture.publisher(null, applicationConfig),
-                        ApplicationServicesFixture.capability(
-                                applicationConfig, ArticleAssistant.class),
-                        new AdminPageDataFactory(
-                                ApplicationServicesFixture.site(applicationConfig),
-                                () -> "test",
-                                ApplicationServicesFixture.messages(testDataSource),
-                                AccountServicesFixture.component(testDataSource).permissions()),
-                        AccountServicesFixture.component(testDataSource).preferences());
+        // Isolate the Markdown renderer for its boundary contract; keep the application graph's
+        // article service, preferences, metadata and publisher rather than rebuilding their trees.
+        var bindings = applicationConfig.getServerConfig().getBindings().build();
+        var account = bindings.get(AccountComponent.class);
+        var articles = bindings.get(ContentComponent.class).articles();
+        AdminArticleController controller = new AdminArticleController(
+                articles,
+                new ArticlePublishingService(articles, bindings.get(CacheRefreshService.class),
+                        renderer, ApplicationServicesFixture.audit(testDataSource),
+                        ApplicationServicesFixture.operations(testDataSource)),
+                bindings.get(AdminStaticSiteSsePublisher.class),
+                ApplicationServicesFixture.capability(applicationConfig, ArticleAssistant.class),
+                account.pages(), account.preferences());
         setControllerField(controller, "request", request(params, body));
         setControllerField(controller, "response", response.response());
         return controller;

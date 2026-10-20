@@ -143,7 +143,7 @@ public class AdminCorsAndTemporaryResourceInterceptorTest {
     public void shouldApplyCorsHeadersForConfiguredStaticAdminOrigin() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
-            db.cacheService().getPublicWebSiteInfo().setHost("demo.zrlog.com");
+            db.unitCacheService().getPublicWebSiteInfo().setHost("demo.zrlog.com");
             ResponseRecorder response = new ResponseRecorder();
 
             boolean proceed =

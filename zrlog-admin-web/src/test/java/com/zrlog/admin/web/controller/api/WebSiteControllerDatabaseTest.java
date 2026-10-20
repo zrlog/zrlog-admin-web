@@ -92,7 +92,7 @@ public class WebSiteControllerDatabaseTest {
 
             AdminArticleService articles =
                     new AdminArticleService(
-                            db.cacheService(),
+                            db.unitCacheService(),
                             ApplicationServicesFixture.capability(
                                     db.config(), ArticleAssistant.class),
                             new AdminPageDataFactory(

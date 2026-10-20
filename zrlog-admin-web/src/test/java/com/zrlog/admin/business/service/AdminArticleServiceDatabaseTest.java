@@ -12,9 +12,6 @@ import com.google.gson.JsonObject;
 import com.hibegin.common.dao.dto.PageRequestImpl;
 import com.hibegin.http.server.api.HttpRequest;
 import com.zrlog.admin.business.ai.service.AIConversationService;
-import com.zrlog.admin.business.ai.service.AIFileService;
-import com.zrlog.admin.business.ai.service.AIServiceDependencies;
-import com.zrlog.admin.business.content.ArticleAssistant;
 import com.zrlog.admin.business.exception.ArticleMissingTitleException;
 import com.zrlog.admin.business.exception.ArticleMissingTypeException;
 import com.zrlog.admin.business.exception.UpdateArticleExpireException;
@@ -32,13 +29,13 @@ import com.zrlog.admin.business.rest.response.LoadEditArticleResponse;
 import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
+import com.zrlog.admin.web.di.account.AccountComponent;
+import com.zrlog.admin.web.di.ai.AIComponent;
+import com.zrlog.admin.web.di.content.ContentComponent;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.vo.AdminTokenVO;
-import com.zrlog.data.service.UserPreferenceStore;
 import com.zrlog.model.Log;
 import com.zrlog.model.LogVersion;
-import com.zrlog.model.User;
-import com.zrlog.model.WebSite;
 
 import org.junit.Test;
 
@@ -57,30 +54,10 @@ public class AdminArticleServiceDatabaseTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             db.loadAdminWebModules();
             UserPreferenceService preferences =
-                    new UserPreferenceService(
-                            ApplicationServicesFixture.settings(db.dataSource()),
-                            new UserPreferenceStore(() -> new User(db.dataSource())),
-                            AccountServicesFixture.component(db.dataSource()).permissions());
+                    db.component(AccountComponent.class).preferences();
             preferences.updateBody("{\"editor\":{\"autoDigestLength\":0,\"linkPreviewEnabled\":true,\"publishCheckEnabled\":false,\"coverAspectRatio\":\"1:1\",\"autoSaveInterval\":10}}", "writing");
             AdminArticleService service =
-                    new AdminArticleService(
-                            db.cacheService(),
-                            ApplicationServicesFixture.capability(
-                                    db.config(), ArticleAssistant.class),
-                            new AdminPageDataFactory(
-                                    ApplicationServicesFixture.site(db.config()),
-                                    ApplicationServicesFixture.buildId(db.resources()),
-                                    ApplicationServicesFixture.messages(db.dataSource()),
-                                    AccountServicesFixture.component(db.dataSource()).permissions()),
-                            AccountServicesFixture.component(db.dataSource()).permissions(),
-                            AccountServicesFixture.component(db.dataSource()).preferences(),
-                            new ArticleVersionService(
-                                    AccountServicesFixture.component(db.dataSource()).permissions(),
-                                    () -> new Log(db.dataSource()),
-                                    () -> new LogVersion(db.dataSource())),
-                            new ArticlePinningService(() -> new Log(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource())),
-                            () -> new Log(db.dataSource()),
-                            ApplicationServicesFixture.locks(db.dataSource()));
+                    db.component(ContentComponent.class).articles();
             ArticleGlobalResponse editor = service.loadDetailById("", request()).getData();
             assertEquals(Boolean.TRUE, editor.getLinkPreviewEnabled());
             assertEquals(Boolean.FALSE, editor.getPublishCheckEnabled());
@@ -103,31 +80,9 @@ public class AdminArticleServiceDatabaseTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             db.loadAdminWebModules();
             AdminArticleService service =
-                    new AdminArticleService(
-                            db.cacheService(),
-                            ApplicationServicesFixture.capability(
-                                    db.config(), ArticleAssistant.class),
-                            new AdminPageDataFactory(
-                                    ApplicationServicesFixture.site(db.config()),
-                                    ApplicationServicesFixture.buildId(db.resources()),
-                                    ApplicationServicesFixture.messages(db.dataSource()),
-                                    AccountServicesFixture.component(db.dataSource()).permissions()),
-                            AccountServicesFixture.component(db.dataSource()).permissions(),
-                            AccountServicesFixture.component(db.dataSource()).preferences(),
-                            new ArticleVersionService(
-                                    AccountServicesFixture.component(db.dataSource()).permissions(),
-                                    () -> new Log(db.dataSource()),
-                                    () -> new LogVersion(db.dataSource())),
-                            new ArticlePinningService(() -> new Log(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource())),
-                            () -> new Log(db.dataSource()),
-                            ApplicationServicesFixture.locks(db.dataSource()));
+                    db.component(ContentComponent.class).articles();
             AIConversationService conversationService =
-                    new AIConversationService(
-                            AccountServicesFixture.component(db.dataSource()).security(),
-                            ApplicationServicesFixture.websiteKv(db.dataSource()),
-                            () -> new WebSite(db.dataSource()),
-                            new AIFileService(),
-                            AIServiceDependencies.approvals(db.dataSource()));
+                    db.component(AIComponent.class).conversations();
             assertTrue(conversationService.saveAIMessage(List.of(new AIResponseEntry.AIContentEntry("user", "draft")), -1L));
 
             CreateOrUpdateArticleResponse response = service.create(token(), article("Hello Article", "hello.article"));
@@ -161,24 +116,7 @@ public class AdminArticleServiceDatabaseTest {
             db.putWebsite("ai_api_key", "");
 
             AdminArticleService service =
-                    new AdminArticleService(
-                            db.cacheService(),
-                            ApplicationServicesFixture.capability(
-                                    db.config(), ArticleAssistant.class),
-                            new AdminPageDataFactory(
-                                    ApplicationServicesFixture.site(db.config()),
-                                    ApplicationServicesFixture.buildId(db.resources()),
-                                    ApplicationServicesFixture.messages(db.dataSource()),
-                                    AccountServicesFixture.component(db.dataSource()).permissions()),
-                            AccountServicesFixture.component(db.dataSource()).permissions(),
-                            AccountServicesFixture.component(db.dataSource()).preferences(),
-                            new ArticleVersionService(
-                                    AccountServicesFixture.component(db.dataSource()).permissions(),
-                                    () -> new Log(db.dataSource()),
-                                    () -> new LogVersion(db.dataSource())),
-                            new ArticlePinningService(() -> new Log(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource())),
-                            () -> new Log(db.dataSource()),
-                            ApplicationServicesFixture.locks(db.dataSource()));
+                    db.component(ContentComponent.class).articles();
 
             assertEquals(
                     Boolean.TRUE,
@@ -198,31 +136,9 @@ public class AdminArticleServiceDatabaseTest {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
             ignored.loadAdminWebModules();
             AdminArticleService service =
-                    new AdminArticleService(
-                            ignored.cacheService(),
-                            ApplicationServicesFixture.capability(
-                                    ignored.config(), ArticleAssistant.class),
-                            new AdminPageDataFactory(
-                                    ApplicationServicesFixture.site(ignored.config()),
-                                    ApplicationServicesFixture.buildId(ignored.resources()),
-                                    ApplicationServicesFixture.messages(ignored.dataSource()),
-                                    AccountServicesFixture.component(ignored.dataSource()).permissions()),
-                            AccountServicesFixture.component(ignored.dataSource()).permissions(),
-                            AccountServicesFixture.component(ignored.dataSource()).preferences(),
-                            new ArticleVersionService(
-                                    AccountServicesFixture.component(ignored.dataSource()).permissions(),
-                                    () -> new Log(ignored.dataSource()),
-                                    () -> new LogVersion(ignored.dataSource())),
-                            new ArticlePinningService(() -> new Log(ignored.dataSource()), ApplicationServicesFixture.locks(ignored.dataSource())),
-                            () -> new Log(ignored.dataSource()),
-                            ApplicationServicesFixture.locks(ignored.dataSource()));
+                    ignored.component(ContentComponent.class).articles();
             AIConversationService conversationService =
-                    new AIConversationService(
-                            AccountServicesFixture.component(ignored.dataSource()).security(),
-                            ApplicationServicesFixture.websiteKv(ignored.dataSource()),
-                            () -> new WebSite(ignored.dataSource()),
-                            new AIFileService(),
-                            AIServiceDependencies.approvals(ignored.dataSource()));
+                    ignored.component(AIComponent.class).conversations();
             assertTrue(conversationService.saveAIMessage(List.of(new AIResponseEntry.AIContentEntry("user", "draft")), 0L));
             CreateArticleRequest request = article("Imported draft", "imported-draft");
             request.setPreserveDraftAiMessages(true);
@@ -239,24 +155,7 @@ public class AdminArticleServiceDatabaseTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             db.loadAdminWebModules();
             AdminArticleService service =
-                    new AdminArticleService(
-                            db.cacheService(),
-                            ApplicationServicesFixture.capability(
-                                    db.config(), ArticleAssistant.class),
-                            new AdminPageDataFactory(
-                                    ApplicationServicesFixture.site(db.config()),
-                                    ApplicationServicesFixture.buildId(db.resources()),
-                                    ApplicationServicesFixture.messages(db.dataSource()),
-                                    AccountServicesFixture.component(db.dataSource()).permissions()),
-                            AccountServicesFixture.component(db.dataSource()).permissions(),
-                            AccountServicesFixture.component(db.dataSource()).preferences(),
-                            new ArticleVersionService(
-                                    AccountServicesFixture.component(db.dataSource()).permissions(),
-                                    () -> new Log(db.dataSource()),
-                                    () -> new LogVersion(db.dataSource())),
-                            new ArticlePinningService(() -> new Log(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource())),
-                            () -> new Log(db.dataSource()),
-                            ApplicationServicesFixture.locks(db.dataSource()));
+                    db.component(ContentComponent.class).articles();
             CreateOrUpdateArticleResponse created = service.create(token(), article("First Title", "first"));
             UpdateArticleRequest update = updateArticle(created.getLogId().intValue(), 0, "Second Title", "second");
 
@@ -285,24 +184,7 @@ public class AdminArticleServiceDatabaseTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             db.loadAdminWebModules();
             AdminArticleService service =
-                    new AdminArticleService(
-                            db.cacheService(),
-                            ApplicationServicesFixture.capability(
-                                    db.config(), ArticleAssistant.class),
-                            new AdminPageDataFactory(
-                                    ApplicationServicesFixture.site(db.config()),
-                                    ApplicationServicesFixture.buildId(db.resources()),
-                                    ApplicationServicesFixture.messages(db.dataSource()),
-                                    AccountServicesFixture.component(db.dataSource()).permissions()),
-                            AccountServicesFixture.component(db.dataSource()).permissions(),
-                            AccountServicesFixture.component(db.dataSource()).preferences(),
-                            new ArticleVersionService(
-                                    AccountServicesFixture.component(db.dataSource()).permissions(),
-                                    () -> new Log(db.dataSource()),
-                                    () -> new LogVersion(db.dataSource())),
-                            new ArticlePinningService(() -> new Log(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource())),
-                            () -> new Log(db.dataSource()),
-                            ApplicationServicesFixture.locks(db.dataSource()));
+                    db.component(ContentComponent.class).articles();
             CreateOrUpdateArticleResponse created = service.create(token(), article("Pinned", "pinned"));
             CreateOrUpdateArticleResponse other =
                     service.create(token(), article("Pinned Other", "pinned-other"));
@@ -341,24 +223,7 @@ public class AdminArticleServiceDatabaseTest {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
             ignored.loadAdminWebModules();
             AdminArticleService service =
-                    new AdminArticleService(
-                            ignored.cacheService(),
-                            ApplicationServicesFixture.capability(
-                                    ignored.config(), ArticleAssistant.class),
-                            new AdminPageDataFactory(
-                                    ApplicationServicesFixture.site(ignored.config()),
-                                    ApplicationServicesFixture.buildId(ignored.resources()),
-                                    ApplicationServicesFixture.messages(ignored.dataSource()),
-                                    AccountServicesFixture.component(ignored.dataSource()).permissions()),
-                            AccountServicesFixture.component(ignored.dataSource()).permissions(),
-                            AccountServicesFixture.component(ignored.dataSource()).preferences(),
-                            new ArticleVersionService(
-                                    AccountServicesFixture.component(ignored.dataSource()).permissions(),
-                                    () -> new Log(ignored.dataSource()),
-                                    () -> new LogVersion(ignored.dataSource())),
-                            new ArticlePinningService(() -> new Log(ignored.dataSource()), ApplicationServicesFixture.locks(ignored.dataSource())),
-                            () -> new Log(ignored.dataSource()),
-                            ApplicationServicesFixture.locks(ignored.dataSource()));
+                    ignored.component(ContentComponent.class).articles();
             service.create(token(), article("Published", "published"));
             service.create(token(), article("Private", "private", true, false));
             service.create(token(), article("Draft", "draft", false, true));
@@ -384,31 +249,9 @@ public class AdminArticleServiceDatabaseTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             db.loadAdminWebModules();
             AdminArticleService service =
-                    new AdminArticleService(
-                            db.cacheService(),
-                            ApplicationServicesFixture.capability(
-                                    db.config(), ArticleAssistant.class),
-                            new AdminPageDataFactory(
-                                    ApplicationServicesFixture.site(db.config()),
-                                    ApplicationServicesFixture.buildId(db.resources()),
-                                    ApplicationServicesFixture.messages(db.dataSource()),
-                                    AccountServicesFixture.component(db.dataSource()).permissions()),
-                            AccountServicesFixture.component(db.dataSource()).permissions(),
-                            AccountServicesFixture.component(db.dataSource()).preferences(),
-                            new ArticleVersionService(
-                                    AccountServicesFixture.component(db.dataSource()).permissions(),
-                                    () -> new Log(db.dataSource()),
-                                    () -> new LogVersion(db.dataSource())),
-                            new ArticlePinningService(() -> new Log(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource())),
-                            () -> new Log(db.dataSource()),
-                            ApplicationServicesFixture.locks(db.dataSource()));
+                    db.component(ContentComponent.class).articles();
             AIConversationService conversationService =
-                    new AIConversationService(
-                            AccountServicesFixture.component(db.dataSource()).security(),
-                            ApplicationServicesFixture.websiteKv(db.dataSource()),
-                            () -> new WebSite(db.dataSource()),
-                            new AIFileService(),
-                            AIServiceDependencies.approvals(db.dataSource()));
+                    db.component(AIComponent.class).conversations();
             CreateOrUpdateArticleResponse created = service.create(token(), article("Delete Me", "delete-me"));
             assertTrue(conversationService.saveAIMessage(List.of(new AIResponseEntry.AIContentEntry("user", "keep")), created.getLogId()));
 
@@ -424,24 +267,7 @@ public class AdminArticleServiceDatabaseTest {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
             ignored.loadAdminWebModules();
             AdminArticleService service =
-                    new AdminArticleService(
-                            ignored.cacheService(),
-                            ApplicationServicesFixture.capability(
-                                    ignored.config(), ArticleAssistant.class),
-                            new AdminPageDataFactory(
-                                    ApplicationServicesFixture.site(ignored.config()),
-                                    ApplicationServicesFixture.buildId(ignored.resources()),
-                                    ApplicationServicesFixture.messages(ignored.dataSource()),
-                                    AccountServicesFixture.component(ignored.dataSource()).permissions()),
-                            AccountServicesFixture.component(ignored.dataSource()).permissions(),
-                            AccountServicesFixture.component(ignored.dataSource()).preferences(),
-                            new ArticleVersionService(
-                                    AccountServicesFixture.component(ignored.dataSource()).permissions(),
-                                    () -> new Log(ignored.dataSource()),
-                                    () -> new LogVersion(ignored.dataSource())),
-                            new ArticlePinningService(() -> new Log(ignored.dataSource()), ApplicationServicesFixture.locks(ignored.dataSource())),
-                            () -> new Log(ignored.dataSource()),
-                            ApplicationServicesFixture.locks(ignored.dataSource()));
+                    ignored.component(ContentComponent.class).articles();
             CreateOrUpdateArticleResponse created = service.create(token(), article("Versioned", "versioned"));
             UpdateArticleRequest staleUpdate = updateArticle(created.getLogId().intValue(), -1, "Stale", "stale");
 
@@ -454,24 +280,7 @@ public class AdminArticleServiceDatabaseTest {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
             ignored.loadAdminWebModules();
             AdminArticleService service =
-                    new AdminArticleService(
-                            ignored.cacheService(),
-                            ApplicationServicesFixture.capability(
-                                    ignored.config(), ArticleAssistant.class),
-                            new AdminPageDataFactory(
-                                    ApplicationServicesFixture.site(ignored.config()),
-                                    ApplicationServicesFixture.buildId(ignored.resources()),
-                                    ApplicationServicesFixture.messages(ignored.dataSource()),
-                                    AccountServicesFixture.component(ignored.dataSource()).permissions()),
-                            AccountServicesFixture.component(ignored.dataSource()).permissions(),
-                            AccountServicesFixture.component(ignored.dataSource()).preferences(),
-                            new ArticleVersionService(
-                                    AccountServicesFixture.component(ignored.dataSource()).permissions(),
-                                    () -> new Log(ignored.dataSource()),
-                                    () -> new LogVersion(ignored.dataSource())),
-                            new ArticlePinningService(() -> new Log(ignored.dataSource()), ApplicationServicesFixture.locks(ignored.dataSource())),
-                            () -> new Log(ignored.dataSource()),
-                            ApplicationServicesFixture.locks(ignored.dataSource()));
+                    ignored.component(ContentComponent.class).articles();
             CreateArticleRequest missingTitle = article("", "missing-title");
             CreateArticleRequest missingType = article("Missing Type", "missing-type");
             missingType.setTypeId(0L);
@@ -486,24 +295,7 @@ public class AdminArticleServiceDatabaseTest {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
             ignored.loadAdminWebModules();
             AdminArticleService service =
-                    new AdminArticleService(
-                            ignored.cacheService(),
-                            ApplicationServicesFixture.capability(
-                                    ignored.config(), ArticleAssistant.class),
-                            new AdminPageDataFactory(
-                                    ApplicationServicesFixture.site(ignored.config()),
-                                    ApplicationServicesFixture.buildId(ignored.resources()),
-                                    ApplicationServicesFixture.messages(ignored.dataSource()),
-                                    AccountServicesFixture.component(ignored.dataSource()).permissions()),
-                            AccountServicesFixture.component(ignored.dataSource()).permissions(),
-                            AccountServicesFixture.component(ignored.dataSource()).preferences(),
-                            new ArticleVersionService(
-                                    AccountServicesFixture.component(ignored.dataSource()).permissions(),
-                                    () -> new Log(ignored.dataSource()),
-                                    () -> new LogVersion(ignored.dataSource())),
-                            new ArticlePinningService(() -> new Log(ignored.dataSource()), ApplicationServicesFixture.locks(ignored.dataSource())),
-                            () -> new Log(ignored.dataSource()),
-                            ApplicationServicesFixture.locks(ignored.dataSource()));
+                    ignored.component(ContentComponent.class).articles();
             service.create(token(), article("Activity One", "activity-one"));
             service.create(token(), article("Activity Two", "activity-two"));
 
@@ -520,24 +312,7 @@ public class AdminArticleServiceDatabaseTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             db.loadAdminWebModules();
             AdminArticleService service =
-                    new AdminArticleService(
-                            db.cacheService(),
-                            ApplicationServicesFixture.capability(
-                                    db.config(), ArticleAssistant.class),
-                            new AdminPageDataFactory(
-                                    ApplicationServicesFixture.site(db.config()),
-                                    ApplicationServicesFixture.buildId(db.resources()),
-                                    ApplicationServicesFixture.messages(db.dataSource()),
-                                    AccountServicesFixture.component(db.dataSource()).permissions()),
-                            AccountServicesFixture.component(db.dataSource()).permissions(),
-                            AccountServicesFixture.component(db.dataSource()).preferences(),
-                            new ArticleVersionService(
-                                    AccountServicesFixture.component(db.dataSource()).permissions(),
-                                    () -> new Log(db.dataSource()),
-                                    () -> new LogVersion(db.dataSource())),
-                            new ArticlePinningService(() -> new Log(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource())),
-                            () -> new Log(db.dataSource()),
-                            ApplicationServicesFixture.locks(db.dataSource()));
+                    db.component(ContentComponent.class).articles();
             CreateArticleRequest create = article("Toolbox", "toolbox");
             create.setArrange_plugin("retro-runtime");
             int id = service.create(token(), create).getLogId().intValue();
@@ -571,24 +346,7 @@ public class AdminArticleServiceDatabaseTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             db.loadAdminWebModules();
             AdminArticleService service =
-                    new AdminArticleService(
-                            db.cacheService(),
-                            ApplicationServicesFixture.capability(
-                                    db.config(), ArticleAssistant.class),
-                            new AdminPageDataFactory(
-                                    ApplicationServicesFixture.site(db.config()),
-                                    ApplicationServicesFixture.buildId(db.resources()),
-                                    ApplicationServicesFixture.messages(db.dataSource()),
-                                    AccountServicesFixture.component(db.dataSource()).permissions()),
-                            AccountServicesFixture.component(db.dataSource()).permissions(),
-                            AccountServicesFixture.component(db.dataSource()).preferences(),
-                            new ArticleVersionService(
-                                    AccountServicesFixture.component(db.dataSource()).permissions(),
-                                    () -> new Log(db.dataSource()),
-                                    () -> new LogVersion(db.dataSource())),
-                            new ArticlePinningService(() -> new Log(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource())),
-                            () -> new Log(db.dataSource()),
-                            ApplicationServicesFixture.locks(db.dataSource()));
+                    db.component(ContentComponent.class).articles();
             int id = service.create(token(), article("Layout", "layout")).getLogId().intValue();
             assertNull(db.scalar("select arrange_plugin from log where logId=?", id));
             assertEquals("", service.loadDetail("layout", request()).getArrange_plugin());
@@ -622,24 +380,7 @@ public class AdminArticleServiceDatabaseTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             db.loadAdminWebModules();
             AdminArticleService service =
-                    new AdminArticleService(
-                            db.cacheService(),
-                            ApplicationServicesFixture.capability(
-                                    db.config(), ArticleAssistant.class),
-                            new AdminPageDataFactory(
-                                    ApplicationServicesFixture.site(db.config()),
-                                    ApplicationServicesFixture.buildId(db.resources()),
-                                    ApplicationServicesFixture.messages(db.dataSource()),
-                                    AccountServicesFixture.component(db.dataSource()).permissions()),
-                            AccountServicesFixture.component(db.dataSource()).permissions(),
-                            AccountServicesFixture.component(db.dataSource()).preferences(),
-                            new ArticleVersionService(
-                                    AccountServicesFixture.component(db.dataSource()).permissions(),
-                                    () -> new Log(db.dataSource()),
-                                    () -> new LogVersion(db.dataSource())),
-                            new ArticlePinningService(() -> new Log(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource())),
-                            () -> new Log(db.dataSource()),
-                            ApplicationServicesFixture.locks(db.dataSource()));
+                    db.component(ContentComponent.class).articles();
             int id = service.create(token(), article("Valid", "valid")).getLogId().intValue();
             for (String invalid : List.of("../widget", "<plugin>", "a/b", "a\\b", "a b", " a", "a\n", "a".repeat(65))) {
                 CreateArticleRequest create = article("Invalid", "invalid");

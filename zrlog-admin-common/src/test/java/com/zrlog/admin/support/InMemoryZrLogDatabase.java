@@ -16,10 +16,8 @@ import com.zrlog.common.cache.dto.UserBasicDTO;
 import com.zrlog.common.cache.vo.BaseDataInitVO;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.common.vo.PublicWebSiteInfo;
-import com.zrlog.data.di.DaggerDataComponent;
 import com.zrlog.data.di.DataComponent;
 import com.zrlog.data.service.UserPreferenceStore;
-import com.zrlog.data.web.DataWebSetup;
 import com.zrlog.model.User;
 import com.zrlog.plugin.IPlugin;
 import com.zrlog.plugin.Plugins;
@@ -74,13 +72,30 @@ public class InMemoryZrLogDatabase implements AutoCloseable {
     }
 
     public void loadAdminWebModules() {
-        config.webModules();
+        config.webModules(null);
+    }
+
+    /** Register controlled host boundaries after modules, before database-ready callbacks freeze bindings. */
+    public void loadAdminWebModules(java.util.function.Consumer<ServerConfig> configure) {
+        config.webModules(java.util.Objects.requireNonNull(configure));
     }
 
     public void beforeWebApiUpdate(ZrLogTestDatabase.SqlHook hook) { database.beforeWebApiUpdate(hook); }
     public void afterWebApiQuery(ZrLogTestDatabase.SqlHook hook) { database.afterWebApiQuery(hook); }
     public DataSourceWrapper dataSource() { return database.dataSource(); }
-    public TestCacheService cacheService() { return cacheService; }
+    public CacheService cacheService() {
+        return component(DataComponent.class).cache();
+    }
+    /** Explicit fake for isolated unit tests; never substitute it into a loaded application. */
+    public TestCacheService unitCacheService() {
+        if (config.modulesLoaded) throw new IllegalStateException("Use the production cache after loading modules");
+        return cacheService;
+    }
+    /** Resolve a production graph after all of the application's WebSetup registrations. */
+    public <T> T component(Class<T> type) {
+        loadAdminWebModules();
+        return config.getServerConfig().getBindings().build().get(type);
+    }
     public ZrLogConfig config() { return config; }
     public AdminResource resources() { return resources; }
     public boolean execute(String sql, Object... params) throws SQLException { return database.execute(sql, params); }
@@ -197,10 +212,11 @@ public class InMemoryZrLogDatabase implements AutoCloseable {
     private static class TestZrLogConfig extends ZrLogConfig {
         private final DataSourceWrapper testDataSource;
         private final CacheService cacheService;
+        private boolean modulesLoaded;
 
         @Override
         public <T> T getWebSetup(Class<T> capability) {
-            if (capability == WebSiteInfoProvider.class) {
+            if (!modulesLoaded && capability == WebSiteInfoProvider.class) {
                 return capability.cast((WebSiteInfoProvider) cacheService::getPublicWebSiteInfo);
             }
             return super.getWebSetup(capability);
@@ -209,11 +225,8 @@ public class InMemoryZrLogDatabase implements AutoCloseable {
         private TestZrLogConfig(DataSourceWrapper dataSource, CacheService cacheService) {
             super(18080, null, "");
             this.testDataSource = dataSource;
-            this.testTokens =
-                new AdminTokenService(60, this::isInstalled, this::staticHtmlEnabled, () -> new User(testDataSource), () -> new UserPreferenceStore(() -> new User(testDataSource)));
             this.dataSource = dataSource;
             this.cacheService = cacheService;
-            serverConfig.getBindings().instance(CacheService.class, cacheService);
             var context = new WebSetupContext(this, dbPropertiesFile, installLockFile, "", null);
             ServiceLoader.load(WebSetupProvider.class)
                     .forEach(
@@ -223,12 +236,11 @@ public class InMemoryZrLogDatabase implements AutoCloseable {
                             });
         }
 
-        private void webModules() {
-            serverConfig
-                    .getBindings()
-                    .instance(
-                            DataComponent.class,
-                            DaggerDataComponent.factory().create(() -> testDataSource, () -> true));
+        private synchronized void webModules(java.util.function.Consumer<ServerConfig> configure) {
+            if (modulesLoaded) {
+                if (configure != null) throw new IllegalStateException("Configure test boundaries before loading modules");
+                return;
+            }
             this.webSetups.clear();
             this.webSetups.addAll(
                     WebSetupLoader.load(
@@ -238,30 +250,38 @@ public class InMemoryZrLogDatabase implements AutoCloseable {
                                             || provider.name().equals("services")
                                             || provider.name().equals("admin")
                                             || provider.name().startsWith("admin-")));
-            // The fixture owns its counting cache; retain real module discovery and routes.
-            this.webSetups.stream()
-                    .filter(setup -> !(setup instanceof DataWebSetup))
-                    .forEach(WebSetup::setup);
+            if (configure != null) {
+                this.webSetups.add(new WebSetup() {
+                    @Override public void setup() { configure.accept(serverConfig); }
+                });
+            }
+            modulesLoaded = true;
+            initializeWebSetups();
         }
 
         @Override
         public boolean isInstalled() {
-            return false;
+            return modulesLoaded;
         }
 
         @Override
-        public DataSourceWrapper configDatabase() {
-            return testDataSource;
+        public DataSourceWrapper configDatabase() throws Exception {
+            return modulesLoaded ? super.configDatabase() : testDataSource;
         }
 
         private boolean staticHtmlEnabled() {
             return Boolean.TRUE.equals(cacheService.getPublicWebSiteInfo().getGenerator_html_status());
         }
 
-        private final TokenService testTokens;
+        private TokenService testTokens;
 
         @Override
         protected TokenService initTokenService() {
+            if (modulesLoaded) return super.initTokenService();
+            if (testTokens == null) {
+                testTokens = new AdminTokenService(60, this::isInstalled, this::staticHtmlEnabled,
+                        () -> new User(testDataSource), () -> new UserPreferenceStore(() -> new User(testDataSource)));
+            }
             return testTokens;
         }
 

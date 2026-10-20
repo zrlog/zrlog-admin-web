@@ -218,7 +218,7 @@ public class PersonalAccessTokenServiceTest {
                                 PermissionErrorException.class,
                                 () ->
                                         new AdminArticleService(
-                                                        db.cacheService(),
+                                                        db.unitCacheService(),
                                                         ApplicationServicesFixture.capability(
                                                                 db.config(),
                                                                 ArticleAssistant.class),

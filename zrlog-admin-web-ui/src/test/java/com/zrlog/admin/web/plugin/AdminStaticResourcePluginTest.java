@@ -28,7 +28,7 @@ public class AdminStaticResourcePluginTest {
                     new AdminStaticResourcePlugin(
                             new StaticSiteRenderer(
                                     config.getRequestConfig(), config.getResponseConfig(), context),
-                            database.cacheService()::getPublicWebSiteInfo,
+                            database.unitCacheService()::getPublicWebSiteInfo,
                             database.resources(),
                             "/blog",
                             () -> new WebSite(database.dataSource()));

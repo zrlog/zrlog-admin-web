@@ -44,7 +44,7 @@ public class ArticlePublishingServiceDatabaseTest {
             ArticlePublishingService publishing =
                     new ArticlePublishingService(
                             new AdminArticleService(
-                                    db.cacheService(),
+                                    db.unitCacheService(),
                                     ApplicationServicesFixture.capability(
                                             db.config(), ArticleAssistant.class),
                                     new AdminPageDataFactory(
@@ -62,7 +62,7 @@ public class ArticlePublishingServiceDatabaseTest {
                                             () -> new Log(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource())),
                                     () -> new Log(db.dataSource()),
                                     ApplicationServicesFixture.locks(db.dataSource())),
-                            ApplicationServicesFixture.cacheRefresh(db.cacheService(), db.config()),
+                            ApplicationServicesFixture.cacheRefresh(db.unitCacheService(), db.config()),
                             markdown -> null,
                             ApplicationServicesFixture.audit(db.dataSource()),
                             ApplicationServicesFixture.operations(db.dataSource()));
@@ -122,7 +122,7 @@ public class ArticlePublishingServiceDatabaseTest {
             body.setPreserveDraftAiMessages(true);
             new ArticlePublishingService(
                             new AdminArticleService(
-                                    db.cacheService(),
+                                    db.unitCacheService(),
                                     ApplicationServicesFixture.capability(
                                             db.config(), ArticleAssistant.class),
                                     new AdminPageDataFactory(
@@ -140,7 +140,7 @@ public class ArticlePublishingServiceDatabaseTest {
                                             () -> new Log(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource())),
                                     () -> new Log(db.dataSource()),
                                     ApplicationServicesFixture.locks(db.dataSource())),
-                            ApplicationServicesFixture.cacheRefresh(db.cacheService(), db.config()),
+                            ApplicationServicesFixture.cacheRefresh(db.unitCacheService(), db.config()),
                             markdown -> null,
                             ApplicationServicesFixture.audit(db.dataSource()),
                             ApplicationServicesFixture.operations(db.dataSource()))
@@ -165,7 +165,7 @@ public class ArticlePublishingServiceDatabaseTest {
             ArticlePublishingService publishing =
                     new ArticlePublishingService(
                             new AdminArticleService(
-                                    db.cacheService(),
+                                    db.unitCacheService(),
                                     ApplicationServicesFixture.capability(
                                             db.config(), ArticleAssistant.class),
                                     new AdminPageDataFactory(
@@ -183,7 +183,7 @@ public class ArticlePublishingServiceDatabaseTest {
                                             () -> new Log(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource())),
                                     () -> new Log(db.dataSource()),
                                     ApplicationServicesFixture.locks(db.dataSource())),
-                            ApplicationServicesFixture.cacheRefresh(db.cacheService(), db.config()),
+                            ApplicationServicesFixture.cacheRefresh(db.unitCacheService(), db.config()),
                             markdown -> null,
                             ApplicationServicesFixture.audit(db.dataSource()),
                             ApplicationServicesFixture.operations(db.dataSource()));
