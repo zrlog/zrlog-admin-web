@@ -219,11 +219,10 @@ public class AIChatService extends AIService {
                                                 GenerateArticleFieldRequest articleContext, AdminAuditContext audit,
                                                 AdminTokenVO credential)
             throws IOException, InterruptedException, SQLException {
-        identities.revalidate(actor);
         if (articleId < 0 && articleId != -(long) actor.getUserId()) throw new PermissionErrorException();
         long id = articleId <= 0 ? 0 : articleId;
-        authorizeArticle(actor, id);
         if (tool != null && !tool.isBlank()) {
+            authorizeArticle(actor, id);
             return writingSkillService(actor)
                     .startStreamResponse(input, articleId, tool, articleContext);
         }
@@ -246,9 +245,10 @@ public class AIChatService extends AIService {
         AIWebSiteInfoWithAIMessages info = conversations.getAiMessageInfoByArticleId(conversationId(actor, input.articleId));
         checkAiConfig(info);
         input.history = history(info.getAiMessages());
-        UserPreferenceService preferences = this.userPreferenceService;
-        UserPreferences.Assistant settings = preferences.assistant(identities.revalidate(actor));
-        List<ResolvedReference> references = this.references.resolve(identities.revalidate(actor), input, settings);
+        UserPreferences preferences = this.userPreferenceService.effective(actor);
+        UserPreferences.Assistant settings = preferences.assistant;
+        List<ResolvedReference> references = input.references.isEmpty() ? List.of()
+                : this.references.resolve(actor, input, settings);
         Run run = newRun(actor, input, info, !"off".equals(settings.knowledgeScope));
         if (!references.isEmpty()) {
             for (ResolvedReference reference : references) {
@@ -263,7 +263,7 @@ public class AIChatService extends AIService {
         }
         run.userId = actor.getUserId();
         run.authVersion = actor.getAuthVersion();
-        run.language = preferences.effective(actor.getUserId()).language;
+        run.language = preferences.language;
         run.preferences = gson.toJson(settings);
         run.provider = info.getAi_provider().name();
         run.model = info.getAi_model();
@@ -306,7 +306,7 @@ public class AIChatService extends AIService {
         run = invalidatePending(actor, run);
         if (!"awaiting_approval".equals(AIApprovalStore.view(run).status)
                 || run.approval == null || !run.approval.id.equals(input.approvalId)) return stateResponse(actor, run);
-        UserPreferences.Assistant settings = this.userPreferenceService.assistant(identities.revalidate(actor));
+        UserPreferences.Assistant settings = this.userPreferenceService.assistant(actor);
         AIWebSiteInfoWithAIMessages info =
                 this.conversations.captureAccount(actor.getUserId()).getAiMessageInfoByArticleId(
                         conversationId(actor, input.articleId));
@@ -333,7 +333,7 @@ public class AIChatService extends AIService {
         run = invalidatePending(actor, run);
         if (!"awaiting_input".equals(AIApprovalStore.view(run).status) || run.interaction == null
                 || !run.interaction.id.equals(input.interactionId)) return stateResponse(actor, run);
-        UserPreferences.Assistant settings = this.userPreferenceService.assistant(identities.revalidate(actor));
+        UserPreferences.Assistant settings = this.userPreferenceService.assistant(actor);
         AIWebSiteInfoWithAIMessages info =
                 this.conversations.captureAccount(actor.getUserId()).getAiMessageInfoByArticleId(
                         conversationId(actor, input.articleId));
@@ -475,16 +475,10 @@ public class AIChatService extends AIService {
                                     AccountAccess actor, AdminAuditContext audit, AdminTokenVO credential, String decision) throws IOException {
         AIApprovalStore store = this.approvalStore;
         AIConversationService conversations = this.conversations.captureAccount(actor.getUserId());
-        Runnable reauthorize =
-                () -> {
-                    authorizeArticle(actor, editorArticleId(run));
-                    if (run.authVersion != actor.getAuthVersion()
-                            || !run.preferences.equals(
-                            gson.toJson(this.userPreferenceService.assistant(identities.revalidate(actor)))))
-                        throw new PermissionErrorException();
-                };
+        // Each HTTP request uses the account and assistant settings checked at its entry point.
+        // Tool operations retain their own authorization; model output does not query permissions.
         ToolProvider knowledge = !"off".equals(settings.knowledgeScope)
-                ? Objects.requireNonNull(tools, "Content tools are required for an assisted conversation").create(identities.revalidate(actor), scopes(settings), request, run.language,
+                ? Objects.requireNonNull(tools, "Content tools are required for an assisted conversation").create(actor, scopes(settings), request, run.language,
                 audit, credential) : null;
         PipedInputStream in = new PipedInputStream(16384);
         PipedOutputStream out = new PipedOutputStream(in);
@@ -494,8 +488,7 @@ public class AIChatService extends AIService {
                     Event started = new Event("run-start");
                     started.runId = run.id;
                     emit(sink, started);
-                    execute(actor, run, info, knowledge, sink, reauthorize, decision, answer -> {
-                        reauthorize.run();
+                    execute(actor, run, info, knowledge, sink, decision, answer -> {
                         store.check(run);
                         AIResponseEntry.AIContentEntry question = new AIResponseEntry.AIContentEntry("user", run.input.trim());
                         AIResponseEntry.AIContentEntry reply = new AIResponseEntry.AIContentEntry("assistant", answer.content);
@@ -554,8 +547,9 @@ public class AIChatService extends AIService {
         }
     }
 
-    void run(AccountAccess actor, ChatRequest input, AIWebSiteInfo info, ToolProvider knowledge, OutputStream out, Runnable reauthorize) throws Exception {
-        execute(actor, newRun(actor, input, info, knowledge != null), info, knowledge, out, reauthorize, null, answer -> {
+    void run(AccountAccess actor, ChatRequest input, AIWebSiteInfo info, ToolProvider knowledge, OutputStream out, Runnable authorize) throws Exception {
+        authorize.run();
+        execute(actor, newRun(actor, input, info, knowledge != null), info, knowledge, out, null, answer -> {
         });
     }
 
@@ -638,12 +632,11 @@ public class AIChatService extends AIService {
     }
 
     private void execute(AccountAccess actor, Run run, AIWebSiteInfo info, ToolProvider knowledge, OutputStream out,
-                         Runnable reauthorize, String decision, SaveAnswer saveAnswer) throws Exception {
+                         String decision, SaveAnswer saveAnswer) throws Exception {
         AIApprovalStore store = this.approvalStore;
         List<AIProviderRequests.Message> messages = run.messages;
         AIWritingToolProvider writing = writingTools.create(run, writingSkillService(actor));
         while (run.round <= 4) {
-            reauthorize.run();
             store.check(run);
             List<Tool> definitions = new ArrayList<>(knowledge == null ? List.of() : knowledge.definitions(I18nUtil.getCurrentLocale()));
             definitions.addAll(writing.definitions(I18nUtil.getCurrentLocale()));
@@ -656,7 +649,6 @@ public class AIChatService extends AIService {
             if (!run.toolCalls.isEmpty()) {
                 while (run.nextTool < run.toolCalls.size()) {
                     AIProviderRequests.ToolCall call = run.toolCalls.get(run.nextTool);
-                    reauthorize.run();
                     store.check(run);
                     Object result;
                     boolean write = Set.of("create_article", "update_article", "publish_article", "upload_attachment").contains(call.function.name);
@@ -712,7 +704,6 @@ public class AIChatService extends AIService {
                         result = new ToolError(I18nUtil.getAdminBackendStringFromRes("admin.mcp.error.toolExecution"));
                     }
                     decision = null;
-                    reauthorize.run();
                     store.check(run);
                     Event updated = null;
                     AIResponseEntry.AIContentEntry skillMessage = result instanceof AIResponseEntry.AIContentEntry
@@ -764,9 +755,8 @@ public class AIChatService extends AIService {
             List<Tool> supplied = new ArrayList<>();
             if (run.round < 4 && run.calls < 8)
                 for (Tool tool : definitions) if (availableNames.contains(tool.name)) supplied.add(tool);
-            AIProviderResponses.Choice choice = completeTurn(actor, info, messages, supplied, reauthorize, (type, text) -> {
+            AIProviderResponses.Choice choice = completeTurn(actor, info, messages, supplied, (type, text) -> {
                 if ("reasoning_delta".equals(type) && !info.isReasoningEnabled()) return;
-                reauthorize.run();
                 Event progress = new Event(type);
                 if ("reasoning_delta".equals(type)) progress.reasoningContent = text;
                 else progress.content = text;
@@ -776,7 +766,6 @@ public class AIChatService extends AIService {
             if (reply == null) throw new AIResponseException("Missing message");
             String reasoning = reply.getReasoningText();
             if (info.isReasoningEnabled() && reasoning != null && !reasoning.isBlank()) {
-                reauthorize.run();
                 run.reasoning += (run.reasoning.isEmpty() ? "" : "\n\n") + reasoning;
                 Event progress = new Event("reasoning");
                 progress.reasoningContent = reasoning;
@@ -788,7 +777,6 @@ public class AIChatService extends AIService {
                     throw new AIIncompleteResponseException(choice.getFinishReason());
                 if (reply.getContent() == null || reply.getContent().isBlank())
                     throw new AIResponseException("Empty answer");
-                reauthorize.run();
                 Event answer = new Event("answer");
                 answer.content = reply.getContent();
                 answer.sources = run.sources;
@@ -908,7 +896,7 @@ public class AIChatService extends AIService {
             return context;
         }
         Map<String, Object> row =
-                permissionService.article(identities.revalidate(actor), articleId, false);
+                permissionService.article(actor, articleId, false);
         context.title = Objects.toString(row.get("title"), "");
         context.version = ((Number) Objects.requireNonNullElse(row.get("version"), 0)).intValue();
         context.typeId = ((Number) Objects.requireNonNullElse(row.get("typeId"), 0)).longValue();
@@ -920,14 +908,13 @@ public class AIChatService extends AIService {
     }
 
     private AIProviderResponses.Choice completeTurn(AccountAccess actor, AIWebSiteInfo info, List<AIProviderRequests.Message> messages,
-                                                    List<Tool> definitions, Runnable reauthorize, AIChatStreamReader.Progress progress) throws IOException, InterruptedException {
+                                                    List<Tool> definitions, AIChatStreamReader.Progress progress) throws IOException, InterruptedException {
         List<AIProviderRequests.Message> currentMessages = messages;
         StringBuilder content = new StringBuilder(), reasoning = new StringBuilder();
         List<OpenAIResponses.Item> responsesOutput = new ArrayList<>();
         for (int continuation = 0; ; continuation++) {
             AIProviderResponses.Choice choice = null;
             for (int attempt = 0; ; attempt++) {
-                reauthorize.run();
                 try {
                     choice = complete(actor, info, request(info, currentMessages, continuation == 0 ? definitions : List.of()), progress);
                     break;

@@ -107,6 +107,44 @@ public class AIChatServiceTest {
     }
 
     @Test
+    public void streamingFragmentsAndContinuationDoNotRepeatRequestAuthorizationQueries() throws Exception {
+        List<Integer> queryCounts = new ArrayList<>();
+        for (int fragments : List.of(1, 500)) {
+            try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.openWebApi()) {
+                seedAiConfig(db);
+                db.execute("update user set preferences=? where userId=1", "{\"assistant\":{\"knowledgeScope\":\"off\"}}");
+                StringBuilder frames = new StringBuilder();
+                for (int i = 0; i < fragments; i++) {
+                    frames.append("data: {\"choices\":[{\"delta\":{\"content\":\"x\",\"reasoning_content\":\"r\"}}]}\n\n");
+                }
+                frames.append("data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"length\"}]}\n\ndata: [DONE]\n\n");
+                FakeHttpClient client = new FakeHttpClient(streamResponse(frames.toString()),
+                        streamResponse("data: {\"choices\":[{\"delta\":{\"content\":\"done\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n"));
+                var service = new NoSleepAIChatService(db.config(), client);
+                var actor = AIServiceDependencies.actor(db.dataSource());
+                var audit = AIServiceDependencies.audit(db.dataSource());
+                List<String> queries = Collections.synchronizedList(new ArrayList<>());
+                db.afterWebApiQuery((sql, params) -> queries.add(sql));
+
+                String wire = new String(service.startStreamResponse(actor, "Question", 36L, audit, null)
+                        .getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+
+                assertTrue(wire, wire.contains("\"type\":\"done\""));
+                assertTrue(wire, wire.contains("\"content\":\"" + "x".repeat(fragments) + "done\""));
+                assertTrue(wire, wire.contains("\"reasoningContent\":\"" + "r".repeat(fragments) + "\""));
+                assertEquals(2, client.requests.size());
+                assertEquals(1, queries.stream().filter(sql -> sql.startsWith("select * from user ")).count());
+                assertEquals(1, queries.stream().filter(sql -> sql.startsWith("select preferences from user ")).count());
+                queryCounts.add(queries.size());
+                String stored = Objects.toString(db.scalar("select value from website where name='ai_chat_message_u1_36'"));
+                assertTrue(stored, stored.contains("x".repeat(fragments) + "done"));
+                assertTrue(stored, stored.contains("r".repeat(fragments)));
+            }
+        }
+        assertEquals(queryCounts.get(0), queryCounts.get(1));
+    }
+
+    @Test
     public void shouldReplayPersistedOpenAiHistoryAcrossConsecutiveUserTurns() throws Exception {
         for (boolean enabled : List.of(true, false))
             try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {

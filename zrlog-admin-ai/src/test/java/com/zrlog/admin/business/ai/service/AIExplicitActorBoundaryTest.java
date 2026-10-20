@@ -135,7 +135,7 @@ public class AIExplicitActorBoundaryTest {
     }
 
     @Test
-    public void revocationWhileProviderIsRunningPreventsReplyAndConversationCommit() throws Exception {
+    public void revocationDuringReplyAppliesToTheNextRequest() throws Exception {
         for (String mutation : List.of("enabled=false", "authVersion=1", "role='editor'")) {
             try (var db = database()) {
                 var actor = actor(db);
@@ -158,13 +158,36 @@ public class AIExplicitActorBoundaryTest {
                     proceed.countDown();
                 }
                 String wire = read(response);
-                assertTrue(wire, wire.contains("\"error\":\"permission\""));
-                assertFalse(wire, wire.contains("PRIVATE ANSWER"));
-                assertFalse(wire.contains("\"type\":\"done\""));
-                assertTrue(AIServiceDependencies.conversations(db.dataSource()).captureAccount(2)
-                        .exportAIMessage(-2L).getMessages().isEmpty());
+                assertTrue(wire, wire.contains("PRIVATE ANSWER"));
+                assertTrue(wire, wire.contains("\"type\":\"done\""));
+                assertFalse(wire, wire.contains("\"error\":\"permission\""));
+                assertEquals(2, AIServiceDependencies.conversations(db.dataSource()).captureAccount(2)
+                        .exportAIMessage(-2L).getMessages().stream()
+                        .filter(message -> Set.of("user", "assistant").contains(message.getRole())).count());
+                assertThrows(PermissionErrorException.class, () -> model.start(actor, input(), audit(), null));
                 assertThrows(PermissionErrorException.class, () -> model.getRun(actor, 0));
             }
+        }
+    }
+
+    @Test
+    public void toolOperationsStillRejectRevocationDuringTheRequest() throws Exception {
+        try (var db = database()) {
+            knowledge(db, "own_all");
+            var model = new Model(db, new AIFileService(), call("create_article",
+                    "{\"title\":\"Forbidden\",\"typeId\":1,\"status\":\"draft\",\"content\":\"<p>Forbidden</p>\"}"));
+            model.afterRequest = () -> {
+                try {
+                    db.execute("update user set enabled=false where userId=2");
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            };
+            String wire = read(model.start(actor(db), input(), audit(), null));
+            assertTrue(wire, wire.contains("\"error\":\"permission\""));
+            assertFalse(wire, wire.contains("approval-required"));
+            assertFalse(wire, wire.contains("\"type\":\"done\""));
+            assertEquals(0, ((Number) db.scalar("select count(*) from log where userId=2")).intValue());
         }
     }
 
