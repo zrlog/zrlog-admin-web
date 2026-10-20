@@ -1,31 +1,31 @@
 import Input from "@zrlog/ui/antd/Input";
-import {useUiMessage} from "@zrlog/ui/feedback";
+import { useUiMessage } from "@zrlog/ui/feedback";
 import UserSettingsLayout from "./common/UserSettingsLayout";
 import SettingsSubmitBar from "./common/SettingsSubmitBar";
-import {UserApplications, UserApplicationsData} from "./oauth";
-import type {UserApplicationPage, UserPreferencePage} from "../utils/account-page-routes";
-import type {UserPreferencesResponse} from "../utils/user-preferences";
-import type {AdminCommonProps} from "../type";
+import { UserApplications, UserApplicationsData } from "./oauth";
+import type { UserApplicationPage, UserPreferencePage } from "../utils/account-page-routes";
+import type { UserPreferencesResponse } from "../utils/user-preferences";
+import type { AdminCommonProps } from "../type";
 import UserPreferencesForm from "./user-preferences";
-import {useState} from "react";
+import { useEffect, useState } from "react";
 import Form from "antd/es/form";
-import {theme} from "antd";
+import { theme } from "antd";
 import Row from "antd/es/grid/row";
 import Col from "antd/es/grid/col";
-import Constants, {getRes} from "../utils/constants";
-import {useAxiosBaseInstance} from "../base/AppBase";
-import ResourceDragger, {DraggerUploadResponse} from "../common/ResourceDragger";
-import {postRefreshCacheSse} from "../utils/sse-utils";
+import Constants, { getRes } from "../utils/constants";
+import { useAxiosBaseInstance } from "../base/AppBase";
+import ResourceDragger, { DraggerUploadResponse } from "../common/ResourceDragger";
+import { postRefreshCacheSse } from "../utils/sse-utils";
 import ImageCropper from "../common/ImageCropper";
-import {resolveBackendCropImageUrl} from "../utils/crop-image-url";
+import { resolveBackendCropImageUrl } from "../utils/crop-image-url";
 import BackendImage from "../common/BackendImage";
-import {useResponsiveFormLayout} from "../utils/responsive-form";
-import {refreshUserInfo} from "../utils/user-info";
-import {getSsDate} from "../base/SsData";
+import { useResponsiveFormLayout } from "../utils/responsive-form";
+import { refreshUserInfo } from "../utils/user-info";
+import { getSsDate } from "../base/SsData";
 
 const layout = {
-    labelCol: {span: 8},
-    wrapperCol: {span: 16},
+    labelCol: { span: 8 },
+    wrapperCol: { span: 16 },
 };
 
 type BasicUserInfo = {
@@ -34,14 +34,29 @@ type BasicUserInfo = {
     email: string;
 };
 
-const UserProfile = ({data, offline}: { data: BasicUserInfo; offline: boolean }) => {
+const UserProfile = ({
+    data,
+    offline,
+    offlineData = false,
+}: {
+    data: BasicUserInfo;
+    offline: boolean;
+    offlineData?: boolean;
+}) => {
     const [userInfo, setUserInfo] = useState<BasicUserInfo>(data);
     const [cropOpen, setCropOpen] = useState(false);
     const [cropImageUrl, setCropImageUrl] = useState("");
     const [submitting, setSubmitting] = useState(false);
-    const [messageApi, contextHolder] = useUiMessage({maxCount: 3});
-    const {formLayout} = useResponsiveFormLayout(layout);
-    const {token} = theme.useToken();
+    const disabled = offline || offlineData || submitting;
+    const [form] = Form.useForm();
+    const [messageApi, contextHolder] = useUiMessage({ maxCount: 3 });
+    const { formLayout } = useResponsiveFormLayout(layout);
+    const { token } = theme.useToken();
+
+    useEffect(() => {
+        setUserInfo(data);
+        form.setFieldsValue(data);
+    }, [data, form]);
 
     const avatarSide = 128;
     const surface = {
@@ -64,10 +79,11 @@ const UserProfile = ({data, offline}: { data: BasicUserInfo; offline: boolean })
     };
 
     const setValue = (changedValues: BasicUserInfo) => {
-        setUserInfo({...userInfo, ...changedValues});
+        setUserInfo({ ...userInfo, ...changedValues });
     };
 
     const openCropper = (url: string) => {
+        if (disabled) return;
         setCropImageUrl(url);
         setCropOpen(true);
     };
@@ -79,7 +95,7 @@ const UserProfile = ({data, offline}: { data: BasicUserInfo; offline: boolean })
     const axiosInstance = useAxiosBaseInstance();
 
     const onFinish = () => {
-        if (submitting) {
+        if (disabled) {
             return;
         }
         setSubmitting(true);
@@ -116,21 +132,24 @@ const UserProfile = ({data, offline}: { data: BasicUserInfo; offline: boolean })
                 <Row>
                     <Col style={surface.formColumn} xs={24}>
                         <Form
+                            form={form}
+                            disabled={disabled}
                             onFinish={() => onFinish()}
                             initialValues={userInfo}
                             onValuesChange={(_k, v) => setValue(v)}
                             {...formLayout}
                         >
-                            <Form.Item label={getRes().user.userName} name="userName" rules={[{required: true}]}>
-                                <Input/>
+                            <Form.Item label={getRes().user.userName} name="userName" rules={[{ required: true }]}>
+                                <Input />
                             </Form.Item>
 
                             <Form.Item name="email" label={getRes().user.email}>
-                                <Input type={"email"}/>
+                                <Input type={"email"} />
                             </Form.Item>
 
-                            <Form.Item label={getRes().user.headPortrait} rules={[{required: true}]}>
+                            <Form.Item label={getRes().user.headPortrait} rules={[{ required: true }]}>
                                 <ResourceDragger
+                                    disabled={disabled}
                                     axiosInstance={axiosInstance}
                                     cardStyle={{
                                         border: `${token.lineWidth}px ${token.lineType} ${token.colorBorder}`,
@@ -157,20 +176,21 @@ const UserProfile = ({data, offline}: { data: BasicUserInfo; offline: boolean })
                                     />
                                 </ResourceDragger>
                             </Form.Item>
-                            <SettingsSubmitBar disabled={offline} loading={submitting}/>
+                            <SettingsSubmitBar disabled={disabled} loading={submitting} />
                         </Form>
                     </Col>
                 </Row>
             </div>
             <ImageCropper
-                open={cropOpen}
+                open={cropOpen && !disabled}
                 imageUrl={cropImageUrl}
                 aspectRatio={1}
                 resolveImageUrl={resolveBackendCropImageUrl}
                 onCancel={() => setCropOpen(false)}
                 onError={(errorMessage) => messageApi.error(errorMessage)}
                 onOk={(dataUrl) => {
-                    setValue({...userInfo, header: dataUrl});
+                    if (disabled) return;
+                    setValue({ ...userInfo, header: dataUrl });
                     setCropOpen(false);
                 }}
             />
@@ -181,15 +201,15 @@ const UserProfile = ({data, offline}: { data: BasicUserInfo; offline: boolean })
 type UserProps =
     | (Pick<AdminCommonProps<BasicUserInfo>, "data" | "offline" | "updateCache"> & { activeKey?: "profile" })
     | (Pick<AdminCommonProps<UserPreferencesResponse>, "data" | "offline" | "updateCache"> & {
-    activeKey: "preferences";
-    activePage: UserPreferencePage;
-})
+          activeKey: "preferences";
+          activePage: UserPreferencePage;
+      })
     | (Pick<AdminCommonProps<UserApplicationsData>, "data" | "offline" | "updateCache"> & {
-    activeKey: "applications";
-    activePage: UserApplicationPage;
-});
+          activeKey: "applications";
+          activePage: UserApplicationPage;
+      });
 
-const User = (props: UserProps) => {
+const User = (props: UserProps & { offlineData?: boolean }) => {
     const activeKey =
         props.activeKey === "preferences" || props.activeKey === "applications" ? props.activePage : "profile";
     return (

@@ -1,9 +1,9 @@
-import {Alert, Button, Descriptions, Flex, Form, theme, Typography} from "antd";
+import { Alert, Button, Descriptions, Flex, Form, theme, Typography } from "antd";
 import Input from "@zrlog/ui/antd/Input";
-import {useUiApp} from "@zrlog/ui/feedback";
-import {useEffect, useRef, useState} from "react";
-import {useAxiosBaseInstance} from "../../base/AppBase";
-import {getRes} from "../../utils/constants";
+import { useUiApp } from "@zrlog/ui/feedback";
+import { useEffect, useRef, useState } from "react";
+import { useAxiosBaseInstance } from "../../base/AppBase";
+import { getRes } from "../../utils/constants";
 import SettingsSection from "../common/SettingsSection";
 import AdminSettingsLayout from "../common/AdminSettingsLayout";
 
@@ -59,12 +59,20 @@ export const validNoProxy = (value: string) =>
         }
     });
 
-const ProxySettings = ({data, offline}: { data: ProxyData; offline: boolean }) => {
+const ProxySettings = ({
+    data,
+    offline,
+    offlineData = false,
+}: {
+    data: ProxyData;
+    offline: boolean;
+    offlineData?: boolean;
+}) => {
     const res = getRes();
     const text = res.system.proxy;
-    const {token} = theme.useToken();
+    const { token } = theme.useToken();
     const axios = useAxiosBaseInstance();
-    const {message} = useUiApp();
+    const { message } = useUiApp();
     const [form] = Form.useForm();
     const [settings, setSettings] = useState(data);
     const [saving, setSaving] = useState(false);
@@ -83,7 +91,7 @@ const ProxySettings = ({data, offline}: { data: ProxyData; offline: boolean }) =
         setSettings(data);
         if (!dirty.current && !pending.current) form.setFieldsValue(data);
     }, [data, form]);
-    const readOnly = offline || !settings.writable;
+    const readOnly = offline || offlineData || !settings.writable;
     const busy = saving || testing;
     const hint = (variable: string) => text.environmentHint.replace("{name}", variable);
     const proxyVariables = [settings.httpVariable, settings.httpsVariable].filter(Boolean);
@@ -110,7 +118,7 @@ const ProxySettings = ({data, offline}: { data: ProxyData; offline: boolean }) =
     };
 
     const test = async () => {
-        if (offline || pending.current) return;
+        if (offline || offlineData || pending.current) return;
         pending.current = true;
         setTesting(true);
         try {
@@ -118,7 +126,7 @@ const ProxySettings = ({data, offline}: { data: ProxyData; offline: boolean }) =
             if (!mounted.current) return;
             setFailure("");
             try {
-                const response = await axios.post("/api/admin/system/proxy/test", values, {timeout: 15000});
+                const response = await axios.post("/api/admin/system/proxy/test", values, { timeout: 15000 });
                 if (!mounted.current) return;
                 if (response.data.error || !response.data.data) throw new Error();
                 message.success(text.testSuccess);
@@ -133,19 +141,19 @@ const ProxySettings = ({data, offline}: { data: ProxyData; offline: boolean }) =
 
     return (
         <AdminSettingsLayout activeKey="proxy">
-            <Flex vertical gap={token.marginLG} style={{maxWidth: 800, paddingBottom: token.paddingLG}}>
-                {settings.restartRequired && <Alert type="warning" showIcon title={text.pending}/>}
+            <Flex vertical gap={token.marginLG} style={{ maxWidth: 800, paddingBottom: token.paddingLG }}>
+                {settings.restartRequired && <Alert type="warning" showIcon title={text.pending} />}
                 <SettingsSection title={text.active}>
                     <Descriptions
                         column={1}
                         size="small"
-                        styles={{content: {overflowWrap: "anywhere", minWidth: 0}}}
+                        styles={{ content: { overflowWrap: "anywhere", minWidth: 0 } }}
                         items={[
                             {
                                 key: "http",
                                 label: "HTTP",
                                 children: settings.activeUrl ? (
-                                    <Typography.Text style={{overflowWrap: "anywhere"}}>
+                                    <Typography.Text style={{ overflowWrap: "anywhere" }}>
                                         {settings.activeUrl}
                                     </Typography.Text>
                                 ) : (
@@ -156,7 +164,7 @@ const ProxySettings = ({data, offline}: { data: ProxyData; offline: boolean }) =
                                 key: "https",
                                 label: "HTTPS",
                                 children: settings.activeHttpsUrl ? (
-                                    <Typography.Text style={{overflowWrap: "anywhere"}}>
+                                    <Typography.Text style={{ overflowWrap: "anywhere" }}>
                                         {settings.activeHttpsUrl}
                                     </Typography.Text>
                                 ) : (
@@ -173,9 +181,9 @@ const ProxySettings = ({data, offline}: { data: ProxyData; offline: boolean }) =
                 </SettingsSection>
                 <SettingsSection title={text.configuration} divided>
                     <Flex vertical gap={token.margin}>
-                        <Alert type="info" showIcon title={text.restartHint}/>
-                        {!settings.writable && <Alert type="warning" showIcon title={text.readOnly}/>}
-                        {failure && <Alert type="error" showIcon title={failure} role="alert"/>}
+                        <Alert type="info" showIcon title={text.restartHint} />
+                        {!settings.writable && <Alert type="warning" showIcon title={text.readOnly} />}
+                        {failure && <Alert type="error" showIcon title={failure} role="alert" />}
                         <Form
                             form={form}
                             layout="vertical"
@@ -244,14 +252,14 @@ const ProxySettings = ({data, offline}: { data: ProxyData; offline: boolean }) =
                                         void test().catch(() => undefined);
                                     }}
                                     loading={testing}
-                                    disabled={offline || busy}
+                                    disabled={offline || offlineData || busy}
                                 >
                                     {text.test}
                                 </Button>
                             </Flex>
                             <Typography.Paragraph
                                 type="secondary"
-                                style={{marginTop: token.marginSM, marginBottom: 0}}
+                                style={{ marginTop: token.marginSM, marginBottom: 0 }}
                             >
                                 {text.testHint}
                             </Typography.Paragraph>
@@ -259,10 +267,10 @@ const ProxySettings = ({data, offline}: { data: ProxyData; offline: boolean }) =
                     </Flex>
                 </SettingsSection>
                 <details>
-                    <summary style={{cursor: "pointer", color: token.colorLink}}>{text.manualSetup}</summary>
-                    <div style={{marginTop: token.marginSM}}>
+                    <summary style={{ cursor: "pointer", color: token.colorLink }}>{text.manualSetup}</summary>
+                    <div style={{ marginTop: token.marginSM }}>
                         <Typography.Paragraph type="secondary">{text.recoveryHint}</Typography.Paragraph>
-                        <pre style={{overflowX: "auto", whiteSpace: "pre-wrap", overflowWrap: "anywhere"}}>
+                        <pre style={{ overflowX: "auto", whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
                             {
                                 "network.proxy.url=http://proxy.example.com:3128\nnetwork.proxy.noProxy=.example.com,*.internal"
                             }

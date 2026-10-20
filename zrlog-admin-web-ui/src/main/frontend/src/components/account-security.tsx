@@ -1,25 +1,25 @@
 import Input from "@zrlog/ui/antd/Input";
-import {useUiMessage} from "@zrlog/ui/feedback";
+import { useUiMessage } from "@zrlog/ui/feedback";
 import UserSettingsLayout from "./common/UserSettingsLayout";
 import SettingsSubmitBar from "./common/SettingsSubmitBar";
-import {useEffect, useRef, useState} from "react";
+import { useEffect, useRef, useState } from "react";
 import SettingsSection from "./common/SettingsSection";
 
 import Form from "antd/es/form";
-import {Modal, QRCode, Space, Typography} from "antd";
+import { Modal, QRCode, Space, Typography } from "antd";
 import Button from "antd/es/button";
-import {useTheme} from "antd-style";
-import {getRes} from "../utils/constants";
-import {useAxiosBaseInstance} from "../base/AppBase";
-import {AdminCommonProps, MfaStatusResponse, PasskeySummary} from "../type";
-import {getPageDataCacheKeyByPath} from "../utils/cache";
-import {useLocation} from "react-router-dom";
-import {useResponsiveFormLayout} from "../utils/responsive-form";
+import { useTheme } from "antd-style";
+import { getRes } from "../utils/constants";
+import { useAxiosBaseInstance } from "../base/AppBase";
+import { AdminCommonProps, MfaStatusResponse, PasskeySummary } from "../type";
+import { getPageDataCacheKeyByPath } from "../utils/cache";
+import { useLocation } from "react-router-dom";
+import { useResponsiveFormLayout } from "../utils/responsive-form";
 import PasskeyManagement from "./passkey-management";
 
 const layout = {
-    labelCol: {span: 8},
-    wrapperCol: {span: 16},
+    labelCol: { span: 8 },
+    wrapperCol: { span: 16 },
 };
 
 const accountSecurityApiBase = "/api/admin/account-security";
@@ -32,10 +32,11 @@ type AccountSecurityData = {
     passkeys?: PasskeySummary[];
 };
 
-const AccountSecurity = ({offline, data, updateCache}: AdminCommonProps<AccountSecurityData>) => {
-    const [messageApi, contextHolder] = useUiMessage({maxCount: 3});
+const AccountSecurity = ({ offline, offlineData, data, updateCache }: AdminCommonProps<AccountSecurityData>) => {
+    const disabled = offline || offlineData;
+    const [messageApi, contextHolder] = useUiMessage({ maxCount: 3 });
     const [mfaStatus, setMfaStatus] = useState<MfaStatusResponse | null>(
-        data?.mfaEnabled ? {enabled: true, secret: "", issuer: "", accountName: "", otpauthUrl: ""} : null
+        data?.mfaEnabled ? { enabled: true, secret: "", issuer: "", accountName: "", otpauthUrl: "" } : null
     );
     const [mfaSubmitting, setMfaSubmitting] = useState(false);
     const [mfaDialogAction, setMfaDialogAction] = useState<"enable" | "disable" | null>(null);
@@ -47,8 +48,8 @@ const AccountSecurity = ({offline, data, updateCache}: AdminCommonProps<AccountS
     const [mfaForm] = Form.useForm();
     const mfaCode = Form.useWatch("code", mfaForm) as string | undefined;
     const lastAutoSubmittedMfaCodeRef = useRef("");
-    const {formLayout, narrow} = useResponsiveFormLayout(layout);
-    const passwordStyle = narrow ? {width: "100%"} : passwordInputStyle;
+    const { formLayout, narrow } = useResponsiveFormLayout(layout);
+    const passwordStyle = narrow ? { width: "100%" } : passwordInputStyle;
     const securitySurface = {
         contentSpace: {
             width: "100%",
@@ -63,14 +64,14 @@ const AccountSecurity = ({offline, data, updateCache}: AdminCommonProps<AccountS
     };
 
     const loadMfaStatus = async () => {
-        const {data} = await axiosInstance.get(accountSecurityApiBase + "/mfa");
+        const { data } = await axiosInstance.get(accountSecurityApiBase + "/mfa");
         if (data.error === 0) {
             setMfaStatus(data.data);
         }
     };
 
     const syncCachedSecurityData = (changes: Partial<AccountSecurityData>) => {
-        cachedSecurityDataRef.current = {...cachedSecurityDataRef.current, ...changes};
+        cachedSecurityDataRef.current = { ...cachedSecurityDataRef.current, ...changes };
         if (!updateCache) {
             return;
         }
@@ -84,15 +85,17 @@ const AccountSecurity = ({offline, data, updateCache}: AdminCommonProps<AccountS
     }, [data]);
 
     useEffect(() => {
+        if (disabled) return;
         if (data?.mfaEnabled) {
-            setMfaStatus({enabled: true, secret: "", issuer: "", accountName: "", otpauthUrl: ""});
+            setMfaStatus({ enabled: true, secret: "", issuer: "", accountName: "", otpauthUrl: "" });
             return;
         }
         loadMfaStatus();
-    }, [data?.mfaEnabled]);
+    }, [data?.mfaEnabled, disabled]);
 
     const onFinish = (allValues: Record<string, any>) => {
-        axiosInstance.post(accountSecurityApiBase + "/updatePassword", allValues).then(async ({data}) => {
+        if (disabled) return;
+        axiosInstance.post(accountSecurityApiBase + "/updatePassword", allValues).then(async ({ data }) => {
             if (data.error) {
                 await messageApi.error(data.message);
             } else if (data.error === 0) {
@@ -102,9 +105,10 @@ const AccountSecurity = ({offline, data, updateCache}: AdminCommonProps<AccountS
     };
 
     const onUpdateMfa = async (uri: string) => {
+        if (disabled || mfaSubmitting) return;
         setMfaSubmitting(true);
         try {
-            const {data} = await axiosInstance.post(uri, mfaForm.getFieldsValue());
+            const { data } = await axiosInstance.post(uri, mfaForm.getFieldsValue());
             if (data.error) {
                 await messageApi.error(data.message);
                 return;
@@ -114,10 +118,10 @@ const AccountSecurity = ({offline, data, updateCache}: AdminCommonProps<AccountS
             lastAutoSubmittedMfaCodeRef.current = "";
             setMfaDialogAction(null);
             if (uri.endsWith("/enableMfa")) {
-                setMfaStatus({enabled: true, secret: "", issuer: "", accountName: "", otpauthUrl: ""});
-                syncCachedSecurityData({mfaEnabled: true});
+                setMfaStatus({ enabled: true, secret: "", issuer: "", accountName: "", otpauthUrl: "" });
+                syncCachedSecurityData({ mfaEnabled: true });
             } else {
-                syncCachedSecurityData({mfaEnabled: false});
+                syncCachedSecurityData({ mfaEnabled: false });
                 await loadMfaStatus();
             }
         } finally {
@@ -126,7 +130,7 @@ const AccountSecurity = ({offline, data, updateCache}: AdminCommonProps<AccountS
     };
 
     useEffect(() => {
-        if (offline || mfaSubmitting || !mfaCode || mfaCode.length !== 6 || !mfaDialogAction) {
+        if (disabled || mfaSubmitting || !mfaCode || mfaCode.length !== 6 || !mfaDialogAction) {
             return;
         }
         if (lastAutoSubmittedMfaCodeRef.current === mfaCode) {
@@ -134,9 +138,10 @@ const AccountSecurity = ({offline, data, updateCache}: AdminCommonProps<AccountS
         }
         lastAutoSubmittedMfaCodeRef.current = mfaCode;
         void onUpdateMfa(`${accountSecurityApiBase}/${mfaDialogAction === "disable" ? "disableMfa" : "enableMfa"}`);
-    }, [mfaCode, mfaDialogAction, mfaSubmitting, offline]);
+    }, [mfaCode, mfaDialogAction, mfaSubmitting, disabled]);
 
     const openMfaDialog = async (action: "enable" | "disable") => {
+        if (disabled) return;
         mfaForm.resetFields();
         lastAutoSubmittedMfaCodeRef.current = "";
         if (action === "enable" && (!mfaStatus || mfaStatus.enabled || !mfaStatus.otpauthUrl)) {
@@ -154,25 +159,25 @@ const AccountSecurity = ({offline, data, updateCache}: AdminCommonProps<AccountS
     return (
         <UserSettingsLayout activeKey="security">
             {contextHolder}
-            <div style={{display: "flex", flexDirection: "column", gap: theme.marginLG}}>
+            <div style={{ display: "flex", flexDirection: "column", gap: theme.marginLG }}>
                 <SettingsSection title={getRes().accountSecurity.passwordTitle}>
-                    <Form {...formLayout} onFinish={(value) => onFinish(value)}>
+                    <Form {...formLayout} disabled={disabled} onFinish={(value) => onFinish(value)}>
                         <Form.Item
                             name="oldPassword"
                             label={getRes().accountSecurity.oldPassword}
-                            rules={[{required: true}]}
+                            rules={[{ required: true }]}
                         >
-                            <Input.Password style={passwordStyle}/>
+                            <Input.Password style={passwordStyle} />
                         </Form.Item>
                         <Form.Item
                             name="newPassword"
                             label={getRes().accountSecurity.newPassword}
-                            rules={[{required: true}]}
+                            rules={[{ required: true }]}
                         >
-                            <Input.Password style={passwordStyle}/>
+                            <Input.Password style={passwordStyle} />
                         </Form.Item>
 
-                        <SettingsSubmitBar disabled={offline}/>
+                        <SettingsSubmitBar disabled={disabled} />
                     </Form>
                 </SettingsSection>
                 <SettingsSection title={getRes().accountSecurity.mfaTitle} divided>
@@ -182,21 +187,21 @@ const AccountSecurity = ({offline, data, updateCache}: AdminCommonProps<AccountS
                             : getRes().accountSecurity.mfaDisabled}
                     </Typography.Paragraph>
                     {!mfaStatus?.enabled ? (
-                        <Button disabled={offline} type="primary" onClick={() => void openMfaDialog("enable")}>
+                        <Button disabled={disabled} type="primary" onClick={() => void openMfaDialog("enable")}>
                             {getRes().accountSecurity.enableMfa}
                         </Button>
                     ) : (
-                        <Button disabled={offline} danger onClick={() => void openMfaDialog("disable")}>
+                        <Button disabled={disabled} danger onClick={() => void openMfaDialog("disable")}>
                             {getRes().accountSecurity.disableMfa}
                         </Button>
                     )}
                 </SettingsSection>
                 <PasskeyManagement
-                    offline={offline}
+                    offline={disabled}
                     mfaEnabled={mfaStatus?.enabled ?? data?.mfaEnabled === true}
                     modalWidth={securitySurface.modalWidth}
                     initialPasskeys={data?.passkeys}
-                    onPasskeysChange={(passkeys) => syncCachedSecurityData({passkeys})}
+                    onPasskeysChange={(passkeys) => syncCachedSecurityData({ passkeys })}
                 />
             </div>
             <Modal
@@ -211,7 +216,7 @@ const AccountSecurity = ({offline, data, updateCache}: AdminCommonProps<AccountS
                 destroyOnHidden={false}
                 width={securitySurface.modalWidth}
             >
-                <Form form={mfaForm} layout="vertical">
+                <Form form={mfaForm} layout="vertical" disabled={disabled || mfaSubmitting}>
                     {mfaDialogAction === "enable" && (
                         <>
                             <Typography.Paragraph>{getRes().accountSecurity.mfaSetupHint}</Typography.Paragraph>
@@ -221,18 +226,18 @@ const AccountSecurity = ({offline, data, updateCache}: AdminCommonProps<AccountS
                                     size={securitySurface.verticalGap}
                                     style={securitySurface.contentSpace}
                                 >
-                                    <QRCode value={mfaStatus.otpauthUrl} size={narrow ? 160 : 180}/>
+                                    <QRCode value={mfaStatus.otpauthUrl} size={narrow ? 160 : 180} />
                                 </Space>
                             )}
                             <Form.Item label={getRes().accountSecurity.mfaSecret}>
-                                <Input readOnly value={mfaStatus?.secret ?? ""}/>
+                                <Input readOnly value={mfaStatus?.secret ?? ""} />
                             </Form.Item>
                             <Form.Item label={getRes().accountSecurity.mfaSetupUrl}>
-                                <Input readOnly value={mfaStatus?.otpauthUrl ?? ""}/>
+                                <Input readOnly value={mfaStatus?.otpauthUrl ?? ""} />
                             </Form.Item>
                         </>
                     )}
-                    <Form.Item label={getRes().accountSecurity.mfaCode} name="code" rules={[{required: true}]}>
+                    <Form.Item label={getRes().accountSecurity.mfaCode} name="code" rules={[{ required: true }]}>
                         <Input.OTP
                             autoFocus
                             inputMode={"numeric"}
@@ -249,7 +254,7 @@ const AccountSecurity = ({offline, data, updateCache}: AdminCommonProps<AccountS
 
                     <Space direction="vertical" style={securitySurface.actions} size={securitySurface.verticalGap}>
                         <Button
-                            disabled={offline || (mfaCode?.length ?? 0) !== 6}
+                            disabled={disabled || (mfaCode?.length ?? 0) !== 6}
                             loading={mfaSubmitting}
                             onClick={() =>
                                 void onUpdateMfa(

@@ -1,17 +1,26 @@
 import Tag from "@zrlog/ui/antd/Tag";
 import EditIcon from "@zrlog/ui/icons/edit";
-import {getLabelValueSeparator, getRes} from "../../utils/constants";
-import BaseTable, {PageDataSource} from "../../common/BaseTable";
+import { getLabelValueSeparator, getRes } from "../../utils/constants";
+import BaseTable, { PageDataSource } from "../../common/BaseTable";
 
-import {Button, Grid, Space, theme, Typography} from "antd";
+import { Button, Grid, Space, theme, Typography } from "antd";
 import CreateOrEditType from "./create_or_edit_type";
 
-const {Text} = Typography;
+const { Text } = Typography;
 
-const Type = ({data, offline}: { data: PageDataSource; offline: boolean }) => {
+const Type = ({
+    data,
+    offline,
+    offlineData = false,
+}: {
+    data: PageDataSource;
+    offline: boolean;
+    offlineData?: boolean;
+}) => {
+    const disabled = offline || offlineData;
     const screens = Grid.useBreakpoint();
     const compactTypeTable = screens.md !== true;
-    const {token} = theme.useToken();
+    const { token } = theme.useToken();
     const surface = {
         compactWrap: {
             display: "flex",
@@ -57,7 +66,7 @@ const Type = ({data, offline}: { data: PageDataSource; offline: boolean }) => {
                         <Text type="secondary">
                             {getRes().introduction}
                             {getLabelValueSeparator()}
-                            <span dangerouslySetInnerHTML={{__html: record.remark}}/>
+                            <span dangerouslySetInnerHTML={{ __html: record.remark }} />
                         </Text>
                     ) : null}
                 </Space>
@@ -111,7 +120,7 @@ const Type = ({data, offline}: { data: PageDataSource; offline: boolean }) => {
                 dataIndex: "remark",
                 width: 240,
                 render: (e: string) => {
-                    return <span dangerouslySetInnerHTML={{__html: e}}/>;
+                    return <span dangerouslySetInnerHTML={{ __html: e }} />;
                 },
             },
             {
@@ -127,30 +136,31 @@ const Type = ({data, offline}: { data: PageDataSource; offline: boolean }) => {
         <>
             <BaseTable
                 defaultPageSize={10}
-                offline={offline}
+                offline={disabled}
                 hideId={true}
                 columns={getColumns()}
                 actionColumnWidth={compactTypeTable ? 88 : undefined}
                 addBtnRender={(addSuccessCall) => {
                     return (
                         <CreateOrEditType
-                            record={{id: 0, typeName: "", alias: ""}}
-                            offline={offline}
+                            record={{ id: 0, typeName: "", alias: "" }}
+                            offline={disabled}
                             editSuccessCall={addSuccessCall}
                         >
-                            <Button type="primary" disabled={offline} style={surface.addButton}>
+                            <Button type="primary" disabled={disabled} style={surface.addButton}>
                                 {getRes().add}
                             </Button>
                         </CreateOrEditType>
                     );
                 }}
                 editBtnRender={(_id, record, editSuccessCall) => (
-                    <CreateOrEditType offline={offline} record={record} editSuccessCall={editSuccessCall}>
+                    <CreateOrEditType offline={disabled} record={record} editSuccessCall={editSuccessCall}>
                         <Button
                             type="text"
+                            disabled={disabled}
                             size="small"
                             title={getRes().edit}
-                            icon={<EditIcon style={surface.editIcon}/>}
+                            icon={<EditIcon style={surface.editIcon} />}
                         />
                     </CreateOrEditType>
                 )}

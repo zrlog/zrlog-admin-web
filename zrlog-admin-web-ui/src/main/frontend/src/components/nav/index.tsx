@@ -1,21 +1,30 @@
 import EditIcon from "@zrlog/ui/icons/edit";
-import BaseTable, {PageDataSource} from "../../common/BaseTable";
-import {getLabelValueSeparator, getRes} from "../../utils/constants";
+import BaseTable, { PageDataSource } from "../../common/BaseTable";
+import { getLabelValueSeparator, getRes } from "../../utils/constants";
 import CreateOrEditNav from "./create_or_edit_nav";
 
-import {getAppState} from "../../base/ConfigProviderApp";
-import {Button, Grid, Space, Typography} from "antd";
+import { getAppState } from "../../base/ConfigProviderApp";
+import { Button, Grid, Space, Typography } from "antd";
 
-const {Text} = Typography;
+const { Text } = Typography;
 
-const Nav = ({data, offline}: { data: PageDataSource; offline: boolean }) => {
+const Nav = ({
+    data,
+    offline,
+    offlineData = false,
+}: {
+    data: PageDataSource;
+    offline: boolean;
+    offlineData?: boolean;
+}) => {
+    const disabled = offline || offlineData;
     const screens = Grid.useBreakpoint();
     const compactNavTable = screens.md !== true;
 
     const renderNavUrl = (url: string, record: Record<string, any>, compact: boolean) => {
         const link = (
             <a
-                style={{display: "inline", wordBreak: "break-all"}}
+                style={{ display: "inline", wordBreak: "break-all" }}
                 rel="noopener noreferrer"
                 target={"_blank"}
                 href={record["jumpUrl"]}
@@ -27,7 +36,7 @@ const Nav = ({data, offline}: { data: PageDataSource; offline: boolean }) => {
             return link;
         }
         return (
-            <div style={{display: "flex", flexDirection: "column", gap: 6, minWidth: 0}}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
                 {link}
                 <Space size={[8, 4]} wrap>
                     {record.navName ? (
@@ -38,7 +47,7 @@ const Nav = ({data, offline}: { data: PageDataSource; offline: boolean }) => {
                         </Text>
                     ) : null}
                     {record.icon ? (
-                        <Text type="secondary" style={{wordBreak: "break-all"}}>
+                        <Text type="secondary" style={{ wordBreak: "break-all" }}>
                             {getRes().icon}
                             {getLabelValueSeparator()}
                             {record.icon}
@@ -100,30 +109,31 @@ const Nav = ({data, offline}: { data: PageDataSource; offline: boolean }) => {
         <>
             <BaseTable
                 defaultPageSize={10}
-                offline={offline}
+                offline={disabled}
                 hideId={true}
                 columns={getColumns()}
                 actionColumnWidth={compactNavTable ? 88 : undefined}
                 addBtnRender={(addSuccessCall) => {
                     return (
                         <CreateOrEditNav
-                            record={{id: -1, navName: "", url: "", icon: ""}}
-                            offline={offline}
+                            record={{ id: -1, navName: "", url: "", icon: "" }}
+                            offline={disabled}
                             editSuccessCall={addSuccessCall}
                         >
-                            <Button type="primary" disabled={offline} style={{marginBottom: 8}}>
+                            <Button type="primary" disabled={disabled} style={{ marginBottom: 8 }}>
                                 {getRes().add}
                             </Button>
                         </CreateOrEditNav>
                     );
                 }}
                 editBtnRender={(_id, record, editSuccessCall) => (
-                    <CreateOrEditNav offline={offline} record={record} editSuccessCall={editSuccessCall}>
+                    <CreateOrEditNav offline={disabled} record={record} editSuccessCall={editSuccessCall}>
                         <Button
                             type="text"
+                            disabled={disabled}
                             size="small"
                             title={getRes().edit}
-                            icon={<EditIcon style={{color: getAppState().colorPrimary}}/>}
+                            icon={<EditIcon style={{ color: getAppState().colorPrimary }} />}
                         />
                     </CreateOrEditNav>
                 )}

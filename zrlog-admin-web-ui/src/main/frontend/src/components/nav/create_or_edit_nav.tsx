@@ -1,17 +1,17 @@
 import Input from "@zrlog/ui/antd/Input";
 import InputNumber from "@zrlog/ui/antd/InputNumber";
-import {useUiMessage} from "@zrlog/ui/feedback";
-import {FunctionComponent, PropsWithChildren, useEffect, useState} from "react";
-import {Col, Form, Modal} from "antd";
+import { useUiMessage } from "@zrlog/ui/feedback";
+import { FunctionComponent, PropsWithChildren, useEffect, useState } from "react";
+import { Col, Form, Modal } from "antd";
 import Row from "antd/es/grid/row";
-import {Link} from "react-router-dom";
-import {getRes} from "../../utils/constants";
-import {postRefreshCacheSse} from "../../utils/sse-utils";
-import {useResponsiveFormLayout} from "../../utils/responsive-form";
+import { Link } from "react-router-dom";
+import { getRes } from "../../utils/constants";
+import { postRefreshCacheSse } from "../../utils/sse-utils";
+import { useResponsiveFormLayout } from "../../utils/responsive-form";
 
 const layout = {
-    labelCol: {span: 4},
-    wrapperCol: {span: 20},
+    labelCol: { span: 4 },
+    wrapperCol: { span: 20 },
 };
 
 export type EditNavProps = PropsWithChildren & {
@@ -28,17 +28,17 @@ type LogNav = {
     icon: string;
 };
 
-const CreateOrEditNav: FunctionComponent<EditNavProps> = ({record, editSuccessCall, offline, children}) => {
+const CreateOrEditNav: FunctionComponent<EditNavProps> = ({ record, editSuccessCall, offline, children }) => {
     const [showModel, setShowModel] = useState<boolean>(false);
     const [updateForm, setUpdateForm] = useState<LogNav>(record);
-    const [messageApi, contextHolder] = useUiMessage({maxCount: 3});
+    const [messageApi, contextHolder] = useUiMessage({ maxCount: 3 });
     const [loading, setLoading] = useState<boolean>(false);
-    const {formLayout, narrow} = useResponsiveFormLayout(layout);
+    const { formLayout, narrow } = useResponsiveFormLayout(layout);
     const isUpdate = () => {
         return record.id && record.id > 0;
     };
     const handleOk = () => {
-        if (loading) {
+        if (offline || loading) {
             return;
         }
         setLoading(true);
@@ -94,24 +94,30 @@ const CreateOrEditNav: FunctionComponent<EditNavProps> = ({record, editSuccessCa
                 onOk={handleOk}
                 okButtonProps={{
                     loading: loading,
+                    disabled: offline,
                 }}
                 onCancel={() => setShowModel(false)}
                 width={narrow ? "calc(100vw - 32px)" : undefined}
             >
-                <Form initialValues={updateForm} onValuesChange={(_k, v) => setValue(v)} {...formLayout}>
-                    <Form.Item name="id" style={{display: "none"}}>
-                        <Input hidden={true}/>
+                <Form
+                    disabled={offline || loading}
+                    initialValues={updateForm}
+                    onValuesChange={(_k, v) => setValue(v)}
+                    {...formLayout}
+                >
+                    <Form.Item name="id" style={{ display: "none" }}>
+                        <Input hidden={true} />
                     </Form.Item>
                     <Row>
                         <Col span={24}>
                             <Form.Item
                                 label={getRes().nav.link}
-                                style={{marginBottom: 8}}
+                                style={{ marginBottom: 8 }}
                                 name="url"
-                                rules={[{required: true, message: ""}]}
+                                rules={[{ required: true, message: "" }]}
                                 extra={getRes().nav.linkHelp}
                             >
-                                <Input placeholder={getRes().nav.linkPlaceholder}/>
+                                <Input placeholder={getRes().nav.linkPlaceholder} />
                             </Form.Item>
                         </Col>
                     </Row>
@@ -119,11 +125,11 @@ const CreateOrEditNav: FunctionComponent<EditNavProps> = ({record, editSuccessCa
                         <Col span={24}>
                             <Form.Item
                                 label={getRes().nav.name}
-                                style={{marginBottom: 8}}
+                                style={{ marginBottom: 8 }}
                                 name="navName"
-                                rules={[{required: true, message: ""}]}
+                                rules={[{ required: true, message: "" }]}
                             >
-                                <Input placeholder={getRes().nav.namePlaceholder}/>
+                                <Input placeholder={getRes().nav.namePlaceholder} />
                             </Form.Item>
                         </Col>
                     </Row>
@@ -131,12 +137,12 @@ const CreateOrEditNav: FunctionComponent<EditNavProps> = ({record, editSuccessCa
                         <Col span={24}>
                             <Form.Item
                                 label={getRes().icon}
-                                style={{marginBottom: 8}}
+                                style={{ marginBottom: 8 }}
                                 name="icon"
-                                rules={[{message: ""}]}
+                                rules={[{ message: "" }]}
                                 extra={getRes().nav.iconHelp}
                             >
-                                <Input placeholder={getRes().nav.iconPlaceholder}/>
+                                <Input placeholder={getRes().nav.iconPlaceholder} />
                             </Form.Item>
                         </Col>
                     </Row>
@@ -144,12 +150,12 @@ const CreateOrEditNav: FunctionComponent<EditNavProps> = ({record, editSuccessCa
                         <Col span={24}>
                             <Form.Item
                                 label={getRes().order}
-                                style={{marginBottom: 8}}
+                                style={{ marginBottom: 8 }}
                                 name="sort"
-                                rules={[{required: true, message: ""}]}
+                                rules={[{ required: true, message: "" }]}
                                 extra={getRes().nav.sortHelp}
                             >
-                                <InputNumber style={{width: "100%"}} placeholder={getRes().nav.sortPlaceholder}/>
+                                <InputNumber style={{ width: "100%" }} placeholder={getRes().nav.sortPlaceholder} />
                             </Form.Item>
                         </Col>
                     </Row>

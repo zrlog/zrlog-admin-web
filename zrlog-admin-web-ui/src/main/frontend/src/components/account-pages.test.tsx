@@ -1,34 +1,34 @@
-import {act} from "react";
-import {createRoot, Root} from "react-dom/client";
-import {Simulate} from "react-dom/test-utils";
-import {afterEach, beforeEach, describe, expect, it, jest} from "@jest/globals";
-import {Grid} from "antd";
-import {MemoryRouter} from "react-router-dom";
+import { act } from "react";
+import { createRoot, Root } from "react-dom/client";
+import { Simulate } from "react-dom/test-utils";
+import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { Grid } from "antd";
+import { MemoryRouter } from "react-router-dom";
 import Access from "./common/PermissionHelpContent";
 import PermissionHelp from "./common/PermissionHelp";
 import Members from "./members";
 import AdminSettingsLayout from "./common/AdminSettingsLayout";
 import OAuthConsent from "./oauth-consent";
-import {getRes} from "../utils/constants";
-import {BasicUserInfo} from "../type";
+import { getRes } from "../utils/constants";
+import { BasicUserInfo } from "../type";
 
 const mockGet = jest.fn<Promise<any>, any[]>();
 const mockPost = jest.fn<Promise<any>, any[]>();
-const mockApi = {get: mockGet, post: mockPost};
-jest.mock("../base/AppBase", () => ({useAxiosBaseInstance: () => mockApi}));
-jest.mock("../base/ConfigProviderApp", () => ({getAppState: () => ({compactMode: false})}));
+const mockApi = { get: mockGet, post: mockPost };
+jest.mock("../base/AppBase", () => ({ useAxiosBaseInstance: () => mockApi }));
+jest.mock("../base/ConfigProviderApp", () => ({ getAppState: () => ({ compactMode: false }) }));
 jest.mock("./my-loading-component", () => () => null);
 
 describe("account management pages", () => {
     let root: Root;
     let container: HTMLDivElement;
     beforeEach(() => {
-        mockGet.mockReset().mockResolvedValue({data: {error: 0, data: page}});
+        mockGet.mockReset().mockResolvedValue({ data: { error: 0, data: page } });
         mockPost.mockReset();
         (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
         (globalThis as any).MessageChannel = class {
-            port1 = {onmessage: () => undefined};
-            port2 = {postMessage: () => Promise.resolve().then(() => this.port1.onmessage())};
+            port1 = { onmessage: () => undefined };
+            port2 = { postMessage: () => Promise.resolve().then(() => this.port1.onmessage()) };
         };
         global.ResizeObserver = class {
             observe() {
@@ -82,29 +82,29 @@ describe("account management pages", () => {
             | "editor"
             | "author"
             | "contributor"
-            )[],
+        )[],
         actions: [
             {
                 id: "article.publish",
                 roles: ["owner", "admin", "editor", "author"] as ("owner" | "admin" | "editor" | "author")[],
                 routes: ["/api/admin/article/create"],
-                routeDetails: [{path: "/api/admin/article/create", descriptionKey: "article.create"}],
+                routeDetails: [{ path: "/api/admin/article/create", descriptionKey: "article.create" }],
                 scope: "articles:publish",
             },
         ],
     };
     it("shows the full matrix on desktop and one selected role on narrow screens", () => {
-        const breakpoint = jest.spyOn(Grid, "useBreakpoint").mockReturnValue({lg: true});
-        act(() => root.render(<Access data={page}/>));
+        const breakpoint = jest.spyOn(Grid, "useBreakpoint").mockReturnValue({ lg: true });
+        act(() => root.render(<Access data={page} />));
         expect(container.querySelectorAll("thead th").length).toBe(7); // expand, action, five roles
-        breakpoint.mockReturnValue({lg: false});
-        act(() => root.render(<Access data={page}/>));
+        breakpoint.mockReturnValue({ lg: false });
+        act(() => root.render(<Access data={page} />));
         expect(container.querySelectorAll("thead th").length).toBe(3);
         expect(container.textContent).toContain(getRes().access.ranges.author);
     });
     it("does not offer editing the owner or a peer admin to an admin", () => {
-        jest.spyOn(Grid, "useBreakpoint").mockReturnValue({md: true});
-        window.__SS_DATA__!.user = {userId: 2, role: "admin", actions: ["member.manage"]} as BasicUserInfo;
+        jest.spyOn(Grid, "useBreakpoint").mockReturnValue({ md: true });
+        window.__SS_DATA__!.user = { userId: 2, role: "admin", actions: ["member.manage"] } as BasicUserInfo;
         act(() =>
             root.render(
                 <MemoryRouter>
@@ -112,9 +112,9 @@ describe("account management pages", () => {
                         data={{
                             currentRole: "admin",
                             members: [
-                                {userId: 1, userName: "owner", role: "owner", enabled: true, email: ""},
-                                {userId: 3, userName: "peer", role: "admin", enabled: true, email: ""},
-                                {userId: 4, userName: "writer", role: "author", enabled: true, email: ""},
+                                { userId: 1, userName: "owner", role: "owner", enabled: true, email: "" },
+                                { userId: 3, userName: "peer", role: "admin", enabled: true, email: "" },
+                                { userId: 4, userName: "writer", role: "author", enabled: true, email: "" },
                             ],
                         }}
                     />
@@ -137,7 +137,7 @@ describe("account management pages", () => {
     });
 
     it("updates a cached member list when page data refreshes and writes mutation results back to the cache", async () => {
-        jest.spyOn(Grid, "useBreakpoint").mockReturnValue({md: true});
+        jest.spyOn(Grid, "useBreakpoint").mockReturnValue({ md: true });
         const updateCache = jest.fn();
         const member = {
             userId: 2,
@@ -146,24 +146,33 @@ describe("account management pages", () => {
             role: "author" as const,
             enabled: true,
         };
-        const data = {currentRole: "owner" as const, members: [member]};
-        const renderMembers = (pageData = data) =>
+        const data = { currentRole: "owner" as const, members: [member] };
+        const renderMembers = (pageData = data, offlineData = false) =>
             act(async () =>
                 root.render(
                     <MemoryRouter initialEntries={["/website/members.html?v=test"]}>
-                        <Members data={pageData} updateCache={updateCache}/>
+                        <Members data={pageData} updateCache={updateCache} offlineData={offlineData} />
                     </MemoryRouter>
                 )
             );
-        await renderMembers();
+        await renderMembers(data, true);
         expect(container.textContent).toContain("Cached member");
-        const refreshed = {...data, members: [{...member, userName: "Refreshed member"}]};
+        const editButton = () =>
+            Array.from(container.querySelectorAll("button")).find(
+                (button) => button.textContent === getRes().members.edit
+            )!;
+        expect(editButton().disabled).toBe(true);
+        await act(async () => editButton().click());
+        expect(document.querySelector('[role="dialog"]')).toBeNull();
+        expect(mockPost).not.toHaveBeenCalled();
+        const refreshed = { ...data, members: [{ ...member, userName: "Refreshed member" }] };
         await renderMembers(refreshed);
+        expect(editButton().disabled).toBe(false);
         expect(container.textContent).toContain("Refreshed member");
         expect(container.textContent).not.toContain("Cached member");
-        const saved = {...data, members: [{...member, userName: "Saved member"}]};
-        mockPost.mockResolvedValue({data: {error: 0}});
-        mockGet.mockResolvedValue({data: {error: 0, data: saved}});
+        const saved = { ...data, members: [{ ...member, userName: "Saved member" }] };
+        mockPost.mockResolvedValue({ data: { error: 0 } });
+        mockGet.mockResolvedValue({ data: { error: 0, data: saved } });
         await act(async () =>
             Array.from(container.querySelectorAll("button"))
                 .find((button) => button.textContent === getRes().members.edit)!
@@ -178,7 +187,7 @@ describe("account management pages", () => {
         await act(async () =>
             root.render(
                 <MemoryRouter>
-                    <Members data={{currentRole: "owner", members: []}}/>
+                    <Members data={{ currentRole: "owner", members: [] }} />
                 </MemoryRouter>
             )
         );
@@ -193,17 +202,17 @@ describe("account management pages", () => {
             getRes().access.rolePermissions
         );
         expect(container.textContent).toContain(getRes().members.create);
-        expect(mockGet).toHaveBeenCalledWith("/api/admin/access", expect.objectContaining({showError: false}));
+        expect(mockGet).toHaveBeenCalledWith("/api/admin/access", expect.objectContaining({ showError: false }));
     });
     it("shows site member navigation only to accounts with member management permission", () => {
-        jest.spyOn(Grid, "useBreakpoint").mockReturnValue({md: true});
+        jest.spyOn(Grid, "useBreakpoint").mockReturnValue({ md: true });
         window.__SS_DATA__!.user!.actions = ["site.configure"];
         const render = () =>
             act(() =>
                 root.render(
                     <MemoryRouter>
                         <AdminSettingsLayout activeKey="basic">
-                            <div/>
+                            <div />
                         </AdminSettingsLayout>
                     </MemoryRouter>
                 )
@@ -217,8 +226,8 @@ describe("account management pages", () => {
     });
     it.each(["network", "api"])("lets users retry permission help after a %s error", async (failure) => {
         if (failure === "network") mockGet.mockRejectedValueOnce(new Error("offline"));
-        else mockGet.mockResolvedValueOnce({data: {error: 1}});
-        await act(async () => root.render(<PermissionHelp/>));
+        else mockGet.mockResolvedValueOnce({ data: { error: 1 } });
+        await act(async () => root.render(<PermissionHelp />));
         await act(async () => container.querySelector<HTMLButtonElement>("button")!.click());
         expect(document.querySelector('[role="dialog"]')?.textContent).toContain(getRes().access.loadFailed);
         await act(async () =>
@@ -237,28 +246,28 @@ describe("account management pages", () => {
                     resolveFirst = resolve;
                 })
         );
-        await act(async () => root.render(<PermissionHelp initialView="scopes"/>));
+        await act(async () => root.render(<PermissionHelp initialView="scopes" />));
         await act(async () => container.querySelector<HTMLButtonElement>("button")!.click());
         expect(document.querySelector('[role="dialog"] .ant-spin')).not.toBeNull();
         await act(async () => document.querySelector<HTMLButtonElement>(".ant-drawer-close")!.click());
         expect(mockGet.mock.calls[0][1].signal.aborted).toBe(true);
         await act(async () => container.querySelector<HTMLButtonElement>("button")!.click());
-        await act(async () => resolveFirst({data: {error: 0, data: {...page, currentRole: "owner"}}}));
+        await act(async () => resolveFirst({ data: { error: 0, data: { ...page, currentRole: "owner" } } }));
         expect(mockGet).toHaveBeenCalledTimes(2);
         expect(document.querySelector('[role="dialog"]')?.textContent).toContain(getRes().access.ranges.author);
         expect(document.querySelector('[role="dialog"]')?.textContent).not.toContain(getRes().access.ranges.owner);
     });
     it.each(["zh_CN", "en_US"])("explains application scope limits in %s", (lang) => {
-        window.__SS_DATA__!.resourceInfo = {lang: lang as "zh_CN" | "en_US"};
-        act(() => root.render(<Access data={page} initialView="scopes"/>));
+        window.__SS_DATA__!.resourceInfo = { lang: lang as "zh_CN" | "en_US" };
+        act(() => root.render(<Access data={page} initialView="scopes" />));
         expect(container.textContent).toContain(getRes().access.scopesDescription);
         expect(container.textContent).toContain(getRes().access.scopeRangeHelp);
         expect(container.textContent).toContain(getRes().access.mcpAccess);
         expect(container.textContent).toContain(getRes().oauth.scopeLabels["articles:read_private"]);
     });
     it.each(["zh_CN", "en_US"])("describes endpoint purposes in %s while keeping the exact path", (lang) => {
-        window.__SS_DATA__!.resourceInfo = {lang: lang as "zh_CN" | "en_US"};
-        act(() => root.render(<Access data={page}/>));
+        window.__SS_DATA__!.resourceInfo = { lang: lang as "zh_CN" | "en_US" };
+        act(() => root.render(<Access data={page} />));
         act(() => container.querySelector<HTMLButtonElement>(".ant-table-row-expand-icon")!.click());
         expect(container.textContent).toContain(getRes().access.endpointDescriptions["article.create"]);
         expect(container.textContent).toContain("/api/admin/article/create");
@@ -357,7 +366,7 @@ describe("account management pages", () => {
     it.each(["zh_CN", "en_US"])(
         "lets users select MCP writing, publishing, taxonomy and upload scopes in %s",
         (lang) => {
-            window.__SS_DATA__!.resourceInfo = {lang: lang as "zh_CN" | "en_US"};
+            window.__SS_DATA__!.resourceInfo = { lang: lang as "zh_CN" | "en_US" };
             const scopes = ["articles:read", "articles:write", "articles:publish", "taxonomy:read", "assets:write"];
             mockPost.mockImplementation(() => new Promise(() => undefined));
             act(() =>
@@ -394,23 +403,39 @@ describe("account management pages", () => {
         }
     );
 
-    it("defaults consent to own public read and disables unavailable full-site access", () => {
-        act(() =>
-            root.render(
-                <OAuthConsent
-                    data={{
-                        requestId: "request",
-                        csrf: "csrf",
-                        clientName: "Test application",
-                        redirectUri: "https://client.example/callback",
-                        resource: "https://blog.example/api/oauth",
-                        scopes: ["articles:read", "articles:write", "articles:read_private", "articles:all"],
-                        availableScopes: ["articles:read", "articles:write", "articles:read_private"],
-                    }}
-                />
-            )
+    it("waits for live consent data and keeps unavailable full-site access disabled", () => {
+        const renderConsent = (offlineData: boolean) =>
+            act(() =>
+                root.render(
+                    <OAuthConsent
+                        offlineData={offlineData}
+                        data={{
+                            requestId: "request",
+                            csrf: "csrf",
+                            clientName: "Test application",
+                            redirectUri: "https://client.example/callback",
+                            resource: "https://blog.example/api/oauth",
+                            scopes: ["articles:read", "articles:write", "articles:read_private", "articles:all"],
+                            availableScopes: ["articles:read", "articles:write", "articles:read_private"],
+                        }}
+                    />
+                )
+            );
+        renderConsent(true);
+        expect(Array.from(container.querySelectorAll<HTMLInputElement>("input")).every((input) => input.disabled)).toBe(
+            true
         );
+        const allow = () =>
+            Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find(
+                (button) => button.textContent === getRes().oauth.allow
+            )!;
+        expect(allow().disabled).toBe(true);
+        act(() => allow().click());
+        expect(mockPost).not.toHaveBeenCalled();
+        renderConsent(false);
+        expect(allow().disabled).toBe(false);
         const inputs = Array.from(container.querySelectorAll<HTMLInputElement>('input[type="checkbox"]'));
+        expect(inputs.every((input) => !input.disabled)).toBe(true);
         expect(inputs.filter((input) => input.checked).map((input) => input.value)).toEqual(["articles:read"]);
         expect(container.querySelector<HTMLInputElement>('input[type="radio"][value="own"]')!.checked).toBe(true);
         expect(container.querySelector<HTMLInputElement>('input[type="radio"][value="all"]')!.disabled).toBe(true);

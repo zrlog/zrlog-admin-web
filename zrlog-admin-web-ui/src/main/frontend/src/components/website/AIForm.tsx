@@ -1,37 +1,37 @@
-import {Alert} from "antd";
+import { Alert } from "antd";
 import Tag from "@zrlog/ui/antd/Tag";
 import Switch from "@zrlog/ui/antd/Switch";
 import Input from "@zrlog/ui/antd/Input";
 import InputNumber from "@zrlog/ui/antd/InputNumber";
-import {useUiMessage} from "@zrlog/ui/feedback";
+import { useUiMessage } from "@zrlog/ui/feedback";
 import IdeaIcon from "@zrlog/ui/icons/idea";
 import EditIcon from "@zrlog/ui/icons/edit";
 import Form from "antd/es/form";
 import Button from "antd/es/button";
 
-import {getRes, tryAppendBackendServerUrl} from "../../utils/constants";
-import {useEffect, useState} from "react";
+import { getRes, tryAppendBackendServerUrl } from "../../utils/constants";
+import { useEffect, useState } from "react";
 
-import {AI, AIProvider} from "./index";
-import Select, {DefaultOptionType} from "antd/es/select";
+import { AI, AIProvider } from "./index";
+import Select, { DefaultOptionType } from "antd/es/select";
 import AutoComplete from "antd/es/auto-complete";
 
 import AIIcon from "../../icons/AIProviderIcon";
 import Editor from "@zrlog/editor/core";
-import {getAppState} from "../../base/ConfigProviderApp";
-import {Locale} from "@zrlog/editor/dist/editor/lang/editor-lang";
-import {useAxiosBaseInstance} from "../../base/AppBase";
+import { getAppState } from "../../base/ConfigProviderApp";
+import { Locale } from "@zrlog/editor/dist/editor/lang/editor-lang";
+import { useAxiosBaseInstance } from "../../base/AppBase";
 import Modal from "antd/es/modal";
 
-import {markdownToHtmlSyncWithCallback} from "@zrlog/editor/dist/editor/utils/marked-utils";
+import { markdownToHtmlSyncWithCallback } from "@zrlog/editor/dist/editor/utils/marked-utils";
 import HtmlPreviewPanel from "@zrlog/editor/core/editor/html-preview-panel";
-import {useTheme} from "antd-style";
-import {useResponsiveFormLayout} from "../../utils/responsive-form";
+import { useTheme } from "antd-style";
+import { useResponsiveFormLayout } from "../../utils/responsive-form";
 import WebsiteSubmitBar from "./WebsiteSubmitBar";
 
 const layout = {
-    labelCol: {span: 8},
-    wrapperCol: {span: 16},
+    labelCol: { span: 8 },
+    wrapperCol: { span: 16 },
 };
 
 const normalizeAiSettings = (settings: AI): AI => ({
@@ -55,12 +55,12 @@ const validateAiServiceUrl = (_: unknown, value?: string) => {
 };
 
 const AIForm = ({
-                    data,
-                    offline,
-                    offlineData,
-                    onSubmit,
-                    loading,
-                }: {
+    data,
+    offline,
+    offlineData,
+    onSubmit,
+    loading,
+}: {
     data: AI;
     offline: boolean;
     offlineData: boolean;
@@ -77,8 +77,8 @@ const AIForm = ({
     const axiosInstance = useAxiosBaseInstance();
     const theme = useTheme();
     const border = `${theme.lineWidth}px ${theme.lineType} ${theme.colorBorder}`;
-    const [messageApi, contextHolder] = useUiMessage({maxCount: 3});
-    const {formLayout, narrow} = useResponsiveFormLayout(layout);
+    const [messageApi, contextHolder] = useUiMessage({ maxCount: 3 });
+    const { formLayout, narrow } = useResponsiveFormLayout(layout);
     const endpointChanged =
         state.ai_provider !== data.ai_provider || (state.ai_base_url || "") !== (data.ai_base_url || "");
     const canReuseApiKey = Boolean(data.hasAiApiKey) && !endpointChanged;
@@ -91,17 +91,17 @@ const AIForm = ({
         state.ai_image_provider === state.ai_provider &&
         (state.ai_image_base_url || "") === (state.ai_base_url || "");
     const canReuseTextApiKeyForImage = imageUsesTextEndpoint && (canReuseApiKey || Boolean(state.ai_api_key));
-    const textModelSelectStyle = {width: 200, maxWidth: "100%"};
-    const serviceUrlInputStyle = {width: 420, maxWidth: "100%"};
-    const imageModelSelectStyle = {width: 260, maxWidth: "100%"};
+    const textModelSelectStyle = { width: 200, maxWidth: "100%" };
+    const serviceUrlInputStyle = { width: 420, maxWidth: "100%" };
+    const imageModelSelectStyle = { width: 260, maxWidth: "100%" };
     const getProviderModelOptions = (provider?: AIProvider): DefaultOptionType[] =>
         (provider?.models || []).map((name) => {
             const retired = provider?.modelEntries?.find((model) => model.name === name)?.retired;
             return {
                 label: retired ? (
-                    <span style={{display: "flex", alignItems: "center", gap: theme.marginXS}}>
-                        <span style={{minWidth: 0, whiteSpace: "normal", overflowWrap: "anywhere"}}>{name}</span>
-                        <Tag style={{marginInlineEnd: 0, flexShrink: 0}}>{getRes().websiteAi.aiModelRetired}</Tag>
+                    <span style={{ display: "flex", alignItems: "center", gap: theme.marginXS }}>
+                        <span style={{ minWidth: 0, whiteSpace: "normal", overflowWrap: "anywhere" }}>{name}</span>
+                        <Tag style={{ marginInlineEnd: 0, flexShrink: 0 }}>{getRes().websiteAi.aiModelRetired}</Tag>
                     </span>
                 ) : (
                     name
@@ -122,8 +122,8 @@ const AIForm = ({
         return (data.allProviders || []).map((e) => {
             return {
                 label: (
-                    <div style={{display: "flex", alignItems: "center", gap: 4}}>
-                        <AIIcon name={e.name}/>
+                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                        <AIIcon name={e.name} />
                         {e.name.toLowerCase().replace("_", "")}
                     </div>
                 ),
@@ -144,8 +144,8 @@ const AIForm = ({
         return (data.allImageProviders || []).map((e) => {
             return {
                 label: (
-                    <div style={{display: "flex", alignItems: "center", gap: 4}}>
-                        <AIIcon name={e.name}/>
+                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                        <AIIcon name={e.name} />
                         {e.name.toLowerCase().replace("_", "")}
                     </div>
                 ),
@@ -196,7 +196,7 @@ const AIForm = ({
     const optimizePromptDraft = async () => {
         try {
             setOptimizingPrompt(true);
-            const {data} = await axiosInstance.post("/api/admin/website/ai/prompt/optimize", {
+            const { data } = await axiosInstance.post("/api/admin/website/ai/prompt/optimize", {
                 prompt: promptDraft,
             });
             if (data.error) {
@@ -266,7 +266,7 @@ const AIForm = ({
                     showIcon
                     message={getRes().websiteAi.privacyBoundaryTitle}
                     description={getRes().websiteAi.privacyBoundaryDesc}
-                    style={{marginBottom: theme.marginMD}}
+                    style={{ marginBottom: theme.marginMD }}
                 />
                 <div
                     style={{
@@ -279,12 +279,12 @@ const AIForm = ({
                     {getRes().websiteAi.textModel}
                 </div>
                 <Form.Item name="ai_provider" label={getRes().websiteAi.aiProvider} required={true}>
-                    <Select style={textModelSelectStyle} options={getAiProviderOptions()}/>
+                    <Select style={textModelSelectStyle} options={getAiProviderOptions()} />
                 </Form.Item>
                 <Form.Item
                     name={"ai_model"}
                     label={getRes().websiteAi.aiModel}
-                    rules={[{required: true, whitespace: true, message: getRes().websiteAi.aiModelRequired}]}
+                    rules={[{ required: true, whitespace: true, message: getRes().websiteAi.aiModelRequired }]}
                 >
                     <AutoComplete
                         style={textModelSelectStyle}
@@ -296,9 +296,9 @@ const AIForm = ({
                     name={"ai_base_url"}
                     label={getRes().websiteAi.aiBaseUrl}
                     tooltip={getRes().websiteAi.aiBaseUrlTip}
-                    rules={[{validator: validateAiServiceUrl}]}
+                    rules={[{ validator: validateAiServiceUrl }]}
                 >
-                    <Input style={serviceUrlInputStyle} placeholder={getSelectedProvider()?.baseUrl}/>
+                    <Input style={serviceUrlInputStyle} placeholder={getSelectedProvider()?.baseUrl} />
                 </Form.Item>
                 <Form.Item
                     name={"ai_max_completion_tokens"}
@@ -318,7 +318,7 @@ const AIForm = ({
                     label={getRes().websiteAi.aiReasoningEnabled}
                     tooltip={getRes().websiteAi.aiReasoningEnabledTip}
                 >
-                    <Switch/>
+                    <Switch />
                 </Form.Item>
                 <Form.Item
                     name={"ai_api_key"}
@@ -332,8 +332,8 @@ const AIForm = ({
                             canReuseApiKey
                                 ? getRes().websiteAi.aiApiKeyConfiguredPlaceholder
                                 : state.ai_base_url
-                                    ? getRes().websiteAi.aiApiKeyOptionalPlaceholder
-                                    : undefined
+                                ? getRes().websiteAi.aiApiKeyOptionalPlaceholder
+                                : undefined
                         }
                     />
                 </Form.Item>
@@ -352,7 +352,7 @@ const AIForm = ({
                     label={getRes().websiteAi.aiImageProvider}
                     tooltip={getRes().websiteAi.aiImageProviderTip}
                 >
-                    <Select allowClear={true} style={imageModelSelectStyle} options={getAiImageProviderOptions()}/>
+                    <Select allowClear={true} style={imageModelSelectStyle} options={getAiImageProviderOptions()} />
                 </Form.Item>
                 <Form.Item
                     name={"ai_image_model"}
@@ -382,7 +382,7 @@ const AIForm = ({
                     ]}
                 >
                     <AutoComplete
-                        disabled={!state.ai_image_provider}
+                        disabled={offline || offlineData || !state.ai_image_provider}
                         style={imageModelSelectStyle}
                         options={getImageModelOptions()}
                         placeholder={getRes().websiteAi.aiImageModelPlaceholder}
@@ -392,10 +392,10 @@ const AIForm = ({
                     name={"ai_image_base_url"}
                     label={getRes().websiteAi.aiImageBaseUrl}
                     tooltip={getRes().websiteAi.aiImageBaseUrlTip}
-                    rules={[{validator: validateAiServiceUrl}]}
+                    rules={[{ validator: validateAiServiceUrl }]}
                 >
                     <Input
-                        disabled={!state.ai_image_provider}
+                        disabled={offline || offlineData || !state.ai_image_provider}
                         style={serviceUrlInputStyle}
                         placeholder={getSelectedImageProvider()?.baseUrl}
                     />
@@ -417,10 +417,10 @@ const AIForm = ({
                             canReuseImageApiKey
                                 ? getRes().websiteAi.aiApiKeyConfiguredPlaceholder
                                 : state.ai_image_base_url
-                                    ? getRes().websiteAi.aiApiKeyOptionalPlaceholder
-                                    : canReuseTextApiKeyForImage
-                                        ? getRes().websiteAi.aiImageApiKeyPlaceholder
-                                        : undefined
+                                ? getRes().websiteAi.aiApiKeyOptionalPlaceholder
+                                : canReuseTextApiKeyForImage
+                                ? getRes().websiteAi.aiImageApiKeyPlaceholder
+                                : undefined
                         }
                     />
                 </Form.Item>
@@ -436,7 +436,7 @@ const AIForm = ({
                 </div>
                 <Form.Item label={getRes().websiteAi.aiPrompt} tooltip={getRes().websiteAi.aiPromptTip}>
                     <Form.Item name={"ai_prompt"} hidden={true} noStyle={true}>
-                        <Input/>
+                        <Input />
                     </Form.Item>
                     <div
                         style={{
@@ -464,13 +464,13 @@ const AIForm = ({
                                 }}
                             />
                         ) : (
-                            <div style={{color: theme.colorTextTertiary}}>{getRes().websiteAi.aiPromptEmpty}</div>
+                            <div style={{ color: theme.colorTextTertiary }}>{getRes().websiteAi.aiPromptEmpty}</div>
                         )}
                     </div>
                     <Button
                         type="link"
-                        icon={<EditIcon/>}
-                        style={{padding: 0, height: "auto", marginTop: 4, color: getAppState().colorPrimary}}
+                        icon={<EditIcon />}
+                        style={{ padding: 0, height: "auto", marginTop: 4, color: getAppState().colorPrimary }}
                         disabled={offline || offlineData}
                         onClick={openPromptEditor}
                     >
@@ -478,16 +478,16 @@ const AIForm = ({
                     </Button>
                 </Form.Item>
 
-                <WebsiteSubmitBar loading={loading} disabled={offline || offlineData}/>
+                <WebsiteSubmitBar loading={loading} disabled={offline || offlineData} />
             </Form>
             <Modal
                 title={getRes().websiteAi.editAiPrompt}
-                open={promptEditorOpen}
+                open={promptEditorOpen && !offline && !offlineData}
                 width={narrow ? "calc(100vw - 32px)" : 860}
-                style={{top: narrow ? 12 : 24}}
+                style={{ top: narrow ? 12 : 24 }}
                 onOk={commitPromptDraft}
                 onCancel={() => setPromptEditorOpen(false)}
-                footer={(_, {OkBtn, CancelBtn}) => (
+                footer={(_, { OkBtn, CancelBtn }) => (
                     <div
                         style={{
                             display: "flex",
@@ -498,16 +498,16 @@ const AIForm = ({
                     >
                         <Button
                             type="link"
-                            icon={<IdeaIcon/>}
+                            icon={<IdeaIcon />}
                             loading={optimizingPrompt}
                             onClick={optimizePromptDraft}
-                            style={{paddingInline: 0, color: getAppState().colorPrimary}}
+                            style={{ paddingInline: 0, color: getAppState().colorPrimary }}
                         >
                             {getRes().websiteAi.optimizeAiPrompt}
                         </Button>
-                        <div style={{display: "flex", gap: theme.marginXS}}>
-                            <CancelBtn/>
-                            <OkBtn/>
+                        <div style={{ display: "flex", gap: theme.marginXS }}>
+                            <CancelBtn />
+                            <OkBtn />
                         </div>
                     </div>
                 )}

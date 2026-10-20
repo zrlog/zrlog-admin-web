@@ -1,26 +1,26 @@
-import {Alert, Button, Checkbox, Empty, Grid, theme} from "antd";
+import { Alert, Button, Checkbox, Empty, Grid, theme } from "antd";
 import Progress from "@zrlog/ui/antd/Progress";
-import {useUiApp, useUiMessage} from "@zrlog/ui/feedback";
+import { useUiApp, useUiMessage } from "@zrlog/ui/feedback";
 import SuccessIcon from "@zrlog/ui/icons/success";
 import ErrorIcon from "@zrlog/ui/icons/error";
 import InfoIcon from "@zrlog/ui/icons/info";
 import LoadingIcon from "@zrlog/ui/icons/loading";
-import {FunctionComponent, useEffect, useId, useRef, useState} from "react";
+import { FunctionComponent, useEffect, useId, useRef, useState } from "react";
 
 import Title from "antd/es/typography/Title";
-import {Link} from "react-router-dom";
+import { Link } from "react-router-dom";
 import AdminSettingsLayout from "./common/AdminSettingsLayout";
-import {getRealRouteUrl, getRes} from "../utils/constants";
-import {getContextPath} from "../utils/helpers";
-import {useAxiosBaseInstance} from "../base/AppBase";
-import {API_ADMIN_STATIC_SITE_SYNC_PATH, API_DO_UPGRADE_PATH, getVersion} from "../api";
-import {ApiResponse, UpgradeData} from "../type";
+import { getRealRouteUrl, getRes } from "../utils/constants";
+import { getContextPath } from "../utils/helpers";
+import { useAxiosBaseInstance } from "../base/AppBase";
+import { API_ADMIN_STATIC_SITE_SYNC_PATH, API_DO_UPGRADE_PATH, getVersion } from "../api";
+import { ApiResponse, UpgradeData } from "../type";
 import UpgradeContent from "./upgrade-content";
-import {markdownToHtml} from "@zrlog/editor/dist/editor/utils/marked-utils";
+import { markdownToHtml } from "@zrlog/editor/dist/editor/utils/marked-utils";
 import HtmlPreviewPanel from "@zrlog/editor/core/editor/html-preview-panel";
-import {getAppState} from "../base/ConfigProviderApp";
-import {getRefreshCacheSse, postRefreshCacheSse, SseEvent} from "../utils/sse-utils";
-import {createBackgroundTask, finishBackgroundTask, updateBackgroundTask} from "../utils/background-task-store";
+import { getAppState } from "../base/ConfigProviderApp";
+import { getRefreshCacheSse, postRefreshCacheSse, SseEvent } from "../utils/sse-utils";
+import { createBackgroundTask, finishBackgroundTask, updateBackgroundTask } from "../utils/background-task-store";
 import UpgradeReadiness from "./upgrade-readiness";
 import {
     getUpgradeStepProgress,
@@ -64,7 +64,7 @@ type StaticSiteSyncResponse = {
     synced: boolean;
 };
 
-const Upgrade: FunctionComponent<UpgradeProps> = ({data: initialData, offline, offlineData}) => {
+const Upgrade: FunctionComponent<UpgradeProps> = ({ data: initialData, offline, offlineData }) => {
     const riskDescriptionId = useId();
     const mounted = useRef(true);
     const connectionGeneration = useRef(0);
@@ -81,7 +81,7 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({data: initialData, offline, o
     const readinessRefreshing = useRef(false);
     const upgradeStarting = useRef(false);
     const screens = Grid.useBreakpoint();
-    const {token} = theme.useToken();
+    const { token } = theme.useToken();
     const breakpointReady = screens.xs !== undefined;
     const narrow = screens.md !== true;
 
@@ -96,9 +96,10 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({data: initialData, offline, o
     const [refreshing, setRefreshing] = useState(false);
     const [refreshError, setRefreshError] = useState<string>();
     const [checkedAt, setCheckedAt] = useState<number>();
-    const {modal} = useUiApp();
+    const awaitingPageData = offlineData && checkedAt === undefined;
+    const { modal } = useUiApp();
 
-    const [messageApi, contextHolder] = useUiMessage({maxCount: 3});
+    const [messageApi, contextHolder] = useUiMessage({ maxCount: 3 });
     const axiosInstance = useAxiosBaseInstance();
 
     useEffect(() => {
@@ -123,8 +124,8 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({data: initialData, offline, o
         setRefreshError(undefined);
         setUpgradeRiskAccepted(false);
         try {
-            const requestConfig = {params: {fetch: true}, showError: false, timeout: 30000};
-            const {data: response} = await axiosInstance.get<ApiResponse<UpgradeData>>(
+            const requestConfig = { params: { fetch: true }, showError: false, timeout: 30000 };
+            const { data: response } = await axiosInstance.get<ApiResponse<UpgradeData>>(
                 "/api/admin/upgrade",
                 requestConfig
             );
@@ -258,7 +259,7 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({data: initialData, offline, o
                     status,
                     buildId,
                 },
-                {showError: false} as any
+                { showError: false } as any
             );
         } catch {
             // This notice is best-effort; the upgrade flow state should not depend on it.
@@ -381,7 +382,7 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({data: initialData, offline, o
         let terminalFailure = false;
         let receivedProgress = false;
         setDockerPending(true);
-        setState((previous) => ({...previous, online: true}));
+        setState((previous) => ({ ...previous, online: true }));
         setDockerRetry(false);
         const options = {
             signal: controller.signal,
@@ -413,27 +414,27 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({data: initialData, offline, o
             type DockerResponse = ApiResponse<UpgradeProcessResponse | DockerUpgradeJob | null>;
             const response = submit
                 ? await postRefreshCacheSse<DockerResponse>(API_DO_UPGRADE_PATH, {
-                    ...options,
-                    body: {upgradeRiskAccepted: true, docker: task},
-                })
+                      ...options,
+                      body: { upgradeRiskAccepted: true, docker: task },
+                  })
                 : await getRefreshCacheSse<DockerResponse>(
-                    "/api/admin/upgrade/docker-status?requestId=" + encodeURIComponent(task.requestId),
-                    options
-                );
+                      "/api/admin/upgrade/docker-status?requestId=" + encodeURIComponent(task.requestId),
+                      options
+                  );
             if (!isCurrent() || upgradeFinishing.current) {
                 return;
             }
             if (submit && response.error && !receivedProgress) {
                 messageApi.error(response.message);
                 // A rejection may follow an accepted request. Recover by ID without submitting again.
-                setState((previous) => ({...previous, progressItems: []}));
+                setState((previous) => ({ ...previous, progressItems: [] }));
                 await watchDockerUpgrade(task, false);
                 return;
             }
             if (response.error === 0 && response.data == null) {
                 // A missing durable task requires an explicit retry with the same ID.
                 setDockerRetry(true);
-                upsertProgressItem({stage: "error", status: "error", message: getRes().upgrade.docker.unknown});
+                upsertProgressItem({ stage: "error", status: "error", message: getRes().upgrade.docker.unknown });
                 return;
             }
             if (response.data && "phase" in response.data) {
@@ -451,10 +452,10 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({data: initialData, offline, o
                         stage: failed
                             ? "error"
                             : job.phase === "succeeded"
-                                ? "complete"
-                                : job.phase === "queued" || job.phase === "pulling"
-                                    ? "download"
-                                    : "restart",
+                            ? "complete"
+                            : job.phase === "queued" || job.phase === "pulling"
+                            ? "download"
+                            : "restart",
                         status: failed ? "error" : job.phase === "succeeded" ? "complete" : "running",
                         message: getRes().upgrade.docker.phases[job.phase],
                         detail: failed && job.recoveryRequired ? getRes().upgrade.docker.recovery : undefined,
@@ -465,7 +466,7 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({data: initialData, offline, o
                         ...response,
                         error: failed ? 1 : response.error,
                         message: failed ? getRes().upgrade.docker.failed : response.message,
-                        data: {finish: !failed, message: ""},
+                        data: { finish: !failed, message: "" },
                     },
                     task.buildId,
                     true
@@ -519,7 +520,7 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({data: initialData, offline, o
         upgradeFinishing.current = false;
         progressEventReceived.current = false;
         clearUpgradeTimer();
-        setState((previous) => ({...previous, progressItems: [], manualMessageHtml: ""}));
+        setState((previous) => ({ ...previous, progressItems: [], manualMessageHtml: "" }));
         try {
             await startDockerUpgrade();
         } catch (error) {
@@ -583,7 +584,7 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({data: initialData, offline, o
                 failureEventReceived.current = true;
             }
             if (eventData.stage === "manual" || eventData.status === "manual") {
-                upsertProgressItem({stage: "manual", status: "manual", message: getRes().upgrade.manualTitle});
+                upsertProgressItem({ stage: "manual", status: "manual", message: getRes().upgrade.manualTitle });
                 void updateManualMessage(eventData.message || "");
                 return;
             }
@@ -593,15 +594,15 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({data: initialData, offline, o
 
     const renderProgressIcon = (item: UpgradeProgressItem) => {
         if (item.status === "error") {
-            return <ErrorIcon style={{color: token.colorError}}/>;
+            return <ErrorIcon style={{ color: token.colorError }} />;
         }
         if (item.status === "complete") {
-            return <SuccessIcon style={{color: token.colorSuccess}}/>;
+            return <SuccessIcon style={{ color: token.colorSuccess }} />;
         }
         if (item.status === "manual") {
-            return <InfoIcon style={{color: token.colorInfo}}/>;
+            return <InfoIcon style={{ color: token.colorInfo }} />;
         }
-        return <LoadingIcon style={{color: token.colorPrimary}}/>;
+        return <LoadingIcon style={{ color: token.colorPrimary }} />;
     };
 
     const renderProgressItem = (item: UpgradeProgressItem) => {
@@ -618,19 +619,19 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({data: initialData, offline, o
                     minWidth: 0,
                 }}
             >
-                <span style={{lineHeight: token.lineHeight, width: 18, flex: "0 0 18px", paddingTop: 1}}>
+                <span style={{ lineHeight: token.lineHeight, width: 18, flex: "0 0 18px", paddingTop: 1 }}>
                     {renderProgressIcon(item)}
                 </span>
-                <div style={{minWidth: 0, flex: 1}}>
-                    <div style={{whiteSpace: "pre-wrap", wordBreak: "break-word"}}>{item.message}</div>
-                    <div style={{color: token.colorTextSecondary, fontSize: token.fontSizeSM}}>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{item.message}</div>
+                    <div style={{ color: token.colorTextSecondary, fontSize: token.fontSizeSM }}>
                         {item.status === "complete"
                             ? getRes().backgroundTask.status.success
                             : item.status === "error"
-                                ? getRes().backgroundTask.status.error
-                                : item.status === "manual"
-                                    ? getRes().backgroundTask.status.warning
-                                    : getRes().backgroundTask.status.running}
+                            ? getRes().backgroundTask.status.error
+                            : item.status === "manual"
+                            ? getRes().backgroundTask.status.warning
+                            : getRes().backgroundTask.status.running}
                     </div>
                     {item.detail && (
                         <div
@@ -694,7 +695,7 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({data: initialData, offline, o
         finishUpgradeTask("error", errorMessage);
         if (!failureEventReceived.current) {
             failureEventReceived.current = true;
-            upsertProgressItem({stage: "error", status: "error", message: errorMessage});
+            upsertProgressItem({ stage: "error", status: "error", message: errorMessage });
         }
     };
 
@@ -726,7 +727,7 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({data: initialData, offline, o
                 return;
             }
             const response = await postRefreshCacheSse<ApiResponse<UpgradeProcessResponse>>(API_DO_UPGRADE_PATH, {
-                body: {upgradeRiskAccepted},
+                body: { upgradeRiskAccepted },
                 messageApi,
                 messageKey: "upgrade",
                 onEvent: onUpgradeEvent,
@@ -744,7 +745,7 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({data: initialData, offline, o
     };
 
     const upgradeDisabled = (): boolean => {
-        if (dockerPending || refreshing || refreshError || (offlineData && checkedAt === undefined)) {
+        if (dockerPending || refreshing || refreshError || awaitingPageData) {
             return true;
         }
         if (offline) {
@@ -799,20 +800,20 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({data: initialData, offline, o
                     >
                         <Checkbox
                             checked={upgradeRiskAccepted}
-                            disabled={offline || refreshing || !!refreshError}
+                            disabled={offline || awaitingPageData || refreshing || !!refreshError}
                             aria-describedby={riskDescriptionId}
-                            style={{flex: 1}}
+                            style={{ flex: 1 }}
                             onChange={(event) => setUpgradeRiskAccepted(event.target.checked)}
                         >
                             {getRes().upgrade.risk.acceptance}
                         </Checkbox>
                         <Button
                             type="primary"
-                            loading={offlineData && checkedAt === undefined}
+                            loading={awaitingPageData}
                             disabled={upgradeDisabled()}
                             onClick={() => void upgrade()}
                             block={narrow}
-                            style={{flexShrink: 0}}
+                            style={{ flexShrink: 0 }}
                         >
                             {data.onlineUpgradable ? getRes().upgrade.doUpgrade : getRes().upgrade.manualSteps}
                         </Button>
@@ -826,15 +827,15 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({data: initialData, offline, o
                     {getRes().upgrade.docker.retrySubmission}
                 </Button>
             )}
-            <div style={{minWidth: 0, paddingBottom: token.paddingLG}}>
+            <div style={{ minWidth: 0, paddingBottom: token.paddingLG }}>
                 {!showExecution && (
                     <>
                         {data.upgrade ? (
                             <>
-                                <Title level={4} style={{marginTop: 0}}>
+                                <Title level={4} style={{ marginTop: 0 }}>
                                     {getRes().upgrade.changeLog}
                                 </Title>
-                                <UpgradeContent data={data}/>
+                                <UpgradeContent data={data} />
                                 <UpgradeReadiness
                                     data={data}
                                     offline={offline}
@@ -848,12 +849,12 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({data: initialData, offline, o
                                     id={riskDescriptionId}
                                     type="warning"
                                     showIcon
-                                    style={{marginTop: token.marginLG}}
+                                    style={{ marginTop: token.marginLG }}
                                     message={getRes().upgrade.risk.title}
                                     description={
                                         <>
                                             <div>{getRes().upgrade.risk.description}</div>
-                                            <div style={{marginTop: token.marginXS}}>
+                                            <div style={{ marginTop: token.marginXS }}>
                                                 {getRes().upgrade.risk.rollback}
                                             </div>
                                         </>
@@ -862,7 +863,7 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({data: initialData, offline, o
                             </>
                         ) : (
                             <>
-                                {refreshError && <Alert type="error" showIcon message={refreshError}/>}
+                                {refreshError && <Alert type="error" showIcon message={refreshError} />}
                                 <Empty
                                     image={Empty.PRESENTED_IMAGE_SIMPLE}
                                     description={getRes().upgrade.noPendingUpdate}
@@ -882,11 +883,11 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({data: initialData, offline, o
                 )}
                 {showExecution && (
                     <>
-                        <Title level={4} style={{marginTop: 0}}>
+                        <Title level={4} style={{ marginTop: 0 }}>
                             {executionTitle}
                         </Title>
                         {state.online && (
-                            <div style={{marginBottom: token.marginSM}}>
+                            <div style={{ marginBottom: token.marginSM }}>
                                 <div>
                                     {getRes()
                                         .upgrade.stepProgress.replace("{completed}", String(stepProgress.completed))
@@ -898,13 +899,13 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({data: initialData, offline, o
                                         progressFailed
                                             ? "exception"
                                             : stepProgress.percent === 100
-                                                ? "success"
-                                                : "normal"
+                                            ? "success"
+                                            : "normal"
                                     }
                                     format={(percent) => `${percent}%`}
                                     aria-label={getRes().upgrade.execute}
                                 />
-                                <div style={{color: token.colorTextSecondary, fontSize: token.fontSizeSM}}>
+                                <div style={{ color: token.colorTextSecondary, fontSize: token.fontSizeSM }}>
                                     {getRes().upgrade.stepProgressDetail}
                                 </div>
                             </div>
@@ -913,26 +914,26 @@ const Upgrade: FunctionComponent<UpgradeProps> = ({data: initialData, offline, o
                             <div
                                 role="list"
                                 aria-label={getRes().upgrade.execute}
-                                style={{paddingTop: token.paddingXXS}}
+                                style={{ paddingTop: token.paddingXXS }}
                             >
                                 {!hasExecutionOutput
                                     ? renderProgressItem({
-                                        key: "preparing",
-                                        status: "running",
-                                        message:
-                                            dockerPending && state.phase === "review"
-                                                ? getRes().upgrade.docker.restoring
-                                                : getRes().upgrade.preparing,
-                                        detail:
-                                            dockerPending && state.phase === "review"
-                                                ? undefined
-                                                : getRes().upgrade.preparingDetail,
-                                    })
+                                          key: "preparing",
+                                          status: "running",
+                                          message:
+                                              dockerPending && state.phase === "review"
+                                                  ? getRes().upgrade.docker.restoring
+                                                  : getRes().upgrade.preparing,
+                                          detail:
+                                              dockerPending && state.phase === "review"
+                                                  ? undefined
+                                                  : getRes().upgrade.preparingDetail,
+                                      })
                                     : state.progressItems.map(renderProgressItem)}
                             </div>
                         )}
                         {state.manualMessageHtml && (
-                            <HtmlPreviewPanel dark={getAppState().dark} htmlContent={state.manualMessageHtml}/>
+                            <HtmlPreviewPanel dark={getAppState().dark} htmlContent={state.manualMessageHtml} />
                         )}
                     </>
                 )}

@@ -1,20 +1,20 @@
 import Tag from "@zrlog/ui/antd/Tag";
 import Input from "@zrlog/ui/antd/Input";
 import Table from "@zrlog/ui/antd/Table";
-import {useUiMessage} from "@zrlog/ui/feedback";
+import { useUiMessage } from "@zrlog/ui/feedback";
 import DeleteIcon from "@zrlog/ui/icons/delete";
 import EditIcon from "@zrlog/ui/icons/edit";
 import SwapIcon from "@zrlog/ui/icons/swap";
-import {Button, Descriptions, Empty, Grid, Modal, Space, Typography} from "antd";
-import type {ColumnsType} from "antd/es/table";
-import {useEffect, useMemo, useState} from "react";
-import {useNavigate} from "react-router";
-import {useAxiosBaseInstance} from "../../base/AppBase";
-import type {PageDataSource} from "../../common/BaseTable";
-import type {ApiResponse} from "../../type";
-import {cacheIgnoreReloadTime, getLabelValueSeparator, getRealRouteUrl, getRes} from "../../utils/constants";
-import {mapToQueryString} from "../../utils/helpers";
-import {postRefreshCacheSse} from "../../utils/sse-utils";
+import { Button, Descriptions, Empty, Grid, Modal, Space, Typography } from "antd";
+import type { ColumnsType } from "antd/es/table";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router";
+import { useAxiosBaseInstance } from "../../base/AppBase";
+import type { PageDataSource } from "../../common/BaseTable";
+import type { ApiResponse } from "../../type";
+import { cacheIgnoreReloadTime, getLabelValueSeparator, getRealRouteUrl, getRes } from "../../utils/constants";
+import { mapToQueryString } from "../../utils/helpers";
+import { postRefreshCacheSse } from "../../utils/sse-utils";
 
 type TagEntry = {
     id: number;
@@ -68,13 +68,22 @@ const normalizeTag = (tag: string) => tag.trim();
 const formatMessage = (template: string, values: Record<string, string | number>) =>
     Object.entries(values).reduce((text, [key, value]) => text.replace(`{${key}}`, String(value)), template);
 
-const TagManagement = ({data, offline}: { data: PageDataSource; offline: boolean }) => {
+const TagManagement = ({
+    data,
+    offline,
+    offlineData = false,
+}: {
+    data: PageDataSource;
+    offline: boolean;
+    offlineData?: boolean;
+}) => {
+    const disabled = offline || offlineData;
     const rows = (data?.rows || []) as TagEntry[];
     const screens = Grid.useBreakpoint();
     const compactTable = screens.md !== true;
     const navigate = useNavigate();
     const axiosInstance = useAxiosBaseInstance();
-    const [messageApi, contextHolder] = useUiMessage({maxCount: 3});
+    const [messageApi, contextHolder] = useUiMessage({ maxCount: 3 });
     const [searchKey, setSearchKey] = useState(data?.key || "");
     const [actionState, setActionState] = useState<TagActionState>(initialActionState);
     const tagRes = getRes().tagManage;
@@ -107,6 +116,7 @@ const TagManagement = ({data, offline}: { data: PageDataSource; offline: boolean
     };
 
     const openAction = (record: TagEntry, action: TagAction) => {
+        if (disabled) return;
         setActionState({
             ...initialActionState,
             open: true,
@@ -144,12 +154,12 @@ const TagManagement = ({data, offline}: { data: PageDataSource; offline: boolean
     };
 
     const loadPreview = async () => {
-        if (!validateAction()) {
+        if (disabled || !validateAction()) {
             return;
         }
-        setActionState((prev) => ({...prev, previewLoading: true}));
+        setActionState((prev) => ({ ...prev, previewLoading: true }));
         try {
-            const {data: response} = await axiosInstance.post<ApiResponse<TagPreview>>(
+            const { data: response } = await axiosInstance.post<ApiResponse<TagPreview>>(
                 `/api/admin/tag/preview?operation=${actionState.action}`,
                 buildRequestBody()
             );
@@ -157,17 +167,17 @@ const TagManagement = ({data, offline}: { data: PageDataSource; offline: boolean
                 messageApi.error(response.message);
                 return;
             }
-            setActionState((prev) => ({...prev, preview: response.data}));
+            setActionState((prev) => ({ ...prev, preview: response.data }));
         } finally {
-            setActionState((prev) => ({...prev, previewLoading: false}));
+            setActionState((prev) => ({ ...prev, previewLoading: false }));
         }
     };
 
     const executeAction = async () => {
-        if (!validateAction()) {
+        if (disabled || !validateAction()) {
             return;
         }
-        setActionState((prev) => ({...prev, submitting: true}));
+        setActionState((prev) => ({ ...prev, submitting: true }));
         try {
             const response = await postRefreshCacheSse<ApiResponse<TagPreview>>(
                 `/api/admin/tag/${actionState.action}`,
@@ -182,11 +192,11 @@ const TagManagement = ({data, offline}: { data: PageDataSource; offline: boolean
                 messageApi.error(response.message);
                 return;
             }
-            messageApi.success(formatMessage(tagRes.success, {count: response.data?.updatedArticleCount || 0}));
+            messageApi.success(formatMessage(tagRes.success, { count: response.data?.updatedArticleCount || 0 }));
             closeAction();
             refreshCurrentPage();
         } finally {
-            setActionState((prev) => ({...prev, submitting: false}));
+            setActionState((prev) => ({ ...prev, submitting: false }));
         }
     };
 
@@ -233,26 +243,26 @@ const TagManagement = ({data, offline}: { data: PageDataSource; offline: boolean
                     <Button
                         type="text"
                         size="small"
-                        disabled={offline}
+                        disabled={disabled}
                         title={tagRes.rename}
-                        icon={<EditIcon/>}
+                        icon={<EditIcon />}
                         onClick={() => openAction(record, "rename")}
                     />
                     <Button
                         type="text"
                         size="small"
-                        disabled={offline}
+                        disabled={disabled}
                         title={tagRes.merge}
-                        icon={<SwapIcon/>}
+                        icon={<SwapIcon />}
                         onClick={() => openAction(record, "merge")}
                     />
                     <Button
                         type="text"
                         size="small"
                         danger
-                        disabled={offline}
+                        disabled={disabled}
                         title={tagRes.delete}
-                        icon={<DeleteIcon/>}
+                        icon={<DeleteIcon />}
                         onClick={() => openAction(record, "delete")}
                     />
                 </Space>
@@ -308,7 +318,7 @@ const TagManagement = ({data, offline}: { data: PageDataSource; offline: boolean
                 enterButton={tagRes.search}
                 value={searchKey}
                 placeholder={tagRes.searchTip}
-                style={{maxWidth: 360, marginBottom: 12}}
+                style={{ maxWidth: 360, marginBottom: 12 }}
                 onChange={(event) => setSearchKey(event.target.value)}
                 onSearch={(value) => navigate(buildUrl(1, data?.size || data?.defaultPageSize || 10, value))}
             />
@@ -317,7 +327,7 @@ const TagManagement = ({data, offline}: { data: PageDataSource; offline: boolean
                 columns={columns}
                 dataSource={rows}
                 size={compactTable ? "small" : undefined}
-                scroll={{x: compactTable ? 420 : 568}}
+                scroll={{ x: compactTable ? 420 : 568 }}
                 pagination={{
                     hideOnSinglePage: true,
                     simple: compactTable,
@@ -336,19 +346,19 @@ const TagManagement = ({data, offline}: { data: PageDataSource; offline: boolean
                     actionState.action === "merge"
                         ? tagRes.confirmMerge
                         : actionState.action === "delete"
-                            ? tagRes.confirmDelete
-                            : tagRes.confirmRename
+                        ? tagRes.confirmDelete
+                        : tagRes.confirmRename
                 }
                 okButtonProps={{
                     danger: actionState.action === "delete",
                     loading: actionState.submitting,
-                    disabled: offline,
+                    disabled,
                 }}
                 cancelText={getRes().cancel}
                 destroyOnHidden
                 width={compactTable ? undefined : 760}
             >
-                <Space direction="vertical" size="middle" style={{width: "100%"}}>
+                <Space direction="vertical" size="middle" style={{ width: "100%" }}>
                     <Descriptions column={1} size="small">
                         <Descriptions.Item label={tagRes.name}>{actionState.record?.text}</Descriptions.Item>
                     </Descriptions>
@@ -357,7 +367,7 @@ const TagManagement = ({data, offline}: { data: PageDataSource; offline: boolean
                             addonBefore={tagRes.targetTag}
                             value={actionState.targetTag}
                             placeholder={tagRes.targetTagPlaceholder}
-                            disabled={offline}
+                            disabled={disabled}
                             onChange={(event) =>
                                 setActionState((prev) => ({
                                     ...prev,
@@ -370,7 +380,7 @@ const TagManagement = ({data, offline}: { data: PageDataSource; offline: boolean
                         <Typography.Text type="secondary">{tagRes.deleteWarning}</Typography.Text>
                     )}
                     <Space>
-                        <Button loading={actionState.previewLoading} disabled={offline} onClick={loadPreview}>
+                        <Button loading={actionState.previewLoading} disabled={disabled} onClick={loadPreview}>
                             {tagRes.preview}
                         </Button>
                         {actionState.preview ? (
@@ -390,16 +400,16 @@ const TagManagement = ({data, offline}: { data: PageDataSource; offline: boolean
                                     columns={previewColumns}
                                     dataSource={actionState.preview.articles}
                                     pagination={false}
-                                    scroll={{x: 660}}
+                                    scroll={{ x: 660 }}
                                 />
                                 {actionState.preview.hasMore ? (
                                     <Typography.Text type="secondary">
-                                        {formatMessage(tagRes.previewMore, {count: previewLimit})}
+                                        {formatMessage(tagRes.previewMore, { count: previewLimit })}
                                     </Typography.Text>
                                 ) : null}
                             </>
                         ) : (
-                            <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={tagRes.previewEmpty}/>
+                            <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={tagRes.previewEmpty} />
                         )
                     ) : null}
                 </Space>

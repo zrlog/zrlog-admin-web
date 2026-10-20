@@ -1,29 +1,35 @@
-import {Alert, Button, Drawer, Form, List, Select, Space, Typography} from "antd";
+import { Alert, Button, Drawer, Form, List, Select, Space, Typography } from "antd";
 import Tag from "@zrlog/ui/antd/Tag";
 import Switch from "@zrlog/ui/antd/Switch";
 import Input from "@zrlog/ui/antd/Input";
-import {useUiMessage} from "@zrlog/ui/feedback";
-import {useEffect, useState} from "react";
-import {useLocation} from "react-router-dom";
+import { useUiMessage } from "@zrlog/ui/feedback";
+import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 
-import {useAxiosBaseInstance} from "../base/AppBase";
-import {getRes} from "../utils/constants";
-import {getSsDate} from "../base/SsData";
-import {AccountRole, hasAction} from "../utils/account-access";
+import { useAxiosBaseInstance } from "../base/AppBase";
+import { getRes } from "../utils/constants";
+import { getSsDate } from "../base/SsData";
+import { AccountRole, hasAction } from "../utils/account-access";
 import AdminSettingsLayout from "./common/AdminSettingsLayout";
 import PermissionHelp from "./common/PermissionHelp";
-import {getPageDataCacheKey} from "../utils/cache";
-import type {AdminCommonProps} from "../type";
+import { getPageDataCacheKey } from "../utils/cache";
+import type { AdminCommonProps } from "../type";
 
 type Member = { userId: number; userName: string; email: string; role: AccountRole; enabled: boolean };
 type Page = { members: Member[]; currentRole: AccountRole };
-export default function Members({data, updateCache}: Pick<AdminCommonProps<Page>, "data" | "updateCache">) {
+export default function Members({
+    data,
+    updateCache,
+    offline = false,
+    offlineData = false,
+}: Pick<AdminCommonProps<Page>, "data" | "updateCache"> & { offline?: boolean; offlineData?: boolean }) {
     const [members, setMembers] = useState(data.members);
     const location = useLocation();
     useEffect(() => setMembers(data.members), [data]);
     const [editing, setEditing] = useState<Member | null | undefined>();
     const [transferring, setTransferring] = useState(false);
     const [busy, setBusy] = useState(false);
+    const disabled = offline || offlineData || busy;
     const [form] = Form.useForm();
     const [transferForm] = Form.useForm();
     const api = useAxiosBaseInstance();
@@ -34,8 +40,9 @@ export default function Members({data, updateCache}: Pick<AdminCommonProps<Page>
         ? ["admin", "editor", "author", "contributor"]
         : ["editor", "author", "contributor"];
     const open = (member: Member | null) => {
+        if (disabled) return;
         form.resetFields();
-        form.setFieldsValue(member ?? {role: "contributor", enabled: true});
+        form.setFieldsValue(member ?? { role: "contributor", enabled: true });
         setEditing(member);
     };
     const reload = async () => {
@@ -48,6 +55,7 @@ export default function Members({data, updateCache}: Pick<AdminCommonProps<Page>
         }
     };
     const save = async (values: any) => {
+        if (disabled) return;
         setBusy(true);
         try {
             const response = await api.post(`/api/admin/members/${editing ? "update" : "create"}`, {
@@ -66,6 +74,7 @@ export default function Members({data, updateCache}: Pick<AdminCommonProps<Page>
         }
     };
     const transfer = async (values: any) => {
+        if (disabled) return;
         setBusy(true);
         try {
             const response = await api.post("/api/admin/members/transfer", values);
@@ -80,14 +89,14 @@ export default function Members({data, updateCache}: Pick<AdminCommonProps<Page>
             activeKey="members"
             extra={
                 <Space wrap>
-                    <PermissionHelp/>
-                    <Button type="primary" onClick={() => open(null)}>
+                    <PermissionHelp />
+                    <Button type="primary" disabled={disabled} onClick={() => open(null)}>
                         {res.create}
                     </Button>
                 </Space>
             }
         >
-            <Space orientation="vertical" size="large" style={{width: "100%"}}>
+            <Space orientation="vertical" size="large" style={{ width: "100%" }}>
                 {contextHolder}
                 <List
                     dataSource={members}
@@ -97,6 +106,7 @@ export default function Members({data, updateCache}: Pick<AdminCommonProps<Page>
                                 member.role === "owner" && hasAction("ownership.transfer") ? (
                                     <Button
                                         key="transfer"
+                                        disabled={disabled}
                                         onClick={() => {
                                             transferForm.resetFields();
                                             setTransferring(true);
@@ -105,9 +115,9 @@ export default function Members({data, updateCache}: Pick<AdminCommonProps<Page>
                                         {res.transfer}
                                     </Button>
                                 ) : member.role !== "owner" &&
-                                member.userId !== getSsDate().user?.userId &&
-                                (hasAction("member.appoint_admin") || member.role !== "admin") ? (
-                                    <Button key="edit" onClick={() => open(member)}>
+                                  member.userId !== getSsDate().user?.userId &&
+                                  (hasAction("member.appoint_admin") || member.role !== "admin") ? (
+                                    <Button key="edit" disabled={disabled} onClick={() => open(member)}>
                                         {res.edit}
                                     </Button>
                                 ) : null,
@@ -134,26 +144,26 @@ export default function Members({data, updateCache}: Pick<AdminCommonProps<Page>
                     onClose={() => setEditing(undefined)}
                     destroyOnHidden
                 >
-                    <Form form={form} layout="vertical" onFinish={save}>
+                    <Form form={form} layout="vertical" disabled={disabled} onFinish={save}>
                         {!editing && (
                             <>
                                 <Form.Item
                                     name="userName"
                                     label={res.name}
-                                    rules={[{required: true}, {pattern: /^[A-Za-z0-9_.-]{2,16}$/}]}
+                                    rules={[{ required: true }, { pattern: /^[A-Za-z0-9_.-]{2,16}$/ }]}
                                 >
-                                    <Input autoComplete="off"/>
+                                    <Input autoComplete="off" />
                                 </Form.Item>
-                                <Form.Item name="email" label={res.email} rules={[{type: "email"}]}>
-                                    <Input maxLength={64}/>
+                                <Form.Item name="email" label={res.email} rules={[{ type: "email" }]}>
+                                    <Input maxLength={64} />
                                 </Form.Item>
                             </>
                         )}
-                        <Form.Item name="role" label={res.role} rules={[{required: true}]}>
-                            <Select options={allowedRoles.map((value) => ({value, label: roles[value]}))}/>
+                        <Form.Item name="role" label={res.role} rules={[{ required: true }]}>
+                            <Select options={allowedRoles.map((value) => ({ value, label: roles[value] }))} />
                         </Form.Item>
                         <Form.Item noStyle shouldUpdate={(a, b) => a.role !== b.role}>
-                            {({getFieldValue}) => (
+                            {({ getFieldValue }) => (
                                 <Typography.Paragraph type="secondary">
                                     {getRes().access.ranges[getFieldValue("role") as AccountRole]}
                                 </Typography.Paragraph>
@@ -166,16 +176,16 @@ export default function Members({data, updateCache}: Pick<AdminCommonProps<Page>
                                 label={res.enabled}
                                 extra={res.disableHelp}
                             >
-                                <Switch/>
+                                <Switch />
                             </Form.Item>
                         )}
                         <Form.Item
                             name="password"
                             label={editing ? res.newPassword : res.password}
                             help={res.passwordHelp}
-                            rules={[{required: !editing}, {min: 12, max: 256}]}
+                            rules={[{ required: !editing }, { min: 12, max: 256 }]}
                         >
-                            <Input.Password autoComplete="new-password"/>
+                            <Input.Password autoComplete="new-password" />
                         </Form.Item>
                         <Button type="primary" htmlType="submit" loading={busy}>
                             {res.save}
@@ -183,20 +193,20 @@ export default function Members({data, updateCache}: Pick<AdminCommonProps<Page>
                     </Form>
                 </Drawer>
                 <Drawer title={res.transfer} open={transferring} onClose={() => setTransferring(false)} destroyOnHidden>
-                    <Alert type="warning" showIcon title={res.transferHelp} style={{marginBottom: 16}}/>
-                    <Form form={transferForm} layout="vertical" onFinish={transfer}>
-                        <Form.Item name="userId" label={res.target} rules={[{required: true}]}>
+                    <Alert type="warning" showIcon title={res.transferHelp} style={{ marginBottom: 16 }} />
+                    <Form form={transferForm} layout="vertical" disabled={disabled} onFinish={transfer}>
+                        <Form.Item name="userId" label={res.target} rules={[{ required: true }]}>
                             <Select
                                 options={members
                                     .filter((m) => m.enabled && m.role !== "owner")
-                                    .map((m) => ({value: m.userId, label: m.userName}))}
+                                    .map((m) => ({ value: m.userId, label: m.userName }))}
                             />
                         </Form.Item>
-                        <Form.Item name="password" label={res.currentPassword} rules={[{required: true}]}>
-                            <Input.Password autoComplete="current-password"/>
+                        <Form.Item name="password" label={res.currentPassword} rules={[{ required: true }]}>
+                            <Input.Password autoComplete="current-password" />
                         </Form.Item>
                         <Form.Item name="mfaCode" label={res.mfa}>
-                            <Input autoComplete="one-time-code"/>
+                            <Input autoComplete="one-time-code" />
                         </Form.Item>
                         <Button type="primary" htmlType="submit" loading={busy}>
                             {res.transferConfirm}

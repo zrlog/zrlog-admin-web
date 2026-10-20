@@ -1,17 +1,17 @@
-import {act} from "react";
-import {createRoot, Root} from "react-dom/client";
-import {Simulate} from "react-dom/test-utils";
-import {afterEach, beforeEach, expect, jest, test} from "@jest/globals";
-import ProxySettings, {ProxyData, validNoProxy, validProxyUrl} from "./Proxy";
+import { act } from "react";
+import { createRoot, Root } from "react-dom/client";
+import { Simulate } from "react-dom/test-utils";
+import { afterEach, beforeEach, expect, jest, test } from "@jest/globals";
+import ProxySettings, { ProxyData, validNoProxy, validProxyUrl } from "./Proxy";
 
 jest.mock("@zrlog/ui/antd/Input", () => require("antd/lib/input"));
-jest.mock("../common/AdminSettingsLayout", () => ({children}: any) => <div>{children}</div>);
+jest.mock("../common/AdminSettingsLayout", () => ({ children }: any) => <div>{children}</div>);
 const mockPost = jest.fn<Promise<any>, any[]>();
-const mockAxios = {post: mockPost};
+const mockAxios = { post: mockPost };
 const mockSuccess = jest.fn();
-jest.mock("../../base/AppBase", () => ({useAxiosBaseInstance: () => mockAxios}));
-jest.mock("@zrlog/ui/feedback", () => ({useUiApp: () => ({message: {success: mockSuccess}})}));
-jest.mock("../../utils/constants", () => ({getRes: () => require("../../i18n/admin").getAdminI18n("en_US")}));
+jest.mock("../../base/AppBase", () => ({ useAxiosBaseInstance: () => mockAxios }));
+jest.mock("@zrlog/ui/feedback", () => ({ useUiApp: () => ({ message: { success: mockSuccess } }) }));
+jest.mock("../../utils/constants", () => ({ getRes: () => require("../../i18n/admin").getAdminI18n("en_US") }));
 
 const data: ProxyData = {
     url: "http://proxy.example:3128",
@@ -41,8 +41,8 @@ beforeEach(() => {
         disconnect = jest.fn();
     };
     (globalThis as any).MessageChannel = class {
-        port1 = {onmessage: () => undefined};
-        port2 = {postMessage: () => Promise.resolve().then(() => this.port1.onmessage())};
+        port1 = { onmessage: () => undefined };
+        port2 = { postMessage: () => Promise.resolve().then(() => this.port1.onmessage()) };
     };
     window.matchMedia = (() => ({
         matches: false,
@@ -70,14 +70,31 @@ afterEach(() => {
         else Reflect.deleteProperty(globalThis, key);
     });
 });
-const render = async (value = data) => {
-    await act(async () => root.render(<ProxySettings data={value} offline={false}/>));
+const render = async (value = data, offlineData = false) => {
+    await act(async () => root.render(<ProxySettings data={value} offline={false} offlineData={offlineData} />));
 };
 const button = (label: string) =>
     Array.from(container.querySelectorAll("button")).find((item) => item.textContent === label)!;
 
+test("blocks editing, saving and connection tests until page data is ready", async () => {
+    await render(data, true);
+    expect((container.querySelector("#url") as HTMLInputElement).disabled).toBe(true);
+    expect((container.querySelector("#noProxy") as HTMLInputElement).disabled).toBe(true);
+    expect(button("Save configuration").disabled).toBe(true);
+    expect(button("Test connection").disabled).toBe(true);
+    await act(async () => Simulate.submit(container.querySelector("form")!));
+    await act(async () => Simulate.click(button("Test connection")));
+    expect(mockPost).not.toHaveBeenCalled();
+
+    await render({ ...data, url: "http://new-proxy:8080" });
+    expect((container.querySelector("#url") as HTMLInputElement).value).toBe("http://new-proxy:8080");
+    expect((container.querySelector("#url") as HTMLInputElement).disabled).toBe(false);
+    expect(button("Save configuration").disabled).toBe(false);
+    expect(button("Test connection").disabled).toBe(false);
+});
+
 test("file settings remain editable while environment priority is explained", async () => {
-    await render({...data, source: "environment", httpVariable: "HTTP_PROXY"});
+    await render({ ...data, source: "environment", httpVariable: "HTTP_PROXY" });
     expect((container.querySelector("#url") as HTMLInputElement).disabled).toBe(false);
     expect((container.querySelector("#noProxy") as HTMLInputElement).disabled).toBe(false);
     expect(container.textContent).toContain("HTTP_PROXY overrides this setting");
@@ -95,23 +112,23 @@ test("file settings remain editable while environment priority is explained", as
 });
 
 test("saving shows pending restart while preserving the active configuration", async () => {
-    mockPost.mockResolvedValue({data: {error: 0, data: {...data, restartRequired: true}}});
+    mockPost.mockResolvedValue({ data: { error: 0, data: { ...data, restartRequired: true } } });
     await render();
     await act(async () => Simulate.submit(container.querySelector("form")!));
-    expect(mockPost).toHaveBeenCalledWith("/api/admin/system/proxy", {url: data.url, noProxy: data.noProxy});
+    expect(mockPost).toHaveBeenCalledWith("/api/admin/system/proxy", { url: data.url, noProxy: data.noProxy });
     expect(container.textContent).toContain("Proxy settings saved; restart ZrLog to apply");
     expect(container.textContent).toContain("No proxy set here");
     expect(mockSuccess).toHaveBeenCalledWith("Proxy settings saved; restart ZrLog to apply");
 });
 
 test("connection and save failures remain visible and preserve form values", async () => {
-    mockPost.mockResolvedValue({data: {error: 0, data: false}});
+    mockPost.mockResolvedValue({ data: { error: 0, data: false } });
     await render();
     await act(async () => Simulate.click(button("Test connection")));
     expect(mockPost).toHaveBeenCalledWith(
         "/api/admin/system/proxy/test",
-        {url: data.url, noProxy: data.noProxy},
-        {timeout: 15000}
+        { url: data.url, noProxy: data.noProxy },
+        { timeout: 15000 }
     );
     expect(container.querySelector('.ant-alert-error[role="alert"]')?.textContent).toContain(
         "Could not connect to the ZrLog website"
@@ -123,7 +140,7 @@ test("connection and save failures remain visible and preserve form values", asy
 });
 
 test("read-only storage prevents saving but permits a connection test", async () => {
-    await render({...data, writable: false});
+    await render({ ...data, writable: false });
     expect(button("Save configuration").disabled).toBe(true);
     expect(button("Test connection").disabled).toBe(false);
     expect(container.textContent).toContain("read-only");
@@ -150,7 +167,7 @@ test.each(["save", "test"])("%s locks the submitted values and prevents overlapp
         Simulate.click(button("Test connection"));
     });
     expect(mockPost).toHaveBeenCalledTimes(1);
-    await act(async () => resolve({data: {error: 0, data: action === "save" ? data : true}}));
+    await act(async () => resolve({ data: { error: 0, data: action === "save" ? data : true } }));
     expect((container.querySelector("#url") as HTMLInputElement).disabled).toBe(false);
     expect(mockSuccess).toHaveBeenCalledTimes(1);
 });
@@ -158,15 +175,15 @@ test.each(["save", "test"])("%s locks the submitted values and prevents overlapp
 test("page data refresh preserves an unsaved proxy draft", async () => {
     await render();
     const input = container.querySelector("#url") as HTMLInputElement;
-    await act(async () => Simulate.change(input, {target: {value: "http://new-proxy.example:3128"}} as any));
-    await render({...data, noProxy: ".refreshed.example"});
+    await act(async () => Simulate.change(input, { target: { value: "http://new-proxy.example:3128" } } as any));
+    await render({ ...data, noProxy: ".refreshed.example" });
     expect(input.value).toBe("http://new-proxy.example:3128");
     expect((container.querySelector("#noProxy") as HTMLInputElement).value).toBe(data.noProxy);
 });
 
 test("invalid input stays a field error without sending a connection test", async () => {
     jest.useFakeTimers();
-    await render({...data, url: "http://proxy.example/path/.."});
+    await render({ ...data, url: "http://proxy.example/path/.." });
     await act(async () => Simulate.click(button("Test connection")));
     for (
         let elapsed = 0;

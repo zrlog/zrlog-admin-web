@@ -1,16 +1,25 @@
 import EditIcon from "@zrlog/ui/icons/edit";
-import BaseTable, {PageDataSource} from "../../common/BaseTable";
-import {getLabelValueSeparator, getRes} from "../../utils/constants";
-import {Button, Grid, Space, theme, Typography} from "antd";
+import BaseTable, { PageDataSource } from "../../common/BaseTable";
+import { getLabelValueSeparator, getRes } from "../../utils/constants";
+import { Button, Grid, Space, theme, Typography } from "antd";
 
 import CreateOrEditLink from "./create_or_edit_link";
 
-const {Text} = Typography;
+const { Text } = Typography;
 
-const BLink = ({data, offline}: { data: PageDataSource; offline: boolean }) => {
+const BLink = ({
+    data,
+    offline,
+    offlineData = false,
+}: {
+    data: PageDataSource;
+    offline: boolean;
+    offlineData?: boolean;
+}) => {
+    const disabled = offline || offlineData;
     const screens = Grid.useBreakpoint();
     const compactLinkTable = screens.md !== true;
-    const {token} = theme.useToken();
+    const { token } = theme.useToken();
     const surface = {
         linkText: {
             wordBreak: "break-all" as const,
@@ -53,7 +62,7 @@ const BLink = ({data, offline}: { data: PageDataSource; offline: boolean }) => {
                         <Text>
                             {getRes().link.name}
                             {getLabelValueSeparator()}
-                            <span dangerouslySetInnerHTML={{__html: record.linkName}}/>
+                            <span dangerouslySetInnerHTML={{ __html: record.linkName }} />
                         </Text>
                     ) : null}
                     {record.alt ? (
@@ -107,7 +116,7 @@ const BLink = ({data, offline}: { data: PageDataSource; offline: boolean }) => {
                 dataIndex: "linkName",
                 width: 140,
                 render: (e: string) => {
-                    return <span dangerouslySetInnerHTML={{__html: e}}/>;
+                    return <span dangerouslySetInnerHTML={{ __html: e }} />;
                 },
             },
             {
@@ -135,18 +144,18 @@ const BLink = ({data, offline}: { data: PageDataSource; offline: boolean }) => {
         <>
             <BaseTable
                 defaultPageSize={10}
-                offline={offline}
+                offline={disabled}
                 hideId={true}
                 columns={getColumns()}
                 actionColumnWidth={compactLinkTable ? 88 : undefined}
                 addBtnRender={(addSuccessCall) => {
                     return (
                         <CreateOrEditLink
-                            record={{id: 0, url: "", linkName: ""}}
-                            offline={offline}
+                            record={{ id: 0, url: "", linkName: "" }}
+                            offline={disabled}
                             editSuccessCall={addSuccessCall}
                         >
-                            <Button type="primary" disabled={offline} style={surface.addButton}>
+                            <Button type="primary" disabled={disabled} style={surface.addButton}>
                                 {getRes().add}
                             </Button>
                         </CreateOrEditLink>
@@ -154,12 +163,13 @@ const BLink = ({data, offline}: { data: PageDataSource; offline: boolean }) => {
                 }}
                 datasource={data}
                 editBtnRender={(_id, record, editSuccessCall) => (
-                    <CreateOrEditLink offline={offline} record={record} editSuccessCall={editSuccessCall}>
+                    <CreateOrEditLink offline={disabled} record={record} editSuccessCall={editSuccessCall}>
                         <Button
                             type="text"
+                            disabled={disabled}
                             size="small"
                             title={getRes().edit}
-                            icon={<EditIcon style={surface.editIcon}/>}
+                            icon={<EditIcon style={surface.editIcon} />}
                         />
                     </CreateOrEditLink>
                 )}
