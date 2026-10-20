@@ -10,6 +10,7 @@ import com.zrlog.admin.business.service.AdminArticleService;
 import com.zrlog.admin.business.service.AdminPageDataFactory;
 import com.zrlog.admin.business.service.ArticlePinningService;
 import com.zrlog.admin.business.service.ArticlePublishingService;
+import com.zrlog.admin.business.service.ArticleQueryService;
 import com.zrlog.admin.business.service.ArticleVersionService;
 import com.zrlog.admin.business.service.ContentToolService;
 import com.zrlog.admin.support.AccountServicesFixture;
@@ -28,29 +29,103 @@ final class ContentToolsFixture {
         var cache = new InMemoryZrLogDatabase.TestCacheService();
         var articles =
                 new AdminArticleService(
-                        cache,
                         ApplicationServicesFixture.capability(config, ArticleAssistant.class),
-                        new AdminPageDataFactory(
-                                ApplicationServicesFixture.site(config),
-                                () -> "test",
-                                ApplicationServicesFixture.messages(config == null ? null : (DataSourceWrapper) config.getDataSource()),
-                                AccountServicesFixture.component(config == null ? null : (DataSourceWrapper) config.getDataSource()).permissions()),
-                        AccountServicesFixture.component(config == null ? null : (DataSourceWrapper) config.getDataSource()).permissions(),
-                        AccountServicesFixture.component(config == null ? null : (DataSourceWrapper) config.getDataSource()).preferences(),
+                        AccountServicesFixture.component(
+                                        config == null
+                                                ? null
+                                                : (DataSourceWrapper) config.getDataSource())
+                                .permissions(),
+                        AccountServicesFixture.component(
+                                        config == null
+                                                ? null
+                                                : (DataSourceWrapper) config.getDataSource())
+                                .preferences(),
                         new ArticleVersionService(
-                                AccountServicesFixture.component(config == null ? null : (DataSourceWrapper) config.getDataSource()).permissions(),
-                                () -> new Log(config == null ? null : (DataSourceWrapper) config.getDataSource()),
-                                () -> new LogVersion(config == null ? null : (DataSourceWrapper) config.getDataSource())),
-                        new ArticlePinningService(() -> new Log(config == null ? null : (DataSourceWrapper) config.getDataSource()), ApplicationServicesFixture.locks(config == null ? null : (DataSourceWrapper) config.getDataSource())),
-                        () -> new Log(config == null ? null : (DataSourceWrapper) config.getDataSource()),
-                        ApplicationServicesFixture.locks(config == null ? null : (DataSourceWrapper) config.getDataSource()));
+                                AccountServicesFixture.component(
+                                                config == null
+                                                        ? null
+                                                        : (DataSourceWrapper)
+                                                                config.getDataSource())
+                                        .permissions(),
+                                () ->
+                                        new Log(
+                                                config == null
+                                                        ? null
+                                                        : (DataSourceWrapper)
+                                                                config.getDataSource()),
+                                () ->
+                                        new LogVersion(
+                                                config == null
+                                                        ? null
+                                                        : (DataSourceWrapper)
+                                                                config.getDataSource())),
+                        new ArticlePinningService(
+                                () ->
+                                        new Log(
+                                                config == null
+                                                        ? null
+                                                        : (DataSourceWrapper)
+                                                                config.getDataSource()),
+                                ApplicationServicesFixture.locks(
+                                        config == null
+                                                ? null
+                                                : (DataSourceWrapper) config.getDataSource())),
+                        () ->
+                                new Log(
+                                        config == null
+                                                ? null
+                                                : (DataSourceWrapper) config.getDataSource()),
+                        ApplicationServicesFixture.locks(
+                                config == null
+                                        ? null
+                                        : (DataSourceWrapper) config.getDataSource()));
         var publishing =
                 new ArticlePublishingService(
                         articles,
+                        new ArticleQueryService(
+                                cache,
+                                ApplicationServicesFixture.capability(
+                                        config, ArticleAssistant.class),
+                                new AdminPageDataFactory(
+                                        ApplicationServicesFixture.site(config),
+                                        () -> "test",
+                                        ApplicationServicesFixture.messages(
+                                                config == null
+                                                        ? null
+                                                        : (DataSourceWrapper)
+                                                                config.getDataSource()),
+                                        AccountServicesFixture.component(
+                                                        config == null
+                                                                ? null
+                                                                : (DataSourceWrapper)
+                                                                        config.getDataSource())
+                                                .permissions()),
+                                AccountServicesFixture.component(
+                                                config == null
+                                                        ? null
+                                                        : (DataSourceWrapper)
+                                                                config.getDataSource())
+                                        .permissions(),
+                                AccountServicesFixture.component(
+                                                config == null
+                                                        ? null
+                                                        : (DataSourceWrapper)
+                                                                config.getDataSource())
+                                        .preferences(),
+                                () ->
+                                        new Log(
+                                                config == null
+                                                        ? null
+                                                        : (DataSourceWrapper)
+                                                                config.getDataSource())),
                         ApplicationServicesFixture.cacheRefresh(cache, config),
                         markdown -> null,
-                        ApplicationServicesFixture.audit(config == null ? null : (DataSourceWrapper) config.getDataSource()),
-                        ApplicationServicesFixture.operations(config == null ? null : (DataSourceWrapper) config.getDataSource()));
+                        ApplicationServicesFixture.audit(
+                                config == null ? null : (DataSourceWrapper) config.getDataSource()),
+                        ApplicationServicesFixture.operations(
+                                config == null
+                                        ? null
+                                        : (DataSourceWrapper) config.getDataSource()));
         return new ContentToolFactory(
                 (toolScopes, toolRequest, toolLanguage, toolKnowledge) ->
                         new ContentToolProvider(

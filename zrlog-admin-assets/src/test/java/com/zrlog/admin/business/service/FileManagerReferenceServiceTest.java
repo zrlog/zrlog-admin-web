@@ -15,7 +15,6 @@ import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.model.Log;
-import com.zrlog.model.LogVersion;
 import com.zrlog.test.support.TestLogCapture;
 
 import org.junit.Test;
@@ -39,11 +38,10 @@ public class FileManagerReferenceServiceTest {
                             }
                         },
                         "",
-                        new ArticleVersionService(
-                                AccountServicesFixture.component(null).permissions(),
-                                () -> { throw new IllegalStateException("Database is unavailable in this test"); },
-                                () -> { throw new IllegalStateException("Database is unavailable in this test"); }),
-                        () -> { throw new IllegalStateException("Database is unavailable in this test"); });
+                        null,
+                        () -> {
+                            throw new IllegalStateException("Database is unavailable in this test");
+                        });
 
         try (TestLogCapture logs = TestLogCapture.forClass(FileManagerReferenceService.class)) {
             assertFalse(service.writeReferenceIndexCache(new FileReferenceIndexCacheVO()));
@@ -62,11 +60,10 @@ public class FileManagerReferenceServiceTest {
                             }
                         },
                         "",
-                        new ArticleVersionService(
-                                AccountServicesFixture.component(null).permissions(),
-                                () -> { throw new IllegalStateException("Database is unavailable in this test"); },
-                                () -> { throw new IllegalStateException("Database is unavailable in this test"); }),
-                        () -> { throw new IllegalStateException("Database is unavailable in this test"); });
+                        null,
+                        () -> {
+                            throw new IllegalStateException("Database is unavailable in this test");
+                        });
 
         try (TestLogCapture logs = TestLogCapture.forClass(FileManagerReferenceService.class)) {
             assertFalse(service.clearReferenceIndexCache());
@@ -85,11 +82,10 @@ public class FileManagerReferenceServiceTest {
                             }
                         },
                         "",
-                        new ArticleVersionService(
-                                AccountServicesFixture.component(null).permissions(),
-                                () -> { throw new IllegalStateException("Database is unavailable in this test"); },
-                                () -> { throw new IllegalStateException("Database is unavailable in this test"); }),
-                        () -> { throw new IllegalStateException("Database is unavailable in this test"); });
+                        null,
+                        () -> {
+                            throw new IllegalStateException("Database is unavailable in this test");
+                        });
 
         assertTrue(service.writeReferenceIndexCache(new FileReferenceIndexCacheVO()));
     }
@@ -100,34 +96,13 @@ public class FileManagerReferenceServiceTest {
                 new FileManagerReferenceService(
                         new WebsiteCacheService(ApplicationServicesFixture.websiteKv(null)),
                         "/blog",
-                        new ArticleVersionService(
-                                AccountServicesFixture.component(null).permissions(),
-                                () -> { throw new IllegalStateException("Database is unavailable in this test"); },
-                                () -> { throw new IllegalStateException("Database is unavailable in this test"); }),
-                        () -> { throw new IllegalStateException("Database is unavailable in this test"); });
+                        null,
+                        () -> {
+                            throw new IllegalStateException("Database is unavailable in this test");
+                        });
 
         assertEquals("/attached/image/a.png", service.normalizeLocalResourcePath("/blog/attached/image/a.png?v=1"));
         assertNull(service.normalizeLocalResourcePath("https://cdn.example.com/attached/image/a.png"));
-    }
-
-    @Test
-    public void shouldReplaceContextPathLocalResourceReference() {
-        FileManagerReferenceService service =
-                new FileManagerReferenceService(
-                        new WebsiteCacheService(ApplicationServicesFixture.websiteKv(null)),
-                        "/blog",
-                        new ArticleVersionService(
-                                AccountServicesFixture.component(null).permissions(),
-                                () -> { throw new IllegalStateException("Database is unavailable in this test"); },
-                                () -> { throw new IllegalStateException("Database is unavailable in this test"); }),
-                        () -> { throw new IllegalStateException("Database is unavailable in this test"); });
-        Map<String, Object> article = new LinkedHashMap<>();
-        article.put("markdown", "![cover](/blog/attached/image/a.png?v=1)");
-
-        Map<String, Object> updates = service.buildArticleResourceUrlUpdates(
-                article, "/attached/image/a.png", "/attached/image/b.png", false);
-
-        assertEquals("![cover](/blog/attached/image/b.png?v=1)", updates.get("markdown"));
     }
 
     @Test
@@ -136,11 +111,10 @@ public class FileManagerReferenceServiceTest {
                 new FileManagerReferenceService(
                         new WebsiteCacheService(ApplicationServicesFixture.websiteKv(null)),
                         "/blog",
-                        new ArticleVersionService(
-                                AccountServicesFixture.component(null).permissions(),
-                                () -> { throw new IllegalStateException("Database is unavailable in this test"); },
-                                () -> { throw new IllegalStateException("Database is unavailable in this test"); }),
-                        () -> { throw new IllegalStateException("Database is unavailable in this test"); });
+                        null,
+                        () -> {
+                            throw new IllegalStateException("Database is unavailable in this test");
+                        });
 
         assertEquals("/attached/a.png", service.normalizePath("/attached/a.png?x=1#top"));
         assertEquals("/attached/a.png", service.normalizePath("/attached/a.png#top?x=1"));
@@ -152,11 +126,10 @@ public class FileManagerReferenceServiceTest {
                 new FileManagerReferenceService(
                         new WebsiteCacheService(ApplicationServicesFixture.websiteKv(null)),
                         "/blog",
-                        new ArticleVersionService(
-                                AccountServicesFixture.component(null).permissions(),
-                                () -> { throw new IllegalStateException("Database is unavailable in this test"); },
-                                () -> { throw new IllegalStateException("Database is unavailable in this test"); }),
-                        () -> { throw new IllegalStateException("Database is unavailable in this test"); });
+                        null,
+                        () -> {
+                            throw new IllegalStateException("Database is unavailable in this test");
+                        });
         FileReferenceVO first = reference(1, true, false);
         FileReferenceVO second = reference(2, false, true);
         Map<String, List<FileReferenceVO>> references = new LinkedHashMap<>();
@@ -186,11 +159,10 @@ public class FileManagerReferenceServiceTest {
                 new FileManagerReferenceService(
                         new WebsiteCacheService(ApplicationServicesFixture.websiteKv(null)),
                         "/blog",
-                        new ArticleVersionService(
-                                AccountServicesFixture.component(null).permissions(),
-                                () -> { throw new IllegalStateException("Database is unavailable in this test"); },
-                                () -> { throw new IllegalStateException("Database is unavailable in this test"); }),
-                        () -> { throw new IllegalStateException("Database is unavailable in this test"); });
+                        null,
+                        () -> {
+                            throw new IllegalStateException("Database is unavailable in this test");
+                        });
         FileReferenceIndexCacheVO index = new FileReferenceIndexCacheVO();
         Map<String, List<FileReferenceVO>> external = new LinkedHashMap<>();
         external.put("https://cdn.example.com/a.png", List.of(reference(1, true, false)));
@@ -225,11 +197,10 @@ public class FileManagerReferenceServiceTest {
                 new FileManagerReferenceService(
                         new WebsiteCacheService(ApplicationServicesFixture.websiteKv(null)),
                         "/blog",
-                        new ArticleVersionService(
-                                AccountServicesFixture.component(null).permissions(),
-                                () -> { throw new IllegalStateException("Database is unavailable in this test"); },
-                                () -> { throw new IllegalStateException("Database is unavailable in this test"); }),
-                        () -> { throw new IllegalStateException("Database is unavailable in this test"); });
+                        null,
+                        () -> {
+                            throw new IllegalStateException("Database is unavailable in this test");
+                        });
         FileReferenceIndexCacheVO index = new FileReferenceIndexCacheVO();
         Map<String, List<FileReferenceVO>> local = new LinkedHashMap<>();
         local.put("/attached/__missing__/asset.png", List.of(reference(5, true, true)));
@@ -267,12 +238,10 @@ public class FileManagerReferenceServiceTest {
                             + "[manual](https://cdn.example.com/files/manual.pdf)");
             FileManagerReferenceService service =
                     new FileManagerReferenceService(
-                            new WebsiteCacheService(ApplicationServicesFixture.websiteKv(db.dataSource())),
+                            new WebsiteCacheService(
+                                    ApplicationServicesFixture.websiteKv(db.dataSource())),
                             "/blog",
-                            new ArticleVersionService(
-                                    AccountServicesFixture.component(db.dataSource()).permissions(),
-                                    () -> new Log(db.dataSource()),
-                                    () -> new LogVersion(db.dataSource())),
+                            null,
                             () -> new Log(db.dataSource()));
 
             Map<String, List<FileReferenceVO>> local = service.buildLocalReferenceMap();
@@ -294,12 +263,10 @@ public class FileManagerReferenceServiceTest {
 
             FileManagerReferenceService cachedService =
                     new FileManagerReferenceService(
-                            new WebsiteCacheService(ApplicationServicesFixture.websiteKv(db.dataSource())),
+                            new WebsiteCacheService(
+                                    ApplicationServicesFixture.websiteKv(db.dataSource())),
                             "/blog",
-                            new ArticleVersionService(
-                                    AccountServicesFixture.component(db.dataSource()).permissions(),
-                                    () -> new Log(db.dataSource()),
-                                    () -> new LogVersion(db.dataSource())),
+                            null,
                             () -> new Log(db.dataSource()));
             assertEquals(local.keySet(), cachedService.buildLocalReferenceMap().keySet());
         }
@@ -313,14 +280,33 @@ public class FileManagerReferenceServiceTest {
                     "<p>Hero <img src=\"/attached/images/a.png\"><a download href=\"/attached/images/doc.pdf\">Doc</a></p>",
                     "![asset](/attached/images/b.png)");
             db.putWebsite("admin_cache:file_manager_reference_index", "{\"stale\":true}");
+            var data =
+                    com.zrlog.data.di.DaggerDataComponent.factory()
+                            .create(db::dataSource, () -> true);
+            var shared =
+                    com.zrlog.business.di.DaggerServiceComponent.factory()
+                            .create(
+                                    data,
+                                    () -> true,
+                                    () -> null,
+                                    () -> null,
+                                    java.util.Collections::emptyList);
+            var content =
+                    com.zrlog.admin.web.di.content.DaggerContentComponent.factory()
+                            .create(
+                                    data,
+                                    shared,
+                                    AccountServicesFixture.component(db.dataSource()),
+                                    () -> null,
+                                    () -> null,
+                                    ApplicationServicesFixture.publisher(data.cache(), db.config()),
+                                    markdown -> null);
             FileManagerReferenceService service =
                     new FileManagerReferenceService(
-                            new WebsiteCacheService(ApplicationServicesFixture.websiteKv(db.dataSource())),
+                            new WebsiteCacheService(
+                                    ApplicationServicesFixture.websiteKv(db.dataSource())),
                             "",
-                            new ArticleVersionService(
-                                    AccountServicesFixture.component(db.dataSource()).permissions(),
-                                    () -> new Log(db.dataSource()),
-                                    () -> new LogVersion(db.dataSource())),
+                            content::resources,
                             () -> new Log(db.dataSource()));
 
             ReplaceArticleResourceUrlResponse response = service.replaceArticleResourceReferences(
@@ -343,86 +329,14 @@ public class FileManagerReferenceServiceTest {
             assertEquals(1, ((Number) row.get("version")).intValue());
             assertEquals(1, ((Number) versionRow.get("article_version")).intValue());
             assertEquals(0, ((Number) versionRow.get("from_version")).intValue());
-            assertEquals(7, ((Number) versionRow.get("user_id")).intValue());
+            assertEquals(1, ((Number) versionRow.get("user_id")).intValue());
             assertEquals("Replace Article", versionRow.get("title"));
             assertTrue(String.valueOf(versionRow.get("patch_json")).contains("/attached/images"));
             assertNull(cacheRow.get("value"));
         }
     }
 
-    @Test
-    public void shouldReplaceLocalResourceReferencesByPrefixAcrossArticleFields() {
-        FileManagerReferenceService service =
-                new FileManagerReferenceService(
-                        new WebsiteCacheService(ApplicationServicesFixture.websiteKv(null)),
-                        "/blog",
-                        new ArticleVersionService(
-                                AccountServicesFixture.component(null).permissions(),
-                                () -> { throw new IllegalStateException("Database is unavailable in this test"); },
-                                () -> { throw new IllegalStateException("Database is unavailable in this test"); }),
-                        () -> { throw new IllegalStateException("Database is unavailable in this test"); });
-        Map<String, Object> article = new LinkedHashMap<>();
-        article.put("thumbnail", "/blog/attached/images/a.png?x=1");
-        article.put("content", "<img src=\"/blog/attached/images/a.png\"><a download href=\"/blog/attached/images/doc.pdf\">doc</a>");
-        article.put("markdown", "![cover](/blog/attached/images/b.png)");
-        article.put("digest", "<img src=\"/blog/attached/images/c.png\">");
 
-        Map<String, Object> updates = service.buildArticleResourceUrlUpdates(
-                article, "/attached/images", "/attached/media", true);
-
-        assertEquals("/blog/attached/media/a.png?x=1", updates.get("thumbnail"));
-        assertEquals("<img src=\"/blog/attached/media/a.png\"><a download href=\"/blog/attached/media/doc.pdf\">doc</a>",
-                updates.get("content"));
-        assertEquals("![cover](/blog/attached/media/b.png)", updates.get("markdown"));
-        assertEquals("<img src=\"/blog/attached/media/c.png\">", updates.get("digest"));
-    }
-
-    @Test
-    public void shouldReplaceExternalResourceReferencesByPrefixAcrossArticleFields() {
-        FileManagerReferenceService service =
-                new FileManagerReferenceService(
-                        new WebsiteCacheService(ApplicationServicesFixture.websiteKv(null)),
-                        "",
-                        new ArticleVersionService(
-                                AccountServicesFixture.component(null).permissions(),
-                                () -> { throw new IllegalStateException("Database is unavailable in this test"); },
-                                () -> { throw new IllegalStateException("Database is unavailable in this test"); }),
-                        () -> { throw new IllegalStateException("Database is unavailable in this test"); });
-        Map<String, Object> article = new LinkedHashMap<>();
-        article.put("thumbnail", "https://cdn.example.com/assets/a.png?x=1#top");
-        article.put("content", "<img src=\"https://cdn.example.com/assets/a.png\"><img src=\"https://cdn.example.com/other/a.png\">");
-        article.put("markdown", "![cover](https://cdn.example.com/assets/b.png)");
-        article.put("digest", "<img src=\"https://cdn.example.com/assets/c.png\">");
-
-        Map<String, Object> updates = service.buildArticleResourceUrlUpdates(
-                article, "https://cdn.example.com/assets", "https://static.example.net/media", true);
-
-        assertEquals("https://static.example.net/media/a.png?x=1#top", updates.get("thumbnail"));
-        assertEquals("<img src=\"https://static.example.net/media/a.png\"><img src=\"https://cdn.example.com/other/a.png\">",
-                updates.get("content"));
-        assertEquals("![cover](https://static.example.net/media/b.png)", updates.get("markdown"));
-        assertEquals("<img src=\"https://static.example.net/media/c.png\">", updates.get("digest"));
-    }
-
-    @Test
-    public void shouldSkipResourceReplacementWhenMatchKeyIsInvalidOrUnchanged() {
-        FileManagerReferenceService service =
-                new FileManagerReferenceService(
-                        new WebsiteCacheService(ApplicationServicesFixture.websiteKv(null)),
-                        "",
-                        new ArticleVersionService(
-                                AccountServicesFixture.component(null).permissions(),
-                                () -> { throw new IllegalStateException("Database is unavailable in this test"); },
-                                () -> { throw new IllegalStateException("Database is unavailable in this test"); }),
-                        () -> { throw new IllegalStateException("Database is unavailable in this test"); });
-        Map<String, Object> article = new LinkedHashMap<>();
-        article.put("thumbnail", "/attached/images/a.png");
-        article.put("content", "<img src=\"/attached/images/a.png\">");
-
-        assertTrue(service.buildArticleResourceUrlUpdates(article, "", "/attached/b.png", false).isEmpty());
-        assertTrue(service.buildArticleResourceUrlUpdates(article, "/attached/missing.png",
-                "/attached/b.png", false).isEmpty());
-    }
 
     private static FileReferenceVO reference(int logId, boolean thumbnail, boolean content) {
         FileReferenceVO reference = new FileReferenceVO(logId, "Article " + logId, "alias-" + logId);
@@ -443,7 +357,7 @@ public class FileManagerReferenceServiceTest {
 
     private static AdminTokenVO token() {
         AdminTokenVO token = new AdminTokenVO();
-        token.setUserId(7);
+        token.setUserId(1);
         token.setSessionId("session-7");
         token.setProtocol("http");
         return token;

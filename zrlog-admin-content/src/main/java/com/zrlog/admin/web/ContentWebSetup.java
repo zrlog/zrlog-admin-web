@@ -7,6 +7,7 @@ import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.knowledge.ContentToolFactory;
 import com.zrlog.admin.business.service.AdminArticleService;
 import com.zrlog.admin.business.service.ArticlePublishingService;
+import com.zrlog.admin.business.service.ArticleQueryService;
 import com.zrlog.admin.business.service.ContentToolService;
 import com.zrlog.admin.web.controller.api.*;
 import com.zrlog.admin.web.controller.api.AdminTagController;
@@ -29,6 +30,7 @@ public class ContentWebSetup implements WebSetup {
 
     @Override public void setup() {
         bindings.singleton(AdminArticleService.class, r -> r.get(ContentComponent.class).articles())
+                .singleton(ArticleQueryService.class, r -> r.get(ContentComponent.class).queries())
                 .singleton(
                         ArticlePublishingService.class,
                         r -> r.get(ContentComponent.class).publishing())

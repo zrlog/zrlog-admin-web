@@ -43,13 +43,12 @@ public class AdminArticleController extends BaseController {
 
     private final AdminPageDataFactory pages;
 
-
-    private final AdminArticleService articleService;
+    private final ArticleQueryService articleService;
     private final Supplier<ArticleAssistant> assistant;
 
     @Inject
     public AdminArticleController(
-            AdminArticleService articleService,
+            ArticleQueryService articleService,
             ArticlePublishingService publishingService,
             AdminStaticSiteSsePublisher staticSitePublisher,
             Supplier<ArticleAssistant> assistant,

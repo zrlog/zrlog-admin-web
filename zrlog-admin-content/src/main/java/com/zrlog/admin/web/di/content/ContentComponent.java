@@ -31,6 +31,14 @@ import java.util.function.Supplier;
 public interface ContentComponent {
     AdminArticleService articles();
 
+    ArticleQueryService queries();
+
+    ArticleRevisionService revisions();
+
+    ArticleVersionService versions();
+
+    ArticleResourceService resources();
+
     ArticlePublishingService publishing();
 
     ContentToolService contentTools();

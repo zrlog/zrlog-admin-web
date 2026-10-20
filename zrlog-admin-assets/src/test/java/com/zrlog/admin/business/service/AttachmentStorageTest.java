@@ -43,6 +43,18 @@ public class AttachmentStorageTest {
                                     () -> null,
                                     () -> null,
                                     java.util.Collections::emptyList);
+            var account = AccountServicesFixture.component(db.dataSource());
+            var content =
+                    com.zrlog.admin.web.di.content.DaggerContentComponent.factory()
+                            .create(
+                                    data,
+                                    services,
+                                    account,
+                                    () -> null,
+                                    () -> null,
+                                    com.zrlog.admin.support.ApplicationServicesFixture.publisher(
+                                            data.cache(), db.config()),
+                                    markdown -> null);
             db.config()
                     .getServerConfig()
                     .getBindings()
@@ -52,7 +64,8 @@ public class AttachmentStorageTest {
                                     .create(
                                             data,
                                             services,
-                                            AccountServicesFixture.component(db.dataSource()),
+                                            account,
+                                            content::resources,
                                             () -> null,
                                             () -> db.config().getTokenService(),
                                             () -> false,

@@ -171,22 +171,18 @@ public class ArticlePinningServiceDatabaseTest {
         request.setEditorType("markdown");
         CreateOrUpdateArticleResponse response =
                 new AdminArticleService(
-                                new InMemoryZrLogDatabase.TestCacheService(),
                                 ApplicationServicesFixture.capability(
                                         applicationConfig, ArticleAssistant.class),
-                                new AdminPageDataFactory(
-                                        ApplicationServicesFixture.site(applicationConfig),
-                                        () -> "test",
-                                        ApplicationServicesFixture.messages(testDataSource),
-                                        AccountServicesFixture.component(testDataSource).permissions()),
                                 AccountServicesFixture.component(testDataSource).permissions(),
                                 AccountServicesFixture.component(testDataSource).preferences(),
                                 new ArticleVersionService(
-                                        AccountServicesFixture.component(testDataSource).permissions(),
+                                        AccountServicesFixture.component(testDataSource)
+                                                .permissions(),
                                         () -> new Log(testDataSource),
                                         () -> new LogVersion(testDataSource)),
                                 new ArticlePinningService(
-                                        () -> new Log(testDataSource), ApplicationServicesFixture.locks(testDataSource)),
+                                        () -> new Log(testDataSource),
+                                        ApplicationServicesFixture.locks(testDataSource)),
                                 () -> new Log(testDataSource),
                                 ApplicationServicesFixture.locks(testDataSource))
                         .create(token(), request);

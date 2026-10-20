@@ -35,6 +35,7 @@ public class ArticlePublishingService {
     private static final Logger LOGGER = LoggerUtil.getLogger(ArticlePublishingService.class);
 
     private final AdminArticleService articleService;
+    private final ArticleQueryService queries;
 
     private final CacheRefreshService cacheRefresh;
     private final MarkdownRenderer markdownRenderer;
@@ -42,6 +43,7 @@ public class ArticlePublishingService {
     @Inject
     public ArticlePublishingService(
             AdminArticleService articleService,
+            ArticleQueryService queries,
             CacheRefreshService cacheRefresh,
             MarkdownRenderer markdownRenderer,
             AdminAuditService adminAuditService,
@@ -50,6 +52,7 @@ public class ArticlePublishingService {
         this.messageCenterOperationService = messageCenterOperationService;
 
         this.articleService = articleService;
+        this.queries = queries;
         this.cacheRefresh = cacheRefresh;
         this.markdownRenderer = Objects.requireNonNull(markdownRenderer);
     }
@@ -120,7 +123,7 @@ public class ArticlePublishingService {
                                                                         boolean refreshCache,
                                                                         HttpRequest request) throws SQLException {
         AdminPageDataResponse<ArticleGlobalResponse> detail =
-                articleService.loadDetailById(saveResponse.getLogId() + "", request);
+                queries.loadDetailById(saveResponse.getLogId() + "", request);
         if (refreshCache && saveResponse.isPublicCacheRefreshRequired()) {
             // The article is already saved. Refresh public data now, but do not hold
             // the editor's acknowledgement while plugins regenerate the static site.

@@ -5,16 +5,11 @@ import com.google.gson.reflect.TypeToken;
 import com.hibegin.common.dao.ResultValueConvertUtils;
 import com.hibegin.common.util.BeanUtil;
 import com.hibegin.common.util.StringUtils;
-import com.hibegin.http.server.api.HttpRequest;
-import com.zrlog.admin.business.rest.request.ArticleVersionRollbackRequest;
-import com.zrlog.admin.business.rest.request.UpdateArticleRequest;
 import com.zrlog.admin.business.rest.response.ArticleVersionCompareResponse;
 import com.zrlog.admin.business.rest.response.ArticleVersionResponse;
-import com.zrlog.admin.business.rest.response.CreateOrUpdateArticleResponse;
 import com.zrlog.admin.business.rest.response.LoadEditArticleResponse;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.exception.NotFindDbEntryException;
-import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.model.Log;
 import com.zrlog.model.LogVersion;
 
@@ -122,37 +117,9 @@ public class ArticleVersionService {
         return currentVersion;
     }
 
-    public ArticleVersionCompareResponse compare(Integer logId, Integer fromVersion, Integer toVersion, HttpRequest request, AdminArticleService adminArticleService) throws SQLException {
-        LoadEditArticleResponse current = adminArticleService.loadDetail(logId.toString(), request);
-        LoadEditArticleResponse from = loadVersion(logId, fromVersion, current);
-        LoadEditArticleResponse to = loadVersion(logId, toVersion, current);
-        ArticleVersionCompareResponse response = new ArticleVersionCompareResponse();
-        response.setFromVersion(fromVersion);
-        response.setToVersion(toVersion);
-        response.setFromArticle(from);
-        response.setToArticle(to);
-        response.setChangedFields(SNAPSHOT_FIELDS.stream()
-                .filter(field -> !Objects.equals(getSnapshotValue(from, field), getSnapshotValue(to, field)))
-                .collect(Collectors.toList()));
-        return response;
-    }
-
-    public CreateOrUpdateArticleResponse rollback(AdminTokenVO user, ArticleVersionRollbackRequest request, HttpRequest req, AdminArticleService adminArticleService) throws SQLException {
-        if (request.getLogId() == null || request.getVersion() == null || request.getTargetVersion() == null) {
-            throw new ArgsException("logId/version/targetVersion");
-        }
-        LoadEditArticleResponse target = loadVersion(request.getLogId(), request.getTargetVersion(), req, adminArticleService);
-        UpdateArticleRequest updateArticleRequest = BeanUtil.convert(target, UpdateArticleRequest.class);
-        updateArticleRequest.setLogId(request.getLogId());
-        updateArticleRequest.setVersion(request.getVersion());
-        return adminArticleService.update(user, updateArticleRequest);
-    }
-
-    public LoadEditArticleResponse loadVersion(Integer logId, Integer targetVersion, HttpRequest request, AdminArticleService adminArticleService) throws SQLException {
-        return loadVersion(logId, targetVersion, adminArticleService.loadDetail(logId.toString(), request));
-    }
-
-    private LoadEditArticleResponse loadVersion(Integer logId, Integer targetVersion, LoadEditArticleResponse current) throws SQLException {
+    public LoadEditArticleResponse loadVersion(
+            Integer logId, Integer targetVersion, LoadEditArticleResponse current)
+            throws SQLException {
         if (logId == null || targetVersion == null) {
             throw new ArgsException("logId/targetVersion");
         }
@@ -182,6 +149,27 @@ public class ArticleVersionService {
             throw new NotFindDbEntryException();
         }
         return snapshot;
+    }
+
+    public ArticleVersionCompareResponse compare(
+            Integer fromVersion,
+            Integer toVersion,
+            LoadEditArticleResponse from,
+            LoadEditArticleResponse to) {
+        ArticleVersionCompareResponse response = new ArticleVersionCompareResponse();
+        response.setFromVersion(fromVersion);
+        response.setToVersion(toVersion);
+        response.setFromArticle(from);
+        response.setToArticle(to);
+        response.setChangedFields(
+                SNAPSHOT_FIELDS.stream()
+                        .filter(
+                                field ->
+                                        !Objects.equals(
+                                                getSnapshotValue(from, field),
+                                                getSnapshotValue(to, field)))
+                        .collect(Collectors.toList()));
+        return response;
     }
 
     private static Map<String, Object> getSnapshotValueMap(LoadEditArticleResponse article) {

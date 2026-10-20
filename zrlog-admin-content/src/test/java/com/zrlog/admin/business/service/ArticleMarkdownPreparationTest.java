@@ -18,6 +18,7 @@ public class ArticleMarkdownPreparationTest {
                 new ArticlePublishingService(
                         null,
                         null,
+                        null,
                         markdown -> {
                             calls.incrementAndGet();
                             assertEquals("# Title", markdown);
@@ -50,6 +51,7 @@ public class ArticleMarkdownPreparationTest {
     public void unavailableRendererShouldPreserveExistingContent() {
         ArticlePublishingService service =
                 new ArticlePublishingService(
+                        null,
                         null,
                         null,
                         markdown -> null,

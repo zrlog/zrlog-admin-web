@@ -16,7 +16,6 @@ import com.zrlog.admin.business.rest.response.CreateOrUpdateArticleResponse;
 import com.zrlog.admin.business.rest.response.LoadEditArticleResponse;
 import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.ApplicationServicesFixture;
-import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.model.Log;
@@ -143,14 +142,15 @@ public class ArticleVersionServiceTest {
         FakeAdminArticleService fake = fakeArticleService(article(5, 3, "Current"), null);
         ArticleVersionService service = newService(null);
 
-        ArticleVersionCompareResponse response = service.compare(5, 3, 3, null, fake);
+        ArticleVersionCompareResponse response =
+                new ArticleRevisionService(fake.queries, service, fake).compare(5, 3, 3, null);
 
         assertEquals(Integer.valueOf(3), response.getFromVersion());
         assertEquals(Integer.valueOf(3), response.getToVersion());
-        assertSame(fake.current, response.getFromArticle());
-        assertSame(fake.current, response.getToArticle());
+        assertSame(fake.queries.current, response.getFromArticle());
+        assertSame(fake.queries.current, response.getToArticle());
         assertEquals(List.of(), response.getChangedFields());
-        assertEquals("5", fake.loadedId);
+        assertEquals("5", fake.queries.loadedId);
     }
 
     @Test
@@ -162,7 +162,9 @@ public class ArticleVersionServiceTest {
         request.setVersion(5);
         request.setTargetVersion(4);
 
-        CreateOrUpdateArticleResponse response = service.rollback(null, request, null, fake);
+        CreateOrUpdateArticleResponse response =
+                new ArticleRevisionService(fake.queries, service, fake)
+                        .rollback(null, request, null);
 
         assertEquals(Long.valueOf(6), response.getLogId());
         assertEquals(Integer.valueOf(6), fake.updatedRequest.getLogId());
@@ -178,7 +180,11 @@ public class ArticleVersionServiceTest {
         request.setLogId(1);
         request.setVersion(1);
 
-        assertThrows(ArgsException.class, () -> service.rollback(null, request, null, fakeArticleService(null, null)));
+        assertThrows(
+                ArgsException.class,
+                () ->
+                        new ArticleRevisionService(null, service, null)
+                                .rollback(null, request, null));
     }
 
     private static LoadEditArticleResponse article(Integer logId, Integer version, String title) {
@@ -218,41 +224,26 @@ public class ArticleVersionServiceTest {
 
     private static FakeAdminArticleService fakeArticleService(LoadEditArticleResponse current, DataSourceWrapper testDataSource) throws Exception {
         FakeAdminArticleService fake = new FakeAdminArticleService(testDataSource);
-        fake.current = current;
+        fake.queries.current = current;
         return fake;
     }
 
     private static class FakeAdminArticleService extends AdminArticleService {
         private FakeAdminArticleService(DataSourceWrapper testDataSource) {
             super(
-                    new InMemoryZrLogDatabase.TestCacheService(),
                     () -> null,
-                    new AdminPageDataFactory(
-                            () -> null,
-                            () -> "",
-                            ApplicationServicesFixture.messages(testDataSource),
-                            AccountServicesFixture.component(testDataSource).permissions()),
                     AccountServicesFixture.component(testDataSource).permissions(),
                     AccountServicesFixture.component(testDataSource).preferences(),
-                    new ArticleVersionService(
-                            AccountServicesFixture.component(testDataSource).permissions(),
+                    newService(testDataSource),
+                    new ArticlePinningService(
                             () -> new Log(testDataSource),
-                            () -> new LogVersion(testDataSource)),
-                    new ArticlePinningService(() -> new Log(testDataSource), ApplicationServicesFixture.locks(testDataSource)),
+                            ApplicationServicesFixture.locks(testDataSource)),
                     () -> new Log(testDataSource),
                     ApplicationServicesFixture.locks(testDataSource));
         }
 
-
-        private LoadEditArticleResponse current;
-        private String loadedId;
+        private final FakeArticleQueryService queries = new FakeArticleQueryService();
         private UpdateArticleRequest updatedRequest;
-
-        @Override
-        public LoadEditArticleResponse loadDetail(String id, HttpRequest request) {
-            loadedId = id;
-            return current;
-        }
 
         @Override
         public CreateOrUpdateArticleResponse update(AdminTokenVO adminTokenVO, UpdateArticleRequest updateArticleRequest)
@@ -263,6 +254,21 @@ public class ArticleVersionServiceTest {
             response.setPrivacy(updateArticleRequest.isPrivacy());
             response.setRubbish(updateArticleRequest.isRubbish());
             return response;
+        }
+    }
+
+    private static class FakeArticleQueryService extends ArticleQueryService {
+        private LoadEditArticleResponse current;
+        private String loadedId;
+
+        FakeArticleQueryService() {
+            super(null, () -> null, null, null, null, null);
+        }
+
+        @Override
+        public LoadEditArticleResponse loadDetail(String id, HttpRequest request) {
+            loadedId = id;
+            return current;
         }
     }
 }

@@ -5,8 +5,9 @@ import com.hibegin.http.annotation.RequestMethod;
 import com.hibegin.http.annotation.ResponseBody;
 import com.zrlog.admin.business.rest.request.ArticleVersionRollbackRequest;
 import com.zrlog.admin.business.rest.response.*;
-import com.zrlog.admin.business.service.AdminArticleService;
 import com.zrlog.admin.business.service.AdminAuditService;
+import com.zrlog.admin.business.service.ArticleQueryService;
+import com.zrlog.admin.business.service.ArticleRevisionService;
 import com.zrlog.admin.business.service.ArticleVersionService;
 import com.zrlog.admin.business.type.AdminAuditAction;
 import com.zrlog.admin.web.annotation.RequiresAction;
@@ -27,18 +28,21 @@ import java.util.Objects;
 public class AdminArticleVersionController extends BaseController {
     private final AdminAuditService adminAuditService;
 
-    private final AdminArticleService articleService;
+    private final ArticleQueryService articleService;
     private final CacheRefreshService cacheRefresh;
     private final ArticleVersionService articleVersionService;
+    private final ArticleRevisionService revisions;
 
     @Inject
     public AdminArticleVersionController(
-            AdminArticleService articleService,
+            ArticleQueryService articleService,
             CacheRefreshService cacheRefresh,
             AdminAuditService adminAuditService,
-            ArticleVersionService articleVersionService) {
+            ArticleVersionService articleVersionService,
+            ArticleRevisionService revisions) {
         this.adminAuditService = adminAuditService;
         this.articleVersionService = articleVersionService;
+        this.revisions = revisions;
 
         this.articleService = articleService;
         this.cacheRefresh = cacheRefresh;
@@ -73,7 +77,7 @@ public class AdminArticleVersionController extends BaseController {
         Integer id = Integer.valueOf(getParamWithEmptyCheck("id"));
         Integer fromVersion = Integer.valueOf(getParamWithEmptyCheck("fromVersion"));
         Integer toVersion = Integer.valueOf(getParamWithEmptyCheck("toVersion"));
-        return new ApiStandardResponse<>(articleVersionService.compare(id, fromVersion, toVersion, request, articleService));
+        return new ApiStandardResponse<>(revisions.compare(id, fromVersion, toVersion, request));
     }
 
     @ResponseBody
@@ -81,7 +85,8 @@ public class AdminArticleVersionController extends BaseController {
     @RequiresAction(value = AccountAction.ARTICLE_UPDATE, conditional = AccountAction.ARTICLE_PUBLISH, descriptionKey = "article.restoreVersion")
     public AdminPageDataResponse<ArticleGlobalResponse> rollback() throws SQLException {
         ArticleVersionRollbackRequest body = getRequestBodyWithNullCheck(ArticleVersionRollbackRequest.class);
-        CreateOrUpdateArticleResponse response = articleVersionService.rollback(AdminTokenThreadLocal.getUser(), body, request, articleService);
+        CreateOrUpdateArticleResponse response =
+                revisions.rollback(AdminTokenThreadLocal.getUser(), body, request);
         this.adminAuditService.record(
                 request,
                 AdminAuditAction.ROLLBACK_ARTICLE_VERSION,

@@ -17,6 +17,7 @@ import com.zrlog.admin.business.service.AdminArticleService;
 import com.zrlog.admin.business.service.AdminPageDataFactory;
 import com.zrlog.admin.business.service.ArticlePinningService;
 import com.zrlog.admin.business.service.ArticlePublishingService;
+import com.zrlog.admin.business.service.ArticleQueryService;
 import com.zrlog.admin.business.service.ArticleVersionService;
 import com.zrlog.admin.business.service.PersonalAccessTokenService;
 import com.zrlog.admin.support.AccountServicesFixture;
@@ -163,6 +164,20 @@ public class McpContentServiceTest {
                                                 AdminAuditService audit) {
         return new ArticlePublishingService(
                 new AdminArticleService(
+                        ApplicationServicesFixture.capability(
+                                applicationConfig, ArticleAssistant.class),
+                        AccountServicesFixture.component(testDataSource).permissions(),
+                        AccountServicesFixture.component(testDataSource).preferences(),
+                        new ArticleVersionService(
+                                AccountServicesFixture.component(testDataSource).permissions(),
+                                () -> new Log(testDataSource),
+                                () -> new LogVersion(testDataSource)),
+                        new ArticlePinningService(
+                                () -> new Log(testDataSource),
+                                ApplicationServicesFixture.locks(testDataSource)),
+                        () -> new Log(testDataSource),
+                        ApplicationServicesFixture.locks(testDataSource)),
+                new ArticleQueryService(
                         cache,
                         ApplicationServicesFixture.capability(
                                 applicationConfig, ArticleAssistant.class),
@@ -173,13 +188,7 @@ public class McpContentServiceTest {
                                 AccountServicesFixture.component(testDataSource).permissions()),
                         AccountServicesFixture.component(testDataSource).permissions(),
                         AccountServicesFixture.component(testDataSource).preferences(),
-                        new ArticleVersionService(
-                                AccountServicesFixture.component(testDataSource).permissions(),
-                                () -> new Log(testDataSource),
-                                () -> new LogVersion(testDataSource)),
-                        new ArticlePinningService(() -> new Log(testDataSource), ApplicationServicesFixture.locks(testDataSource)),
-                        () -> new Log(testDataSource),
-                        ApplicationServicesFixture.locks(testDataSource)),
+                        () -> new Log(testDataSource)),
                 ApplicationServicesFixture.cacheRefresh(cache, applicationConfig),
                 markdown -> null,
                 audit,
@@ -518,6 +527,29 @@ public class McpContentServiceTest {
                             new ContentToolService(
                                     new ArticlePublishingService(
                                             new AdminArticleService(
+                                                    ApplicationServicesFixture.capability(
+                                                            db.config(), ArticleAssistant.class),
+                                                    AccountServicesFixture.component(
+                                                                    db.dataSource())
+                                                            .permissions(),
+                                                    AccountServicesFixture.component(
+                                                                    db.dataSource())
+                                                            .preferences(),
+                                                    new ArticleVersionService(
+                                                            AccountServicesFixture.component(
+                                                                            db.dataSource())
+                                                                    .permissions(),
+                                                            () -> new Log(db.dataSource()),
+                                                            () -> new LogVersion(db.dataSource())),
+                                                    new ArticlePinningService(
+                                                            () -> new Log(db.dataSource()),
+                                                            ApplicationServicesFixture.locks(
+                                                                    db.dataSource())),
+                                                    () -> new Log(db.dataSource()),
+                                                    ApplicationServicesFixture.locks(
+                                                            db.dataSource())),
+                                            new com.zrlog.admin.business.service
+                                                    .ArticleQueryService(
                                                     db.unitCacheService(),
                                                     ApplicationServicesFixture.capability(
                                                             db.config(), ArticleAssistant.class),
@@ -526,25 +558,18 @@ public class McpContentServiceTest {
                                                                     db.config()),
                                                             ApplicationServicesFixture.buildId(
                                                                     db.resources()),
-                                                            ApplicationServicesFixture.messages(db.dataSource()),
-                                                            AccountServicesFixture.component(db.dataSource())
+                                                            ApplicationServicesFixture.messages(
+                                                                    db.dataSource()),
+                                                            AccountServicesFixture.component(
+                                                                            db.dataSource())
                                                                     .permissions()),
-                                                    AccountServicesFixture.component(db.dataSource())
+                                                    AccountServicesFixture.component(
+                                                                    db.dataSource())
                                                             .permissions(),
-                                                    AccountServicesFixture.component(db.dataSource())
+                                                    AccountServicesFixture.component(
+                                                                    db.dataSource())
                                                             .preferences(),
-                                                    new ArticleVersionService(
-                                                            AccountServicesFixture.component(db.dataSource())
-                                                                    .permissions(),
-                                                            () -> new Log(db.dataSource()),
-                                                            () ->
-                                                                    new LogVersion(
-                                                                            db.dataSource())),
-                                                    new ArticlePinningService(
-                                                            () -> new Log(db.dataSource()),
-                                                            ApplicationServicesFixture.locks(db.dataSource())),
-                                                    () -> new Log(db.dataSource()),
-                                                    ApplicationServicesFixture.locks(db.dataSource())),
+                                                    () -> new Log(db.dataSource())),
                                             ApplicationServicesFixture.cacheRefresh(
                                                     db.unitCacheService(), db.config()),
                                             markdown -> null,
@@ -553,7 +578,8 @@ public class McpContentServiceTest {
                                     AccountServicesFixture.component(db.dataSource()).permissions(),
                                     () -> new Tag(db.dataSource()),
                                     () -> new Type(db.dataSource())),
-                            storage, db.dataSource());
+                            storage,
+                            db.dataSource());
             assertEquals(Set.of("upload_attachment"),names(tools));
             Attachment result=(Attachment)tools.call("upload_attachment",args("{\"filename\":\"cover.png\",\"data\":\"aGVsbG8=\"}"));
             assertEquals("/sub/attached/users/1/file.png",result.url);assertEquals(5,result.size);assertArrayEquals("hello".getBytes(),uploaded.get(0));
@@ -584,6 +610,32 @@ public class McpContentServiceTest {
                                 new ContentToolService(
                                         new ArticlePublishingService(
                                                 new AdminArticleService(
+                                                        ApplicationServicesFixture.capability(
+                                                                applicationConfig,
+                                                                ArticleAssistant.class),
+                                                        AccountServicesFixture.component(
+                                                                        db.dataSource())
+                                                                .permissions(),
+                                                        AccountServicesFixture.component(
+                                                                        db.dataSource())
+                                                                .preferences(),
+                                                        new ArticleVersionService(
+                                                                AccountServicesFixture.component(
+                                                                                db.dataSource())
+                                                                        .permissions(),
+                                                                () -> new Log(db.dataSource()),
+                                                                () ->
+                                                                        new LogVersion(
+                                                                                db.dataSource())),
+                                                        new ArticlePinningService(
+                                                                () -> new Log(db.dataSource()),
+                                                                ApplicationServicesFixture.locks(
+                                                                        db.dataSource())),
+                                                        () -> new Log(db.dataSource()),
+                                                        ApplicationServicesFixture.locks(
+                                                                db.dataSource())),
+                                                new com.zrlog.admin.business.service
+                                                        .ArticleQueryService(
                                                         db.unitCacheService(),
                                                         ApplicationServicesFixture.capability(
                                                                 applicationConfig,
@@ -592,35 +644,30 @@ public class McpContentServiceTest {
                                                                 ApplicationServicesFixture.site(
                                                                         applicationConfig),
                                                                 () -> "test",
-                                                                ApplicationServicesFixture
-                                                                        .messages(db.dataSource()),
-                                                                AccountServicesFixture.component(db.dataSource())
+                                                                ApplicationServicesFixture.messages(
+                                                                        db.dataSource()),
+                                                                AccountServicesFixture.component(
+                                                                                db.dataSource())
                                                                         .permissions()),
-                                                        AccountServicesFixture.component(db.dataSource())
+                                                        AccountServicesFixture.component(
+                                                                        db.dataSource())
                                                                 .permissions(),
-                                                        AccountServicesFixture.component(db.dataSource())
+                                                        AccountServicesFixture.component(
+                                                                        db.dataSource())
                                                                 .preferences(),
-                                                        new ArticleVersionService(
-                                                                AccountServicesFixture.component(db.dataSource())
-                                                                        .permissions(),
-                                                                () -> new Log(db.dataSource()),
-                                                                () ->
-                                                                        new LogVersion(
-                                                                                db.dataSource())),
-                                                        new ArticlePinningService(
-                                                                () -> new Log(db.dataSource()),
-                                                                ApplicationServicesFixture.locks(db.dataSource())),
-                                                        () -> new Log(db.dataSource()),
-                                                        ApplicationServicesFixture.locks(db.dataSource())),
+                                                        () -> new Log(db.dataSource())),
                                                 ApplicationServicesFixture.cacheRefresh(
                                                         db.unitCacheService(), applicationConfig),
                                                 markdown -> null,
                                                 ApplicationServicesFixture.audit(db.dataSource()),
-                                                ApplicationServicesFixture.operations(db.dataSource())),
-                                        AccountServicesFixture.component(db.dataSource()).permissions(),
+                                                ApplicationServicesFixture.operations(
+                                                        db.dataSource())),
+                                        AccountServicesFixture.component(db.dataSource())
+                                                .permissions(),
                                         () -> new Tag(db.dataSource()),
                                         () -> new Type(db.dataSource())),
-                                null, db.dataSource());
+                                null,
+                                db.dataSource());
                 JsonObject result =
                         new McpService(
                                         ApplicationServicesFixture.siteTitle(applicationConfig),

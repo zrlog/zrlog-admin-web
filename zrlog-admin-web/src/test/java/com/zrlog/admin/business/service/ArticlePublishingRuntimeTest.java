@@ -28,6 +28,7 @@ public class ArticlePublishingRuntimeTest {
                     new ArticlePublishingService(
                             null,
                             null,
+                            null,
                             renderer,
                             ApplicationServicesFixture.audit(db.dataSource()),
                             ApplicationServicesFixture.operations(db.dataSource()));

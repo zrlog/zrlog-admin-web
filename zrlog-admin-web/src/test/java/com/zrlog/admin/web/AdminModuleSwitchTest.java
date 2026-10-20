@@ -15,11 +15,11 @@ import com.zrlog.admin.business.knowledge.McpService;
 import com.zrlog.admin.business.rest.request.CreateArticleRequest;
 import com.zrlog.admin.business.security.OAuthException;
 import com.zrlog.admin.business.security.OAuthModels;
-import com.zrlog.admin.business.service.AdminArticleService;
 import com.zrlog.admin.business.service.AdminPageDataFactory;
 import com.zrlog.admin.business.service.AdminResourceProvider;
 import com.zrlog.admin.business.service.AdminResourceService;
 import com.zrlog.admin.business.service.ArticlePublishingService;
+import com.zrlog.admin.business.service.ArticleQueryService;
 import com.zrlog.admin.business.service.FeatureLabService;
 import com.zrlog.admin.business.service.OAuthService;
 import com.zrlog.admin.support.AccountServicesFixture;
@@ -202,7 +202,7 @@ public class AdminModuleSwitchTest {
                 features.updateWebhook(false);
                 assertFalse(features.featureLab().getFeature_webhook_enabled());
             }
-            var articles = services.get(AdminArticleService.class);
+            var articles = services.get(ArticleQueryService.class);
             var saved = services.get(ArticlePublishingService.class).create(AdminTokenThreadLocal.getUser(), article, request);
             var detail = articles.loadDetailById(saved.getLogId().toString(), request);
             var tools =
@@ -253,7 +253,9 @@ public class AdminModuleSwitchTest {
                                         config.getWebSetup(ArticleAssistant.class),
                                         ArticleAssistant.NONE)
                                 .beginPublishCheck(detail.getData(), article, null));
-            assertTrue(articles.delete(saved.getLogId()));
+            assertTrue(
+                    services.get(com.zrlog.admin.business.service.AdminArticleService.class)
+                            .delete(saved.getLogId()));
         }
     }
 }

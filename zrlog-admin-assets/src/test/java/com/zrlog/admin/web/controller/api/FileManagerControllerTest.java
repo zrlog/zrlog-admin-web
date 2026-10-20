@@ -17,7 +17,6 @@ import com.zrlog.admin.business.rest.response.FileManagerResponse;
 import com.zrlog.admin.business.rest.response.ReplaceArticleResourceUrlResponse;
 import com.zrlog.admin.business.rest.response.UploadFileResponse;
 import com.zrlog.admin.business.service.AdminPageDataFactory;
-import com.zrlog.admin.business.service.ArticleVersionService;
 import com.zrlog.admin.business.service.DbFileService;
 import com.zrlog.admin.business.service.FileManagerReferenceService;
 import com.zrlog.admin.business.service.FileManagerService;
@@ -30,7 +29,6 @@ import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.rest.response.ApiStandardResponse;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.model.Log;
-import com.zrlog.model.LogVersion;
 import com.zrlog.model.WebSite;
 
 import org.junit.Test;
@@ -277,20 +275,20 @@ public class FileManagerControllerTest {
                         new FileManagerService(
                                 new UploadService(
                                         () -> null,
-                                        AccountServicesFixture.component(testDataSource).permissions(),
+                                        AccountServicesFixture.component(testDataSource)
+                                                .permissions(),
                                         new DbFileService(
-                                                ApplicationServicesFixture.websiteKv(testDataSource),
+                                                ApplicationServicesFixture.websiteKv(
+                                                        testDataSource),
                                                 () -> new WebSite(testDataSource))),
                                 new FileManagerReferenceService(
                                         ApplicationServicesFixture.websiteCache(testDataSource),
                                         "",
-                                        new ArticleVersionService(
-                                                AccountServicesFixture.component(testDataSource).permissions(),
-                                                () -> new Log(testDataSource),
-                                                () -> new LogVersion(testDataSource)),
+                                        null,
                                         () -> new Log(testDataSource)),
                                 new DbFileService(
-                                        ApplicationServicesFixture.websiteKv(testDataSource), () -> new WebSite(testDataSource)),
+                                        ApplicationServicesFixture.websiteKv(testDataSource),
+                                        () -> new WebSite(testDataSource)),
                                 ApplicationServicesFixture.settings(testDataSource),
                                 ApplicationServicesFixture.audit(testDataSource),
                                 ApplicationServicesFixture.operations(testDataSource)),
@@ -356,16 +354,16 @@ public class FileManagerControllerTest {
                             () -> null,
                             AccountServicesFixture.component(testDataSource).permissions(),
                             new DbFileService(
-                                    ApplicationServicesFixture.websiteKv(testDataSource), () -> new WebSite(testDataSource))),
+                                    ApplicationServicesFixture.websiteKv(testDataSource),
+                                    () -> new WebSite(testDataSource))),
                     new FileManagerReferenceService(
                             ApplicationServicesFixture.websiteCache(testDataSource),
                             "",
-                            new ArticleVersionService(
-                                    AccountServicesFixture.component(testDataSource).permissions(),
-                                    () -> new Log(testDataSource),
-                                    () -> new LogVersion(testDataSource)),
+                            null,
                             () -> new Log(testDataSource)),
-                    new DbFileService(ApplicationServicesFixture.websiteKv(testDataSource), () -> new WebSite(testDataSource)),
+                    new DbFileService(
+                            ApplicationServicesFixture.websiteKv(testDataSource),
+                            () -> new WebSite(testDataSource)),
                     ApplicationServicesFixture.settings(testDataSource),
                     ApplicationServicesFixture.audit(testDataSource),
                     ApplicationServicesFixture.operations(testDataSource));

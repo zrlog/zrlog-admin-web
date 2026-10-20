@@ -77,14 +77,14 @@ public class AdminDashboardService {
     private final WebsiteKvService kvService;
     private final long surfacePreloadTimeoutMillis;
     private final AdminStatisticsService statisticsService;
-    private final AdminArticleService articleService;
+    private final ArticleQueryService articleService;
     private final Supplier<PluginCorePlugin> pluginCore;
 
     @Inject
     public AdminDashboardService(
             WebsiteKvService kvService,
             AdminStatisticsService statisticsService,
-            AdminArticleService articleService,
+            ArticleQueryService articleService,
             Supplier<PluginCorePlugin> pluginCore,
             UserPreferenceService userPreferenceService) {
         this(
@@ -99,7 +99,7 @@ public class AdminDashboardService {
     AdminDashboardService(
             WebsiteKvService kvService,
             AdminStatisticsService statisticsService,
-            AdminArticleService articleService,
+            ArticleQueryService articleService,
             long surfacePreloadTimeoutMillis,
             Supplier<PluginCorePlugin> pluginCore,
             UserPreferenceService userPreferenceService) {

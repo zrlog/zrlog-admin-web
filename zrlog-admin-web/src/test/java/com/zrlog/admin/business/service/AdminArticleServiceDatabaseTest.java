@@ -26,7 +26,6 @@ import com.zrlog.admin.business.rest.response.ArticlePageData;
 import com.zrlog.admin.business.rest.response.ArticleStatusCountResponse;
 import com.zrlog.admin.business.rest.response.CreateOrUpdateArticleResponse;
 import com.zrlog.admin.business.rest.response.LoadEditArticleResponse;
-import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.di.account.AccountComponent;
@@ -35,7 +34,6 @@ import com.zrlog.admin.web.di.content.ContentComponent;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.model.Log;
-import com.zrlog.model.LogVersion;
 
 import org.junit.Test;
 
@@ -58,7 +56,11 @@ public class AdminArticleServiceDatabaseTest {
             preferences.updateBody("{\"editor\":{\"autoDigestLength\":0,\"linkPreviewEnabled\":true,\"publishCheckEnabled\":false,\"coverAspectRatio\":\"1:1\",\"autoSaveInterval\":10}}", "writing");
             AdminArticleService service =
                     db.component(ContentComponent.class).articles();
-            ArticleGlobalResponse editor = service.loadDetailById("", request()).getData();
+            ArticleGlobalResponse editor =
+                    db.component(ContentComponent.class)
+                            .queries()
+                            .loadDetailById("", request())
+                            .getData();
             assertEquals(Boolean.TRUE, editor.getLinkPreviewEnabled());
             assertEquals(Boolean.FALSE, editor.getPublishCheckEnabled());
             assertEquals("1:1", editor.getArticleCoverAspectRatio());
@@ -87,7 +89,10 @@ public class AdminArticleServiceDatabaseTest {
 
             CreateOrUpdateArticleResponse response = service.create(token(), article("Hello Article", "hello.article"));
             Map<String, Object> row = db.queryOne("select * from log where logId=?", response.getLogId());
-            LoadEditArticleResponse loaded = service.loadDetail("hello-article", request());
+            LoadEditArticleResponse loaded =
+                    db.component(ContentComponent.class)
+                            .queries()
+                            .loadDetail("hello-article", request());
 
             assertEquals(Long.valueOf(1), response.getLogId());
             assertEquals("hello-article", row.get("alias"));
@@ -120,13 +125,21 @@ public class AdminArticleServiceDatabaseTest {
 
             assertEquals(
                     Boolean.TRUE,
-                    ((AIArticleGlobalResponse) service.loadDetailById("", request()).getData())
+                    ((AIArticleGlobalResponse)
+                                    db.component(ContentComponent.class)
+                                            .queries()
+                                            .loadDetailById("", request())
+                                            .getData())
                             .getAiConfigured());
 
             db.putWebsite("ai_base_url", "");
             assertEquals(
                     Boolean.FALSE,
-                    ((AIArticleGlobalResponse) service.loadDetailById("", request()).getData())
+                    ((AIArticleGlobalResponse)
+                                    db.component(ContentComponent.class)
+                                            .queries()
+                                            .loadDetailById("", request())
+                                            .getData())
                             .getAiConfigured());
         }
     }
@@ -228,9 +241,21 @@ public class AdminArticleServiceDatabaseTest {
             service.create(token(), article("Private", "private", true, false));
             service.create(token(), article("Draft", "draft", false, true));
 
-            ArticleStatusCountResponse counts = service.getStatusCounts();
-            ArticlePageData privatePage = service.adminPage(new PageRequestImpl(1L, 10L), "", "", "private", request());
-            ArticlePageData publishedPage = service.adminPage(new PageRequestImpl(1L, 10L), "Published", "", "published", request());
+            ArticleStatusCountResponse counts =
+                    ignored.component(ContentComponent.class).queries().getStatusCounts();
+            ArticlePageData privatePage =
+                    ignored.component(ContentComponent.class)
+                            .queries()
+                            .adminPage(new PageRequestImpl(1L, 10L), "", "", "private", request());
+            ArticlePageData publishedPage =
+                    ignored.component(ContentComponent.class)
+                            .queries()
+                            .adminPage(
+                                    new PageRequestImpl(1L, 10L),
+                                    "Published",
+                                    "",
+                                    "published",
+                                    request());
 
             assertEquals(3, counts.getTotal());
             assertEquals(1, counts.getPublished());
@@ -299,7 +324,11 @@ public class AdminArticleServiceDatabaseTest {
             service.create(token(), article("Activity One", "activity-one"));
             service.create(token(), article("Activity Two", "activity-two"));
 
-            List<ArticleActivityData> activityData = service.activityDataList(DIRECT_EXECUTOR).get();
+            List<ArticleActivityData> activityData =
+                    ignored.component(ContentComponent.class)
+                            .queries()
+                            .activityDataList(DIRECT_EXECUTOR)
+                            .get();
 
             assertEquals(1, activityData.size());
             assertEquals(Long.valueOf(2L), activityData.get(0).getCount());
@@ -316,27 +345,62 @@ public class AdminArticleServiceDatabaseTest {
             CreateArticleRequest create = article("Toolbox", "toolbox");
             create.setArrange_plugin("retro-runtime");
             int id = service.create(token(), create).getLogId().intValue();
-            assertEquals("retro-runtime", service.loadDetail("toolbox", request()).getArrange_plugin());
+            assertEquals(
+                    "retro-runtime",
+                    db.component(ContentComponent.class)
+                            .queries()
+                            .loadDetail("toolbox", request())
+                            .getArrange_plugin());
             assertEquals("retro-runtime", db.scalar("select arrange_plugin from log where logId=?", id));
             Gson gson = new Gson();
             for (boolean explicitNull : new boolean[]{false, true}) {
-                JsonObject body = gson.toJsonTree(service.loadDetail("toolbox", request())).getAsJsonObject();
+                JsonObject body =
+                        gson.toJsonTree(
+                                        db.component(ContentComponent.class)
+                                                .queries()
+                                                .loadDetail("toolbox", request()))
+                                .getAsJsonObject();
                 body.remove("arrange_plugin");
                 if (explicitNull) body.add("arrange_plugin", com.google.gson.JsonNull.INSTANCE);
                 body.addProperty("title", explicitNull ? "Explicit null" : "Legacy client");
                 service.update(token(), gson.fromJson(body, UpdateArticleRequest.class));
-                assertEquals("retro-runtime", service.loadDetail("toolbox", request()).getArrange_plugin());
+                assertEquals(
+                        "retro-runtime",
+                        db.component(ContentComponent.class)
+                                .queries()
+                                .loadDetail("toolbox", request())
+                                .getArrange_plugin());
             }
-            UpdateArticleRequest update = service.loadDetail("toolbox", request());
+            UpdateArticleRequest update =
+                    db.component(ContentComponent.class).queries().loadDetail("toolbox", request());
             update.setArrange_plugin("article-arranger");
             service.update(token(), update);
-            assertEquals("article-arranger", service.loadDetail("toolbox", request()).getArrange_plugin());
+            assertEquals(
+                    "article-arranger",
+                    db.component(ContentComponent.class)
+                            .queries()
+                            .loadDetail("toolbox", request())
+                            .getArrange_plugin());
             update.setArrange_plugin("");
             assertThrows(UpdateArticleExpireException.class, () -> service.update(token(), update));
-            assertEquals("article-arranger", service.loadDetail("toolbox", request()).getArrange_plugin());
-            update.setVersion(service.loadDetail("toolbox", request()).getVersion());
+            assertEquals(
+                    "article-arranger",
+                    db.component(ContentComponent.class)
+                            .queries()
+                            .loadDetail("toolbox", request())
+                            .getArrange_plugin());
+            update.setVersion(
+                    db.component(ContentComponent.class)
+                            .queries()
+                            .loadDetail("toolbox", request())
+                            .getVersion());
             service.update(token(), update);
-            assertEquals("", service.loadDetail("toolbox", request()).getArrange_plugin());
+            assertEquals(
+                    "",
+                    db.component(ContentComponent.class)
+                            .queries()
+                            .loadDetail("toolbox", request())
+                            .getArrange_plugin());
             assertEquals("", db.scalar("select arrange_plugin from log where logId=?", id));
         }
     }
@@ -349,29 +413,59 @@ public class AdminArticleServiceDatabaseTest {
                     db.component(ContentComponent.class).articles();
             int id = service.create(token(), article("Layout", "layout")).getLogId().intValue();
             assertNull(db.scalar("select arrange_plugin from log where logId=?", id));
-            assertEquals("", service.loadDetail("layout", request()).getArrange_plugin());
-            UpdateArticleRequest update = service.loadDetail("layout", request());
+            assertEquals(
+                    "",
+                    db.component(ContentComponent.class)
+                            .queries()
+                            .loadDetail("layout", request())
+                            .getArrange_plugin());
+            UpdateArticleRequest update =
+                    db.component(ContentComponent.class).queries().loadDetail("layout", request());
             update.setEditorType("markdown");
             update.setArrange_plugin("retro-runtime");
             service.update(token(), update);
-            ArticleVersionService versions =
-                    new ArticleVersionService(
-                            AccountServicesFixture.component(db.dataSource()).permissions(),
-                            () -> new Log(db.dataSource()),
-                            () -> new LogVersion(db.dataSource()));
-            assertEquals(List.of("arrange_plugin"), versions.compare(id, 0, 1, request(), service).getChangedFields());
-            assertEquals("", versions.loadVersion(id, 0, request(), service).getArrange_plugin());
+            ArticleVersionService versions = db.component(ContentComponent.class).versions();
+            assertEquals(
+                    List.of("arrange_plugin"),
+                    db.component(ContentComponent.class)
+                            .revisions()
+                            .compare(id, 0, 1, request())
+                            .getChangedFields());
+            assertEquals(
+                    "",
+                    versions.loadVersion(
+                                    id,
+                                    0,
+                                    db.component(ContentComponent.class)
+                                            .queries()
+                                            .loadDetail(Integer.toString(id), request()))
+                            .getArrange_plugin());
             ArticleVersionRollbackRequest rollback = new ArticleVersionRollbackRequest();
             rollback.setLogId(id);
             rollback.setVersion(1);
             rollback.setTargetVersion(0);
-            versions.rollback(token(), rollback, request(), service);
-            assertEquals("", service.loadDetail("layout", request()).getArrange_plugin());
+            db.component(ContentComponent.class).revisions().rollback(token(), rollback, request());
+            assertEquals(
+                    "",
+                    db.component(ContentComponent.class)
+                            .queries()
+                            .loadDetail("layout", request())
+                            .getArrange_plugin());
             rollback.setVersion(2);
             rollback.setTargetVersion(1);
-            versions.rollback(token(), rollback, request(), service);
-            assertEquals("retro-runtime", service.loadDetail("layout", request()).getArrange_plugin());
-            assertEquals(Integer.valueOf(3), service.loadDetail("layout", request()).getVersion());
+            db.component(ContentComponent.class).revisions().rollback(token(), rollback, request());
+            assertEquals(
+                    "retro-runtime",
+                    db.component(ContentComponent.class)
+                            .queries()
+                            .loadDetail("layout", request())
+                            .getArrange_plugin());
+            assertEquals(
+                    Integer.valueOf(3),
+                    db.component(ContentComponent.class)
+                            .queries()
+                            .loadDetail("layout", request())
+                            .getVersion());
         }
     }
 
@@ -387,13 +481,22 @@ public class AdminArticleServiceDatabaseTest {
                 create.setArrange_plugin(invalid);
                 assertThrows(ArgsException.class, create::doValid);
                 assertThrows(ArgsException.class, () -> service.create(token(), create));
-                UpdateArticleRequest update = service.loadDetail("valid", request());
+                UpdateArticleRequest update =
+                        db.component(ContentComponent.class)
+                                .queries()
+                                .loadDetail("valid", request());
                 update.setArrange_plugin(invalid);
                 assertThrows(ArgsException.class, () -> service.update(token(), update));
             }
             assertEquals(1, ((Number) db.scalar("select count(*) from log")).intValue());
-            assertEquals(Integer.valueOf(0), service.loadDetail("valid", request()).getVersion());
-            UpdateArticleRequest update = service.loadDetail("valid", request());
+            assertEquals(
+                    Integer.valueOf(0),
+                    db.component(ContentComponent.class)
+                            .queries()
+                            .loadDetail("valid", request())
+                            .getVersion());
+            UpdateArticleRequest update =
+                    db.component(ContentComponent.class).queries().loadDetail("valid", request());
             update.setArrange_plugin("a_1.-" + "z".repeat(59));
             service.update(token(), update);
             assertEquals(update.getArrange_plugin(), db.scalar("select arrange_plugin from log where logId=?", id));

@@ -1,6 +1,6 @@
 package com.zrlog.admin.web.di;
 
-import com.zrlog.admin.business.service.AdminArticleService;
+import com.zrlog.admin.business.service.ArticleQueryService;
 import com.zrlog.admin.web.di.content.ContentComponent;
 import com.zrlog.business.service.WebsiteKvService;
 
@@ -14,8 +14,8 @@ public final class AdminModule {
     private AdminModule() {}
 
     @Provides
-    static AdminArticleService articles(Supplier<ContentComponent> content) {
-        return content.get().articles();
+    static ArticleQueryService queries(Supplier<ContentComponent> content) {
+        return content.get().queries();
     }
 
     @Provides

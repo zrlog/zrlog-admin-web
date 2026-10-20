@@ -44,6 +44,21 @@ public class ArticlePublishingServiceDatabaseTest {
             ArticlePublishingService publishing =
                     new ArticlePublishingService(
                             new AdminArticleService(
+                                    ApplicationServicesFixture.capability(
+                                            db.config(), ArticleAssistant.class),
+                                    AccountServicesFixture.component(db.dataSource()).permissions(),
+                                    AccountServicesFixture.component(db.dataSource()).preferences(),
+                                    new ArticleVersionService(
+                                            AccountServicesFixture.component(db.dataSource())
+                                                    .permissions(),
+                                            () -> new Log(db.dataSource()),
+                                            () -> new LogVersion(db.dataSource())),
+                                    new ArticlePinningService(
+                                            () -> new Log(db.dataSource()),
+                                            ApplicationServicesFixture.locks(db.dataSource())),
+                                    () -> new Log(db.dataSource()),
+                                    ApplicationServicesFixture.locks(db.dataSource())),
+                            new ArticleQueryService(
                                     db.unitCacheService(),
                                     ApplicationServicesFixture.capability(
                                             db.config(), ArticleAssistant.class),
@@ -51,18 +66,13 @@ public class ArticlePublishingServiceDatabaseTest {
                                             ApplicationServicesFixture.site(db.config()),
                                             ApplicationServicesFixture.buildId(db.resources()),
                                             ApplicationServicesFixture.messages(db.dataSource()),
-                                            AccountServicesFixture.component(db.dataSource()).permissions()),
+                                            AccountServicesFixture.component(db.dataSource())
+                                                    .permissions()),
                                     AccountServicesFixture.component(db.dataSource()).permissions(),
                                     AccountServicesFixture.component(db.dataSource()).preferences(),
-                                    new ArticleVersionService(
-                                            AccountServicesFixture.component(db.dataSource()).permissions(),
-                                            () -> new Log(db.dataSource()),
-                                            () -> new LogVersion(db.dataSource())),
-                                    new ArticlePinningService(
-                                            () -> new Log(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource())),
-                                    () -> new Log(db.dataSource()),
-                                    ApplicationServicesFixture.locks(db.dataSource())),
-                            ApplicationServicesFixture.cacheRefresh(db.unitCacheService(), db.config()),
+                                    () -> new Log(db.dataSource())),
+                            ApplicationServicesFixture.cacheRefresh(
+                                    db.unitCacheService(), db.config()),
                             markdown -> null,
                             ApplicationServicesFixture.audit(db.dataSource()),
                             ApplicationServicesFixture.operations(db.dataSource()));
@@ -122,6 +132,21 @@ public class ArticlePublishingServiceDatabaseTest {
             body.setPreserveDraftAiMessages(true);
             new ArticlePublishingService(
                             new AdminArticleService(
+                                    ApplicationServicesFixture.capability(
+                                            db.config(), ArticleAssistant.class),
+                                    AccountServicesFixture.component(db.dataSource()).permissions(),
+                                    AccountServicesFixture.component(db.dataSource()).preferences(),
+                                    new ArticleVersionService(
+                                            AccountServicesFixture.component(db.dataSource())
+                                                    .permissions(),
+                                            () -> new Log(db.dataSource()),
+                                            () -> new LogVersion(db.dataSource())),
+                                    new ArticlePinningService(
+                                            () -> new Log(db.dataSource()),
+                                            ApplicationServicesFixture.locks(db.dataSource())),
+                                    () -> new Log(db.dataSource()),
+                                    ApplicationServicesFixture.locks(db.dataSource())),
+                            new ArticleQueryService(
                                     db.unitCacheService(),
                                     ApplicationServicesFixture.capability(
                                             db.config(), ArticleAssistant.class),
@@ -129,18 +154,13 @@ public class ArticlePublishingServiceDatabaseTest {
                                             ApplicationServicesFixture.site(db.config()),
                                             ApplicationServicesFixture.buildId(db.resources()),
                                             ApplicationServicesFixture.messages(db.dataSource()),
-                                            AccountServicesFixture.component(db.dataSource()).permissions()),
+                                            AccountServicesFixture.component(db.dataSource())
+                                                    .permissions()),
                                     AccountServicesFixture.component(db.dataSource()).permissions(),
                                     AccountServicesFixture.component(db.dataSource()).preferences(),
-                                    new ArticleVersionService(
-                                            AccountServicesFixture.component(db.dataSource()).permissions(),
-                                            () -> new Log(db.dataSource()),
-                                            () -> new LogVersion(db.dataSource())),
-                                    new ArticlePinningService(
-                                            () -> new Log(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource())),
-                                    () -> new Log(db.dataSource()),
-                                    ApplicationServicesFixture.locks(db.dataSource())),
-                            ApplicationServicesFixture.cacheRefresh(db.unitCacheService(), db.config()),
+                                    () -> new Log(db.dataSource())),
+                            ApplicationServicesFixture.cacheRefresh(
+                                    db.unitCacheService(), db.config()),
                             markdown -> null,
                             ApplicationServicesFixture.audit(db.dataSource()),
                             ApplicationServicesFixture.operations(db.dataSource()))
@@ -165,6 +185,21 @@ public class ArticlePublishingServiceDatabaseTest {
             ArticlePublishingService publishing =
                     new ArticlePublishingService(
                             new AdminArticleService(
+                                    ApplicationServicesFixture.capability(
+                                            db.config(), ArticleAssistant.class),
+                                    AccountServicesFixture.component(db.dataSource()).permissions(),
+                                    AccountServicesFixture.component(db.dataSource()).preferences(),
+                                    new ArticleVersionService(
+                                            AccountServicesFixture.component(db.dataSource())
+                                                    .permissions(),
+                                            () -> new Log(db.dataSource()),
+                                            () -> new LogVersion(db.dataSource())),
+                                    new ArticlePinningService(
+                                            () -> new Log(db.dataSource()),
+                                            ApplicationServicesFixture.locks(db.dataSource())),
+                                    () -> new Log(db.dataSource()),
+                                    ApplicationServicesFixture.locks(db.dataSource())),
+                            new ArticleQueryService(
                                     db.unitCacheService(),
                                     ApplicationServicesFixture.capability(
                                             db.config(), ArticleAssistant.class),
@@ -172,18 +207,13 @@ public class ArticlePublishingServiceDatabaseTest {
                                             ApplicationServicesFixture.site(db.config()),
                                             ApplicationServicesFixture.buildId(db.resources()),
                                             ApplicationServicesFixture.messages(db.dataSource()),
-                                            AccountServicesFixture.component(db.dataSource()).permissions()),
+                                            AccountServicesFixture.component(db.dataSource())
+                                                    .permissions()),
                                     AccountServicesFixture.component(db.dataSource()).permissions(),
                                     AccountServicesFixture.component(db.dataSource()).preferences(),
-                                    new ArticleVersionService(
-                                            AccountServicesFixture.component(db.dataSource()).permissions(),
-                                            () -> new Log(db.dataSource()),
-                                            () -> new LogVersion(db.dataSource())),
-                                    new ArticlePinningService(
-                                            () -> new Log(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource())),
-                                    () -> new Log(db.dataSource()),
-                                    ApplicationServicesFixture.locks(db.dataSource())),
-                            ApplicationServicesFixture.cacheRefresh(db.unitCacheService(), db.config()),
+                                    () -> new Log(db.dataSource())),
+                            ApplicationServicesFixture.cacheRefresh(
+                                    db.unitCacheService(), db.config()),
                             markdown -> null,
                             ApplicationServicesFixture.audit(db.dataSource()),
                             ApplicationServicesFixture.operations(db.dataSource()));

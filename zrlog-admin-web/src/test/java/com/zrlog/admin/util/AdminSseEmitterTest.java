@@ -11,7 +11,6 @@ import com.zrlog.admin.business.rest.request.CreateArticleRequest;
 import com.zrlog.admin.business.security.DelegatedAccess;
 import com.zrlog.admin.business.security.OAuthModels;
 import com.zrlog.admin.business.service.AdminArticleService;
-import com.zrlog.admin.business.service.AdminPageDataFactory;
 import com.zrlog.admin.business.service.ArticlePinningService;
 import com.zrlog.admin.business.service.ArticleVersionService;
 import com.zrlog.admin.support.AccountServicesFixture;
@@ -102,44 +101,42 @@ public class AdminSseEmitterTest {
                                             PermissionErrorException.class,
                                             () ->
                                                     new AdminArticleService(
-                                                                    db.unitCacheService(),
                                                                     ApplicationServicesFixture
                                                                             .capability(
                                                                                     db.config(),
                                                                                     ArticleAssistant
                                                                                             .class),
-                                                                    new AdminPageDataFactory(
-                                                                            ApplicationServicesFixture
-                                                                                    .site(
-                                                                                            db
-                                                                                                    .config()),
-                                                                            ApplicationServicesFixture
-                                                                                    .buildId(
-                                                                                            db
-                                                                                                    .resources()),
-                                                                            ApplicationServicesFixture
-                                                                                    .messages(db.dataSource()),
-                                                                            AccountServicesFixture
-                                                                                    .component(db.dataSource())
-                                                                                    .permissions()),
                                                                     AccountServicesFixture
-                                                                            .component(db.dataSource())
+                                                                            .component(
+                                                                                    db.dataSource())
                                                                             .permissions(),
                                                                     AccountServicesFixture
-                                                                            .component(db.dataSource())
+                                                                            .component(
+                                                                                    db.dataSource())
                                                                             .preferences(),
                                                                     new ArticleVersionService(
                                                                             AccountServicesFixture
-                                                                                    .component(db.dataSource())
+                                                                                    .component(
+                                                                                            db
+                                                                                                    .dataSource())
                                                                                     .permissions(),
-                                                                            () -> new Log(db.dataSource()),
+                                                                            () ->
+                                                                                    new Log(
+                                                                                            db
+                                                                                                    .dataSource()),
                                                                             () ->
                                                                                     new LogVersion(
-                                                                                            db.dataSource())),
+                                                                                            db
+                                                                                                    .dataSource())),
                                                                     new ArticlePinningService(
-                                                                            () -> new Log(db.dataSource()),
+                                                                            () ->
+                                                                                    new Log(
+                                                                                            db
+                                                                                                    .dataSource()),
                                                                             ApplicationServicesFixture
-                                                                                    .locks(db.dataSource())),
+                                                                                    .locks(
+                                                                                            db
+                                                                                                    .dataSource())),
                                                                     () -> new Log(db.dataSource()),
                                                                     ApplicationServicesFixture
                                                                             .locks(db.dataSource()))

@@ -1,24 +1,14 @@
 package com.zrlog.admin.business.util;
 
 import com.hibegin.http.server.util.MimeTypeUtil;
+import com.zrlog.admin.business.content.ArticleResourceReferences;
 import com.zrlog.admin.business.rest.response.FileEntryVO;
 import com.zrlog.admin.business.type.FileEntryAccess;
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Element;
 
 import java.util.*;
 
 public class FileEntryUtils {
 
-    private static final Set<String> RESOURCE_FILE_EXTENSIONS = new HashSet<>(Arrays.asList(
-            "png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "ico", "avif",
-            "mp3", "wav", "ogg", "m4a", "flac",
-            "mp4", "mov", "webm", "avi", "mkv",
-            "zip", "rar", "7z", "tar", "gz", "bz2", "xz", "jar",
-            "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx",
-            "txt", "md", "json", "xml", "csv",
-            "apk", "dmg", "exe", "msi", "deb", "rpm"
-    ));
     private static final Set<String> ARCHIVE_FILE_EXTENSIONS = new HashSet<>(Arrays.asList(
             "zip", "rar", "7z", "tar", "gz", "bz2", "xz", "jar"
     ));
@@ -93,55 +83,15 @@ public class FileEntryUtils {
     }
 
     public static Set<String> extractExternalResourceUrls(String html) {
-        Set<String> urls = new LinkedHashSet<>();
-        if (html == null || html.isEmpty()) {
-            return urls;
-        }
-        org.jsoup.nodes.Document doc = Jsoup.parse(html);
-        doc.select("img[src],video[src],audio[src],source[src],track[src],embed[src]").forEach(element ->
-                addExternalUrl(urls, element.attr("src"))
-        );
-        doc.select("video[poster]").forEach(element -> addExternalUrl(urls, element.attr("poster")));
-        doc.select("object[data]").forEach(element -> addExternalUrl(urls, element.attr("data")));
-        doc.select("a[href]").forEach(element -> addExternalResourceLink(urls, element));
-        return urls;
+        return ArticleResourceReferences.extractExternalResourceUrls(html);
     }
 
     public static boolean isExternalUrl(String url) {
-        if (url == null || url.trim().isEmpty()) {
-            return false;
-        }
-        String trimmed = url.trim();
-        String normalized = trimmed.toLowerCase(Locale.ROOT);
-        if (!normalized.startsWith("http://") && !normalized.startsWith("https://") && !normalized.startsWith("//")) {
-            return false;
-        }
-        try {
-            String parseValue = normalized.startsWith("//") ? "https:" + trimmed : trimmed;
-            java.net.URI uri = new java.net.URI(parseValue);
-            String scheme = uri.getScheme();
-            return ("http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme))
-                    && uri.getHost() != null && !uri.getHost().trim().isEmpty();
-        } catch (Exception e) {
-            return false;
-        }
+        return ArticleResourceReferences.isExternalUrl(url);
     }
 
     public static boolean isLikelyResourceUrl(String url) {
-        return isExternalUrl(url) && RESOURCE_FILE_EXTENSIONS.contains(getExtension(url));
-    }
-
-    private static void addExternalUrl(Set<String> urls, String url) {
-        if (isExternalUrl(url)) {
-            urls.add(url.trim());
-        }
-    }
-
-    private static void addExternalResourceLink(Set<String> urls, Element element) {
-        String href = element.attr("href");
-        if (isExternalUrl(href) && (element.hasAttr("download") || isLikelyResourceUrl(href))) {
-            urls.add(href.trim());
-        }
+        return ArticleResourceReferences.isLikelyResourceUrl(url);
     }
 
     private static String getExtension(String fileName) {

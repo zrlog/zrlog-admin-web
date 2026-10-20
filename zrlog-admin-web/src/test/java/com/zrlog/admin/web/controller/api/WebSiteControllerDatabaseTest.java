@@ -13,7 +13,6 @@ import com.hibegin.http.server.api.HttpResponse;
 import com.hibegin.http.server.web.Controller;
 import com.zrlog.admin.business.ai.model.AIProviderType;
 import com.zrlog.admin.business.ai.service.AIServiceDependencies;
-import com.zrlog.admin.business.content.ArticleAssistant;
 import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.rest.base.AdminWebSiteInfo;
 import com.zrlog.admin.business.rest.base.ArticleEditWebSiteInfo;
@@ -31,8 +30,6 @@ import com.zrlog.admin.business.rest.response.VersionResponse;
 import com.zrlog.admin.business.service.AdminArticleService;
 import com.zrlog.admin.business.service.AdminPageDataFactory;
 import com.zrlog.admin.business.service.AdminResourceService;
-import com.zrlog.admin.business.service.ArticlePinningService;
-import com.zrlog.admin.business.service.ArticleVersionService;
 import com.zrlog.admin.business.service.FeatureLabService;
 import com.zrlog.admin.business.service.OAuthService;
 import com.zrlog.admin.business.service.PersonalAccessTokenService;
@@ -49,8 +46,6 @@ import com.zrlog.business.updater.UpdateVersionInfoPlugin;
 import com.zrlog.common.ZrLogConfig;
 import com.zrlog.common.adapter.UpdaterHosts;
 import com.zrlog.common.exception.ArgsException;
-import com.zrlog.model.Log;
-import com.zrlog.model.LogVersion;
 import com.zrlog.model.UserPasskey;
 import com.zrlog.model.WebSite;
 import com.zrlog.plugin.BaseStaticSitePlugin;
@@ -90,25 +85,9 @@ public class WebSiteControllerDatabaseTest {
             assertFalse(controller(HttpMethod.GET, labUri, null).lab().getData().getFeature_article_arrangement_enabled());
             assertFalse(resources.adminResourceInfo(editorRequest).getFeature_article_arrangement_enabled());
 
-            AdminArticleService articles =
-                    new AdminArticleService(
-                            db.unitCacheService(),
-                            ApplicationServicesFixture.capability(
-                                    db.config(), ArticleAssistant.class),
-                            new AdminPageDataFactory(
-                                    ApplicationServicesFixture.site(db.config()),
-                                    ApplicationServicesFixture.buildId(db.resources()),
-                                    ApplicationServicesFixture.messages(db.dataSource()),
-                                    AccountServicesFixture.component(db.dataSource()).permissions()),
-                            AccountServicesFixture.component(db.dataSource()).permissions(),
-                            AccountServicesFixture.component(db.dataSource()).preferences(),
-                            new ArticleVersionService(
-                                    AccountServicesFixture.component(db.dataSource()).permissions(),
-                                    () -> new Log(db.dataSource()),
-                                    () -> new LogVersion(db.dataSource())),
-                            new ArticlePinningService(() -> new Log(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource())),
-                            () -> new Log(db.dataSource()),
-                            ApplicationServicesFixture.locks(db.dataSource()));
+            db.loadAdminWebModules();
+            var content = db.component(com.zrlog.admin.web.di.content.ContentComponent.class);
+            AdminArticleService articles = content.articles();
             CreateArticleRequest create = new CreateArticleRequest();
             create.setTitle("Layout visibility");
             create.setAlias("layout-visibility");
@@ -128,10 +107,15 @@ public class WebSiteControllerDatabaseTest {
                 assertEquals(enabled, controller(HttpMethod.GET, labUri, null).lab().getData().getFeature_article_arrangement_enabled());
                 assertEquals(enabled, resources.adminResourceInfo(editorRequest).getFeature_article_arrangement_enabled());
                 assertEquals(original, db.queryOne("select * from log where logId=?", id));
-                assertEquals("retro-runtime", articles.loadDetail("layout-visibility", editorRequest).getArrange_plugin());
+                assertEquals(
+                        "retro-runtime",
+                        content.queries()
+                                .loadDetail("layout-visibility", editorRequest)
+                                .getArrange_plugin());
             }
 
-            UpdateArticleRequest update = articles.loadDetail("layout-visibility", editorRequest);
+            UpdateArticleRequest update =
+                    content.queries().loadDetail("layout-visibility", editorRequest);
             update.setArrange_plugin("another-arranger");
             update.setRubbish(false);
             articles.update(AdminTokenThreadLocal.getUser(), update);

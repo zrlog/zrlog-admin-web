@@ -11,16 +11,11 @@ import com.hibegin.http.server.web.Controller;
 import com.zrlog.admin.business.content.ArticleAssistant;
 import com.zrlog.admin.business.rest.response.ArticleVersionCompareResponse;
 import com.zrlog.admin.business.rest.response.ArticleVersionResponse;
-import com.zrlog.admin.business.service.AdminArticleService;
-import com.zrlog.admin.business.service.AdminPageDataFactory;
-import com.zrlog.admin.business.service.ArticlePinningService;
-import com.zrlog.admin.business.service.ArticleVersionService;
 import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.common.ZrLogConfig;
 import com.zrlog.common.rest.response.ApiStandardResponse;
-import com.zrlog.model.Log;
 import com.zrlog.model.LogVersion;
 
 import org.junit.Test;
@@ -95,34 +90,29 @@ public class AdminArticleVersionControllerDatabaseTest {
     }
 
     private AdminArticleVersionController controller(Map<String, String> params, DataSourceWrapper testDataSource) throws Exception {
-        AdminArticleVersionController controller =
-                new AdminArticleVersionController(
-                        new AdminArticleService(
-                                new InMemoryZrLogDatabase.TestCacheService(),
-                                ApplicationServicesFixture.capability(
-                                        applicationConfig, ArticleAssistant.class),
-                                new AdminPageDataFactory(
-                                        ApplicationServicesFixture.site(applicationConfig),
-                                        () -> "test",
-                                        ApplicationServicesFixture.messages(testDataSource),
-                                        AccountServicesFixture.component(testDataSource).permissions()),
-                                AccountServicesFixture.component(testDataSource).permissions(),
-                                AccountServicesFixture.component(testDataSource).preferences(),
-                                new ArticleVersionService(
-                                        AccountServicesFixture.component(testDataSource).permissions(),
-                                        () -> new Log(testDataSource),
-                                        () -> new LogVersion(testDataSource)),
-                                new ArticlePinningService(
-                                        () -> new Log(testDataSource), ApplicationServicesFixture.locks(testDataSource)),
-                                () -> new Log(testDataSource),
-                                ApplicationServicesFixture.locks(testDataSource)),
-                        ApplicationServicesFixture.cacheRefresh(
-                                new InMemoryZrLogDatabase.TestCacheService(), applicationConfig),
-                        ApplicationServicesFixture.audit(testDataSource),
-                        new ArticleVersionService(
-                                AccountServicesFixture.component(testDataSource).permissions(),
-                                () -> new Log(testDataSource),
-                                () -> new LogVersion(testDataSource)));
+        var data =
+                com.zrlog.data.di.DaggerDataComponent.factory()
+                        .create(() -> testDataSource, () -> true);
+        var services =
+                com.zrlog.business.di.DaggerServiceComponent.factory()
+                        .create(
+                                data,
+                                () -> true,
+                                () -> null,
+                                () -> null,
+                                java.util.Collections::emptyList);
+        var content =
+                com.zrlog.admin.web.di.content.DaggerContentComponent.factory()
+                        .create(
+                                data,
+                                services,
+                                AccountServicesFixture.component(testDataSource),
+                                () -> ArticleAssistant.NONE,
+                                () -> null,
+                                ApplicationServicesFixture.publisher(
+                                        data.cache(), applicationConfig),
+                                markdown -> null);
+        AdminArticleVersionController controller = content.adminArticleVersionController();
         Field requestField = Controller.class.getDeclaredField("request");
         requestField.setAccessible(true);
         requestField.set(controller, request(params));

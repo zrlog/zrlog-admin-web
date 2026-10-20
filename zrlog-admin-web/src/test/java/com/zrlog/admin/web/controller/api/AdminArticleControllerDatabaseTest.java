@@ -13,9 +13,9 @@ import com.hibegin.http.server.web.Controller;
 import com.zrlog.admin.business.ai.service.AIChatService;
 import com.zrlog.admin.business.ai.service.AIConversationService;
 import com.zrlog.admin.business.ai.service.AIFileService;
+import com.zrlog.admin.business.ai.service.AIPublishCheckService;
 import com.zrlog.admin.business.ai.service.AIPublishCheckService.PublishCheckPersistenceGuard;
 import com.zrlog.admin.business.ai.service.AIPublishCheckService.PublishCheckTask;
-import com.zrlog.admin.business.ai.service.AIPublishCheckService;
 import com.zrlog.admin.business.ai.service.AIReferenceService;
 import com.zrlog.admin.business.ai.service.AIServiceDependencies;
 import com.zrlog.admin.business.content.ArticleAssistant;
@@ -37,6 +37,7 @@ import com.zrlog.admin.business.service.AdminArticleService;
 import com.zrlog.admin.business.service.AdminPageDataFactory;
 import com.zrlog.admin.business.service.ArticlePinningService;
 import com.zrlog.admin.business.service.ArticlePublishingService;
+import com.zrlog.admin.business.service.ArticleQueryService;
 import com.zrlog.admin.business.service.ArticleVersionService;
 import com.zrlog.admin.business.service.DbFileService;
 import com.zrlog.admin.business.service.MessageCenterOperationService;
@@ -652,6 +653,21 @@ public class AdminArticleControllerDatabaseTest {
             ArticlePublishingService publishingService =
                     new ArticlePublishingService(
                             new AdminArticleService(
+                                    ApplicationServicesFixture.capability(
+                                            db.config(), ArticleAssistant.class),
+                                    AccountServicesFixture.component(db.dataSource()).permissions(),
+                                    AccountServicesFixture.component(db.dataSource()).preferences(),
+                                    new ArticleVersionService(
+                                            AccountServicesFixture.component(db.dataSource())
+                                                    .permissions(),
+                                            () -> new Log(db.dataSource()),
+                                            () -> new LogVersion(db.dataSource())),
+                                    new ArticlePinningService(
+                                            () -> new Log(db.dataSource()),
+                                            ApplicationServicesFixture.locks(db.dataSource())),
+                                    () -> new Log(db.dataSource()),
+                                    ApplicationServicesFixture.locks(db.dataSource())),
+                            new ArticleQueryService(
                                     db.cacheService(),
                                     ApplicationServicesFixture.capability(
                                             db.config(), ArticleAssistant.class),
@@ -659,17 +675,11 @@ public class AdminArticleControllerDatabaseTest {
                                             ApplicationServicesFixture.site(db.config()),
                                             ApplicationServicesFixture.buildId(db.resources()),
                                             ApplicationServicesFixture.messages(db.dataSource()),
-                                            AccountServicesFixture.component(db.dataSource()).permissions()),
+                                            AccountServicesFixture.component(db.dataSource())
+                                                    .permissions()),
                                     AccountServicesFixture.component(db.dataSource()).permissions(),
                                     AccountServicesFixture.component(db.dataSource()).preferences(),
-                                    new ArticleVersionService(
-                                            AccountServicesFixture.component(db.dataSource()).permissions(),
-                                            () -> new Log(db.dataSource()),
-                                            () -> new LogVersion(db.dataSource())),
-                                    new ArticlePinningService(
-                                            () -> new Log(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource())),
-                                    () -> new Log(db.dataSource()),
-                                    ApplicationServicesFixture.locks(db.dataSource())),
+                                    () -> new Log(db.dataSource())),
                             ApplicationServicesFixture.cacheRefresh(db.cacheService(), db.config()),
                             markdown -> null,
                             ApplicationServicesFixture.audit(db.dataSource()),
@@ -1051,14 +1061,23 @@ public class AdminArticleControllerDatabaseTest {
         var bindings = applicationConfig.getServerConfig().getBindings().build();
         var account = bindings.get(AccountComponent.class);
         var articles = bindings.get(ContentComponent.class).articles();
-        AdminArticleController controller = new AdminArticleController(
-                articles,
-                new ArticlePublishingService(articles, bindings.get(CacheRefreshService.class),
-                        renderer, ApplicationServicesFixture.audit(testDataSource),
-                        ApplicationServicesFixture.operations(testDataSource)),
-                bindings.get(AdminStaticSiteSsePublisher.class),
-                ApplicationServicesFixture.capability(applicationConfig, ArticleAssistant.class),
-                account.pages(), account.preferences());
+        AdminArticleController controller =
+                new AdminArticleController(
+                        bindings.get(com.zrlog.admin.web.di.content.ContentComponent.class)
+                                .queries(),
+                        new ArticlePublishingService(
+                                articles,
+                                bindings.get(com.zrlog.admin.web.di.content.ContentComponent.class)
+                                        .queries(),
+                                bindings.get(CacheRefreshService.class),
+                                renderer,
+                                ApplicationServicesFixture.audit(testDataSource),
+                                ApplicationServicesFixture.operations(testDataSource)),
+                        bindings.get(AdminStaticSiteSsePublisher.class),
+                        ApplicationServicesFixture.capability(
+                                applicationConfig, ArticleAssistant.class),
+                        account.pages(),
+                        account.preferences());
         setControllerField(controller, "request", request(params, body));
         setControllerField(controller, "response", response.response());
         return controller;

@@ -44,6 +44,7 @@ public interface AssetsComponent {
                 @BindsInstance DataComponent data,
                 @BindsInstance ServiceComponent services,
                 @BindsInstance AccountComponent account,
+                @BindsInstance Supplier<ArticleResourceService> articleResources,
                 @BindsInstance Supplier<PluginCorePlugin> plugins,
                 @BindsInstance Supplier<TokenService> tokens,
                 @BindsInstance BooleanSupplier staticHtml,

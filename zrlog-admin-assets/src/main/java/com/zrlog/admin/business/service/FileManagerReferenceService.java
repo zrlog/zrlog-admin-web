@@ -3,6 +3,7 @@ package com.zrlog.admin.business.service;
 import com.hibegin.common.util.LoggerUtil;
 import com.hibegin.common.util.StringUtils;
 import com.hibegin.http.server.util.PathUtil;
+import com.zrlog.admin.business.content.ArticleResourceReferences;
 import com.zrlog.admin.business.rest.request.ReplaceArticleResourceUrlRequest;
 import com.zrlog.admin.business.rest.response.FileEntryVO;
 import com.zrlog.admin.business.rest.response.FileReferenceIndexCacheVO;
@@ -11,48 +12,38 @@ import com.zrlog.admin.business.rest.response.ReplaceArticleResourceUrlResponse;
 import com.zrlog.admin.business.util.FileEntryUtils;
 import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.model.Log;
-import com.zrlog.util.ParseUtil;
 
 import jakarta.inject.Inject;
-
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
 
 import java.io.File;
 import java.sql.SQLException;
 import java.util.*;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public class FileManagerReferenceService {
-    private final ArticleVersionService articleVersionService;
+    private final Supplier<ArticleResourceService> articles;
+    private final ArticleResourceReferences references;
     private final jakarta.inject.Provider<Log> logProvider;
 
     private static final Logger LOGGER = LoggerUtil.getLogger(FileManagerReferenceService.class);
     private static final Object REFERENCE_INDEX_CACHE_LOCK = new Object();
     private static final String REFERENCE_INDEX_CACHE_KEY = "file_manager_reference_index";
-    private static final Pattern MARKDOWN_LINK_PATTERN = Pattern.compile("!?\\[[^\\]]*]\\(([^)\\s]+)(?:\\s+\"[^\"]*\")?\\)");
-    private static final Pattern RESOURCE_URL_PATTERN = Pattern.compile("(?i)(https?://[^\\s\"'<>)]*|//[^\\s\"'<>)]*|/(?:[^\\s\"'<>)]*/)?attached/[^\\s\"'<>)]*)");
-    private static final List<String> ARTICLE_RESOURCE_FIELDS = List.of("thumbnail", "content", "markdown", "digest");
-
     private final WebsiteCacheService cacheService;
-    private final String contextPath;
     private FileReferenceIndexCacheVO requestReferenceIndex;
 
     @Inject
     public FileManagerReferenceService(
             WebsiteCacheService cacheService,
             String contextPath,
-            ArticleVersionService articleVersionService,
+            Supplier<ArticleResourceService> articles,
             jakarta.inject.Provider<Log> logProvider) {
         this.cacheService = cacheService;
-        this.contextPath = normalizeContextPath(contextPath);
-        this.articleVersionService = articleVersionService;
+        this.references = new ArticleResourceReferences(contextPath);
+        this.articles = articles;
         this.logProvider = logProvider;
     }
 
@@ -151,35 +142,8 @@ public class FileManagerReferenceService {
     public ReplaceArticleResourceUrlResponse replaceArticleResourceReferences(AdminTokenVO user, String fromUrl,
                                                                               String toUrl, boolean prefix)
             throws SQLException {
-        List<Map<String, Object>> articles =
-                this.logProvider
-                        .get()
-                        .queryList("logId, version, thumbnail, content, markdown, digest");
-        ReplaceArticleResourceUrlResponse response = new ReplaceArticleResourceUrlResponse();
-        response.setScannedArticles(articles.size());
-        ArticleVersionService articleVersionService = this.articleVersionService;
-        for (Map<String, Object> article : articles) {
-            Map<String, Object> updates = buildArticleResourceUrlUpdates(article, fromUrl, toUrl, prefix);
-            if (updates.isEmpty()) {
-                continue;
-            }
-            Map<String, Object> oldLog =
-                    this.logProvider.get().loadById(toInt(article.get("logId")));
-            Integer nextVersion = toInt(oldLog.get("version")) + 1;
-            updates.put("version", nextVersion);
-            updates.put("last_update_date", new Date());
-            if (updates.containsKey("content")) {
-                updates.put("plain_content", ParseUtil.getPlainSearchText(Objects.toString(updates.get("content"), "")));
-            }
-            Log logDao = this.logProvider.get();
-            updates.forEach(logDao::set);
-            logDao.updateById(toInt(article.get("logId")));
-            Map<String, Object> newLog = new HashMap<>(oldLog);
-            newLog.putAll(updates);
-            articleVersionService.recordReversePatch(oldLog, newLog, user == null ? null : user.getUserId());
-            response.setUpdatedArticles(response.getUpdatedArticles() + 1);
-            response.setUpdatedFields(response.getUpdatedFields() + countResourceFields(updates));
-        }
+        ReplaceArticleResourceUrlResponse response =
+                articles.get().replaceReferences(user, fromUrl, toUrl, prefix, references);
         if (response.getUpdatedArticles() > 0) {
             requestReferenceIndex = null;
             clearReferenceIndexCache();
@@ -188,16 +152,7 @@ public class FileManagerReferenceService {
     }
 
     public String normalizePath(String value) {
-        int queryIndex = value.indexOf('?');
-        int hashIndex = value.indexOf('#');
-        int endIndex = value.length();
-        if (queryIndex >= 0) {
-            endIndex = Math.min(endIndex, queryIndex);
-        }
-        if (hashIndex >= 0) {
-            endIndex = Math.min(endIndex, hashIndex);
-        }
-        return value.substring(0, endIndex);
+        return references.normalizePath(value);
     }
 
     private FileReferenceIndexCacheVO getReferenceIndex() throws SQLException {
@@ -280,169 +235,6 @@ public class FileManagerReferenceService {
         return new ArrayList<>(referenceMap.values());
     }
 
-    Map<String, Object> buildArticleResourceUrlUpdates(Map<String, Object> article, String fromUrl,
-                                                       String toUrl, boolean prefix) {
-        Map<String, Object> updates = new LinkedHashMap<>();
-        ResourceReplacement replacement = buildResourceReplacement(fromUrl, toUrl, prefix);
-        if (replacement == null) {
-            return updates;
-        }
-        for (String field : ARTICLE_RESOURCE_FIELDS) {
-            String value = (String) article.get(field);
-            Set<String> replaceableMatchKeys = getReplaceableExternalResourceMatchKeys(field, value);
-            if (replaceableMatchKeys.isEmpty()) {
-                continue;
-            }
-            String replaced = replaceExternalResourceReferences(value, replacement, replaceableMatchKeys);
-            if (Objects.equals(value, replaced)) {
-                continue;
-            }
-            updates.put(field, replaced);
-        }
-        return updates;
-    }
-
-    private ResourceReplacement buildResourceReplacement(String fromUrl, String toUrl, boolean prefix) {
-        String fromMatchKey = toResourceMatchKey(fromUrl);
-        String toMatchKey = toResourceMatchKey(toUrl);
-        if (StringUtils.isEmpty(fromMatchKey) || StringUtils.isEmpty(toMatchKey)) {
-            return null;
-        }
-        return new ResourceReplacement(fromMatchKey, toMatchKey, prefix);
-    }
-
-    private Set<String> getReplaceableExternalResourceMatchKeys(String field, String value) {
-        Set<String> urls = new LinkedHashSet<>();
-        if (StringUtils.isEmpty(value)) {
-            return urls;
-        }
-        if (Objects.equals(field, "thumbnail")) {
-            if (FileEntryUtils.isExternalUrl(value)) {
-                urls.add(value);
-            } else {
-                String normalized = normalizeLocalResourcePath(value);
-                if (normalized != null) {
-                    urls.add(normalized);
-                }
-            }
-        } else if (Objects.equals(field, "markdown")) {
-            urls.addAll(extractExternalMarkdownResourceUrls(value));
-            urls.addAll(extractLocalMarkdownResourcePaths(value));
-        } else {
-            urls.addAll(FileEntryUtils.extractExternalResourceUrls(value));
-            urls.addAll(extractLocalResourcePaths(value));
-        }
-        return urls.stream()
-                .map(this::toResourceMatchKey)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toCollection(LinkedHashSet::new));
-    }
-
-    private String replaceExternalResourceReferences(String value, ResourceReplacement replacement,
-                                                     Set<String> replaceableMatchKeys) {
-        if (StringUtils.isEmpty(value)) {
-            return value;
-        }
-        Matcher matcher = RESOURCE_URL_PATTERN.matcher(value);
-        StringBuffer buffer = new StringBuffer();
-        boolean changed = false;
-        while (matcher.find()) {
-            String url = matcher.group(1);
-            String urlMatchKey = toResourceMatchKey(url);
-            if (!matchesResourceKey(replacement, urlMatchKey) || !replaceableMatchKeys.contains(urlMatchKey)) {
-                continue;
-            }
-            String nextUrl = replaceResourceUrl(url, urlMatchKey, replacement);
-            matcher.appendReplacement(buffer, Matcher.quoteReplacement(nextUrl));
-            changed = true;
-        }
-        if (!changed) {
-            return value;
-        }
-        matcher.appendTail(buffer);
-        return buffer.toString();
-    }
-
-    private boolean matchesResourceKey(ResourceReplacement replacement, String urlMatchKey) {
-        if (replacement == null || StringUtils.isEmpty(urlMatchKey)) {
-            return false;
-        }
-        if (replacement.prefix) {
-            return Objects.equals(replacement.fromKey, urlMatchKey) || urlMatchKey.startsWith(replacement.fromKey + "/");
-        }
-        return Objects.equals(replacement.fromKey, urlMatchKey);
-    }
-
-    private String replaceResourceUrl(String url, String urlMatchKey, ResourceReplacement replacement) {
-        if (!replacement.prefix) {
-            return rebuildExternalUrl(url, replacement.toKey);
-        }
-        String suffix = urlMatchKey.length() > replacement.fromKey.length()
-                ? urlMatchKey.substring(replacement.fromKey.length()) : "";
-        return rebuildExternalUrl(url, replacement.toKey + suffix);
-    }
-
-    private String rebuildExternalUrl(String url, String targetKey) {
-        try {
-            String parseValue = url.startsWith("//") ? "https:" + url : url;
-            java.net.URI uri = new java.net.URI(parseValue);
-            String sourceKey = toResourceMatchKey(url);
-            if (StringUtils.isEmpty(sourceKey)) {
-                return url;
-            }
-            int keyIndex = url.toLowerCase(Locale.ROOT).indexOf(sourceKey.toLowerCase(Locale.ROOT));
-            if (keyIndex < 0) {
-                return url;
-            }
-            String tail = uri.getRawQuery() == null ? "" : "?" + uri.getRawQuery();
-            tail += uri.getRawFragment() == null ? "" : "#" + uri.getRawFragment();
-            return url.substring(0, keyIndex) + targetKey + tail;
-        } catch (Exception e) {
-            return url;
-        }
-    }
-
-    private String toResourceMatchKey(String value) {
-        if (StringUtils.isEmpty(value)) {
-            return null;
-        }
-        String trimmed = value.trim();
-        if (!FileEntryUtils.isExternalUrl(trimmed)) {
-            return normalizeResourceKey(trimmed);
-        }
-        try {
-            String parseValue = trimmed.startsWith("//") ? "https:" + trimmed : trimmed;
-            java.net.URI uri = new java.net.URI(parseValue);
-            if (StringUtils.isEmpty(uri.getHost())) {
-                return null;
-            }
-            return normalizeResourceKey(uri.getHost() + Objects.requireNonNullElse(uri.getPath(), ""));
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
-    private String normalizeResourceKey(String value) {
-        String normalized = stripContextPath(normalizePath(value.trim()).replace("\\", "/")).toLowerCase(Locale.ROOT);
-        while (normalized.startsWith("/")) {
-            normalized = normalized.substring(1);
-        }
-        while (normalized.endsWith("/") && normalized.length() > 1) {
-            normalized = normalized.substring(0, normalized.length() - 1);
-        }
-        return normalized;
-    }
-
-    private int countResourceFields(Map<String, Object> updates) {
-        int count = 0;
-        for (String field : ARTICLE_RESOURCE_FIELDS) {
-            if (updates.containsKey(field)) {
-                count++;
-            }
-        }
-        return count;
-    }
-
     private String buildArticleReferenceSignature() throws SQLException {
         List<Map<String, Object>> rows =
                 this.logProvider
@@ -481,7 +273,7 @@ public class FileManagerReferenceService {
             }
             String content = (String) article.get("content");
             if (StringUtils.isNotEmpty(content)) {
-                for (String path : extractLocalResourcePaths(content)) {
+                for (String path : references.extractLocalResourcePaths(content)) {
                     FileReferenceVO reference = addReference(localReferenceMap, path, articleReference);
                     reference.setContent(true);
                 }
@@ -492,11 +284,11 @@ public class FileManagerReferenceService {
             }
             String markdown = (String) article.get("markdown");
             if (StringUtils.isNotEmpty(markdown)) {
-                for (String path : extractLocalMarkdownResourcePaths(markdown)) {
+                for (String path : references.extractLocalMarkdownResourcePaths(markdown)) {
                     FileReferenceVO reference = addReference(localReferenceMap, path, articleReference);
                     reference.setContent(true);
                 }
-                for (String url : extractExternalMarkdownResourceUrls(markdown)) {
+                for (String url : references.extractExternalMarkdownResourceUrls(markdown)) {
                     FileReferenceVO reference = addReference(externalReferenceMap, url, articleReference);
                     reference.setContent(true);
                 }
@@ -541,80 +333,8 @@ public class FileManagerReferenceService {
         return Integer.parseInt(Objects.toString(value, "0"));
     }
 
-    private Set<String> extractLocalResourcePaths(String html) {
-        Set<String> paths = new LinkedHashSet<>();
-        if (StringUtils.isEmpty(html)) {
-            return paths;
-        }
-        Document doc = Jsoup.parse(html);
-        doc.select("img[src],video[src],audio[src],source[src],track[src],embed[src]").forEach(element ->
-                addLocalPath(paths, element.attr("src"))
-        );
-        doc.select("video[poster]").forEach(element -> addLocalPath(paths, element.attr("poster")));
-        doc.select("object[data]").forEach(element -> addLocalPath(paths, element.attr("data")));
-        doc.select("a[href]").forEach(element -> addLocalResourceLink(paths, element));
-        return paths;
-    }
-
-    private Set<String> extractLocalMarkdownResourcePaths(String markdown) {
-        Set<String> paths = new LinkedHashSet<>();
-        Matcher matcher = MARKDOWN_LINK_PATTERN.matcher(markdown);
-        while (matcher.find()) {
-            String normalized = normalizeLocalResourcePath(matcher.group(1));
-            if (normalized != null) {
-                paths.add(normalized);
-            }
-        }
-        return paths;
-    }
-
-    private Set<String> extractExternalMarkdownResourceUrls(String markdown) {
-        Set<String> urls = new LinkedHashSet<>();
-        Matcher matcher = MARKDOWN_LINK_PATTERN.matcher(markdown);
-        while (matcher.find()) {
-            String value = matcher.group(1);
-            if (FileEntryUtils.isExternalUrl(value) && FileEntryUtils.isLikelyResourceUrl(value)) {
-                urls.add(value.trim());
-            }
-        }
-        return urls;
-    }
-
-    private void addLocalResourceLink(Set<String> paths, Element element) {
-        String href = element.attr("href");
-        String normalized = normalizeLocalResourcePath(href);
-        if (normalized != null && (element.hasAttr("download") || normalized.startsWith(FileManagerService.ATTACHED_ROOT + "/"))) {
-            paths.add(normalized);
-        }
-    }
-
-    private void addLocalPath(Set<String> paths, String value) {
-        String normalized = normalizeLocalResourcePath(value);
-        if (normalized != null) {
-            paths.add(normalized);
-        }
-    }
-
     String normalizeLocalResourcePath(String value) {
-        if (StringUtils.isEmpty(value)) {
-            return null;
-        }
-        String normalized = normalizePath(value.trim());
-        if (FileEntryUtils.isExternalUrl(normalized)) {
-            return null;
-        }
-        normalized = stripContextPath(normalized.replace("\\", "/"));
-        return normalized.startsWith(FileManagerService.ATTACHED_ROOT + "/") ? normalized : null;
-    }
-
-    private String stripContextPath(String path) {
-        if (StringUtils.isEmpty(path) || StringUtils.isEmpty(contextPath)) {
-            return path;
-        }
-        if (path.equals(contextPath)) {
-            return "";
-        }
-        return path.startsWith(contextPath + "/") ? path.substring(contextPath.length()) : path;
+        return references.normalizeLocalResourcePath(value);
     }
 
     private String getDomain(String url) {
@@ -630,29 +350,4 @@ public class FileManagerReferenceService {
         }
     }
 
-    private static final class ResourceReplacement {
-        private final String fromKey;
-        private final String toKey;
-        private final boolean prefix;
-
-        private ResourceReplacement(String fromKey, String toKey, boolean prefix) {
-            this.fromKey = fromKey;
-            this.toKey = toKey;
-            this.prefix = prefix;
-        }
-    }
-
-    private static String normalizeContextPath(String contextPath) {
-        if (StringUtils.isEmpty(contextPath) || Objects.equals(contextPath, "/")) {
-            return "";
-        }
-        String normalized = contextPath.trim().replace("\\", "/");
-        if (!normalized.startsWith("/")) {
-            normalized = "/" + normalized;
-        }
-        while (normalized.endsWith("/") && normalized.length() > 1) {
-            normalized = normalized.substring(0, normalized.length() - 1);
-        }
-        return normalized;
-    }
 }

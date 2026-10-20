@@ -218,25 +218,18 @@ public class PersonalAccessTokenServiceTest {
                                 PermissionErrorException.class,
                                 () ->
                                         new AdminArticleService(
-                                                        db.unitCacheService(),
                                                         ApplicationServicesFixture.capability(
                                                                 db.config(),
                                                                 ArticleAssistant.class),
-                                                        new AdminPageDataFactory(
-                                                                ApplicationServicesFixture.site(
-                                                                        db.config()),
-                                                                ApplicationServicesFixture.buildId(
-                                                                        db.resources()),
-                                                                ApplicationServicesFixture
-                                                                        .messages(db.dataSource()),
-                                                                AccountServicesFixture.component(db.dataSource())
-                                                                        .permissions()),
-                                                        AccountServicesFixture.component(db.dataSource())
+                                                        AccountServicesFixture.component(
+                                                                        db.dataSource())
                                                                 .permissions(),
-                                                        AccountServicesFixture.component(db.dataSource())
+                                                        AccountServicesFixture.component(
+                                                                        db.dataSource())
                                                                 .preferences(),
                                                         new ArticleVersionService(
-                                                                AccountServicesFixture.component(db.dataSource())
+                                                                AccountServicesFixture.component(
+                                                                                db.dataSource())
                                                                         .permissions(),
                                                                 () -> new Log(db.dataSource()),
                                                                 () ->
@@ -244,9 +237,11 @@ public class PersonalAccessTokenServiceTest {
                                                                                 db.dataSource())),
                                                         new ArticlePinningService(
                                                                 () -> new Log(db.dataSource()),
-                                                                ApplicationServicesFixture.locks(db.dataSource())),
+                                                                ApplicationServicesFixture.locks(
+                                                                        db.dataSource())),
                                                         () -> new Log(db.dataSource()),
-                                                        ApplicationServicesFixture.locks(db.dataSource()))
+                                                        ApplicationServicesFixture.locks(
+                                                                db.dataSource()))
                                                 .create(AdminTokenThreadLocal.getUser(), create));
                         var member = new MemberModels.Create();
                         member.userName = "limited";
@@ -256,10 +251,14 @@ public class PersonalAccessTokenServiceTest {
                                 PermissionErrorException.class,
                                 () ->
                                         new MemberService(
-                                                        AccountServicesFixture.component(db.dataSource())
+                                                        AccountServicesFixture.component(
+                                                                        db.dataSource())
                                                                 .security(),
-                                                        AccountServicesFixture.component(db.dataSource()).users(),
-                                                        AccountServicesFixture.component(db.dataSource())
+                                                        AccountServicesFixture.component(
+                                                                        db.dataSource())
+                                                                .users(),
+                                                        AccountServicesFixture.component(
+                                                                        db.dataSource())
                                                                 .permissions())
                                                 .create(member));
                         return null;

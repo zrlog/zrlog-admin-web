@@ -51,13 +51,8 @@ public class UserPreferenceServiceTest {
                     db.component(AccountComponent.class).preferences();
             service.update(json("{\"language\":\"en_US\",\"appearance\":{\"darkMode\":true},\"articlePageSize\":40,\"editor\":{\"autoSaveInterval\":10}}"));
             assertEquals(
-                    40,
-                    db.component(ContentComponent.class).articles()
-                            .resolveAdminPageSize(0));
-            assertEquals(
-                    7,
-                    db.component(ContentComponent.class).articles()
-                            .resolveAdminPageSize(7));
+                    40, db.component(ContentComponent.class).queries().resolveAdminPageSize(0));
+            assertEquals(7, db.component(ContentComponent.class).queries().resolveAdminPageSize(7));
             assertEquals(Long.valueOf(10), service.effective().editor.autoSaveInterval);
             assertTrue(service.effective().appearance.darkMode);
             assertEquals("20", db.scalar("select value from website where name='admin_article_page_size'"));
@@ -66,34 +61,22 @@ public class UserPreferenceServiceTest {
                     "admin", db.component(AccountComponent.class).permissions().current().getRole());
             login(2);
             assertEquals(
-                    20,
-                    db.component(ContentComponent.class).articles()
-                            .resolveAdminPageSize(0));
+                    20, db.component(ContentComponent.class).queries().resolveAdminPageSize(0));
             service.update(json("{\"articlePageSize\":15}"));
             assertEquals(
-                    15,
-                    db.component(ContentComponent.class).articles()
-                            .resolveAdminPageSize(0));
+                    15, db.component(ContentComponent.class).queries().resolveAdminPageSize(0));
             login(1);
             assertEquals(
-                    40,
-                    db.component(ContentComponent.class).articles()
-                            .resolveAdminPageSize(0));
+                    40, db.component(ContentComponent.class).queries().resolveAdminPageSize(0));
             service.update(json("{}"));
             assertEquals(
-                    20,
-                    db.component(ContentComponent.class).articles()
-                            .resolveAdminPageSize(0));
+                    20, db.component(ContentComponent.class).queries().resolveAdminPageSize(0));
             db.putWebsite("admin_article_page_size", 30);
             assertEquals(
-                    30,
-                    db.component(ContentComponent.class).articles()
-                            .resolveAdminPageSize(0));
+                    30, db.component(ContentComponent.class).queries().resolveAdminPageSize(0));
             login(2);
             assertEquals(
-                    15,
-                    db.component(ContentComponent.class).articles()
-                            .resolveAdminPageSize(0));
+                    15, db.component(ContentComponent.class).queries().resolveAdminPageSize(0));
         }
     }
 

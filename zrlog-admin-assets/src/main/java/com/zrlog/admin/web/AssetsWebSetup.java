@@ -11,6 +11,7 @@ import com.zrlog.admin.web.controller.api.*;
 import com.zrlog.admin.web.di.account.AccountComponent;
 import com.zrlog.admin.web.di.assets.AssetsComponent;
 import com.zrlog.admin.web.di.assets.DaggerAssetsComponent;
+import com.zrlog.admin.web.di.content.ContentComponent;
 import com.zrlog.admin.web.interceptor.AdminInterceptor;
 import com.zrlog.admin.web.interceptor.AdminTemporaryResourceInterceptor;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
@@ -50,6 +51,7 @@ public class AssetsWebSetup implements AvatarStorage, AttachmentStorage {
                                                 r.get(DataComponent.class),
                                                 r.get(ServiceComponent.class),
                                                 r.get(AccountComponent.class),
+                                                () -> r.get(ContentComponent.class).resources(),
                                                 pluginCore,
                                                 () -> r.get(TokenService.class),
                                                 () ->
