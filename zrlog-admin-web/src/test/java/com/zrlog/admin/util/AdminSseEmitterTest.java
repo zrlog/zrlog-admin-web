@@ -3,7 +3,6 @@ package com.zrlog.admin.util;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import com.hibegin.common.dao.DAO;
 import com.hibegin.http.server.api.HttpResponse;
 import com.zrlog.admin.business.content.ArticleAssistant;
 import com.zrlog.admin.business.exception.PermissionErrorException;
@@ -119,32 +118,31 @@ public class AdminSseEmitterTest {
                                                                                             db
                                                                                                     .resources()),
                                                                             ApplicationServicesFixture
-                                                                                    .messages(),
+                                                                                    .messages(db.dataSource()),
                                                                             AccountServicesFixture
-                                                                                    .component()
+                                                                                    .component(db.dataSource())
                                                                                     .permissions()),
                                                                     AccountServicesFixture
-                                                                            .component()
+                                                                            .component(db.dataSource())
                                                                             .permissions(),
                                                                     AccountServicesFixture
-                                                                            .component()
+                                                                            .component(db.dataSource())
                                                                             .preferences(),
                                                                     new ArticleVersionService(
                                                                             AccountServicesFixture
-                                                                                    .component()
+                                                                                    .component(db.dataSource())
                                                                                     .permissions(),
-                                                                            Log::new,
+                                                                            () -> new Log(db.dataSource()),
                                                                             () ->
                                                                                     new LogVersion(
-                                                                                            DAO
-                                                                                                    .getDefaultDataSource())),
+                                                                                            db.dataSource())),
                                                                     new ArticlePinningService(
-                                                                            Log::new,
+                                                                            () -> new Log(db.dataSource()),
                                                                             ApplicationServicesFixture
-                                                                                    .locks()),
-                                                                    Log::new,
+                                                                                    .locks(db.dataSource())),
+                                                                    () -> new Log(db.dataSource()),
                                                                     ApplicationServicesFixture
-                                                                            .locks())
+                                                                            .locks(db.dataSource()))
                                                             .create(
                                                                     AdminTokenThreadLocal.getUser(),
                                                                     request));
@@ -154,7 +152,7 @@ public class AdminSseEmitterTest {
                     });
             assertTrue(response.body().contains("event: checked"));
             org.junit.Assert.assertFalse(DelegatedAccess.active());
-            assertTrue(AccountServicesFixture.component().permissions().current().canPublish());
+            assertTrue(AccountServicesFixture.component(db.dataSource()).permissions().current().canPublish());
         }
     }
 

@@ -1,5 +1,6 @@
 package com.zrlog.admin.support;
 
+import com.hibegin.common.dao.DataSourceWrapper;
 import com.zrlog.admin.business.service.AdminAuditService;
 import com.zrlog.admin.business.service.AdminResource;
 import com.zrlog.admin.business.service.MessageCenterOperationService;
@@ -13,6 +14,7 @@ import com.zrlog.admin.util.BackendServerUrl;
 import com.zrlog.admin.web.interceptor.AdminActionDispatcher;
 import com.zrlog.business.plugin.PluginCorePlugin;
 import com.zrlog.business.plugin.StaticSitePlugin;
+import com.zrlog.business.service.BackupProtectionService;
 import com.zrlog.business.service.CacheRefreshService;
 import com.zrlog.business.service.UpgradeNoticeService;
 import com.zrlog.business.service.UpgradeService;
@@ -33,11 +35,15 @@ import java.util.function.Supplier;
 public final class ApplicationServicesFixture {
     private ApplicationServicesFixture() { }
 
-    public static Function<com.hibegin.http.server.api.HttpRequest, String> staticResourceUrl() {
+    private static DataSourceWrapper database(ZrLogConfig config) {
+        return config == null ? null : (DataSourceWrapper) config.getDataSource();
+    }
+
+    public static Function<com.hibegin.http.server.api.HttpRequest, String> staticResourceUrl(DataSourceWrapper source) {
         return request ->
                 AdminWebTools.getAdminStaticResourceBaseUrl(
                         request,
-                        () -> new WebSite().getStringValueByName("admin_static_resource_base_url"));
+                        () -> new WebSite(source).getStringValueByName("admin_static_resource_base_url"));
     }
 
     public static Supplier<String> siteHost(ZrLogConfig config) {
@@ -71,7 +77,7 @@ public final class ApplicationServicesFixture {
                     var site = provider == null ? null : provider.getPublicWebSiteInfo();
                     return site == null ? "" : site.getHost();
                 },
-                WebSite::new);
+                () -> new WebSite(database(config)));
     }
 
     public static <T> BooleanSupplier available(ZrLogConfig config, Class<T> type) {
@@ -88,11 +94,11 @@ public final class ApplicationServicesFixture {
     }
 
     public static UpgradeNoticeService upgradeNotices(ZrLogConfig config) {
-        return new UpgradeNoticeService(() -> config != null && config.isInstalled());
+        return new UpgradeNoticeService(installed(config), websiteKv(database(config)));
     }
 
     public static UpgradeService upgrades(ZrLogConfig config) {
-        return new UpgradeService(config == null ? null : config.getUpdater(), upgradeNotices(config));
+        return new UpgradeService(() -> config == null ? null : config.getUpdater(), upgradeNotices(config), new BackupProtectionService(websiteKv(database(config))), websiteKv(database(config)));
     }
 
     public static CacheRefreshService cacheRefresh(CacheService cache, ZrLogConfig config) {
@@ -103,7 +109,7 @@ public final class ApplicationServicesFixture {
             }
         } : cache;
         return new CacheRefreshService(source, () -> config == null ? null : config.getPlugin(PluginCorePlugin.class),
-                () -> config == null ? Collections.emptyList() : config.getPluginsByClazz(StaticSitePlugin.class));
+                () -> config == null ? Collections.emptyList() : config.getPluginsByClazz(StaticSitePlugin.class), () -> new WebSite(database(config)));
     }
 
     public static AdminStaticSiteSsePublisher publisher(CacheService cache, ZrLogConfig config) {
@@ -116,34 +122,34 @@ public final class ApplicationServicesFixture {
         return new AdminActionDispatcher(
                 cacheRefresh(cache, config),
                 publisher(cache, config),
-                ApplicationServicesFixture.locks());
+                ApplicationServicesFixture.locks(database(config)));
     }
 
-    public static WebsiteKvService websiteKv() {
-        return new WebsiteKvService(WebSite::new);
+    public static WebsiteKvService websiteKv(DataSourceWrapper source) {
+        return new WebsiteKvService(() -> new WebSite(source));
     }
 
-    public static WebsiteCacheService websiteCache() {
-        return new WebsiteCacheService(websiteKv());
+    public static WebsiteCacheService websiteCache(DataSourceWrapper source) {
+        return new WebsiteCacheService(websiteKv(source));
     }
 
-    public static AdminAuditService audit() {
-        return new AdminAuditService(websiteKv());
+    public static AdminAuditService audit(DataSourceWrapper source) {
+        return new AdminAuditService(websiteKv(source));
     }
 
-    public static WebSiteService settings() {
-        return new WebSiteService(websiteKv(), WebSite::new);
+    public static WebSiteService settings(DataSourceWrapper source) {
+        return new WebSiteService(websiteKv(source), () -> new WebSite(source));
     }
 
-    public static MessageCenterStateService messages() {
-        return new MessageCenterStateService(websiteCache(), WebSite::new);
+    public static MessageCenterStateService messages(DataSourceWrapper source) {
+        return new MessageCenterStateService(websiteCache(source), () -> new WebSite(source));
     }
 
-    public static MessageCenterOperationService operations() {
-        return new MessageCenterOperationService(messages(), websiteCache());
+    public static MessageCenterOperationService operations(DataSourceWrapper source) {
+        return new MessageCenterOperationService(messages(source), websiteCache(source));
     }
 
-    public static DistributedLock.Factory locks() {
-        return key -> new DistributedLock(WebSite::new, key);
+    public static DistributedLock.Factory locks(DataSourceWrapper source) {
+        return key -> new DistributedLock(() -> new WebSite(source), key);
     }
 }

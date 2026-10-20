@@ -5,6 +5,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
+import com.hibegin.common.dao.DataSourceWrapper;
 import com.zrlog.admin.business.rest.request.WebhookConfigRequest;
 import com.zrlog.admin.business.rest.request.WebhookMessageNoticeRequest;
 import com.zrlog.admin.business.rest.response.MessageCenterNoticeResponse;
@@ -223,8 +224,8 @@ public class WebhookServiceTest {
 
         private Map<String, Object> values;
 
-        FakeWebsiteCacheService() {
-            super(ApplicationServicesFixture.websiteKv());
+        FakeWebsiteCacheService(DataSourceWrapper testDataSource) {
+            super(ApplicationServicesFixture.websiteKv(testDataSource));
         }
 
         @Override
@@ -252,8 +253,8 @@ public class WebhookServiceTest {
 
     private static class FakeMessageCenterStateService extends MessageCenterStateService {
 
-        FakeMessageCenterStateService() {
-            super(ApplicationServicesFixture.websiteCache(), WebSite::new);
+        FakeMessageCenterStateService(DataSourceWrapper testDataSource) {
+            super(ApplicationServicesFixture.websiteCache(testDataSource), () -> new WebSite(testDataSource));
         }
 
         private boolean changed;

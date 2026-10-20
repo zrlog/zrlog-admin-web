@@ -52,7 +52,7 @@ public class AttachmentStorageTest {
                                     .create(
                                             data,
                                             services,
-                                            AccountServicesFixture.component(),
+                                            AccountServicesFixture.component(db.dataSource()),
                                             () -> null,
                                             () -> db.config().getTokenService(),
                                             () -> false,

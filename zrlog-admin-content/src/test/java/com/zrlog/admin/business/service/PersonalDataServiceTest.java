@@ -23,7 +23,7 @@ public class PersonalDataServiceTest {
 
     @Test
     public void shouldConvertCommentRowsToExportEntries() throws Exception {
-        PersonalDataService service = new PersonalDataService(User::new, Comment::new);
+        PersonalDataService service = new PersonalDataService(() -> { throw new IllegalStateException("Database is unavailable in this test"); }, () -> { throw new IllegalStateException("Database is unavailable in this test"); });
         Map<String, Object> row = new HashMap<>();
         row.put("id", 9L);
         row.put("userComment", "hello");
@@ -60,7 +60,7 @@ public class PersonalDataServiceTest {
 
     @Test
     public void shouldConvertHelperValuesSafely() throws Exception {
-        PersonalDataService service = new PersonalDataService(User::new, Comment::new);
+        PersonalDataService service = new PersonalDataService(() -> { throw new IllegalStateException("Database is unavailable in this test"); }, () -> { throw new IllegalStateException("Database is unavailable in this test"); });
 
         assertEquals(7L, service.toLong(7));
         assertEquals(0L, service.toLong("7"));
@@ -83,7 +83,7 @@ public class PersonalDataServiceTest {
                     "Alice B", "2024-02-02 11:00:00", 2);
             insertComment(db, 3, "other", "other@example.com", "https://other.example", "10.0.0.3",
                     "Other", "2024-02-03 12:00:00", 2);
-            PersonalDataService service = new PersonalDataService(User::new, Comment::new);
+            PersonalDataService service = new PersonalDataService(() -> new User(db.dataSource()), () -> new Comment(db.dataSource()));
 
             PersonalDataPreviewResponse preview = service.preview(request("alice@example.com"), 1);
             PersonalDataPreviewResponse adminPreview = service.preview(request("admin@example.com"), 1);

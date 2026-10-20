@@ -2,6 +2,7 @@ package com.zrlog.admin.business.service;
 
 import static org.junit.Assert.*;
 
+import com.hibegin.common.dao.DataSourceWrapper;
 import com.zrlog.admin.business.security.OAuthException;
 import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
@@ -13,31 +14,32 @@ import java.util.List;
 
 public class OAuthAdminOriginTest {
     private static final String SETTING = "admin_static_resource_base_url";
-    private final OAuthService service =
-            new OAuthService(
-                    () -> "https://api.example/sub",
-                    () -> true,
-                    AccountServicesFixture.component().permissions(),
-                    AccountServicesFixture.component().security(),
-                    tokenResource ->
-                            new PersonalAccessTokenService(
-                                    tokenResource,
-                                    AccountServicesFixture.component().permissions(),
-                                    AccountServicesFixture.component().security()),
-                    AccountServicesFixture.component().backend());
+    private static OAuthService service(DataSourceWrapper source) {
+        var accounts = AccountServicesFixture.component(source);
+        return new OAuthService(
+                () -> "https://api.example/sub",
+                () -> true,
+                accounts.permissions(),
+                accounts.security(),
+                resource -> new PersonalAccessTokenService(
+                        resource, accounts.permissions(), accounts.security()),
+                accounts.backend());
+    }
 
     @Test public void onlyBackendOriginIsTrustedWithoutAConfiguredFrontend() throws Exception {
         try (var db = InMemoryZrLogDatabase.open()) {
+            OAuthService service = service(db.dataSource());
             service.requireAdminOrigin("https://api.example");
             service.requireAdminOrigin("https://api.example:443");
-            assertDenied("https://admin.example");
+            assertDenied(service, "https://admin.example");
             db.putWebsite(SETTING, " ");
-            assertDenied("https://admin.example");
+            assertDenied(service, "https://admin.example");
         }
     }
 
     @Test public void configuredFrontendPathsAndDefaultPortsDoNotChangeItsOrigin() throws Exception {
         try (var db = InMemoryZrLogDatabase.open()) {
+            OAuthService service = service(db.dataSource());
             db.putWebsite(SETTING, " HTTPS://Admin.Example:443/assets/sub/ ");
             service.requireAdminOrigin("https://admin.example");
             service.requireAdminOrigin("https://admin.example:443");
@@ -52,19 +54,21 @@ public class OAuthAdminOriginTest {
 
     @Test public void changedOrClearedConfigurationTakesEffectImmediately() throws Exception {
         try (var db = InMemoryZrLogDatabase.open()) {
+            OAuthService service = service(db.dataSource());
             db.putWebsite(SETTING, "https://admin.example");
             service.requireAdminOrigin("https://admin.example");
             db.putWebsite(SETTING, "https://next.example/admin");
-            assertDenied("https://admin.example");
+            assertDenied(service, "https://admin.example");
             service.requireAdminOrigin("https://next.example");
             db.putWebsite(SETTING, "");
-            assertDenied("https://next.example");
+            assertDenied(service, "https://next.example");
             service.requireAdminOrigin("https://api.example");
         }
     }
 
     @Test public void rejectsOtherOriginsAndMalformedBrowserHeaders() throws Exception {
         try (var db = InMemoryZrLogDatabase.open()) {
+            OAuthService service = service(db.dataSource());
             db.putWebsite(SETTING, "https://admin.example/assets");
             for (String origin : Arrays.asList(null, "", "null", "https://evil.example",
                     "https://admin.example.evil.example", "https://child.admin.example", "http://admin.example",
@@ -79,12 +83,13 @@ public class OAuthAdminOriginTest {
 
     @Test public void malformedConfigurationNeverGrantsAdditionalTrust() throws Exception {
         try (var db = InMemoryZrLogDatabase.open()) {
+            OAuthService service = service(db.dataSource());
             for (String url : List.of("/admin", "//admin.example", "http://admin.example",
                     "https://user@admin.example", "https://admin.example?x=1", "https://admin.example#fragment",
                     "https://admin.example:0", "https://admin.example:65536", "https://admin.example/../assets",
                     "https://admin.example/%2e%2e/assets", "https://admin.example/sub%2fassets")) {
                 db.putWebsite(SETTING, url);
-                assertDenied("https://admin.example");
+                assertDenied(service, "https://admin.example");
                 service.requireAdminOrigin("https://api.example");
             }
         }
@@ -92,15 +97,16 @@ public class OAuthAdminOriginTest {
 
     @Test public void localDevelopmentStillRequiresTheConfiguredHostAndPort() throws Exception {
         try (var db = InMemoryZrLogDatabase.open()) {
+            OAuthService service = service(db.dataSource());
             db.putWebsite(SETTING, "http://localhost:3000/admin");
             service.requireAdminOrigin("http://localhost:3000");
-            assertDenied("http://localhost:3001");
-            assertDenied("http://127.0.0.1:3000");
-            assertDenied("https://localhost:3000");
+            assertDenied(service, "http://localhost:3001");
+            assertDenied(service, "http://127.0.0.1:3000");
+            assertDenied(service, "https://localhost:3000");
         }
     }
 
-    private void assertDenied(String origin) {
+    private void assertDenied(OAuthService service, String origin) {
         OAuthException error = assertThrows(OAuthException.class, () -> service.requireAdminOrigin(origin));
         assertEquals("access_denied", error.getOAuthError());
         assertEquals(403, error.getStatus());

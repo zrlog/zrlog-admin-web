@@ -1,5 +1,6 @@
 package com.zrlog.admin.business.ai.service;
 
+import com.hibegin.common.dao.DataSourceWrapper;
 import com.zrlog.admin.business.knowledge.ContentToolFactory;
 import com.zrlog.admin.business.service.DbFileService;
 import com.zrlog.admin.support.AccountServicesFixture;
@@ -10,59 +11,59 @@ import com.zrlog.model.WebSite;
 public final class AIServiceDependencies {
     private AIServiceDependencies() {}
 
-    public static AIConfigService config() {
-        return new AIConfigService(WebSite::new);
+    public static AIConfigService config(DataSourceWrapper source) {
+        return new AIConfigService(() -> new WebSite(source));
     }
 
-    public static AIApprovalStore approvals() {
-        return new AIApprovalStore(AccountServicesFixture.component().security());
+    public static AIApprovalStore approvals(DataSourceWrapper source) {
+        return new AIApprovalStore(AccountServicesFixture.component(source).security());
     }
 
-    public static AIConversationService conversations() {
+    public static AIConversationService conversations(DataSourceWrapper source) {
         return new AIConversationService(
-                AccountServicesFixture.component().security(),
-                ApplicationServicesFixture.websiteKv(),
-                WebSite::new,
+                AccountServicesFixture.component(source).security(),
+                ApplicationServicesFixture.websiteKv(source),
+                () -> new WebSite(source),
                 new AIFileService(),
-                approvals());
+                approvals(source));
     }
 
-    public static DbFileService dbFiles() {
-        return new DbFileService(ApplicationServicesFixture.websiteKv(), WebSite::new);
+    public static DbFileService dbFiles(DataSourceWrapper source) {
+        return new DbFileService(ApplicationServicesFixture.websiteKv(source), () -> new WebSite(source));
     }
 
-    public static AIToolService tools() {
-        return new AIToolService(config());
+    public static AIToolService tools(DataSourceWrapper source) {
+        return new AIToolService(config(source));
     }
 
-    public static AIImageService images() {
+    public static AIImageService images(DataSourceWrapper source) {
         return new AIImageService(
-                AccountServicesFixture.component().preferences(),
-                config(),
-                dbFiles(),
-                conversations());
+                AccountServicesFixture.component(source).preferences(),
+                config(source),
+                dbFiles(source),
+                conversations(source));
     }
 
-    public static AIWritingSkillService.Factory writing() {
-        return store -> new AIWritingSkillService(store, tools(), images());
+    public static AIWritingSkillService.Factory writing(DataSourceWrapper source) {
+        return store -> new AIWritingSkillService(store, tools(source), images(source));
     }
 
-    public static AIPublishCheckService publishing() {
+    public static AIPublishCheckService publishing(DataSourceWrapper source) {
         return new AIPublishCheckService(
-                ApplicationServicesFixture.settings(),
-                ApplicationServicesFixture.operations(),
-                writing(),
-                conversations());
+                ApplicationServicesFixture.settings(source),
+                ApplicationServicesFixture.operations(source),
+                writing(source),
+                conversations(source));
     }
 
-    public static AIWritingToolProvider.Factory writingTools() {
-        return (run, skills) -> new AIWritingToolProvider(run, skills, publishing());
+    public static AIWritingToolProvider.Factory writingTools(DataSourceWrapper source) {
+        return (run, skills) -> new AIWritingToolProvider(run, skills, publishing(source));
     }
 
-    public static AIReferenceService references(ContentToolFactory tools) {
+    public static AIReferenceService references(ContentToolFactory tools, DataSourceWrapper source) {
         return new AIReferenceService(
                 tools,
-                AccountServicesFixture.component().permissions(),
-                AccountServicesFixture.component().preferences());
+                AccountServicesFixture.component(source).permissions(),
+                AccountServicesFixture.component(source).preferences());
     }
 }

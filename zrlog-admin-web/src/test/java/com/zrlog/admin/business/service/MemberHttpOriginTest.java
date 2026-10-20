@@ -2,6 +2,7 @@ package com.zrlog.admin.business.service;
 
 import static org.junit.Assert.*;
 
+import com.hibegin.common.dao.DataSourceWrapper;
 import com.hibegin.common.util.PasswordHashUtils;
 import com.hibegin.common.util.SecurityUtils;
 import com.hibegin.http.server.api.HttpRequest;
@@ -38,11 +39,11 @@ public class MemberHttpOriginTest {
                 AccountAuthorizationTest.login(db, 1, "owner");
                 db.execute("update user set password=? where userId=1", PasswordHashUtils.hash(SecurityUtils.md5("owner-password")));
                 String origin = "http://" + host;
-                var created = controller(origin, "{\"userName\":\"writer\",\"password\":\"member-password\",\"role\":\"author\"}").create();
+                var created = controller(origin, "{\"userName\":\"writer\",\"password\":\"member-password\",\"role\":\"author\"}", db.dataSource()).create();
                 int id = created.getData().userId;
-                controller(origin, "{\"userId\":" + id + ",\"role\":\"admin\",\"enabled\":true}").update();
+                controller(origin, "{\"userId\":" + id + ",\"role\":\"admin\",\"enabled\":true}", db.dataSource()).update();
                 assertEquals("admin", db.scalar("select role from user where userId=?", id));
-                controller(origin, "{\"userId\":" + id + ",\"password\":\"owner-password\"}").transfer();
+                controller(origin, "{\"userId\":" + id + ",\"password\":\"owner-password\"}", db.dataSource()).transfer();
                 assertEquals("owner", db.scalar("select role from user where userId=?", id));
                 assertEquals("admin", db.scalar("select role from user where userId=1"));
             }
@@ -55,14 +56,14 @@ public class MemberHttpOriginTest {
             applicationConfig = db.config();
             db.cacheService().getPublicWebSiteInfo().setHost("blog.internal");
             AccountAuthorizationTest.login(db, 1, "owner");
-            assertThrows(AdminOriginException.class, () -> controller("http://evil.example", "{}").create());
-            assertThrows(AdminOriginException.class, () -> controller("http://evil.example", "{}").update());
-            assertThrows(AdminOriginException.class, () -> controller("http://evil.example", "{}").transfer());
+            assertThrows(AdminOriginException.class, () -> controller("http://evil.example", "{}", db.dataSource()).create());
+            assertThrows(AdminOriginException.class, () -> controller("http://evil.example", "{}", db.dataSource()).update());
+            assertThrows(AdminOriginException.class, () -> controller("http://evil.example", "{}", db.dataSource()).transfer());
             assertEquals(1, ((Number) db.scalar("select count(*) from user")).intValue());
         }
     }
 
-    private MemberController controller(String origin, String body) throws Exception {
+    private MemberController controller(String origin, String body, DataSourceWrapper testDataSource) throws Exception {
         byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
         Map<String, Object> attrs = new HashMap<>();
         HttpRequest request = (HttpRequest) Proxy.newProxyInstance(MemberHttpOriginTest.class.getClassLoader(),
@@ -86,10 +87,10 @@ public class MemberHttpOriginTest {
                         new AdminPageDataFactory(
                                 ApplicationServicesFixture.site(applicationConfig),
                                 () -> "test",
-                                ApplicationServicesFixture.messages(),
-                                AccountServicesFixture.component().permissions()),
-                        AccountServicesFixture.component().members(),
-                        ApplicationServicesFixture.audit());
+                                ApplicationServicesFixture.messages(testDataSource),
+                                AccountServicesFixture.component(testDataSource).permissions()),
+                        AccountServicesFixture.component(testDataSource).members(),
+                        ApplicationServicesFixture.audit(testDataSource));
         var field = Controller.class.getDeclaredField("request");
         field.setAccessible(true);
         field.set(controller, request);

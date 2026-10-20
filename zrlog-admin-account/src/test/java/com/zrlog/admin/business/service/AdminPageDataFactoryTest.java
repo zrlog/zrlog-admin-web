@@ -29,16 +29,16 @@ public class AdminPageDataFactoryTest {
                     new AdminPageDataFactory(
                             () -> site,
                             version::get,
-                            ApplicationServicesFixture.messages(),
-                            AccountServicesFixture.component().permissions());
+                            ApplicationServicesFixture.messages(db.dataSource()),
+                            AccountServicesFixture.component(db.dataSource()).permissions());
             var otherSite = new InMemoryZrLogDatabase.TestCacheService().getPublicWebSiteInfo();
             otherSite.setTitle("Site B");
             var other =
                     new AdminPageDataFactory(
                             () -> otherSite,
                             () -> "build-b",
-                            ApplicationServicesFixture.messages(),
-                            AccountServicesFixture.component().permissions());
+                            ApplicationServicesFixture.messages(db.dataSource()),
+                            AccountServicesFixture.component(db.dataSource()).permissions());
 
             JsonObject first = new Gson().toJsonTree(pages.response("content", "", "/admin/system")).getAsJsonObject();
             assertEquals("content", first.get("data").getAsString());
@@ -69,9 +69,9 @@ public class AdminPageDataFactoryTest {
                     new AdminPageDataFactory(
                             db.cacheService()::getPublicWebSiteInfo,
                             () -> "",
-                            ApplicationServicesFixture.messages(),
-                            AccountServicesFixture.component().permissions());
-            new MessageCenterStateService(ApplicationServicesFixture.websiteCache(), WebSite::new)
+                            ApplicationServicesFixture.messages(db.dataSource()),
+                            AccountServicesFixture.component(db.dataSource()).permissions());
+            new MessageCenterStateService(ApplicationServicesFixture.websiteCache(db.dataSource()), () -> new WebSite(db.dataSource()))
                     .markMayHaveUnread();
             assertTrue(pages.response(null).getMessageCenter().isHasUnread());
             db.execute("update user set role='editor' where userId=1");

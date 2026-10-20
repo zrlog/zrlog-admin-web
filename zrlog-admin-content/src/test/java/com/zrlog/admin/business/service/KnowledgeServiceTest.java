@@ -3,6 +3,7 @@ package com.zrlog.admin.business.service;
 import static org.junit.Assert.*;
 
 import com.google.gson.*;
+import com.hibegin.common.dao.DataSourceWrapper;
 import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.knowledge.*;
 import com.zrlog.admin.business.knowledge.KnowledgeModels.*;
@@ -10,6 +11,7 @@ import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.security.ArticleAccess;
 import com.zrlog.model.Log;
+import com.zrlog.model.User;
 
 import org.junit.Test;
 
@@ -23,11 +25,11 @@ public class KnowledgeServiceTest {
     private final boolean sqlite;
     public KnowledgeServiceTest(boolean sqlite) { this.sqlite = sqlite; }
     private InMemoryZrLogDatabase database() throws Exception { return sqlite ? InMemoryZrLogDatabase.openSqlite() : InMemoryZrLogDatabase.open(); }
-    private KnowledgeService service(int user, Set<String> scopes) {
+    private KnowledgeService service(int user, Set<String> scopes, DataSourceWrapper testDataSource) {
         return new KnowledgeService(
                 () -> {
                     try {
-                        return AccountAccess.load(user);
+                        return AccountAccess.from(new User(testDataSource).loadById(user));
                     } catch (Exception e) {
                         throw new RuntimeException(e);
                     }
@@ -35,7 +37,7 @@ public class KnowledgeServiceTest {
                 scopes,
                 () -> "https://blog.example/sub",
                 () -> false,
-                Log::new);
+                () -> new Log(testDataSource));
     }
     private void seed(InMemoryZrLogDatabase db) throws Exception {
         db.execute("insert into user(userId,userName,role) values(?,?,?)", 2,"writer","author");
@@ -51,10 +53,10 @@ public class KnowledgeServiceTest {
                 db.execute("update user set role=? where userId=1", role);
                 for (boolean all : List.of(false,true)) for(boolean drafts:List.of(false,true)) for(boolean privateArticles:List.of(false,true)) {
                     Options options=new Options(); options.allArticles=all; options.drafts=drafts; options.privateArticles=privateArticles;
-                    KnowledgeService service=service(1, options.scopes());
+                    KnowledgeService service=service(1, options.scopes(), db.dataSource());
                     List<Long> ids=new ArrayList<>(); Integer offset=0;
                     while(offset!=null) { SearchResult page=search(service,"{\"limit\":1,\"offset\":"+offset+"}"); for(Source s:page.articles) ids.add(s.id); offset=page.nextOffset; }
-                    AccountAccess account=AccountAccess.load(1);
+                    AccountAccess account=AccountAccess.from(new User(db.dataSource()).loadById(1));
                     for(int id=1;id<=6;id++) {
                                 boolean expected =
                                         ArticleAccess.canRead(
@@ -79,7 +81,7 @@ public class KnowledgeServiceTest {
                     new KnowledgeService(
                             () -> {
                                 try {
-                                    return AccountAccess.load(1);
+                                    return AccountAccess.from(new User(db.dataSource()).loadById(1));
                                 } catch (Exception e) {
                                     throw new RuntimeException(e);
                                 }
@@ -87,7 +89,7 @@ public class KnowledgeServiceTest {
                             Set.of("articles:read", "articles:read_drafts"),
                             () -> "https://blog.example/sub",
                             staticHtml::get,
-                            Log::new);
+                            () -> new Log(db.dataSource()));
             assertEquals("https://blog.example/sub/article-1", read(service, 1).source.url);
             staticHtml.set(true);
             assertEquals("https://blog.example/sub/article-1.html", read(service, 1).source.url);
@@ -96,7 +98,7 @@ public class KnowledgeServiceTest {
     }
     @Test public void literalSearchBoundedInputsAndChunkedContent() throws Exception {
         try(InMemoryZrLogDatabase db=database()) {
-            seed(db); KnowledgeService service=service(1,Set.of("articles:read"));
+            seed(db); KnowledgeService service=service(1,Set.of("articles:read"), db.dataSource());
             assertEquals(1,search(service,"{\"query\":\"100%_literal\"}").articles.size());
             assertEquals(0,search(service,"{\"query\":\"100%_missing\"}").articles.size());
             assertEquals(0,search(service,"{\"query\":\"' OR 1=1 --\"}").articles.size());

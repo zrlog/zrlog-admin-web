@@ -7,6 +7,7 @@ import static org.junit.Assert.assertTrue;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import com.hibegin.common.dao.DataSourceWrapper;
 import com.zrlog.admin.business.ai.dto.AIStreamResponse;
 import com.zrlog.admin.business.ai.model.AIChatModels.ChatRequest;
 import com.zrlog.admin.business.ai.model.AIProviderType;
@@ -401,14 +402,14 @@ public class AIChatServiceTest {
                     client,
                     null,
                     ContentToolsFixture.from(config),
-                    AccountServicesFixture.component().permissions(),
-                    AccountServicesFixture.component().preferences(),
-                    AIServiceDependencies.approvals(),
+                    AccountServicesFixture.component((DataSourceWrapper) config.getDataSource()).permissions(),
+                    AccountServicesFixture.component((DataSourceWrapper) config.getDataSource()).preferences(),
+                    AIServiceDependencies.approvals((DataSourceWrapper) config.getDataSource()),
                     new AIFileService(),
-                    AIServiceDependencies.writing(),
-                    AIServiceDependencies.conversations(),
-                    AIServiceDependencies.writingTools(),
-                    AIServiceDependencies.references(ContentToolsFixture.from(config)));
+                    AIServiceDependencies.writing((DataSourceWrapper) config.getDataSource()),
+                    AIServiceDependencies.conversations((DataSourceWrapper) config.getDataSource()),
+                    AIServiceDependencies.writingTools((DataSourceWrapper) config.getDataSource()),
+                    AIServiceDependencies.references(ContentToolsFixture.from(config), (DataSourceWrapper) config.getDataSource()));
         }
 
         @Override

@@ -16,7 +16,7 @@ public class AdminAuditAgentDatabaseTest {
     @Test public void persistsCallerIdentityAndPreservesItAcrossLaterWrites() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             AdminAuditService service =
-                    new AdminAuditService(ApplicationServicesFixture.websiteKv());
+                    new AdminAuditService(ApplicationServicesFixture.websiteKv(db.dataSource()));
             service.record(request("zrlogctl/0.1.42 dot/1.2-beta.1"), AdminAuditAction.REFRESH_CACHE);
             service.record(request("zrlogctl/0.1.42 muse"), AdminAuditAction.REFRESH_CACHE);
             service.record(request("zrlogctl/0.1.42"), AdminAuditAction.REFRESH_CACHE);

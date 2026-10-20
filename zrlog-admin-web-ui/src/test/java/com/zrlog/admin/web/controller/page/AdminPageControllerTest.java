@@ -3,7 +3,7 @@ package com.zrlog.admin.web.controller.page;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
-import com.hibegin.common.dao.DAO;
+import com.hibegin.common.dao.DataSourceWrapper;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
 import com.hibegin.http.server.web.Controller;
@@ -38,7 +38,7 @@ public class AdminPageControllerTest {
     @Test
     public void shouldRedirectAdminRootToIndexPage() throws Throwable {
         ResponseRecorder recorder = new ResponseRecorder();
-        AdminPageController controller = controller(Constants.ADMIN_URI_BASE_PATH, Map.of(), recorder.response());
+        AdminPageController controller = controller(Constants.ADMIN_URI_BASE_PATH, Map.of(), recorder.response(), null);
 
         controller.index();
 
@@ -51,7 +51,7 @@ public class AdminPageControllerTest {
             applicationConfig = ignored.config();
             AdminTokenThreadLocal.remove();
             AdminPageController controller = controller(Constants.ADMIN_URI_BASE_PATH + "/system",
-                    Map.of("uri", "/system"), response());
+                    Map.of("uri", "/system"), response(), ignored.dataSource());
 
             AdminPageDataResponse<ServerSideDataResponse<Object>> response = controller.ssJson();
 
@@ -62,27 +62,27 @@ public class AdminPageControllerTest {
         }
     }
 
-    private AdminPageController controller(String uri, Map<String, String> params, HttpResponse response)
+    private AdminPageController controller(String uri, Map<String, String> params, HttpResponse response, DataSourceWrapper testDataSource)
             throws Exception {
         var site = ApplicationServicesFixture.site(applicationConfig);
         var pages =
                 new AdminPageDataFactory(
                         site,
                         () -> "test",
-                        ApplicationServicesFixture.messages(),
-                        AccountServicesFixture.component().permissions());
+                        ApplicationServicesFixture.messages(testDataSource),
+                        AccountServicesFixture.component(testDataSource).permissions());
         var resources =
                 new AdminResourceService(
                         AdminResourceInfoResponse.Capabilities::new,
                         new FeatureLabService(
                                 () -> true,
                                 new WebhookService(
-                                        ApplicationServicesFixture.messages(),
-                                        ApplicationServicesFixture.websiteCache()),
-                                WebSite::new),
+                                        ApplicationServicesFixture.messages(testDataSource),
+                                        ApplicationServicesFixture.websiteCache(testDataSource)),
+                                () -> new WebSite(testDataSource)),
                         site,
                         () -> "",
-                        () -> new UserPasskey(DAO.getDefaultDataSource()));
+                        () -> new UserPasskey(testDataSource));
         AdminPageController controller =
                 new AdminPageController(
                         new AdminPageService(
@@ -90,9 +90,9 @@ public class AdminPageControllerTest {
                                 pages,
                                 resources,
                                 () -> "test",
-                                AccountServicesFixture.component().permissions(),
-                                AccountServicesFixture.component().preferences(),
-                                AccountServicesFixture.component().users()),
+                                AccountServicesFixture.component(testDataSource).permissions(),
+                                AccountServicesFixture.component(testDataSource).preferences(),
+                                AccountServicesFixture.component(testDataSource).users()),
                         applicationConfig == null ? null : applicationConfig.getTokenService(),
                         pages);
         Field requestField = Controller.class.getDeclaredField("request");

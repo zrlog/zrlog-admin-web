@@ -28,14 +28,14 @@ public class MessageCenterServiceDatabaseTest {
                     new MessageCenterService(
                                     ApplicationServicesFixture.upgradeNotices(db.config()),
                                     new WebhookService(
-                                            ApplicationServicesFixture.messages(),
-                                            ApplicationServicesFixture.websiteCache()),
-                                    ApplicationServicesFixture.messages(),
-                                    ApplicationServicesFixture.operations(),
+                                            ApplicationServicesFixture.messages(db.dataSource()),
+                                            ApplicationServicesFixture.websiteCache(db.dataSource())),
+                                    ApplicationServicesFixture.messages(db.dataSource()),
+                                    ApplicationServicesFixture.operations(db.dataSource()),
                                     new AdminCommentService(
-                                            AccountServicesFixture.component().permissions(),
-                                            ApplicationServicesFixture.messages(),
-                                            Comment::new))
+                                            AccountServicesFixture.component(db.dataSource()).permissions(),
+                                            ApplicationServicesFixture.messages(db.dataSource()),
+                                            () -> new Comment(db.dataSource())))
                             .listNotices();
             Map<String, Object> statusRow = db.queryOne("select value from website where name=?",
                     "admin_cache:message_center_status");

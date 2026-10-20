@@ -1,6 +1,5 @@
 package com.zrlog.admin.support;
 
-import com.hibegin.common.dao.DAO;
 import com.hibegin.common.dao.DataSourceWrapper;
 import com.zrlog.admin.web.di.account.AccountComponent;
 import com.zrlog.admin.web.di.account.DaggerAccountComponent;
@@ -17,20 +16,13 @@ import java.util.function.Supplier;
 public final class AccountServicesFixture {
     private AccountServicesFixture() {}
 
-    public static AccountComponent component() {
-        return component(Collections::emptySet);
-    }
-
-    public static AccountComponent component(Supplier<Set<String>> cacheableUris) {
-        return component(DAO::getDefaultDataSource, cacheableUris);
-    }
-
     public static AccountComponent component(DataSourceWrapper source) {
-        return component(() -> source, Collections::emptySet);
+        return component(source, Collections::emptySet);
     }
 
-    private static AccountComponent component(
-            Supplier<DataSourceWrapper> source, Supplier<Set<String>> cacheableUris) {
+    public static AccountComponent component(
+            DataSourceWrapper database, Supplier<Set<String>> cacheableUris) {
+        Supplier<DataSourceWrapper> source = () -> database;
         var data = DaggerDataComponent.factory().create(source, () -> true);
         var services =
                 DaggerServiceComponent.factory()

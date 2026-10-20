@@ -5,6 +5,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
+import com.hibegin.common.dao.DataSourceWrapper;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
@@ -47,10 +48,10 @@ public class WebhookControllerDatabaseTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
             AdminPageDataResponse<WebhookConfigResponse> initial =
-                    (AdminPageDataResponse<WebhookConfigResponse>) controller(HttpMethod.GET, Map.of(), Map.of(), null)
+                    (AdminPageDataResponse<WebhookConfigResponse>) controller(HttpMethod.GET, Map.of(), Map.of(), null, db.dataSource())
                             .config();
             StandardResponse updatedResponse =
-                    controller(HttpMethod.POST, Map.of(), Map.of(), "{\"enabled\":true}").config();
+                    controller(HttpMethod.POST, Map.of(), Map.of(), "{\"enabled\":true}", db.dataSource()).config();
             ApiStandardResponse<WebhookConfigResponse> updated =
                     (ApiStandardResponse<WebhookConfigResponse>) updatedResponse;
 
@@ -71,17 +72,17 @@ public class WebhookControllerDatabaseTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
             ApiStandardResponse<WebhookTokenResponse> tokenResponse =
-                    controller(HttpMethod.POST, Map.of(), Map.of(), null).token();
+                    controller(HttpMethod.POST, Map.of(), Map.of(), null, db.dataSource()).token();
             String token = tokenResponse.getData().getToken();
 
             ApiStandardResponse<WebhookMessageNoticeCreateResponse> created =
                     controller(HttpMethod.POST, Map.of("Authorization", "Bearer " + token), Map.of(),
                             "{\"taskKey\":\"deploy\",\"title\":\"Deploy <b>Done</b>\","
                                     + "\"description\":\"Finished\",\"updatedAt\":99,"
-                                    + "\"payload\":{\"env\":\"test\"}}")
+                                    + "\"payload\":{\"env\":\"test\"}}", db.dataSource())
                             .messageCenterNotice();
             ApiStandardResponse<WebhookConfigResponse> revoked =
-                    controller(HttpMethod.POST, Map.of(), Map.of(), null).revokeToken();
+                    controller(HttpMethod.POST, Map.of(), Map.of(), null, db.dataSource()).revokeToken();
 
             assertEquals(43, token.length());
             assertTrue(tokenResponse.getData().getConfig().getHasToken());
@@ -103,10 +104,10 @@ public class WebhookControllerDatabaseTest {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
             applicationConfig = ignored.config();
             assertThrows(ArgsException.class,
-                    () -> controller(HttpMethod.GET, Map.of(), Map.of(), null).token());
+                    () -> controller(HttpMethod.GET, Map.of(), Map.of(), null, ignored.dataSource()).token());
             assertThrows(PermissionErrorException.class,
                     () -> controller(HttpMethod.POST, Map.of(WebhookService.TOKEN_HEADER, "bad-token"), Map.of(),
-                            "{\"title\":\"Deploy\"}").messageCenterNotice());
+                            "{\"title\":\"Deploy\"}", ignored.dataSource()).messageCenterNotice());
         }
     }
 
@@ -116,8 +117,8 @@ public class WebhookControllerDatabaseTest {
             var config = new WebhookConfigRequest();
             config.setEnabled(true);
             new WebhookService(
-                            ApplicationServicesFixture.messages(),
-                            ApplicationServicesFixture.websiteCache())
+                            ApplicationServicesFixture.messages(db.dataSource()),
+                            ApplicationServicesFixture.websiteCache(db.dataSource()))
                     .updateConfig(config);
             var identity = new OAuthModels.Identity();
             identity.permissionMode = "custom"; identity.permissions = java.util.List.of("notification.create");
@@ -131,14 +132,14 @@ public class WebhookControllerDatabaseTest {
                                                 HttpMethod.POST,
                                                 Map.of(),
                                                 Map.of(),
-                                                "{\"title\":\"Deployed\",\"taskKey\":\"deployed\"}")
+                                                "{\"title\":\"Deployed\",\"taskKey\":\"deployed\"}", db.dataSource())
                                         .messageCenterNotice()
                                         .getData()
                                         .getTaskKey());
                         config.setEnabled(false);
                         new WebhookService(
-                                        ApplicationServicesFixture.messages(),
-                                        ApplicationServicesFixture.websiteCache())
+                                        ApplicationServicesFixture.messages(db.dataSource()),
+                                        ApplicationServicesFixture.websiteCache(db.dataSource()))
                                 .updateConfig(config);
                         assertThrows(
                                 PermissionErrorException.class,
@@ -147,7 +148,7 @@ public class WebhookControllerDatabaseTest {
                                                         HttpMethod.POST,
                                                         Map.of(),
                                                         Map.of(),
-                                                        "{\"title\":\"Blocked\"}")
+                                                        "{\"title\":\"Blocked\"}", db.dataSource())
                                                 .messageCenterNotice());
                         return null;
                     });
@@ -155,15 +156,15 @@ public class WebhookControllerDatabaseTest {
                     new FeatureLabService(
                                     () -> true,
                                     new WebhookService(
-                                            ApplicationServicesFixture.messages(),
-                                            ApplicationServicesFixture.websiteCache()),
-                                    WebSite::new)
+                                            ApplicationServicesFixture.messages(db.dataSource()),
+                                            ApplicationServicesFixture.websiteCache(db.dataSource())),
+                                    () -> new WebSite(db.dataSource()))
                             .featureLab()
                             .getFeature_webhook_enabled());
             config.setEnabled(true);
             new WebhookService(
-                            ApplicationServicesFixture.messages(),
-                            ApplicationServicesFixture.websiteCache())
+                            ApplicationServicesFixture.messages(db.dataSource()),
+                            ApplicationServicesFixture.websiteCache(db.dataSource()))
                     .updateConfig(config);
             identity.permissions = java.util.List.of("article.read");
             DelegatedAccess.withPermissions(
@@ -177,7 +178,7 @@ public class WebhookControllerDatabaseTest {
                                                         HttpMethod.POST,
                                                         Map.of(),
                                                         Map.of(),
-                                                        "{\"title\":\"Blocked\"}")
+                                                        "{\"title\":\"Blocked\"}", db.dataSource())
                                                 .messageCenterNotice());
                         return null;
                     });
@@ -185,19 +186,19 @@ public class WebhookControllerDatabaseTest {
     }
 
     private WebhookController controller(HttpMethod method, Map<String, String> headers,
-                                                Map<String, String> params, String body) throws Exception {
+                                                Map<String, String> params, String body, DataSourceWrapper testDataSource) throws Exception {
         WebhookController controller =
                 new WebhookController(
                         new AdminPageDataFactory(
                                 ApplicationServicesFixture.site(applicationConfig),
                                 () -> "test",
-                                ApplicationServicesFixture.messages(),
-                                AccountServicesFixture.component().permissions()),
-                        AccountServicesFixture.component().permissions(),
+                                ApplicationServicesFixture.messages(testDataSource),
+                                AccountServicesFixture.component(testDataSource).permissions()),
+                        AccountServicesFixture.component(testDataSource).permissions(),
                         new WebhookService(
-                                ApplicationServicesFixture.messages(),
-                                ApplicationServicesFixture.websiteCache()),
-                        ApplicationServicesFixture.audit());
+                                ApplicationServicesFixture.messages(testDataSource),
+                                ApplicationServicesFixture.websiteCache(testDataSource)),
+                        ApplicationServicesFixture.audit(testDataSource));
         Field requestField = Controller.class.getDeclaredField("request");
         requestField.setAccessible(true);
         requestField.set(controller, request(method, headers, params, body));

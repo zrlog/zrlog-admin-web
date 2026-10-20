@@ -37,9 +37,9 @@ public class AdminStatisticsServiceDatabaseTest {
                     new AdminStatisticsService(
                                     db.cacheService(),
                                     RuntimeInfoFixture.from(db.config()),
-                                    ApplicationServicesFixture.audit(),
-                                    Log::new,
-                                    Comment::new)
+                                    ApplicationServicesFixture.audit(db.dataSource()),
+                                    () -> new Log(db.dataSource()),
+                                    () -> new Comment(db.dataSource()))
                             .statisticsInfo(DIRECT_EXECUTOR, false)
                             .get();
 
@@ -71,9 +71,9 @@ public class AdminStatisticsServiceDatabaseTest {
                         new AdminStatisticsService(
                                         db.cacheService(),
                                         RuntimeInfoFixture.from(db.config()),
-                                        ApplicationServicesFixture.audit(),
-                                        Log::new,
-                                        Comment::new)
+                                        ApplicationServicesFixture.audit(db.dataSource()),
+                                        () -> new Log(db.dataSource()),
+                                        () -> new Comment(db.dataSource()))
                                 .statisticsInfo(DIRECT_EXECUTOR, false)
                                 .get();
 

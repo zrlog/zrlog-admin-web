@@ -17,10 +17,10 @@ public class AIServiceUtilityTest {
     public void shouldResolveImageSizeExtensionMimeAndDataUrl() {
         AIImageService service =
                 new AIImageService(
-                        AccountServicesFixture.component().preferences(),
-                        AIServiceDependencies.config(),
-                        AIServiceDependencies.dbFiles(),
-                        AIServiceDependencies.conversations());
+                        AccountServicesFixture.component(null).preferences(),
+                        AIServiceDependencies.config(null),
+                        AIServiceDependencies.dbFiles(null),
+                        AIServiceDependencies.conversations(null));
 
         assertEquals("1024x1024", service.resolveImageRequestSize("1:1"));
         assertEquals("1536x1024", service.resolveImageRequestSize("16:9"));
@@ -50,10 +50,10 @@ public class AIServiceUtilityTest {
     public void shouldRejectInvalidDataUrl() {
         AIImageService service =
                 new AIImageService(
-                        AccountServicesFixture.component().preferences(),
-                        AIServiceDependencies.config(),
-                        AIServiceDependencies.dbFiles(),
-                        AIServiceDependencies.conversations());
+                        AccountServicesFixture.component(null).preferences(),
+                        AIServiceDependencies.config(null),
+                        AIServiceDependencies.dbFiles(null),
+                        AIServiceDependencies.conversations(null));
 
         try {
             service.decodeDataUrl("data:image/png;base64", "");
@@ -68,9 +68,9 @@ public class AIServiceUtilityTest {
     public void shouldExposeWritingSkillContextPolicy() {
         AIWritingSkillService service =
                 new AIWritingSkillService(
-                        AIServiceDependencies.conversations().captureAccount(),
-                        AIServiceDependencies.tools(),
-                        AIServiceDependencies.images());
+                        AIServiceDependencies.conversations(null).captureAccount(),
+                        AIServiceDependencies.tools(null),
+                        AIServiceDependencies.images(null));
 
         assertEquals(AIWritingSkillService.ToolContextPolicy.FULL_CONVERSATION, service.getToolContextPolicy("title"));
         assertEquals(AIWritingSkillService.ToolContextPolicy.CHAT_ONLY, service.getToolContextPolicy("seo"));

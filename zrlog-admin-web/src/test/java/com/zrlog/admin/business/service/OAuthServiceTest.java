@@ -23,20 +23,31 @@ public class OAuthServiceTest {
     public static String[] databases() { return new String[]{"h2", "sqlite", "webapi"}; }
     private final String backend;
     public OAuthServiceTest(String backend) { this.backend = backend; }
-    private InMemoryZrLogDatabase database() throws Exception { return "webapi".equals(backend) ? InMemoryZrLogDatabase.openWebApi() : "sqlite".equals(backend) ? InMemoryZrLogDatabase.openSqlite() : InMemoryZrLogDatabase.open(); }
+    private OAuthService service;
 
-    private final OAuthService service =
-            new OAuthService(
+    private InMemoryZrLogDatabase database() throws Exception {
+        InMemoryZrLogDatabase db = "webapi".equals(backend)
+                ? InMemoryZrLogDatabase.openWebApi()
+                : "sqlite".equals(backend)
+                        ? InMemoryZrLogDatabase.openSqlite()
+                        : InMemoryZrLogDatabase.open();
+        try {
+            var accounts = AccountServicesFixture.component(db.dataSource());
+            service = new OAuthService(
                     () -> "https://blog.example/sub",
                     () -> true,
-                    AccountServicesFixture.component().permissions(),
-                    AccountServicesFixture.component().security(),
-                    tokenResource ->
-                            new PersonalAccessTokenService(
-                                    tokenResource,
-                                    AccountServicesFixture.component().permissions(),
-                                    AccountServicesFixture.component().security()),
-                    AccountServicesFixture.component().backend());
+                    accounts.permissions(),
+                    accounts.security(),
+                    resource -> new PersonalAccessTokenService(
+                            resource, accounts.permissions(), accounts.security()),
+                    accounts.backend());
+            return db;
+        } catch (Exception | java.lang.Error e) {
+            db.close();
+            throw e;
+        }
+    }
+
     private final String verifier=OAuthService.random();
     private Client client() throws Exception {
         Client app=new Client();app.name="Test writer";app.redirectUris=List.of("http://127.0.0.1:3000/callback?app=1");return service.register(app);
@@ -200,7 +211,7 @@ public class OAuthServiceTest {
             TokenResponse inherited = approveCli(request, List.of("account:inherit", "offline_access"));
             assertEquals(
                     PersonalAccessTokenService.availablePermissions(
-                            AccountServicesFixture.component().permissions().current()),
+                            AccountServicesFixture.component(db.dataSource()).permissions().current()),
                     service.authenticate(inherited.access_token, service.adminResource(), Set.of())
                             .permissions);
             assertEquals(1, ((Number)db.scalar("select count(*) from oauth_client where clientId=?", OAuthService.CLI_CLIENT_ID)).intValue());

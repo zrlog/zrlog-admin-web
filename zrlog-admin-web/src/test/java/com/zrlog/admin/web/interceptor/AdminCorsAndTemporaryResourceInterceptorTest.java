@@ -17,7 +17,6 @@ import com.zrlog.admin.support.UploadFallbackZrLogConfig;
 import com.zrlog.admin.web.token.AdminTokenService;
 import com.zrlog.common.Constants;
 import com.zrlog.common.ZrLogConfig;
-import com.zrlog.model.WebSite;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -314,9 +313,9 @@ public class AdminCorsAndTemporaryResourceInterceptorTest {
                 new AdminTemporaryResourceInterceptor(
                                 () -> applicationConfig.getTokenService(),
                                 () -> false,
-                                AccountServicesFixture.component().permissions(),
+                                AccountServicesFixture.component(null).permissions(),
                                 new DbFileService(
-                                        ApplicationServicesFixture.websiteKv(), WebSite::new))
+                                        ApplicationServicesFixture.websiteKv(null), () -> { throw new IllegalStateException("Database is unavailable in this test"); }))
                         .doInterceptor(
                                 request(
                                         HttpMethod.GET,

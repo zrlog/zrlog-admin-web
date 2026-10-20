@@ -31,7 +31,7 @@ public class AdminStaticResourcePluginTest {
                             database.cacheService()::getPublicWebSiteInfo,
                             database.resources(),
                             "/blog",
-                            WebSite::new);
+                            () -> new WebSite(database.dataSource()));
             try {
                 assertFalse(plugin.autoStart());
                 assertFalse(plugin.isStarted());

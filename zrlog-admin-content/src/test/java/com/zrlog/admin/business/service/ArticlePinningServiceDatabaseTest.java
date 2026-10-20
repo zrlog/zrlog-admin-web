@@ -4,7 +4,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
-import com.hibegin.common.dao.DAO;
+import com.hibegin.common.dao.DataSourceWrapper;
 import com.zrlog.admin.business.content.ArticleAssistant;
 import com.zrlog.admin.business.exception.ArticleNotPinnedException;
 import com.zrlog.admin.business.exception.ArticlePinningNotAllowedException;
@@ -38,11 +38,11 @@ public class ArticlePinningServiceDatabaseTest {
     public void shouldPinMoveUnpinAndCompressPriorities() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
-            Long first = createArticle("First", false, false);
-            Long second = createArticle("Second", false, false);
-            Long third = createArticle("Third", false, false);
+            Long first = createArticle("First", false, false, db.dataSource());
+            Long second = createArticle("Second", false, false, db.dataSource());
+            Long third = createArticle("Third", false, false, db.dataSource());
             ArticlePinningService service =
-                    new ArticlePinningService(Log::new, ApplicationServicesFixture.locks());
+                    new ArticlePinningService(() -> new Log(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource()));
 
             assertIds(service.pin(first), first);
             assertIds(service.pin(second), second, first);
@@ -63,10 +63,10 @@ public class ArticlePinningServiceDatabaseTest {
     public void shouldRejectDraftAndPrivateArticles() throws Exception {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
             applicationConfig = ignored.config();
-            Long draft = createArticle("Draft", false, true);
-            Long privateArticle = createArticle("Private", true, false);
+            Long draft = createArticle("Draft", false, true, ignored.dataSource());
+            Long privateArticle = createArticle("Private", true, false, ignored.dataSource());
             ArticlePinningService service =
-                    new ArticlePinningService(Log::new, ApplicationServicesFixture.locks());
+                    new ArticlePinningService(() -> new Log(ignored.dataSource()), ApplicationServicesFixture.locks(ignored.dataSource()));
 
             assertThrows(ArticlePinningNotAllowedException.class, () -> service.pin(draft));
             assertThrows(ArticlePinningNotAllowedException.class, () -> service.pin(privateArticle));
@@ -78,8 +78,8 @@ public class ArticlePinningServiceDatabaseTest {
     public void shouldSerializeConcurrentPinsWithDatabaseLock() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
-            Long first = createArticle("Concurrent First", false, false);
-            Long second = createArticle("Concurrent Second", false, false);
+            Long first = createArticle("Concurrent First", false, false, db.dataSource());
+            Long second = createArticle("Concurrent Second", false, false, db.dataSource());
             CountDownLatch ready = new CountDownLatch(2);
             CountDownLatch start = new CountDownLatch(1);
             ExecutorService executor = Executors.newFixedThreadPool(2);
@@ -90,7 +90,7 @@ public class ArticlePinningServiceDatabaseTest {
                                     ready.countDown();
                                     start.await();
                                     return new ArticlePinningService(
-                                                    Log::new, ApplicationServicesFixture.locks())
+                                                    () -> new Log(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource()))
                                             .pin(first);
                                 });
                 Future<ArticlePinningResponse> secondResult =
@@ -99,7 +99,7 @@ public class ArticlePinningServiceDatabaseTest {
                                     ready.countDown();
                                     start.await();
                                     return new ArticlePinningService(
-                                                    Log::new, ApplicationServicesFixture.locks())
+                                                    () -> new Log(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource()))
                                             .pin(second);
                                 });
                 ready.await();
@@ -108,7 +108,7 @@ public class ArticlePinningServiceDatabaseTest {
                 secondResult.get();
 
                 List<ArticlePinningEntryResponse> items =
-                        new ArticlePinningService(Log::new, ApplicationServicesFixture.locks())
+                        new ArticlePinningService(() -> new Log(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource()))
                                 .list()
                                 .getItems();
                 assertEquals(Set.of(first, second), items.stream()
@@ -129,9 +129,9 @@ public class ArticlePinningServiceDatabaseTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
             ArticlePinningService service =
-                    new ArticlePinningService(Log::new, ApplicationServicesFixture.locks());
+                    new ArticlePinningService(() -> new Log(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource()));
             for (int i = 1; i <= 40; i++) {
-                service.pin(createArticle("Pinned " + i, false, false));
+                service.pin(createArticle("Pinned " + i, false, false, db.dataSource()));
             }
 
             List<ArticlePinningEntryResponse> items = service.list().getItems();
@@ -158,7 +158,7 @@ public class ArticlePinningServiceDatabaseTest {
         }
     }
 
-    private Long createArticle(String title, boolean privacy, boolean rubbish) throws Exception {
+    private Long createArticle(String title, boolean privacy, boolean rubbish, DataSourceWrapper testDataSource) throws Exception {
         CreateArticleRequest request = new CreateArticleRequest();
         request.setTitle(title);
         request.setAlias(title.toLowerCase().replace(' ', '-'));
@@ -177,18 +177,18 @@ public class ArticlePinningServiceDatabaseTest {
                                 new AdminPageDataFactory(
                                         ApplicationServicesFixture.site(applicationConfig),
                                         () -> "test",
-                                        ApplicationServicesFixture.messages(),
-                                        AccountServicesFixture.component().permissions()),
-                                AccountServicesFixture.component().permissions(),
-                                AccountServicesFixture.component().preferences(),
+                                        ApplicationServicesFixture.messages(testDataSource),
+                                        AccountServicesFixture.component(testDataSource).permissions()),
+                                AccountServicesFixture.component(testDataSource).permissions(),
+                                AccountServicesFixture.component(testDataSource).preferences(),
                                 new ArticleVersionService(
-                                        AccountServicesFixture.component().permissions(),
-                                        Log::new,
-                                        () -> new LogVersion(DAO.getDefaultDataSource())),
+                                        AccountServicesFixture.component(testDataSource).permissions(),
+                                        () -> new Log(testDataSource),
+                                        () -> new LogVersion(testDataSource)),
                                 new ArticlePinningService(
-                                        Log::new, ApplicationServicesFixture.locks()),
-                                Log::new,
-                                ApplicationServicesFixture.locks())
+                                        () -> new Log(testDataSource), ApplicationServicesFixture.locks(testDataSource)),
+                                () -> new Log(testDataSource),
+                                ApplicationServicesFixture.locks(testDataSource))
                         .create(token(), request);
         return response.getLogId();
     }

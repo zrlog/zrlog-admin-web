@@ -7,6 +7,7 @@ import static org.junit.Assert.assertTrue;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import com.hibegin.common.dao.DataSourceWrapper;
 import com.zrlog.admin.business.rest.response.MessageCenterNoticeResponse;
 import com.zrlog.admin.business.rest.response.MessageCenterOperationNoticeEntry;
 import com.zrlog.admin.business.rest.response.ReplaceArticleResourceUrlResponse;
@@ -260,8 +261,8 @@ public class MessageCenterOperationServiceTest {
     }
 
     private static class FakeWebsiteCacheService extends WebsiteCacheService {
-        FakeWebsiteCacheService() {
-            super(ApplicationServicesFixture.websiteKv());
+        FakeWebsiteCacheService(DataSourceWrapper testDataSource) {
+            super(ApplicationServicesFixture.websiteKv(testDataSource));
         }
 
         private Map<String, Object> values;
@@ -284,8 +285,8 @@ public class MessageCenterOperationServiceTest {
     }
 
     private static class FakeMessageCenterStateService extends MessageCenterStateService {
-        FakeMessageCenterStateService() {
-            super(ApplicationServicesFixture.websiteCache(), WebSite::new);
+        FakeMessageCenterStateService(DataSourceWrapper testDataSource) {
+            super(ApplicationServicesFixture.websiteCache(testDataSource), () -> new WebSite(testDataSource));
         }
 
         private boolean changed;

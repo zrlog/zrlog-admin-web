@@ -4,7 +4,6 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import com.hibegin.common.dao.DAO;
 import com.hibegin.common.dao.DataSourceWrapper;
 import com.hibegin.common.dao.DatabaseConnectPoolInfo;
 
@@ -25,9 +24,9 @@ public class LogVersionTest {
     @Test
     public void shouldBuildSqlForArticleVersionWritesAndQueries() throws Exception {
         CapturingQueryRunner queryRunner = new CapturingQueryRunner();
-        DataSourceWrapper previousDataSource = setDefaultDataSource(dataSource(queryRunner));
-        try {
-            LogVersion logVersion = new LogVersion(DAO.getDefaultDataSource());
+        DataSourceWrapper source = dataSource(queryRunner);
+        {
+            LogVersion logVersion = new LogVersion(source);
             Date createdAt = new Date(1_000);
 
             assertTrue(logVersion.savePatch(7, 3, "{\"diff\":true}", 9, "title", createdAt, 2));
@@ -52,19 +51,7 @@ public class LogVersionTest {
             assertEquals("select article_version, patch_json from log_version"
                     + " where log_id=? and article_version>? order by article_version desc", queryRunner.sql);
             assertArrayEquals(new Object[]{7, 2}, queryRunner.params);
-        } finally {
-            restoreDefaultDataSource(previousDataSource);
         }
-    }
-
-    private static DataSourceWrapper setDefaultDataSource(DataSourceWrapper dataSource) {
-        DataSourceWrapper previous = DAO.getDefaultDataSource();
-        DAO.setDs(dataSource);
-        return previous;
-    }
-
-    private static void restoreDefaultDataSource(DataSourceWrapper previousDataSource) {
-        DAO.setDs(previousDataSource);
     }
 
     private static DataSourceWrapper dataSource(CapturingQueryRunner queryRunner) {

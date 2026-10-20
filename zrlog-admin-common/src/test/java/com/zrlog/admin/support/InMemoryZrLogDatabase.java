@@ -18,7 +18,9 @@ import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.common.vo.PublicWebSiteInfo;
 import com.zrlog.data.di.DaggerDataComponent;
 import com.zrlog.data.di.DataComponent;
+import com.zrlog.data.service.UserPreferenceStore;
 import com.zrlog.data.web.DataWebSetup;
+import com.zrlog.model.User;
 import com.zrlog.plugin.IPlugin;
 import com.zrlog.plugin.Plugins;
 import com.zrlog.test.support.ZrLogTestDatabase;
@@ -207,6 +209,8 @@ public class InMemoryZrLogDatabase implements AutoCloseable {
         private TestZrLogConfig(DataSourceWrapper dataSource, CacheService cacheService) {
             super(18080, null, "");
             this.testDataSource = dataSource;
+            this.testTokens =
+                new AdminTokenService(60, this::isInstalled, this::staticHtmlEnabled, () -> new User(testDataSource), () -> new UserPreferenceStore(() -> new User(testDataSource)));
             this.dataSource = dataSource;
             this.cacheService = cacheService;
             serverConfig.getBindings().instance(CacheService.class, cacheService);
@@ -254,8 +258,7 @@ public class InMemoryZrLogDatabase implements AutoCloseable {
             return Boolean.TRUE.equals(cacheService.getPublicWebSiteInfo().getGenerator_html_status());
         }
 
-        private final TokenService testTokens =
-                new AdminTokenService(60, this::isInstalled, this::staticHtmlEnabled);
+        private final TokenService testTokens;
 
         @Override
         protected TokenService initTokenService() {

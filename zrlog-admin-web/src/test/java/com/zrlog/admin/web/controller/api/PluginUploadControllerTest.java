@@ -2,6 +2,7 @@ package com.zrlog.admin.web.controller.api;
 
 import static org.junit.Assert.*;
 
+import com.hibegin.common.dao.DataSourceWrapper;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
@@ -57,19 +58,19 @@ public class PluginUploadControllerTest {
                         }
                         return false;
                     }));
-            String allowed = token("plugin.manage");
-            String denied = token("site.configure");
+            String allowed = token("plugin.manage", ignored.dataSource());
+            String denied = token("site.configure", ignored.dataSource());
             AdminTokenThreadLocal.remove();
-            assertEquals(403, call(denied, body));
-            assertEquals(401, call("invalid-token", body));
+            assertEquals(403, call(denied, body, ignored.dataSource()));
+            assertEquals(401, call("invalid-token", body, ignored.dataSource()));
             assertEquals(0, forwarded.get());
-            assertEquals(200, call(allowed, body));
+            assertEquals(200, call(allowed, body, ignored.dataSource()));
             assertEquals(1, forwarded.get());
             assertNull(AdminTokenThreadLocal.getUser());
         }
     }
 
-    private String token(String permission) throws Exception {
+    private String token(String permission, DataSourceWrapper testDataSource) throws Exception {
         PersonalTokenModels.Create create = new PersonalTokenModels.Create();
         create.name = permission;
         create.permissionMode = "custom";
@@ -80,24 +81,24 @@ public class PluginUploadControllerTest {
                                                 ::configured,
                                         ApplicationServicesFixture.available(
                                                 applicationConfig, McpWebSetup.class),
-                                        AccountServicesFixture.component().permissions(),
-                                        AccountServicesFixture.component().security(),
+                                        AccountServicesFixture.component(testDataSource).permissions(),
+                                        AccountServicesFixture.component(testDataSource).security(),
                                         tokenResource ->
                                                 new PersonalAccessTokenService(
                                                         tokenResource,
-                                                        AccountServicesFixture.component()
+                                                        AccountServicesFixture.component(testDataSource)
                                                                 .permissions(),
-                                                        AccountServicesFixture.component()
+                                                        AccountServicesFixture.component(testDataSource)
                                                                 .security()),
-                                        AccountServicesFixture.component().backend())
+                                        AccountServicesFixture.component(testDataSource).backend())
                                 .mcpResource(),
-                        AccountServicesFixture.component().permissions(),
-                        AccountServicesFixture.component().security())
+                        AccountServicesFixture.component(testDataSource).permissions(),
+                        AccountServicesFixture.component(testDataSource).security())
                 .create(create)
                 .token;
     }
 
-    private int call(String token, byte[] body) throws Exception {
+    private int call(String token, byte[] body, DataSourceWrapper testDataSource) throws Exception {
         var config = applicationConfig;
         HttpRequest request = (HttpRequest) Proxy.newProxyInstance(getClass().getClassLoader(),
                 new Class[]{HttpRequest.class}, (proxy, method, args) -> {
@@ -129,19 +130,19 @@ public class PluginUploadControllerTest {
                                 ApplicationServicesFixture.backend(applicationConfig)::configured,
                                 ApplicationServicesFixture.available(
                                         applicationConfig, McpWebSetup.class),
-                                AccountServicesFixture.component().permissions(),
-                                AccountServicesFixture.component().security(),
+                                AccountServicesFixture.component(testDataSource).permissions(),
+                                AccountServicesFixture.component(testDataSource).security(),
                                 tokenResource ->
                                         new PersonalAccessTokenService(
                                                 tokenResource,
-                                                AccountServicesFixture.component().permissions(),
-                                                AccountServicesFixture.component().security()),
-                                AccountServicesFixture.component().backend()),
-                        AccountServicesFixture.component().permissions(),
-                        AccountServicesFixture.component().preferences(),
+                                                AccountServicesFixture.component(testDataSource).permissions(),
+                                                AccountServicesFixture.component(testDataSource).security()),
+                                AccountServicesFixture.component(testDataSource).backend()),
+                        AccountServicesFixture.component(testDataSource).permissions(),
+                        AccountServicesFixture.component(testDataSource).preferences(),
                         new WebhookService(
-                                ApplicationServicesFixture.messages(),
-                                ApplicationServicesFixture.websiteCache()))
+                                ApplicationServicesFixture.messages(testDataSource),
+                                ApplicationServicesFixture.websiteCache(testDataSource)))
                 .doInterceptor(request, response);
         return status.get();
     }

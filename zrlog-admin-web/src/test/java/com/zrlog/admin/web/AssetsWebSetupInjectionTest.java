@@ -48,8 +48,8 @@ public class AssetsWebSetupInjectionTest {
                             new AdminPageDataFactory(
                                     db.cacheService()::getPublicWebSiteInfo,
                                     () -> "",
-                                    ApplicationServicesFixture.messages(),
-                                    AccountServicesFixture.component().permissions()));
+                                    ApplicationServicesFixture.messages(db.dataSource()),
+                                    AccountServicesFixture.component(db.dataSource()).permissions()));
             var data = DaggerDataComponent.factory().create(db::dataSource, () -> true);
             server.getBindings()
                     .instance(DataComponent.class, data)
@@ -62,7 +62,7 @@ public class AssetsWebSetupInjectionTest {
                                             () -> null,
                                             () -> null,
                                             java.util.Collections::emptyList))
-                    .instance(AccountComponent.class, AccountServicesFixture.component());
+                    .instance(AccountComponent.class, AccountServicesFixture.component(db.dataSource()));
             new AssetsWebSetup(server, () -> null).setup();
 
             assertEquals(List.of("/attached/old.png"), missingReferences(server));

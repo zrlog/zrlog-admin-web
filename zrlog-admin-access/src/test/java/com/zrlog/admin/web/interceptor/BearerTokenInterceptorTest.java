@@ -2,6 +2,7 @@ package com.zrlog.admin.web.interceptor;
 
 import static org.junit.Assert.*;
 
+import com.hibegin.common.dao.DataSourceWrapper;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.ResponseBody;
 import com.hibegin.http.server.api.HttpRequest;
@@ -12,6 +13,7 @@ import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.security.DelegatedAccess;
 import com.zrlog.admin.business.security.PersonalTokenModels;
 import com.zrlog.admin.business.service.*;
+import com.zrlog.admin.business.service.AccountPermissionService;
 import com.zrlog.admin.business.service.OAuthService;
 import com.zrlog.admin.business.service.PersonalAccessTokenService;
 import com.zrlog.admin.business.service.WebhookService;
@@ -37,14 +39,18 @@ public class BearerTokenInterceptorTest {
     private ZrLogConfig applicationConfig;
 
     public static class TestController extends Controller {
+        private final AccountPermissionService permissions;
+
+        TestController(AccountPermissionService permissions) {
+            this.permissions = permissions;
+        }
+
         @ResponseBody
         @RequiresAction(value = AccountAction.TAXONOMY_READ, descriptionKey = "taxonomy.list")
         public ApiStandardResponse<Boolean> read() {
             return new ApiStandardResponse<>(
                     DelegatedAccess.active()
-                            && !AccountServicesFixture.component()
-                                    .permissions()
-                                    .current()
+                            && !permissions.current()
                                     .canPublish());
         }
 
@@ -63,6 +69,9 @@ public class BearerTokenInterceptorTest {
     @Test public void localizesResponsesAndControllerErrorsForTheTokenOwnerAndRestoresTheThread() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open(); var language = AdminLanguageContext.open("zh_CN")) {
             applicationConfig = db.config();
+            applicationConfig.getServerConfig().getBindings().controller(
+                    TestController.class,
+                    (resolver, request, response) -> new TestController(AccountServicesFixture.component(db.dataSource()).permissions()));
             var config = applicationConfig.getServerConfig();
             config.getRouter().addMapper("/api/admin/test", TestController.class);
             db.putWebsite("language", "zh_CN");
@@ -77,28 +86,28 @@ public class BearerTokenInterceptorTest {
                                                             ::configured,
                                                     ApplicationServicesFixture.available(
                                                             applicationConfig, McpWebSetup.class),
-                                                    AccountServicesFixture.component()
+                                                    AccountServicesFixture.component(db.dataSource())
                                                             .permissions(),
-                                                    AccountServicesFixture.component().security(),
+                                                    AccountServicesFixture.component(db.dataSource()).security(),
                                                     tokenResource ->
                                                             new PersonalAccessTokenService(
                                                                     tokenResource,
                                                                     AccountServicesFixture
-                                                                            .component()
+                                                                            .component(db.dataSource())
                                                                             .permissions(),
                                                                     AccountServicesFixture
-                                                                            .component()
+                                                                            .component(db.dataSource())
                                                                             .security()),
-                                                    AccountServicesFixture.component().backend())
+                                                    AccountServicesFixture.component(db.dataSource()).backend())
                                             .mcpResource(),
-                                    AccountServicesFixture.component().permissions(),
-                                    AccountServicesFixture.component().security())
+                                    AccountServicesFixture.component(db.dataSource()).permissions(),
+                                    AccountServicesFixture.component(db.dataSource()).security())
                             .create(body)
                             .token;
             AdminTokenThreadLocal.remove();
             var parent = I18nUtil.threadLocal.get();
-            assertEquals("en_US", ((ApiStandardResponse<?>) call("/api/admin/test/language", token).rendered).getData());
-            var error = (ApiStandardResponse<?>) call("/api/admin/test/failure", token).rendered;
+            assertEquals("en_US", ((ApiStandardResponse<?>) call("/api/admin/test/language", token, db.dataSource()).rendered).getData());
+            var error = (ApiStandardResponse<?>) call("/api/admin/test/failure", token, db.dataSource()).rendered;
             assertEquals(9016, error.getError());
             try (var english = AdminLanguageContext.open("en_US")) {
                 assertEquals(I18nUtil.getAdminBackendStringFromRes("admin.permission.error"), error.getMessage());
@@ -107,14 +116,17 @@ public class BearerTokenInterceptorTest {
             assertEquals("zh_CN", parent.getLocale());
             assertNull(AdminTokenThreadLocal.getUser());
             db.execute("update user set preferences=null where userId=1");
-            assertEquals("zh_CN", ((ApiStandardResponse<?>) call("/api/admin/test/language", token).rendered).getData());
-            assertEquals(401, call("/api/admin/test/language", "invalid").status);
+            assertEquals("zh_CN", ((ApiStandardResponse<?>) call("/api/admin/test/language", token, db.dataSource()).rendered).getData());
+            assertEquals(401, call("/api/admin/test/language", "invalid", db.dataSource()).status);
             assertSame(parent, I18nUtil.threadLocal.get());
         }
     }
     @Test public void bearerReusesActionBindingsWithoutCookieOrSessionFallback() throws Exception {
         try (InMemoryZrLogDatabase db=InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
+            applicationConfig.getServerConfig().getBindings().controller(
+                    TestController.class,
+                    (resolver, request, response) -> new TestController(AccountServicesFixture.component(db.dataSource()).permissions()));
             var config=db.config().getServerConfig(); config.getRouter().addMapper("/api/admin/test",TestController.class);
             PersonalTokenModels.Create body=new PersonalTokenModels.Create(); body.name="test"; body.permissionMode="custom"; body.permissions=List.of("taxonomy.read");
             var service =
@@ -124,34 +136,34 @@ public class BearerTokenInterceptorTest {
                                                     ::configured,
                                             ApplicationServicesFixture.available(
                                                     db.config(), McpWebSetup.class),
-                                            AccountServicesFixture.component().permissions(),
-                                            AccountServicesFixture.component().security(),
+                                            AccountServicesFixture.component(db.dataSource()).permissions(),
+                                            AccountServicesFixture.component(db.dataSource()).security(),
                                             tokenResource ->
                                                     new PersonalAccessTokenService(
                                                             tokenResource,
-                                                            AccountServicesFixture.component()
+                                                            AccountServicesFixture.component(db.dataSource())
                                                                     .permissions(),
-                                                            AccountServicesFixture.component()
+                                                            AccountServicesFixture.component(db.dataSource())
                                                                     .security()),
-                                            AccountServicesFixture.component().backend())
+                                            AccountServicesFixture.component(db.dataSource()).backend())
                                     .mcpResource(),
-                            AccountServicesFixture.component().permissions(),
-                            AccountServicesFixture.component().security());
+                            AccountServicesFixture.component(db.dataSource()).permissions(),
+                            AccountServicesFixture.component(db.dataSource()).security());
             String token=service.create(body).token;
             var previous=AdminTokenThreadLocal.getUser();
-            Recorder success=call("/api/admin/test/read",token);
+            Recorder success=call("/api/admin/test/read",token, db.dataSource());
             assertEquals(Boolean.TRUE,((ApiStandardResponse<?>)success.rendered).getData());
             assertFalse(success.headers.containsKey("Set-Cookie")); assertFalse(DelegatedAccess.active()); assertSame(previous,AdminTokenThreadLocal.getUser());
-            assertEquals(403,call("/api/admin/test/write",token).status);
-            assertEquals(403,call("/api/admin/test/unbound",token).status);
-            assertEquals(403,call("/admin/user",token).status);
-            assertEquals(401,call("/api/admin/test/read","bad-token").status);
+            assertEquals(403,call("/api/admin/test/write",token, db.dataSource()).status);
+            assertEquals(403,call("/api/admin/test/unbound",token, db.dataSource()).status);
+            assertEquals(403,call("/admin/user",token, db.dataSource()).status);
+            assertEquals(401,call("/api/admin/test/read","bad-token", db.dataSource()).status);
             body.permissionMode=null; body.scopes=List.of("articles:read"); body.permissions=List.of();
-            assertEquals(401,call("/api/admin/test/read",service.create(body).token).status);
+            assertEquals(401,call("/api/admin/test/read",service.create(body).token, db.dataSource()).status);
             assertFalse(DelegatedAccess.active()); assertSame(previous,AdminTokenThreadLocal.getUser());
         }
     }
-    private Recorder call(String uri,String token) throws Exception {
+    private Recorder call(String uri,String token, DataSourceWrapper testDataSource) throws Exception {
         var config=applicationConfig.getServerConfig(); RequestConfig requestConfig=new RequestConfig(); requestConfig.setRouter(config.getRouter());
         HttpRequest request=(HttpRequest)Proxy.newProxyInstance(BearerTokenInterceptorTest.class.getClassLoader(),new Class[]{HttpRequest.class},(proxy,method,args)->{
             switch(method.getName()) {
@@ -175,19 +187,19 @@ public class BearerTokenInterceptorTest {
                                 ApplicationServicesFixture.backend(applicationConfig)::configured,
                                 ApplicationServicesFixture.available(
                                         applicationConfig, McpWebSetup.class),
-                                AccountServicesFixture.component().permissions(),
-                                AccountServicesFixture.component().security(),
+                                AccountServicesFixture.component(testDataSource).permissions(),
+                                AccountServicesFixture.component(testDataSource).security(),
                                 tokenResource ->
                                         new PersonalAccessTokenService(
                                                 tokenResource,
-                                                AccountServicesFixture.component().permissions(),
-                                                AccountServicesFixture.component().security()),
-                                AccountServicesFixture.component().backend()),
-                        AccountServicesFixture.component().permissions(),
-                        AccountServicesFixture.component().preferences(),
+                                                AccountServicesFixture.component(testDataSource).permissions(),
+                                                AccountServicesFixture.component(testDataSource).security()),
+                                AccountServicesFixture.component(testDataSource).backend()),
+                        AccountServicesFixture.component(testDataSource).permissions(),
+                        AccountServicesFixture.component(testDataSource).preferences(),
                         new WebhookService(
-                                ApplicationServicesFixture.messages(),
-                                ApplicationServicesFixture.websiteCache()));
+                                ApplicationServicesFixture.messages(testDataSource),
+                                ApplicationServicesFixture.websiteCache(testDataSource)));
         assertTrue(interceptor.isHandleAble(request)); assertFalse(interceptor.doInterceptor(request,recorder.response())); return recorder;
     }
     private static class Recorder {

@@ -57,35 +57,35 @@ public class McpInterceptorTest {
             applicationConfig = db.config();
             db.putWebsite("language", "en_US");
             db.execute("update user set preferences=? where userId=1", "{\"language\":\"zh_CN\"}");
-            String chineseToken = personalToken();
+            String chineseToken = personalToken(db.dataSource());
             db.execute("insert into user(userId,userName,role,preferences) values(2,'other','admin',?)", "{\"language\":\"en_US\"}");
             login(2);
-            String englishToken = personalToken();
+            String englishToken = personalToken(db.dataSource());
             // An unrelated browser identity and locale must not override the Bearer token owner.
             I18nVO context = I18nUtil.addToRequest(null, "en_US");
             context.setLocale("en_US");
-            assertTitle(chineseToken, "搜索文章");
+            assertTitle(chineseToken, "搜索文章", db.dataSource());
             assertEquals(2, AdminTokenThreadLocal.getUser().getUserId());
             AdminTokenThreadLocal.remove();
-            assertTitle(englishToken, "Search articles");
-            assertTitle(chineseToken, "搜索文章");
+            assertTitle(englishToken, "Search articles", db.dataSource());
+            assertTitle(chineseToken, "搜索文章", db.dataSource());
             assertSame(context, I18nUtil.threadLocal.get());
             assertEquals("en_US", context.getLocale());
             assertNull(AdminTokenThreadLocal.getUser());
 
             db.execute("update user set preferences=? where userId=1", "{\"language\":\"en_US\"}");
-            assertTitle(chineseToken, "Search articles");
+            assertTitle(chineseToken, "Search articles", db.dataSource());
             db.execute("update user set preferences=null where userId=1");
             db.putWebsite("language", "zh_CN");
-            assertTitle(chineseToken, "搜索文章");
-            assertTitle(englishToken, "Search articles");
+            assertTitle(chineseToken, "搜索文章", db.dataSource());
+            assertTitle(englishToken, "Search articles", db.dataSource());
             for (String preferences : List.of("{}", "{broken", "{\"language\":\"xx\"}")) {
                 db.execute("update user set preferences=? where userId=1", preferences);
-                assertTitle(chineseToken, "搜索文章");
+                assertTitle(chineseToken, "搜索文章", db.dataSource());
             }
             db.putWebsite("language", "en_US");
-            assertTitle(chineseToken, "Search articles");
-            Recorder rejected = call("bad-token", "tools/list", "{}");
+            assertTitle(chineseToken, "Search articles", db.dataSource());
+            Recorder rejected = call("bad-token", "tools/list", "{}", db.dataSource());
             assertEquals(401, rejected.status);
             assertTrue(rejected.headers.get("WWW-Authenticate").contains("resource_metadata="));
             assertFalse(rejected.headers.get("WWW-Authenticate").contains("scope="));
@@ -98,26 +98,26 @@ public class McpInterceptorTest {
     @Test public void oauthUsesTheSameLanguageForInstructionsErrorsAndToolsWithoutTranslatingArticles() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
-            String token = oauthToken();
+            String token = oauthToken(db.dataSource());
             db.execute("update user set preferences=? where userId=1", "{\"language\":\"zh_CN\"}");
             AdminTokenThreadLocal.remove();
-            assertTitle(token, "搜索文章");
-            JsonObject initialize = call(token, "initialize", "{\"protocolVersion\":\"2025-11-25\",\"capabilities\":{},\"clientInfo\":{}}").result();
+            assertTitle(token, "搜索文章", db.dataSource());
+            JsonObject initialize = call(token, "initialize", "{\"protocolVersion\":\"2025-11-25\",\"capabilities\":{},\"clientInfo\":{}}", db.dataSource()).result();
             assertTrue(initialize.get("instructions").getAsString().startsWith("ZrLog Test\n\n按授权搜索和读取文章"));
             assertEquals("ZrLog Test", initialize.getAsJsonObject("serverInfo").get("title").getAsString());
-            Recorder unknown = call(token, "tools/call", "{\"name\":\"unknown\"}");
+            Recorder unknown = call(token, "tools/call", "{\"name\":\"unknown\"}", db.dataSource());
             assertEquals(-32602, unknown.body.getAsJsonObject("error").get("code").getAsInt());
             assertEquals("未知工具", unknown.body.getAsJsonObject("error").get("message").getAsString());
-            assertToolError(call(token, "tools/call", "{\"name\":\"read_article\",\"arguments\":{\"id\":999}}").result(), "文章不可用");
-            assertToolError(call(token, "tools/call", "{\"name\":\"search_articles\",\"arguments\":{\"limit\":11}}").result(), "知识库工具参数无效");
+            assertToolError(call(token, "tools/call", "{\"name\":\"read_article\",\"arguments\":{\"id\":999}}", db.dataSource()).result(), "文章不可用");
+            assertToolError(call(token, "tools/call", "{\"name\":\"search_articles\",\"arguments\":{\"limit\":11}}", db.dataSource()).result(), "知识库工具参数无效");
             db.execute("insert into log(logId,userId,typeId,title,markdown,rubbish,privacy) values(1,1,1,?,?,false,false)",
                     "Original English title", "Original English content");
-            JsonObject article = call(token, "tools/call", "{\"name\":\"read_article\",\"arguments\":{\"id\":1}}").result().getAsJsonObject("structuredContent");
+            JsonObject article = call(token, "tools/call", "{\"name\":\"read_article\",\"arguments\":{\"id\":1}}", db.dataSource()).result().getAsJsonObject("structuredContent");
             assertEquals("Original English content", article.get("content").getAsString());
             assertEquals("Original English title", article.getAsJsonObject("source").get("title").getAsString());
             db.execute("update user set preferences=? where userId=1", "{\"language\":\"en_US\"}");
-            assertTitle(token, "Search articles");
-            assertToolError(call(token, "tools/call", "{\"name\":\"read_article\",\"arguments\":{\"id\":999}}").result(), "Article unavailable");
+            assertTitle(token, "Search articles", db.dataSource());
+            assertToolError(call(token, "tools/call", "{\"name\":\"read_article\",\"arguments\":{\"id\":999}}", db.dataSource()).result(), "Article unavailable");
         }
     }
 
@@ -134,58 +134,58 @@ public class McpInterceptorTest {
                                                             ::configured,
                                                     ApplicationServicesFixture.available(
                                                             db.config(), McpWebSetup.class),
-                                                    AccountServicesFixture.component()
+                                                    AccountServicesFixture.component(db.dataSource())
                                                             .permissions(),
-                                                    AccountServicesFixture.component().security(),
+                                                    AccountServicesFixture.component(db.dataSource()).security(),
                                                     tokenResource ->
                                                             new PersonalAccessTokenService(
                                                                     tokenResource,
                                                                     AccountServicesFixture
-                                                                            .component()
+                                                                            .component(db.dataSource())
                                                                             .permissions(),
                                                                     AccountServicesFixture
-                                                                            .component()
+                                                                            .component(db.dataSource())
                                                                             .security()),
-                                                    AccountServicesFixture.component().backend())
+                                                    AccountServicesFixture.component(db.dataSource()).backend())
                                             .mcpResource(),
-                                    AccountServicesFixture.component().permissions(),
-                                    AccountServicesFixture.component().security())
+                                    AccountServicesFixture.component(db.dataSource()).permissions(),
+                                    AccountServicesFixture.component(db.dataSource()).security())
                             .create(input)
                             .token;
             AdminTokenThreadLocal.remove();
-            JsonObject created=call(token,"tools/call","{\"name\":\"create_article\",\"arguments\":{\"title\":\"Remote draft\",\"typeId\":1,\"status\":\"draft\",\"content\":\""+"a".repeat(20000)+"\"}}").result();
+            JsonObject created=call(token,"tools/call","{\"name\":\"create_article\",\"arguments\":{\"title\":\"Remote draft\",\"typeId\":1,\"status\":\"draft\",\"content\":\""+"a".repeat(20000)+"\"}}", db.dataSource()).result();
             assertFalse(created.toString(),created.get("isError").getAsBoolean());
             long id=created.getAsJsonObject("structuredContent").get("id").getAsLong();
-            JsonObject detail=call(token,"tools/call","{\"name\":\"get_article\",\"arguments\":{\"id\":"+id+"}}").result();
+            JsonObject detail=call(token,"tools/call","{\"name\":\"get_article\",\"arguments\":{\"id\":"+id+"}}", db.dataSource()).result();
             assertEquals(0,detail.getAsJsonObject("structuredContent").get("version").getAsInt());
-            JsonObject published=call(token,"tools/call","{\"name\":\"publish_article\",\"arguments\":{\"id\":"+id+",\"version\":0}}").result();
+            JsonObject published=call(token,"tools/call","{\"name\":\"publish_article\",\"arguments\":{\"id\":"+id+",\"version\":0}}", db.dataSource()).result();
             assertFalse(published.toString(),published.get("isError").getAsBoolean());
             assertEquals("published",published.getAsJsonObject("structuredContent").get("status").getAsString());
             assertNull(AdminTokenThreadLocal.getUser());
             login(1);
-            String taxonomy=oauthToken("taxonomy:read");
+            String taxonomy=oauthToken("taxonomy:read", db.dataSource());
             AdminTokenThreadLocal.remove();
-            JsonArray tools=call(taxonomy,"tools/list","{}").result().getAsJsonArray("tools");
+            JsonArray tools=call(taxonomy,"tools/list","{}", db.dataSource()).result().getAsJsonArray("tools");
             assertEquals(2,tools.size());assertEquals("list_categories",tools.get(0).getAsJsonObject().get("name").getAsString());
-            assertFalse(call(taxonomy,"tools/call","{\"name\":\"list_categories\",\"arguments\":{}}").result().get("isError").getAsBoolean());
-            assertTrue(call(taxonomy,"tools/call","{\"name\":\"create_article\",\"arguments\":{}}").result().get("isError").getAsBoolean());
+            assertFalse(call(taxonomy,"tools/call","{\"name\":\"list_categories\",\"arguments\":{}}", db.dataSource()).result().get("isError").getAsBoolean());
+            assertTrue(call(taxonomy,"tools/call","{\"name\":\"create_article\",\"arguments\":{}}", db.dataSource()).result().get("isError").getAsBoolean());
         }
     }
 
     @Test public void oauthWriteScopeDoesNotGrantPublishOrOtherAuthorsArticles() throws Exception {
         try (InMemoryZrLogDatabase db=InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
-            String token=oauthToken("articles:write");
+            String token=oauthToken("articles:write", db.dataSource());
             db.execute("insert into user(userId,userName,role) values(2,'other','author')");
             db.execute("insert into log(logId,userId,typeId,title,content,rubbish,privacy,version) values(10,2,1,'Other','Text',true,false,0)");
             db.execute("insert into log(logId,userId,typeId,title,content,rubbish,privacy,version) values(11,1,1,'Live','Text',false,false,0)");
             AdminTokenThreadLocal.remove();
-            assertEquals(2,call(token,"tools/list","{}").result().getAsJsonArray("tools").size());
-            assertTrue(call(token,"tools/call","{\"name\":\"update_article\",\"arguments\":{\"id\":10,\"version\":0,\"title\":\"Changed\"}}").result().get("isError").getAsBoolean());
-            assertTrue(call(token,"tools/call","{\"name\":\"create_article\",\"arguments\":{\"title\":\"Denied\",\"typeId\":1,\"status\":\"published\"}}").result().get("isError").getAsBoolean());
+            assertEquals(2,call(token,"tools/list","{}", db.dataSource()).result().getAsJsonArray("tools").size());
+            assertTrue(call(token,"tools/call","{\"name\":\"update_article\",\"arguments\":{\"id\":10,\"version\":0,\"title\":\"Changed\"}}", db.dataSource()).result().get("isError").getAsBoolean());
+            assertTrue(call(token,"tools/call","{\"name\":\"create_article\",\"arguments\":{\"title\":\"Denied\",\"typeId\":1,\"status\":\"published\"}}", db.dataSource()).result().get("isError").getAsBoolean());
             assertEquals("Other",db.scalar("select title from log where logId=10"));
-            assertTrue(call(token,"tools/call","{\"name\":\"update_article\",\"arguments\":{\"id\":11,\"version\":0,\"title\":\"Changed\"}}").result().get("isError").getAsBoolean());
-            assertTrue(call(token,"tools/call","{\"name\":\"update_article\",\"arguments\":{\"id\":11,\"version\":0,\"status\":\"draft\"}}").result().get("isError").getAsBoolean());
+            assertTrue(call(token,"tools/call","{\"name\":\"update_article\",\"arguments\":{\"id\":11,\"version\":0,\"title\":\"Changed\"}}", db.dataSource()).result().get("isError").getAsBoolean());
+            assertTrue(call(token,"tools/call","{\"name\":\"update_article\",\"arguments\":{\"id\":11,\"version\":0,\"status\":\"draft\"}}", db.dataSource()).result().get("isError").getAsBoolean());
             assertEquals("Live",db.scalar("select title from log where logId=11"));
             assertFalse(AccountAccess.truth(db.scalar("select rubbish from log where logId=11")));
         }
@@ -204,7 +204,7 @@ public class McpInterceptorTest {
             applicationConfig = db.config();
             String token;
             if (useOAuth) {
-                token = oauthToken("articles:write articles:publish");
+                token = oauthToken("articles:write articles:publish", db.dataSource());
             } else {
                 PersonalTokenModels.Create input = new PersonalTokenModels.Create();
                 input.name = "Audit writer"; input.permissionMode = "inherit";
@@ -216,29 +216,29 @@ public class McpInterceptorTest {
                                                                 ::configured,
                                                         ApplicationServicesFixture.available(
                                                                 db.config(), McpWebSetup.class),
-                                                        AccountServicesFixture.component()
+                                                        AccountServicesFixture.component(db.dataSource())
                                                                 .permissions(),
-                                                        AccountServicesFixture.component()
+                                                        AccountServicesFixture.component(db.dataSource())
                                                                 .security(),
                                                         tokenResource ->
                                                                 new PersonalAccessTokenService(
                                                                         tokenResource,
                                                                         AccountServicesFixture
-                                                                                .component()
+                                                                                .component(db.dataSource())
                                                                                 .permissions(),
                                                                         AccountServicesFixture
-                                                                                .component()
+                                                                                .component(db.dataSource())
                                                                                 .security()),
-                                                        AccountServicesFixture.component()
+                                                        AccountServicesFixture.component(db.dataSource())
                                                                 .backend())
                                                 .mcpResource(),
-                                        AccountServicesFixture.component().permissions(),
-                                        AccountServicesFixture.component().security())
+                                        AccountServicesFixture.component(db.dataSource()).permissions(),
+                                        AccountServicesFixture.component(db.dataSource()).security())
                                 .create(input)
                                 .token;
             }
             AdminTokenThreadLocal.remove();
-            call(token, "initialize", "{\"protocolVersion\":\"2025-11-25\",\"capabilities\":{},\"clientInfo\":{\"name\":\"initialize-only\",\"version\":\"99.0\"}}");
+            call(token, "initialize", "{\"protocolVersion\":\"2025-11-25\",\"capabilities\":{},\"clientInfo\":{\"name\":\"initialize-only\",\"version\":\"99.0\"}}", db.dataSource());
             String[][] clients = {
                     {"codex/0.42.0-beta.1 (Linux; x86_64)", "Linux", "codex", "0.42.0-beta.1"},
                     {"openai-mcp/1.0.0", "Unknown", "openai-mcp", "1.0.0"},
@@ -251,13 +251,13 @@ public class McpInterceptorTest {
                     {"   ", null, null, null}
             };
             for (String[] client : clients) {
-                JsonObject created = call(token, "tools/call", "{\"name\":\"create_article\",\"arguments\":{\"title\":\"Audit article\",\"typeId\":1,\"status\":\"draft\",\"content\":\"Text\"}}", client[0]).result();
+                JsonObject created = call(token, "tools/call", "{\"name\":\"create_article\",\"arguments\":{\"title\":\"Audit article\",\"typeId\":1,\"status\":\"draft\",\"content\":\"Text\"}}", client[0], db.dataSource()).result();
                 assertFalse(created.toString(), created.get("isError").getAsBoolean());
                 long id = created.getAsJsonObject("structuredContent").get("id").getAsLong();
-                JsonObject updated = call(token, "tools/call", "{\"name\":\"update_article\",\"arguments\":{\"id\":" + id + ",\"version\":0,\"title\":\"Updated draft\"}}", client[0]).result();
+                JsonObject updated = call(token, "tools/call", "{\"name\":\"update_article\",\"arguments\":{\"id\":" + id + ",\"version\":0,\"title\":\"Updated draft\"}}", client[0], db.dataSource()).result();
                 assertFalse(updated.toString(), updated.get("isError").getAsBoolean());
                 assertEquals("draft", updated.getAsJsonObject("structuredContent").get("status").getAsString());
-                JsonObject published = call(token, "tools/call", "{\"name\":\"publish_article\",\"arguments\":{\"id\":" + id + ",\"version\":1}}", client[0]).result();
+                JsonObject published = call(token, "tools/call", "{\"name\":\"publish_article\",\"arguments\":{\"id\":" + id + ",\"version\":1}}", client[0], db.dataSource()).result();
                 assertFalse(published.toString(), published.get("isError").getAsBoolean());
                 assertEquals("published", published.getAsJsonObject("structuredContent").get("status").getAsString());
                 JsonArray audit = JsonParser.parseString(String.valueOf(db.scalar("select value from website where name='admin_audit_log'"))).getAsJsonArray();
@@ -273,7 +273,7 @@ public class McpInterceptorTest {
                     assertEquals(client[3], entry.has("agentVersion") ? entry.get("agentVersion").getAsString() : null);
                 }
                 var displayed =
-                        new AdminAuditService(ApplicationServicesFixture.websiteKv())
+                        new AdminAuditService(ApplicationServicesFixture.websiteKv(db.dataSource()))
                                 .getRecentLogs()
                                 .get(0);
                 assertEquals("MCP", displayed.getBrowser());
@@ -290,13 +290,13 @@ public class McpInterceptorTest {
         assertEquals(result.get("structuredContent"), JsonParser.parseString(result.getAsJsonArray("content").get(0).getAsJsonObject().get("text").getAsString()));
     }
 
-    private void assertTitle(String token, String title) throws Exception {
-        Recorder response = call(token, "tools/list", "{}");
+    private void assertTitle(String token, String title, DataSourceWrapper testDataSource) throws Exception {
+        Recorder response = call(token, "tools/list", "{}", testDataSource);
         assertEquals(response.body.toString(), 200, response.status);
         assertEquals(title, response.result().getAsJsonArray("tools").get(0).getAsJsonObject().getAsJsonObject("annotations").get("title").getAsString());
     }
 
-    private String personalToken() throws Exception {
+    private String personalToken(DataSourceWrapper testDataSource) throws Exception {
         PersonalTokenModels.Create request = new PersonalTokenModels.Create();
         request.name = "MCP language test"; request.scopes = List.of("articles:read");
         return new PersonalAccessTokenService(
@@ -305,19 +305,19 @@ public class McpInterceptorTest {
                                                 ::configured,
                                         ApplicationServicesFixture.available(
                                                 applicationConfig, McpWebSetup.class),
-                                        AccountServicesFixture.component().permissions(),
-                                        AccountServicesFixture.component().security(),
+                                        AccountServicesFixture.component(testDataSource).permissions(),
+                                        AccountServicesFixture.component(testDataSource).security(),
                                         tokenResource ->
                                                 new PersonalAccessTokenService(
                                                         tokenResource,
-                                                        AccountServicesFixture.component()
+                                                        AccountServicesFixture.component(testDataSource)
                                                                 .permissions(),
-                                                        AccountServicesFixture.component()
+                                                        AccountServicesFixture.component(testDataSource)
                                                                 .security()),
-                                        AccountServicesFixture.component().backend())
+                                        AccountServicesFixture.component(testDataSource).backend())
                                 .mcpResource(),
-                        AccountServicesFixture.component().permissions(),
-                        AccountServicesFixture.component().security())
+                        AccountServicesFixture.component(testDataSource).permissions(),
+                        AccountServicesFixture.component(testDataSource).security())
                 .create(request)
                 .token;
     }
@@ -328,20 +328,20 @@ public class McpInterceptorTest {
         setter.setAccessible(true); AdminTokenThreadLocal.remove(); setter.invoke(null, token);
     }
 
-    private String oauthToken() throws Exception { return oauthToken("articles:read"); }
-    private String oauthToken(String scopes) throws Exception {
+    private String oauthToken(DataSourceWrapper testDataSource) throws Exception { return oauthToken("articles:read", testDataSource); }
+    private String oauthToken(String scopes, DataSourceWrapper testDataSource) throws Exception {
         OAuthService oauth =
                 new OAuthService(
                         ApplicationServicesFixture.backend(applicationConfig)::configured,
                         ApplicationServicesFixture.available(applicationConfig, McpWebSetup.class),
-                        AccountServicesFixture.component().permissions(),
-                        AccountServicesFixture.component().security(),
+                        AccountServicesFixture.component(testDataSource).permissions(),
+                        AccountServicesFixture.component(testDataSource).security(),
                         tokenResource ->
                                 new PersonalAccessTokenService(
                                         tokenResource,
-                                        AccountServicesFixture.component().permissions(),
-                                        AccountServicesFixture.component().security()),
-                        AccountServicesFixture.component().backend());
+                                        AccountServicesFixture.component(testDataSource).permissions(),
+                                        AccountServicesFixture.component(testDataSource).security()),
+                        AccountServicesFixture.component(testDataSource).backend());
         Client client = new Client(); client.name = "MCP language test"; client.redirectUris = List.of("http://127.0.0.1:3000/callback");
         client = oauth.register(client);
         String verifier = OAuthService.random();
@@ -360,11 +360,11 @@ public class McpInterceptorTest {
         return oauth.token(exchange).access_token;
     }
 
-    private Recorder call(String token, String method, String params) throws Exception {
-        return call(token, method, params, null);
+    private Recorder call(String token, String method, String params, DataSourceWrapper testDataSource) throws Exception {
+        return call(token, method, params, null, testDataSource);
     }
 
-    private Recorder call(String token, String method, String params, String userAgent) throws Exception {
+    private Recorder call(String token, String method, String params, String userAgent, DataSourceWrapper testDataSource) throws Exception {
         byte[] body = ("{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"" + method + "\",\"params\":" + params + "}").getBytes(StandardCharsets.UTF_8);
         Map<String, String> headers = new HashMap<>(Map.of("Authorization", "Bearer " + token, "Accept", "application/json, text/event-stream",
                 "Content-Type", "application/json", "Accept-Language", "fr-FR", "MCP-Protocol-Version", "2025-11-25"));
@@ -389,8 +389,8 @@ public class McpInterceptorTest {
                         new AdminPageDataFactory(
                                 ApplicationServicesFixture.site(applicationConfig),
                                 () -> "test",
-                                ApplicationServicesFixture.messages(),
-                                AccountServicesFixture.component().permissions()));
+                                ApplicationServicesFixture.messages(testDataSource),
+                                AccountServicesFixture.component(testDataSource).permissions()));
         var data =
                 DaggerDataComponent.factory()
                         .create(

@@ -23,8 +23,8 @@ public class ArticleMarkdownPreparationTest {
                             assertEquals("# Title", markdown);
                             return "<h1>Title</h1>";
                         },
-                        ApplicationServicesFixture.audit(),
-                        ApplicationServicesFixture.operations());
+                        ApplicationServicesFixture.audit(null),
+                        ApplicationServicesFixture.operations(null));
         CreateArticleRequest request = new CreateArticleRequest();
         request.setEditorType("markdown");
         request.setMarkdown("# Title");
@@ -53,8 +53,8 @@ public class ArticleMarkdownPreparationTest {
                         null,
                         null,
                         markdown -> null,
-                        ApplicationServicesFixture.audit(),
-                        ApplicationServicesFixture.operations());
+                        ApplicationServicesFixture.audit(null),
+                        ApplicationServicesFixture.operations(null));
         CreateArticleRequest request = new CreateArticleRequest();
         request.setEditorType("markdown");
         request.setMarkdown("# Title");

@@ -2,7 +2,7 @@ package com.zrlog.admin.business.service;
 
 import static org.junit.Assert.*;
 
-import com.hibegin.common.dao.DAO;
+import com.hibegin.common.dao.DataSourceWrapper;
 import com.zrlog.admin.business.content.ArticleAssistant;
 import com.zrlog.admin.business.exception.UpdateArticleExpireException;
 import com.zrlog.admin.business.rest.request.CreateArticleRequest;
@@ -51,26 +51,25 @@ public class ArticleConcurrentSaveTest {
                                                                 ApplicationServicesFixture.buildId(
                                                                         db.resources()),
                                                                 ApplicationServicesFixture
-                                                                        .messages(),
-                                                                AccountServicesFixture.component()
+                                                                        .messages(db.dataSource()),
+                                                                AccountServicesFixture.component(db.dataSource())
                                                                         .permissions()),
-                                                        AccountServicesFixture.component()
+                                                        AccountServicesFixture.component(db.dataSource())
                                                                 .permissions(),
-                                                        AccountServicesFixture.component()
+                                                        AccountServicesFixture.component(db.dataSource())
                                                                 .preferences(),
                                                         new ArticleVersionService(
-                                                                AccountServicesFixture.component()
+                                                                AccountServicesFixture.component(db.dataSource())
                                                                         .permissions(),
-                                                                Log::new,
+                                                                () -> new Log(db.dataSource()),
                                                                 () ->
                                                                         new LogVersion(
-                                                                                DAO
-                                                                                        .getDefaultDataSource())),
+                                                                                db.dataSource())),
                                                         new ArticlePinningService(
-                                                                Log::new,
-                                                                ApplicationServicesFixture.locks()),
-                                                        Log::new,
-                                                        ApplicationServicesFixture.locks())
+                                                                () -> new Log(db.dataSource()),
+                                                                ApplicationServicesFixture.locks(db.dataSource())),
+                                                        () -> new Log(db.dataSource()),
+                                                        ApplicationServicesFixture.locks(db.dataSource()))
                                                 .create(token(1), article("First"))
                                                 .getLogId();
                                     });
@@ -89,26 +88,25 @@ public class ArticleConcurrentSaveTest {
                                                                 ApplicationServicesFixture.buildId(
                                                                         db.resources()),
                                                                 ApplicationServicesFixture
-                                                                        .messages(),
-                                                                AccountServicesFixture.component()
+                                                                        .messages(db.dataSource()),
+                                                                AccountServicesFixture.component(db.dataSource())
                                                                         .permissions()),
-                                                        AccountServicesFixture.component()
+                                                        AccountServicesFixture.component(db.dataSource())
                                                                 .permissions(),
-                                                        AccountServicesFixture.component()
+                                                        AccountServicesFixture.component(db.dataSource())
                                                                 .preferences(),
                                                         new ArticleVersionService(
-                                                                AccountServicesFixture.component()
+                                                                AccountServicesFixture.component(db.dataSource())
                                                                         .permissions(),
-                                                                Log::new,
+                                                                () -> new Log(db.dataSource()),
                                                                 () ->
                                                                         new LogVersion(
-                                                                                DAO
-                                                                                        .getDefaultDataSource())),
+                                                                                db.dataSource())),
                                                         new ArticlePinningService(
-                                                                Log::new,
-                                                                ApplicationServicesFixture.locks()),
-                                                        Log::new,
-                                                        ApplicationServicesFixture.locks())
+                                                                () -> new Log(db.dataSource()),
+                                                                ApplicationServicesFixture.locks(db.dataSource())),
+                                                        () -> new Log(db.dataSource()),
+                                                        ApplicationServicesFixture.locks(db.dataSource()))
                                                 .create(token(2), article("Second"))
                                                 .getLogId();
                                     });
@@ -139,24 +137,24 @@ public class ArticleConcurrentSaveTest {
                                 new AdminPageDataFactory(
                                         ApplicationServicesFixture.site(db.config()),
                                         ApplicationServicesFixture.buildId(db.resources()),
-                                        ApplicationServicesFixture.messages(),
-                                        AccountServicesFixture.component().permissions()),
-                                AccountServicesFixture.component().permissions(),
-                                AccountServicesFixture.component().preferences(),
+                                        ApplicationServicesFixture.messages(db.dataSource()),
+                                        AccountServicesFixture.component(db.dataSource()).permissions()),
+                                AccountServicesFixture.component(db.dataSource()).permissions(),
+                                AccountServicesFixture.component(db.dataSource()).preferences(),
                                 new ArticleVersionService(
-                                        AccountServicesFixture.component().permissions(),
-                                        Log::new,
-                                        () -> new LogVersion(DAO.getDefaultDataSource())),
+                                        AccountServicesFixture.component(db.dataSource()).permissions(),
+                                        () -> new Log(db.dataSource()),
+                                        () -> new LogVersion(db.dataSource())),
                                 new ArticlePinningService(
-                                        Log::new, ApplicationServicesFixture.locks()),
-                                Log::new,
-                                ApplicationServicesFixture.locks());
+                                        () -> new Log(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource())),
+                                () -> new Log(db.dataSource()),
+                                ApplicationServicesFixture.locks(db.dataSource()));
                 int id = service.create(token(1), article("Original")).getLogId().intValue();
                 CyclicBarrier start = new CyclicBarrier(2);
                 ExecutorService pool = Executors.newFixedThreadPool(2);
                 try {
-                    Future<Boolean> first = pool.submit(() -> save(start, token(1), update(id, 0, "First")));
-                    Future<Boolean> second = pool.submit(() -> save(start, token(2), update(id, 0, "Second")));
+                    Future<Boolean> first = pool.submit(() -> save(start, token(1), update(id, 0, "First"), db.dataSource()));
+                    Future<Boolean> second = pool.submit(() -> save(start, token(2), update(id, 0, "Second"), db.dataSource()));
                     boolean firstWon = first.get(30, TimeUnit.SECONDS);
                     boolean secondWon = second.get(30, TimeUnit.SECONDS);
                     assertNotEquals(backend, firstWon, secondWon);
@@ -194,17 +192,17 @@ public class ArticleConcurrentSaveTest {
                             new AdminPageDataFactory(
                                     ApplicationServicesFixture.site(db.config()),
                                     ApplicationServicesFixture.buildId(db.resources()),
-                                    ApplicationServicesFixture.messages(),
-                                    AccountServicesFixture.component().permissions()),
-                            AccountServicesFixture.component().permissions(),
-                            AccountServicesFixture.component().preferences(),
+                                    ApplicationServicesFixture.messages(db.dataSource()),
+                                    AccountServicesFixture.component(db.dataSource()).permissions()),
+                            AccountServicesFixture.component(db.dataSource()).permissions(),
+                            AccountServicesFixture.component(db.dataSource()).preferences(),
                             new ArticleVersionService(
-                                    AccountServicesFixture.component().permissions(),
-                                    Log::new,
-                                    () -> new LogVersion(DAO.getDefaultDataSource())),
-                            new ArticlePinningService(Log::new, ApplicationServicesFixture.locks()),
-                            Log::new,
-                            ApplicationServicesFixture.locks());
+                                    AccountServicesFixture.component(db.dataSource()).permissions(),
+                                    () -> new Log(db.dataSource()),
+                                    () -> new LogVersion(db.dataSource())),
+                            new ArticlePinningService(() -> new Log(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource())),
+                            () -> new Log(db.dataSource()),
+                            ApplicationServicesFixture.locks(db.dataSource()));
             int id = service.create(token(1), article("Original")).getLogId().intValue();
             AtomicBoolean raced = new AtomicBoolean();
             db.beforeWebApiUpdate((sql, args) -> {
@@ -236,18 +234,18 @@ public class ArticleConcurrentSaveTest {
                                 new AdminPageDataFactory(
                                         ApplicationServicesFixture.site(db.config()),
                                         ApplicationServicesFixture.buildId(db.resources()),
-                                        ApplicationServicesFixture.messages(),
-                                        AccountServicesFixture.component().permissions()),
-                                AccountServicesFixture.component().permissions(),
-                                AccountServicesFixture.component().preferences(),
+                                        ApplicationServicesFixture.messages(db.dataSource()),
+                                        AccountServicesFixture.component(db.dataSource()).permissions()),
+                                AccountServicesFixture.component(db.dataSource()).permissions(),
+                                AccountServicesFixture.component(db.dataSource()).preferences(),
                                 new ArticleVersionService(
-                                        AccountServicesFixture.component().permissions(),
-                                        Log::new,
-                                        () -> new LogVersion(DAO.getDefaultDataSource())),
+                                        AccountServicesFixture.component(db.dataSource()).permissions(),
+                                        () -> new Log(db.dataSource()),
+                                        () -> new LogVersion(db.dataSource())),
                                 new ArticlePinningService(
-                                        Log::new, ApplicationServicesFixture.locks()),
-                                Log::new,
-                                ApplicationServicesFixture.locks());
+                                        () -> new Log(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource())),
+                                () -> new Log(db.dataSource()),
+                                ApplicationServicesFixture.locks(db.dataSource()));
                 int id = service.create(token(1), article("Original")).getLogId().intValue();
                 for (Integer version : Arrays.asList(null, -1, 1, Integer.MAX_VALUE)) {
                     assertThrows(UpdateArticleExpireException.class, () -> service.update(token(1), update(id, version, "Invalid")));
@@ -259,7 +257,7 @@ public class ArticleConcurrentSaveTest {
         }
     }
 
-    private boolean save(CyclicBarrier start, AdminTokenVO token, UpdateArticleRequest request) throws Exception {
+    private boolean save(CyclicBarrier start, AdminTokenVO token, UpdateArticleRequest request, DataSourceWrapper testDataSource) throws Exception {
         start.await(10, TimeUnit.SECONDS);
         try {
             new AdminArticleService(
@@ -269,17 +267,17 @@ public class ArticleConcurrentSaveTest {
                             new AdminPageDataFactory(
                                     ApplicationServicesFixture.site(applicationConfig),
                                     () -> "test",
-                                    ApplicationServicesFixture.messages(),
-                                    AccountServicesFixture.component().permissions()),
-                            AccountServicesFixture.component().permissions(),
-                            AccountServicesFixture.component().preferences(),
+                                    ApplicationServicesFixture.messages(testDataSource),
+                                    AccountServicesFixture.component(testDataSource).permissions()),
+                            AccountServicesFixture.component(testDataSource).permissions(),
+                            AccountServicesFixture.component(testDataSource).preferences(),
                             new ArticleVersionService(
-                                    AccountServicesFixture.component().permissions(),
-                                    Log::new,
-                                    () -> new LogVersion(DAO.getDefaultDataSource())),
-                            new ArticlePinningService(Log::new, ApplicationServicesFixture.locks()),
-                            Log::new,
-                            ApplicationServicesFixture.locks())
+                                    AccountServicesFixture.component(testDataSource).permissions(),
+                                    () -> new Log(testDataSource),
+                                    () -> new LogVersion(testDataSource)),
+                            new ArticlePinningService(() -> new Log(testDataSource), ApplicationServicesFixture.locks(testDataSource)),
+                            () -> new Log(testDataSource),
+                            ApplicationServicesFixture.locks(testDataSource))
                     .update(token, request);
             return true;
         } catch (UpdateArticleExpireException expected) {

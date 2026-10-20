@@ -9,7 +9,6 @@ import com.zrlog.admin.business.service.DbFileService;
 import com.zrlog.admin.business.service.UploadService;
 import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.ApplicationServicesFixture;
-import com.zrlog.model.WebSite;
 
 import org.junit.After;
 import org.junit.Rule;
@@ -47,9 +46,9 @@ public class ArticleCoverUtilsTest {
                         null,
                         new UploadService(
                                 () -> null,
-                                AccountServicesFixture.component().permissions(),
+                                AccountServicesFixture.component(null).permissions(),
                                 new DbFileService(
-                                        ApplicationServicesFixture.websiteKv(), WebSite::new))));
+                                        ApplicationServicesFixture.websiteKv(null), () -> { throw new IllegalStateException("Database is unavailable in this test"); }))));
         assertEquals(
                 "",
                 ArticleCoverUtils.getFirstImgUrl(
@@ -58,9 +57,9 @@ public class ArticleCoverUtilsTest {
                         null,
                         new UploadService(
                                 () -> null,
-                                AccountServicesFixture.component().permissions(),
+                                AccountServicesFixture.component(null).permissions(),
                                 new DbFileService(
-                                        ApplicationServicesFixture.websiteKv(), WebSite::new))));
+                                        ApplicationServicesFixture.websiteKv(null), () -> { throw new IllegalStateException("Database is unavailable in this test"); }))));
     }
 
     @Test
@@ -72,9 +71,9 @@ public class ArticleCoverUtilsTest {
                         null,
                         new UploadService(
                                 () -> null,
-                                AccountServicesFixture.component().permissions(),
+                                AccountServicesFixture.component(null).permissions(),
                                 new DbFileService(
-                                        ApplicationServicesFixture.websiteKv(), WebSite::new))));
+                                        ApplicationServicesFixture.websiteKv(null), () -> { throw new IllegalStateException("Database is unavailable in this test"); }))));
     }
 
     @Test
@@ -91,9 +90,9 @@ public class ArticleCoverUtilsTest {
                         null,
                         new UploadService(
                                 () -> null,
-                                AccountServicesFixture.component().permissions(),
+                                AccountServicesFixture.component(null).permissions(),
                                 new DbFileService(
-                                        ApplicationServicesFixture.websiteKv(), WebSite::new)));
+                                        ApplicationServicesFixture.websiteKv(null), () -> { throw new IllegalStateException("Database is unavailable in this test"); })));
 
         assertEquals("/blog/attached/cover_thumbnail.png?h=-1&w=-1", url);
         assertEquals("image", Files.readString(PathUtil.getStaticFile("/attached/cover_thumbnail.png").toPath()));

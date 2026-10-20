@@ -1,6 +1,6 @@
 package com.zrlog.admin.business.ai.service;
 
-import com.hibegin.common.dao.DAO;
+import com.hibegin.common.dao.DataSourceWrapper;
 import com.zrlog.admin.business.content.ArticleAssistant;
 import com.zrlog.admin.business.content.AttachmentStorage;
 import com.zrlog.admin.business.knowledge.ContentToolFactory;
@@ -19,6 +19,7 @@ import com.zrlog.common.ZrLogConfig;
 import com.zrlog.model.Log;
 import com.zrlog.model.LogVersion;
 import com.zrlog.model.Tag;
+import com.zrlog.model.Type;
 
 final class ContentToolsFixture {
     private ContentToolsFixture() { }
@@ -32,24 +33,24 @@ final class ContentToolsFixture {
                         new AdminPageDataFactory(
                                 ApplicationServicesFixture.site(config),
                                 () -> "test",
-                                ApplicationServicesFixture.messages(),
-                                AccountServicesFixture.component().permissions()),
-                        AccountServicesFixture.component().permissions(),
-                        AccountServicesFixture.component().preferences(),
+                                ApplicationServicesFixture.messages(config == null ? null : (DataSourceWrapper) config.getDataSource()),
+                                AccountServicesFixture.component(config == null ? null : (DataSourceWrapper) config.getDataSource()).permissions()),
+                        AccountServicesFixture.component(config == null ? null : (DataSourceWrapper) config.getDataSource()).permissions(),
+                        AccountServicesFixture.component(config == null ? null : (DataSourceWrapper) config.getDataSource()).preferences(),
                         new ArticleVersionService(
-                                AccountServicesFixture.component().permissions(),
-                                Log::new,
-                                () -> new LogVersion(DAO.getDefaultDataSource())),
-                        new ArticlePinningService(Log::new, ApplicationServicesFixture.locks()),
-                        Log::new,
-                        ApplicationServicesFixture.locks());
+                                AccountServicesFixture.component(config == null ? null : (DataSourceWrapper) config.getDataSource()).permissions(),
+                                () -> new Log(config == null ? null : (DataSourceWrapper) config.getDataSource()),
+                                () -> new LogVersion(config == null ? null : (DataSourceWrapper) config.getDataSource())),
+                        new ArticlePinningService(() -> new Log(config == null ? null : (DataSourceWrapper) config.getDataSource()), ApplicationServicesFixture.locks(config == null ? null : (DataSourceWrapper) config.getDataSource())),
+                        () -> new Log(config == null ? null : (DataSourceWrapper) config.getDataSource()),
+                        ApplicationServicesFixture.locks(config == null ? null : (DataSourceWrapper) config.getDataSource()));
         var publishing =
                 new ArticlePublishingService(
                         articles,
                         ApplicationServicesFixture.cacheRefresh(cache, config),
                         markdown -> null,
-                        ApplicationServicesFixture.audit(),
-                        ApplicationServicesFixture.operations());
+                        ApplicationServicesFixture.audit(config == null ? null : (DataSourceWrapper) config.getDataSource()),
+                        ApplicationServicesFixture.operations(config == null ? null : (DataSourceWrapper) config.getDataSource()));
         return new ContentToolFactory(
                 (toolScopes, toolRequest, toolLanguage, toolKnowledge) ->
                         new ContentToolProvider(
@@ -58,13 +59,13 @@ final class ContentToolsFixture {
                                 toolLanguage,
                                 new ContentToolService(
                                         publishing,
-                                        AccountServicesFixture.component().permissions(),
-                                        Tag::new,
-                                        com.zrlog.model.Type::new),
+                                        AccountServicesFixture.component(config == null ? null : (DataSourceWrapper) config.getDataSource()).permissions(),
+                                        () -> new Tag(config == null ? null : (DataSourceWrapper) config.getDataSource()),
+                                        () -> new Type(config == null ? null : (DataSourceWrapper) config.getDataSource())),
                                 ApplicationServicesFixture.capability(
                                         config, AttachmentStorage.class),
                                 toolKnowledge,
-                                AccountServicesFixture.component().permissions()),
+                                AccountServicesFixture.component(config == null ? null : (DataSourceWrapper) config.getDataSource()).permissions()),
                 (toolActor, toolScopes, toolLanguage) ->
                         new KnowledgeService(
                                 toolActor,
@@ -75,7 +76,7 @@ final class ContentToolsFixture {
                                                 cache.getPublicWebSiteInfo()
                                                         .getGenerator_html_status()),
                                 toolLanguage,
-                                Log::new),
-                AccountServicesFixture.component().permissions());
+                                () -> new Log(config == null ? null : (DataSourceWrapper) config.getDataSource())),
+                AccountServicesFixture.component(config == null ? null : (DataSourceWrapper) config.getDataSource()).permissions());
     }
 }

@@ -11,7 +11,6 @@ import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.rest.response.UploadFileResponse;
 import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.ApplicationServicesFixture;
-import com.zrlog.model.WebSite;
 
 import org.junit.After;
 import org.junit.Rule;
@@ -44,9 +43,9 @@ public class UploadServiceTest {
         UploadFileResponse response =
                 new UploadService(
                                 () -> null,
-                                AccountServicesFixture.component().permissions(),
+                                AccountServicesFixture.component(null).permissions(),
                                 new DbFileService(
-                                        ApplicationServicesFixture.websiteKv(), WebSite::new))
+                                        ApplicationServicesFixture.websiteKv(null), () -> { throw new IllegalStateException("Database is unavailable in this test"); }))
                         .getCloudUrl("/attached/a.png", "/tmp/a.png", request("/blog"), null);
 
         assertEquals("/blog/attached/a.png", response.getUrl());
@@ -59,9 +58,9 @@ public class UploadServiceTest {
         UploadFileResponse response =
                 new UploadService(
                                 () -> null,
-                                AccountServicesFixture.component().permissions(),
+                                AccountServicesFixture.component(null).permissions(),
                                 new DbFileService(
-                                        ApplicationServicesFixture.websiteKv(), WebSite::new))
+                                        ApplicationServicesFixture.websiteKv(null), () -> { throw new IllegalStateException("Database is unavailable in this test"); }))
                         .saveBytes(
                                 "hello".getBytes(StandardCharsets.UTF_8),
                                 "",
@@ -83,9 +82,9 @@ public class UploadServiceTest {
         UploadFileResponse response =
                 new UploadService(
                                 () -> null,
-                                AccountServicesFixture.component().permissions(),
+                                AccountServicesFixture.component(null).permissions(),
                                 new DbFileService(
-                                        ApplicationServicesFixture.websiteKv(), WebSite::new))
+                                        ApplicationServicesFixture.websiteKv(null), () -> { throw new IllegalStateException("Database is unavailable in this test"); }))
                         .saveThumbnailBytes(
                                 "abc".getBytes(StandardCharsets.UTF_8), "jpg", request(""), null);
         String uri = response.getUrl();
@@ -102,8 +101,8 @@ public class UploadServiceTest {
         UploadService service =
                 new UploadService(
                         () -> null,
-                        AccountServicesFixture.component().permissions(),
-                        new DbFileService(ApplicationServicesFixture.websiteKv(), WebSite::new));
+                        AccountServicesFixture.component(null).permissions(),
+                        new DbFileService(ApplicationServicesFixture.websiteKv(null), () -> { throw new IllegalStateException("Database is unavailable in this test"); }));
 
         assertEquals("png", service.normalizeExtension(null));
         assertEquals("png", service.normalizeExtension(" "));
@@ -115,8 +114,8 @@ public class UploadServiceTest {
         UploadService service =
                 new UploadService(
                         () -> null,
-                        AccountServicesFixture.component().permissions(),
-                        new DbFileService(ApplicationServicesFixture.websiteKv(), WebSite::new));
+                        AccountServicesFixture.component(null).permissions(),
+                        new DbFileService(ApplicationServicesFixture.websiteKv(null), () -> { throw new IllegalStateException("Database is unavailable in this test"); }));
 
         assertEquals("/", service.normalizeTemporaryDir(AdminConstants.ADMIN_DB_ATTACHED_TMP));
         assertEquals("/", service.normalizeTemporaryDir(AdminConstants.ADMIN_DB_ATTACHED_TMP + "/"));
@@ -133,8 +132,8 @@ public class UploadServiceTest {
         UploadService service =
                 new UploadService(
                         () -> null,
-                        AccountServicesFixture.component().permissions(),
-                        new DbFileService(ApplicationServicesFixture.websiteKv(), WebSite::new));
+                        AccountServicesFixture.component(null).permissions(),
+                        new DbFileService(ApplicationServicesFixture.websiteKv(null), () -> { throw new IllegalStateException("Database is unavailable in this test"); }));
 
         String rootUri = service.buildTemporaryUri(AdminConstants.ADMIN_DB_ATTACHED_TMP, file);
         String nestedUri = service.buildTemporaryUri(AdminConstants.ADMIN_DB_ATTACHED_TMP + "/article-cover", file);

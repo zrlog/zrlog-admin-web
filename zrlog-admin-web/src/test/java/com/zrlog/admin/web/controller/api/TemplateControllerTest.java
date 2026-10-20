@@ -6,6 +6,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
+import com.hibegin.common.dao.DataSourceWrapper;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
 import com.hibegin.http.server.web.Controller;
@@ -64,7 +65,7 @@ public class TemplateControllerTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
             ResponseRecorder response = new ResponseRecorder();
-            ApiStandardResponse<Void> applied = controller(Map.of("shortTemplate", "default"), response).apply();
+            ApiStandardResponse<Void> applied = controller(Map.of("shortTemplate", "default"), response, db.dataSource()).apply();
 
             assertEquals(0, applied.getError());
             assertEquals(Constants.getDefaultTemplatePath(), db.queryOne("select value from website where name=?", "template")
@@ -80,7 +81,7 @@ public class TemplateControllerTest {
     public void shouldSetPreviewCookieForDefaultTemplate() throws Exception {
         ResponseRecorder response = new ResponseRecorder();
 
-        ApiStandardResponse<Void> preview = controller(Map.of("shortTemplate", "default"), response).preview();
+        ApiStandardResponse<Void> preview = controller(Map.of("shortTemplate", "default"), response, null).preview();
 
         assertEquals(0, preview.getError());
         assertEquals("template", response.cookie.getName());
@@ -96,7 +97,7 @@ public class TemplateControllerTest {
             assertTrue(templateDir.mkdirs());
             Files.writeString(new File(templateDir, "template.properties").toPath(), "name=Local");
 
-            DeleteResponse deleted = controller(Map.of("shortTemplate", "local-template"), new ResponseRecorder()).delete();
+            DeleteResponse deleted = controller(Map.of("shortTemplate", "local-template"), new ResponseRecorder(), ignored.dataSource()).delete();
 
             assertTrue(deleted.getData().getDelete());
             assertFalse(templateDir.exists());
@@ -107,7 +108,7 @@ public class TemplateControllerTest {
     public void shouldReturnFalseWhenDeletingMissingTemplate() throws Exception {
         withRootPath();
 
-        DeleteResponse deleted = controller(Map.of("shortTemplate", "missing-template"), new ResponseRecorder()).delete();
+        DeleteResponse deleted = controller(Map.of("shortTemplate", "missing-template"), new ResponseRecorder(), null).delete();
 
         assertFalse(deleted.getData().getDelete());
     }
@@ -115,7 +116,7 @@ public class TemplateControllerTest {
     @Test
     public void shouldRejectUploadWithoutTemplateFile() throws Exception {
         ArgsException exception = assertThrows(ArgsException.class,
-                () -> controller(Map.of(), new ResponseRecorder()).upload());
+                () -> controller(Map.of(), new ResponseRecorder(), null).upload());
 
         assertTrue(exception.getMessage().contains("file"));
     }
@@ -138,7 +139,7 @@ public class TemplateControllerTest {
             UploadTemplateResponse response = controllerWithFile(Map.of(
                     "shortTemplate", "controller-theme",
                     "overwrite", "false"
-            ), zipFile, new ResponseRecorder()).upload();
+            ), zipFile, new ResponseRecorder(), db.dataSource()).upload();
 
             assertEquals(0, response.getError());
             assertEquals("controller-theme", response.getData().getShortTemplate());
@@ -155,7 +156,7 @@ public class TemplateControllerTest {
     public void shouldIgnoreConfigUpdateWhenTemplateIsBlank() throws Exception {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
             applicationConfig = ignored.config();
-            assertNotNull(controller(Map.of(), "{\"template\":\"\"}", new ResponseRecorder()).config());
+            assertNotNull(controller(Map.of(), "{\"template\":\"\"}", new ResponseRecorder(), ignored.dataSource()).config());
         }
     }
 
@@ -164,7 +165,7 @@ public class TemplateControllerTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
             assertNotNull(controller(Map.of(), "{\"template\":\"" + Constants.getDefaultTemplatePath() + "\"}",
-                    new ResponseRecorder()).config());
+                    new ResponseRecorder(), db.dataSource()).config());
 
             assertTrue(String.valueOf(db.queryOne("select value from website where name=?", "admin_audit_log")
                     .get("value")).contains("UPDATE_TEMPLATE_CONFIG"));
@@ -174,7 +175,7 @@ public class TemplateControllerTest {
     @Test
     public void shouldReturnDownloadCenterUrlFromRefererHost() throws Exception {
         TemplateController controller = controller(Map.of("referer", "https://example.com/admin/template"),
-                new ResponseRecorder());
+                new ResponseRecorder(), null);
 
         TemplateDownloadResponse download = controller.templateCenter().getData();
 
@@ -185,7 +186,7 @@ public class TemplateControllerTest {
     @Test
     public void shouldReturnDownloadCenterUrlFromRequestHostWhenRefererIsMissing() throws Exception {
         TemplateDownloadResponse download = controller(Map.of("Host", "host.example:8080"),
-                new ResponseRecorder()).templateCenter().getData();
+                new ResponseRecorder(), null).templateCenter().getData();
 
         assertTrue(download.getUrl().contains("from=http://host.example:8080/blog/admin/template"));
     }
@@ -193,7 +194,7 @@ public class TemplateControllerTest {
     @Test
     public void shouldReturnDownloadCenterUrlFromExplicitHostParam() throws Exception {
         TemplateDownloadResponse download = controller(Map.of("host", "param.example"),
-                new ResponseRecorder()).templateCenter().getData();
+                new ResponseRecorder(), null).templateCenter().getData();
 
         assertTrue(download.getUrl().contains("from=http://param.example/blog/admin/template"));
     }
@@ -201,7 +202,7 @@ public class TemplateControllerTest {
     @Test
     public void shouldPreviewTemplateConfigValue() throws Exception {
         ApiStandardResponse<TemplateValuePreviewResponse> response =
-                controller(Map.of("value", "<p>Hello</p>"), new ResponseRecorder()).previewConfigValue();
+                controller(Map.of("value", "<p>Hello</p>"), new ResponseRecorder(), null).previewConfigValue();
 
         assertNotNull(response.getData().getPreviewValue());
         assertTrue(response.getData().getPreviewValue().contains("Hello"));
@@ -211,37 +212,37 @@ public class TemplateControllerTest {
         System.setProperty("sws.root.path", temporaryFolder.getRoot().getAbsolutePath());
     }
 
-    private TemplateController controller(Map<String, String> params, ResponseRecorder response)
+    private TemplateController controller(Map<String, String> params, ResponseRecorder response, DataSourceWrapper testDataSource)
             throws Exception {
-        return controller(params, null, response);
+        return controller(params, null, response, testDataSource);
     }
 
-    private TemplateController controller(Map<String, String> params, String body, ResponseRecorder response)
+    private TemplateController controller(Map<String, String> params, String body, ResponseRecorder response, DataSourceWrapper testDataSource)
             throws Exception {
-        return controller(params, body, null, response);
+        return controller(params, body, null, response, testDataSource);
     }
 
     private TemplateController controllerWithFile(Map<String, String> params, File file,
-                                                         ResponseRecorder response)
+                                                         ResponseRecorder response, DataSourceWrapper testDataSource)
             throws Exception {
-        return controller(params, null, file, response);
+        return controller(params, null, file, response, testDataSource);
     }
 
     private TemplateController controller(Map<String, String> params, String body, File file,
-                                                 ResponseRecorder response) throws Exception {
+                                                 ResponseRecorder response, DataSourceWrapper testDataSource) throws Exception {
         TemplateController controller =
                 new TemplateController(
                         new TemplateService(
                                 new InMemoryZrLogDatabase.TestCacheService(),
                                 () -> null,
                                 () -> null,
-                                ApplicationServicesFixture.audit(),
-                                WebSite::new),
+                                ApplicationServicesFixture.audit(testDataSource),
+                                () -> new WebSite(testDataSource)),
                         new AdminPageDataFactory(
                                 ApplicationServicesFixture.site(applicationConfig),
                                 () -> "test",
-                                ApplicationServicesFixture.messages(),
-                                AccountServicesFixture.component().permissions()));
+                                ApplicationServicesFixture.messages(testDataSource),
+                                AccountServicesFixture.component(testDataSource).permissions()));
         setControllerField(controller, "request", request(params, body, file));
         setControllerField(controller, "response", response.response());
         return controller;

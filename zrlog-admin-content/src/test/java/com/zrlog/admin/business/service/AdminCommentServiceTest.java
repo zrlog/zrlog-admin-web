@@ -23,9 +23,9 @@ public class AdminCommentServiceTest {
     public void shouldParseCommentIdsWithTrimAndStableDeduplication() throws Exception {
         AdminCommentService service =
                 new AdminCommentService(
-                        AccountServicesFixture.component().permissions(),
-                        ApplicationServicesFixture.messages(),
-                        Comment::new);
+                        AccountServicesFixture.component(null).permissions(),
+                        ApplicationServicesFixture.messages(null),
+                        () -> { throw new IllegalStateException("Database is unavailable in this test"); });
 
         List<Integer> ids = service.parseCommentIds(new String[]{" 3 ", "", "3", null, "2"});
         List<Integer> empty = service.parseCommentIds(new String[]{null, " "});
@@ -38,9 +38,9 @@ public class AdminCommentServiceTest {
     public void shouldBuildSqlPlaceholdersForIds() throws Exception {
         AdminCommentService service =
                 new AdminCommentService(
-                        AccountServicesFixture.component().permissions(),
-                        ApplicationServicesFixture.messages(),
-                        Comment::new);
+                        AccountServicesFixture.component(null).permissions(),
+                        ApplicationServicesFixture.messages(null),
+                        () -> { throw new IllegalStateException("Database is unavailable in this test"); });
 
         assertEquals("", service.placeholders(0));
         assertEquals("?", service.placeholders(1));
@@ -51,9 +51,9 @@ public class AdminCommentServiceTest {
     public void shouldReturnFailureWhenReadRequestIsMissing() {
         UpdateRecordResponse response =
                 new AdminCommentService(
-                                AccountServicesFixture.component().permissions(),
-                                ApplicationServicesFixture.messages(),
-                                Comment::new)
+                                AccountServicesFixture.component(null).permissions(),
+                                ApplicationServicesFixture.messages(null),
+                                () -> { throw new IllegalStateException("Database is unavailable in this test"); })
                         .read(null);
 
         assertEquals(1, response.getError());
@@ -65,9 +65,9 @@ public class AdminCommentServiceTest {
             seedComments(db);
             AdminCommentService service =
                     new AdminCommentService(
-                            AccountServicesFixture.component().permissions(),
-                            ApplicationServicesFixture.messages(),
-                            Comment::new);
+                            AccountServicesFixture.component(db.dataSource()).permissions(),
+                            ApplicationServicesFixture.messages(db.dataSource()),
+                            () -> new Comment(db.dataSource()));
             ReadCommentRequest readRequest = new ReadCommentRequest();
             readRequest.setId(1L);
 

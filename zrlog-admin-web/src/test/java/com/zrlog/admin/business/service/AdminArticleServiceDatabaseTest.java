@@ -9,7 +9,6 @@ import static org.junit.Assert.assertTrue;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-import com.hibegin.common.dao.DAO;
 import com.hibegin.common.dao.dto.PageRequestImpl;
 import com.hibegin.http.server.api.HttpRequest;
 import com.zrlog.admin.business.ai.service.AIConversationService;
@@ -38,6 +37,7 @@ import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.data.service.UserPreferenceStore;
 import com.zrlog.model.Log;
 import com.zrlog.model.LogVersion;
+import com.zrlog.model.User;
 import com.zrlog.model.WebSite;
 
 import org.junit.Test;
@@ -58,9 +58,9 @@ public class AdminArticleServiceDatabaseTest {
             db.loadAdminWebModules();
             UserPreferenceService preferences =
                     new UserPreferenceService(
-                            ApplicationServicesFixture.settings(),
-                            new UserPreferenceStore(),
-                            AccountServicesFixture.component().permissions());
+                            ApplicationServicesFixture.settings(db.dataSource()),
+                            new UserPreferenceStore(() -> new User(db.dataSource())),
+                            AccountServicesFixture.component(db.dataSource()).permissions());
             preferences.updateBody("{\"editor\":{\"autoDigestLength\":0,\"linkPreviewEnabled\":true,\"publishCheckEnabled\":false,\"coverAspectRatio\":\"1:1\",\"autoSaveInterval\":10}}", "writing");
             AdminArticleService service =
                     new AdminArticleService(
@@ -70,17 +70,17 @@ public class AdminArticleServiceDatabaseTest {
                             new AdminPageDataFactory(
                                     ApplicationServicesFixture.site(db.config()),
                                     ApplicationServicesFixture.buildId(db.resources()),
-                                    ApplicationServicesFixture.messages(),
-                                    AccountServicesFixture.component().permissions()),
-                            AccountServicesFixture.component().permissions(),
-                            AccountServicesFixture.component().preferences(),
+                                    ApplicationServicesFixture.messages(db.dataSource()),
+                                    AccountServicesFixture.component(db.dataSource()).permissions()),
+                            AccountServicesFixture.component(db.dataSource()).permissions(),
+                            AccountServicesFixture.component(db.dataSource()).preferences(),
                             new ArticleVersionService(
-                                    AccountServicesFixture.component().permissions(),
-                                    Log::new,
-                                    () -> new LogVersion(DAO.getDefaultDataSource())),
-                            new ArticlePinningService(Log::new, ApplicationServicesFixture.locks()),
-                            Log::new,
-                            ApplicationServicesFixture.locks());
+                                    AccountServicesFixture.component(db.dataSource()).permissions(),
+                                    () -> new Log(db.dataSource()),
+                                    () -> new LogVersion(db.dataSource())),
+                            new ArticlePinningService(() -> new Log(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource())),
+                            () -> new Log(db.dataSource()),
+                            ApplicationServicesFixture.locks(db.dataSource()));
             ArticleGlobalResponse editor = service.loadDetailById("", request()).getData();
             assertEquals(Boolean.TRUE, editor.getLinkPreviewEnabled());
             assertEquals(Boolean.FALSE, editor.getPublishCheckEnabled());
@@ -110,24 +110,24 @@ public class AdminArticleServiceDatabaseTest {
                             new AdminPageDataFactory(
                                     ApplicationServicesFixture.site(db.config()),
                                     ApplicationServicesFixture.buildId(db.resources()),
-                                    ApplicationServicesFixture.messages(),
-                                    AccountServicesFixture.component().permissions()),
-                            AccountServicesFixture.component().permissions(),
-                            AccountServicesFixture.component().preferences(),
+                                    ApplicationServicesFixture.messages(db.dataSource()),
+                                    AccountServicesFixture.component(db.dataSource()).permissions()),
+                            AccountServicesFixture.component(db.dataSource()).permissions(),
+                            AccountServicesFixture.component(db.dataSource()).preferences(),
                             new ArticleVersionService(
-                                    AccountServicesFixture.component().permissions(),
-                                    Log::new,
-                                    () -> new LogVersion(DAO.getDefaultDataSource())),
-                            new ArticlePinningService(Log::new, ApplicationServicesFixture.locks()),
-                            Log::new,
-                            ApplicationServicesFixture.locks());
+                                    AccountServicesFixture.component(db.dataSource()).permissions(),
+                                    () -> new Log(db.dataSource()),
+                                    () -> new LogVersion(db.dataSource())),
+                            new ArticlePinningService(() -> new Log(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource())),
+                            () -> new Log(db.dataSource()),
+                            ApplicationServicesFixture.locks(db.dataSource()));
             AIConversationService conversationService =
                     new AIConversationService(
-                            AccountServicesFixture.component().security(),
-                            ApplicationServicesFixture.websiteKv(),
-                            WebSite::new,
+                            AccountServicesFixture.component(db.dataSource()).security(),
+                            ApplicationServicesFixture.websiteKv(db.dataSource()),
+                            () -> new WebSite(db.dataSource()),
                             new AIFileService(),
-                            AIServiceDependencies.approvals());
+                            AIServiceDependencies.approvals(db.dataSource()));
             assertTrue(conversationService.saveAIMessage(List.of(new AIResponseEntry.AIContentEntry("user", "draft")), -1L));
 
             CreateOrUpdateArticleResponse response = service.create(token(), article("Hello Article", "hello.article"));
@@ -168,17 +168,17 @@ public class AdminArticleServiceDatabaseTest {
                             new AdminPageDataFactory(
                                     ApplicationServicesFixture.site(db.config()),
                                     ApplicationServicesFixture.buildId(db.resources()),
-                                    ApplicationServicesFixture.messages(),
-                                    AccountServicesFixture.component().permissions()),
-                            AccountServicesFixture.component().permissions(),
-                            AccountServicesFixture.component().preferences(),
+                                    ApplicationServicesFixture.messages(db.dataSource()),
+                                    AccountServicesFixture.component(db.dataSource()).permissions()),
+                            AccountServicesFixture.component(db.dataSource()).permissions(),
+                            AccountServicesFixture.component(db.dataSource()).preferences(),
                             new ArticleVersionService(
-                                    AccountServicesFixture.component().permissions(),
-                                    Log::new,
-                                    () -> new LogVersion(DAO.getDefaultDataSource())),
-                            new ArticlePinningService(Log::new, ApplicationServicesFixture.locks()),
-                            Log::new,
-                            ApplicationServicesFixture.locks());
+                                    AccountServicesFixture.component(db.dataSource()).permissions(),
+                                    () -> new Log(db.dataSource()),
+                                    () -> new LogVersion(db.dataSource())),
+                            new ArticlePinningService(() -> new Log(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource())),
+                            () -> new Log(db.dataSource()),
+                            ApplicationServicesFixture.locks(db.dataSource()));
 
             assertEquals(
                     Boolean.TRUE,
@@ -205,24 +205,24 @@ public class AdminArticleServiceDatabaseTest {
                             new AdminPageDataFactory(
                                     ApplicationServicesFixture.site(ignored.config()),
                                     ApplicationServicesFixture.buildId(ignored.resources()),
-                                    ApplicationServicesFixture.messages(),
-                                    AccountServicesFixture.component().permissions()),
-                            AccountServicesFixture.component().permissions(),
-                            AccountServicesFixture.component().preferences(),
+                                    ApplicationServicesFixture.messages(ignored.dataSource()),
+                                    AccountServicesFixture.component(ignored.dataSource()).permissions()),
+                            AccountServicesFixture.component(ignored.dataSource()).permissions(),
+                            AccountServicesFixture.component(ignored.dataSource()).preferences(),
                             new ArticleVersionService(
-                                    AccountServicesFixture.component().permissions(),
-                                    Log::new,
-                                    () -> new LogVersion(DAO.getDefaultDataSource())),
-                            new ArticlePinningService(Log::new, ApplicationServicesFixture.locks()),
-                            Log::new,
-                            ApplicationServicesFixture.locks());
+                                    AccountServicesFixture.component(ignored.dataSource()).permissions(),
+                                    () -> new Log(ignored.dataSource()),
+                                    () -> new LogVersion(ignored.dataSource())),
+                            new ArticlePinningService(() -> new Log(ignored.dataSource()), ApplicationServicesFixture.locks(ignored.dataSource())),
+                            () -> new Log(ignored.dataSource()),
+                            ApplicationServicesFixture.locks(ignored.dataSource()));
             AIConversationService conversationService =
                     new AIConversationService(
-                            AccountServicesFixture.component().security(),
-                            ApplicationServicesFixture.websiteKv(),
-                            WebSite::new,
+                            AccountServicesFixture.component(ignored.dataSource()).security(),
+                            ApplicationServicesFixture.websiteKv(ignored.dataSource()),
+                            () -> new WebSite(ignored.dataSource()),
                             new AIFileService(),
-                            AIServiceDependencies.approvals());
+                            AIServiceDependencies.approvals(ignored.dataSource()));
             assertTrue(conversationService.saveAIMessage(List.of(new AIResponseEntry.AIContentEntry("user", "draft")), 0L));
             CreateArticleRequest request = article("Imported draft", "imported-draft");
             request.setPreserveDraftAiMessages(true);
@@ -246,17 +246,17 @@ public class AdminArticleServiceDatabaseTest {
                             new AdminPageDataFactory(
                                     ApplicationServicesFixture.site(db.config()),
                                     ApplicationServicesFixture.buildId(db.resources()),
-                                    ApplicationServicesFixture.messages(),
-                                    AccountServicesFixture.component().permissions()),
-                            AccountServicesFixture.component().permissions(),
-                            AccountServicesFixture.component().preferences(),
+                                    ApplicationServicesFixture.messages(db.dataSource()),
+                                    AccountServicesFixture.component(db.dataSource()).permissions()),
+                            AccountServicesFixture.component(db.dataSource()).permissions(),
+                            AccountServicesFixture.component(db.dataSource()).preferences(),
                             new ArticleVersionService(
-                                    AccountServicesFixture.component().permissions(),
-                                    Log::new,
-                                    () -> new LogVersion(DAO.getDefaultDataSource())),
-                            new ArticlePinningService(Log::new, ApplicationServicesFixture.locks()),
-                            Log::new,
-                            ApplicationServicesFixture.locks());
+                                    AccountServicesFixture.component(db.dataSource()).permissions(),
+                                    () -> new Log(db.dataSource()),
+                                    () -> new LogVersion(db.dataSource())),
+                            new ArticlePinningService(() -> new Log(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource())),
+                            () -> new Log(db.dataSource()),
+                            ApplicationServicesFixture.locks(db.dataSource()));
             CreateOrUpdateArticleResponse created = service.create(token(), article("First Title", "first"));
             UpdateArticleRequest update = updateArticle(created.getLogId().intValue(), 0, "Second Title", "second");
 
@@ -292,23 +292,23 @@ public class AdminArticleServiceDatabaseTest {
                             new AdminPageDataFactory(
                                     ApplicationServicesFixture.site(db.config()),
                                     ApplicationServicesFixture.buildId(db.resources()),
-                                    ApplicationServicesFixture.messages(),
-                                    AccountServicesFixture.component().permissions()),
-                            AccountServicesFixture.component().permissions(),
-                            AccountServicesFixture.component().preferences(),
+                                    ApplicationServicesFixture.messages(db.dataSource()),
+                                    AccountServicesFixture.component(db.dataSource()).permissions()),
+                            AccountServicesFixture.component(db.dataSource()).permissions(),
+                            AccountServicesFixture.component(db.dataSource()).preferences(),
                             new ArticleVersionService(
-                                    AccountServicesFixture.component().permissions(),
-                                    Log::new,
-                                    () -> new LogVersion(DAO.getDefaultDataSource())),
-                            new ArticlePinningService(Log::new, ApplicationServicesFixture.locks()),
-                            Log::new,
-                            ApplicationServicesFixture.locks());
+                                    AccountServicesFixture.component(db.dataSource()).permissions(),
+                                    () -> new Log(db.dataSource()),
+                                    () -> new LogVersion(db.dataSource())),
+                            new ArticlePinningService(() -> new Log(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource())),
+                            () -> new Log(db.dataSource()),
+                            ApplicationServicesFixture.locks(db.dataSource()));
             CreateOrUpdateArticleResponse created = service.create(token(), article("Pinned", "pinned"));
             CreateOrUpdateArticleResponse other =
                     service.create(token(), article("Pinned Other", "pinned-other"));
-            new ArticlePinningService(Log::new, ApplicationServicesFixture.locks())
+            new ArticlePinningService(() -> new Log(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource()))
                     .pin(created.getLogId());
-            new ArticlePinningService(Log::new, ApplicationServicesFixture.locks())
+            new ArticlePinningService(() -> new Log(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource()))
                     .pin(other.getLogId());
             UpdateArticleRequest update = updateArticle(created.getLogId().intValue(), 0,
                     "Pinned Private", "pinned-private");
@@ -319,7 +319,7 @@ public class AdminArticleServiceDatabaseTest {
                     created.getLogId())).intValue());
             assertEquals(
                     1L,
-                    new ArticlePinningService(Log::new, ApplicationServicesFixture.locks())
+                    new ArticlePinningService(() -> new Log(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource()))
                             .list()
                             .getItems()
                             .get(0)
@@ -327,7 +327,7 @@ public class AdminArticleServiceDatabaseTest {
                             .longValue());
             assertEquals(
                     other.getLogId(),
-                    new ArticlePinningService(Log::new, ApplicationServicesFixture.locks())
+                    new ArticlePinningService(() -> new Log(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource()))
                             .list()
                             .getItems()
                             .get(0)
@@ -348,17 +348,17 @@ public class AdminArticleServiceDatabaseTest {
                             new AdminPageDataFactory(
                                     ApplicationServicesFixture.site(ignored.config()),
                                     ApplicationServicesFixture.buildId(ignored.resources()),
-                                    ApplicationServicesFixture.messages(),
-                                    AccountServicesFixture.component().permissions()),
-                            AccountServicesFixture.component().permissions(),
-                            AccountServicesFixture.component().preferences(),
+                                    ApplicationServicesFixture.messages(ignored.dataSource()),
+                                    AccountServicesFixture.component(ignored.dataSource()).permissions()),
+                            AccountServicesFixture.component(ignored.dataSource()).permissions(),
+                            AccountServicesFixture.component(ignored.dataSource()).preferences(),
                             new ArticleVersionService(
-                                    AccountServicesFixture.component().permissions(),
-                                    Log::new,
-                                    () -> new LogVersion(DAO.getDefaultDataSource())),
-                            new ArticlePinningService(Log::new, ApplicationServicesFixture.locks()),
-                            Log::new,
-                            ApplicationServicesFixture.locks());
+                                    AccountServicesFixture.component(ignored.dataSource()).permissions(),
+                                    () -> new Log(ignored.dataSource()),
+                                    () -> new LogVersion(ignored.dataSource())),
+                            new ArticlePinningService(() -> new Log(ignored.dataSource()), ApplicationServicesFixture.locks(ignored.dataSource())),
+                            () -> new Log(ignored.dataSource()),
+                            ApplicationServicesFixture.locks(ignored.dataSource()));
             service.create(token(), article("Published", "published"));
             service.create(token(), article("Private", "private", true, false));
             service.create(token(), article("Draft", "draft", false, true));
@@ -391,24 +391,24 @@ public class AdminArticleServiceDatabaseTest {
                             new AdminPageDataFactory(
                                     ApplicationServicesFixture.site(db.config()),
                                     ApplicationServicesFixture.buildId(db.resources()),
-                                    ApplicationServicesFixture.messages(),
-                                    AccountServicesFixture.component().permissions()),
-                            AccountServicesFixture.component().permissions(),
-                            AccountServicesFixture.component().preferences(),
+                                    ApplicationServicesFixture.messages(db.dataSource()),
+                                    AccountServicesFixture.component(db.dataSource()).permissions()),
+                            AccountServicesFixture.component(db.dataSource()).permissions(),
+                            AccountServicesFixture.component(db.dataSource()).preferences(),
                             new ArticleVersionService(
-                                    AccountServicesFixture.component().permissions(),
-                                    Log::new,
-                                    () -> new LogVersion(DAO.getDefaultDataSource())),
-                            new ArticlePinningService(Log::new, ApplicationServicesFixture.locks()),
-                            Log::new,
-                            ApplicationServicesFixture.locks());
+                                    AccountServicesFixture.component(db.dataSource()).permissions(),
+                                    () -> new Log(db.dataSource()),
+                                    () -> new LogVersion(db.dataSource())),
+                            new ArticlePinningService(() -> new Log(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource())),
+                            () -> new Log(db.dataSource()),
+                            ApplicationServicesFixture.locks(db.dataSource()));
             AIConversationService conversationService =
                     new AIConversationService(
-                            AccountServicesFixture.component().security(),
-                            ApplicationServicesFixture.websiteKv(),
-                            WebSite::new,
+                            AccountServicesFixture.component(db.dataSource()).security(),
+                            ApplicationServicesFixture.websiteKv(db.dataSource()),
+                            () -> new WebSite(db.dataSource()),
                             new AIFileService(),
-                            AIServiceDependencies.approvals());
+                            AIServiceDependencies.approvals(db.dataSource()));
             CreateOrUpdateArticleResponse created = service.create(token(), article("Delete Me", "delete-me"));
             assertTrue(conversationService.saveAIMessage(List.of(new AIResponseEntry.AIContentEntry("user", "keep")), created.getLogId()));
 
@@ -431,17 +431,17 @@ public class AdminArticleServiceDatabaseTest {
                             new AdminPageDataFactory(
                                     ApplicationServicesFixture.site(ignored.config()),
                                     ApplicationServicesFixture.buildId(ignored.resources()),
-                                    ApplicationServicesFixture.messages(),
-                                    AccountServicesFixture.component().permissions()),
-                            AccountServicesFixture.component().permissions(),
-                            AccountServicesFixture.component().preferences(),
+                                    ApplicationServicesFixture.messages(ignored.dataSource()),
+                                    AccountServicesFixture.component(ignored.dataSource()).permissions()),
+                            AccountServicesFixture.component(ignored.dataSource()).permissions(),
+                            AccountServicesFixture.component(ignored.dataSource()).preferences(),
                             new ArticleVersionService(
-                                    AccountServicesFixture.component().permissions(),
-                                    Log::new,
-                                    () -> new LogVersion(DAO.getDefaultDataSource())),
-                            new ArticlePinningService(Log::new, ApplicationServicesFixture.locks()),
-                            Log::new,
-                            ApplicationServicesFixture.locks());
+                                    AccountServicesFixture.component(ignored.dataSource()).permissions(),
+                                    () -> new Log(ignored.dataSource()),
+                                    () -> new LogVersion(ignored.dataSource())),
+                            new ArticlePinningService(() -> new Log(ignored.dataSource()), ApplicationServicesFixture.locks(ignored.dataSource())),
+                            () -> new Log(ignored.dataSource()),
+                            ApplicationServicesFixture.locks(ignored.dataSource()));
             CreateOrUpdateArticleResponse created = service.create(token(), article("Versioned", "versioned"));
             UpdateArticleRequest staleUpdate = updateArticle(created.getLogId().intValue(), -1, "Stale", "stale");
 
@@ -461,17 +461,17 @@ public class AdminArticleServiceDatabaseTest {
                             new AdminPageDataFactory(
                                     ApplicationServicesFixture.site(ignored.config()),
                                     ApplicationServicesFixture.buildId(ignored.resources()),
-                                    ApplicationServicesFixture.messages(),
-                                    AccountServicesFixture.component().permissions()),
-                            AccountServicesFixture.component().permissions(),
-                            AccountServicesFixture.component().preferences(),
+                                    ApplicationServicesFixture.messages(ignored.dataSource()),
+                                    AccountServicesFixture.component(ignored.dataSource()).permissions()),
+                            AccountServicesFixture.component(ignored.dataSource()).permissions(),
+                            AccountServicesFixture.component(ignored.dataSource()).preferences(),
                             new ArticleVersionService(
-                                    AccountServicesFixture.component().permissions(),
-                                    Log::new,
-                                    () -> new LogVersion(DAO.getDefaultDataSource())),
-                            new ArticlePinningService(Log::new, ApplicationServicesFixture.locks()),
-                            Log::new,
-                            ApplicationServicesFixture.locks());
+                                    AccountServicesFixture.component(ignored.dataSource()).permissions(),
+                                    () -> new Log(ignored.dataSource()),
+                                    () -> new LogVersion(ignored.dataSource())),
+                            new ArticlePinningService(() -> new Log(ignored.dataSource()), ApplicationServicesFixture.locks(ignored.dataSource())),
+                            () -> new Log(ignored.dataSource()),
+                            ApplicationServicesFixture.locks(ignored.dataSource()));
             CreateArticleRequest missingTitle = article("", "missing-title");
             CreateArticleRequest missingType = article("Missing Type", "missing-type");
             missingType.setTypeId(0L);
@@ -493,17 +493,17 @@ public class AdminArticleServiceDatabaseTest {
                             new AdminPageDataFactory(
                                     ApplicationServicesFixture.site(ignored.config()),
                                     ApplicationServicesFixture.buildId(ignored.resources()),
-                                    ApplicationServicesFixture.messages(),
-                                    AccountServicesFixture.component().permissions()),
-                            AccountServicesFixture.component().permissions(),
-                            AccountServicesFixture.component().preferences(),
+                                    ApplicationServicesFixture.messages(ignored.dataSource()),
+                                    AccountServicesFixture.component(ignored.dataSource()).permissions()),
+                            AccountServicesFixture.component(ignored.dataSource()).permissions(),
+                            AccountServicesFixture.component(ignored.dataSource()).preferences(),
                             new ArticleVersionService(
-                                    AccountServicesFixture.component().permissions(),
-                                    Log::new,
-                                    () -> new LogVersion(DAO.getDefaultDataSource())),
-                            new ArticlePinningService(Log::new, ApplicationServicesFixture.locks()),
-                            Log::new,
-                            ApplicationServicesFixture.locks());
+                                    AccountServicesFixture.component(ignored.dataSource()).permissions(),
+                                    () -> new Log(ignored.dataSource()),
+                                    () -> new LogVersion(ignored.dataSource())),
+                            new ArticlePinningService(() -> new Log(ignored.dataSource()), ApplicationServicesFixture.locks(ignored.dataSource())),
+                            () -> new Log(ignored.dataSource()),
+                            ApplicationServicesFixture.locks(ignored.dataSource()));
             service.create(token(), article("Activity One", "activity-one"));
             service.create(token(), article("Activity Two", "activity-two"));
 
@@ -527,17 +527,17 @@ public class AdminArticleServiceDatabaseTest {
                             new AdminPageDataFactory(
                                     ApplicationServicesFixture.site(db.config()),
                                     ApplicationServicesFixture.buildId(db.resources()),
-                                    ApplicationServicesFixture.messages(),
-                                    AccountServicesFixture.component().permissions()),
-                            AccountServicesFixture.component().permissions(),
-                            AccountServicesFixture.component().preferences(),
+                                    ApplicationServicesFixture.messages(db.dataSource()),
+                                    AccountServicesFixture.component(db.dataSource()).permissions()),
+                            AccountServicesFixture.component(db.dataSource()).permissions(),
+                            AccountServicesFixture.component(db.dataSource()).preferences(),
                             new ArticleVersionService(
-                                    AccountServicesFixture.component().permissions(),
-                                    Log::new,
-                                    () -> new LogVersion(DAO.getDefaultDataSource())),
-                            new ArticlePinningService(Log::new, ApplicationServicesFixture.locks()),
-                            Log::new,
-                            ApplicationServicesFixture.locks());
+                                    AccountServicesFixture.component(db.dataSource()).permissions(),
+                                    () -> new Log(db.dataSource()),
+                                    () -> new LogVersion(db.dataSource())),
+                            new ArticlePinningService(() -> new Log(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource())),
+                            () -> new Log(db.dataSource()),
+                            ApplicationServicesFixture.locks(db.dataSource()));
             CreateArticleRequest create = article("Toolbox", "toolbox");
             create.setArrange_plugin("retro-runtime");
             int id = service.create(token(), create).getLogId().intValue();
@@ -578,17 +578,17 @@ public class AdminArticleServiceDatabaseTest {
                             new AdminPageDataFactory(
                                     ApplicationServicesFixture.site(db.config()),
                                     ApplicationServicesFixture.buildId(db.resources()),
-                                    ApplicationServicesFixture.messages(),
-                                    AccountServicesFixture.component().permissions()),
-                            AccountServicesFixture.component().permissions(),
-                            AccountServicesFixture.component().preferences(),
+                                    ApplicationServicesFixture.messages(db.dataSource()),
+                                    AccountServicesFixture.component(db.dataSource()).permissions()),
+                            AccountServicesFixture.component(db.dataSource()).permissions(),
+                            AccountServicesFixture.component(db.dataSource()).preferences(),
                             new ArticleVersionService(
-                                    AccountServicesFixture.component().permissions(),
-                                    Log::new,
-                                    () -> new LogVersion(DAO.getDefaultDataSource())),
-                            new ArticlePinningService(Log::new, ApplicationServicesFixture.locks()),
-                            Log::new,
-                            ApplicationServicesFixture.locks());
+                                    AccountServicesFixture.component(db.dataSource()).permissions(),
+                                    () -> new Log(db.dataSource()),
+                                    () -> new LogVersion(db.dataSource())),
+                            new ArticlePinningService(() -> new Log(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource())),
+                            () -> new Log(db.dataSource()),
+                            ApplicationServicesFixture.locks(db.dataSource()));
             int id = service.create(token(), article("Layout", "layout")).getLogId().intValue();
             assertNull(db.scalar("select arrange_plugin from log where logId=?", id));
             assertEquals("", service.loadDetail("layout", request()).getArrange_plugin());
@@ -598,9 +598,9 @@ public class AdminArticleServiceDatabaseTest {
             service.update(token(), update);
             ArticleVersionService versions =
                     new ArticleVersionService(
-                            AccountServicesFixture.component().permissions(),
-                            Log::new,
-                            () -> new LogVersion(DAO.getDefaultDataSource()));
+                            AccountServicesFixture.component(db.dataSource()).permissions(),
+                            () -> new Log(db.dataSource()),
+                            () -> new LogVersion(db.dataSource()));
             assertEquals(List.of("arrange_plugin"), versions.compare(id, 0, 1, request(), service).getChangedFields());
             assertEquals("", versions.loadVersion(id, 0, request(), service).getArrange_plugin());
             ArticleVersionRollbackRequest rollback = new ArticleVersionRollbackRequest();
@@ -629,17 +629,17 @@ public class AdminArticleServiceDatabaseTest {
                             new AdminPageDataFactory(
                                     ApplicationServicesFixture.site(db.config()),
                                     ApplicationServicesFixture.buildId(db.resources()),
-                                    ApplicationServicesFixture.messages(),
-                                    AccountServicesFixture.component().permissions()),
-                            AccountServicesFixture.component().permissions(),
-                            AccountServicesFixture.component().preferences(),
+                                    ApplicationServicesFixture.messages(db.dataSource()),
+                                    AccountServicesFixture.component(db.dataSource()).permissions()),
+                            AccountServicesFixture.component(db.dataSource()).permissions(),
+                            AccountServicesFixture.component(db.dataSource()).preferences(),
                             new ArticleVersionService(
-                                    AccountServicesFixture.component().permissions(),
-                                    Log::new,
-                                    () -> new LogVersion(DAO.getDefaultDataSource())),
-                            new ArticlePinningService(Log::new, ApplicationServicesFixture.locks()),
-                            Log::new,
-                            ApplicationServicesFixture.locks());
+                                    AccountServicesFixture.component(db.dataSource()).permissions(),
+                                    () -> new Log(db.dataSource()),
+                                    () -> new LogVersion(db.dataSource())),
+                            new ArticlePinningService(() -> new Log(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource())),
+                            () -> new Log(db.dataSource()),
+                            ApplicationServicesFixture.locks(db.dataSource()));
             int id = service.create(token(), article("Valid", "valid")).getLogId().intValue();
             for (String invalid : List.of("../widget", "<plugin>", "a/b", "a\\b", "a b", " a", "a\n", "a".repeat(65))) {
                 CreateArticleRequest create = article("Invalid", "invalid");

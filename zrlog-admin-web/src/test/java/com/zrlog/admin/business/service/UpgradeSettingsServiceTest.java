@@ -3,6 +3,7 @@ package com.zrlog.admin.business.service;
 import static org.junit.Assert.*;
 
 import com.google.gson.Gson;
+import com.hibegin.common.dao.DataSourceWrapper;
 import com.hibegin.http.server.api.HttpRequest;
 import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.rest.request.UpgradeSettingsRequest;
@@ -11,6 +12,7 @@ import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.test.support.DockerControlStub;
 import com.zrlog.business.rest.base.UpgradeWebSiteInfo;
+import com.zrlog.business.service.WebsiteKvService;
 import com.zrlog.business.updater.UpdateVersionInfoPlugin;
 import com.zrlog.common.ZrLogConfig;
 import com.zrlog.common.adapter.UpdaterHosts;
@@ -35,7 +37,7 @@ public class UpgradeSettingsServiceTest {
     @Test public void savesOneRequestWithoutPersistingRuntimeFieldsOrHiddenPackageSource() throws Exception {
         try (var db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
-            plugin();
+            plugin(db.dataSource());
             db.putWebsite("upgradePackageSource", "github");
             Client client = new Client();
             UpgradeSettingsService service =
@@ -51,9 +53,9 @@ public class UpgradeSettingsServiceTest {
                                                     : db.config()
                                                             .getPlugin(
                                                                     UpdateVersionInfoPlugin.class),
-                                    ApplicationServicesFixture.audit(),
-                                    ApplicationServicesFixture.websiteKv(),
-                                    WebSite::new));
+                                    ApplicationServicesFixture.audit(db.dataSource()),
+                                    ApplicationServicesFixture.websiteKv(db.dataSource()),
+                                    () -> new WebSite(db.dataSource())), db.dataSource());
             UpgradeSettingsRequest input = new Gson().fromJson("{\"autoUpgradeVersion\":-1,\"upgradePreview\":true,"
                     + "\"upgradePackageSource\":\"dl\",\"dockerRepository\":\"" + ALIYUN + "\",\"dockerMode\":false}", UpgradeSettingsRequest.class);
             service.save(input, request());
@@ -76,7 +78,7 @@ public class UpgradeSettingsServiceTest {
     @Test public void invalidRepositoryAndUnavailableUpdaterCannotPartiallySaveWebsiteSettings() throws Exception {
         try (var db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
-            plugin(); db.putWebsite("autoUpgradeVersion", 86400);
+            plugin(db.dataSource()); db.putWebsite("autoUpgradeVersion", 86400);
             Client client = new Client();
             var service =
                     service(
@@ -91,9 +93,9 @@ public class UpgradeSettingsServiceTest {
                                                     : db.config()
                                                             .getPlugin(
                                                                     UpdateVersionInfoPlugin.class),
-                                    ApplicationServicesFixture.audit(),
-                                    ApplicationServicesFixture.websiteKv(),
-                                    WebSite::new));
+                                    ApplicationServicesFixture.audit(db.dataSource()),
+                                    ApplicationServicesFixture.websiteKv(db.dataSource()),
+                                    () -> new WebSite(db.dataSource())), db.dataSource());
             assertThrows(ArgsException.class, () -> service.save(input("unlisted.example/zrlog"), request()));
             assertEquals("86400", value(db, "autoUpgradeVersion"));
             assertTrue(client.saves.isEmpty());
@@ -107,7 +109,7 @@ public class UpgradeSettingsServiceTest {
     @Test public void ordinaryChangesDoNotDependOnUpdaterAndKeepItsSavedRepository() throws Exception {
         try (var db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
-            plugin();
+            plugin(db.dataSource());
             Client client = new Client(); client.failRead = true;
             var service =
                     service(
@@ -122,9 +124,9 @@ public class UpgradeSettingsServiceTest {
                                                     : db.config()
                                                             .getPlugin(
                                                                     UpdateVersionInfoPlugin.class),
-                                    ApplicationServicesFixture.audit(),
-                                    ApplicationServicesFixture.websiteKv(),
-                                    WebSite::new));
+                                    ApplicationServicesFixture.audit(db.dataSource()),
+                                    ApplicationServicesFixture.websiteKv(db.dataSource()),
+                                    () -> new WebSite(db.dataSource())), db.dataSource());
             service.save(input(null), request());
             assertEquals("-1", value(db, "autoUpgradeVersion"));
             assertEquals(0, client.reads);
@@ -139,7 +141,7 @@ public class UpgradeSettingsServiceTest {
     @Test public void restoresPreviousUpdaterSettingsWhenWebsiteWriteFails() throws Exception {
         try (var db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
-            plugin(); Client client = new Client();
+            plugin(db.dataSource()); Client client = new Client();
             var service =
                     service(
                             client,
@@ -153,16 +155,16 @@ public class UpgradeSettingsServiceTest {
                                                     : db.config()
                                                             .getPlugin(
                                                                     UpdateVersionInfoPlugin.class),
-                                    ApplicationServicesFixture.audit(),
-                                    ApplicationServicesFixture.websiteKv(),
-                                    WebSite::new) {
+                                    ApplicationServicesFixture.audit(db.dataSource()),
+                                    ApplicationServicesFixture.websiteKv(db.dataSource()),
+                                    () -> new WebSite(db.dataSource())) {
                                 @Override
                                 public void updateUpgrade(
                                         UpgradeWebSiteInfo settings, HttpRequest request)
                                         throws SQLException {
                                     throw new SQLException("test failure");
                                 }
-                            });
+                            }, db.dataSource());
             assertThrows(SQLException.class, () -> service.save(input(ALIYUN), request()));
             assertEquals(List.of(ALIYUN + ":preview", HUB + ":release"), client.saves);
             assertEquals(HUB, client.repository);
@@ -173,7 +175,7 @@ public class UpgradeSettingsServiceTest {
     @Test public void packageModeNeverContactsUpdaterAndRejectsDockerWrites() throws Exception {
         try (var db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
-            plugin(); Client client = new Client();
+            plugin(db.dataSource()); Client client = new Client();
             var service =
                     service(
                             client,
@@ -187,9 +189,9 @@ public class UpgradeSettingsServiceTest {
                                                     : db.config()
                                                             .getPlugin(
                                                                     UpdateVersionInfoPlugin.class),
-                                    ApplicationServicesFixture.audit(),
-                                    ApplicationServicesFixture.websiteKv(),
-                                    WebSite::new));
+                                    ApplicationServicesFixture.audit(db.dataSource()),
+                                    ApplicationServicesFixture.websiteKv(db.dataSource()),
+                                    () -> new WebSite(db.dataSource())), db.dataSource());
             var input = input(null); input.setUpgradePackageSource("github");
             service.save(input, request());
             assertEquals("github", service.read(null).getUpgradePackageSource());
@@ -217,26 +219,26 @@ public class UpgradeSettingsServiceTest {
                                                     : db.config()
                                                             .getPlugin(
                                                                     UpdateVersionInfoPlugin.class),
-                                    ApplicationServicesFixture.audit(),
-                                    ApplicationServicesFixture.websiteKv(),
-                                    WebSite::new));
+                                    ApplicationServicesFixture.audit(db.dataSource()),
+                                    ApplicationServicesFixture.websiteKv(db.dataSource()),
+                                    () -> new WebSite(db.dataSource())), db.dataSource());
             assertThrows(IllegalStateException.class, () -> service.save(input(ALIYUN), request()));
             assertEquals(0, client.reads);
-            plugin(); db.execute("update user set role = 'editor' where userId = 1");
+            plugin(db.dataSource()); db.execute("update user set role = 'editor' where userId = 1");
             assertThrows(PermissionErrorException.class, () -> service.save(input(ALIYUN), request()));
             assertThrows(PermissionErrorException.class, () -> service.read(null));
             assertTrue(client.saves.isEmpty());
         }
     }
 
-    private void plugin() {
+    private void plugin(DataSourceWrapper testDataSource) {
         applicationConfig
                 .getAllPlugins()
                 .add(
                         new UpdateVersionInfoPlugin(
                                 ApplicationServicesFixture.upgradeNotices(applicationConfig),
                                 () -> "zh_CN",
-                                applicationConfig == null ? null : applicationConfig.getUpdater()) {
+                                applicationConfig == null ? null : applicationConfig.getUpdater(), new WebsiteKvService(() -> new WebSite(testDataSource))) {
                             @Override
                             public boolean start() {
                                 return true;
@@ -248,14 +250,14 @@ public class UpgradeSettingsServiceTest {
                             }
                         });
     }
-    private UpgradeSettingsService service(Client client, boolean docker, WebSiteSettingsService settings) {
+    private UpgradeSettingsService service(Client client, boolean docker, WebSiteSettingsService settings, DataSourceWrapper testDataSource) {
         return new UpgradeSettingsService(
                 settings,
                 () ->
                         UpdaterHosts.dockerControl(
                                 applicationConfig == null ? null : applicationConfig.getUpdater()),
-                AccountServicesFixture.component().permissions(),
-                ApplicationServicesFixture.settings()) {
+                AccountServicesFixture.component(testDataSource).permissions(),
+                ApplicationServicesFixture.settings(testDataSource)) {
             @Override
             protected boolean isDockerMode() {
                 return docker;

@@ -29,8 +29,8 @@ public class ArticlePublishingRuntimeTest {
                             null,
                             null,
                             renderer,
-                            ApplicationServicesFixture.audit(),
-                            ApplicationServicesFixture.operations());
+                            ApplicationServicesFixture.audit(db.dataSource()),
+                            ApplicationServicesFixture.operations(db.dataSource()));
         CreateArticleRequest body = new CreateArticleRequest();
         body.setEditorType("markdown");
         body.setMarkdown("# Title");

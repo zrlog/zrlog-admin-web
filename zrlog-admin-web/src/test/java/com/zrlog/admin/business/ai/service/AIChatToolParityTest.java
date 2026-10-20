@@ -3,9 +3,10 @@ package com.zrlog.admin.business.ai.service;
 import static org.junit.Assert.*;
 
 import com.google.gson.*;
+import com.hibegin.common.dao.DataSourceWrapper;
 import com.hibegin.http.server.api.HttpRequest;
-import com.zrlog.admin.business.ai.model.AIChatModels;
 import com.zrlog.admin.business.ai.model.AIChatModels.ChatRequest;
+import com.zrlog.admin.business.ai.model.AIChatModels;
 import com.zrlog.admin.business.ai.model.AIProviderResponses;
 import com.zrlog.admin.business.content.AttachmentStorage;
 import com.zrlog.admin.business.knowledge.*;
@@ -59,11 +60,11 @@ public class AIChatToolParityTest {
             for (String role : List.of("owner", "author", "contributor")) {
                 db.execute("update user set role=? where userId=1", role);
                 for (boolean enabled : List.of(false, true)) {
-                    storage(enabled);
-                    Model model = new Model(tools(), ANSWER);
+                    storage(enabled, db.dataSource());
+                    Model model = new Model(db.dataSource(), tools(), ANSWER);
                     assertTrue(model.chat().contains("\"type\":\"done\""));
                     JsonArray actual = model.requests.get(0).getAsJsonArray("tools");
-                    Identity identity = identity();
+                    Identity identity = identity(db.dataSource());
                     McpContentService provider =
                             new McpContentService(
                                     () -> identity,
@@ -103,10 +104,7 @@ public class AIChatToolParityTest {
             String content = "<p>" + "Article body. ".repeat(500) + "</p>";
             JsonObject create = JsonParser.parseString("{\"title\":\"Original\",\"typeId\":1,\"status\":\"draft\"}").getAsJsonObject();
             create.addProperty("content", content);
-            Model model = new Model(tools(), tool("create_article", create.toString()),
-                    tool("get_article", "{\"id\":1}"),
-                    tool("update_article", "{\"id\":1,\"version\":0,\"title\":\"Revised\"}"),
-                    tool("publish_article", "{\"id\":1,\"version\":1}"), ANSWER);
+            Model model = new Model(db.dataSource(), tools(), tool("create_article", create.toString()), tool("get_article", "{\"id\":1}"), tool("update_article", "{\"id\":1,\"version\":0,\"title\":\"Revised\"}"), tool("publish_article", "{\"id\":1,\"version\":1}"), ANSWER);
             String wire = model.chat();
             assertTrue(wire, wire.contains("\"type\":\"done\""));
             assertTrue(wire.contains("\"tool\":\"create_article\""));
@@ -129,7 +127,7 @@ public class AIChatToolParityTest {
             assertTrue(auditJson.contains("CREATE_ARTICLE"));
             assertTrue(auditJson.contains("PUBLISH_ARTICLE"));
             var audit =
-                    new AdminAuditService(ApplicationServicesFixture.websiteKv()).getRecentLogs();
+                    new AdminAuditService(ApplicationServicesFixture.websiteKv(db.dataSource())).getRecentLogs();
             assertFalse(audit.isEmpty());
             assertTrue(audit.stream().allMatch(entry -> entry.getActorUserId() == 1));
             assertSame(token, AdminTokenThreadLocal.getUser());
@@ -141,7 +139,7 @@ public class AIChatToolParityTest {
             db.loadAdminWebModules();
             applicationConfig = db.config();
             db.execute("insert into log(logId,userId,typeId,title,rubbish,privacy,version) values(?,?,?,?,?,?,?)", 1,1,1,"Current",true,false,2);
-            Model model = new Model(tools(), tool("update_article", "{\"id\":1,\"version\":0,\"title\":\"Stale\"}"), ANSWER);
+            Model model = new Model(db.dataSource(), tools(), tool("update_article", "{\"id\":1,\"version\":0,\"title\":\"Stale\"}"), ANSWER);
             String wire = model.chat();
             assertTrue(wire.contains("\"type\":\"done\""));
             assertTrue(articleUpdates(wire).isEmpty());
@@ -154,7 +152,7 @@ public class AIChatToolParityTest {
         try (InMemoryZrLogDatabase db = open()) {
             db.loadAdminWebModules();
             applicationConfig = db.config();
-            Model model = new Model(tools(), tool("create_article", "{\"title\":\"Denied\",\"typeId\":1,\"status\":\"draft\"}"), ANSWER);
+            Model model = new Model(db.dataSource(), tools(), tool("create_article", "{\"title\":\"Denied\",\"typeId\":1,\"status\":\"draft\"}"), ANSWER);
             String wire = DelegatedAccess.withPermissions(Set.of("article.assist", "article.read"), false, model::chat);
             assertTrue(wire.contains("\"type\":\"done\""));
             JsonArray definitions = model.requests.get(0).getAsJsonArray("tools");
@@ -171,9 +169,7 @@ public class AIChatToolParityTest {
             db.loadAdminWebModules();
             applicationConfig = db.config();
             db.execute("insert into log(logId,userId,typeId,title,rubbish,privacy,version) values(?,?,?,?,?,?,?)", 1,1,1,"Current",true,false,2);
-            Model model = new Model(tools(), tool("get_article", "{\"id\":1}"),
-                    tool("update_article", "{\"id\":1,\"version\":2,\"title\":\"Revised\"}"),
-                    "{\"finish_reason\":\"stop\",\"message\":{\"content\":\"\"}}");
+            Model model = new Model(db.dataSource(), tools(), tool("get_article", "{\"id\":1}"), tool("update_article", "{\"id\":1,\"version\":2,\"title\":\"Revised\"}"), "{\"finish_reason\":\"stop\",\"message\":{\"content\":\"\"}}");
             String wire = model.chat(1);
             assertEquals("Revised", db.scalar("select title from log where logId=1"));
             assertEquals(1, articleUpdates(wire).size());
@@ -205,7 +201,7 @@ public class AIChatToolParityTest {
         try (InMemoryZrLogDatabase db = open()) {
             db.loadAdminWebModules();
             applicationConfig = db.config();
-            Model model = new Model(tools(), tool("create_article", "{\"title\":\"Denied\",\"typeId\":1,\"status\":\"draft\"}"));
+            Model model = new Model(db.dataSource(), tools(), tool("create_article", "{\"title\":\"Denied\",\"typeId\":1,\"status\":\"draft\"}"));
             model.afterRequest = () -> {
                 try { db.execute("update user set enabled=? where userId=1", false); }
                 catch (Exception e) { throw new RuntimeException(e); }
@@ -221,14 +217,14 @@ public class AIChatToolParityTest {
         try (InMemoryZrLogDatabase db = open()) {
             db.loadAdminWebModules();
             applicationConfig = db.config();
-            storage(true);
-            Model model = new Model(tools(), tool("upload_attachment", "{\"filename\":\"note.txt\",\"data\":\"aGVsbG8=\"}"), ANSWER);
+            storage(true, db.dataSource());
+            Model model = new Model(db.dataSource(), tools(), tool("upload_attachment", "{\"filename\":\"note.txt\",\"data\":\"aGVsbG8=\"}"), ANSWER);
             assertTrue(model.chat().contains("\"type\":\"done\""));
             assertTrue(model.requests.get(1).toString().contains("/attachment/note.txt"));
         }
     }
 
-    private static Identity identity() {
+    private static Identity identity(DataSourceWrapper testDataSource) {
         Identity identity = new Identity();
         identity.userId = 1;
         identity.authVersion = AdminTokenThreadLocal.getUser().getAuthVersion();
@@ -239,12 +235,12 @@ public class AIChatToolParityTest {
                         .collect(Collectors.toList());
         identity.scopes =
                 new ArrayList<>(
-                        AccountServicesFixture.component().permissions().current().scopes());
+                        AccountServicesFixture.component(testDataSource).permissions().current().scopes());
         return identity;
     }
 
     @SuppressWarnings("unchecked")
-    private void storage(boolean enabled) throws Exception {
+    private void storage(boolean enabled, DataSourceWrapper source) throws Exception {
         var field = ZrLogConfig.class.getDeclaredField("webSetups");
         field.setAccessible(true);
         List<WebSetup> setups = (List<WebSetup>) field.get(applicationConfig);
@@ -260,7 +256,7 @@ public class AIChatToolParityTest {
                                 byte[] bytes, String filename, HttpRequest request) {
                             assertEquals(
                                     1,
-                                    AccountServicesFixture.component()
+                                    AccountServicesFixture.component(source)
                                             .permissions()
                                             .current()
                                             .getUserId());
@@ -302,18 +298,18 @@ public class AIChatToolParityTest {
         final List<JsonObject> requests = new ArrayList<>();
         Runnable afterRequest = () -> {};
 
-        Model(ContentToolFactory tools, String... responses) {
+        Model(DataSourceWrapper testDataSource, ContentToolFactory tools, String... responses) {
             super(
                     AIChatToolParityTest.request(),
                     tools,
-                    AccountServicesFixture.component().permissions(),
-                    AccountServicesFixture.component().preferences(),
-                    AIServiceDependencies.approvals(),
+                    AccountServicesFixture.component(testDataSource).permissions(),
+                    AccountServicesFixture.component(testDataSource).preferences(),
+                    AIServiceDependencies.approvals(testDataSource),
                     new AIFileService(),
-                    AIServiceDependencies.writing(),
-                    AIServiceDependencies.conversations(),
-                    AIServiceDependencies.writingTools(),
-                    AIServiceDependencies.references(tools));
+                    AIServiceDependencies.writing(testDataSource),
+                    AIServiceDependencies.conversations(testDataSource),
+                    AIServiceDependencies.writingTools(testDataSource),
+                    AIServiceDependencies.references(tools, testDataSource));
             this.responses = List.of(responses);
         }
 

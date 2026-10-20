@@ -6,6 +6,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import com.google.gson.reflect.TypeToken;
+import com.hibegin.common.dao.DataSourceWrapper;
 import com.zrlog.admin.business.rest.response.WebsiteKvEntryResponse;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.business.service.WebsiteKvService;
@@ -27,7 +28,7 @@ public class WebsiteCacheServiceTest {
         kv.values.put("admin_cache:config", "{\"enabled\":true}");
         kv.values.put("admin_cache:list", "[{\"name\":\"one\"}]");
         kv.values.put("admin_cache:bad", "{");
-        WebsiteCacheService service = service(kv);
+        WebsiteCacheService service = service(kv, null);
         Type listType = new TypeToken<List<Map<String, Object>>>() {
         }.getType();
 
@@ -56,7 +57,7 @@ public class WebsiteCacheServiceTest {
                 Map.of("name", "admin_cache:a", "value", "one", "size", 3),
                 Map.of("name", "admin_cache:b", "value", "two", "size", "4")
         );
-        WebsiteCacheService service = service(kv);
+        WebsiteCacheService service = service(kv, null);
 
         List<WebsiteKvEntryResponse> entries = service.listEntries();
 
@@ -69,9 +70,9 @@ public class WebsiteCacheServiceTest {
         assertEquals(4L, entries.get(1).getSize());
     }
 
-    private static WebsiteCacheService service(FakeWebsiteKvService kvService) throws Exception {
+    private static WebsiteCacheService service(FakeWebsiteKvService kvService, DataSourceWrapper testDataSource) throws Exception {
         WebsiteCacheService service =
-                new WebsiteCacheService(ApplicationServicesFixture.websiteKv());
+                new WebsiteCacheService(ApplicationServicesFixture.websiteKv(testDataSource));
         Field field = WebsiteCacheService.class.getDeclaredField("kvService");
         field.setAccessible(true);
         field.set(service, kvService);
@@ -79,6 +80,9 @@ public class WebsiteCacheServiceTest {
     }
 
     private static class FakeWebsiteKvService extends WebsiteKvService {
+        FakeWebsiteKvService() {
+            super(() -> { throw new AssertionError("Unexpected database access"); });
+        }
 
         private final Map<String, String> values = new HashMap<>();
         private List<Map<String, Object>> rows = List.of();

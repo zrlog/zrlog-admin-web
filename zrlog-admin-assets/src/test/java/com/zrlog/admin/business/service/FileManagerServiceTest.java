@@ -7,7 +7,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
-import com.hibegin.common.dao.DAO;
 import com.hibegin.http.server.util.PathUtil;
 import com.zrlog.admin.business.AdminConstants;
 import com.zrlog.admin.business.rest.response.FileEntryVO;
@@ -43,26 +42,26 @@ public class FileManagerServiceTest {
                             new FileManagerService(
                                     new UploadService(
                                             () -> null,
-                                            AccountServicesFixture.component().permissions(),
+                                            AccountServicesFixture.component(null).permissions(),
                                             new DbFileService(
-                                                    ApplicationServicesFixture.websiteKv(),
-                                                    WebSite::new)),
+                                                    ApplicationServicesFixture.websiteKv(null),
+                                                    () -> { throw new IllegalStateException("Database is unavailable in this test"); })),
                                     new FileManagerReferenceService(
-                                            ApplicationServicesFixture.websiteCache(),
+                                            ApplicationServicesFixture.websiteCache(null),
                                             "",
                                             new ArticleVersionService(
-                                                    AccountServicesFixture.component()
+                                                    AccountServicesFixture.component(null)
                                                             .permissions(),
-                                                    Log::new,
+                                                    () -> { throw new IllegalStateException("Database is unavailable in this test"); },
                                                     () ->
                                                             new LogVersion(
-                                                                    DAO.getDefaultDataSource())),
-                                            Log::new),
+                                                                    null)),
+                                            () -> { throw new IllegalStateException("Database is unavailable in this test"); }),
                                     new DbFileService(
-                                            ApplicationServicesFixture.websiteKv(), WebSite::new),
-                                    ApplicationServicesFixture.settings(),
-                                    ApplicationServicesFixture.audit(),
-                                    ApplicationServicesFixture.operations());
+                                            ApplicationServicesFixture.websiteKv(null), () -> { throw new IllegalStateException("Database is unavailable in this test"); }),
+                                    ApplicationServicesFixture.settings(null),
+                                    ApplicationServicesFixture.audit(null),
+                                    ApplicationServicesFixture.operations(null));
 
                     assertEquals(
                             PathUtil.getStaticFile("/attached").getCanonicalFile(),
@@ -101,21 +100,21 @@ public class FileManagerServiceTest {
                 new FileManagerService(
                         new UploadService(
                                 () -> null,
-                                AccountServicesFixture.component().permissions(),
+                                AccountServicesFixture.component(null).permissions(),
                                 new DbFileService(
-                                        ApplicationServicesFixture.websiteKv(), WebSite::new)),
+                                        ApplicationServicesFixture.websiteKv(null), () -> { throw new IllegalStateException("Database is unavailable in this test"); })),
                         new FileManagerReferenceService(
-                                ApplicationServicesFixture.websiteCache(),
+                                ApplicationServicesFixture.websiteCache(null),
                                 "",
                                 new ArticleVersionService(
-                                        AccountServicesFixture.component().permissions(),
-                                        Log::new,
-                                        () -> new LogVersion(DAO.getDefaultDataSource())),
-                                Log::new),
-                        new DbFileService(ApplicationServicesFixture.websiteKv(), WebSite::new),
-                        ApplicationServicesFixture.settings(),
-                        ApplicationServicesFixture.audit(),
-                        ApplicationServicesFixture.operations());
+                                        AccountServicesFixture.component(null).permissions(),
+                                        () -> { throw new IllegalStateException("Database is unavailable in this test"); },
+                                        () -> { throw new IllegalStateException("Database is unavailable in this test"); }),
+                                () -> { throw new IllegalStateException("Database is unavailable in this test"); }),
+                        new DbFileService(ApplicationServicesFixture.websiteKv(null), () -> { throw new IllegalStateException("Database is unavailable in this test"); }),
+                        ApplicationServicesFixture.settings(null),
+                        ApplicationServicesFixture.audit(null),
+                        ApplicationServicesFixture.operations(null));
 
         assertEquals(List.of(FileDirectoryAction.UPLOAD, FileDirectoryAction.MKDIR),
                 service.getDirectoryActions("/attached"));
@@ -135,21 +134,21 @@ public class FileManagerServiceTest {
                 new FileManagerService(
                         new UploadService(
                                 () -> null,
-                                AccountServicesFixture.component().permissions(),
+                                AccountServicesFixture.component(null).permissions(),
                                 new DbFileService(
-                                        ApplicationServicesFixture.websiteKv(), WebSite::new)),
+                                        ApplicationServicesFixture.websiteKv(null), () -> { throw new IllegalStateException("Database is unavailable in this test"); })),
                         new FileManagerReferenceService(
-                                ApplicationServicesFixture.websiteCache(),
+                                ApplicationServicesFixture.websiteCache(null),
                                 "",
                                 new ArticleVersionService(
-                                        AccountServicesFixture.component().permissions(),
-                                        Log::new,
-                                        () -> new LogVersion(DAO.getDefaultDataSource())),
-                                Log::new),
-                        new DbFileService(ApplicationServicesFixture.websiteKv(), WebSite::new),
-                        ApplicationServicesFixture.settings(),
-                        ApplicationServicesFixture.audit(),
-                        ApplicationServicesFixture.operations());
+                                        AccountServicesFixture.component(null).permissions(),
+                                        () -> { throw new IllegalStateException("Database is unavailable in this test"); },
+                                        () -> { throw new IllegalStateException("Database is unavailable in this test"); }),
+                                () -> { throw new IllegalStateException("Database is unavailable in this test"); }),
+                        new DbFileService(ApplicationServicesFixture.websiteKv(null), () -> { throw new IllegalStateException("Database is unavailable in this test"); }),
+                        ApplicationServicesFixture.settings(null),
+                        ApplicationServicesFixture.audit(null),
+                        ApplicationServicesFixture.operations(null));
 
         assertTrue(service.search("").isEmpty());
 
@@ -213,26 +212,26 @@ public class FileManagerServiceTest {
                             new FileManagerService(
                                     new UploadService(
                                             () -> null,
-                                            AccountServicesFixture.component().permissions(),
+                                            AccountServicesFixture.component(null).permissions(),
                                             new DbFileService(
-                                                    ApplicationServicesFixture.websiteKv(),
-                                                    WebSite::new)),
+                                                    ApplicationServicesFixture.websiteKv(null),
+                                                    () -> { throw new IllegalStateException("Database is unavailable in this test"); })),
                                     new FileManagerReferenceService(
-                                            ApplicationServicesFixture.websiteCache(),
+                                            ApplicationServicesFixture.websiteCache(null),
                                             "",
                                             new ArticleVersionService(
-                                                    AccountServicesFixture.component()
+                                                    AccountServicesFixture.component(null)
                                                             .permissions(),
-                                                    Log::new,
+                                                    () -> { throw new IllegalStateException("Database is unavailable in this test"); },
                                                     () ->
                                                             new LogVersion(
-                                                                    DAO.getDefaultDataSource())),
-                                            Log::new),
+                                                                    null)),
+                                            () -> { throw new IllegalStateException("Database is unavailable in this test"); }),
                                     new DbFileService(
-                                            ApplicationServicesFixture.websiteKv(), WebSite::new),
-                                    ApplicationServicesFixture.settings(),
-                                    ApplicationServicesFixture.audit(),
-                                    ApplicationServicesFixture.operations());
+                                            ApplicationServicesFixture.websiteKv(null), () -> { throw new IllegalStateException("Database is unavailable in this test"); }),
+                                    ApplicationServicesFixture.settings(null),
+                                    ApplicationServicesFixture.audit(null),
+                                    ApplicationServicesFixture.operations(null));
 
                     assertTrue(service.mkdir("/attached/docs"));
                     assertTrue(service.mkdir("/attached/docs"));
@@ -263,26 +262,26 @@ public class FileManagerServiceTest {
                             new FileManagerService(
                                     new UploadService(
                                             () -> null,
-                                            AccountServicesFixture.component().permissions(),
+                                            AccountServicesFixture.component(null).permissions(),
                                             new DbFileService(
-                                                    ApplicationServicesFixture.websiteKv(),
-                                                    WebSite::new)),
+                                                    ApplicationServicesFixture.websiteKv(null),
+                                                    () -> { throw new IllegalStateException("Database is unavailable in this test"); })),
                                     new FileManagerReferenceService(
-                                            ApplicationServicesFixture.websiteCache(),
+                                            ApplicationServicesFixture.websiteCache(null),
                                             "",
                                             new ArticleVersionService(
-                                                    AccountServicesFixture.component()
+                                                    AccountServicesFixture.component(null)
                                                             .permissions(),
-                                                    Log::new,
+                                                    () -> { throw new IllegalStateException("Database is unavailable in this test"); },
                                                     () ->
                                                             new LogVersion(
-                                                                    DAO.getDefaultDataSource())),
-                                            Log::new),
+                                                                    null)),
+                                            () -> { throw new IllegalStateException("Database is unavailable in this test"); }),
                                     new DbFileService(
-                                            ApplicationServicesFixture.websiteKv(), WebSite::new),
-                                    ApplicationServicesFixture.settings(),
-                                    ApplicationServicesFixture.audit(),
-                                    ApplicationServicesFixture.operations());
+                                            ApplicationServicesFixture.websiteKv(null), () -> { throw new IllegalStateException("Database is unavailable in this test"); }),
+                                    ApplicationServicesFixture.settings(null),
+                                    ApplicationServicesFixture.audit(null),
+                                    ApplicationServicesFixture.operations(null));
                     File upload = temporaryFolder.newFile("upload.png");
                     File existing = PathUtil.getStaticFile("/attached/existing.png");
                     assertTrue(existing.getParentFile().mkdirs());
@@ -308,23 +307,23 @@ public class FileManagerServiceTest {
                     new FileManagerService(
                             new UploadService(
                                     () -> null,
-                                    AccountServicesFixture.component().permissions(),
+                                    AccountServicesFixture.component(db.dataSource()).permissions(),
                                     new DbFileService(
-                                            ApplicationServicesFixture.websiteKv(), WebSite::new)),
+                                            ApplicationServicesFixture.websiteKv(db.dataSource()), () -> new WebSite(db.dataSource()))),
                             new FileManagerReferenceService(
-                                    ApplicationServicesFixture.websiteCache(),
+                                    ApplicationServicesFixture.websiteCache(db.dataSource()),
                                     "",
                                     new ArticleVersionService(
-                                            AccountServicesFixture.component().permissions(),
-                                            Log::new,
-                                            () -> new LogVersion(DAO.getDefaultDataSource())),
-                                    Log::new),
-                            new DbFileService(ApplicationServicesFixture.websiteKv(), WebSite::new),
-                            ApplicationServicesFixture.settings(),
-                            ApplicationServicesFixture.audit(),
-                            ApplicationServicesFixture.operations());
+                                            AccountServicesFixture.component(db.dataSource()).permissions(),
+                                            () -> new Log(db.dataSource()),
+                                            () -> new LogVersion(db.dataSource())),
+                                    () -> new Log(db.dataSource())),
+                            new DbFileService(ApplicationServicesFixture.websiteKv(db.dataSource()), () -> new WebSite(db.dataSource())),
+                            ApplicationServicesFixture.settings(db.dataSource()),
+                            ApplicationServicesFixture.audit(db.dataSource()),
+                            ApplicationServicesFixture.operations(db.dataSource()));
             DbFileService dbFileService =
-                    new DbFileService(ApplicationServicesFixture.websiteKv(), WebSite::new);
+                    new DbFileService(ApplicationServicesFixture.websiteKv(db.dataSource()), () -> new WebSite(db.dataSource()));
             String filePath = AdminConstants.ADMIN_DB_ATTACHED_TMP + "/docs/a.txt";
             String dirPath = AdminConstants.ADMIN_DB_ATTACHED_TMP + "/docs";
             dbFileService.toDbFile(filePath, "db-temp".getBytes(StandardCharsets.UTF_8));
@@ -368,28 +367,27 @@ public class FileManagerServiceTest {
                                 new FileManagerService(
                                         new UploadService(
                                                 () -> null,
-                                                AccountServicesFixture.component().permissions(),
+                                                AccountServicesFixture.component(db.dataSource()).permissions(),
                                                 new DbFileService(
-                                                        ApplicationServicesFixture.websiteKv(),
-                                                        WebSite::new)),
+                                                        ApplicationServicesFixture.websiteKv(db.dataSource()),
+                                                        () -> new WebSite(db.dataSource()))),
                                         new FileManagerReferenceService(
-                                                ApplicationServicesFixture.websiteCache(),
+                                                ApplicationServicesFixture.websiteCache(db.dataSource()),
                                                 "",
                                                 new ArticleVersionService(
-                                                        AccountServicesFixture.component()
+                                                        AccountServicesFixture.component(db.dataSource())
                                                                 .permissions(),
-                                                        Log::new,
+                                                        () -> new Log(db.dataSource()),
                                                         () ->
                                                                 new LogVersion(
-                                                                        DAO
-                                                                                .getDefaultDataSource())),
-                                                Log::new),
+                                                                        db.dataSource())),
+                                                () -> new Log(db.dataSource())),
                                         new DbFileService(
-                                                ApplicationServicesFixture.websiteKv(),
-                                                WebSite::new),
-                                        ApplicationServicesFixture.settings(),
-                                        ApplicationServicesFixture.audit(),
-                                        ApplicationServicesFixture.operations());
+                                                ApplicationServicesFixture.websiteKv(db.dataSource()),
+                                                () -> new WebSite(db.dataSource())),
+                                        ApplicationServicesFixture.settings(db.dataSource()),
+                                        ApplicationServicesFixture.audit(db.dataSource()),
+                                        ApplicationServicesFixture.operations(db.dataSource()));
                         List<FileEntryVO> attachedEntries = service.list("/attached/images");
                         FileEntryVO referencedImage = findByName(attachedEntries, "a.png");
                         List<FileEntryVO> externalDomains =
@@ -448,28 +446,27 @@ public class FileManagerServiceTest {
                                 new FileManagerService(
                                         new UploadService(
                                                 () -> null,
-                                                AccountServicesFixture.component().permissions(),
+                                                AccountServicesFixture.component(db.dataSource()).permissions(),
                                                 new DbFileService(
-                                                        ApplicationServicesFixture.websiteKv(),
-                                                        WebSite::new)),
+                                                        ApplicationServicesFixture.websiteKv(db.dataSource()),
+                                                        () -> new WebSite(db.dataSource()))),
                                         new FileManagerReferenceService(
-                                                ApplicationServicesFixture.websiteCache(),
+                                                ApplicationServicesFixture.websiteCache(db.dataSource()),
                                                 "",
                                                 new ArticleVersionService(
-                                                        AccountServicesFixture.component()
+                                                        AccountServicesFixture.component(db.dataSource())
                                                                 .permissions(),
-                                                        Log::new,
+                                                        () -> new Log(db.dataSource()),
                                                         () ->
                                                                 new LogVersion(
-                                                                        DAO
-                                                                                .getDefaultDataSource())),
-                                                Log::new),
+                                                                        db.dataSource())),
+                                                () -> new Log(db.dataSource())),
                                         new DbFileService(
-                                                ApplicationServicesFixture.websiteKv(),
-                                                WebSite::new),
-                                        ApplicationServicesFixture.settings(),
-                                        ApplicationServicesFixture.audit(),
-                                        ApplicationServicesFixture.operations());
+                                                ApplicationServicesFixture.websiteKv(db.dataSource()),
+                                                () -> new WebSite(db.dataSource())),
+                                        ApplicationServicesFixture.settings(db.dataSource()),
+                                        ApplicationServicesFixture.audit(db.dataSource()),
+                                        ApplicationServicesFixture.operations(db.dataSource()));
 
                         assertTrue(service.list(FileManagerService.EXTERNAL_ROOT).isEmpty());
                         assertTrue(service.listBrokenLocalResourceReferences("").isEmpty());
@@ -486,26 +483,26 @@ public class FileManagerServiceTest {
                             new FileManagerService(
                                     new UploadService(
                                             () -> null,
-                                            AccountServicesFixture.component().permissions(),
+                                            AccountServicesFixture.component(null).permissions(),
                                             new DbFileService(
-                                                    ApplicationServicesFixture.websiteKv(),
-                                                    WebSite::new)),
+                                                    ApplicationServicesFixture.websiteKv(null),
+                                                    () -> { throw new IllegalStateException("Database is unavailable in this test"); })),
                                     new FileManagerReferenceService(
-                                            ApplicationServicesFixture.websiteCache(),
+                                            ApplicationServicesFixture.websiteCache(null),
                                             "",
                                             new ArticleVersionService(
-                                                    AccountServicesFixture.component()
+                                                    AccountServicesFixture.component(null)
                                                             .permissions(),
-                                                    Log::new,
+                                                    () -> { throw new IllegalStateException("Database is unavailable in this test"); },
                                                     () ->
                                                             new LogVersion(
-                                                                    DAO.getDefaultDataSource())),
-                                            Log::new),
+                                                                    null)),
+                                            () -> { throw new IllegalStateException("Database is unavailable in this test"); }),
                                     new DbFileService(
-                                            ApplicationServicesFixture.websiteKv(), WebSite::new),
-                                    ApplicationServicesFixture.settings(),
-                                    ApplicationServicesFixture.audit(),
-                                    ApplicationServicesFixture.operations());
+                                            ApplicationServicesFixture.websiteKv(null), () -> { throw new IllegalStateException("Database is unavailable in this test"); }),
+                                    ApplicationServicesFixture.settings(null),
+                                    ApplicationServicesFixture.audit(null),
+                                    ApplicationServicesFixture.operations(null));
                     File file = PathUtil.getStaticFile("/attached/large.txt");
                     assertTrue(file.getParentFile().mkdirs());
                     Files.write(file.toPath(), new byte[1024 * 1024 + 1]);

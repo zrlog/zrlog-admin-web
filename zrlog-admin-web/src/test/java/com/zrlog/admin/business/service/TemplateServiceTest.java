@@ -52,8 +52,8 @@ public class TemplateServiceTest {
                                         db.cacheService(),
                                         () -> null,
                                         () -> null,
-                                        ApplicationServicesFixture.audit(),
-                                        WebSite::new);
+                                        ApplicationServicesFixture.audit(db.dataSource()),
+                                        () -> new WebSite(db.dataSource()));
 
                         List<TemplateEntryResponse> templates =
                                 service.getAllTemplates(templatePath);
@@ -104,8 +104,8 @@ public class TemplateServiceTest {
                                         db.cacheService(),
                                         () -> null,
                                         () -> null,
-                                        ApplicationServicesFixture.audit(),
-                                        WebSite::new);
+                                        ApplicationServicesFixture.audit(db.dataSource()),
+                                        () -> new WebSite(db.dataSource()));
                         for (String language : List.of("en_US", "zh_CN", "en_US")) {
                             try (AdminLanguageContext ignored =
                                     AdminLanguageContext.open(language)) {
@@ -150,8 +150,8 @@ public class TemplateServiceTest {
                                                 db.cacheService(),
                                                 () -> null,
                                                 () -> null,
-                                                ApplicationServicesFixture.audit(),
-                                                WebSite::new)
+                                                ApplicationServicesFixture.audit(db.dataSource()),
+                                                () -> new WebSite(db.dataSource()))
                                         .getAllTemplates(templatePath);
                         TemplateEntryResponse local =
                                 entries.stream()
@@ -194,8 +194,8 @@ public class TemplateServiceTest {
                                         db.cacheService(),
                                         () -> null,
                                         () -> null,
-                                        ApplicationServicesFixture.audit(),
-                                        WebSite::new);
+                                        ApplicationServicesFixture.audit(db.dataSource()),
+                                        () -> new WebSite(db.dataSource()));
                         Map<String, Object> settings = new LinkedHashMap<>();
                         settings.put("accent", "<b>blue</b><script>bad()</script>");
                         settings.put(
@@ -209,7 +209,7 @@ public class TemplateServiceTest {
 
                         UpdateRecordResponse response = service.save(templatePath, settings);
                         Map<String, Object> stored =
-                                new WebSite().getTemplateConfigMap(templatePath);
+                                new WebSite(db.dataSource()).getTemplateConfigMap(templatePath);
 
                         assertNotNull(response.getMessage());
                         assertEquals("blue", stored.get("accent"));
@@ -241,8 +241,8 @@ public class TemplateServiceTest {
                                             new InMemoryZrLogDatabase.TestCacheService(),
                                             () -> null,
                                             () -> null,
-                                            ApplicationServicesFixture.audit(),
-                                            WebSite::new)
+                                            ApplicationServicesFixture.audit(null),
+                                            () -> { throw new IllegalStateException("Database is unavailable in this test"); })
                                     .upload("uploaded-theme", false, zipFile);
 
                     File installed =
@@ -285,8 +285,8 @@ public class TemplateServiceTest {
                                     new InMemoryZrLogDatabase.TestCacheService(),
                                     () -> null,
                                     () -> null,
-                                    ApplicationServicesFixture.audit(),
-                                    WebSite::new);
+                                    ApplicationServicesFixture.audit(null),
+                                    () -> { throw new IllegalStateException("Database is unavailable in this test"); });
 
                     UploadTemplateResponse rejected =
                             service.upload("replace-theme", false, zipFile);
@@ -322,8 +322,8 @@ public class TemplateServiceTest {
                                             new InMemoryZrLogDatabase.TestCacheService(),
                                             () -> null,
                                             () -> null,
-                                            ApplicationServicesFixture.audit(),
-                                            WebSite::new)
+                                            ApplicationServicesFixture.audit(null),
+                                            () -> { throw new IllegalStateException("Database is unavailable in this test"); })
                                     .upload("unsafe-theme", false, zipFile);
 
                     assertEquals(1, response.getError());
@@ -349,8 +349,8 @@ public class TemplateServiceTest {
                                             new InMemoryZrLogDatabase.TestCacheService(),
                                             () -> null,
                                             () -> null,
-                                            ApplicationServicesFixture.audit(),
-                                            WebSite::new)
+                                            ApplicationServicesFixture.audit(null),
+                                            () -> { throw new IllegalStateException("Database is unavailable in this test"); })
                                     .upload("missing-metadata", false, zipFile);
 
                     assertEquals(1, response.getError());

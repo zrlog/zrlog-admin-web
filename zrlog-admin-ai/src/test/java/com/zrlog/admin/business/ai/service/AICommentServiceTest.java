@@ -32,7 +32,7 @@ public class AICommentServiceTest {
         info.setAi_provider(AIProviderType.DEEP_SEEK); info.setAi_model("configured-model");
         info.setAi_api_key("test-key"); info.setAi_max_completion_tokens(8000);
         AICommentService service =
-                new AICommentService(AIServiceDependencies.config()) {
+                new AICommentService(AIServiceDependencies.config(null)) {
                     @Override
                     protected String requestCompletion(
                             AIWebSiteInfo config, List<AIResponseEntry.AIContentEntry> messages) {
@@ -53,7 +53,7 @@ public class AICommentServiceTest {
         assertEquals(Integer.valueOf(8000), info.getAi_max_completion_tokens());
     }
     @Test public void rejectsInvalidResultsAndNeverSuggestsReplyingToSpam() {
-        AICommentService service = new AICommentService(AIServiceDependencies.config());
+        AICommentService service = new AICommentService(AIServiceDependencies.config(null));
         for (String invalid : new String[]{"not json", "{}", "null", "[]", "{\"verdict\":true,\"reason\":\"ok\",\"reply\":\"hi\"}",
                 "{\"verdict\":\"publish\",\"reason\":\"ok\",\"reply\":\"hi\"}"}) {
             assertThrows(AIResponseException.class, () -> service.parse(invalid));
@@ -65,7 +65,7 @@ public class AICommentServiceTest {
         assertThrows(
                 ArgsException.class,
                 () ->
-                        new AICommentService(AIServiceDependencies.config())
+                        new AICommentService(AIServiceDependencies.config(null))
                                 .analyze(new AnalyzeCommentRequest()));
         AnalyzeCommentRequest request = new AnalyzeCommentRequest(); request.setContent("a".repeat(5001));
         assertThrows(ArgsException.class, request::doValid);
@@ -86,7 +86,7 @@ public class AICommentServiceTest {
         AIWebSiteInfo info = new AIWebSiteInfo(); info.setAi_provider(AIProviderType.DEEP_SEEK);
         info.setAi_api_key("test-key");
         HttpRequest request =
-                new AICommentService(AIServiceDependencies.config()).buildRequest(info, "{}");
+                new AICommentService(AIServiceDependencies.config(null)).buildRequest(info, "{}");
         assertEquals("Bearer test-key", request.headers().firstValue("Authorization").get());
         assertEquals(Duration.ofSeconds(25), request.timeout().get());
         assertEquals("POST", request.method());

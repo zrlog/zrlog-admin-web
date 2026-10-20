@@ -8,7 +8,6 @@ import com.zrlog.admin.business.rest.base.AIWebSiteInfoWithAIMessages;
 import com.zrlog.admin.business.rest.response.AIResponseEntry;
 import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.ApplicationServicesFixture;
-import com.zrlog.model.WebSite;
 
 import org.junit.Test;
 
@@ -22,11 +21,11 @@ public class AIConversationServiceTest {
     public void shouldFillAiMessagesFromSerializedCacheValue() throws Exception {
         AIConversationService service =
                 new AIConversationService(
-                        AccountServicesFixture.component().security(),
-                        ApplicationServicesFixture.websiteKv(),
-                        WebSite::new,
+                        AccountServicesFixture.component(null).security(),
+                        ApplicationServicesFixture.websiteKv(null),
+                        () -> { throw new IllegalStateException("Database is unavailable in this test"); },
                         new AIFileService(),
-                        AIServiceDependencies.approvals());
+                        AIServiceDependencies.approvals(null));
         AIWebSiteInfoWithAIMessages info = new AIWebSiteInfoWithAIMessages();
 
         service.fillAiMessages(info, Map.of("ai_chat_message_7",
@@ -45,11 +44,11 @@ public class AIConversationServiceTest {
     public void shouldEnsureSystemMessageOnlyWhenMissing() {
         AIConversationService service =
                 new AIConversationService(
-                        AccountServicesFixture.component().security(),
-                        ApplicationServicesFixture.websiteKv(),
-                        WebSite::new,
+                        AccountServicesFixture.component(null).security(),
+                        ApplicationServicesFixture.websiteKv(null),
+                        () -> { throw new IllegalStateException("Database is unavailable in this test"); },
                         new AIFileService(),
-                        AIServiceDependencies.approvals());
+                        AIServiceDependencies.approvals(null));
         List<AIResponseEntry.AIContentEntry> messages = new ArrayList<>();
         messages.add(new AIResponseEntry.AIContentEntry("user", "question"));
 
@@ -66,11 +65,11 @@ public class AIConversationServiceTest {
     public void shouldFillMissingAiMessageIdsAndBuildCacheKeys() throws Exception {
         AIConversationService service =
                 new AIConversationService(
-                        AccountServicesFixture.component().security(),
-                        ApplicationServicesFixture.websiteKv(),
-                        WebSite::new,
+                        AccountServicesFixture.component(null).security(),
+                        ApplicationServicesFixture.websiteKv(null),
+                        () -> { throw new IllegalStateException("Database is unavailable in this test"); },
                         new AIFileService(),
-                        AIServiceDependencies.approvals());
+                        AIServiceDependencies.approvals(null));
         AIResponseEntry.AIContentEntry existing = new AIResponseEntry.AIContentEntry("user", "existing");
         existing.setMessageId("existing-id");
         AIResponseEntry.AIContentEntry missing = new AIResponseEntry.AIContentEntry("assistant", "missing");

@@ -41,9 +41,9 @@ public class MemberServiceTest {
             create.role = "author";
             MemberModels.Member member =
                     new MemberService(
-                                    AccountServicesFixture.component().security(),
-                                    AccountServicesFixture.component().users(),
-                                    AccountServicesFixture.component().permissions())
+                                    AccountServicesFixture.component(db.dataSource()).security(),
+                                    AccountServicesFixture.component(db.dataSource()).users(),
+                                    AccountServicesFixture.component(db.dataSource()).permissions())
                             .create(create);
 
             assertTrue(member.userId > 1);
@@ -58,9 +58,9 @@ public class MemberServiceTest {
             UserService users =
                     new UserService(
                             java.util.Collections::emptySet,
-                            AccountServicesFixture.component().mfa(),
-                            AccountServicesFixture.component().preferences(),
-                            User::new);
+                            AccountServicesFixture.component(db.dataSource()).mfa(),
+                            AccountServicesFixture.component(db.dataSource()).preferences(),
+                            () -> new User(db.dataSource()));
             String avatar = users.getBasicUserInfo(member.userId, "new-member-session").getHeader();
             String dataUriPrefix = "data:image/gif;base64,";
             assertTrue(avatar.startsWith(dataUriPrefix));

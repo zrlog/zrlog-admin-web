@@ -7,7 +7,7 @@ import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
-import com.hibegin.common.dao.DAO;
+import com.hibegin.common.dao.DataSourceWrapper;
 import com.hibegin.http.server.api.HttpRequest;
 import com.zrlog.admin.business.rest.request.ArticleVersionRollbackRequest;
 import com.zrlog.admin.business.rest.request.UpdateArticleRequest;
@@ -35,7 +35,7 @@ public class ArticleVersionServiceTest {
     @Test
     @SuppressWarnings("unchecked")
     public void shouldBuildReversePatchForChangedSnapshotFields() throws Exception {
-        ArticleVersionService service = newService();
+        ArticleVersionService service = newService(null);
         Method method = method("buildReversePatch", Map.class, Map.class);
         Map<String, Object> oldLog = new LinkedHashMap<>();
         oldLog.put("title", "hello old world");
@@ -68,7 +68,7 @@ public class ArticleVersionServiceTest {
 
     @Test
     public void shouldApplyReversePatchToArticleSnapshot() throws Exception {
-        ArticleVersionService service = newService();
+        ArticleVersionService service = newService(null);
         LoadEditArticleResponse article = article(9, 4, "hello new world");
         article.setContent("new content");
         article.setTypeId(3L);
@@ -102,7 +102,7 @@ public class ArticleVersionServiceTest {
 
     @Test
     public void historicalNullArrangementPatchRestoresDefaultInsteadOfPreservingCurrentPlugin() throws Exception {
-        ArticleVersionService service = newService();
+        ArticleVersionService service = newService(null);
         LoadEditArticleResponse article = article(9, 4, "Layout");
         article.setArrange_plugin("retro-runtime");
         method("applyReversePatch", LoadEditArticleResponse.class, String.class).invoke(
@@ -140,8 +140,8 @@ public class ArticleVersionServiceTest {
 
     @Test
     public void shouldCompareCurrentVersionWithoutLoadingReversePatches() throws Exception {
-        FakeAdminArticleService fake = fakeArticleService(article(5, 3, "Current"));
-        ArticleVersionService service = newService();
+        FakeAdminArticleService fake = fakeArticleService(article(5, 3, "Current"), null);
+        ArticleVersionService service = newService(null);
 
         ArticleVersionCompareResponse response = service.compare(5, 3, 3, null, fake);
 
@@ -155,8 +155,8 @@ public class ArticleVersionServiceTest {
 
     @Test
     public void shouldRollbackToCurrentVersionThroughInjectedArticleService() throws Exception {
-        FakeAdminArticleService fake = fakeArticleService(article(6, 4, "Rollback"));
-        ArticleVersionService service = newService();
+        FakeAdminArticleService fake = fakeArticleService(article(6, 4, "Rollback"), null);
+        ArticleVersionService service = newService(null);
         ArticleVersionRollbackRequest request = new ArticleVersionRollbackRequest();
         request.setLogId(6);
         request.setVersion(5);
@@ -173,12 +173,12 @@ public class ArticleVersionServiceTest {
 
     @Test
     public void shouldRejectRollbackMissingVersionInputs() throws Exception {
-        ArticleVersionService service = newService();
+        ArticleVersionService service = newService(null);
         ArticleVersionRollbackRequest request = new ArticleVersionRollbackRequest();
         request.setLogId(1);
         request.setVersion(1);
 
-        assertThrows(ArgsException.class, () -> service.rollback(null, request, null, fakeArticleService(null)));
+        assertThrows(ArgsException.class, () -> service.rollback(null, request, null, fakeArticleService(null, null)));
     }
 
     private static LoadEditArticleResponse article(Integer logId, Integer version, String title) {
@@ -209,38 +209,38 @@ public class ArticleVersionServiceTest {
         return method;
     }
 
-    private static ArticleVersionService newService() {
+    private static ArticleVersionService newService(DataSourceWrapper testDataSource) {
         return new ArticleVersionService(
-                AccountServicesFixture.component().permissions(),
-                Log::new,
-                () -> new LogVersion(DAO.getDefaultDataSource()));
+                AccountServicesFixture.component(testDataSource).permissions(),
+                () -> new Log(testDataSource),
+                () -> new LogVersion(testDataSource));
     }
 
-    private static FakeAdminArticleService fakeArticleService(LoadEditArticleResponse current) throws Exception {
-        FakeAdminArticleService fake = new FakeAdminArticleService();
+    private static FakeAdminArticleService fakeArticleService(LoadEditArticleResponse current, DataSourceWrapper testDataSource) throws Exception {
+        FakeAdminArticleService fake = new FakeAdminArticleService(testDataSource);
         fake.current = current;
         return fake;
     }
 
     private static class FakeAdminArticleService extends AdminArticleService {
-        private FakeAdminArticleService() {
+        private FakeAdminArticleService(DataSourceWrapper testDataSource) {
             super(
                     new InMemoryZrLogDatabase.TestCacheService(),
                     () -> null,
                     new AdminPageDataFactory(
                             () -> null,
                             () -> "",
-                            ApplicationServicesFixture.messages(),
-                            AccountServicesFixture.component().permissions()),
-                    AccountServicesFixture.component().permissions(),
-                    AccountServicesFixture.component().preferences(),
+                            ApplicationServicesFixture.messages(testDataSource),
+                            AccountServicesFixture.component(testDataSource).permissions()),
+                    AccountServicesFixture.component(testDataSource).permissions(),
+                    AccountServicesFixture.component(testDataSource).preferences(),
                     new ArticleVersionService(
-                            AccountServicesFixture.component().permissions(),
-                            Log::new,
-                            () -> new LogVersion(DAO.getDefaultDataSource())),
-                    new ArticlePinningService(Log::new, ApplicationServicesFixture.locks()),
-                    Log::new,
-                    ApplicationServicesFixture.locks());
+                            AccountServicesFixture.component(testDataSource).permissions(),
+                            () -> new Log(testDataSource),
+                            () -> new LogVersion(testDataSource)),
+                    new ArticlePinningService(() -> new Log(testDataSource), ApplicationServicesFixture.locks(testDataSource)),
+                    () -> new Log(testDataSource),
+                    ApplicationServicesFixture.locks(testDataSource));
         }
 
 

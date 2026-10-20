@@ -31,7 +31,7 @@ public class WebSiteServiceDatabaseTest {
             db.putWebsite("system_notification", "notice");
 
             WebSiteService service =
-                    new WebSiteService(ApplicationServicesFixture.websiteKv(), WebSite::new);
+                    new WebSiteService(ApplicationServicesFixture.websiteKv(db.dataSource()), () -> new WebSite(db.dataSource()));
             BasicWebSiteInfo basic = service.basicWebSiteInfo();
             BlogWebSiteInfo blog = service.blogWebSiteInfo();
 
@@ -60,7 +60,7 @@ public class WebSiteServiceDatabaseTest {
             db.putWebsite(WebSiteService.ARTICLE_COVER_ASPECT_RATIO_KEY, "bad");
 
             WebSiteService service =
-                    new WebSiteService(ApplicationServicesFixture.websiteKv(), WebSite::new);
+                    new WebSiteService(ApplicationServicesFixture.websiteKv(db.dataSource()), () -> new WebSite(db.dataSource()));
             AdminWebSiteInfo admin = service.adminWebSiteInfo();
             ArticleEditWebSiteInfo articleEdit = service.articleEditWebSiteInfo();
 
@@ -86,9 +86,9 @@ public class WebSiteServiceDatabaseTest {
                     new FeatureLabService(
                                     () -> true,
                                     new WebhookService(
-                                            ApplicationServicesFixture.messages(),
-                                            ApplicationServicesFixture.websiteCache()),
-                                    WebSite::new)
+                                            ApplicationServicesFixture.messages(db.dataSource()),
+                                            ApplicationServicesFixture.websiteCache(db.dataSource())),
+                                    () -> new WebSite(db.dataSource()))
                             .featureLab();
 
             assertEquals(Boolean.TRUE, featureLab.getFeature_resource_reference_enabled());
@@ -96,10 +96,10 @@ public class WebSiteServiceDatabaseTest {
             assertEquals(Boolean.FALSE, featureLab.getFeature_webhook_enabled());
             assertEquals(Boolean.TRUE, featureLab.getFeature_personal_data_enabled());
             assertTrue(
-                    new WebSiteService(ApplicationServicesFixture.websiteKv(), WebSite::new)
+                    new WebSiteService(ApplicationServicesFixture.websiteKv(db.dataSource()), () -> new WebSite(db.dataSource()))
                             .isFeatureResourceReferenceEnabled());
             assertTrue(
-                    new WebSiteService(ApplicationServicesFixture.websiteKv(), WebSite::new)
+                    new WebSiteService(ApplicationServicesFixture.websiteKv(db.dataSource()), () -> new WebSite(db.dataSource()))
                             .isFeatureArticleExtensionFilterEnabled());
         }
     }

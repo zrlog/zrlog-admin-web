@@ -3,6 +3,7 @@ package com.zrlog.admin.business.ai.service;
 import static org.junit.Assert.*;
 
 import com.google.gson.*;
+import com.hibegin.common.dao.DataSourceWrapper;
 import com.hibegin.http.server.api.HttpRequest;
 import com.zrlog.admin.business.ai.model.AIChatModels.*;
 import com.zrlog.admin.business.ai.model.AIProviderRequests;
@@ -59,14 +60,14 @@ public class AIApprovalTest {
             super(
                     modelRequest(),
                     ContentToolsFixture.from(config),
-                    AccountServicesFixture.component().permissions(),
-                    AccountServicesFixture.component().preferences(),
-                    AIServiceDependencies.approvals(),
+                    AccountServicesFixture.component((DataSourceWrapper) config.getDataSource()).permissions(),
+                    AccountServicesFixture.component((DataSourceWrapper) config.getDataSource()).preferences(),
+                    AIServiceDependencies.approvals((DataSourceWrapper) config.getDataSource()),
                     new AIFileService(),
-                    AIServiceDependencies.writing(),
-                    AIServiceDependencies.conversations(),
-                    AIServiceDependencies.writingTools(),
-                    AIServiceDependencies.references(ContentToolsFixture.from(config)));
+                    AIServiceDependencies.writing((DataSourceWrapper) config.getDataSource()),
+                    AIServiceDependencies.conversations((DataSourceWrapper) config.getDataSource()),
+                    AIServiceDependencies.writingTools((DataSourceWrapper) config.getDataSource()),
+                    AIServiceDependencies.references(ContentToolsFixture.from(config), (DataSourceWrapper) config.getDataSource()));
             this.replies = List.of(replies);
         }
         private static HttpRequest modelRequest() {
@@ -96,19 +97,19 @@ public class AIApprovalTest {
             return new Gson().fromJson(replies.get(requests.size()-1), AIProviderResponses.Choice.class);
         }
     }
-    private RunView pause(Model model) throws Exception {
+    private RunView pause(Model model, DataSourceWrapper testDataSource) throws Exception {
         String wire = model.start();
         assertTrue(wire, wire.contains("\"type\":\"approval-required\""));
         assertFalse(wire.contains("\"type\":\"done\""));
         return new AIChatService(
-                        AccountServicesFixture.component().permissions(),
-                        AccountServicesFixture.component().preferences(),
-                        AIServiceDependencies.approvals(),
+                        AccountServicesFixture.component(testDataSource).permissions(),
+                        AccountServicesFixture.component(testDataSource).preferences(),
+                        AIServiceDependencies.approvals(testDataSource),
                         new AIFileService(),
-                        AIServiceDependencies.writing(),
-                        AIServiceDependencies.conversations(),
-                        AIServiceDependencies.writingTools(),
-                        AIServiceDependencies.references(null))
+                        AIServiceDependencies.writing(testDataSource),
+                        AIServiceDependencies.conversations(testDataSource),
+                        AIServiceDependencies.writingTools(testDataSource),
+                        AIServiceDependencies.references(null, testDataSource))
                 .getRun(7);
     }
     private ApprovalRequest decision(RunView view, String decision) {
@@ -122,11 +123,11 @@ public class AIApprovalTest {
             applicationConfig = db.config();
             AIConversationService conversations =
                     new AIConversationService(
-                            AccountServicesFixture.component().security(),
-                            ApplicationServicesFixture.websiteKv(),
-                            WebSite::new,
+                            AccountServicesFixture.component(db.dataSource()).security(),
+                            ApplicationServicesFixture.websiteKv(db.dataSource()),
+                            () -> new WebSite(db.dataSource()),
                             new AIFileService(),
-                            AIServiceDependencies.approvals());
+                            AIServiceDependencies.approvals(db.dataSource()));
             conversations.appendAIMessageEntries(
                     List.of(new AIResponseEntry.AIContentEntry("user", "Earlier draft discussion")),
                     -1L);
@@ -134,27 +135,27 @@ public class AIApprovalTest {
             assertTrue(first, first.contains("approval-required"));
             RunView approval =
                     new AIChatService(
-                                    AccountServicesFixture.component().permissions(),
-                                    AccountServicesFixture.component().preferences(),
-                                    AIServiceDependencies.approvals(),
+                                    AccountServicesFixture.component(db.dataSource()).permissions(),
+                                    AccountServicesFixture.component(db.dataSource()).preferences(),
+                                    AIServiceDependencies.approvals(db.dataSource()),
                                     new AIFileService(),
-                                    AIServiceDependencies.writing(),
-                                    AIServiceDependencies.conversations(),
-                                    AIServiceDependencies.writingTools(),
-                                    AIServiceDependencies.references(null))
+                                    AIServiceDependencies.writing(db.dataSource()),
+                                    AIServiceDependencies.conversations(db.dataSource()),
+                                    AIServiceDependencies.writingTools(db.dataSource()),
+                                    AIServiceDependencies.references(null, db.dataSource()))
                             .getRun(0);
             Model created = new Model(applicationConfig, call("update_article", "{\"id\":8,\"version\":0,\"digest\":\"Summary\"}"));
             String wire = created.decide(decision(approval, "approve"));
             RunView next =
                     new AIChatService(
-                                    AccountServicesFixture.component().permissions(),
-                                    AccountServicesFixture.component().preferences(),
-                                    AIServiceDependencies.approvals(),
+                                    AccountServicesFixture.component(db.dataSource()).permissions(),
+                                    AccountServicesFixture.component(db.dataSource()).preferences(),
+                                    AIServiceDependencies.approvals(db.dataSource()),
                                     new AIFileService(),
-                                    AIServiceDependencies.writing(),
-                                    AIServiceDependencies.conversations(),
-                                    AIServiceDependencies.writingTools(),
-                                    AIServiceDependencies.references(null))
+                                    AIServiceDependencies.writing(db.dataSource()),
+                                    AIServiceDependencies.conversations(db.dataSource()),
+                                    AIServiceDependencies.writingTools(db.dataSource()),
+                                    AIServiceDependencies.references(null, db.dataSource()))
                             .getRun(0);
             assertEquals("awaiting_approval", next.status);
             Event update = next.articleUpdates.get(0);
@@ -187,7 +188,7 @@ public class AIApprovalTest {
     @Test public void resumesOnANewInstanceWithoutRepeatingTheModelCallAndReplaysDuplicateConfirmation() throws Exception {
         try (InMemoryZrLogDatabase db = open()) {
             applicationConfig = db.config();
-            RunView view = pause(update());
+            RunView view = pause(update(), db.dataSource());
             assertEquals("Before", db.scalar("select title from log where logId=7"));
             assertEquals("Before", view.approval.title);
             assertEquals("After", view.approval.changes.get(0).after);
@@ -202,14 +203,14 @@ public class AIApprovalTest {
             assertEquals(
                     "completed",
                     new AIChatService(
-                                    AccountServicesFixture.component().permissions(),
-                                    AccountServicesFixture.component().preferences(),
-                                    AIServiceDependencies.approvals(),
+                                    AccountServicesFixture.component(db.dataSource()).permissions(),
+                                    AccountServicesFixture.component(db.dataSource()).preferences(),
+                                    AIServiceDependencies.approvals(db.dataSource()),
                                     new AIFileService(),
-                                    AIServiceDependencies.writing(),
-                                    AIServiceDependencies.conversations(),
-                                    AIServiceDependencies.writingTools(),
-                                    AIServiceDependencies.references(null))
+                                    AIServiceDependencies.writing(db.dataSource()),
+                                    AIServiceDependencies.conversations(db.dataSource()),
+                                    AIServiceDependencies.writingTools(db.dataSource()),
+                                    AIServiceDependencies.references(null, db.dataSource()))
                             .getRun(7)
                             .status);
             assertTrue(new Model(applicationConfig).decide(decision(view, "approve")).contains("completed"));
@@ -217,11 +218,11 @@ public class AIApprovalTest {
             assertEquals(
                     2,
                     new AIConversationService(
-                                    AccountServicesFixture.component().security(),
-                                    ApplicationServicesFixture.websiteKv(),
-                                    WebSite::new,
+                                    AccountServicesFixture.component(db.dataSource()).security(),
+                                    ApplicationServicesFixture.websiteKv(db.dataSource()),
+                                    () -> new WebSite(db.dataSource()),
                                     new AIFileService(),
-                                    AIServiceDependencies.approvals())
+                                    AIServiceDependencies.approvals(db.dataSource()))
                             .exportAIMessage(7L).getMessages().stream()
                                     .filter(message -> "knowledge".equals(message.getMessageType()))
                                     .count());
@@ -230,24 +231,24 @@ public class AIApprovalTest {
     @Test public void rejectionIsAToolResultAndAnotherWriteRequiresAnotherApproval() throws Exception {
         try (InMemoryZrLogDatabase db = open()) {
             applicationConfig = db.config();
-            RunView first = pause(update());
+            RunView first = pause(update(), db.dataSource());
             Model denied = new Model(applicationConfig, ANSWER);
             assertTrue(denied.decide(decision(first, "reject")).contains("\"type\":\"done\""));
             assertTrue(denied.requests.get(0).toString().contains("user rejected"));
             assertEquals("Before", db.scalar("select title from log where logId=7"));
-            RunView second = pause(update());
+            RunView second = pause(update(), db.dataSource());
             Model continuation = new Model(applicationConfig, call("update_article", "{\"id\":7,\"version\":3,\"digest\":\"Summary\"}"));
             assertTrue(continuation.decide(decision(second, "approve")).contains("approval-required"));
             RunView third =
                     new AIChatService(
-                                    AccountServicesFixture.component().permissions(),
-                                    AccountServicesFixture.component().preferences(),
-                                    AIServiceDependencies.approvals(),
+                                    AccountServicesFixture.component(db.dataSource()).permissions(),
+                                    AccountServicesFixture.component(db.dataSource()).preferences(),
+                                    AIServiceDependencies.approvals(db.dataSource()),
                                     new AIFileService(),
-                                    AIServiceDependencies.writing(),
-                                    AIServiceDependencies.conversations(),
-                                    AIServiceDependencies.writingTools(),
-                                    AIServiceDependencies.references(null))
+                                    AIServiceDependencies.writing(db.dataSource()),
+                                    AIServiceDependencies.conversations(db.dataSource()),
+                                    AIServiceDependencies.writingTools(db.dataSource()),
+                                    AIServiceDependencies.references(null, db.dataSource()))
                             .getRun(7);
             assertEquals(second.runId, third.runId); assertNotEquals(second.approval.id, third.approval.id);
             assertTrue(new Model(applicationConfig).decide(decision(second, "approve")).contains(third.approval.id));
@@ -265,10 +266,10 @@ public class AIApprovalTest {
             var reply = new OpenAIResponsesAdapter().read(new java.io.ByteArrayInputStream(
                     OpenAIResponsesAdapterTest.completed(OpenAIResponsesAdapterTest.REASONING + "," + function).getBytes(StandardCharsets.UTF_8)),
                     false, true, (type, text) -> {});
-            RunView view = pause(new Model(applicationConfig, new Gson().toJson(reply)));
+            RunView view = pause(new Model(applicationConfig, new Gson().toJson(reply)), db.dataSource());
             assertFalse(new Gson().toJson(view).contains("opaque-state"));
             var checkpoint =
-                    new AIApprovalStore(AccountServicesFixture.component().security()).read(1, 7);
+                    new AIApprovalStore(AccountServicesFixture.component(db.dataSource()).security()).read(1, 7);
             assertTrue(new Gson().toJson(checkpoint.messages).contains("opaque-state"));
             Model resumed = new Model(applicationConfig, ANSWER);
             String wire = resumed.decide(decision(view, "approve"));
@@ -287,11 +288,11 @@ public class AIApprovalTest {
                     new Gson()
                             .toJson(
                                     new AIConversationService(
-                                                    AccountServicesFixture.component().security(),
-                                                    ApplicationServicesFixture.websiteKv(),
-                                                    WebSite::new,
+                                                    AccountServicesFixture.component(db.dataSource()).security(),
+                                                    ApplicationServicesFixture.websiteKv(db.dataSource()),
+                                                    () -> new WebSite(db.dataSource()),
                                                     new AIFileService(),
-                                                    AIServiceDependencies.approvals())
+                                                    AIServiceDependencies.approvals(db.dataSource()))
                                             .exportAIMessage(7L))
                             .contains("opaque-state"));
         }
@@ -299,10 +300,10 @@ public class AIApprovalTest {
     @Test public void concurrentInstancesCanClaimOnlyOnce() throws Exception {
         try (InMemoryZrLogDatabase db = open()) {
             applicationConfig = db.config();
-            pause(update());
-            Run a = new AIApprovalStore(AccountServicesFixture.component().security()).read(1, 7),
+            pause(update(), db.dataSource());
+            Run a = new AIApprovalStore(AccountServicesFixture.component(db.dataSource()).security()).read(1, 7),
                     b =
-                            new AIApprovalStore(AccountServicesFixture.component().security())
+                            new AIApprovalStore(AccountServicesFixture.component(db.dataSource()).security())
                                     .read(1, 7);
             ExecutorService pool = Executors.newFixedThreadPool(2);
             CountDownLatch ready = new CountDownLatch(2), go = new CountDownLatch(1);
@@ -316,7 +317,7 @@ public class AIApprovalTest {
                                         go.await();
                                         try {
                                             new AIApprovalStore(
-                                                            AccountServicesFixture.component()
+                                                            AccountServicesFixture.component(db.dataSource())
                                                                     .security())
                                                     .save(run, "running");
                                             return true;
@@ -331,19 +332,19 @@ public class AIApprovalTest {
                                 .decide(
                                         decision(
                                                 new AIChatService(
-                                                                AccountServicesFixture.component()
+                                                                AccountServicesFixture.component(db.dataSource())
                                                                         .permissions(),
-                                                                AccountServicesFixture.component()
+                                                                AccountServicesFixture.component(db.dataSource())
                                                                         .preferences(),
-                                                                AIServiceDependencies.approvals(),
+                                                                AIServiceDependencies.approvals(db.dataSource()),
                                                                 new AIFileService(),
-                                                                AIServiceDependencies.writing(),
+                                                                AIServiceDependencies.writing(db.dataSource()),
                                                                 AIServiceDependencies
-                                                                        .conversations(),
+                                                                        .conversations(db.dataSource()),
                                                                 AIServiceDependencies
-                                                                        .writingTools(),
+                                                                        .writingTools(db.dataSource()),
                                                                 AIServiceDependencies.references(
-                                                                        null))
+                                                                        null, db.dataSource()))
                                                         .getRun(7),
                                                 "approve"))
                                 .contains("running"));
@@ -354,7 +355,7 @@ public class AIApprovalTest {
     @Test public void expiredWrongAccountAndWrongArticleCannotApprove() throws Exception {
         try (InMemoryZrLogDatabase db = open()) {
             applicationConfig = db.config();
-            RunView view = pause(update());
+            RunView view = pause(update(), db.dataSource());
             ApprovalRequest wrong = decision(view,"approve"); wrong.articleId = 0;
             assertThrows(PermissionErrorException.class, () -> new Model(applicationConfig).decide(wrong));
             db.execute("insert into user(userId,userName,password,role,email) values(?,?,?,?,?)",2,"other","pass","owner","other@example.com");
@@ -363,7 +364,7 @@ public class AIApprovalTest {
             try { assertThrows(PermissionErrorException.class, () -> new Model(applicationConfig).decide(decision(view,"approve"))); }
             finally { token.setUserId(1); }
             AIApprovalStore store =
-                    new AIApprovalStore(AccountServicesFixture.component().security());
+                    new AIApprovalStore(AccountServicesFixture.component(db.dataSource()).security());
             Run run = store.read(1, 7);
             run.approval.expiresAt = 1; store.save(run,"awaiting_approval");
             assertTrue(new Model(applicationConfig).decide(decision(view,"approve")).contains("expired"));
@@ -373,13 +374,13 @@ public class AIApprovalTest {
     @Test public void checksVersionAgainAndKeepsSavedResultsAfterModelFailure() throws Exception {
         try (InMemoryZrLogDatabase db = open()) {
             applicationConfig = db.config();
-            RunView view = pause(update());
+            RunView view = pause(update(), db.dataSource());
             db.execute("update log set title=?,version=3 where logId=7","Edited elsewhere");
             Model conflict = new Model(applicationConfig, ANSWER);
             conflict.decide(decision(view,"approve"));
             assertTrue(conflict.requests.get(0).toString().contains("ADMIN_ARTICLE_UPDATE_EXPIRED"));
             assertEquals("Edited elsewhere", db.scalar("select title from log where logId=7"));
-            RunView next = pause(new Model(applicationConfig, call("update_article", "{\"id\":7,\"version\":3,\"title\":\"Saved before failure\"}")));
+            RunView next = pause(new Model(applicationConfig, call("update_article", "{\"id\":7,\"version\":3,\"title\":\"Saved before failure\"}")), db.dataSource());
             Model failure = new Model(applicationConfig, "{\"finish_reason\":\"stop\",\"message\":{\"content\":\"\"}}");
             String wire = failure.decide(decision(next,"approve"));
             assertTrue(wire, wire.contains("article-updated")); assertTrue(wire.contains("\"status\":\"failed\""));
@@ -391,12 +392,12 @@ public class AIApprovalTest {
     @Test public void changedPermissionsAndInterruptedExecutionNeverReplayWrites() throws Exception {
         try (InMemoryZrLogDatabase db = open()) {
             applicationConfig = db.config();
-            RunView view = pause(update());
+            RunView view = pause(update(), db.dataSource());
             db.execute("update user set preferences=? where userId=1", "{\"assistant\":{\"knowledgeScope\":\"off\"}}");
             assertTrue(new Model(applicationConfig).decide(decision(view,"approve")).contains("permission"));
             assertEquals("Before", db.scalar("select title from log where logId=7"));
             AIApprovalStore store =
-                    new AIApprovalStore(AccountServicesFixture.component().security());
+                    new AIApprovalStore(AccountServicesFixture.component(db.dataSource()).security());
             Run run = store.read(1, 7);
             db.execute("update user set preferences=? where userId=1", "{\"language\":\"en_US\",\"assistant\":{\"knowledgeScope\":\"own_all\"}}");
             run.error = null;
@@ -410,18 +411,18 @@ public class AIApprovalTest {
     @Test public void hidesApprovalWhenTargetScopeOrModelChanges() throws Exception {
         try (InMemoryZrLogDatabase db = open()) {
             applicationConfig = db.config();
-            RunView view = pause(update());
+            RunView view = pause(update(), db.dataSource());
             db.execute("update log set userId=2 where logId=7");
             RunView hidden =
                     new AIChatService(
-                                    AccountServicesFixture.component().permissions(),
-                                    AccountServicesFixture.component().preferences(),
-                                    AIServiceDependencies.approvals(),
+                                    AccountServicesFixture.component(db.dataSource()).permissions(),
+                                    AccountServicesFixture.component(db.dataSource()).preferences(),
+                                    AIServiceDependencies.approvals(db.dataSource()),
                                     new AIFileService(),
-                                    AIServiceDependencies.writing(),
-                                    AIServiceDependencies.conversations(),
-                                    AIServiceDependencies.writingTools(),
-                                    AIServiceDependencies.references(null))
+                                    AIServiceDependencies.writing(db.dataSource()),
+                                    AIServiceDependencies.conversations(db.dataSource()),
+                                    AIServiceDependencies.writingTools(db.dataSource()),
+                                    AIServiceDependencies.references(null, db.dataSource()))
                             .getRun(7);
             assertEquals("permission", hidden.error);
             assertNull(hidden.approval);
@@ -429,18 +430,18 @@ public class AIApprovalTest {
             assertFalse(response.contains("After"));
             assertEquals("Before", db.scalar("select title from log where logId=7"));
             db.execute("update log set userId=1 where logId=7");
-            RunView next = pause(update());
+            RunView next = pause(update(), db.dataSource());
             db.putWebsite("ai_model", "changed-model");
             assertNull(
                     new AIChatService(
-                                    AccountServicesFixture.component().permissions(),
-                                    AccountServicesFixture.component().preferences(),
-                                    AIServiceDependencies.approvals(),
+                                    AccountServicesFixture.component(db.dataSource()).permissions(),
+                                    AccountServicesFixture.component(db.dataSource()).preferences(),
+                                    AIServiceDependencies.approvals(db.dataSource()),
                                     new AIFileService(),
-                                    AIServiceDependencies.writing(),
-                                    AIServiceDependencies.conversations(),
-                                    AIServiceDependencies.writingTools(),
-                                    AIServiceDependencies.references(null))
+                                    AIServiceDependencies.writing(db.dataSource()),
+                                    AIServiceDependencies.conversations(db.dataSource()),
+                                    AIServiceDependencies.writingTools(db.dataSource()),
+                                    AIServiceDependencies.references(null, db.dataSource()))
                             .getRun(7)
                             .approval);
             assertTrue(new Model(applicationConfig).decide(decision(next, "approve")).contains("permission"));
@@ -456,14 +457,14 @@ public class AIApprovalTest {
             assertFalse(response.contains("Other author secret"));
             assertNull(
                     new AIChatService(
-                                    AccountServicesFixture.component().permissions(),
-                                    AccountServicesFixture.component().preferences(),
-                                    AIServiceDependencies.approvals(),
+                                    AccountServicesFixture.component(db.dataSource()).permissions(),
+                                    AccountServicesFixture.component(db.dataSource()).preferences(),
+                                    AIServiceDependencies.approvals(db.dataSource()),
                                     new AIFileService(),
-                                    AIServiceDependencies.writing(),
-                                    AIServiceDependencies.conversations(),
-                                    AIServiceDependencies.writingTools(),
-                                    AIServiceDependencies.references(null))
+                                    AIServiceDependencies.writing(db.dataSource()),
+                                    AIServiceDependencies.conversations(db.dataSource()),
+                                    AIServiceDependencies.writingTools(db.dataSource()),
+                                    AIServiceDependencies.references(null, db.dataSource()))
                             .getRun(7));
             assertEquals("Other author secret", db.scalar("select title from log where logId=8"));
         }
@@ -472,47 +473,47 @@ public class AIApprovalTest {
     @Test public void clearingCancelsApprovalAndDoesNotRestoreCompletedMessages() throws Exception {
         try (InMemoryZrLogDatabase db = open()) {
             applicationConfig = db.config();
-            RunView view = pause(update());
+            RunView view = pause(update(), db.dataSource());
             assertTrue(
                     new AIConversationService(
-                                    AccountServicesFixture.component().security(),
-                                    ApplicationServicesFixture.websiteKv(),
-                                    WebSite::new,
+                                    AccountServicesFixture.component(db.dataSource()).security(),
+                                    ApplicationServicesFixture.websiteKv(db.dataSource()),
+                                    () -> new WebSite(db.dataSource()),
                                     new AIFileService(),
-                                    AIServiceDependencies.approvals())
+                                    AIServiceDependencies.approvals(db.dataSource()))
                             .clearAIMessage(7L));
             assertTrue(new Model(applicationConfig).decide(decision(view, "approve")).contains("cancelled"));
             assertEquals("Before", db.scalar("select title from log where logId=7"));
-            RunView next = pause(update());
+            RunView next = pause(update(), db.dataSource());
             new Model(applicationConfig, ANSWER).decide(decision(next, "approve"));
             assertTrue(
                     new AIConversationService(
-                                    AccountServicesFixture.component().security(),
-                                    ApplicationServicesFixture.websiteKv(),
-                                    WebSite::new,
+                                    AccountServicesFixture.component(db.dataSource()).security(),
+                                    ApplicationServicesFixture.websiteKv(db.dataSource()),
+                                    () -> new WebSite(db.dataSource()),
                                     new AIFileService(),
-                                    AIServiceDependencies.approvals())
+                                    AIServiceDependencies.approvals(db.dataSource()))
                             .clearAIMessage(7L));
             RunView cleared =
                     new AIChatService(
-                                    AccountServicesFixture.component().permissions(),
-                                    AccountServicesFixture.component().preferences(),
-                                    AIServiceDependencies.approvals(),
+                                    AccountServicesFixture.component(db.dataSource()).permissions(),
+                                    AccountServicesFixture.component(db.dataSource()).preferences(),
+                                    AIServiceDependencies.approvals(db.dataSource()),
                                     new AIFileService(),
-                                    AIServiceDependencies.writing(),
-                                    AIServiceDependencies.conversations(),
-                                    AIServiceDependencies.writingTools(),
-                                    AIServiceDependencies.references(null))
+                                    AIServiceDependencies.writing(db.dataSource()),
+                                    AIServiceDependencies.conversations(db.dataSource()),
+                                    AIServiceDependencies.writingTools(db.dataSource()),
+                                    AIServiceDependencies.references(null, db.dataSource()))
                             .getRun(7);
             assertEquals("cancelled", cleared.status);
             assertNull(cleared.answer);
             assertTrue(
                     new AIConversationService(
-                                    AccountServicesFixture.component().security(),
-                                    ApplicationServicesFixture.websiteKv(),
-                                    WebSite::new,
+                                    AccountServicesFixture.component(db.dataSource()).security(),
+                                    ApplicationServicesFixture.websiteKv(db.dataSource()),
+                                    () -> new WebSite(db.dataSource()),
                                     new AIFileService(),
-                                    AIServiceDependencies.approvals())
+                                    AIServiceDependencies.approvals(db.dataSource()))
                             .exportAIMessage(7L)
                             .getMessages()
                             .isEmpty());
@@ -540,7 +541,7 @@ public class AIApprovalTest {
                             throw new IllegalArgumentException("Plugin failed after upload");
                         }
                     });
-            RunView view = pause(new Model(applicationConfig, call("upload_attachment", "{\"filename\":\"sample.txt\",\"data\":\"aGVsbG8=\"}")));
+            RunView view = pause(new Model(applicationConfig, call("upload_attachment", "{\"filename\":\"sample.txt\",\"data\":\"aGVsbG8=\"}")), db.dataSource());
             assertFalse(new Gson().toJson(view).contains("aGVsbG8="));
             assertEquals("5", view.approval.changes.get(1).after);
             assertTrue(new Model(applicationConfig).decide(decision(view, "approve")).contains("uncertain"));
@@ -555,18 +556,18 @@ public class AIApprovalTest {
             List<AIConversationService> instances =
                     List.of(
                             new AIConversationService(
-                                            AccountServicesFixture.component().security(),
-                                            ApplicationServicesFixture.websiteKv(),
-                                            WebSite::new,
+                                            AccountServicesFixture.component(db.dataSource()).security(),
+                                            ApplicationServicesFixture.websiteKv(db.dataSource()),
+                                            () -> new WebSite(db.dataSource()),
                                             new AIFileService(),
-                                            AIServiceDependencies.approvals())
+                                            AIServiceDependencies.approvals(db.dataSource()))
                                     .captureAccount(),
                             new AIConversationService(
-                                            AccountServicesFixture.component().security(),
-                                            ApplicationServicesFixture.websiteKv(),
-                                            WebSite::new,
+                                            AccountServicesFixture.component(db.dataSource()).security(),
+                                            ApplicationServicesFixture.websiteKv(db.dataSource()),
+                                            () -> new WebSite(db.dataSource()),
                                             new AIFileService(),
-                                            AIServiceDependencies.approvals())
+                                            AIServiceDependencies.approvals(db.dataSource()))
                                     .captureAccount());
             ExecutorService pool = Executors.newFixedThreadPool(2);
             CountDownLatch ready = new CountDownLatch(2), go = new CountDownLatch(1);
@@ -598,11 +599,11 @@ public class AIApprovalTest {
                 for (Future<Boolean> result : results) assertTrue(result.get(15, TimeUnit.SECONDS));
                 var messages =
                         new AIConversationService(
-                                        AccountServicesFixture.component().security(),
-                                        ApplicationServicesFixture.websiteKv(),
-                                        WebSite::new,
+                                        AccountServicesFixture.component(db.dataSource()).security(),
+                                        ApplicationServicesFixture.websiteKv(db.dataSource()),
+                                        () -> new WebSite(db.dataSource()),
                                         new AIFileService(),
-                                        AIServiceDependencies.approvals())
+                                        AIServiceDependencies.approvals(db.dataSource()))
                                 .exportAIMessage(7L)
                                 .getMessages();
                 assertEquals(8, messages.stream().filter(m -> "assistant".equals(m.getRole())).count());

@@ -29,16 +29,16 @@ public class OAuthServerAddressTest {
                                         ApplicationServicesFixture.backend(db.config())::configured,
                                         ApplicationServicesFixture.available(
                                                 db.config(), McpWebSetup.class),
-                                        AccountServicesFixture.component().permissions(),
-                                        AccountServicesFixture.component().security(),
+                                        AccountServicesFixture.component(db.dataSource()).permissions(),
+                                        AccountServicesFixture.component(db.dataSource()).security(),
                                         tokenResource ->
                                                 new PersonalAccessTokenService(
                                                         tokenResource,
-                                                        AccountServicesFixture.component()
+                                                        AccountServicesFixture.component(db.dataSource())
                                                                 .permissions(),
-                                                        AccountServicesFixture.component()
+                                                        AccountServicesFixture.component(db.dataSource())
                                                                 .security()),
-                                        AccountServicesFixture.component().backend());
+                                        AccountServicesFixture.component(db.dataSource()).backend());
                         String origin = "http://localhost" + (port == 80 ? "" : ":" + port);
                         String issuer = origin + context;
                         var page = service.page();
@@ -59,32 +59,33 @@ public class OAuthServerAddressTest {
     }
 
     @Test public void splitDeploymentUsesBackendForDiscoveryAndDisplayedAddresses() throws Exception {
-        OAuthService service =
-                new OAuthService(
-                        () ->
-                                OAuthService.configuredIssuer(
-                                        "https://xiaochun-admin.zrlog.com/",
-                                        "xiaochun.zrlog.com",
-                                        ""),
-                        () -> true,
-                        AccountServicesFixture.component().permissions(),
-                        AccountServicesFixture.component().security(),
-                        tokenResource ->
-                                new PersonalAccessTokenService(
-                                        tokenResource,
-                                        AccountServicesFixture.component().permissions(),
-                                        AccountServicesFixture.component().security()),
-                        AccountServicesFixture.component().backend());
-        assertEquals("https://xiaochun-admin.zrlog.com", service.issuer());
-        assertEquals("https://xiaochun-admin.zrlog.com/oauth/authorize", service.metadata().authorization_endpoint);
-        assertEquals("https://xiaochun-admin.zrlog.com/oauth/token", service.metadata().token_endpoint);
-        assertEquals("https://xiaochun-admin.zrlog.com/oauth/revoke", service.metadata().revocation_endpoint);
-        assertEquals("https://xiaochun-admin.zrlog.com/mcp", service.mcpResourceMetadata().resource);
-        assertEquals(java.util.List.of(service.issuer()), service.mcpResourceMetadata().authorization_servers);
-        assertEquals("https://xiaochun-admin.zrlog.com/.well-known/oauth-protected-resource/mcp", service.mcpResourceMetadataUrl());
-        assertEquals("https://xiaochun-admin.zrlog.com/api/admin", service.adminResource());
-        assertEquals("https://xiaochun-admin.zrlog.com/api/oauth", service.resource());
         try (var db = InMemoryZrLogDatabase.open()) {
+            var accounts = AccountServicesFixture.component(db.dataSource());
+            OAuthService service =
+                    new OAuthService(
+                            () ->
+                                    OAuthService.configuredIssuer(
+                                            "https://xiaochun-admin.zrlog.com/",
+                                            "xiaochun.zrlog.com",
+                                            ""),
+                            () -> true,
+                            accounts.permissions(),
+                            accounts.security(),
+                            tokenResource ->
+                                    new PersonalAccessTokenService(
+                                            tokenResource,
+                                            accounts.permissions(),
+                                            accounts.security()),
+                            accounts.backend());
+            assertEquals("https://xiaochun-admin.zrlog.com", service.issuer());
+            assertEquals("https://xiaochun-admin.zrlog.com/oauth/authorize", service.metadata().authorization_endpoint);
+            assertEquals("https://xiaochun-admin.zrlog.com/oauth/token", service.metadata().token_endpoint);
+            assertEquals("https://xiaochun-admin.zrlog.com/oauth/revoke", service.metadata().revocation_endpoint);
+            assertEquals("https://xiaochun-admin.zrlog.com/mcp", service.mcpResourceMetadata().resource);
+            assertEquals(java.util.List.of(service.issuer()), service.mcpResourceMetadata().authorization_servers);
+            assertEquals("https://xiaochun-admin.zrlog.com/.well-known/oauth-protected-resource/mcp", service.mcpResourceMetadataUrl());
+            assertEquals("https://xiaochun-admin.zrlog.com/api/admin", service.adminResource());
+            assertEquals("https://xiaochun-admin.zrlog.com/api/oauth", service.resource());
             var page = service.page();
             assertEquals(service.issuer(), page.issuer);
             assertEquals(service.mcpResource(), page.mcpResource);

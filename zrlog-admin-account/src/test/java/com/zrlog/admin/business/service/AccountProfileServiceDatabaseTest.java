@@ -41,7 +41,7 @@ public class AccountProfileServiceDatabaseTest {
             addPasskey(second, 1, "Other application key");
             var firstGraph = AccountServicesFixture.component(first.dataSource());
             var secondGraph = AccountServicesFixture.component(second.dataSource());
-            DAO.setDs(null);
+            org.junit.Assert.assertNull(DAO.getDefaultDataSource());
             AdminTokenThreadLocal.remove();
 
             AccountProfileService profiles = firstGraph.profiles();

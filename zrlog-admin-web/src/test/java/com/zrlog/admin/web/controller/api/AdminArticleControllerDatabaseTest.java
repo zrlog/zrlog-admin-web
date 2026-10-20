@@ -6,16 +6,16 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-import com.hibegin.common.dao.DAO;
+import com.hibegin.common.dao.DataSourceWrapper;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
 import com.hibegin.http.server.web.Controller;
 import com.zrlog.admin.business.ai.service.AIChatService;
 import com.zrlog.admin.business.ai.service.AIConversationService;
 import com.zrlog.admin.business.ai.service.AIFileService;
-import com.zrlog.admin.business.ai.service.AIPublishCheckService;
 import com.zrlog.admin.business.ai.service.AIPublishCheckService.PublishCheckPersistenceGuard;
 import com.zrlog.admin.business.ai.service.AIPublishCheckService.PublishCheckTask;
+import com.zrlog.admin.business.ai.service.AIPublishCheckService;
 import com.zrlog.admin.business.ai.service.AIReferenceService;
 import com.zrlog.admin.business.ai.service.AIServiceDependencies;
 import com.zrlog.admin.business.content.ArticleAssistant;
@@ -59,6 +59,7 @@ import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.data.service.UserPreferenceStore;
 import com.zrlog.model.Log;
 import com.zrlog.model.LogVersion;
+import com.zrlog.model.User;
 import com.zrlog.model.WebSite;
 import com.zrlog.util.I18nUtil;
 
@@ -98,17 +99,17 @@ public class AdminArticleControllerDatabaseTest {
             db.loadAdminWebModules();
             applicationConfig = db.config();
             new UserPreferenceService(
-                            ApplicationServicesFixture.settings(),
-                            new UserPreferenceStore(),
-                            AccountServicesFixture.component().permissions())
+                            ApplicationServicesFixture.settings(db.dataSource()),
+                            new UserPreferenceStore(() -> new User(db.dataSource())),
+                            AccountServicesFixture.component(db.dataSource()).permissions())
                     .updateBody(
                             "{\"articleList\":{\"sort\":\"click,ASC\",\"status\":\"draft\",\"columns\":[\"click\"]}}",
                             "writing");
-            ArticlePageData defaults = controller(db.cacheService(), Map.of(), null, new ResponseRecorder()).index().getData();
+            ArticlePageData defaults = controller(db.cacheService(), Map.of(), null, new ResponseRecorder(), db.dataSource()).index().getData();
             assertEquals("draft", defaults.getStatus());
             assertEquals(List.of("click,ASC"), defaults.getSort());
             assertEquals(List.of("click"), defaults.getColumns());
-            ArticlePageData explicit = controller(db.cacheService(), Map.of("status", "", "sort", "releaseTime,DESC"), null, new ResponseRecorder()).index().getData();
+            ArticlePageData explicit = controller(db.cacheService(), Map.of("status", "", "sort", "releaseTime,DESC"), null, new ResponseRecorder(), db.dataSource()).index().getData();
             assertEquals("", explicit.getStatus());
             assertEquals(List.of("releaseTime,DESC"), explicit.getSort());
         }
@@ -122,22 +123,22 @@ public class AdminArticleControllerDatabaseTest {
             applicationConfig = db.config();
             setAdminToken();
             ResponseRecorder createResponse = new ResponseRecorder();
-            controller(db.cacheService(), Map.of(), articleBody("Draft Title", "draft-title", true), createResponse).create();
+            controller(db.cacheService(), Map.of(), articleBody("Draft Title", "draft-title", true), createResponse, db.dataSource()).create();
             AdminPageDataResponse<ArticleGlobalResponse> created =
                     (AdminPageDataResponse<ArticleGlobalResponse>) createResponse.rendered;
             Long logId = Long.valueOf(created.getData().getArticle().getLogId());
 
             ResponseRecorder updateResponse = new ResponseRecorder();
-            controller(db.cacheService(), Map.of(), updateBody(logId.intValue(), "Updated Draft", "updated-draft"), updateResponse)
+            controller(db.cacheService(), Map.of(), updateBody(logId.intValue(), "Updated Draft", "updated-draft"), updateResponse, db.dataSource())
                     .update();
             AdminPageDataResponse<ArticleGlobalResponse> updated =
                     (AdminPageDataResponse<ArticleGlobalResponse>) updateResponse.rendered;
             AdminPageDataResponse<ArticlePageData> page =
-                    controller(db.cacheService(), Map.of("status", "draft", "size", "5"), null, new ResponseRecorder()).index();
+                    controller(db.cacheService(), Map.of("status", "draft", "size", "5"), null, new ResponseRecorder(), db.dataSource()).index();
             AdminPageDataResponse<ArticleGlobalResponse> edit =
-                    controller(db.cacheService(), Map.of("id", logId.toString()), null, new ResponseRecorder()).articleEdit();
+                    controller(db.cacheService(), Map.of("id", logId.toString()), null, new ResponseRecorder(), db.dataSource()).articleEdit();
             AdminPageDataResponse<LoadEditArticleResponse> detail =
-                    controller(db.cacheService(), Map.of("id", logId.toString()), null, new ResponseRecorder()).detail();
+                    controller(db.cacheService(), Map.of("id", logId.toString()), null, new ResponseRecorder(), db.dataSource()).detail();
 
             assertEquals("Draft Title", created.getData().getArticle().getTitle());
             assertEquals("Updated Draft", updated.getData().getArticle().getTitle());
@@ -181,7 +182,7 @@ public class AdminArticleControllerDatabaseTest {
                     + "}";
             ResponseRecorder renderedResponse = new ResponseRecorder();
 
-            controller(db.cacheService(), Map.of(), markdownOnly, renderedResponse, renderer).create();
+            controller(db.cacheService(), Map.of(), markdownOnly, renderedResponse, renderer, db.dataSource()).create();
 
             AdminPageDataResponse<ArticleGlobalResponse> rendered =
                     (AdminPageDataResponse<ArticleGlobalResponse>) renderedResponse.rendered;
@@ -206,14 +207,14 @@ public class AdminArticleControllerDatabaseTest {
                     + "\"transparentPublish\":false,"
                     + "\"editorType\":\"markdown\""
                     + "}";
-            controller(db.cacheService(), Map.of(), markdownUpdate, new ResponseRecorder(), renderer).update();
+            controller(db.cacheService(), Map.of(), markdownUpdate, new ResponseRecorder(), renderer, db.dataSource()).update();
             assertEquals("<h2>Updated</h2>\n<p>new body</p>\n",
                     db.queryOne("select content from log where logId=?", renderedId).get("content"));
             assertEquals("## Updated\n\nnew body",
                     db.queryOne("select markdown from log where logId=?", renderedId).get("markdown"));
 
             ResponseRecorder explicitResponse = new ResponseRecorder();
-            controller(db.cacheService(), Map.of(), articleBody("Explicit HTML", "explicit-html", true), explicitResponse).create();
+            controller(db.cacheService(), Map.of(), articleBody("Explicit HTML", "explicit-html", true), explicitResponse, db.dataSource()).create();
             AdminPageDataResponse<ArticleGlobalResponse> explicit =
                     (AdminPageDataResponse<ArticleGlobalResponse>) explicitResponse.rendered;
             Long explicitId = Long.valueOf(explicit.getData().getArticle().getLogId());
@@ -230,14 +231,14 @@ public class AdminArticleControllerDatabaseTest {
             applicationConfig = db.config();
             setAdminToken();
             ResponseRecorder createResponse = new ResponseRecorder();
-            controller(db.cacheService(), Map.of(), articleBody("Published Title", "published-title", false), createResponse).create();
+            controller(db.cacheService(), Map.of(), articleBody("Published Title", "published-title", false), createResponse, db.dataSource()).create();
             AdminPageDataResponse<ArticleGlobalResponse> created =
                     (AdminPageDataResponse<ArticleGlobalResponse>) createResponse.rendered;
             Long logId = Long.valueOf(created.getData().getArticle().getLogId());
 
             ResponseRecorder updateResponse = new ResponseRecorder();
             controller(db.cacheService(), Map.of(), updateBody(logId.intValue(), "Published Updated", "published-updated", false),
-                    updateResponse).update();
+                    updateResponse, db.dataSource()).update();
             AdminPageDataResponse<ArticleGlobalResponse> updated =
                     (AdminPageDataResponse<ArticleGlobalResponse>) updateResponse.rendered;
             Map<String, Object> row = db.queryOne("select title,alias,rubbish,privacy from log where logId=?", logId);
@@ -263,16 +264,16 @@ public class AdminArticleControllerDatabaseTest {
             applicationConfig = db.config();
             setAdminToken();
             ResponseRecorder createResponse = new ResponseRecorder();
-            controller(db.cacheService(), Map.of(), articleBody("Pinned Published", "pinned-published", false), createResponse)
+            controller(db.cacheService(), Map.of(), articleBody("Pinned Published", "pinned-published", false), createResponse, db.dataSource())
                     .create();
             AdminPageDataResponse<ArticleGlobalResponse> created =
                     (AdminPageDataResponse<ArticleGlobalResponse>) createResponse.rendered;
             Long logId = Long.valueOf(created.getData().getArticle().getLogId());
-            new ArticlePinningService(Log::new, ApplicationServicesFixture.locks()).pin(logId);
+            new ArticlePinningService(() -> new Log(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource())).pin(logId);
             int refreshCountBeforeDraft = db.cacheService().getRefreshCount();
 
             controller(db.cacheService(), Map.of(), updateBody(logId.intValue(), "Pinned Draft", "pinned-draft", true),
-                    new ResponseRecorder()).update();
+                    new ResponseRecorder(), db.dataSource()).update();
 
             assertEquals(refreshCountBeforeDraft + 1, db.cacheService().getRefreshCount());
             assertEquals(0, ((Number) db.scalar("select sticky from log where logId=?", logId)).intValue());
@@ -287,7 +288,7 @@ public class AdminArticleControllerDatabaseTest {
             applicationConfig = db.config();
             setAdminToken();
             ResponseRecorder createdResponse = new ResponseRecorder();
-            controller(db.cacheService(), Map.of(), articleBody("Published", "published", false), createdResponse).create();
+            controller(db.cacheService(), Map.of(), articleBody("Published", "published", false), createdResponse, db.dataSource()).create();
             AdminPageDataResponse<ArticleGlobalResponse> created =
                     (AdminPageDataResponse<ArticleGlobalResponse>) createdResponse.rendered;
             int id = created.getData().getArticle().getLogId();
@@ -312,7 +313,7 @@ public class AdminArticleControllerDatabaseTest {
             Thread saveThread = new Thread(() -> {
                 try {
                     setAdminToken();
-                    controller(db.cacheService(), Map.of(), updateBody(id, "Manual edit", "published", true), savedResponse).update();
+                    controller(db.cacheService(), Map.of(), updateBody(id, "Manual edit", "published", true), savedResponse, db.dataSource()).update();
                     saved.complete(null);
                 } catch (Throwable error) {
                     saved.completeExceptionally(error);
@@ -335,7 +336,7 @@ public class AdminArticleControllerDatabaseTest {
 
                 String nextBody = updateBody(id, "Second edit", "published", true)
                         .replace("\"version\":0", "\"version\":1");
-                controller(db.cacheService(), Map.of(), nextBody, new ResponseRecorder()).update();
+                controller(db.cacheService(), Map.of(), nextBody, new ResponseRecorder(), db.dataSource()).update();
                 assertEquals("Second edit", db.scalar("select title from log where logId=?", id));
                 assertEquals(2, ((Number) db.scalar("select version from log where logId=?", id)).intValue());
                 assertEquals(refreshCount + 1, db.cacheService().getRefreshCount());
@@ -359,7 +360,7 @@ public class AdminArticleControllerDatabaseTest {
             setAdminToken();
             ResponseRecorder response = new ResponseRecorder();
 
-            controller(db.cacheService(), Map.of(), articleBody("Stream Published", "stream-published", false, true), response)
+            controller(db.cacheService(), Map.of(), articleBody("Stream Published", "stream-published", false, true), response, db.dataSource())
                     .create();
             Map<String, Object> row = db.queryOne(
                     "select title,alias,rubbish,privacy from log where alias=?", "stream-published");
@@ -391,7 +392,7 @@ public class AdminArticleControllerDatabaseTest {
             applicationConfig = db.config();
             setAdminToken();
             ResponseRecorder createResponse = new ResponseRecorder();
-            controller(db.cacheService(), Map.of(), articleBody("Render Stream", "render-stream", false), createResponse).create();
+            controller(db.cacheService(), Map.of(), articleBody("Render Stream", "render-stream", false), createResponse, db.dataSource()).create();
             AdminPageDataResponse<ArticleGlobalResponse> created =
                     (AdminPageDataResponse<ArticleGlobalResponse>) createResponse.rendered;
             CreateArticleRequest request = articleRequest("Render Stream");
@@ -401,7 +402,7 @@ public class AdminArticleControllerDatabaseTest {
             saveResponse.setPrivacy(false);
             ResponseRecorder response = new ResponseRecorder();
 
-            invoke(controller(db.cacheService(), Map.of(), null, response), "renderArticleSaveResponse", request, saveResponse);
+            invoke(controller(db.cacheService(), Map.of(), null, response, db.dataSource()), "renderArticleSaveResponse", request, saveResponse);
 
             assertTrue(response.writtenBody.contains("event: article"));
             assertTrue(response.writtenBody.contains("event: publish-start"));
@@ -418,7 +419,7 @@ public class AdminArticleControllerDatabaseTest {
             applicationConfig = db.config();
             setAdminToken();
             ResponseRecorder createResponse = new ResponseRecorder();
-            controller(db.cacheService(), Map.of(), articleBody("Before Stream Update", "before-stream-update", false), createResponse)
+            controller(db.cacheService(), Map.of(), articleBody("Before Stream Update", "before-stream-update", false), createResponse, db.dataSource())
                     .create();
             AdminPageDataResponse<ArticleGlobalResponse> created =
                     (AdminPageDataResponse<ArticleGlobalResponse>) createResponse.rendered;
@@ -426,7 +427,7 @@ public class AdminArticleControllerDatabaseTest {
             ResponseRecorder response = new ResponseRecorder();
 
             controller(db.cacheService(), Map.of(), updateBody(logId.intValue(), "After Stream Update", "after-stream-update",
-                    false, true), response).update();
+                    false, true), response, db.dataSource()).update();
             Map<String, Object> row = db.queryOne(
                     "select title,alias,rubbish,privacy from log where logId=?", logId);
 
@@ -448,11 +449,11 @@ public class AdminArticleControllerDatabaseTest {
             applicationConfig = db.config();
             setAdminToken();
             db.putWebsite("admin_article_page_size", 1);
-            controller(db.cacheService(), Map.of(), articleBody("First Draft", "first-draft", true), new ResponseRecorder()).create();
-            controller(db.cacheService(), Map.of(), articleBody("Second Draft", "second-draft", true), new ResponseRecorder()).create();
+            controller(db.cacheService(), Map.of(), articleBody("First Draft", "first-draft", true), new ResponseRecorder(), db.dataSource()).create();
+            controller(db.cacheService(), Map.of(), articleBody("Second Draft", "second-draft", true), new ResponseRecorder(), db.dataSource()).create();
 
             AdminPageDataResponse<ArticlePageData> page =
-                    controller(db.cacheService(), Map.of("status", "draft"), null, new ResponseRecorder()).index();
+                    controller(db.cacheService(), Map.of("status", "draft"), null, new ResponseRecorder(), db.dataSource()).index();
 
             assertEquals(2L, page.getData().getTotalElements());
             assertEquals(1, page.getData().getRows().size());
@@ -467,10 +468,10 @@ public class AdminArticleControllerDatabaseTest {
             setAdminToken();
             db.putWebsite("admin_article_page_size", "");
             controller(db.cacheService(), Map.of(), articleBody("Default Size Draft", "default-size-draft", true),
-                    new ResponseRecorder()).create();
+                    new ResponseRecorder(), db.dataSource()).create();
 
             AdminPageDataResponse<ArticlePageData> page =
-                    controller(db.cacheService(), Map.of("status", "draft"), null, new ResponseRecorder()).index();
+                    controller(db.cacheService(), Map.of("status", "draft"), null, new ResponseRecorder(), db.dataSource()).index();
 
             assertEquals(1L, page.getData().getTotalElements());
             assertEquals(1, page.getData().getRows().size());
@@ -484,12 +485,12 @@ public class AdminArticleControllerDatabaseTest {
             applicationConfig = db.config();
             setAdminToken();
             ResponseRecorder createResponse = new ResponseRecorder();
-            controller(db.cacheService(), Map.of(), articleBody("Delete Draft", "delete-draft", true), createResponse).create();
+            controller(db.cacheService(), Map.of(), articleBody("Delete Draft", "delete-draft", true), createResponse, db.dataSource()).create();
             AdminPageDataResponse<?> created = (AdminPageDataResponse<?>) createResponse.rendered;
             ArticleGlobalResponse data = (ArticleGlobalResponse) created.getData();
             String id = data.getArticle().getLogId().toString();
 
-            DeleteResponse deleteResponse = controller(db.cacheService(), Map.of("id", id), null, new ResponseRecorder()).delete();
+            DeleteResponse deleteResponse = controller(db.cacheService(), Map.of("id", id), null, new ResponseRecorder(), db.dataSource()).delete();
 
             assertTrue(deleteResponse.getData().getDelete());
             assertEquals(null, db.queryOne("select logId from log where logId=?", Long.valueOf(id)));
@@ -504,10 +505,10 @@ public class AdminArticleControllerDatabaseTest {
             db.putWebsite("admin_cache:message_center_operation_notices", "[]");
             AIPublishCheckService publishingService =
                     new AIPublishCheckService(
-                            ApplicationServicesFixture.settings(),
-                            ApplicationServicesFixture.operations(),
-                            AIServiceDependencies.writing(),
-                            AIServiceDependencies.conversations());
+                            ApplicationServicesFixture.settings(db.dataSource()),
+                            ApplicationServicesFixture.operations(db.dataSource()),
+                            AIServiceDependencies.writing(db.dataSource()),
+                            AIServiceDependencies.conversations(db.dataSource()));
 
             publishingService.recordPublishCheckSuccess(7L, "Checked Article",
                     Map.of("score", 90, "items", List.of("ok")));
@@ -533,23 +534,23 @@ public class AdminArticleControllerDatabaseTest {
             message.setMessageType("knowledge");
             assertTrue(
                     new AIConversationService(
-                                    AccountServicesFixture.component().security(),
-                                    ApplicationServicesFixture.websiteKv(),
-                                    WebSite::new,
+                                    AccountServicesFixture.component(db.dataSource()).security(),
+                                    ApplicationServicesFixture.websiteKv(db.dataSource()),
+                                    () -> new WebSite(db.dataSource()),
                                     new AIFileService(),
-                                    AIServiceDependencies.approvals())
+                                    AIServiceDependencies.approvals(db.dataSource()))
                             .appendAIMessageEntries(List.of(message), 9L));
 
             ApiStandardResponse<Boolean> updated = aiController(Map.of("id", "9"),
                     "{\"messageId\":\"" + message.getMessageId() + "\",\"tool\":\"publishCheck\","
                             + "\"payload\":{\"ok\":true}}",
-                    new ResponseRecorder()).updateAiMessage();
+                    new ResponseRecorder(), db.dataSource()).updateAiMessage();
             ApiStandardResponse<ArticleAIMessageExportResponse> exported =
-                    aiController(Map.of("id", "9"), null, new ResponseRecorder()).exportAiMessages();
+                    aiController(Map.of("id", "9"), null, new ResponseRecorder(), db.dataSource()).exportAiMessages();
             ApiStandardResponse<Boolean> cleared =
-                    aiController(Map.of("id", "9"), null, new ResponseRecorder()).clearAiMessages();
+                    aiController(Map.of("id", "9"), null, new ResponseRecorder(), db.dataSource()).clearAiMessages();
             ApiStandardResponse<ArticleAIMessageExportResponse> afterClear =
-                    aiController(Map.of("id", "9"), null, new ResponseRecorder()).exportAiMessages();
+                    aiController(Map.of("id", "9"), null, new ResponseRecorder(), db.dataSource()).exportAiMessages();
 
             assertEquals("user", message.getRole());
             assertEquals("knowledge", message.getMessageType());
@@ -570,17 +571,17 @@ public class AdminArticleControllerDatabaseTest {
             AIResponseEntry.AIContentEntry message = new AIResponseEntry.AIContentEntry("assistant", "Cover");
             assertTrue(
                     new AIConversationService(
-                                    AccountServicesFixture.component().security(),
-                                    ApplicationServicesFixture.websiteKv(),
-                                    WebSite::new,
+                                    AccountServicesFixture.component(db.dataSource()).security(),
+                                    ApplicationServicesFixture.websiteKv(db.dataSource()),
+                                    () -> new WebSite(db.dataSource()),
                                     new AIFileService(),
-                                    AIServiceDependencies.approvals())
+                                    AIServiceDependencies.approvals(db.dataSource()))
                             .appendAIMessageEntries(List.of(message), 9L));
             String messageId = message.getMessageId();
 
             ApiStandardResponse<UploadFileResponse> applied = aiController(Map.of("id", "9"),
                     "{\"dataUrl\":\"/attached/cover.png\",\"extension\":\"png\",\"messageId\":\"" + messageId + "\"}",
-                    new ResponseRecorder()).applyCover();
+                    new ResponseRecorder(), db.dataSource()).applyCover();
             String stored = String.valueOf(db.queryOne(
                     "select value from website where name=?", "ai_chat_message_u1_9").get("value"));
 
@@ -601,19 +602,19 @@ public class AdminArticleControllerDatabaseTest {
             db.execute("insert into log(logId,userId,typeId,title,privacy,rubbish) values(?,?,?,?,?,?)",
                     9, 2, 1, "Private article", true, false);
             String body = "{\"input\":\"Read this article\",\"articleId\":9}";
-            AccountServicesFixture.component()
+            AccountServicesFixture.component(db.dataSource())
                     .permissions()
                     .checkRoute(AIArticleController.class.getMethod("ai"), request(Map.of(), body));
             org.junit.Assert.assertThrows(
                     PermissionErrorException.class,
-                    () -> aiController(Map.of(), body, new ResponseRecorder()).ai());
+                    () -> aiController(Map.of(), body, new ResponseRecorder(), db.dataSource()).ai());
             org.junit.Assert.assertThrows(
                     ArgsException.class,
                     () ->
                             aiController(
                                             Map.of(),
                                             "{\"input\":\"Hello\",\"articleId\":0}",
-                                            new ResponseRecorder())
+                                            new ResponseRecorder(), db.dataSource())
                                     .ai());
         }
     }
@@ -627,7 +628,7 @@ public class AdminArticleControllerDatabaseTest {
 
             aiController(Map.of("id", "0", "input", "check before publish", "tool", "publishCheck"),
                     "{\"title\":\"Article\",\"markdown\":\"Markdown\",\"digest\":\"Digest\",\"keywords\":\"java\"}",
-                    response).ai();
+                    response, db.dataSource()).ai();
 
             assertEquals(200, response.statusCode);
             assertTrue(response.writtenBody.contains("event: ai-error"));
@@ -652,22 +653,22 @@ public class AdminArticleControllerDatabaseTest {
                                     new AdminPageDataFactory(
                                             ApplicationServicesFixture.site(db.config()),
                                             ApplicationServicesFixture.buildId(db.resources()),
-                                            ApplicationServicesFixture.messages(),
-                                            AccountServicesFixture.component().permissions()),
-                                    AccountServicesFixture.component().permissions(),
-                                    AccountServicesFixture.component().preferences(),
+                                            ApplicationServicesFixture.messages(db.dataSource()),
+                                            AccountServicesFixture.component(db.dataSource()).permissions()),
+                                    AccountServicesFixture.component(db.dataSource()).permissions(),
+                                    AccountServicesFixture.component(db.dataSource()).preferences(),
                                     new ArticleVersionService(
-                                            AccountServicesFixture.component().permissions(),
-                                            Log::new,
-                                            () -> new LogVersion(DAO.getDefaultDataSource())),
+                                            AccountServicesFixture.component(db.dataSource()).permissions(),
+                                            () -> new Log(db.dataSource()),
+                                            () -> new LogVersion(db.dataSource())),
                                     new ArticlePinningService(
-                                            Log::new, ApplicationServicesFixture.locks()),
-                                    Log::new,
-                                    ApplicationServicesFixture.locks()),
+                                            () -> new Log(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource())),
+                                    () -> new Log(db.dataSource()),
+                                    ApplicationServicesFixture.locks(db.dataSource())),
                             ApplicationServicesFixture.cacheRefresh(db.cacheService(), db.config()),
                             markdown -> null,
-                            ApplicationServicesFixture.audit(),
-                            ApplicationServicesFixture.operations());
+                            ApplicationServicesFixture.audit(db.dataSource()),
+                            ApplicationServicesFixture.operations(db.dataSource()));
             CreateArticleRequest request = new CreateArticleRequest();
             request.setTransparentPublish(true);
             request.setRubbish(false);
@@ -679,17 +680,17 @@ public class AdminArticleControllerDatabaseTest {
                     new AdminPageDataFactory(
                                     ApplicationServicesFixture.site(db.config()),
                                     ApplicationServicesFixture.buildId(db.resources()),
-                                    ApplicationServicesFixture.messages(),
-                                    AccountServicesFixture.component().permissions())
+                                    ApplicationServicesFixture.messages(db.dataSource()),
+                                    AccountServicesFixture.component(db.dataSource()).permissions())
                             .response(global);
 
             assertTrue(publishingService.shouldUseTransparentPublishStream(request));
             assertNull(
                     new AIPublishCheckService(
-                                    ApplicationServicesFixture.settings(),
-                                    ApplicationServicesFixture.operations(),
-                                    AIServiceDependencies.writing(),
-                                    AIServiceDependencies.conversations())
+                                    ApplicationServicesFixture.settings(db.dataSource()),
+                                    ApplicationServicesFixture.operations(db.dataSource()),
+                                    AIServiceDependencies.writing(db.dataSource()),
+                                    AIServiceDependencies.conversations(db.dataSource()))
                             .startPublishCheck(detail.getData(), request));
 
             request.setPrivacy(true);
@@ -699,10 +700,10 @@ public class AdminArticleControllerDatabaseTest {
             assertFalse(publishingService.shouldUseTransparentPublishStream(request));
             assertNull(
                     new AIPublishCheckService(
-                                    ApplicationServicesFixture.settings(),
-                                    ApplicationServicesFixture.operations(),
-                                    AIServiceDependencies.writing(),
-                                    AIServiceDependencies.conversations())
+                                    ApplicationServicesFixture.settings(db.dataSource()),
+                                    ApplicationServicesFixture.operations(db.dataSource()),
+                                    AIServiceDependencies.writing(db.dataSource()),
+                                    AIServiceDependencies.conversations(db.dataSource()))
                             .startPublishCheck(detail.getData(), request));
 
             String successPayload = emitPublishCheck(
@@ -764,20 +765,20 @@ public class AdminArticleControllerDatabaseTest {
                                                                 "assistant", "late AI result");
                                                 entry.setMessageId("late-ai-message");
                                                 new AIConversationService(
-                                                                AccountServicesFixture.component()
+                                                                AccountServicesFixture.component(db.dataSource())
                                                                         .security(),
                                                                 ApplicationServicesFixture
-                                                                        .websiteKv(),
-                                                                WebSite::new,
+                                                                        .websiteKv(db.dataSource()),
+                                                                () -> new WebSite(db.dataSource()),
                                                                 new AIFileService(),
-                                                                AIServiceDependencies.approvals())
+                                                                AIServiceDependencies.approvals(db.dataSource()))
                                                         .appendAIMessageEntries(
                                                                 List.of(entry), 42L);
                                                 new MessageCenterOperationService(
                                                                 ApplicationServicesFixture
-                                                                        .messages(),
+                                                                        .messages(db.dataSource()),
                                                                 ApplicationServicesFixture
-                                                                        .websiteCache())
+                                                                        .websiteCache(db.dataSource()))
                                                         .recordPublishCheckSuccess(
                                                                 42L, "Late publish check", 100, 0);
                                                 return publishCheckResponse();
@@ -917,7 +918,7 @@ public class AdminArticleControllerDatabaseTest {
             db.loadAdminWebModules();
             applicationConfig = db.config();
             db.putWebsite("admin_cache:message_center_operation_notices", "[]");
-            AdminArticleController controller = controller(db.cacheService(), Map.of(), null, new ResponseRecorder());
+            AdminArticleController controller = controller(db.cacheService(), Map.of(), null, new ResponseRecorder(), db.dataSource());
             CreateArticleRequest request = articleRequest("Publish Check");
             request.setMarkdown("");
             request.setContent("Publish Check content");
@@ -931,16 +932,16 @@ public class AdminArticleControllerDatabaseTest {
                     new AdminPageDataFactory(
                                     ApplicationServicesFixture.site(db.config()),
                                     ApplicationServicesFixture.buildId(db.resources()),
-                                    ApplicationServicesFixture.messages(),
-                                    AccountServicesFixture.component().permissions())
+                                    ApplicationServicesFixture.messages(db.dataSource()),
+                                    AccountServicesFixture.component(db.dataSource()).permissions())
                             .response(global);
 
             PublishCheckTask task =
                     new AIPublishCheckService(
-                                    ApplicationServicesFixture.settings(),
-                                    ApplicationServicesFixture.operations(),
-                                    AIServiceDependencies.writing(),
-                                    AIServiceDependencies.conversations())
+                                    ApplicationServicesFixture.settings(db.dataSource()),
+                                    ApplicationServicesFixture.operations(db.dataSource()),
+                                    AIServiceDependencies.writing(db.dataSource()),
+                                    AIServiceDependencies.conversations(db.dataSource()))
                             .startPublishCheck(detail.getData(), request);
 
             assertNotNull(task);
@@ -1024,9 +1025,9 @@ public class AdminArticleControllerDatabaseTest {
     }
 
     private AdminArticleController controller(
-            CacheService cache, Map<String, String> params, String body, ResponseRecorder response)
+            CacheService cache, Map<String, String> params, String body, ResponseRecorder response, DataSourceWrapper testDataSource)
             throws Exception {
-        return controller(cache, params, body, response, markdown -> null);
+        return controller(cache, params, body, response, markdown -> null, testDataSource);
     }
 
     private AdminArticleController controller(
@@ -1034,7 +1035,7 @@ public class AdminArticleControllerDatabaseTest {
             Map<String, String> params,
             String body,
             ResponseRecorder response,
-            MarkdownRenderer renderer)
+            MarkdownRenderer renderer, DataSourceWrapper testDataSource)
             throws Exception {
         AdminArticleService articles =
                 new AdminArticleService(
@@ -1044,17 +1045,17 @@ public class AdminArticleControllerDatabaseTest {
                         new AdminPageDataFactory(
                                 ApplicationServicesFixture.site(applicationConfig),
                                 () -> "test",
-                                ApplicationServicesFixture.messages(),
-                                AccountServicesFixture.component().permissions()),
-                        AccountServicesFixture.component().permissions(),
-                        AccountServicesFixture.component().preferences(),
+                                ApplicationServicesFixture.messages(testDataSource),
+                                AccountServicesFixture.component(testDataSource).permissions()),
+                        AccountServicesFixture.component(testDataSource).permissions(),
+                        AccountServicesFixture.component(testDataSource).preferences(),
                         new ArticleVersionService(
-                                AccountServicesFixture.component().permissions(),
-                                Log::new,
-                                () -> new LogVersion(DAO.getDefaultDataSource())),
-                        new ArticlePinningService(Log::new, ApplicationServicesFixture.locks()),
-                        Log::new,
-                        ApplicationServicesFixture.locks());
+                                AccountServicesFixture.component(testDataSource).permissions(),
+                                () -> new Log(testDataSource),
+                                () -> new LogVersion(testDataSource)),
+                        new ArticlePinningService(() -> new Log(testDataSource), ApplicationServicesFixture.locks(testDataSource)),
+                        () -> new Log(testDataSource),
+                        ApplicationServicesFixture.locks(testDataSource));
         AdminArticleController controller =
                 new AdminArticleController(
                         articles,
@@ -1062,49 +1063,49 @@ public class AdminArticleControllerDatabaseTest {
                                 articles,
                                 ApplicationServicesFixture.cacheRefresh(cache, applicationConfig),
                                 renderer,
-                                ApplicationServicesFixture.audit(),
-                                ApplicationServicesFixture.operations()),
+                                ApplicationServicesFixture.audit(testDataSource),
+                                ApplicationServicesFixture.operations(testDataSource)),
                         ApplicationServicesFixture.publisher(null, applicationConfig),
                         ApplicationServicesFixture.capability(
                                 applicationConfig, ArticleAssistant.class),
                         new AdminPageDataFactory(
                                 ApplicationServicesFixture.site(applicationConfig),
                                 () -> "test",
-                                ApplicationServicesFixture.messages(),
-                                AccountServicesFixture.component().permissions()),
-                        AccountServicesFixture.component().preferences());
+                                ApplicationServicesFixture.messages(testDataSource),
+                                AccountServicesFixture.component(testDataSource).permissions()),
+                        AccountServicesFixture.component(testDataSource).preferences());
         setControllerField(controller, "request", request(params, body));
         setControllerField(controller, "response", response.response());
         return controller;
     }
 
     private static AIArticleController aiController(Map<String, String> params, String body,
-                                                     ResponseRecorder response) throws Exception {
+                                                     ResponseRecorder response, DataSourceWrapper testDataSource) throws Exception {
         AIArticleController controller =
                 new AIArticleController(
                         new UploadService(
                                 () -> null,
-                                AccountServicesFixture.component().permissions(),
+                                AccountServicesFixture.component(testDataSource).permissions(),
                                 new DbFileService(
-                                        ApplicationServicesFixture.websiteKv(), WebSite::new)),
+                                        ApplicationServicesFixture.websiteKv(testDataSource), () -> new WebSite(testDataSource))),
                         new AIChatService(
-                                AccountServicesFixture.component().permissions(),
-                                AccountServicesFixture.component().preferences(),
-                                AIServiceDependencies.approvals(),
+                                AccountServicesFixture.component(testDataSource).permissions(),
+                                AccountServicesFixture.component(testDataSource).preferences(),
+                                AIServiceDependencies.approvals(testDataSource),
                                 new AIFileService(),
-                                AIServiceDependencies.writing(),
-                                AIServiceDependencies.conversations(),
-                                AIServiceDependencies.writingTools(),
-                                AIServiceDependencies.references(null)),
+                                AIServiceDependencies.writing(testDataSource),
+                                AIServiceDependencies.conversations(testDataSource),
+                                AIServiceDependencies.writingTools(testDataSource),
+                                AIServiceDependencies.references(null, testDataSource)),
                         new AIReferenceService(
                                 null,
-                                AccountServicesFixture.component().permissions(),
-                                AccountServicesFixture.component().preferences()),
-                        AccountServicesFixture.component().permissions(),
+                                AccountServicesFixture.component(testDataSource).permissions(),
+                                AccountServicesFixture.component(testDataSource).preferences()),
+                        AccountServicesFixture.component(testDataSource).permissions(),
                         new AIFileService(),
-                        AIServiceDependencies.publishing(),
-                        AIServiceDependencies.images(),
-                        AIServiceDependencies.conversations());
+                        AIServiceDependencies.publishing(testDataSource),
+                        AIServiceDependencies.images(testDataSource),
+                        AIServiceDependencies.conversations(testDataSource));
         setControllerField(controller, "request", request(params, body));
         setControllerField(controller, "response", response.response());
         return controller;

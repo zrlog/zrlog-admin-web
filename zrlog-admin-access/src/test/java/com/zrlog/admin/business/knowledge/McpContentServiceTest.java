@@ -3,7 +3,7 @@ package com.zrlog.admin.business.knowledge;
 import static org.junit.Assert.*;
 
 import com.google.gson.*;
-import com.hibegin.common.dao.DAO;
+import com.hibegin.common.dao.DataSourceWrapper;
 import com.hibegin.http.server.api.HttpRequest;
 import com.zrlog.admin.business.content.ArticleAssistant;
 import com.zrlog.admin.business.content.AttachmentStorage;
@@ -31,6 +31,7 @@ import com.zrlog.data.security.AccountAccess;
 import com.zrlog.model.Log;
 import com.zrlog.model.LogVersion;
 import com.zrlog.model.Tag;
+import com.zrlog.model.Type;
 import com.zrlog.util.I18nUtil;
 
 import org.junit.Test;
@@ -65,7 +66,7 @@ public class McpContentServiceTest {
             }
         });
     }
-    private String token(String... permissions) throws Exception {
+    private String token(DataSourceWrapper testDataSource, String... permissions) throws Exception {
         PersonalTokenModels.Create body=new PersonalTokenModels.Create();body.name="MCP tools";
         body.permissionMode=permissions.length==0 ? "inherit" : "custom"; body.permissions=List.of(permissions);
         return new PersonalAccessTokenService(
@@ -74,35 +75,35 @@ public class McpContentServiceTest {
                                                 ::configured,
                                         ApplicationServicesFixture.available(
                                                 applicationConfig, McpWebSetup.class),
-                                        AccountServicesFixture.component().permissions(),
-                                        AccountServicesFixture.component().security(),
+                                        AccountServicesFixture.component(testDataSource).permissions(),
+                                        AccountServicesFixture.component(testDataSource).security(),
                                         tokenResource ->
                                                 new PersonalAccessTokenService(
                                                         tokenResource,
-                                                        AccountServicesFixture.component()
+                                                        AccountServicesFixture.component(testDataSource)
                                                                 .permissions(),
-                                                        AccountServicesFixture.component()
+                                                        AccountServicesFixture.component(testDataSource)
                                                                 .security()),
-                                        AccountServicesFixture.component().backend())
+                                        AccountServicesFixture.component(testDataSource).backend())
                                 .mcpResource(),
-                        AccountServicesFixture.component().permissions(),
-                        AccountServicesFixture.component().security())
+                        AccountServicesFixture.component(testDataSource).permissions(),
+                        AccountServicesFixture.component(testDataSource).security())
                 .create(body)
                 .token;
     }
-    private McpContentService tools(String token, String language, ContentToolService content, AttachmentStorage storage) {
+    private McpContentService tools(String token, String language, ContentToolService content, AttachmentStorage storage, DataSourceWrapper testDataSource) {
         OAuthService oauth =
                 new OAuthService(
                         ApplicationServicesFixture.backend(applicationConfig)::configured,
                         ApplicationServicesFixture.available(applicationConfig, McpWebSetup.class),
-                        AccountServicesFixture.component().permissions(),
-                        AccountServicesFixture.component().security(),
+                        AccountServicesFixture.component(testDataSource).permissions(),
+                        AccountServicesFixture.component(testDataSource).security(),
                         tokenResource ->
                                 new PersonalAccessTokenService(
                                         tokenResource,
-                                        AccountServicesFixture.component().permissions(),
-                                        AccountServicesFixture.component().security()),
-                        AccountServicesFixture.component().backend());
+                                        AccountServicesFixture.component(testDataSource).permissions(),
+                                        AccountServicesFixture.component(testDataSource).security()),
+                        AccountServicesFixture.component(testDataSource).backend());
         return new McpContentService(
                 () -> {
                     try {
@@ -122,7 +123,7 @@ public class McpContentServiceTest {
                                         content,
                                         () -> storage,
                                         toolKnowledge,
-                                        AccountServicesFixture.component().permissions()),
+                                        AccountServicesFixture.component(testDataSource).permissions()),
                         (toolActor, toolScopes, toolLanguage) ->
                                 new KnowledgeService(
                                         toolActor,
@@ -131,25 +132,25 @@ public class McpContentServiceTest {
                                                 ::configured,
                                         () -> false,
                                         toolLanguage,
-                                        Log::new),
-                        AccountServicesFixture.component().permissions()),
+                                        () -> new Log(testDataSource)),
+                        AccountServicesFixture.component(testDataSource).permissions()),
                 ApplicationServicesFixture.backend(applicationConfig)::configured);
     }
 
-    private McpContentService tools(String token) {
+    private McpContentService tools(String token, DataSourceWrapper testDataSource) {
         return tools(
                 token,
                 "en_US",
                 new ContentToolService(
-                        publishing(new InMemoryZrLogDatabase.TestCacheService()),
+                        publishing(new InMemoryZrLogDatabase.TestCacheService(), testDataSource),
                         request -> {},
-                        AccountServicesFixture.component().permissions(),
-                        Tag::new,
-                        com.zrlog.model.Type::new),
-                null);
+                        AccountServicesFixture.component(testDataSource).permissions(),
+                        () -> new Tag(testDataSource),
+                        () -> new Type(testDataSource)),
+                null, testDataSource);
     }
 
-    private ArticlePublishingService publishing(CacheService cache) {
+    private ArticlePublishingService publishing(CacheService cache, DataSourceWrapper testDataSource) {
         return new ArticlePublishingService(
                 new AdminArticleService(
                         cache,
@@ -158,21 +159,21 @@ public class McpContentServiceTest {
                         new AdminPageDataFactory(
                                 ApplicationServicesFixture.site(applicationConfig),
                                 () -> "test",
-                                ApplicationServicesFixture.messages(),
-                                AccountServicesFixture.component().permissions()),
-                        AccountServicesFixture.component().permissions(),
-                        AccountServicesFixture.component().preferences(),
+                                ApplicationServicesFixture.messages(testDataSource),
+                                AccountServicesFixture.component(testDataSource).permissions()),
+                        AccountServicesFixture.component(testDataSource).permissions(),
+                        AccountServicesFixture.component(testDataSource).preferences(),
                         new ArticleVersionService(
-                                AccountServicesFixture.component().permissions(),
-                                Log::new,
-                                () -> new LogVersion(DAO.getDefaultDataSource())),
-                        new ArticlePinningService(Log::new, ApplicationServicesFixture.locks()),
-                        Log::new,
-                        ApplicationServicesFixture.locks()),
+                                AccountServicesFixture.component(testDataSource).permissions(),
+                                () -> new Log(testDataSource),
+                                () -> new LogVersion(testDataSource)),
+                        new ArticlePinningService(() -> new Log(testDataSource), ApplicationServicesFixture.locks(testDataSource)),
+                        () -> new Log(testDataSource),
+                        ApplicationServicesFixture.locks(testDataSource)),
                 ApplicationServicesFixture.cacheRefresh(cache, applicationConfig),
                 markdown -> null,
-                ApplicationServicesFixture.audit(),
-                ApplicationServicesFixture.operations());
+                ApplicationServicesFixture.audit(testDataSource),
+                ApplicationServicesFixture.operations(testDataSource));
     }
     private Set<String> names(McpContentService tools) throws Exception { return tools.definitions("en_US").stream().map(t->t.name).collect(Collectors.toSet()); }
 
@@ -182,15 +183,15 @@ public class McpContentServiceTest {
             AtomicInteger refreshes=new AtomicInteger();
             McpContentService tools =
                     tools(
-                            token(),
+                            token(db.dataSource()),
                             "en_US",
                             new ContentToolService(
-                                    publishing(new InMemoryZrLogDatabase.TestCacheService()),
+                                    publishing(new InMemoryZrLogDatabase.TestCacheService(), db.dataSource()),
                                     request -> refreshes.incrementAndGet(),
-                                    AccountServicesFixture.component().permissions(),
-                                    Tag::new,
-                                    com.zrlog.model.Type::new),
-                            null);
+                                    AccountServicesFixture.component(db.dataSource()).permissions(),
+                                    () -> new Tag(db.dataSource()),
+                                    () -> new Type(db.dataSource())),
+                            null, db.dataSource());
             var browser=AdminTokenThreadLocal.getUser();
             SavedArticle saved=(SavedArticle)tools.call("create_article",args(CREATE));
             assertEquals("draft",saved.status);assertEquals(0,saved.version);assertEquals(0,refreshes.get());
@@ -213,7 +214,7 @@ public class McpContentServiceTest {
             assertTrue(audit.contains("CREATE_ARTICLE"));assertTrue(audit.contains("PUBLISH_ARTICLE"));
             assertEquals(
                     "MCP",
-                    new AdminAuditService(ApplicationServicesFixture.websiteKv())
+                    new AdminAuditService(ApplicationServicesFixture.websiteKv(db.dataSource()))
                             .getRecentLogs()
                             .get(0)
                             .getBrowser());
@@ -239,17 +240,17 @@ public class McpContentServiceTest {
             applicationConfig = db.config();
             McpContentService tools =
                     tools(
-                            token(),
+                            token(db.dataSource()),
                             "zh_CN",
                             new ContentToolService(
-                                    publishing(new InMemoryZrLogDatabase.TestCacheService()),
+                                    publishing(new InMemoryZrLogDatabase.TestCacheService(), db.dataSource()),
                                     request -> {
                                         throw new IllegalStateException("internal detail");
                                     },
-                                    AccountServicesFixture.component().permissions(),
-                                    Tag::new,
-                                    com.zrlog.model.Type::new),
-                            null);
+                                    AccountServicesFixture.component(db.dataSource()).permissions(),
+                                    () -> new Tag(db.dataSource()),
+                                    () -> new Type(db.dataSource())),
+                            null, db.dataSource());
             JsonObject input=args(CREATE);input.addProperty("status","published");
             JsonObject rpc=new JsonObject();rpc.addProperty("jsonrpc","2.0");rpc.addProperty("id",1);rpc.addProperty("method","tools/call");
             JsonObject params=new JsonObject();params.addProperty("name","create_article");params.add("arguments",input);rpc.add("params",params);
@@ -271,7 +272,7 @@ public class McpContentServiceTest {
     @Test public void replacesBodyWithoutLeavingStaleMarkdownOrHtml() throws Exception {
         try (InMemoryZrLogDatabase db = open()) {
             applicationConfig = db.config();
-            McpContentService tools = tools(token());
+            McpContentService tools = tools(token(db.dataSource()), db.dataSource());
             SavedArticle saved = (SavedArticle) tools.call("create_article", args(CREATE));
             tools.call("update_article", args("{\"id\":" + saved.id + ",\"version\":0,\"content\":\"<p>HTML replacement</p>\"}"));
             Map<String, Object> row = db.queryOne("select * from log where logId=?", saved.id);
@@ -292,7 +293,7 @@ public class McpContentServiceTest {
     @Test public void filtersActionsAndDeniesHiddenToolsWithoutWideningOldReadTokens() throws Exception {
         try(InMemoryZrLogDatabase db=open()) {
             applicationConfig = db.config();
-            String writer=token("article.create","article.update");McpContentService tools=tools(writer);
+            String writer=token(db.dataSource(), "article.create", "article.update");McpContentService tools=tools(writer, db.dataSource());
             Object auditBefore = db.scalar("select value from website where name='admin_audit_log'");
             assertEquals(Set.of("create_article","update_article"),names(tools));
             JsonObject published=args(CREATE);published.addProperty("status","published");
@@ -309,27 +310,27 @@ public class McpContentServiceTest {
                                                             ::configured,
                                                     ApplicationServicesFixture.available(
                                                             db.config(), McpWebSetup.class),
-                                                    AccountServicesFixture.component()
+                                                    AccountServicesFixture.component(db.dataSource())
                                                             .permissions(),
-                                                    AccountServicesFixture.component().security(),
+                                                    AccountServicesFixture.component(db.dataSource()).security(),
                                                     tokenResource ->
                                                             new PersonalAccessTokenService(
                                                                     tokenResource,
                                                                     AccountServicesFixture
-                                                                            .component()
+                                                                            .component(db.dataSource())
                                                                             .permissions(),
                                                                     AccountServicesFixture
-                                                                            .component()
+                                                                            .component(db.dataSource())
                                                                             .security()),
-                                                    AccountServicesFixture.component().backend())
+                                                    AccountServicesFixture.component(db.dataSource()).backend())
                                             .mcpResource(),
-                                    AccountServicesFixture.component().permissions(),
-                                    AccountServicesFixture.component().security())
+                                    AccountServicesFixture.component(db.dataSource()).permissions(),
+                                    AccountServicesFixture.component(db.dataSource()).security())
                             .create(legacy)
                             .token;
-            assertEquals(Set.of("search_articles","read_article","get_article"),names(tools(old)));
-            assertThrows(PermissionErrorException.class,()->tools(old).call("create_article",args(CREATE)));
-            assertEquals(Set.of("list_categories","list_tags"),names(tools(token("taxonomy.read"))));
+            assertEquals(Set.of("search_articles","read_article","get_article"),names(tools(old, db.dataSource())));
+            assertThrows(PermissionErrorException.class,()->tools(old, db.dataSource()).call("create_article",args(CREATE)));
+            assertEquals(Set.of("list_categories","list_tags"),names(tools(token(db.dataSource(), "taxonomy.read"), db.dataSource())));
             db.execute("update user_access_token set revoked=? where tokenHash=?",true,OAuthService.hash(writer));
             assertThrows(OAuthException.class,()->tools.call("create_article",args(CREATE)));
         }
@@ -340,16 +341,16 @@ public class McpContentServiceTest {
             db.execute("insert into user(userId,userName,role) values(2,'other','author')");
             db.execute("insert into log(logId,userId,typeId,title,markdown,content,rubbish,privacy,version) values(10,2,1,'Other','Text','<p>Text</p>',true,false,0)");
             db.execute("update user set role='author' where userId=1");
-            McpContentService author=tools(token());
+            McpContentService author=tools(token(db.dataSource()), db.dataSource());
             assertThrows(PermissionErrorException.class,()->author.call("update_article",args("{\"id\":10,\"version\":0,\"title\":\"Changed\"}")));
             db.execute("update user set role='editor' where userId=1");
-            McpContentService editor=tools(token());
+            McpContentService editor=tools(token(db.dataSource()), db.dataSource());
             assertEquals(1,((SavedArticle)editor.call("update_article",args("{\"id\":10,\"version\":0,\"title\":\"Changed\"}"))).version);
             db.execute("update log set privacy=true where logId=10");
             assertThrows(PermissionErrorException.class,()->editor.call("get_article",args("{\"id\":10}")));
             assertThrows(PermissionErrorException.class,()->editor.call("publish_article",args("{\"id\":10,\"version\":1}")));
             db.execute("update user set role='contributor' where userId=1");
-            McpContentService contributor=tools(token());
+            McpContentService contributor=tools(token(db.dataSource()), db.dataSource());
             assertFalse(names(contributor).contains("publish_article"));
             assertEquals("draft",((SavedArticle)contributor.call("create_article",args(CREATE))).status);
             for(String status:List.of("private","published")) {
@@ -363,7 +364,7 @@ public class McpContentServiceTest {
     @Test public void validatesFieldsBeforeWritingAndPaginatesTaxonomyWithoutArticleCounts() throws Exception {
         try(InMemoryZrLogDatabase db=open()) {
             applicationConfig = db.config();
-            McpContentService tools=tools(token());
+            McpContentService tools=tools(token(db.dataSource()), db.dataSource());
             for(String invalid:List.of("{\"title\":\"A\",\"typeId\":1}","{\"title\":\"A\",\"typeId\":1.5,\"status\":\"draft\"}",
                     "{\"title\":\"A\",\"typeId\":1,\"status\":\"draft\",\"userId\":2}","{\"id\":1,\"version\":0}")) {
                 assertThrows(IllegalArgumentException.class,()->tools.call(invalid.contains("version")?"update_article":"create_article",args(invalid)));
@@ -390,7 +391,7 @@ public class McpContentServiceTest {
                     uploaded.add(bytes);return request.getContextPath()+"/attached/users/1/file.png";
                 }
             };
-            String token = token("asset.upload");
+            String token = token(db.dataSource(), "asset.upload");
             McpContentService tools =
                     tools(
                             token,
@@ -406,35 +407,34 @@ public class McpContentServiceTest {
                                                                     db.config()),
                                                             ApplicationServicesFixture.buildId(
                                                                     db.resources()),
-                                                            ApplicationServicesFixture.messages(),
-                                                            AccountServicesFixture.component()
+                                                            ApplicationServicesFixture.messages(db.dataSource()),
+                                                            AccountServicesFixture.component(db.dataSource())
                                                                     .permissions()),
-                                                    AccountServicesFixture.component()
+                                                    AccountServicesFixture.component(db.dataSource())
                                                             .permissions(),
-                                                    AccountServicesFixture.component()
+                                                    AccountServicesFixture.component(db.dataSource())
                                                             .preferences(),
                                                     new ArticleVersionService(
-                                                            AccountServicesFixture.component()
+                                                            AccountServicesFixture.component(db.dataSource())
                                                                     .permissions(),
-                                                            Log::new,
+                                                            () -> new Log(db.dataSource()),
                                                             () ->
                                                                     new LogVersion(
-                                                                            DAO
-                                                                                    .getDefaultDataSource())),
+                                                                            db.dataSource())),
                                                     new ArticlePinningService(
-                                                            Log::new,
-                                                            ApplicationServicesFixture.locks()),
-                                                    Log::new,
-                                                    ApplicationServicesFixture.locks()),
+                                                            () -> new Log(db.dataSource()),
+                                                            ApplicationServicesFixture.locks(db.dataSource())),
+                                                    () -> new Log(db.dataSource()),
+                                                    ApplicationServicesFixture.locks(db.dataSource())),
                                             ApplicationServicesFixture.cacheRefresh(
                                                     db.cacheService(), db.config()),
                                             markdown -> null,
-                                            ApplicationServicesFixture.audit(),
-                                            ApplicationServicesFixture.operations()),
-                                    AccountServicesFixture.component().permissions(),
-                                    Tag::new,
-                                    com.zrlog.model.Type::new),
-                            storage);
+                                            ApplicationServicesFixture.audit(db.dataSource()),
+                                            ApplicationServicesFixture.operations(db.dataSource())),
+                                    AccountServicesFixture.component(db.dataSource()).permissions(),
+                                    () -> new Tag(db.dataSource()),
+                                    () -> new Type(db.dataSource())),
+                            storage, db.dataSource());
             assertEquals(Set.of("upload_attachment"),names(tools));
             Attachment result=(Attachment)tools.call("upload_attachment",args("{\"filename\":\"cover.png\",\"data\":\"aGVsbG8=\"}"));
             assertEquals("/sub/attached/users/1/file.png",result.url);assertEquals(5,result.size);assertArrayEquals("hello".getBytes(),uploaded.get(0));
@@ -446,8 +446,8 @@ public class McpContentServiceTest {
                 JsonObject input=new JsonObject();input.addProperty("filename","a.png");input.addProperty("data",data);
                 assertThrows(IllegalArgumentException.class,()->tools.call("upload_attachment",input));
             }
-            assertEquals(1,uploaded.size());assertTrue(names(tools(token)).isEmpty());
-            assertThrows(PermissionErrorException.class,()->tools(token).call("upload_attachment",args("{\"filename\":\"a.png\",\"data\":\"aA==\"}")));
+            assertEquals(1,uploaded.size());assertTrue(names(tools(token, db.dataSource())).isEmpty());
+            assertThrows(PermissionErrorException.class,()->tools(token, db.dataSource()).call("upload_attachment",args("{\"filename\":\"a.png\",\"data\":\"aA==\"}")));
         }
     }
     @Test public void localizesEveryNewDefinitionAndErrorWithoutLeakingThreadLanguage() throws Exception {
@@ -460,7 +460,7 @@ public class McpContentServiceTest {
                 }
                 McpContentService tools =
                         tools(
-                                token("article.read"),
+                                token(db.dataSource(), "article.read"),
                                 language,
                                 new ContentToolService(
                                         new ArticlePublishingService(
@@ -474,35 +474,34 @@ public class McpContentServiceTest {
                                                                         applicationConfig),
                                                                 () -> "test",
                                                                 ApplicationServicesFixture
-                                                                        .messages(),
-                                                                AccountServicesFixture.component()
+                                                                        .messages(db.dataSource()),
+                                                                AccountServicesFixture.component(db.dataSource())
                                                                         .permissions()),
-                                                        AccountServicesFixture.component()
+                                                        AccountServicesFixture.component(db.dataSource())
                                                                 .permissions(),
-                                                        AccountServicesFixture.component()
+                                                        AccountServicesFixture.component(db.dataSource())
                                                                 .preferences(),
                                                         new ArticleVersionService(
-                                                                AccountServicesFixture.component()
+                                                                AccountServicesFixture.component(db.dataSource())
                                                                         .permissions(),
-                                                                Log::new,
+                                                                () -> new Log(db.dataSource()),
                                                                 () ->
                                                                         new LogVersion(
-                                                                                DAO
-                                                                                        .getDefaultDataSource())),
+                                                                                db.dataSource())),
                                                         new ArticlePinningService(
-                                                                Log::new,
-                                                                ApplicationServicesFixture.locks()),
-                                                        Log::new,
-                                                        ApplicationServicesFixture.locks()),
+                                                                () -> new Log(db.dataSource()),
+                                                                ApplicationServicesFixture.locks(db.dataSource())),
+                                                        () -> new Log(db.dataSource()),
+                                                        ApplicationServicesFixture.locks(db.dataSource())),
                                                 ApplicationServicesFixture.cacheRefresh(
                                                         db.cacheService(), applicationConfig),
                                                 markdown -> null,
-                                                ApplicationServicesFixture.audit(),
-                                                ApplicationServicesFixture.operations()),
-                                        AccountServicesFixture.component().permissions(),
-                                        Tag::new,
-                                        com.zrlog.model.Type::new),
-                                null);
+                                                ApplicationServicesFixture.audit(db.dataSource()),
+                                                ApplicationServicesFixture.operations(db.dataSource())),
+                                        AccountServicesFixture.component(db.dataSource()).permissions(),
+                                        () -> new Tag(db.dataSource()),
+                                        () -> new Type(db.dataSource())),
+                                null, db.dataSource());
                 JsonObject result =
                         new McpService(
                                         ApplicationServicesFixture.siteTitle(applicationConfig),

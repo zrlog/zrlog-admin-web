@@ -6,7 +6,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
-import com.hibegin.common.dao.DAO;
+import com.hibegin.common.dao.DataSourceWrapper;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
@@ -79,14 +79,14 @@ public class WebSiteControllerDatabaseTest {
                             new FeatureLabService(
                                     () -> true,
                                     new WebhookService(
-                                            ApplicationServicesFixture.messages(),
-                                            ApplicationServicesFixture.websiteCache()),
-                                    WebSite::new),
+                                            ApplicationServicesFixture.messages(db.dataSource()),
+                                            ApplicationServicesFixture.websiteCache(db.dataSource())),
+                                    () -> new WebSite(db.dataSource())),
                             ApplicationServicesFixture.site(db.config()),
                             () ->
-                                    new WebSite()
+                                    new WebSite(db.dataSource())
                                             .getStringValueByName("admin_static_resource_base_url"),
-                            () -> new UserPasskey(DAO.getDefaultDataSource()));
+                            () -> new UserPasskey(db.dataSource()));
             assertFalse(controller(HttpMethod.GET, labUri, null).lab().getData().getFeature_article_arrangement_enabled());
             assertFalse(resources.adminResourceInfo(editorRequest).getFeature_article_arrangement_enabled());
 
@@ -98,17 +98,17 @@ public class WebSiteControllerDatabaseTest {
                             new AdminPageDataFactory(
                                     ApplicationServicesFixture.site(db.config()),
                                     ApplicationServicesFixture.buildId(db.resources()),
-                                    ApplicationServicesFixture.messages(),
-                                    AccountServicesFixture.component().permissions()),
-                            AccountServicesFixture.component().permissions(),
-                            AccountServicesFixture.component().preferences(),
+                                    ApplicationServicesFixture.messages(db.dataSource()),
+                                    AccountServicesFixture.component(db.dataSource()).permissions()),
+                            AccountServicesFixture.component(db.dataSource()).permissions(),
+                            AccountServicesFixture.component(db.dataSource()).preferences(),
                             new ArticleVersionService(
-                                    AccountServicesFixture.component().permissions(),
-                                    Log::new,
-                                    () -> new LogVersion(DAO.getDefaultDataSource())),
-                            new ArticlePinningService(Log::new, ApplicationServicesFixture.locks()),
-                            Log::new,
-                            ApplicationServicesFixture.locks());
+                                    AccountServicesFixture.component(db.dataSource()).permissions(),
+                                    () -> new Log(db.dataSource()),
+                                    () -> new LogVersion(db.dataSource())),
+                            new ArticlePinningService(() -> new Log(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource())),
+                            () -> new Log(db.dataSource()),
+                            ApplicationServicesFixture.locks(db.dataSource()));
             CreateArticleRequest create = new CreateArticleRequest();
             create.setTitle("Layout visibility");
             create.setAlias("layout-visibility");
@@ -156,18 +156,18 @@ public class WebSiteControllerDatabaseTest {
                     new OAuthService(
                             ApplicationServicesFixture.backend(db.config())::configured,
                             ApplicationServicesFixture.available(db.config(), McpWebSetup.class),
-                            AccountServicesFixture.component().permissions(),
-                            AccountServicesFixture.component().security(),
+                            AccountServicesFixture.component(db.dataSource()).permissions(),
+                            AccountServicesFixture.component(db.dataSource()).security(),
                             tokenResource ->
                                     new PersonalAccessTokenService(
                                             tokenResource,
-                                            AccountServicesFixture.component().permissions(),
-                                            AccountServicesFixture.component().security()),
-                            AccountServicesFixture.component().backend());
+                                            AccountServicesFixture.component(db.dataSource()).permissions(),
+                                            AccountServicesFixture.component(db.dataSource()).security()),
+                            AccountServicesFixture.component(db.dataSource()).backend());
             assertEquals(address, oauth.metadata().issuer);
             assertEquals(address + "/mcp", oauth.mcpResourceMetadata().resource);
             assertEquals(address + "/api/webhook/message-center/notice", oauth.page().notificationEndpoint);
-            String publicInfo = new com.google.gson.Gson().toJson(new WebSite().getPublicWebSite());
+            String publicInfo = new com.google.gson.Gson().toJson(new WebSite(db.dataSource()).getPublicWebSite());
             assertFalse(publicInfo.contains("backend_server_url"));
             assertFalse(publicInfo.contains("gateway.example"));
             // Old settings clients must not clear a value they do not know about.
@@ -180,15 +180,15 @@ public class WebSiteControllerDatabaseTest {
                                     ApplicationServicesFixture.backend(db.config())::configured,
                                     ApplicationServicesFixture.available(
                                             db.config(), McpWebSetup.class),
-                                    AccountServicesFixture.component().permissions(),
-                                    AccountServicesFixture.component().security(),
+                                    AccountServicesFixture.component(db.dataSource()).permissions(),
+                                    AccountServicesFixture.component(db.dataSource()).security(),
                                     tokenResource ->
                                             new PersonalAccessTokenService(
                                                     tokenResource,
-                                                    AccountServicesFixture.component()
+                                                    AccountServicesFixture.component(db.dataSource())
                                                             .permissions(),
-                                                    AccountServicesFixture.component().security()),
-                                    AccountServicesFixture.component().backend())
+                                                    AccountServicesFixture.component(db.dataSource()).security()),
+                                    AccountServicesFixture.component(db.dataSource()).backend())
                             .issuer()
                             .contains("gateway.example"));
         }
@@ -236,7 +236,7 @@ public class WebSiteControllerDatabaseTest {
             assertThrows(
                     PermissionErrorException.class,
                     () ->
-                            AccountServicesFixture.component()
+                            AccountServicesFixture.component(db.dataSource())
                                     .permissions()
                                     .checkRoute(
                                             method,
@@ -248,7 +248,7 @@ public class WebSiteControllerDatabaseTest {
             assertThrows(
                     PermissionErrorException.class,
                     () ->
-                            AccountServicesFixture.component()
+                            AccountServicesFixture.component(db.dataSource())
                                     .permissions()
                                     .checkRoute(
                                             method,
@@ -378,7 +378,7 @@ public class WebSiteControllerDatabaseTest {
                                     + "\"ai_image_provider\":\"OPEN_AI\","
                                     + "\"ai_image_model\":\"gpt-image-2\","
                                     + "\"ai_image_base_url\":\"\","
-                                    + "\"ai_image_api_key\":\"\"}").ai();
+                                    + "\"ai_image_api_key\":\"\"}", db.dataSource()).ai();
 
             assertEquals(AIProviderType.OPEN_AI, response.getData().getAi_provider());
             assertEquals("custom-model:latest", response.getData().getAi_model());
@@ -424,7 +424,7 @@ public class WebSiteControllerDatabaseTest {
                                     + "\"ai_image_provider\":\"OPEN_AI\","
                                     + "\"ai_image_model\":\" local-image:latest \","
                                     + "\"ai_image_base_url\":\"http://localhost:11434/v1/\","
-                                    + "\"ai_image_api_key\":\"\"}").ai();
+                                    + "\"ai_image_api_key\":\"\"}", db.dataSource()).ai();
 
             assertEquals("local-image:latest", response.getData().getAi_image_model());
             assertEquals("http://localhost:11434/v1", response.getData().getAi_image_base_url());
@@ -444,7 +444,7 @@ public class WebSiteControllerDatabaseTest {
                             + "\"ai_image_provider\":\"OPEN_AI\","
                             + "\"ai_image_model\":\"local-image:latest\","
                             + "\"ai_image_base_url\":\"\","
-                            + "\"ai_image_api_key\":\"image-key\"}");
+                            + "\"ai_image_api_key\":\"image-key\"}", ignored.dataSource());
 
             assertThrows(ArgsException.class, controller::ai);
         }
@@ -462,7 +462,7 @@ public class WebSiteControllerDatabaseTest {
                     aiController(HttpMethod.POST, "/api/admin/website/ai",
                             "{\"ai_provider\":\"OPEN_AI\",\"ai_model\":\"local-model\","
                                     + "\"ai_base_url\":\"http://localhost:11434/v1\","
-                                    + "\"ai_api_key\":\"\",\"ai_prompt\":\"Prompt\"}").ai();
+                                    + "\"ai_api_key\":\"\",\"ai_prompt\":\"Prompt\"}", db.dataSource()).ai();
 
             assertEquals("local-model", response.getData().getAi_model());
             assertEquals("http://localhost:11434/v1", response.getData().getAi_base_url());
@@ -481,7 +481,7 @@ public class WebSiteControllerDatabaseTest {
             db.putWebsite("ai_api_key", "existing-key");
 
             AdminPageDataResponse<AIWebSiteInfoResponse> response =
-                    aiController(HttpMethod.GET, "/api/admin/website/ai", null).ai();
+                    aiController(HttpMethod.GET, "/api/admin/website/ai", null, db.dataSource()).ai();
 
             assertEquals(Boolean.TRUE, response.getData().getAi_reasoning_enabled());
             assertTrue(response.getData().isReasoningEnabled());
@@ -493,7 +493,7 @@ public class WebSiteControllerDatabaseTest {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
             applicationConfig = ignored.config();
             AIWebSiteController controller = aiController(HttpMethod.POST, "/api/admin/website/ai",
-                    "{\"ai_provider\":\"OPEN_AI\",\"ai_model\":\"gpt-5-mini\",\"ai_api_key\":\"\"}");
+                    "{\"ai_provider\":\"OPEN_AI\",\"ai_model\":\"gpt-5-mini\",\"ai_api_key\":\"\"}", ignored.dataSource());
 
             assertThrows(ArgsException.class, controller::ai);
         }
@@ -525,7 +525,7 @@ public class WebSiteControllerDatabaseTest {
         return controller;
     }
 
-    private AIWebSiteController aiController(HttpMethod method, String uri, String body) throws Exception {
+    private AIWebSiteController aiController(HttpMethod method, String uri, String body, DataSourceWrapper testDataSource) throws Exception {
         AIWebSiteController controller =
                 new AIWebSiteController(
                         new WebSiteSettingsService(
@@ -538,16 +538,16 @@ public class WebSiteControllerDatabaseTest {
                                                 ? null
                                                 : applicationConfig.getPlugin(
                                                         UpdateVersionInfoPlugin.class),
-                                ApplicationServicesFixture.audit(),
-                                ApplicationServicesFixture.websiteKv(),
-                                WebSite::new),
+                                ApplicationServicesFixture.audit(testDataSource),
+                                ApplicationServicesFixture.websiteKv(testDataSource),
+                                () -> new WebSite(testDataSource)),
                         new AdminPageDataFactory(
                                 ApplicationServicesFixture.site(applicationConfig),
                                 () -> "test",
-                                ApplicationServicesFixture.messages(),
-                                AccountServicesFixture.component().permissions()),
-                        AIServiceDependencies.config(),
-                        AIServiceDependencies.tools());
+                                ApplicationServicesFixture.messages(testDataSource),
+                                AccountServicesFixture.component(testDataSource).permissions()),
+                        AIServiceDependencies.config(testDataSource),
+                        AIServiceDependencies.tools(testDataSource));
         setControllerField(controller, "request", request(method, uri, body));
         setControllerField(controller, "response", response());
         return controller;
@@ -611,9 +611,9 @@ public class WebSiteControllerDatabaseTest {
                                     config == null
                                             ? null
                                             : config.getPlugin(UpdateVersionInfoPlugin.class),
-                            ApplicationServicesFixture.audit(),
-                            ApplicationServicesFixture.websiteKv(),
-                            WebSite::new),
+                            ApplicationServicesFixture.audit((DataSourceWrapper) config.getDataSource()),
+                            ApplicationServicesFixture.websiteKv((DataSourceWrapper) config.getDataSource()),
+                            () -> new WebSite((DataSourceWrapper) config.getDataSource())),
                     new UpgradeSettingsService(
                             new WebSiteSettingsService(
                                     new InMemoryZrLogDatabase.TestCacheService(),
@@ -623,26 +623,26 @@ public class WebSiteControllerDatabaseTest {
                                                     ? null
                                                     : config.getPlugin(
                                                             UpdateVersionInfoPlugin.class),
-                                    ApplicationServicesFixture.audit(),
-                                    ApplicationServicesFixture.websiteKv(),
-                                    WebSite::new),
+                                    ApplicationServicesFixture.audit((DataSourceWrapper) config.getDataSource()),
+                                    ApplicationServicesFixture.websiteKv((DataSourceWrapper) config.getDataSource()),
+                                    () -> new WebSite((DataSourceWrapper) config.getDataSource())),
                             () ->
                                     UpdaterHosts.dockerControl(
                                             config == null ? null : config.getUpdater()),
-                            AccountServicesFixture.component().permissions(),
-                            ApplicationServicesFixture.settings()),
+                            AccountServicesFixture.component((DataSourceWrapper) config.getDataSource()).permissions(),
+                            ApplicationServicesFixture.settings((DataSourceWrapper) config.getDataSource())),
                     new FeatureLabService(
                             () -> true,
                             new WebhookService(
-                                    ApplicationServicesFixture.messages(),
-                                    ApplicationServicesFixture.websiteCache()),
-                            WebSite::new),
+                                    ApplicationServicesFixture.messages((DataSourceWrapper) config.getDataSource()),
+                                    ApplicationServicesFixture.websiteCache((DataSourceWrapper) config.getDataSource())),
+                            () -> new WebSite((DataSourceWrapper) config.getDataSource())),
                     new AdminPageDataFactory(
                             ApplicationServicesFixture.site(config),
                             () -> "test",
-                            ApplicationServicesFixture.messages(),
-                            AccountServicesFixture.component().permissions()),
-                    ApplicationServicesFixture.settings());
+                            ApplicationServicesFixture.messages((DataSourceWrapper) config.getDataSource()),
+                            AccountServicesFixture.component((DataSourceWrapper) config.getDataSource()).permissions()),
+                    ApplicationServicesFixture.settings((DataSourceWrapper) config.getDataSource()));
         }
 
 

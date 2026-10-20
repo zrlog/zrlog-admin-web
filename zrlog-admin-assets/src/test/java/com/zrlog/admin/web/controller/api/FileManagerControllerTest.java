@@ -6,7 +6,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
-import com.hibegin.common.dao.DAO;
+import com.hibegin.common.dao.DataSourceWrapper;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
 import com.hibegin.http.server.web.Controller;
@@ -52,8 +52,8 @@ public class FileManagerControllerTest {
     @Test
     @SuppressWarnings("unchecked")
     public void shouldSearchThroughFileManagerService() throws Exception {
-        FakeFileManagerService service = new FakeFileManagerService();
-        FileManagerController controller = controller(Map.of("key", "logo"), service, new ResponseRecorder());
+        FakeFileManagerService service = new FakeFileManagerService(null);
+        FileManagerController controller = controller(Map.of("key", "logo"), service, new ResponseRecorder(), null);
 
         ApiStandardResponse<List<FileEntryVO>> response =
                 (ApiStandardResponse<List<FileEntryVO>>) controller.search();
@@ -67,10 +67,10 @@ public class FileManagerControllerTest {
     public void shouldListShortcutsAndRefreshReferenceIndexThroughRealService() throws Exception {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
             applicationConfig = ignored.config();
-            FileManagerController listController = realController(Map.of("path", ""), new ResponseRecorder());
+            FileManagerController listController = realController(Map.of("path", ""), new ResponseRecorder(), ignored.dataSource());
             FileManagerController brokenController = realController(Map.of("resourceType", "broken", "key", "missing"),
-                    new ResponseRecorder());
-            FileManagerController refreshController = realController(Map.of(), new ResponseRecorder());
+                    new ResponseRecorder(), ignored.dataSource());
+            FileManagerController refreshController = realController(Map.of(), new ResponseRecorder(), ignored.dataSource());
 
             AdminPageDataResponse<FileManagerResponse> list = listController.index();
             AdminPageDataResponse<FileManagerResponse> broken = brokenController.index();
@@ -88,15 +88,15 @@ public class FileManagerControllerTest {
 
     @Test
     public void shouldValidateActionParametersBeforeCallingService() throws Exception {
-        FakeFileManagerService service = new FakeFileManagerService();
-        FileManagerController controller = controller(new HashMap<>(), service, new ResponseRecorder());
+        FakeFileManagerService service = new FakeFileManagerService(null);
+        FileManagerController controller = controller(new HashMap<>(), service, new ResponseRecorder(), null);
 
         assertThrows(ArgsException.class, controller::delete);
         assertThrows(ArgsException.class, controller::mkdir);
         assertThrows(ArgsException.class, controller::rename);
         assertThrows(ArgsException.class, controller::reuploadMissingLocalResource);
         assertThrows(ArgsException.class, () -> controller(Map.of("path", "/attached/missing.png"), service,
-                new ResponseRecorder()).reuploadMissingLocalResource());
+                new ResponseRecorder(), null).reuploadMissingLocalResource());
 
         assertNull(service.deletedPath);
         assertNull(service.mkdirPath);
@@ -105,15 +105,15 @@ public class FileManagerControllerTest {
 
     @Test
     public void shouldReturnFalseForNoopFileActionsWithoutAuditing() throws Exception {
-        FakeFileManagerService service = new FakeFileManagerService();
+        FakeFileManagerService service = new FakeFileManagerService(null);
         FileManagerController deleteController = controller(Map.of("path", "/attached/missing.txt"), service,
-                new ResponseRecorder());
+                new ResponseRecorder(), null);
         FileManagerController mkdirController = controller(Map.of("path", "/attached/existing"), service,
-                new ResponseRecorder());
+                new ResponseRecorder(), null);
         FileManagerController renameController = controller(Map.of(
                 "path", "/attached/a.txt",
                 "newName", "b.txt",
-                "syncArticleReferences", "true"), service, new ResponseRecorder());
+                "syncArticleReferences", "true"), service, new ResponseRecorder(), null);
 
         assertEquals(Boolean.FALSE, deleteController.delete().getData());
         assertEquals(Boolean.FALSE, mkdirController.mkdir().getData());
@@ -130,15 +130,15 @@ public class FileManagerControllerTest {
     public void shouldAuditSuccessfulFileActionsThroughRealStore() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
-            FakeFileManagerService service = new FakeFileManagerService();
+            FakeFileManagerService service = new FakeFileManagerService(db.dataSource());
             service.actionResult = true;
 
             assertEquals(Boolean.TRUE, controller(Map.of("path", "/attached/delete.txt"), service,
-                    new ResponseRecorder()).delete().getData());
+                    new ResponseRecorder(), db.dataSource()).delete().getData());
             assertEquals(Boolean.TRUE, controller(Map.of("path", "/attached/new-dir"), service,
-                    new ResponseRecorder()).mkdir().getData());
+                    new ResponseRecorder(), db.dataSource()).mkdir().getData());
             assertEquals(Boolean.TRUE, controller(Map.of("path", "/attached/a.txt", "newName", "b.txt"),
-                    service, new ResponseRecorder()).rename().getData());
+                    service, new ResponseRecorder(), db.dataSource()).rename().getData());
 
             String audit = String.valueOf(db.queryOne("select value from website where name=?", "admin_audit_log")
                     .get("value"));
@@ -152,14 +152,14 @@ public class FileManagerControllerTest {
     public void shouldAuditSuccessfulReuploadThroughRealStore() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
-            FakeFileManagerService service = new FakeFileManagerService();
+            FakeFileManagerService service = new FakeFileManagerService(db.dataSource());
             service.uploadResponse = new UploadFileResponse("/attached/missing.png");
             File upload = File.createTempFile("zrlog-upload", ".png");
             upload.deleteOnExit();
 
             ApiStandardResponse<UploadFileResponse> response = controller(
                     Map.of("path", "/attached/missing.png"), null, Map.of("imgFile", upload),
-                    service, new ResponseRecorder()).reuploadMissingLocalResource();
+                    service, new ResponseRecorder(), db.dataSource()).reuploadMissingLocalResource();
 
             assertEquals("/attached/missing.png", response.getData().getUrl());
             assertEquals("/attached/missing.png", service.reuploadPath);
@@ -172,7 +172,7 @@ public class FileManagerControllerTest {
     public void shouldRecordReplaceArticleResourceUrlThroughRealStores() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
-            FakeFileManagerService service = new FakeFileManagerService();
+            FakeFileManagerService service = new FakeFileManagerService(db.dataSource());
             ReplaceArticleResourceUrlResponse replaceResponse = new ReplaceArticleResourceUrlResponse();
             replaceResponse.setScannedArticles(3);
             replaceResponse.setUpdatedArticles(2);
@@ -181,7 +181,7 @@ public class FileManagerControllerTest {
 
             ApiStandardResponse<ReplaceArticleResourceUrlResponse> response = controller(
                     Map.of(), "{\"fromUrl\":\"/attached/old.png\",\"toUrl\":\"/attached/new.png\"}",
-                    Map.of(), service, new ResponseRecorder()).replaceArticleResourceUrl();
+                    Map.of(), service, new ResponseRecorder(), db.dataSource()).replaceArticleResourceUrl();
 
             assertEquals(3, response.getData().getScannedArticles());
             assertEquals("/attached/old.png", service.replaceRequest.getFromUrl());
@@ -195,10 +195,10 @@ public class FileManagerControllerTest {
 
     @Test
     public void shouldReadContentThroughFileManagerService() throws Exception {
-        FakeFileManagerService service = new FakeFileManagerService();
+        FakeFileManagerService service = new FakeFileManagerService(null);
         service.content = "hello";
         FileManagerController controller = controller(Map.of("path", "/attached/a.txt"), service,
-                new ResponseRecorder());
+                new ResponseRecorder(), null);
 
         assertEquals("hello", controller.readContent().getData());
         assertEquals("hello", controller.read().getData());
@@ -207,10 +207,10 @@ public class FileManagerControllerTest {
 
     @Test
     public void shouldRedirectExternalDownloads() throws Exception {
-        FakeFileManagerService service = new FakeFileManagerService();
+        FakeFileManagerService service = new FakeFileManagerService(null);
         ResponseRecorder recorder = new ResponseRecorder();
         FileManagerController httpsController = controller(Map.of("path", "https://cdn.example.com/a.png"),
-                service, recorder);
+                service, recorder, null);
 
         httpsController.download();
 
@@ -218,17 +218,17 @@ public class FileManagerControllerTest {
         assertNull(service.readPath);
 
         ResponseRecorder protocolRelative = new ResponseRecorder();
-        controller(Map.of("path", "//cdn.example.com/a.png"), service, protocolRelative).download();
+        controller(Map.of("path", "//cdn.example.com/a.png"), service, protocolRelative, null).download();
         assertEquals("https://cdn.example.com/a.png", protocolRelative.redirect);
     }
 
     @Test
     public void shouldEncodeExternalDownloadUnicodeWithoutReencodingExistingEscapes() throws Exception {
-        FakeFileManagerService service = new FakeFileManagerService();
+        FakeFileManagerService service = new FakeFileManagerService(null);
         ResponseRecorder recorder = new ResponseRecorder();
         String url = "https://cdn.example.com/中文%20😀.png?filename=报告%2B.txt&token=a%2Fb%3D#片段";
 
-        controller(Map.of("path", url), service, recorder).download();
+        controller(Map.of("path", url), service, recorder, null).download();
 
         assertEquals("https://cdn.example.com/%E4%B8%AD%E6%96%87%20%F0%9F%98%80.png"
                 + "?filename=%E6%8A%A5%E5%91%8A%2B.txt&token=a%2Fb%3D#%E7%89%87%E6%AE%B5", recorder.redirect);
@@ -237,10 +237,10 @@ public class FileManagerControllerTest {
 
     @Test
     public void shouldDownloadLocalFilesWithAttachmentHeader() throws Exception {
-        FakeFileManagerService service = new FakeFileManagerService();
+        FakeFileManagerService service = new FakeFileManagerService(null);
         service.bytes = "download".getBytes(StandardCharsets.UTF_8);
         ResponseRecorder recorder = new ResponseRecorder();
-        FileManagerController controller = controller(Map.of("path", "/attached/a.txt"), service, recorder);
+        FileManagerController controller = controller(Map.of("path", "/attached/a.txt"), service, recorder, null);
 
         controller.download();
 
@@ -250,55 +250,55 @@ public class FileManagerControllerTest {
     }
 
     private FileManagerController controller(Map<String, String> params, FakeFileManagerService service,
-                                                    ResponseRecorder responseRecorder) throws Exception {
-        return controller(params, null, Map.of(), service, responseRecorder);
+                                                    ResponseRecorder responseRecorder, DataSourceWrapper testDataSource) throws Exception {
+        return controller(params, null, Map.of(), service, responseRecorder, testDataSource);
     }
 
     private FileManagerController controller(Map<String, String> params, String body, Map<String, File> files,
                                                     FakeFileManagerService service,
-                                                    ResponseRecorder responseRecorder) throws Exception {
+                                                    ResponseRecorder responseRecorder, DataSourceWrapper testDataSource) throws Exception {
         FileManagerController controller =
                 new FileManagerController(
                         service,
                         new AdminPageDataFactory(
                                 ApplicationServicesFixture.site(applicationConfig),
                                 () -> "test",
-                                ApplicationServicesFixture.messages(),
-                                AccountServicesFixture.component().permissions()));
+                                ApplicationServicesFixture.messages(testDataSource),
+                                AccountServicesFixture.component(testDataSource).permissions()));
         setControllerField(controller, "request", request(params, body, files));
         setControllerField(controller, "response", responseRecorder.response());
         return controller;
     }
 
-    private FileManagerController realController(Map<String, String> params, ResponseRecorder responseRecorder)
+    private FileManagerController realController(Map<String, String> params, ResponseRecorder responseRecorder, DataSourceWrapper testDataSource)
             throws Exception {
         FileManagerController controller =
                 new FileManagerController(
                         new FileManagerService(
                                 new UploadService(
                                         () -> null,
-                                        AccountServicesFixture.component().permissions(),
+                                        AccountServicesFixture.component(testDataSource).permissions(),
                                         new DbFileService(
-                                                ApplicationServicesFixture.websiteKv(),
-                                                WebSite::new)),
+                                                ApplicationServicesFixture.websiteKv(testDataSource),
+                                                () -> new WebSite(testDataSource))),
                                 new FileManagerReferenceService(
-                                        ApplicationServicesFixture.websiteCache(),
+                                        ApplicationServicesFixture.websiteCache(testDataSource),
                                         "",
                                         new ArticleVersionService(
-                                                AccountServicesFixture.component().permissions(),
-                                                Log::new,
-                                                () -> new LogVersion(DAO.getDefaultDataSource())),
-                                        Log::new),
+                                                AccountServicesFixture.component(testDataSource).permissions(),
+                                                () -> new Log(testDataSource),
+                                                () -> new LogVersion(testDataSource)),
+                                        () -> new Log(testDataSource)),
                                 new DbFileService(
-                                        ApplicationServicesFixture.websiteKv(), WebSite::new),
-                                ApplicationServicesFixture.settings(),
-                                ApplicationServicesFixture.audit(),
-                                ApplicationServicesFixture.operations()),
+                                        ApplicationServicesFixture.websiteKv(testDataSource), () -> new WebSite(testDataSource)),
+                                ApplicationServicesFixture.settings(testDataSource),
+                                ApplicationServicesFixture.audit(testDataSource),
+                                ApplicationServicesFixture.operations(testDataSource)),
                         new AdminPageDataFactory(
                                 ApplicationServicesFixture.site(applicationConfig),
                                 () -> "test",
-                                ApplicationServicesFixture.messages(),
-                                AccountServicesFixture.component().permissions()));
+                                ApplicationServicesFixture.messages(testDataSource),
+                                AccountServicesFixture.component(testDataSource).permissions()));
         setControllerField(controller, "request", request(params));
         setControllerField(controller, "response", responseRecorder.response());
         return controller;
@@ -350,25 +350,25 @@ public class FileManagerControllerTest {
     }
 
     private static class FakeFileManagerService extends FileManagerService {
-        FakeFileManagerService() {
+        FakeFileManagerService(DataSourceWrapper testDataSource) {
             super(
                     new UploadService(
                             () -> null,
-                            AccountServicesFixture.component().permissions(),
+                            AccountServicesFixture.component(testDataSource).permissions(),
                             new DbFileService(
-                                    ApplicationServicesFixture.websiteKv(), WebSite::new)),
+                                    ApplicationServicesFixture.websiteKv(testDataSource), () -> new WebSite(testDataSource))),
                     new FileManagerReferenceService(
-                            ApplicationServicesFixture.websiteCache(),
+                            ApplicationServicesFixture.websiteCache(testDataSource),
                             "",
                             new ArticleVersionService(
-                                    AccountServicesFixture.component().permissions(),
-                                    Log::new,
-                                    () -> new LogVersion(DAO.getDefaultDataSource())),
-                            Log::new),
-                    new DbFileService(ApplicationServicesFixture.websiteKv(), WebSite::new),
-                    ApplicationServicesFixture.settings(),
-                    ApplicationServicesFixture.audit(),
-                    ApplicationServicesFixture.operations());
+                                    AccountServicesFixture.component(testDataSource).permissions(),
+                                    () -> new Log(testDataSource),
+                                    () -> new LogVersion(testDataSource)),
+                            () -> new Log(testDataSource)),
+                    new DbFileService(ApplicationServicesFixture.websiteKv(testDataSource), () -> new WebSite(testDataSource)),
+                    ApplicationServicesFixture.settings(testDataSource),
+                    ApplicationServicesFixture.audit(testDataSource),
+                    ApplicationServicesFixture.operations(testDataSource));
         }
 
         private String searchKey;

@@ -25,7 +25,7 @@ public class DbFileServiceDatabaseTest {
     public void shouldStoreLoadListAndDeleteDbFilesThroughWebsiteTable() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             DbFileService service =
-                    new DbFileService(ApplicationServicesFixture.websiteKv(), WebSite::new);
+                    new DbFileService(ApplicationServicesFixture.websiteKv(db.dataSource()), () -> new WebSite(db.dataSource()));
 
             UploadFileResponse uploaded = service.toDbFile("/assets/readme.txt",
                     "hello".getBytes(StandardCharsets.UTF_8));
@@ -65,7 +65,7 @@ public class DbFileServiceDatabaseTest {
             assertThrows(
                     NotImplementException.class,
                     () ->
-                            new DbFileService(ApplicationServicesFixture.websiteKv(), WebSite::new)
+                            new DbFileService(ApplicationServicesFixture.websiteKv(ignored.dataSource()), () -> new WebSite(ignored.dataSource()))
                                     .loadDbFile("/missing.txt"));
         }
     }

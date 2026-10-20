@@ -21,7 +21,7 @@ public class TagManagementServiceTest {
 
     @Test
     public void shouldParseTagsWithTrimAndStableDeduplication() throws Exception {
-        TagManagementService service = new TagManagementService(Log::new, Tag::new);
+        TagManagementService service = new TagManagementService(() -> { throw new IllegalStateException("Database is unavailable in this test"); }, () -> { throw new IllegalStateException("Database is unavailable in this test"); });
 
         assertEquals(List.of(), service.parseTags(null));
         assertEquals(List.of("java", "zrlog", "blog"), service.parseTags(" java, zrlog,java,, blog "));
@@ -29,7 +29,7 @@ public class TagManagementServiceTest {
 
     @Test
     public void shouldReplaceMergeOrRemoveTagsWithoutDuplicates() throws Exception {
-        TagManagementService service = new TagManagementService(Log::new, Tag::new);
+        TagManagementService service = new TagManagementService(() -> { throw new IllegalStateException("Database is unavailable in this test"); }, () -> { throw new IllegalStateException("Database is unavailable in this test"); });
 
         List<String> merged = service.replaceTag(List.of("java", "blog", "zrlog"), "java", "blog", false);
         List<String> renamed = service.replaceTag(List.of("java", "blog", "zrlog"), "java", "server", false);
@@ -43,7 +43,7 @@ public class TagManagementServiceTest {
 
     @Test
     public void shouldBuildArticleImpactResponseFromRawRow() throws Exception {
-        TagManagementService service = new TagManagementService(Log::new, Tag::new);
+        TagManagementService service = new TagManagementService(() -> { throw new IllegalStateException("Database is unavailable in this test"); }, () -> { throw new IllegalStateException("Database is unavailable in this test"); });
 
         TagManagementArticleImpactResponse response = service.toImpact(
                 Map.of("logId", 7L, "title", "Article"), "java,zrlog", "blog,zrlog");
@@ -59,7 +59,7 @@ public class TagManagementServiceTest {
 
     @Test
     public void shouldNormalizeTagValues() throws Exception {
-        TagManagementService service = new TagManagementService(Log::new, Tag::new);
+        TagManagementService service = new TagManagementService(() -> { throw new IllegalStateException("Database is unavailable in this test"); }, () -> { throw new IllegalStateException("Database is unavailable in this test"); });
 
         assertEquals("", service.normalizeTag(null));
         assertEquals("java", service.normalizeTag(" java "));
@@ -73,10 +73,10 @@ public class TagManagementServiceTest {
             db.execute("insert into tag(tagId,text,count) values(?,?,?)", 3, "zrlog", 2);
 
             PageData<TagManagementEntryResponse> page =
-                    new TagManagementService(Log::new, Tag::new)
+                    new TagManagementService(() -> new Log(db.dataSource()), () -> new Tag(db.dataSource()))
                             .find("//localhost/", new PageRequestImpl(1L, 2L), "", false);
             PageData<TagManagementEntryResponse> filtered =
-                    new TagManagementService(Log::new, Tag::new)
+                    new TagManagementService(() -> new Log(db.dataSource()), () -> new Tag(db.dataSource()))
                             .find("//localhost/", new PageRequestImpl(1L, 10L), "zr", true);
 
             assertEquals(3, page.getTotalElements());
@@ -96,7 +96,7 @@ public class TagManagementServiceTest {
             insertArticle(db, 1, "First", "java,zrlog");
             insertArticle(db, 2, "Second", "java,blog");
             insertArticle(db, 3, "Third", "other");
-            TagManagementService service = new TagManagementService(Log::new, Tag::new);
+            TagManagementService service = new TagManagementService(() -> new Log(db.dataSource()), () -> new Tag(db.dataSource()));
             TagManageRequest request = new TagManageRequest();
             request.setSourceTag("java");
             request.setTargetTag("server");

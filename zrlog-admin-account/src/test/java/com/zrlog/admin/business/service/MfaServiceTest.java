@@ -23,7 +23,7 @@ public class MfaServiceTest {
 
     @Test
     public void shouldReadMfaEnabledAcrossStorageRepresentations() {
-        MfaService service = new MfaService(User::new);
+        MfaService service = new MfaService(() -> { throw new IllegalStateException("Database is unavailable in this test"); });
 
         assertFalse(service.getMfaEnabled(new HashMap<>()));
         assertTrue(service.getMfaEnabled(user(true)));
@@ -39,7 +39,7 @@ public class MfaServiceTest {
 
     @Test
     public void shouldSkipLoginMfaWhenDisabled() {
-        MfaService service = new MfaService(User::new);
+        MfaService service = new MfaService(() -> { throw new IllegalStateException("Database is unavailable in this test"); });
 
         service.verifyLoginMfa(new HashMap<>(), null);
         service.verifyLoginMfa(user(false), "");
@@ -48,7 +48,7 @@ public class MfaServiceTest {
 
     @Test
     public void shouldRequireLoginMfaCodeWhenEnabled() {
-        MfaService service = new MfaService(User::new);
+        MfaService service = new MfaService(() -> { throw new IllegalStateException("Database is unavailable in this test"); });
 
         assertThrows(MfaCodeRequiredException.class, () -> service.verifyLoginMfa(user(true), null));
         assertThrows(MfaCodeRequiredException.class, () -> service.verifyLoginMfa(user("1"), ""));
@@ -56,7 +56,7 @@ public class MfaServiceTest {
 
     @Test
     public void shouldRejectMissingOrInvalidLoginMfaSecret() {
-        MfaService service = new MfaService(User::new);
+        MfaService service = new MfaService(() -> { throw new IllegalStateException("Database is unavailable in this test"); });
         Map<String, Object> missingSecret = user(true);
         Map<String, Object> invalidCode = user(true);
         invalidCode.put("mfaSecret", "JBSWY3DPEHPK3PXP");
@@ -68,7 +68,7 @@ public class MfaServiceTest {
     @Test
     public void shouldCreateEnableAndDisableMfaThroughRealUserTable() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-            MfaService service = new MfaService(User::new);
+            MfaService service = new MfaService(() -> new User(db.dataSource()));
 
             MfaStatusResponse initial = service.getMfaStatus(1, db.cacheService().getPublicWebSiteInfo().getTitle());
             String secret = String.valueOf(db.queryOne(
@@ -100,7 +100,7 @@ public class MfaServiceTest {
     @Test
     public void shouldReturnSuccessWhenDisablingAlreadyDisabledMfaThroughRealUserTable() throws Exception {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
-            MfaService service = new MfaService(User::new);
+            MfaService service = new MfaService(() -> new User(ignored.dataSource()));
 
             assertEquals(0, service.disableMfa(1, mfaRequest("000000")).getError());
             assertFalse(service.isMfaEnabled(1));

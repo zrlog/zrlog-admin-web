@@ -6,6 +6,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
+import com.hibegin.common.dao.DataSourceWrapper;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
 import com.hibegin.http.server.util.PathUtil;
@@ -61,7 +62,7 @@ public class UploadControllerTest {
 
     @Test
     public void shouldRejectMissingUploadFiles() throws Exception {
-        UploadController controller = controller(new HashMap<>(), new HashMap<>());
+        UploadController controller = controller(new HashMap<>(), new HashMap<>(), permissionDb.dataSource());
 
         ArgsException exception = assertThrows(ArgsException.class, controller::index);
 
@@ -74,7 +75,7 @@ public class UploadControllerTest {
         withRootPath();
         File file = temporaryFolder.newFile("cover.png");
         Files.writeString(file.toPath(), "image", StandardCharsets.UTF_8);
-        UploadController controller = controller(Map.of("dir", "image"), Map.of("imgFile", file));
+        UploadController controller = controller(Map.of("dir", "image"), Map.of("imgFile", file), permissionDb.dataSource());
 
         ApiStandardResponse<UploadFileResponse> response =
                 (ApiStandardResponse<UploadFileResponse>) controller.index();
@@ -92,7 +93,7 @@ public class UploadControllerTest {
         withRootPath();
         File file = temporaryFolder.newFile("thumb.jpg");
         Files.writeString(file.toPath(), "thumb", StandardCharsets.UTF_8);
-        UploadController controller = controller(new HashMap<>(), Map.of("file", file));
+        UploadController controller = controller(new HashMap<>(), Map.of("file", file), permissionDb.dataSource());
 
         ApiStandardResponse<UploadFileResponse> response =
                 (ApiStandardResponse<UploadFileResponse>) controller.thumbnail();
@@ -112,7 +113,7 @@ public class UploadControllerTest {
             File file = temporaryFolder.newFile("thumb.png");
             Files.writeString(file.toPath(), "thumb", StandardCharsets.UTF_8);
             String dir = AdminConstants.ADMIN_DB_ATTACHED_TMP + "/article-cover";
-            UploadController controller = controller(Map.of("dir", dir), Map.of("imgFile", file));
+            UploadController controller = controller(Map.of("dir", dir), Map.of("imgFile", file), ignored.dataSource());
 
             ApiStandardResponse<UploadFileResponse> response =
                     (ApiStandardResponse<UploadFileResponse>) controller.thumbnail();
@@ -121,7 +122,7 @@ public class UploadControllerTest {
             assertTrue(uri.startsWith(dir + "/"));
             assertArrayEquals(
                     "thumb".getBytes(StandardCharsets.UTF_8),
-                    new DbFileService(ApplicationServicesFixture.websiteKv(), WebSite::new)
+                    new DbFileService(ApplicationServicesFixture.websiteKv(ignored.dataSource()), () -> new WebSite(ignored.dataSource()))
                             .loadDbFile(uri));
         }
     }
@@ -132,7 +133,7 @@ public class UploadControllerTest {
         withRootPath();
         File file = temporaryFolder.newFile("default.png");
         Files.writeString(file.toPath(), "image", StandardCharsets.UTF_8);
-        UploadController controller = controller(new HashMap<>(), Map.of("imgFile", file));
+        UploadController controller = controller(new HashMap<>(), Map.of("imgFile", file), permissionDb.dataSource());
 
         ApiStandardResponse<UploadFileResponse> response =
                 (ApiStandardResponse<UploadFileResponse>) controller.index();
@@ -146,7 +147,7 @@ public class UploadControllerTest {
         withRootPath();
         File file = temporaryFolder.newFile("source.png");
         Files.writeString(file.toPath(), "image", StandardCharsets.UTF_8);
-        UploadController controller = controller(Map.of("dir", "image", "name", "cover-final.png"), Map.of("imgFile", file));
+        UploadController controller = controller(Map.of("dir", "image", "name", "cover-final.png"), Map.of("imgFile", file), permissionDb.dataSource());
 
         ApiStandardResponse<UploadFileResponse> response =
                 (ApiStandardResponse<UploadFileResponse>) controller.index();
@@ -160,14 +161,14 @@ public class UploadControllerTest {
         System.setProperty("sws.root.path", temporaryFolder.newFolder("zrlog-upload-controller").getAbsolutePath());
     }
 
-    private static UploadController controller(Map<String, String> params, Map<String, File> files) throws Exception {
+    private UploadController controller(Map<String, String> params, Map<String, File> files, DataSourceWrapper source) throws Exception {
         UploadController controller =
                 new UploadController(
                         new UploadService(
                                 () -> null,
-                                AccountServicesFixture.component().permissions(),
+                                AccountServicesFixture.component(source).permissions(),
                                 new DbFileService(
-                                        ApplicationServicesFixture.websiteKv(), WebSite::new)));
+                                        ApplicationServicesFixture.websiteKv(source), () -> new WebSite(source))));
         setControllerField(controller, "request", request(params, files));
         setControllerField(controller, "response", response());
         return controller;

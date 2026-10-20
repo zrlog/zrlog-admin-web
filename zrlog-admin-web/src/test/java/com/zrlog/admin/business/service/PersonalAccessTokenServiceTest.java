@@ -4,7 +4,7 @@ import static org.junit.Assert.*;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonParser;
-import com.hibegin.common.dao.DAO;
+import com.hibegin.common.dao.DataSourceWrapper;
 import com.zrlog.admin.business.content.ArticleAssistant;
 import com.zrlog.admin.business.exception.PermissionErrorException;
 import com.zrlog.admin.business.knowledge.KnowledgeModels;
@@ -22,6 +22,7 @@ import com.zrlog.common.exception.ArgsException;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.model.Log;
 import com.zrlog.model.LogVersion;
+import com.zrlog.model.User;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -36,25 +37,33 @@ public class PersonalAccessTokenServiceTest {
     public static String[] databases() { return new String[]{"h2", "sqlite", "webapi"}; }
     private final String backend;
     public PersonalAccessTokenServiceTest(String backend) { this.backend = backend; }
-    private InMemoryZrLogDatabase database() throws Exception { return "webapi".equals(backend) ? InMemoryZrLogDatabase.openWebApi() : "sqlite".equals(backend) ? InMemoryZrLogDatabase.openSqlite() : InMemoryZrLogDatabase.open(); }
+    private OAuthService oauth;
+    private PersonalAccessTokenService service;
 
-    private final OAuthService oauth =
-            new OAuthService(
+    private InMemoryZrLogDatabase database() throws Exception {
+        InMemoryZrLogDatabase db = "webapi".equals(backend)
+                ? InMemoryZrLogDatabase.openWebApi()
+                : "sqlite".equals(backend)
+                        ? InMemoryZrLogDatabase.openSqlite()
+                        : InMemoryZrLogDatabase.open();
+        try {
+            var accounts = AccountServicesFixture.component(db.dataSource());
+            oauth = new OAuthService(
                     () -> "https://blog.example/sub",
                     () -> true,
-                    AccountServicesFixture.component().permissions(),
-                    AccountServicesFixture.component().security(),
-                    tokenResource ->
-                            new PersonalAccessTokenService(
-                                    tokenResource,
-                                    AccountServicesFixture.component().permissions(),
-                                    AccountServicesFixture.component().security()),
-                    AccountServicesFixture.component().backend());
-    private final PersonalAccessTokenService service =
-            new PersonalAccessTokenService(
-                    oauth.mcpResource(),
-                    AccountServicesFixture.component().permissions(),
-                    AccountServicesFixture.component().security());
+                    accounts.permissions(),
+                    accounts.security(),
+                    resource -> new PersonalAccessTokenService(
+                            resource, accounts.permissions(), accounts.security()),
+                    accounts.backend());
+            service = new PersonalAccessTokenService(
+                    oauth.mcpResource(), accounts.permissions(), accounts.security());
+            return db;
+        } catch (Exception | Error e) {
+            db.close();
+            throw e;
+        }
+    }
 
     private Create request(String... scopes) { Create request = new Create(); request.name = "My assistant"; request.scopes = List.of(scopes); return request; }
 
@@ -141,10 +150,10 @@ public class PersonalAccessTokenServiceTest {
             db.execute("insert into user(userId,userName,role) values(?,?,?)", 2, "other", "author");
             for (int id = 1; id <= 4; id++) db.execute("insert into log(logId,userId,typeId,title,markdown,rubbish,privacy) values(?,?,?,?,?,?,?)",
                     id, id == 4 ? 2 : 1, 1, "article" + id, "body", id == 3, id == 2);
-            assertEquals(List.of(1L), hits(service.create(request("articles:read")).token));
-            assertEquals(Set.of(1L, 2L, 3L, 4L), new HashSet<>(hits(service.create(request("articles:read", "articles:read_drafts", "articles:read_private", "articles:all")).token)));
+            assertEquals(List.of(1L), hits(service.create(request("articles:read")).token, db.dataSource()));
+            assertEquals(Set.of(1L, 2L, 3L, 4L), new HashSet<>(hits(service.create(request("articles:read", "articles:read_drafts", "articles:read_private", "articles:all")).token, db.dataSource())));
             AccountAuthorizationTest.login(db, 1, "author");
-            assertEquals(Set.of(1L, 2L, 3L), new HashSet<>(hits(service.create(request("articles:read", "articles:read_drafts", "articles:read_private")).token)));
+            assertEquals(Set.of(1L, 2L, 3L), new HashSet<>(hits(service.create(request("articles:read", "articles:read_drafts", "articles:read_private")).token, db.dataSource())));
         }
     }
     private Create general(String mode, String... permissions) {
@@ -163,7 +172,7 @@ public class PersonalAccessTokenServiceTest {
             Created inherited = service.create(general("inherit"));
             assertEquals(
                     PersonalAccessTokenService.availablePermissions(
-                            AccountServicesFixture.component().permissions().current()),
+                            AccountServicesFixture.component(db.dataSource()).permissions().current()),
                     oauth.authenticate(inherited.token, oauth.adminResource(), Set.of())
                             .permissions);
             Created legacy = service.create(request("articles:read"));
@@ -186,7 +195,7 @@ public class PersonalAccessTokenServiceTest {
                     "inherit".equals(identity.permissionMode),
                     () -> {
                         assertFalse(
-                                AccountServicesFixture.component()
+                                AccountServicesFixture.component(db.dataSource())
                                         .permissions()
                                         .current()
                                         .canPublish());
@@ -219,26 +228,25 @@ public class PersonalAccessTokenServiceTest {
                                                                 ApplicationServicesFixture.buildId(
                                                                         db.resources()),
                                                                 ApplicationServicesFixture
-                                                                        .messages(),
-                                                                AccountServicesFixture.component()
+                                                                        .messages(db.dataSource()),
+                                                                AccountServicesFixture.component(db.dataSource())
                                                                         .permissions()),
-                                                        AccountServicesFixture.component()
+                                                        AccountServicesFixture.component(db.dataSource())
                                                                 .permissions(),
-                                                        AccountServicesFixture.component()
+                                                        AccountServicesFixture.component(db.dataSource())
                                                                 .preferences(),
                                                         new ArticleVersionService(
-                                                                AccountServicesFixture.component()
+                                                                AccountServicesFixture.component(db.dataSource())
                                                                         .permissions(),
-                                                                Log::new,
+                                                                () -> new Log(db.dataSource()),
                                                                 () ->
                                                                         new LogVersion(
-                                                                                DAO
-                                                                                        .getDefaultDataSource())),
+                                                                                db.dataSource())),
                                                         new ArticlePinningService(
-                                                                Log::new,
-                                                                ApplicationServicesFixture.locks()),
-                                                        Log::new,
-                                                        ApplicationServicesFixture.locks())
+                                                                () -> new Log(db.dataSource()),
+                                                                ApplicationServicesFixture.locks(db.dataSource())),
+                                                        () -> new Log(db.dataSource()),
+                                                        ApplicationServicesFixture.locks(db.dataSource()))
                                                 .create(AdminTokenThreadLocal.getUser(), create));
                         var member = new MemberModels.Create();
                         member.userName = "limited";
@@ -248,29 +256,24 @@ public class PersonalAccessTokenServiceTest {
                                 PermissionErrorException.class,
                                 () ->
                                         new MemberService(
-                                                        AccountServicesFixture.component()
+                                                        AccountServicesFixture.component(db.dataSource())
                                                                 .security(),
-                                                        AccountServicesFixture.component().users(),
-                                                        AccountServicesFixture.component()
+                                                        AccountServicesFixture.component(db.dataSource()).users(),
+                                                        AccountServicesFixture.component(db.dataSource())
                                                                 .permissions())
                                                 .create(member));
                         return null;
                     });
-            assertTrue(AccountServicesFixture.component().permissions().current().canPublish());
+            assertTrue(AccountServicesFixture.component(db.dataSource()).permissions().current().canPublish());
         }
     }
-    private List<Long> hits(String token) throws Exception {
+    private List<Long> hits(String token, DataSourceWrapper testDataSource) throws Exception {
         var identity = oauth.authenticate(token, oauth.mcpResource(), Set.of("articles:read"));
         KnowledgeService knowledge =
                 new KnowledgeService(
                         () -> {
                             try {
-                                return AccountAccess.load(
-                                        oauth.authenticate(
-                                                        token,
-                                                        oauth.mcpResource(),
-                                                        Set.of("articles:read"))
-                                                .userId);
+                                return AccountAccess.from(new User(testDataSource).loadById(oauth.authenticate(token, oauth.mcpResource(), Set.of("articles:read")).userId));
                             } catch (java.sql.SQLException e) {
                                 throw new RuntimeException(e);
                             }
@@ -278,7 +281,7 @@ public class PersonalAccessTokenServiceTest {
                         new HashSet<>(identity.scopes),
                         () -> "https://blog.example/sub",
                         () -> false,
-                        Log::new);
+                        () -> new Log(testDataSource));
         KnowledgeModels.SearchResult result = (KnowledgeModels.SearchResult) knowledge.call("search_articles", JsonParser.parseString("{}").getAsJsonObject());
         return result.articles.stream().map(hit -> hit.id).collect(Collectors.toList());
     }

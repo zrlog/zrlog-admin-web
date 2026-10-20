@@ -20,7 +20,7 @@ public class MessageCenterStateServiceTest {
     public void shouldParseStoredStatusAndFallbackForInvalidValues() throws Exception {
         MessageCenterStateService service =
                 new MessageCenterStateService(
-                        ApplicationServicesFixture.websiteCache(), WebSite::new);
+                        ApplicationServicesFixture.websiteCache(null), () -> { throw new IllegalStateException("Database is unavailable in this test"); });
 
         MessageCenterStatusResponse empty = service.parseStatus("");
         MessageCenterStatusResponse invalid = service.parseStatus("{bad-json");
@@ -38,7 +38,7 @@ public class MessageCenterStateServiceTest {
     public void shouldCompareStatusValues() throws Exception {
         MessageCenterStateService service =
                 new MessageCenterStateService(
-                        ApplicationServicesFixture.websiteCache(), WebSite::new);
+                        ApplicationServicesFixture.websiteCache(null), () -> { throw new IllegalStateException("Database is unavailable in this test"); });
 
         assertTrue(service.sameStatus(
                 new MessageCenterStatusResponse(7L, true),
@@ -55,7 +55,7 @@ public class MessageCenterStateServiceTest {
     public void shouldGenerateMonotonicNextRevision() throws Exception {
         MessageCenterStateService service =
                 new MessageCenterStateService(
-                        ApplicationServicesFixture.websiteCache(), WebSite::new);
+                        ApplicationServicesFixture.websiteCache(null), () -> { throw new IllegalStateException("Database is unavailable in this test"); });
         long now = System.currentTimeMillis();
 
         long fromPast = service.nextRevision(now - 10_000);
@@ -70,7 +70,7 @@ public class MessageCenterStateServiceTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             MessageCenterStateService service =
                     new MessageCenterStateService(
-                            ApplicationServicesFixture.websiteCache(), WebSite::new);
+                            ApplicationServicesFixture.websiteCache(db.dataSource()), () -> new WebSite(db.dataSource()));
 
             service.markMayHaveUnread();
             MessageCenterStatusResponse unread = service.current();

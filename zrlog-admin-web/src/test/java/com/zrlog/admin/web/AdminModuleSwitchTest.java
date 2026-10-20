@@ -223,11 +223,11 @@ public class AdminModuleSwitchTest {
             // The same article tools serve MCP without AI, and internal AI without external access.
             var knowledge =
                     new KnowledgeService(
-                            AccountServicesFixture.component().permissions()::current,
+                            AccountServicesFixture.component(db.dataSource()).permissions()::current,
                             java.util.Set.of("articles:read", "articles:read_drafts"),
                             () -> "https://blog.example",
                             () -> false,
-                            Log::new);
+                            () -> new Log(db.dataSource()));
             var argsJson = new com.google.gson.JsonObject(); argsJson.addProperty("id", saved.getLogId());
             var source = (KnowledgeModels.ArticleResult) knowledge.call("read_article", argsJson);
             assertEquals("Independent content", source.source.title);

@@ -5,6 +5,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import com.hibegin.common.dao.DataSourceWrapper;
 import com.zrlog.admin.business.rest.response.LinkPreviewResponse;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
@@ -31,7 +32,7 @@ public class LinkPreviewServiceTest {
     @Test
     public void shouldNormalizeOnlyHttpAndHttpsUrlsWithoutUserInfo() throws Exception {
         LinkPreviewService service =
-                new LinkPreviewService(ApplicationServicesFixture.websiteCache());
+                new LinkPreviewService(ApplicationServicesFixture.websiteCache(null));
 
         Optional<URI> normalized = service.normalizeSafeUri(" https://example.com/a/../b?q=1 ");
 
@@ -49,7 +50,7 @@ public class LinkPreviewServiceTest {
     @Test
     public void shouldParseOpenGraphAndTwitterMetadata() throws Exception {
         LinkPreviewService service =
-                new LinkPreviewService(ApplicationServicesFixture.websiteCache());
+                new LinkPreviewService(ApplicationServicesFixture.websiteCache(null));
         String html = "<html><head>"
                 + "<meta property=\"og:title\" content=\"OG Title\">"
                 + "<meta property=\"og:description\" content=\"OG Description\">"
@@ -71,7 +72,7 @@ public class LinkPreviewServiceTest {
     @Test
     public void shouldParseFallbackTitleDescriptionAndFavicon() throws Exception {
         LinkPreviewService service =
-                new LinkPreviewService(ApplicationServicesFixture.websiteCache());
+                new LinkPreviewService(ApplicationServicesFixture.websiteCache(null));
         String html = "<html><head>"
                 + "<title>Document Title</title>"
                 + "<meta name=\"description\" content=\"Fallback description\">"
@@ -89,7 +90,7 @@ public class LinkPreviewServiceTest {
     @Test
     public void shouldPreferAppleTouchIconAndSkipEmptyIconLinks() throws Exception {
         LinkPreviewService service =
-                new LinkPreviewService(ApplicationServicesFixture.websiteCache());
+                new LinkPreviewService(ApplicationServicesFixture.websiteCache(null));
         String html = "<html><head>"
                 + "<title>Icon Page</title>"
                 + "<link rel=\"icon\" href=\"\">"
@@ -106,7 +107,7 @@ public class LinkPreviewServiceTest {
     @Test
     public void shouldCleanUserAgentAndFallbackWhenMissing() throws Exception {
         LinkPreviewService service =
-                new LinkPreviewService(ApplicationServicesFixture.websiteCache());
+                new LinkPreviewService(ApplicationServicesFixture.websiteCache(null));
 
         String fallback = service.normalizeUserAgent(null);
         String cleaned = service.normalizeUserAgent(" Browser\r\nInjected");
@@ -120,7 +121,7 @@ public class LinkPreviewServiceTest {
     @Test
     public void shouldResolveOnlyHttpImageUris() throws Exception {
         LinkPreviewService service =
-                new LinkPreviewService(ApplicationServicesFixture.websiteCache());
+                new LinkPreviewService(ApplicationServicesFixture.websiteCache(null));
         URI base = URI.create("https://example.com/post/page.html");
 
         assertEquals("https://example.com/assets/card.png", service.resolveUri(base, "../assets/card.png"));
@@ -134,7 +135,7 @@ public class LinkPreviewServiceTest {
     @Test
     public void shouldRejectUnsafeHostsWithoutNetworkRequest() throws Exception {
         LinkPreviewService service =
-                new LinkPreviewService(ApplicationServicesFixture.websiteCache());
+                new LinkPreviewService(ApplicationServicesFixture.websiteCache(null));
 
         assertFalse(service.isSafeHost(""));
         assertFalse(service.isSafeHost("localhost"));
@@ -144,7 +145,7 @@ public class LinkPreviewServiceTest {
     @Test
     public void shouldDetectBlockedIpAddressRanges() throws Exception {
         LinkPreviewService service =
-                new LinkPreviewService(ApplicationServicesFixture.websiteCache());
+                new LinkPreviewService(ApplicationServicesFixture.websiteCache(null));
         assertTrue(service.isBlockedIpv4(ipv4(10, 0, 0, 1)));
         assertTrue(service.isBlockedIpv4(ipv4(100, 64, 0, 1)));
         assertTrue(service.isBlockedIpv4(ipv4(192, 168, 1, 1)));
@@ -161,7 +162,7 @@ public class LinkPreviewServiceTest {
     @Test
     public void shouldReadHtmlBodyWithinConfiguredLimit() throws Exception {
         LinkPreviewService service =
-                new LinkPreviewService(ApplicationServicesFixture.websiteCache());
+                new LinkPreviewService(ApplicationServicesFixture.websiteCache(null));
         String html = "<html>" + "a".repeat(20_000) + "</html>";
 
         String result = service.readLimited(new ByteArrayInputStream(html.getBytes(StandardCharsets.UTF_8)));
@@ -172,7 +173,7 @@ public class LinkPreviewServiceTest {
     @Test
     public void shouldStopReadingHtmlBodyAfterConfiguredLimit() throws Exception {
         LinkPreviewService service =
-                new LinkPreviewService(ApplicationServicesFixture.websiteCache());
+                new LinkPreviewService(ApplicationServicesFixture.websiteCache(null));
         String html = "<html>" + "a".repeat(300_000) + "</html>";
 
         String result = service.readLimited(new ByteArrayInputStream(html.getBytes(StandardCharsets.UTF_8)));
@@ -186,14 +187,14 @@ public class LinkPreviewServiceTest {
         LinkPreviewService invalidUrlService = hostAllowedService(request -> {
             calls.incrementAndGet();
             return htmlResponse(request.uri(), "<html></html>");
-        });
+        }, null);
         LinkPreviewService unsafeHostService =
                 new LinkPreviewService(
                         request -> {
                             calls.incrementAndGet();
                             return htmlResponse(request.uri(), "<html></html>");
                         },
-                        ApplicationServicesFixture.websiteCache()) {
+                        ApplicationServicesFixture.websiteCache(null)) {
                     @Override
                     boolean isSafeHost(String host) {
                         return false;
@@ -220,7 +221,7 @@ public class LinkPreviewServiceTest {
                         + "<meta property=\"og:title\" content=\"Cached Title\">"
                         + "<meta name=\"description\" content=\"Cached description\">"
                         + "</head></html>");
-            });
+            }, db.dataSource());
 
             LinkPreviewResponse first = service.fetch("https://example.com/post", "Test\r\nAgent");
             LinkPreviewResponse second = service.fetch("https://example.com/post", "Other Agent");
@@ -261,7 +262,7 @@ public class LinkPreviewServiceTest {
                     throw new IOException("boom");
                 }
                 return htmlResponse(request.uri(), "<html><head><title>Unexpected</title></head></html>");
-            });
+            }, ignored.dataSource());
 
             assertFalse(service.fetch("https://example.com/too-many", null).isAvailable());
             assertFalse(service.fetch("https://example.com/missing-location", null).isAvailable());
@@ -282,7 +283,7 @@ public class LinkPreviewServiceTest {
                     return response(request.uri(), 302, Map.of("location", List.of("/final")), "");
                 }
                 return htmlResponse(request.uri(), "<html><head><title>Final Page</title></head></html>");
-            });
+            }, ignored.dataSource());
 
             LinkPreviewResponse response = service.fetch("https://example.com/redirect", null);
 
@@ -300,7 +301,7 @@ public class LinkPreviewServiceTest {
             LinkPreviewService service = hostAllowedService(request -> {
                 calls.incrementAndGet();
                 return response(request.uri(), 200, Map.of("content-type", List.of("application/json")), "{}");
-            });
+            }, ignored.dataSource());
 
             LinkPreviewResponse first = service.fetch("https://example.com/api", null);
             LinkPreviewResponse second = service.fetch("https://example.com/api", null);
@@ -315,7 +316,7 @@ public class LinkPreviewServiceTest {
     @Test
     public void shouldBuildEmptyResponseContract() throws Exception {
         LinkPreviewService service =
-                new LinkPreviewService(ApplicationServicesFixture.websiteCache());
+                new LinkPreviewService(ApplicationServicesFixture.websiteCache(null));
 
         LinkPreviewResponse response = service.emptyResponse("https://example.com");
 
@@ -344,8 +345,8 @@ public class LinkPreviewServiceTest {
         assertEquals(7L, entry.getAccessedAt());
     }
 
-    private static LinkPreviewService hostAllowedService(LinkPreviewService.HttpSender sender) {
-        return new LinkPreviewService(sender, ApplicationServicesFixture.websiteCache()) {
+    private static LinkPreviewService hostAllowedService(LinkPreviewService.HttpSender sender, DataSourceWrapper testDataSource) {
+        return new LinkPreviewService(sender, ApplicationServicesFixture.websiteCache(testDataSource)) {
             @Override
             boolean isSafeHost(String host) {
                 return true;

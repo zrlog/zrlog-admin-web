@@ -40,8 +40,8 @@ public class AdminSystemAndStaticSiteControllerTest {
                             new AdminPageDataFactory(
                                     ApplicationServicesFixture.site(ignored.config()),
                                     ApplicationServicesFixture.buildId(ignored.resources()),
-                                    ApplicationServicesFixture.messages(),
-                                    AccountServicesFixture.component().permissions()));
+                                    ApplicationServicesFixture.messages(ignored.dataSource()),
+                                    AccountServicesFixture.component(ignored.dataSource()).permissions()));
             setControllerFields(controller, request("/api/admin/system", Map.of()), response());
 
             AdminPageDataResponse<SystemResponse> response = controller.index();
@@ -69,10 +69,10 @@ public class AdminSystemAndStaticSiteControllerTest {
                             new AdminPageDataFactory(
                                     ApplicationServicesFixture.site(ignored.config()),
                                     ApplicationServicesFixture.buildId(ignored.resources()),
-                                    ApplicationServicesFixture.messages(),
-                                    AccountServicesFixture.component().permissions()),
-                            ApplicationServicesFixture.audit(),
-                            ApplicationServicesFixture.operations());
+                                    ApplicationServicesFixture.messages(ignored.dataSource()),
+                                    AccountServicesFixture.component(ignored.dataSource()).permissions()),
+                            ApplicationServicesFixture.audit(ignored.dataSource()),
+                            ApplicationServicesFixture.operations(ignored.dataSource()));
             setControllerFields(controller, request("/api/admin/static-site", Map.of()), response());
 
             AdminPageDataResponse<AdminStaticSiteSyncResponse> response = controller.index();
@@ -94,10 +94,10 @@ public class AdminSystemAndStaticSiteControllerTest {
                             new AdminPageDataFactory(
                                     ApplicationServicesFixture.site(ignored.config()),
                                     ApplicationServicesFixture.buildId(ignored.resources()),
-                                    ApplicationServicesFixture.messages(),
-                                    AccountServicesFixture.component().permissions()),
-                            ApplicationServicesFixture.audit(),
-                            ApplicationServicesFixture.operations());
+                                    ApplicationServicesFixture.messages(ignored.dataSource()),
+                                    AccountServicesFixture.component(ignored.dataSource()).permissions()),
+                            ApplicationServicesFixture.audit(ignored.dataSource()),
+                            ApplicationServicesFixture.operations(ignored.dataSource()));
             setControllerFields(controller, request("/api/admin/static-site/sync", Map.of()), recorder.response());
 
             controller.startSync();
@@ -121,10 +121,10 @@ public class AdminSystemAndStaticSiteControllerTest {
                             new AdminPageDataFactory(
                                     ApplicationServicesFixture.site(db.config()),
                                     ApplicationServicesFixture.buildId(db.resources()),
-                                    ApplicationServicesFixture.messages(),
-                                    AccountServicesFixture.component().permissions()),
-                            ApplicationServicesFixture.audit(),
-                            ApplicationServicesFixture.operations());
+                                    ApplicationServicesFixture.messages(db.dataSource()),
+                                    AccountServicesFixture.component(db.dataSource()).permissions()),
+                            ApplicationServicesFixture.audit(db.dataSource()),
+                            ApplicationServicesFixture.operations(db.dataSource()));
             setControllerFields(controller, request("/api/admin/static-site", Map.of()), response());
 
             assertThrows(NotFindResourceException.class, controller::index);

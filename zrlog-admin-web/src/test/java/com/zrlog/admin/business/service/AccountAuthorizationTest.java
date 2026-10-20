@@ -2,7 +2,6 @@ package com.zrlog.admin.business.service;
 
 import static org.junit.Assert.*;
 
-import com.hibegin.common.dao.DAO;
 import com.hibegin.common.util.PasswordHashUtils;
 import com.hibegin.common.util.SecurityUtils;
 import com.hibegin.http.HttpMethod;
@@ -91,7 +90,7 @@ public class AccountAuthorizationTest {
             assertThrows(
                     PermissionErrorException.class,
                     () ->
-                            AccountServicesFixture.component()
+                            AccountServicesFixture.component(db.dataSource())
                                     .permissions()
                                     .checkRoute(Object.class.getMethod("toString"), null));
         }
@@ -108,30 +107,30 @@ public class AccountAuthorizationTest {
                             new AdminPageDataFactory(
                                     ApplicationServicesFixture.site(db.config()),
                                     ApplicationServicesFixture.buildId(db.resources()),
-                                    ApplicationServicesFixture.messages(),
-                                    AccountServicesFixture.component().permissions()),
-                            AccountServicesFixture.component().permissions(),
-                            AccountServicesFixture.component().preferences(),
+                                    ApplicationServicesFixture.messages(db.dataSource()),
+                                    AccountServicesFixture.component(db.dataSource()).permissions()),
+                            AccountServicesFixture.component(db.dataSource()).permissions(),
+                            AccountServicesFixture.component(db.dataSource()).preferences(),
                             new ArticleVersionService(
-                                    AccountServicesFixture.component().permissions(),
-                                    Log::new,
-                                    () -> new LogVersion(DAO.getDefaultDataSource())),
-                            new ArticlePinningService(Log::new, ApplicationServicesFixture.locks()),
-                            Log::new,
-                            ApplicationServicesFixture.locks());
+                                    AccountServicesFixture.component(db.dataSource()).permissions(),
+                                    () -> new Log(db.dataSource()),
+                                    () -> new LogVersion(db.dataSource())),
+                            new ArticlePinningService(() -> new Log(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource())),
+                            () -> new Log(db.dataSource()),
+                            ApplicationServicesFixture.locks(db.dataSource()));
             CreateArticleRequest create=new CreateArticleRequest();create.setTitle("Private");create.setTypeId(1L);create.setPrivacy(true);create.setRubbish(true);create.setContent("secret");
             long id=service.create(AdminTokenThreadLocal.getUser(),create).getLogId();
             login(db,2,"editor");
             assertThrows(
                     PermissionErrorException.class,
-                    () -> AccountServicesFixture.component().permissions().readArticle(id));
+                    () -> AccountServicesFixture.component(db.dataSource()).permissions().readArticle(id));
             assertThrows(
                     PermissionErrorException.class,
                     () ->
                             new ArticleVersionService(
-                                            AccountServicesFixture.component().permissions(),
-                                            Log::new,
-                                            () -> new LogVersion(DAO.getDefaultDataSource()))
+                                            AccountServicesFixture.component(db.dataSource()).permissions(),
+                                            () -> new Log(db.dataSource()),
+                                            () -> new LogVersion(db.dataSource()))
                                     .listVersions((int) id));
             db.execute("update log set privacy=? where logId=?",false,id);
             UpdateArticleRequest update=new UpdateArticleRequest();update.setLogId((int)id);update.setTitle("Edited");update.setTypeId(1L);update.setVersion(0);update.setRubbish(true);update.setContent("edited");
@@ -147,7 +146,7 @@ public class AccountAuthorizationTest {
             db.execute("update user set authVersion=authVersion+1 where userId=2");
             assertThrows(
                     PermissionErrorException.class,
-                    AccountServicesFixture.component().permissions()::current);
+                    AccountServicesFixture.component(db.dataSource()).permissions()::current);
         }
     }
     @Test public void membersCannotEscalateOrModifyOwnerAndTransferRevokesBothSessions() throws Exception {
@@ -156,9 +155,9 @@ public class AccountAuthorizationTest {
                 login(db, 1, "owner");
                 MemberService service =
                         new MemberService(
-                                AccountServicesFixture.component().security(),
-                                AccountServicesFixture.component().users(),
-                                AccountServicesFixture.component().permissions());
+                                AccountServicesFixture.component(db.dataSource()).security(),
+                                AccountServicesFixture.component(db.dataSource()).users(),
+                                AccountServicesFixture.component(db.dataSource()).permissions());
                 MemberModels.Create create=new MemberModels.Create();create.userName="second";create.password="a-long-new-password";create.role="admin";
                 int admin=service.create(create).userId;
                 assertFalse(String.valueOf(db.scalar("select password from user where userId=?",admin)).contains(create.password));
@@ -176,7 +175,7 @@ public class AccountAuthorizationTest {
                 assertEquals("admin",db.scalar("select role from user where userId=1"));
                 assertThrows(
                         PermissionErrorException.class,
-                        AccountServicesFixture.component().permissions()::current);
+                        AccountServicesFixture.component(db.dataSource()).permissions()::current);
                 assertEquals(1,((Number)db.scalar("select authVersion from user where userId=?",admin)).intValue());
             }
         }

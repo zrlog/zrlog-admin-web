@@ -26,11 +26,11 @@ public class AIConversationServiceDatabaseTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             AIConversationService current =
                     new AIConversationService(
-                            AccountServicesFixture.component().security(),
-                            ApplicationServicesFixture.websiteKv(),
-                            WebSite::new,
+                            AccountServicesFixture.component(db.dataSource()).security(),
+                            ApplicationServicesFixture.websiteKv(db.dataSource()),
+                            () -> new WebSite(db.dataSource()),
                             new AIFileService(),
-                            AIServiceDependencies.approvals());
+                            AIServiceDependencies.approvals(db.dataSource()));
             AIConversationService firstAccount = current.captureAccount();
             assertTrue(current.saveAIMessage(List.of(new AIResponseEntry.AIContentEntry("user", "first account")), 7L));
             AdminTokenThreadLocal.getUser().setUserId(2);
@@ -56,11 +56,11 @@ public class AIConversationServiceDatabaseTest {
             assertEquals(
                     List.of("first account", "async reply"),
                     new AIConversationService(
-                                    AccountServicesFixture.component().security(),
-                                    ApplicationServicesFixture.websiteKv(),
-                                    WebSite::new,
+                                    AccountServicesFixture.component(db.dataSource()).security(),
+                                    ApplicationServicesFixture.websiteKv(db.dataSource()),
+                                    () -> new WebSite(db.dataSource()),
                                     new AIFileService(),
-                                    AIServiceDependencies.approvals())
+                                    AIServiceDependencies.approvals(db.dataSource()))
                             .exportAIMessage(7L).getMessages().stream()
                                     .filter(entry -> !"system".equals(entry.getRole()))
                                     .map(AIResponseEntry.AIContentEntry::getContent)
@@ -75,11 +75,11 @@ public class AIConversationServiceDatabaseTest {
             db.putWebsite("ai_chat_message_7", legacy);
             AIConversationService service =
                     new AIConversationService(
-                            AccountServicesFixture.component().security(),
-                            ApplicationServicesFixture.websiteKv(),
-                            WebSite::new,
+                            AccountServicesFixture.component(db.dataSource()).security(),
+                            ApplicationServicesFixture.websiteKv(db.dataSource()),
+                            () -> new WebSite(db.dataSource()),
                             new AIFileService(),
-                            AIServiceDependencies.approvals());
+                            AIServiceDependencies.approvals(db.dataSource()));
             assertEquals("old conversation", service.exportAIMessage(7L).getMessages().get(0).getContent());
             assertTrue(service.appendAIMessageEntries(List.of(new AIResponseEntry.AIContentEntry("assistant", "new reply")), 7L));
             assertEquals(2, service.exportAIMessage(7L).getMessages().stream().filter(entry -> !"system".equals(entry.getRole())).count());
@@ -87,11 +87,11 @@ public class AIConversationServiceDatabaseTest {
             assertTrue(service.clearAIMessage(7L));
             assertTrue(
                     new AIConversationService(
-                                    AccountServicesFixture.component().security(),
-                                    ApplicationServicesFixture.websiteKv(),
-                                    WebSite::new,
+                                    AccountServicesFixture.component(db.dataSource()).security(),
+                                    ApplicationServicesFixture.websiteKv(db.dataSource()),
+                                    () -> new WebSite(db.dataSource()),
                                     new AIFileService(),
-                                    AIServiceDependencies.approvals())
+                                    AIServiceDependencies.approvals(db.dataSource()))
                             .exportAIMessage(7L)
                             .getMessages()
                             .isEmpty());
@@ -110,11 +110,11 @@ public class AIConversationServiceDatabaseTest {
                     PermissionErrorException.class,
                     () ->
                             new AIConversationService(
-                                            AccountServicesFixture.component().security(),
-                                            ApplicationServicesFixture.websiteKv(),
-                                            WebSite::new,
+                                            AccountServicesFixture.component(db.dataSource()).security(),
+                                            ApplicationServicesFixture.websiteKv(db.dataSource()),
+                                            () -> new WebSite(db.dataSource()),
                                             new AIFileService(),
-                                            AIServiceDependencies.approvals())
+                                            AIServiceDependencies.approvals(db.dataSource()))
                                     .saveAIMessage(
                                             List.of(
                                                     new AIResponseEntry.AIContentEntry(
@@ -133,11 +133,11 @@ public class AIConversationServiceDatabaseTest {
             db.putWebsite("ai_prompt", "system");
             AIConversationService service =
                     new AIConversationService(
-                            AccountServicesFixture.component().security(),
-                            ApplicationServicesFixture.websiteKv(),
-                            WebSite::new,
+                            AccountServicesFixture.component(db.dataSource()).security(),
+                            ApplicationServicesFixture.websiteKv(db.dataSource()),
+                            () -> new WebSite(db.dataSource()),
                             new AIFileService(),
-                            AIServiceDependencies.approvals());
+                            AIServiceDependencies.approvals(db.dataSource()));
             List<AIResponseEntry.AIContentEntry> messages =
                     List.of(new AIResponseEntry.AIContentEntry("user", "hello"));
 
@@ -161,11 +161,11 @@ public class AIConversationServiceDatabaseTest {
             db.putWebsite("ai_prompt", "system prompt");
             AIConversationService service =
                     new AIConversationService(
-                            AccountServicesFixture.component().security(),
-                            ApplicationServicesFixture.websiteKv(),
-                            WebSite::new,
+                            AccountServicesFixture.component(db.dataSource()).security(),
+                            ApplicationServicesFixture.websiteKv(db.dataSource()),
+                            () -> new WebSite(db.dataSource()),
                             new AIFileService(),
-                            AIServiceDependencies.approvals());
+                            AIServiceDependencies.approvals(db.dataSource()));
             AIResponseEntry.AIContentEntry initial = new AIResponseEntry.AIContentEntry("user", "initial");
             initial.setMessageId("initial-id");
             assertTrue(service.saveAIMessage(List.of(initial), 8L));
@@ -193,11 +193,11 @@ public class AIConversationServiceDatabaseTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             AIConversationService service =
                     new AIConversationService(
-                            AccountServicesFixture.component().security(),
-                            ApplicationServicesFixture.websiteKv(),
-                            WebSite::new,
+                            AccountServicesFixture.component(db.dataSource()).security(),
+                            ApplicationServicesFixture.websiteKv(db.dataSource()),
+                            () -> new WebSite(db.dataSource()),
                             new AIFileService(),
-                            AIServiceDependencies.approvals());
+                            AIServiceDependencies.approvals(db.dataSource()));
             List<AIResponseEntry.AIContentEntry> messages =
                     List.of(new AIResponseEntry.AIContentEntry("user", "draft"));
             assertTrue(service.saveAIMessage(messages, 0L));

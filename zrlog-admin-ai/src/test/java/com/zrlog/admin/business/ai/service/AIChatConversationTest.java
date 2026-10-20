@@ -3,6 +3,7 @@ package com.zrlog.admin.business.ai.service;
 import static org.junit.Assert.*;
 
 import com.google.gson.*;
+import com.hibegin.common.dao.DataSourceWrapper;
 import com.zrlog.admin.business.ai.exception.AIIncompleteResponseException;
 import com.zrlog.admin.business.ai.exception.AIRequestException;
 import com.zrlog.admin.business.ai.exception.AIResponseException;
@@ -21,6 +22,7 @@ import com.zrlog.common.ZrLogConfig;
 import com.zrlog.data.security.AccountAccess;
 import com.zrlog.data.service.UserPreferenceStore;
 import com.zrlog.model.Log;
+import com.zrlog.model.User;
 import com.zrlog.model.WebSite;
 import com.zrlog.test.support.TestLogCapture;
 import com.zrlog.util.I18nUtil;
@@ -43,7 +45,7 @@ public class AIChatConversationTest {
                     7,1,1,"Current title","BODY_NOT_AUTOMATICALLY_SENT",true,false,3);
             db.putWebsite("ai_chat_message_u1_7", "[{\"role\":\"user\",\"messageType\":\"articleContext\",\"content\":\"OBSOLETE_SNAPSHOT\"},"
                     + "{\"role\":\"user\",\"messageType\":\"knowledge\",\"content\":\"Earlier question\"}]");
-            scope("off");
+            scope("off", db.dataSource());
             Model model = new Model(applicationConfig, ANSWER);
             ChatRequest request = input(); request.articleId = 7;
             model.start(request).getInputStream().readAllBytes();
@@ -115,15 +117,15 @@ public class AIChatConversationTest {
                         new AIChatService(
                                 null,
                                 ContentToolsFixture.from(applicationConfig),
-                                AccountServicesFixture.component().permissions(),
-                                AccountServicesFixture.component().preferences(),
-                                AIServiceDependencies.approvals(),
+                                AccountServicesFixture.component(db.dataSource()).permissions(),
+                                AccountServicesFixture.component(db.dataSource()).preferences(),
+                                AIServiceDependencies.approvals(db.dataSource()),
                                 new AIFileService(),
-                                AIServiceDependencies.writing(),
-                                AIServiceDependencies.conversations(),
-                                AIServiceDependencies.writingTools(),
+                                AIServiceDependencies.writing(db.dataSource()),
+                                AIServiceDependencies.conversations(db.dataSource()),
+                                AIServiceDependencies.writingTools(db.dataSource()),
                                 AIServiceDependencies.references(
-                                        ContentToolsFixture.from(applicationConfig))) {
+                                        ContentToolsFixture.from(applicationConfig), db.dataSource())) {
                             @Override
                             protected AIProviderResponses.Choice complete(
                                     AIWebSiteInfo info,
@@ -143,11 +145,11 @@ public class AIChatConversationTest {
             }
             assertTrue(
                     new AIConversationService(
-                                    AccountServicesFixture.component().security(),
-                                    ApplicationServicesFixture.websiteKv(),
-                                    WebSite::new,
+                                    AccountServicesFixture.component(db.dataSource()).security(),
+                                    ApplicationServicesFixture.websiteKv(db.dataSource()),
+                                    () -> new WebSite(db.dataSource()),
                                     new AIFileService(),
-                                    AIServiceDependencies.approvals())
+                                    AIServiceDependencies.approvals(db.dataSource()))
                             .exportAIMessage(-1L)
                             .getMessages()
                             .isEmpty());
@@ -162,14 +164,14 @@ public class AIChatConversationTest {
         JsonObject request =
                 JsonParser.parseString(
                                 new AIChatService(
-                                                AccountServicesFixture.component().permissions(),
-                                                AccountServicesFixture.component().preferences(),
-                                                AIServiceDependencies.approvals(),
+                                                AccountServicesFixture.component(null).permissions(),
+                                                AccountServicesFixture.component(null).preferences(),
+                                                AIServiceDependencies.approvals(null),
                                                 new AIFileService(),
-                                                AIServiceDependencies.writing(),
-                                                AIServiceDependencies.conversations(),
-                                                AIServiceDependencies.writingTools(),
-                                                AIServiceDependencies.references(null))
+                                                AIServiceDependencies.writing(null),
+                                                AIServiceDependencies.conversations(null),
+                                                AIServiceDependencies.writingTools(null),
+                                                AIServiceDependencies.references(null, null))
                                         .request(info, List.of(message), KnowledgeService.tools()))
                         .getAsJsonObject();
         assertTrue(request.get("enable_thinking").getAsBoolean());
@@ -178,11 +180,11 @@ public class AIChatConversationTest {
     }
     private ChatRequest input() { ChatRequest r=new ChatRequest();r.input="What is in the blog?";return r; }
 
-    private KnowledgeService knowledge() {
+    private KnowledgeService knowledge(DataSourceWrapper testDataSource) {
         return new KnowledgeService(
                 () -> {
                     try {
-                        return AccountAccess.load(1);
+                        return AccountAccess.from(new User(testDataSource).loadById(1));
                     } catch (Exception e) {
                         throw new RuntimeException(e);
                     }
@@ -190,7 +192,7 @@ public class AIChatConversationTest {
                 Set.of("articles:read"),
                 () -> "https://blog.example",
                 () -> false,
-                Log::new);
+                () -> new Log(testDataSource));
     }
 
     private static String tool(String name,String args) { return "{\"finish_reason\":\"tool_calls\",\"message\":{\"tool_calls\":[{\"id\":\"call-1\",\"type\":\"function\",\"function\":{\"name\":\""+name+"\",\"arguments\":"+new Gson().toJson(args)+"}}]}}"; }
@@ -202,14 +204,14 @@ public class AIChatConversationTest {
             super(
                     null,
                     ContentToolsFixture.from(config),
-                    AccountServicesFixture.component().permissions(),
-                    AccountServicesFixture.component().preferences(),
-                    AIServiceDependencies.approvals(),
+                    AccountServicesFixture.component(config == null ? null : (DataSourceWrapper) config.getDataSource()).permissions(),
+                    AccountServicesFixture.component(config == null ? null : (DataSourceWrapper) config.getDataSource()).preferences(),
+                    AIServiceDependencies.approvals(config == null ? null : (DataSourceWrapper) config.getDataSource()),
                     new AIFileService(),
-                    AIServiceDependencies.writing(),
-                    AIServiceDependencies.conversations(),
-                    AIServiceDependencies.writingTools(),
-                    AIServiceDependencies.references(ContentToolsFixture.from(config)));
+                    AIServiceDependencies.writing(config == null ? null : (DataSourceWrapper) config.getDataSource()),
+                    AIServiceDependencies.conversations(config == null ? null : (DataSourceWrapper) config.getDataSource()),
+                    AIServiceDependencies.writingTools(config == null ? null : (DataSourceWrapper) config.getDataSource()),
+                    AIServiceDependencies.references(ContentToolsFixture.from(config), config == null ? null : (DataSourceWrapper) config.getDataSource()));
             this.responses = List.of(responses);
         }
 
@@ -228,7 +230,7 @@ public class AIChatConversationTest {
             db.execute("insert into log(logId,userId,typeId,title,markdown,rubbish,privacy) values(?,?,?,?,?,?,?)",1,1,1,"Deployment","Use the deploy command.",false,false);
             Model model=new Model(applicationConfig, tool("search_articles","{}"),tool("read_article","{\"id\":1}"),"{\"finish_reason\":\"stop\",\"message\":{\"content\":\"Use deploy. [Source](https://blog.example/1)\"}}");
             ByteArrayOutputStream out=new ByteArrayOutputStream();int[] auth={0};
-            model.run(input(),new AIWebSiteInfo(),knowledge(),out,()->auth[0]++);
+            model.run(input(),new AIWebSiteInfo(),knowledge(db.dataSource()),out,()->auth[0]++);
             assertEquals(3,model.requests.size());assertTrue(auth[0]>=4);
             assertEquals(2,model.requests.get(0).getAsJsonArray("tools").size());
             JsonArray messages=model.requests.get(2).getAsJsonArray("messages");
@@ -239,14 +241,15 @@ public class AIChatConversationTest {
         }
     }
     private void configure(InMemoryZrLogDatabase db) throws Exception {
+        applicationConfig = db.config();
         db.putWebsite("ai_provider", "OPEN_AI"); db.putWebsite("ai_model", "test");
         db.putWebsite("ai_base_url", "http://localhost:1234");
     }
-    private void scope(String scope) throws Exception {
+    private void scope(String scope, DataSourceWrapper testDataSource) throws Exception {
         new UserPreferenceService(
-                        ApplicationServicesFixture.settings(),
-                        new UserPreferenceStore(),
-                        AccountServicesFixture.component().permissions())
+                        ApplicationServicesFixture.settings(testDataSource),
+                        new UserPreferenceStore(() -> new User(testDataSource)),
+                        AccountServicesFixture.component(testDataSource).permissions())
                 .update(
                         JsonParser.parseString(
                                         "{\"assistant\":{\"knowledgeScope\":\"" + scope + "\"}}")
@@ -265,11 +268,11 @@ public class AIChatConversationTest {
             assertTrue(stream.contains("\"type\":\"done\""));
             var saved =
                     new AIConversationService(
-                                    AccountServicesFixture.component().security(),
-                                    ApplicationServicesFixture.websiteKv(),
-                                    WebSite::new,
+                                    AccountServicesFixture.component(db.dataSource()).security(),
+                                    ApplicationServicesFixture.websiteKv(db.dataSource()),
+                                    () -> new WebSite(db.dataSource()),
                                     new AIFileService(),
-                                    AIServiceDependencies.approvals())
+                                    AIServiceDependencies.approvals(db.dataSource()))
                             .exportAIMessage(7L)
                             .getMessages();
             var reply = saved.get(saved.size() - 1);
@@ -290,11 +293,11 @@ public class AIChatConversationTest {
             assertFalse(providerHistory.contains("Summarize sources."));
             assertTrue(
                     new AIConversationService(
-                                    AccountServicesFixture.component().security(),
-                                    ApplicationServicesFixture.websiteKv(),
-                                    WebSite::new,
+                                    AccountServicesFixture.component(db.dataSource()).security(),
+                                    ApplicationServicesFixture.websiteKv(db.dataSource()),
+                                    () -> new WebSite(db.dataSource()),
                                     new AIFileService(),
-                                    AIServiceDependencies.approvals())
+                                    AIServiceDependencies.approvals(db.dataSource()))
                             .exportAIMessage(8L)
                             .getMessages()
                             .isEmpty());
@@ -331,11 +334,11 @@ public class AIChatConversationTest {
             String defaultStream = new String(defaultModel.start(forged).getInputStream().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
             assertTrue(defaultStream.contains("PUBLIC")); assertFalse(defaultStream.contains("PRIVATE"));
             assertTrue(defaultModel.requests.get(0).has("tools"));
-            scope("own_all");
+            scope("own_all", db.dataSource());
             Model expanded = new Model(applicationConfig, tool("search_articles", "{}"), ANSWER);
             String expandedStream = new String(expanded.start(input()).getInputStream().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
             assertTrue(expandedStream.contains("PRIVATE"));
-            scope("off");
+            scope("off", db.dataSource());
             Model disabled = new Model(applicationConfig, ANSWER);
             assertTrue(new String(disabled.start(forged).getInputStream().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8).contains("Answer"));
             assertFalse(disabled.requests.get(0).has("tools"));
@@ -364,7 +367,7 @@ public class AIChatConversationTest {
                             Set.of("articles:read"),
                             () -> "https://blog.example",
                             () -> false,
-                            Log::new);
+                            () -> { throw new IllegalStateException("Database is unavailable in this test"); });
             Model model = new Model(applicationConfig, ANSWER);
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             model.run(request, new AIWebSiteInfo(), unused, out, () -> {});
@@ -385,7 +388,7 @@ public class AIChatConversationTest {
             String answer = ANSWER.replace("\"content\":", "\"reasoningContent\":\"I can now summarize the sources.\",\"content\":");
             Model model = new Model(applicationConfig, search, answer);
             ByteArrayOutputStream out = new ByteArrayOutputStream();
-            model.run(input(), new AIWebSiteInfo(), knowledge(), out, () -> {});
+            model.run(input(), new AIWebSiteInfo(), knowledge(db.dataSource()), out, () -> {});
             String events = out.toString(java.nio.charset.StandardCharsets.UTF_8);
             assertTrue(events.contains("\"reasoningContent\":\"I should find relevant articles.\""));
             assertTrue(events.contains("\"reasoningContent\":\"I can now summarize the sources.\""));
@@ -413,7 +416,7 @@ public class AIChatConversationTest {
             applicationConfig = db.config();
             configure(db);
             for (String response : List.of(tool("search_articles", "{}"), ANSWER, ANSWER.replace("\"content\":", "\"reasoning_content\":\"PRIVATE reasoning\",\"content\":"))) {
-                scope("own_all");
+                scope("own_all", db.dataSource());
                 Model model = new Model(applicationConfig, response);
                 model.afterRequest = () -> {
                     try { db.execute("update user set preferences=? where userId=1", "{\"assistant\":{\"knowledgeScope\":\"off\"}}"); }
@@ -438,7 +441,7 @@ public class AIChatConversationTest {
                             model.run(
                                     input(),
                                     new AIWebSiteInfo(),
-                                    knowledge(),
+                                    knowledge(db.dataSource()),
                                     new ByteArrayOutputStream(),
                                     () -> {}));
             assertEquals(5,model.requests.size());assertFalse(model.requests.get(4).has("tools"));
@@ -462,14 +465,14 @@ public class AIChatConversationTest {
                             model.run(
                                     input(),
                                     new AIWebSiteInfo(),
-                                    knowledge(),
+                                    knowledge(db.dataSource()),
                                     new ByteArrayOutputStream(),
                                     () -> {
                                         if (revoked[0]) throw new PermissionErrorException();
                                     }));
             assertEquals(1,model.requests.size());
             Model disconnected=new Model(applicationConfig, tool("search_articles","{}"));
-            assertThrows(IOException.class,()->disconnected.run(input(),new AIWebSiteInfo(),knowledge(),new OutputStream(){public void write(int b)throws IOException{throw new IOException();}},()->{}));
+            assertThrows(IOException.class,()->disconnected.run(input(),new AIWebSiteInfo(),knowledge(db.dataSource()),new OutputStream(){public void write(int b)throws IOException{throw new IOException();}},()->{}));
             assertTrue(disconnected.requests.isEmpty());
         }
     }

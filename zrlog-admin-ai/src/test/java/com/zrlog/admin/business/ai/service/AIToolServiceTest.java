@@ -66,7 +66,7 @@ public class AIToolServiceTest {
     public void shouldRejectMarkdownRewriteWithoutDraftBody() throws Exception {
         GenerateArticleFieldRequest request = new GenerateArticleFieldRequest();
 
-        new AIToolService(AIServiceDependencies.config()).rewriteArticleMarkdown(request, "");
+        new AIToolService(AIServiceDependencies.config(null)).rewriteArticleMarkdown(request, "");
     }
 
     @Test(expected = ArgsException.class)
@@ -74,7 +74,7 @@ public class AIToolServiceTest {
         GenerateArticleFieldRequest request = new GenerateArticleFieldRequest();
         request.setMarkdown(repeat("a", 119));
 
-        new AIToolService(AIServiceDependencies.config()).rewriteArticleMarkdown(request, "");
+        new AIToolService(AIServiceDependencies.config(null)).rewriteArticleMarkdown(request, "");
     }
 
     @Test(expected = ArgsException.class)
@@ -82,13 +82,13 @@ public class AIToolServiceTest {
         GenerateArticleFieldRequest request = new GenerateArticleFieldRequest();
         request.setMarkdown("  " + repeat("a", 119) + "  ");
 
-        new AIToolService(AIServiceDependencies.config()).rewriteArticleMarkdown(request, "");
+        new AIToolService(AIServiceDependencies.config(null)).rewriteArticleMarkdown(request, "");
     }
 
     @Test
     public void shouldSummarizeMarkdownReferencesForPublishCheck() {
         String summary =
-                new AIToolService(AIServiceDependencies.config())
+                new AIToolService(AIServiceDependencies.config(null))
                         .buildMarkdownReferenceSummary(
                                 "![cover](/assets/cover.png)\n[site](https://example.com)\nhttps://zrlog.com/path");
 
@@ -109,7 +109,7 @@ public class AIToolServiceTest {
         request.setStaticSitePluginEnabled(true);
 
         String summary =
-                new AIToolService(AIServiceDependencies.config())
+                new AIToolService(AIServiceDependencies.config(null))
                         .buildPublishContextSummary(request);
 
         assertTrue(summary.contains("aliasStatus: present"));
@@ -142,7 +142,7 @@ public class AIToolServiceTest {
                     completionResponse("{\"summary\":\"Questions ok\",\"items\":["
                             + "{\"question\":\"Why?\",\"reason\":\"reader intent\",\"suggestion\":\"answer it\"}]}")
             );
-            AIToolService service = new AIToolService(client, AIServiceDependencies.config());
+            AIToolService service = new AIToolService(client, AIServiceDependencies.config(db.dataSource()));
             GenerateArticleFieldRequest articleRequest = articleFieldRequest();
 
             OptimizeWebsiteDescriptionResponse description =
@@ -191,7 +191,7 @@ public class AIToolServiceTest {
     @Test
     @SuppressWarnings("unchecked")
     public void shouldParseTitleTagMarkdownAndScoreResponses() throws Exception {
-        AIToolService service = new AIToolService(AIServiceDependencies.config());
+        AIToolService service = new AIToolService(AIServiceDependencies.config(null));
 
         List<String> titles = (List<String>) invoke(service, "parseTitles",
                 "```json\n{\"titles\":[\" One \",\"\\\"Two\\\"\",\"Three\",\"Four\"]}\n```");
@@ -218,7 +218,7 @@ public class AIToolServiceTest {
 
     @Test
     public void shouldParseArticleReviewToolResponses() throws Exception {
-        AIToolService service = new AIToolService(AIServiceDependencies.config());
+        AIToolService service = new AIToolService(AIServiceDependencies.config(null));
 
         ArticleSeoCheckResponse seo = (ArticleSeoCheckResponse) invoke(service, "parseArticleSeo",
                 "{\"score\":\"76\",\"summary\":\"SEO ok\",\"items\":["
@@ -256,7 +256,7 @@ public class AIToolServiceTest {
 
     @Test
     public void shouldCleanAliasScoresAndPromptFragments() throws Exception {
-        AIToolService service = new AIToolService(AIServiceDependencies.config());
+        AIToolService service = new AIToolService(AIServiceDependencies.config(null));
 
         assertEquals("hello-zrlog-2026", invoke(service, "cleanAlias", " Hello, ZrLog 2026! "));
         assertEquals(0, invoke(service, "normalizeScore", -10));
@@ -274,7 +274,7 @@ public class AIToolServiceTest {
 
     @Test
     public void shouldLimitReferenceListOutput() throws Exception {
-        AIToolService service = new AIToolService(AIServiceDependencies.config());
+        AIToolService service = new AIToolService(AIServiceDependencies.config(null));
         Set<String> references = new LinkedHashSet<>();
         for (int i = 1; i <= 10; i++) {
             references.add("ref-" + i);
@@ -289,7 +289,7 @@ public class AIToolServiceTest {
 
     @Test
     public void shouldRejectInvalidAiToolResponses() throws Exception {
-        AIToolService service = new AIToolService(AIServiceDependencies.config());
+        AIToolService service = new AIToolService(AIServiceDependencies.config(null));
 
         assertAiResponseError(service, "parseTitles", "title response is empty", "{\"titles\":[]}");
         assertAiResponseError(service, "parseTitles", "title response is invalid", "{\"title\":\"bad\"}");

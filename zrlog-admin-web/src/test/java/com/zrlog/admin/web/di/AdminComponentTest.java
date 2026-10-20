@@ -15,8 +15,8 @@ import com.zrlog.admin.web.di.account.AccountComponent;
 import com.zrlog.admin.web.di.account.DaggerAccountComponent;
 import com.zrlog.admin.web.di.ai.AIComponent;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
-import com.zrlog.business.service.WebsiteKvService;
 import com.zrlog.business.di.DaggerServiceComponent;
+import com.zrlog.business.service.WebsiteKvService;
 import com.zrlog.common.TokenService;
 import com.zrlog.common.vo.AdminFullTokenVO;
 import com.zrlog.data.di.DaggerDataComponent;
@@ -41,7 +41,7 @@ public class AdminComponentTest {
             first.execute("insert into user(userId,userName,role,secretKey) values(2,?,?,?)",
                     "author", "author", "author-secret");
             second.execute("update user set secretKey=? where userId=1", "second-app-secret");
-            DAO.setDs(null);
+            org.junit.Assert.assertNull(DAO.getDefaultDataSource());
             TokenService firstTokens = firstGraph.tokens();
             TokenService secondTokens = secondGraph.tokens();
             assertSame(firstTokens, firstGraph.tokens());
@@ -123,7 +123,7 @@ public class AdminComponentTest {
                     .putString(AdminDashboardService.FIRST_USE_CHECKLIST_KEY, "pending");
             try (InMemoryZrLogDatabase second = InMemoryZrLogDatabase.open()) {
                 AdminComponent secondGraph = graph(second);
-                DAO.setDs(null);
+                org.junit.Assert.assertNull(DAO.getDefaultDataSource());
                 new WebsiteKvService(second.dataSource())
                         .putString(AdminDashboardService.FIRST_USE_CHECKLIST_KEY, "pending");
 
@@ -161,7 +161,7 @@ public class AdminComponentTest {
             second.execute("update user set role='author' where userId=1");
             var firstBindings = first.config().getServerConfig().getBindings().build();
             var secondBindings = second.config().getServerConfig().getBindings().build();
-            DAO.setDs(null);
+            org.junit.Assert.assertNull(DAO.getDefaultDataSource());
             var firstPermissions = firstBindings.get(AccountComponent.class).permissions();
             var secondPermissions = secondBindings.get(AccountComponent.class).permissions();
             assertTrue(firstPermissions.current().isAdministrator());

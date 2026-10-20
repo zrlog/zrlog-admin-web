@@ -6,6 +6,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
+import com.hibegin.common.dao.DataSourceWrapper;
 import com.hibegin.common.dao.dto.PageData;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
@@ -27,6 +28,7 @@ import com.zrlog.common.exception.ArgsException;
 import com.zrlog.model.Link;
 import com.zrlog.model.Log;
 import com.zrlog.model.LogNav;
+import com.zrlog.model.Type;
 
 import org.junit.Test;
 
@@ -44,19 +46,19 @@ public class ContentCrudControllerDatabaseTest {
     public void shouldManageTypesThroughRealDatabase() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
-            typeController(Map.of(), "{\"typeName\":\"News\",\"alias\":\"news\",\"remark\":\"<b>Remark</b>\"}")
+            typeController(Map.of(), "{\"typeName\":\"News\",\"alias\":\"news\",\"remark\":\"<b>Remark</b>\"}", db.dataSource())
                     .add();
             Number typeId = (Number) db.queryOne("select typeId from type where alias=?", "news").get("typeId");
 
             typeController(Map.of(),
-                    "{\"id\":" + typeId + ",\"typeName\":\"Updates\",\"alias\":\"updates\"}")
+                    "{\"id\":" + typeId + ",\"typeName\":\"Updates\",\"alias\":\"updates\"}", db.dataSource())
                     .update();
-            AdminPageDataResponse<PageData<TypeDTO>> page = typeController(Map.of(), null).index();
+            AdminPageDataResponse<PageData<TypeDTO>> page = typeController(Map.of(), null, db.dataSource()).index();
 
             assertFalse(page.getData().getRows().isEmpty());
             assertEquals("Updates", db.queryOne("select typeName from type where typeId=?", typeId).get("typeName"));
             assertEquals("", db.queryOne("select remark from type where typeId=?", typeId).get("remark"));
-            DeleteResponse deleted = typeController(Map.of("id", typeId.toString()), null).delete();
+            DeleteResponse deleted = typeController(Map.of("id", typeId.toString()), null, db.dataSource()).delete();
             assertTrue(deleted.getData().getDelete());
             assertNull(db.queryOne("select typeId from type where typeId=?", typeId));
         }
@@ -67,17 +69,17 @@ public class ContentCrudControllerDatabaseTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
             blogNavController(Map.of(),
-                    "{\"navName\":\"Docs\",\"url\":\"https://example.com/docs\",\"icon\":\"book\",\"sort\":3}")
+                    "{\"navName\":\"Docs\",\"url\":\"https://example.com/docs\",\"icon\":\"book\",\"sort\":3}", db.dataSource())
                     .add();
             Number navId = (Number) db.queryOne("select navId from lognav where navName=?", "Docs").get("navId");
 
             blogNavController(Map.of(),
                     "{\"id\":" + navId + ",\"navName\":\"Docs Updated\","
-                            + "\"url\":\"https://example.com/new-docs\",\"icon\":\"file\"}")
+                            + "\"url\":\"https://example.com/new-docs\",\"icon\":\"file\"}", db.dataSource())
                     .update();
-            AdminPageDataResponse<PageData<LogNavDTO>> page = blogNavController(Map.of(), null).index();
+            AdminPageDataResponse<PageData<LogNavDTO>> page = blogNavController(Map.of(), null, db.dataSource()).index();
             DeleteResponse deleted =
-                    blogNavController(Map.of("id", " , " + navId + "," + navId + " , "), null).delete();
+                    blogNavController(Map.of("id", " , " + navId + "," + navId + " , "), null, db.dataSource()).delete();
 
             LogNavDTO row = page.getData().getRows().stream()
                     .filter(e -> e.getId().equals(navId.longValue()))
@@ -97,16 +99,16 @@ public class ContentCrudControllerDatabaseTest {
             applicationConfig = db.config();
             linkController(Map.of(),
                     "{\"linkName\":\"ZrLog\",\"url\":\"https://www.zrlog.com\","
-                            + "\"alt\":\"<b>Blog</b>\",\"icon\":\"link\",\"sort\":5}")
+                            + "\"alt\":\"<b>Blog</b>\",\"icon\":\"link\",\"sort\":5}", db.dataSource())
                     .add();
             Number linkId = (Number) db.queryOne("select linkId from link where linkName=?", "ZrLog")
                     .get("linkId");
 
             linkController(Map.of(),
                     "{\"id\":" + linkId + ",\"linkName\":\"ZrLog Home\","
-                            + "\"url\":\"https://www.zrlog.com/home\",\"icon\":\"home\",\"sort\":1}")
+                            + "\"url\":\"https://www.zrlog.com/home\",\"icon\":\"home\",\"sort\":1}", db.dataSource())
                     .update();
-            AdminPageDataResponse<PageData<LinkDTO>> page = linkController(Map.of(), null).index();
+            AdminPageDataResponse<PageData<LinkDTO>> page = linkController(Map.of(), null, db.dataSource()).index();
 
             LinkDTO row = page.getData().getRows().stream()
                     .filter(e -> e.getId().equals(linkId.longValue()))
@@ -115,7 +117,7 @@ public class ContentCrudControllerDatabaseTest {
             assertEquals("ZrLog Home", row.getLinkName());
             assertEquals("https://www.zrlog.com/home", row.getUrl());
             assertEquals("", db.queryOne("select alt from link where linkId=?", linkId).get("alt"));
-            DeleteResponse deleted = linkController(Map.of("id", linkId.toString()), null).delete();
+            DeleteResponse deleted = linkController(Map.of("id", linkId.toString()), null, db.dataSource()).delete();
             assertTrue(deleted.getData().getDelete());
             assertNull(db.queryOne("select linkId from link where linkId=?", linkId));
         }
@@ -125,48 +127,48 @@ public class ContentCrudControllerDatabaseTest {
     public void shouldRejectInvalidLinkDeleteIdBeforeTouchingDatabase() throws Exception {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
             applicationConfig = ignored.config();
-            LinkController controller = linkController(Map.of("id", "0"), null);
+            LinkController controller = linkController(Map.of("id", "0"), null, ignored.dataSource());
 
             assertThrows(ArgsException.class, controller::delete);
         }
     }
 
-    private TypeController typeController(Map<String, String> params, String body) throws Exception {
+    private TypeController typeController(Map<String, String> params, String body, DataSourceWrapper testDataSource) throws Exception {
         TypeController controller =
                 new TypeController(
                         new AdminPageDataFactory(
                                 ApplicationServicesFixture.site(applicationConfig),
                                 () -> "test",
-                                ApplicationServicesFixture.messages(),
-                                AccountServicesFixture.component().permissions()),
+                                ApplicationServicesFixture.messages(testDataSource),
+                                AccountServicesFixture.component(testDataSource).permissions()),
                         ApplicationServicesFixture.site(applicationConfig),
-                        new ArticleTypeService(Log::new, com.zrlog.model.Type::new));
+                        new ArticleTypeService(() -> new Log(testDataSource), () -> new Type(testDataSource)));
         setControllerFields(controller, params, body, "/api/admin/type");
         return controller;
     }
 
-    private BlogNavController blogNavController(Map<String, String> params, String body) throws Exception {
+    private BlogNavController blogNavController(Map<String, String> params, String body, DataSourceWrapper testDataSource) throws Exception {
         BlogNavController controller =
                 new BlogNavController(
                         new AdminPageDataFactory(
                                 ApplicationServicesFixture.site(applicationConfig),
                                 () -> "test",
-                                ApplicationServicesFixture.messages(),
-                                AccountServicesFixture.component().permissions()),
-                        new BlogNavService(LogNav::new));
+                                ApplicationServicesFixture.messages(testDataSource),
+                                AccountServicesFixture.component(testDataSource).permissions()),
+                        new BlogNavService(() -> new LogNav(testDataSource)));
         setControllerFields(controller, params, body, "/api/admin/nav");
         return controller;
     }
 
-    private LinkController linkController(Map<String, String> params, String body) throws Exception {
+    private LinkController linkController(Map<String, String> params, String body, DataSourceWrapper testDataSource) throws Exception {
         LinkController controller =
                 new LinkController(
                         new AdminPageDataFactory(
                                 ApplicationServicesFixture.site(applicationConfig),
                                 () -> "test",
-                                ApplicationServicesFixture.messages(),
-                                AccountServicesFixture.component().permissions()),
-                        new LinkService(Link::new));
+                                ApplicationServicesFixture.messages(testDataSource),
+                                AccountServicesFixture.component(testDataSource).permissions()),
+                        new LinkService(() -> new Link(testDataSource)));
         setControllerFields(controller, params, body, "/api/admin/link");
         return controller;
     }

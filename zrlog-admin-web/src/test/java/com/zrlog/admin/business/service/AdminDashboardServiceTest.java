@@ -7,7 +7,6 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
-import com.hibegin.common.dao.DAO;
 import com.hibegin.common.util.http.handle.CloseResponseHandle;
 import com.hibegin.http.HttpMethod;
 import com.zrlog.admin.business.content.ArticleAssistant;
@@ -28,6 +27,7 @@ import com.zrlog.common.vo.AdminTokenVO;
 import com.zrlog.model.Comment;
 import com.zrlog.model.Log;
 import com.zrlog.model.LogVersion;
+import com.zrlog.model.WebSite;
 
 import org.junit.Test;
 
@@ -141,13 +141,13 @@ public class AdminDashboardServiceTest {
     public void shouldConvertDashboardCardRequestsToResponses() throws Exception {
         AdminDashboardService service =
                 new AdminDashboardService(
-                        new WebsiteKvService(),
+                        new WebsiteKvService(() -> { throw new IllegalStateException("Database is unavailable in this test"); }),
                         new AdminStatisticsService(
                                 new InMemoryZrLogDatabase.TestCacheService(),
                                 RuntimeInfoFixture.from(applicationConfig),
-                                ApplicationServicesFixture.audit(),
-                                Log::new,
-                                Comment::new),
+                                ApplicationServicesFixture.audit(null),
+                                () -> { throw new IllegalStateException("Database is unavailable in this test"); },
+                                () -> { throw new IllegalStateException("Database is unavailable in this test"); }),
                         new AdminArticleService(
                                 new InMemoryZrLogDatabase.TestCacheService(),
                                 ApplicationServicesFixture.capability(
@@ -155,20 +155,20 @@ public class AdminDashboardServiceTest {
                                 new AdminPageDataFactory(
                                         ApplicationServicesFixture.site(applicationConfig),
                                         () -> "test",
-                                        ApplicationServicesFixture.messages(),
-                                        AccountServicesFixture.component().permissions()),
-                                AccountServicesFixture.component().permissions(),
-                                AccountServicesFixture.component().preferences(),
+                                        ApplicationServicesFixture.messages(null),
+                                        AccountServicesFixture.component(null).permissions()),
+                                AccountServicesFixture.component(null).permissions(),
+                                AccountServicesFixture.component(null).preferences(),
                                 new ArticleVersionService(
-                                        AccountServicesFixture.component().permissions(),
-                                        Log::new,
-                                        () -> new LogVersion(DAO.getDefaultDataSource())),
+                                        AccountServicesFixture.component(null).permissions(),
+                                        () -> { throw new IllegalStateException("Database is unavailable in this test"); },
+                                        () -> { throw new IllegalStateException("Database is unavailable in this test"); }),
                                 new ArticlePinningService(
-                                        Log::new, ApplicationServicesFixture.locks()),
-                                Log::new,
-                                ApplicationServicesFixture.locks()),
+                                        () -> { throw new IllegalStateException("Database is unavailable in this test"); }, ApplicationServicesFixture.locks(null)),
+                                () -> { throw new IllegalStateException("Database is unavailable in this test"); },
+                                ApplicationServicesFixture.locks(null)),
                         () -> applicationConfig.getPlugin(PluginCorePlugin.class),
-                        AccountServicesFixture.component().preferences());
+                        AccountServicesFixture.component(null).preferences());
         AdminDashboardCardRequest request = new AdminDashboardCardRequest();
         request.setKind("plugin");
         request.setId("reminder");
@@ -206,13 +206,13 @@ public class AdminDashboardServiceTest {
     public void shouldFillDashboardRefreshConfigWithDefaults() throws Exception {
         AdminDashboardService service =
                 new AdminDashboardService(
-                        new WebsiteKvService(),
+                        new WebsiteKvService(() -> { throw new IllegalStateException("Database is unavailable in this test"); }),
                         new AdminStatisticsService(
                                 new InMemoryZrLogDatabase.TestCacheService(),
                                 RuntimeInfoFixture.from(applicationConfig),
-                                ApplicationServicesFixture.audit(),
-                                Log::new,
-                                Comment::new),
+                                ApplicationServicesFixture.audit(null),
+                                () -> { throw new IllegalStateException("Database is unavailable in this test"); },
+                                () -> { throw new IllegalStateException("Database is unavailable in this test"); }),
                         new AdminArticleService(
                                 new InMemoryZrLogDatabase.TestCacheService(),
                                 ApplicationServicesFixture.capability(
@@ -220,20 +220,20 @@ public class AdminDashboardServiceTest {
                                 new AdminPageDataFactory(
                                         ApplicationServicesFixture.site(applicationConfig),
                                         () -> "test",
-                                        ApplicationServicesFixture.messages(),
-                                        AccountServicesFixture.component().permissions()),
-                                AccountServicesFixture.component().permissions(),
-                                AccountServicesFixture.component().preferences(),
+                                        ApplicationServicesFixture.messages(null),
+                                        AccountServicesFixture.component(null).permissions()),
+                                AccountServicesFixture.component(null).permissions(),
+                                AccountServicesFixture.component(null).preferences(),
                                 new ArticleVersionService(
-                                        AccountServicesFixture.component().permissions(),
-                                        Log::new,
-                                        () -> new LogVersion(DAO.getDefaultDataSource())),
+                                        AccountServicesFixture.component(null).permissions(),
+                                        () -> { throw new IllegalStateException("Database is unavailable in this test"); },
+                                        () -> { throw new IllegalStateException("Database is unavailable in this test"); }),
                                 new ArticlePinningService(
-                                        Log::new, ApplicationServicesFixture.locks()),
-                                Log::new,
-                                ApplicationServicesFixture.locks()),
+                                        () -> { throw new IllegalStateException("Database is unavailable in this test"); }, ApplicationServicesFixture.locks(null)),
+                                () -> { throw new IllegalStateException("Database is unavailable in this test"); },
+                                ApplicationServicesFixture.locks(null)),
                         () -> applicationConfig.getPlugin(PluginCorePlugin.class),
-                        AccountServicesFixture.component().preferences());
+                        AccountServicesFixture.component(null).preferences());
         AdminDashboardConfigResponse target = new AdminDashboardConfigResponse();
         AdminDashboardConfigResponse source = new AdminDashboardConfigResponse();
         source.setAutoRefreshEnabled(true);
@@ -256,13 +256,13 @@ public class AdminDashboardServiceTest {
     public void shouldMergeDefaultDashboardCardsWithSavedOverrides() throws Exception {
         AdminDashboardService service =
                 new AdminDashboardService(
-                        new WebsiteKvService(),
+                        new WebsiteKvService(() -> { throw new IllegalStateException("Database is unavailable in this test"); }),
                         new AdminStatisticsService(
                                 new InMemoryZrLogDatabase.TestCacheService(),
                                 RuntimeInfoFixture.from(applicationConfig),
-                                ApplicationServicesFixture.audit(),
-                                Log::new,
-                                Comment::new),
+                                ApplicationServicesFixture.audit(null),
+                                () -> { throw new IllegalStateException("Database is unavailable in this test"); },
+                                () -> { throw new IllegalStateException("Database is unavailable in this test"); }),
                         new AdminArticleService(
                                 new InMemoryZrLogDatabase.TestCacheService(),
                                 ApplicationServicesFixture.capability(
@@ -270,20 +270,20 @@ public class AdminDashboardServiceTest {
                                 new AdminPageDataFactory(
                                         ApplicationServicesFixture.site(applicationConfig),
                                         () -> "test",
-                                        ApplicationServicesFixture.messages(),
-                                        AccountServicesFixture.component().permissions()),
-                                AccountServicesFixture.component().permissions(),
-                                AccountServicesFixture.component().preferences(),
+                                        ApplicationServicesFixture.messages(null),
+                                        AccountServicesFixture.component(null).permissions()),
+                                AccountServicesFixture.component(null).permissions(),
+                                AccountServicesFixture.component(null).preferences(),
                                 new ArticleVersionService(
-                                        AccountServicesFixture.component().permissions(),
-                                        Log::new,
-                                        () -> new LogVersion(DAO.getDefaultDataSource())),
+                                        AccountServicesFixture.component(null).permissions(),
+                                        () -> { throw new IllegalStateException("Database is unavailable in this test"); },
+                                        () -> { throw new IllegalStateException("Database is unavailable in this test"); }),
                                 new ArticlePinningService(
-                                        Log::new, ApplicationServicesFixture.locks()),
-                                Log::new,
-                                ApplicationServicesFixture.locks()),
+                                        () -> { throw new IllegalStateException("Database is unavailable in this test"); }, ApplicationServicesFixture.locks(null)),
+                                () -> { throw new IllegalStateException("Database is unavailable in this test"); },
+                                ApplicationServicesFixture.locks(null)),
                         () -> applicationConfig.getPlugin(PluginCorePlugin.class),
-                        AccountServicesFixture.component().preferences());
+                        AccountServicesFixture.component(null).preferences());
         AdminDashboardCardConfigResponse welcome = cardConfig("welcome", false, 90);
         AdminDashboardCardConfigResponse localDraft = cardConfig("localDraft", false, 5);
         AdminDashboardCardConfigResponse unknown = cardConfig("unknown", false, 1);
@@ -305,13 +305,13 @@ public class AdminDashboardServiceTest {
     public void shouldMergePluginPanelsAndFillMissingStandardFields() throws Exception {
         AdminDashboardService service =
                 new AdminDashboardService(
-                        new WebsiteKvService(),
+                        new WebsiteKvService(() -> { throw new IllegalStateException("Database is unavailable in this test"); }),
                         new AdminStatisticsService(
                                 new InMemoryZrLogDatabase.TestCacheService(),
                                 RuntimeInfoFixture.from(applicationConfig),
-                                ApplicationServicesFixture.audit(),
-                                Log::new,
-                                Comment::new),
+                                ApplicationServicesFixture.audit(null),
+                                () -> { throw new IllegalStateException("Database is unavailable in this test"); },
+                                () -> { throw new IllegalStateException("Database is unavailable in this test"); }),
                         new AdminArticleService(
                                 new InMemoryZrLogDatabase.TestCacheService(),
                                 ApplicationServicesFixture.capability(
@@ -319,20 +319,20 @@ public class AdminDashboardServiceTest {
                                 new AdminPageDataFactory(
                                         ApplicationServicesFixture.site(applicationConfig),
                                         () -> "test",
-                                        ApplicationServicesFixture.messages(),
-                                        AccountServicesFixture.component().permissions()),
-                                AccountServicesFixture.component().permissions(),
-                                AccountServicesFixture.component().preferences(),
+                                        ApplicationServicesFixture.messages(null),
+                                        AccountServicesFixture.component(null).permissions()),
+                                AccountServicesFixture.component(null).permissions(),
+                                AccountServicesFixture.component(null).preferences(),
                                 new ArticleVersionService(
-                                        AccountServicesFixture.component().permissions(),
-                                        Log::new,
-                                        () -> new LogVersion(DAO.getDefaultDataSource())),
+                                        AccountServicesFixture.component(null).permissions(),
+                                        () -> { throw new IllegalStateException("Database is unavailable in this test"); },
+                                        () -> { throw new IllegalStateException("Database is unavailable in this test"); }),
                                 new ArticlePinningService(
-                                        Log::new, ApplicationServicesFixture.locks()),
-                                Log::new,
-                                ApplicationServicesFixture.locks()),
+                                        () -> { throw new IllegalStateException("Database is unavailable in this test"); }, ApplicationServicesFixture.locks(null)),
+                                () -> { throw new IllegalStateException("Database is unavailable in this test"); },
+                                ApplicationServicesFixture.locks(null)),
                         () -> applicationConfig.getPlugin(PluginCorePlugin.class),
-                        AccountServicesFixture.component().preferences());
+                        AccountServicesFixture.component(null).preferences());
         AdminDashboardCardResponse standard = panel("reminder", "surface", 20);
         standard.setTitle("Reminder");
         standard.setSurfaceUrl("/admin/plugins/reminder/surface");
@@ -365,13 +365,13 @@ public class AdminDashboardServiceTest {
     public void shouldExtractItemsClearRuntimeDataAndBuildDashboardItems() throws Exception {
         AdminDashboardService service =
                 new AdminDashboardService(
-                        new WebsiteKvService(),
+                        new WebsiteKvService(() -> { throw new IllegalStateException("Database is unavailable in this test"); }),
                         new AdminStatisticsService(
                                 new InMemoryZrLogDatabase.TestCacheService(),
                                 RuntimeInfoFixture.from(applicationConfig),
-                                ApplicationServicesFixture.audit(),
-                                Log::new,
-                                Comment::new),
+                                ApplicationServicesFixture.audit(null),
+                                () -> { throw new IllegalStateException("Database is unavailable in this test"); },
+                                () -> { throw new IllegalStateException("Database is unavailable in this test"); }),
                         new AdminArticleService(
                                 new InMemoryZrLogDatabase.TestCacheService(),
                                 ApplicationServicesFixture.capability(
@@ -379,20 +379,20 @@ public class AdminDashboardServiceTest {
                                 new AdminPageDataFactory(
                                         ApplicationServicesFixture.site(applicationConfig),
                                         () -> "test",
-                                        ApplicationServicesFixture.messages(),
-                                        AccountServicesFixture.component().permissions()),
-                                AccountServicesFixture.component().permissions(),
-                                AccountServicesFixture.component().preferences(),
+                                        ApplicationServicesFixture.messages(null),
+                                        AccountServicesFixture.component(null).permissions()),
+                                AccountServicesFixture.component(null).permissions(),
+                                AccountServicesFixture.component(null).preferences(),
                                 new ArticleVersionService(
-                                        AccountServicesFixture.component().permissions(),
-                                        Log::new,
-                                        () -> new LogVersion(DAO.getDefaultDataSource())),
+                                        AccountServicesFixture.component(null).permissions(),
+                                        () -> { throw new IllegalStateException("Database is unavailable in this test"); },
+                                        () -> { throw new IllegalStateException("Database is unavailable in this test"); }),
                                 new ArticlePinningService(
-                                        Log::new, ApplicationServicesFixture.locks()),
-                                Log::new,
-                                ApplicationServicesFixture.locks()),
+                                        () -> { throw new IllegalStateException("Database is unavailable in this test"); }, ApplicationServicesFixture.locks(null)),
+                                () -> { throw new IllegalStateException("Database is unavailable in this test"); },
+                                ApplicationServicesFixture.locks(null)),
                         () -> applicationConfig.getPlugin(PluginCorePlugin.class),
-                        AccountServicesFixture.component().preferences());
+                        AccountServicesFixture.component(null).preferences());
         AdminDashboardCardResponse cardItem = new AdminDashboardCardResponse();
         cardItem.setKind("card");
         cardItem.setId("welcome");
@@ -452,13 +452,13 @@ public class AdminDashboardServiceTest {
     public void shouldValidatePluginMetadataEntriesAndUrls() throws Exception {
         AdminDashboardService service =
                 new AdminDashboardService(
-                        new WebsiteKvService(),
+                        new WebsiteKvService(() -> { throw new IllegalStateException("Database is unavailable in this test"); }),
                         new AdminStatisticsService(
                                 new InMemoryZrLogDatabase.TestCacheService(),
                                 RuntimeInfoFixture.from(applicationConfig),
-                                ApplicationServicesFixture.audit(),
-                                Log::new,
-                                Comment::new),
+                                ApplicationServicesFixture.audit(null),
+                                () -> { throw new IllegalStateException("Database is unavailable in this test"); },
+                                () -> { throw new IllegalStateException("Database is unavailable in this test"); }),
                         new AdminArticleService(
                                 new InMemoryZrLogDatabase.TestCacheService(),
                                 ApplicationServicesFixture.capability(
@@ -466,20 +466,20 @@ public class AdminDashboardServiceTest {
                                 new AdminPageDataFactory(
                                         ApplicationServicesFixture.site(applicationConfig),
                                         () -> "test",
-                                        ApplicationServicesFixture.messages(),
-                                        AccountServicesFixture.component().permissions()),
-                                AccountServicesFixture.component().permissions(),
-                                AccountServicesFixture.component().preferences(),
+                                        ApplicationServicesFixture.messages(null),
+                                        AccountServicesFixture.component(null).permissions()),
+                                AccountServicesFixture.component(null).permissions(),
+                                AccountServicesFixture.component(null).preferences(),
                                 new ArticleVersionService(
-                                        AccountServicesFixture.component().permissions(),
-                                        Log::new,
-                                        () -> new LogVersion(DAO.getDefaultDataSource())),
+                                        AccountServicesFixture.component(null).permissions(),
+                                        () -> { throw new IllegalStateException("Database is unavailable in this test"); },
+                                        () -> { throw new IllegalStateException("Database is unavailable in this test"); }),
                                 new ArticlePinningService(
-                                        Log::new, ApplicationServicesFixture.locks()),
-                                Log::new,
-                                ApplicationServicesFixture.locks()),
+                                        () -> { throw new IllegalStateException("Database is unavailable in this test"); }, ApplicationServicesFixture.locks(null)),
+                                () -> { throw new IllegalStateException("Database is unavailable in this test"); },
+                                ApplicationServicesFixture.locks(null)),
                         () -> applicationConfig.getPlugin(PluginCorePlugin.class),
-                        AccountServicesFixture.component().preferences());
+                        AccountServicesFixture.component(null).preferences());
 
         assertTrue(service.hasEntry(List.of("/surface", "other"), "surface"));
         assertTrue(service.hasEntry(List.of("surfaceAction?scope=dashboard"), "surfaceAction"));
@@ -511,13 +511,13 @@ public class AdminDashboardServiceTest {
             db.config().getAllPlugins().add(plugin);
             AdminDashboardService service =
                     new AdminDashboardService(
-                            new WebsiteKvService(),
+                            new WebsiteKvService(() -> new WebSite(db.dataSource())),
                             new AdminStatisticsService(
                                     db.cacheService(),
                                     RuntimeInfoFixture.from(db.config()),
-                                    ApplicationServicesFixture.audit(),
-                                    Log::new,
-                                    Comment::new),
+                                    ApplicationServicesFixture.audit(db.dataSource()),
+                                    () -> new Log(db.dataSource()),
+                                    () -> new Comment(db.dataSource())),
                             new AdminArticleService(
                                     db.cacheService(),
                                     ApplicationServicesFixture.capability(
@@ -525,20 +525,20 @@ public class AdminDashboardServiceTest {
                                     new AdminPageDataFactory(
                                             ApplicationServicesFixture.site(db.config()),
                                             ApplicationServicesFixture.buildId(db.resources()),
-                                            ApplicationServicesFixture.messages(),
-                                            AccountServicesFixture.component().permissions()),
-                                    AccountServicesFixture.component().permissions(),
-                                    AccountServicesFixture.component().preferences(),
+                                            ApplicationServicesFixture.messages(db.dataSource()),
+                                            AccountServicesFixture.component(db.dataSource()).permissions()),
+                                    AccountServicesFixture.component(db.dataSource()).permissions(),
+                                    AccountServicesFixture.component(db.dataSource()).preferences(),
                                     new ArticleVersionService(
-                                            AccountServicesFixture.component().permissions(),
-                                            Log::new,
-                                            () -> new LogVersion(DAO.getDefaultDataSource())),
+                                            AccountServicesFixture.component(db.dataSource()).permissions(),
+                                            () -> new Log(db.dataSource()),
+                                            () -> new LogVersion(db.dataSource())),
                                     new ArticlePinningService(
-                                            Log::new, ApplicationServicesFixture.locks()),
-                                    Log::new,
-                                    ApplicationServicesFixture.locks()),
+                                            () -> new Log(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource())),
+                                    () -> new Log(db.dataSource()),
+                                    ApplicationServicesFixture.locks(db.dataSource())),
                             () -> db.config().getPlugin(PluginCorePlugin.class),
-                            AccountServicesFixture.component().preferences());
+                            AccountServicesFixture.component(db.dataSource()).preferences());
             AdminDashboardConfigRequest request = new AdminDashboardConfigRequest();
             request.setAutoRefreshEnabled(true);
             request.setAutoRefreshIntervalSeconds(20);
@@ -580,13 +580,13 @@ public class AdminDashboardServiceTest {
                             + "\"autoRefreshEnabled\":true,\"autoRefreshIntervalSeconds\":5}");
             AdminDashboardConfigResponse config =
                     new AdminDashboardService(
-                                    new WebsiteKvService(),
+                                    new WebsiteKvService(() -> new WebSite(db.dataSource())),
                                     new AdminStatisticsService(
                                             db.cacheService(),
                                             RuntimeInfoFixture.from(db.config()),
-                                            ApplicationServicesFixture.audit(),
-                                            Log::new,
-                                            Comment::new),
+                                            ApplicationServicesFixture.audit(db.dataSource()),
+                                            () -> new Log(db.dataSource()),
+                                            () -> new Comment(db.dataSource())),
                                     new AdminArticleService(
                                             db.cacheService(),
                                             ApplicationServicesFixture.capability(
@@ -595,24 +595,24 @@ public class AdminDashboardServiceTest {
                                                     ApplicationServicesFixture.site(db.config()),
                                                     ApplicationServicesFixture.buildId(
                                                             db.resources()),
-                                                    ApplicationServicesFixture.messages(),
-                                                    AccountServicesFixture.component()
+                                                    ApplicationServicesFixture.messages(db.dataSource()),
+                                                    AccountServicesFixture.component(db.dataSource())
                                                             .permissions()),
-                                            AccountServicesFixture.component().permissions(),
-                                            AccountServicesFixture.component().preferences(),
+                                            AccountServicesFixture.component(db.dataSource()).permissions(),
+                                            AccountServicesFixture.component(db.dataSource()).preferences(),
                                             new ArticleVersionService(
-                                                    AccountServicesFixture.component()
+                                                    AccountServicesFixture.component(db.dataSource())
                                                             .permissions(),
-                                                    Log::new,
+                                                    () -> new Log(db.dataSource()),
                                                     () ->
                                                             new LogVersion(
-                                                                    DAO.getDefaultDataSource())),
+                                                                    db.dataSource())),
                                             new ArticlePinningService(
-                                                    Log::new, ApplicationServicesFixture.locks()),
-                                            Log::new,
-                                            ApplicationServicesFixture.locks()),
+                                                    () -> new Log(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource())),
+                                            () -> new Log(db.dataSource()),
+                                            ApplicationServicesFixture.locks(db.dataSource())),
                                     () -> db.config().getPlugin(PluginCorePlugin.class),
-                                    AccountServicesFixture.component().preferences())
+                                    AccountServicesFixture.component(db.dataSource()).preferences())
                             .getConfig(null, token(), true);
             AdminDashboardCardResponse pluginItem = findDashboardItem(config.getCards(), "missing");
 
@@ -626,13 +626,13 @@ public class AdminDashboardServiceTest {
             db.putWebsite(AdminDashboardService.DASHBOARD_CONFIG_KEY, "{bad json");
             AdminDashboardConfigResponse fallback =
                     new AdminDashboardService(
-                                    new WebsiteKvService(),
+                                    new WebsiteKvService(() -> new WebSite(db.dataSource())),
                                     new AdminStatisticsService(
                                             db.cacheService(),
                                             RuntimeInfoFixture.from(db.config()),
-                                            ApplicationServicesFixture.audit(),
-                                            Log::new,
-                                            Comment::new),
+                                            ApplicationServicesFixture.audit(db.dataSource()),
+                                            () -> new Log(db.dataSource()),
+                                            () -> new Comment(db.dataSource())),
                                     new AdminArticleService(
                                             db.cacheService(),
                                             ApplicationServicesFixture.capability(
@@ -641,24 +641,24 @@ public class AdminDashboardServiceTest {
                                                     ApplicationServicesFixture.site(db.config()),
                                                     ApplicationServicesFixture.buildId(
                                                             db.resources()),
-                                                    ApplicationServicesFixture.messages(),
-                                                    AccountServicesFixture.component()
+                                                    ApplicationServicesFixture.messages(db.dataSource()),
+                                                    AccountServicesFixture.component(db.dataSource())
                                                             .permissions()),
-                                            AccountServicesFixture.component().permissions(),
-                                            AccountServicesFixture.component().preferences(),
+                                            AccountServicesFixture.component(db.dataSource()).permissions(),
+                                            AccountServicesFixture.component(db.dataSource()).preferences(),
                                             new ArticleVersionService(
-                                                    AccountServicesFixture.component()
+                                                    AccountServicesFixture.component(db.dataSource())
                                                             .permissions(),
-                                                    Log::new,
+                                                    () -> new Log(db.dataSource()),
                                                     () ->
                                                             new LogVersion(
-                                                                    DAO.getDefaultDataSource())),
+                                                                    db.dataSource())),
                                             new ArticlePinningService(
-                                                    Log::new, ApplicationServicesFixture.locks()),
-                                            Log::new,
-                                            ApplicationServicesFixture.locks()),
+                                                    () -> new Log(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource())),
+                                            () -> new Log(db.dataSource()),
+                                            ApplicationServicesFixture.locks(db.dataSource())),
                                     () -> db.config().getPlugin(PluginCorePlugin.class),
-                                    AccountServicesFixture.component().preferences())
+                                    AccountServicesFixture.component(db.dataSource()).preferences())
                             .getConfig(null, token());
 
             assertEquals(7, fallback.getCards().size());
@@ -672,13 +672,13 @@ public class AdminDashboardServiceTest {
             applicationConfig = db.config();
             AdminDashboardService service =
                     new AdminDashboardService(
-                            new WebsiteKvService(),
+                            new WebsiteKvService(() -> new WebSite(db.dataSource())),
                             new AdminStatisticsService(
                                     db.cacheService(),
                                     RuntimeInfoFixture.from(db.config()),
-                                    ApplicationServicesFixture.audit(),
-                                    Log::new,
-                                    Comment::new),
+                                    ApplicationServicesFixture.audit(db.dataSource()),
+                                    () -> new Log(db.dataSource()),
+                                    () -> new Comment(db.dataSource())),
                             new AdminArticleService(
                                     db.cacheService(),
                                     ApplicationServicesFixture.capability(
@@ -686,20 +686,20 @@ public class AdminDashboardServiceTest {
                                     new AdminPageDataFactory(
                                             ApplicationServicesFixture.site(db.config()),
                                             ApplicationServicesFixture.buildId(db.resources()),
-                                            ApplicationServicesFixture.messages(),
-                                            AccountServicesFixture.component().permissions()),
-                                    AccountServicesFixture.component().permissions(),
-                                    AccountServicesFixture.component().preferences(),
+                                            ApplicationServicesFixture.messages(db.dataSource()),
+                                            AccountServicesFixture.component(db.dataSource()).permissions()),
+                                    AccountServicesFixture.component(db.dataSource()).permissions(),
+                                    AccountServicesFixture.component(db.dataSource()).preferences(),
                                     new ArticleVersionService(
-                                            AccountServicesFixture.component().permissions(),
-                                            Log::new,
-                                            () -> new LogVersion(DAO.getDefaultDataSource())),
+                                            AccountServicesFixture.component(db.dataSource()).permissions(),
+                                            () -> new Log(db.dataSource()),
+                                            () -> new LogVersion(db.dataSource())),
                                     new ArticlePinningService(
-                                            Log::new, ApplicationServicesFixture.locks()),
-                                    Log::new,
-                                    ApplicationServicesFixture.locks()),
+                                            () -> new Log(db.dataSource()), ApplicationServicesFixture.locks(db.dataSource())),
+                                    () -> new Log(db.dataSource()),
+                                    ApplicationServicesFixture.locks(db.dataSource())),
                             () -> db.config().getPlugin(PluginCorePlugin.class),
-                            AccountServicesFixture.component().preferences());
+                            AccountServicesFixture.component(db.dataSource()).preferences());
 
             assertNull(service.getFirstUseChecklist());
 
@@ -733,13 +733,13 @@ public class AdminDashboardServiceTest {
                 long start = System.nanoTime();
                 AdminDashboardConfigResponse config =
                         new AdminDashboardService(
-                                        new WebsiteKvService(),
+                                        new WebsiteKvService(() -> new WebSite(db.dataSource())),
                                         new AdminStatisticsService(
                                                 db.cacheService(),
                                                 RuntimeInfoFixture.from(db.config()),
-                                                ApplicationServicesFixture.audit(),
-                                                Log::new,
-                                                Comment::new),
+                                                ApplicationServicesFixture.audit(db.dataSource()),
+                                                () -> new Log(db.dataSource()),
+                                                () -> new Comment(db.dataSource())),
                                         new AdminArticleService(
                                                 db.cacheService(),
                                                 ApplicationServicesFixture.capability(
@@ -749,27 +749,26 @@ public class AdminDashboardServiceTest {
                                                                 db.config()),
                                                         ApplicationServicesFixture.buildId(
                                                                 db.resources()),
-                                                        ApplicationServicesFixture.messages(),
-                                                        AccountServicesFixture.component()
+                                                        ApplicationServicesFixture.messages(db.dataSource()),
+                                                        AccountServicesFixture.component(db.dataSource())
                                                                 .permissions()),
-                                                AccountServicesFixture.component().permissions(),
-                                                AccountServicesFixture.component().preferences(),
+                                                AccountServicesFixture.component(db.dataSource()).permissions(),
+                                                AccountServicesFixture.component(db.dataSource()).preferences(),
                                                 new ArticleVersionService(
-                                                        AccountServicesFixture.component()
+                                                        AccountServicesFixture.component(db.dataSource())
                                                                 .permissions(),
-                                                        Log::new,
+                                                        () -> new Log(db.dataSource()),
                                                         () ->
                                                                 new LogVersion(
-                                                                        DAO
-                                                                                .getDefaultDataSource())),
+                                                                        db.dataSource())),
                                                 new ArticlePinningService(
-                                                        Log::new,
-                                                        ApplicationServicesFixture.locks()),
-                                                Log::new,
-                                                ApplicationServicesFixture.locks()),
+                                                        () -> new Log(db.dataSource()),
+                                                        ApplicationServicesFixture.locks(db.dataSource())),
+                                                () -> new Log(db.dataSource()),
+                                                ApplicationServicesFixture.locks(db.dataSource())),
                                         50,
                                         () -> db.config().getPlugin(PluginCorePlugin.class),
-                                        AccountServicesFixture.component().preferences())
+                                        AccountServicesFixture.component(db.dataSource()).preferences())
                                 .getConfig(null, token(), true);
                 long elapsedMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
                 AdminDashboardCardResponse pluginItem = findDashboardItem(config.getCards(), "reminder");

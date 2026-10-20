@@ -4,7 +4,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import com.hibegin.common.dao.DAO;
+import com.hibegin.common.dao.DataSourceWrapper;
 import com.hibegin.http.server.api.HttpRequest;
 import com.hibegin.http.server.api.HttpResponse;
 import com.hibegin.http.server.web.Controller;
@@ -40,7 +40,7 @@ public class AdminArticleVersionControllerDatabaseTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
             insertArticle(db);
-            new LogVersion(DAO.getDefaultDataSource())
+            new LogVersion(db.dataSource())
                     .savePatch(
                             10,
                             2,
@@ -52,9 +52,9 @@ public class AdminArticleVersionControllerDatabaseTest {
                             1);
 
             ApiStandardResponse<List<ArticleVersionResponse>> versions =
-                    controller(Map.of("id", "10")).index();
+                    controller(Map.of("id", "10"), db.dataSource()).index();
             ApiStandardResponse<ArticleVersionCompareResponse> compare =
-                    controller(Map.of("id", "10", "fromVersion", "1", "toVersion", "2")).compare();
+                    controller(Map.of("id", "10", "fromVersion", "1", "toVersion", "2"), db.dataSource()).compare();
 
             assertEquals(2, versions.getData().size());
             assertEquals(Integer.valueOf(2), versions.getData().get(0).getVersion());
@@ -94,7 +94,7 @@ public class AdminArticleVersionControllerDatabaseTest {
                 "markdown");
     }
 
-    private AdminArticleVersionController controller(Map<String, String> params) throws Exception {
+    private AdminArticleVersionController controller(Map<String, String> params, DataSourceWrapper testDataSource) throws Exception {
         AdminArticleVersionController controller =
                 new AdminArticleVersionController(
                         new AdminArticleService(
@@ -104,25 +104,25 @@ public class AdminArticleVersionControllerDatabaseTest {
                                 new AdminPageDataFactory(
                                         ApplicationServicesFixture.site(applicationConfig),
                                         () -> "test",
-                                        ApplicationServicesFixture.messages(),
-                                        AccountServicesFixture.component().permissions()),
-                                AccountServicesFixture.component().permissions(),
-                                AccountServicesFixture.component().preferences(),
+                                        ApplicationServicesFixture.messages(testDataSource),
+                                        AccountServicesFixture.component(testDataSource).permissions()),
+                                AccountServicesFixture.component(testDataSource).permissions(),
+                                AccountServicesFixture.component(testDataSource).preferences(),
                                 new ArticleVersionService(
-                                        AccountServicesFixture.component().permissions(),
-                                        Log::new,
-                                        () -> new LogVersion(DAO.getDefaultDataSource())),
+                                        AccountServicesFixture.component(testDataSource).permissions(),
+                                        () -> new Log(testDataSource),
+                                        () -> new LogVersion(testDataSource)),
                                 new ArticlePinningService(
-                                        Log::new, ApplicationServicesFixture.locks()),
-                                Log::new,
-                                ApplicationServicesFixture.locks()),
+                                        () -> new Log(testDataSource), ApplicationServicesFixture.locks(testDataSource)),
+                                () -> new Log(testDataSource),
+                                ApplicationServicesFixture.locks(testDataSource)),
                         ApplicationServicesFixture.cacheRefresh(
                                 new InMemoryZrLogDatabase.TestCacheService(), applicationConfig),
-                        ApplicationServicesFixture.audit(),
+                        ApplicationServicesFixture.audit(testDataSource),
                         new ArticleVersionService(
-                                AccountServicesFixture.component().permissions(),
-                                Log::new,
-                                () -> new LogVersion(DAO.getDefaultDataSource())));
+                                AccountServicesFixture.component(testDataSource).permissions(),
+                                () -> new Log(testDataSource),
+                                () -> new LogVersion(testDataSource)));
         Field requestField = Controller.class.getDeclaredField("request");
         requestField.setAccessible(true);
         requestField.set(controller, request(params));

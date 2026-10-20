@@ -15,6 +15,7 @@ import com.zrlog.admin.support.AccountServicesFixture;
 import com.zrlog.admin.support.ApplicationServicesFixture;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.data.service.UserPreferenceStore;
+import com.zrlog.model.User;
 
 import org.junit.Test;
 
@@ -55,17 +56,17 @@ public class AIImageServiceTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             seedImageConfig(db, "16:9");
             new UserPreferenceService(
-                            ApplicationServicesFixture.settings(),
-                            new UserPreferenceStore(),
-                            AccountServicesFixture.component().permissions())
+                            ApplicationServicesFixture.settings(db.dataSource()),
+                            new UserPreferenceStore(() -> new User(db.dataSource())),
+                            AccountServicesFixture.component(db.dataSource()).permissions())
                     .updateBody("{\"editor\":{\"coverAspectRatio\":\"1:1\"}}", "writing");
             FakeHttpClient client = new FakeHttpClient(imageB64Response("cover".getBytes(StandardCharsets.UTF_8)));
             new AIImageService(
                             client,
-                            AccountServicesFixture.component().preferences(),
-                            AIServiceDependencies.config(),
-                            AIServiceDependencies.dbFiles(),
-                            AIServiceDependencies.conversations())
+                            AccountServicesFixture.component(db.dataSource()).preferences(),
+                            AIServiceDependencies.config(db.dataSource()),
+                            AIServiceDependencies.dbFiles(db.dataSource()),
+                            AIServiceDependencies.conversations(db.dataSource()))
                     .generateArticleCover(articleRequest());
             assertTrue(client.requestBodies.get(0).contains("\"size\":\"1024x1024\""));
             assertEquals("16:9", db.scalar("select value from website where name='article_cover_aspect_ratio'"));
@@ -85,10 +86,10 @@ public class AIImageServiceTest {
             GenerateArticleCoverResponse response =
                     new AIImageService(
                                     client,
-                                    AccountServicesFixture.component().preferences(),
-                                    AIServiceDependencies.config(),
-                                    AIServiceDependencies.dbFiles(),
-                                    AIServiceDependencies.conversations())
+                                    AccountServicesFixture.component(db.dataSource()).preferences(),
+                                    AIServiceDependencies.config(db.dataSource()),
+                                    AIServiceDependencies.dbFiles(db.dataSource()),
+                                    AIServiceDependencies.conversations(db.dataSource()))
                             .generateArticleCover(articleRequest());
 
             assertEquals("png", response.getExtension());
@@ -117,10 +118,10 @@ public class AIImageServiceTest {
             GenerateArticleCoverResponse response =
                     new AIImageService(
                                     client,
-                                    AccountServicesFixture.component().preferences(),
-                                    AIServiceDependencies.config(),
-                                    AIServiceDependencies.dbFiles(),
-                                    AIServiceDependencies.conversations())
+                                    AccountServicesFixture.component(db.dataSource()).preferences(),
+                                    AIServiceDependencies.config(db.dataSource()),
+                                    AIServiceDependencies.dbFiles(db.dataSource()),
+                                    AIServiceDependencies.conversations(db.dataSource()))
                             .generateArticleCover(articleRequest());
 
             assertEquals("webp", response.getExtension());
@@ -146,10 +147,10 @@ public class AIImageServiceTest {
 
             new AIImageService(
                             client,
-                            AccountServicesFixture.component().preferences(),
-                            AIServiceDependencies.config(),
-                            AIServiceDependencies.dbFiles(),
-                            AIServiceDependencies.conversations())
+                            AccountServicesFixture.component(db.dataSource()).preferences(),
+                            AIServiceDependencies.config(db.dataSource()),
+                            AIServiceDependencies.dbFiles(db.dataSource()),
+                            AIServiceDependencies.conversations(db.dataSource()))
                     .generateArticleCover(articleRequest());
 
             HttpRequest request = client.requests.get(0);
@@ -170,10 +171,10 @@ public class AIImageServiceTest {
                     () ->
                             new AIImageService(
                                             new FakeHttpClient(),
-                                            AccountServicesFixture.component().preferences(),
-                                            AIServiceDependencies.config(),
-                                            AIServiceDependencies.dbFiles(),
-                                            AIServiceDependencies.conversations())
+                                            AccountServicesFixture.component(db.dataSource()).preferences(),
+                                            AIServiceDependencies.config(db.dataSource()),
+                                            AIServiceDependencies.dbFiles(db.dataSource()),
+                                            AIServiceDependencies.conversations(db.dataSource()))
                                     .generateArticleCover(articleRequest()));
         }
     }

@@ -63,8 +63,8 @@ public class AdminPluginInterceptorTest {
                         () -> applicationConfig.getTokenService(),
                         () -> applicationConfig.getPlugin(PluginCorePlugin.class),
                         ApplicationServicesFixture.installed(applicationConfig),
-                        AccountServicesFixture.component().permissions(),
-                        ApplicationServicesFixture.audit())
+                        AccountServicesFixture.component(null).permissions(),
+                        ApplicationServicesFixture.audit(null))
                 .doInterceptor(request(HttpMethod.GET, "/admin/plugins"), response.response());
 
         assertEquals("/admin/plugins/", response.redirected);
@@ -81,8 +81,8 @@ public class AdminPluginInterceptorTest {
                                         () -> applicationConfig.getTokenService(),
                                         () -> applicationConfig.getPlugin(PluginCorePlugin.class),
                                         ApplicationServicesFixture.installed(applicationConfig),
-                                        AccountServicesFixture.component().permissions(),
-                                        ApplicationServicesFixture.audit())
+                                        AccountServicesFixture.component(null).permissions(),
+                                        ApplicationServicesFixture.audit(null))
                                 .doInterceptor(
                                         request(
                                                 HttpMethod.GET,
@@ -105,8 +105,8 @@ public class AdminPluginInterceptorTest {
                                         () -> applicationConfig.getTokenService(),
                                         () -> applicationConfig.getPlugin(PluginCorePlugin.class),
                                         ApplicationServicesFixture.installed(applicationConfig),
-                                        AccountServicesFixture.component().permissions(),
-                                        ApplicationServicesFixture.audit())
+                                        AccountServicesFixture.component(null).permissions(),
+                                        ApplicationServicesFixture.audit(null))
                                 .doInterceptor(
                                         request(
                                                 HttpMethod.GET,
@@ -127,8 +127,8 @@ public class AdminPluginInterceptorTest {
                                         () -> applicationConfig.getTokenService(),
                                         () -> applicationConfig.getPlugin(PluginCorePlugin.class),
                                         ApplicationServicesFixture.installed(applicationConfig),
-                                        AccountServicesFixture.component().permissions(),
-                                        ApplicationServicesFixture.audit())
+                                        AccountServicesFixture.component(null).permissions(),
+                                        ApplicationServicesFixture.audit(null))
                                 .doInterceptor(
                                         request(HttpMethod.GET, "/admin/plugins/reminder/index"),
                                         response.response()));
@@ -152,8 +152,8 @@ public class AdminPluginInterceptorTest {
                                                     applicationConfig.getPlugin(
                                                             PluginCorePlugin.class),
                                             ApplicationServicesFixture.installed(applicationConfig),
-                                            AccountServicesFixture.component().permissions(),
-                                            ApplicationServicesFixture.audit())
+                                            AccountServicesFixture.component(db.dataSource()).permissions(),
+                                            ApplicationServicesFixture.audit(db.dataSource()))
                                     .doInterceptor(
                                             request(
                                                     HttpMethod.GET,
@@ -179,8 +179,8 @@ public class AdminPluginInterceptorTest {
                                                     applicationConfig.getPlugin(
                                                             PluginCorePlugin.class),
                                             ApplicationServicesFixture.installed(applicationConfig),
-                                            AccountServicesFixture.component().permissions(),
-                                            ApplicationServicesFixture.audit())
+                                            AccountServicesFixture.component(db.dataSource()).permissions(),
+                                            ApplicationServicesFixture.audit(db.dataSource()))
                                     .doInterceptor(
                                             request(
                                                     HttpMethod.POST,

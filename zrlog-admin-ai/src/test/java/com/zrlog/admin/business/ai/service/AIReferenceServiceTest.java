@@ -3,6 +3,7 @@ package com.zrlog.admin.business.ai.service;
 import static org.junit.Assert.*;
 
 import com.google.gson.*;
+import com.hibegin.common.dao.DataSourceWrapper;
 import com.zrlog.admin.business.ai.model.AIChatModels.*;
 import com.zrlog.admin.business.ai.model.AIFileModels;
 import com.zrlog.admin.business.ai.model.AIProviderResponses;
@@ -15,6 +16,7 @@ import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.common.exception.ArgsException;
 import com.zrlog.data.service.UserPreferenceStore;
+import com.zrlog.model.User;
 import com.zrlog.model.WebSite;
 
 import org.junit.Test;
@@ -27,11 +29,11 @@ public class AIReferenceServiceTest {
     private static ChatRequest input(String references) {
         return new Gson().fromJson("{\"input\":\"Compare the references\",\"references\":" + references + "}", ChatRequest.class);
     }
-    private static void scope(String value) throws Exception {
+    private static void scope(String value, DataSourceWrapper testDataSource) throws Exception {
         new UserPreferenceService(
-                        ApplicationServicesFixture.settings(),
-                        new UserPreferenceStore(),
-                        AccountServicesFixture.component().permissions())
+                        ApplicationServicesFixture.settings(testDataSource),
+                        new UserPreferenceStore(() -> new User(testDataSource)),
+                        AccountServicesFixture.component(testDataSource).permissions())
                 .update(
                         JsonParser.parseString(
                                         "{\"assistant\":{\"knowledgeScope\":\"" + value + "\"}}")
@@ -68,9 +70,9 @@ public class AIReferenceServiceTest {
             AIReferenceService service =
                     new AIReferenceService(
                             ContentToolsFixture.from(db.config()),
-                            AccountServicesFixture.component().permissions(),
-                            AccountServicesFixture.component().preferences());
-            scope("own_public");
+                            AccountServicesFixture.component(db.dataSource()).permissions(),
+                            AccountServicesFixture.component(db.dataSource()).preferences());
+            scope("own_public", db.dataSource());
             assertEquals(
                     List.of(1L),
                     service.search("Same").articles.stream()
@@ -78,30 +80,30 @@ public class AIReferenceServiceTest {
                             .collect(Collectors.toList()));
             var settings =
                     new UserPreferenceService(
-                                    ApplicationServicesFixture.settings(),
-                                    new UserPreferenceStore(),
-                                    AccountServicesFixture.component().permissions())
+                                    ApplicationServicesFixture.settings(db.dataSource()),
+                                    new UserPreferenceStore(() -> new User(db.dataSource())),
+                                    AccountServicesFixture.component(db.dataSource()).permissions())
                             .assistant(AdminTokenThreadLocal.getUser());
             for (long id : List.of(2L, 3L, 4L, 999L)) {
                 assertThrows(IllegalArgumentException.class, () -> service.resolve(input("[{\"type\":\"article\",\"articleId\":" + id + "}]"), settings));
             }
-            scope("own_all");
+            scope("own_all", db.dataSource());
             assertEquals(
                     Set.of(1L, 2L, 3L),
                     new HashSet<>(
                             service.search("").articles.stream()
                                     .map(hit -> hit.id)
                                     .collect(Collectors.toList())));
-            scope("off");
+            scope("off", db.dataSource());
             assertTrue(service.search("").articles.isEmpty());
             var disabled =
                     new UserPreferenceService(
-                                    ApplicationServicesFixture.settings(),
-                                    new UserPreferenceStore(),
-                                    AccountServicesFixture.component().permissions())
+                                    ApplicationServicesFixture.settings(db.dataSource()),
+                                    new UserPreferenceStore(() -> new User(db.dataSource())),
+                                    AccountServicesFixture.component(db.dataSource()).permissions())
                             .assistant(AdminTokenThreadLocal.getUser());
             assertThrows(PermissionErrorException.class, () -> service.resolve(input("[{\"type\":\"article\",\"articleId\":1}]"), disabled));
-            scope("own_public");
+            scope("own_public", db.dataSource());
             db.execute("delete from log where logId=1");
             assertThrows(IllegalArgumentException.class, () -> service.resolve(input("[{\"type\":\"article\",\"articleId\":1}]"), settings));
             assertThrows(ArgsException.class, () -> service.search("a".repeat(201)));
@@ -110,7 +112,7 @@ public class AIReferenceServiceTest {
 
     @Test public void fileReferencesUsePositionsInTheCurrentMessageEvenWithDuplicateNamesAndKnowledgeOff() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
-            scope("off");
+            scope("off", db.dataSource());
             ChatRequest request = input("[{\"type\":\"file\",\"fileIndex\":1}]");
             AIFileModels.Input first = new AIFileModels.Input(); first.name = "same.txt"; first.data = "YQ==";
             AIFileModels.Input second = new AIFileModels.Input(); second.name = "same.txt"; second.data = "Yg==";
@@ -119,14 +121,14 @@ public class AIReferenceServiceTest {
             var result =
                     new AIReferenceService(
                                     ContentToolsFixture.from(db.config()),
-                                    AccountServicesFixture.component().permissions(),
-                                    AccountServicesFixture.component().preferences())
+                                    AccountServicesFixture.component(db.dataSource()).permissions(),
+                                    AccountServicesFixture.component(db.dataSource()).preferences())
                             .resolve(
                                     request,
                                     new UserPreferenceService(
-                                                    ApplicationServicesFixture.settings(),
-                                                    new UserPreferenceStore(),
-                                                    AccountServicesFixture.component()
+                                                    ApplicationServicesFixture.settings(db.dataSource()),
+                                                    new UserPreferenceStore(() -> new User(db.dataSource())),
+                                                    AccountServicesFixture.component(db.dataSource())
                                                             .permissions())
                                             .assistant(AdminTokenThreadLocal.getUser()));
             assertEquals(Integer.valueOf(1), result.get(0).fileIndex);
@@ -148,15 +150,15 @@ public class AIReferenceServiceTest {
                     new AIChatService(
                             null,
                             ContentToolsFixture.from(db.config()),
-                            AccountServicesFixture.component().permissions(),
-                            AccountServicesFixture.component().preferences(),
-                            AIServiceDependencies.approvals(),
+                            AccountServicesFixture.component(db.dataSource()).permissions(),
+                            AccountServicesFixture.component(db.dataSource()).preferences(),
+                            AIServiceDependencies.approvals(db.dataSource()),
                             new AIFileService(),
-                            AIServiceDependencies.writing(),
-                            AIServiceDependencies.conversations(),
-                            AIServiceDependencies.writingTools(),
+                            AIServiceDependencies.writing(db.dataSource()),
+                            AIServiceDependencies.conversations(db.dataSource()),
+                            AIServiceDependencies.writingTools(db.dataSource()),
                             AIServiceDependencies.references(
-                                    ContentToolsFixture.from(db.config()))) {
+                                    ContentToolsFixture.from(db.config()), db.dataSource())) {
                         @Override
                         protected AIProviderResponses.Choice complete(
                                 AIWebSiteInfo info,
@@ -181,11 +183,11 @@ public class AIReferenceServiceTest {
             assertFalse(messages.contains("FORGED_BODY"));
             var saved =
                     new AIConversationService(
-                                    AccountServicesFixture.component().security(),
-                                    ApplicationServicesFixture.websiteKv(),
-                                    WebSite::new,
+                                    AccountServicesFixture.component(db.dataSource()).security(),
+                                    ApplicationServicesFixture.websiteKv(db.dataSource()),
+                                    () -> new WebSite(db.dataSource()),
                                     new AIFileService(),
-                                    AIServiceDependencies.approvals())
+                                    AIServiceDependencies.approvals(db.dataSource()))
                             .exportAIMessage(-1L)
                             .getMessages();
             var answer = saved.stream().filter(message -> "assistant".equals(message.getRole())).findFirst().orElseThrow();

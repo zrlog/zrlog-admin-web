@@ -86,17 +86,17 @@ public class AIFileInputTest {
                                                     client,
                                                     null,
                                                     ContentToolsFixture.from(db.config()),
-                                                    AccountServicesFixture.component()
+                                                    AccountServicesFixture.component(db.dataSource())
                                                             .permissions(),
-                                                    AccountServicesFixture.component()
+                                                    AccountServicesFixture.component(db.dataSource())
                                                             .preferences(),
-                                                    AIServiceDependencies.approvals(),
+                                                    AIServiceDependencies.approvals(db.dataSource()),
                                                     new AIFileService(),
-                                                    AIServiceDependencies.writing(),
-                                                    AIServiceDependencies.conversations(),
-                                                    AIServiceDependencies.writingTools(),
+                                                    AIServiceDependencies.writing(db.dataSource()),
+                                                    AIServiceDependencies.conversations(db.dataSource()),
+                                                    AIServiceDependencies.writingTools(db.dataSource()),
                                                     AIServiceDependencies.references(
-                                                            ContentToolsFixture.from(db.config())))
+                                                            ContentToolsFixture.from(db.config()), db.dataSource()))
                                             .start(new Gson().fromJson(json, ChatRequest.class)));
                     assertTrue(payload, payload.contains("\"type\":\"done\""));
                 }
@@ -166,15 +166,15 @@ public class AIFileInputTest {
                                             client,
                                             null,
                                             ContentToolsFixture.from(db.config()),
-                                            AccountServicesFixture.component().permissions(),
-                                            AccountServicesFixture.component().preferences(),
-                                            AIServiceDependencies.approvals(),
+                                            AccountServicesFixture.component(db.dataSource()).permissions(),
+                                            AccountServicesFixture.component(db.dataSource()).preferences(),
+                                            AIServiceDependencies.approvals(db.dataSource()),
                                             new AIFileService(),
-                                            AIServiceDependencies.writing(),
-                                            AIServiceDependencies.conversations(),
-                                            AIServiceDependencies.writingTools(),
+                                            AIServiceDependencies.writing(db.dataSource()),
+                                            AIServiceDependencies.conversations(db.dataSource()),
+                                            AIServiceDependencies.writingTools(db.dataSource()),
                                             AIServiceDependencies.references(
-                                                    ContentToolsFixture.from(db.config())))
+                                                    ContentToolsFixture.from(db.config()), db.dataSource()))
                                     .start(request(7, png, jpeg, webp, csv)));
             assertTrue(first, first.contains("\"type\":\"done\""));
             assertFalse(first.contains(png.data));
@@ -183,15 +183,15 @@ public class AIFileInputTest {
                                             client,
                                             null,
                                             ContentToolsFixture.from(db.config()),
-                                            AccountServicesFixture.component().permissions(),
-                                            AccountServicesFixture.component().preferences(),
-                                            AIServiceDependencies.approvals(),
+                                            AccountServicesFixture.component(db.dataSource()).permissions(),
+                                            AccountServicesFixture.component(db.dataSource()).preferences(),
+                                            AIServiceDependencies.approvals(db.dataSource()),
                                             new AIFileService(),
-                                            AIServiceDependencies.writing(),
-                                            AIServiceDependencies.conversations(),
-                                            AIServiceDependencies.writingTools(),
+                                            AIServiceDependencies.writing(db.dataSource()),
+                                            AIServiceDependencies.conversations(db.dataSource()),
+                                            AIServiceDependencies.writingTools(db.dataSource()),
                                             AIServiceDependencies.references(
-                                                    ContentToolsFixture.from(db.config())))
+                                                    ContentToolsFixture.from(db.config()), db.dataSource()))
                                     .start(request(7)))
                             .contains("\"type\":\"done\""));
             for (JsonObject wire : client.requestBodies) {
@@ -208,11 +208,11 @@ public class AIFileInputTest {
                     new Gson()
                             .toJson(
                                     new AIConversationService(
-                                                    AccountServicesFixture.component().security(),
-                                                    ApplicationServicesFixture.websiteKv(),
-                                                    WebSite::new,
+                                                    AccountServicesFixture.component(db.dataSource()).security(),
+                                                    ApplicationServicesFixture.websiteKv(db.dataSource()),
+                                                    () -> new WebSite(db.dataSource()),
                                                     new AIFileService(),
-                                                    AIServiceDependencies.approvals())
+                                                    AIServiceDependencies.approvals(db.dataSource()))
                                             .exportAIMessage(7L));
             assertTrue(stored.contains("image/png"));
             assertFalse(stored.contains(png.data));
@@ -257,15 +257,15 @@ public class AIFileInputTest {
                                             client,
                                             null,
                                             ContentToolsFixture.from(db.config()),
-                                            AccountServicesFixture.component().permissions(),
-                                            AccountServicesFixture.component().preferences(),
-                                            AIServiceDependencies.approvals(),
+                                            AccountServicesFixture.component(db.dataSource()).permissions(),
+                                            AccountServicesFixture.component(db.dataSource()).preferences(),
+                                            AIServiceDependencies.approvals(db.dataSource()),
                                             new AIFileService(),
-                                            AIServiceDependencies.writing(),
-                                            AIServiceDependencies.conversations(),
-                                            AIServiceDependencies.writingTools(),
+                                            AIServiceDependencies.writing(db.dataSource()),
+                                            AIServiceDependencies.conversations(db.dataSource()),
+                                            AIServiceDependencies.writingTools(db.dataSource()),
                                             AIServiceDependencies.references(
-                                                    ContentToolsFixture.from(db.config())))
+                                                    ContentToolsFixture.from(db.config()), db.dataSource()))
                                     .start(request(7, pdf, csv, excel)));
             assertTrue(first, first.contains("\"type\":\"done\""));
             assertFalse(first.contains(csv.data)); assertTrue(first.contains("sales.xlsx"));
@@ -280,11 +280,11 @@ public class AIFileInputTest {
                     new Gson()
                             .toJson(
                                     new AIConversationService(
-                                                    AccountServicesFixture.component().security(),
-                                                    ApplicationServicesFixture.websiteKv(),
-                                                    WebSite::new,
+                                                    AccountServicesFixture.component(db.dataSource()).security(),
+                                                    ApplicationServicesFixture.websiteKv(db.dataSource()),
+                                                    () -> new WebSite(db.dataSource()),
                                                     new AIFileService(),
-                                                    AIServiceDependencies.approvals())
+                                                    AIServiceDependencies.approvals(db.dataSource()))
                                             .exportAIMessage(7L));
             assertFalse(stored.contains(csv.data)); assertFalse(stored.contains("file_data"));
             assertTrue(stored.contains("sales.xlsx"));
@@ -297,15 +297,15 @@ public class AIFileInputTest {
                                             client,
                                             null,
                                             ContentToolsFixture.from(db.config()),
-                                            AccountServicesFixture.component().permissions(),
-                                            AccountServicesFixture.component().preferences(),
-                                            AIServiceDependencies.approvals(),
+                                            AccountServicesFixture.component(db.dataSource()).permissions(),
+                                            AccountServicesFixture.component(db.dataSource()).preferences(),
+                                            AIServiceDependencies.approvals(db.dataSource()),
                                             new AIFileService(),
-                                            AIServiceDependencies.writing(),
-                                            AIServiceDependencies.conversations(),
-                                            AIServiceDependencies.writingTools(),
+                                            AIServiceDependencies.writing(db.dataSource()),
+                                            AIServiceDependencies.conversations(db.dataSource()),
+                                            AIServiceDependencies.writingTools(db.dataSource()),
                                             AIServiceDependencies.references(
-                                                    ContentToolsFixture.from(db.config())))
+                                                    ContentToolsFixture.from(db.config()), db.dataSource()))
                                     .start(next))
                             .contains("\"type\":\"done\""));
             assertEquals(3, fileParts(client.requestBodies.get(1)).size());
@@ -328,27 +328,27 @@ public class AIFileInputTest {
                                             client,
                                             null,
                                             ContentToolsFixture.from(db.config()),
-                                            AccountServicesFixture.component().permissions(),
-                                            AccountServicesFixture.component().preferences(),
-                                            AIServiceDependencies.approvals(),
+                                            AccountServicesFixture.component(db.dataSource()).permissions(),
+                                            AccountServicesFixture.component(db.dataSource()).preferences(),
+                                            AIServiceDependencies.approvals(db.dataSource()),
                                             new AIFileService(),
-                                            AIServiceDependencies.writing(),
-                                            AIServiceDependencies.conversations(),
-                                            AIServiceDependencies.writingTools(),
+                                            AIServiceDependencies.writing(db.dataSource()),
+                                            AIServiceDependencies.conversations(db.dataSource()),
+                                            AIServiceDependencies.writingTools(db.dataSource()),
                                             AIServiceDependencies.references(
-                                                    ContentToolsFixture.from(db.config())))
+                                                    ContentToolsFixture.from(db.config()), db.dataSource()))
                                     .start(request(7, csv, png)));
             assertTrue(first, first.contains("approval-required"));
             RunView view =
                     new AIChatService(
-                                    AccountServicesFixture.component().permissions(),
-                                    AccountServicesFixture.component().preferences(),
-                                    AIServiceDependencies.approvals(),
+                                    AccountServicesFixture.component(db.dataSource()).permissions(),
+                                    AccountServicesFixture.component(db.dataSource()).preferences(),
+                                    AIServiceDependencies.approvals(db.dataSource()),
                                     new AIFileService(),
-                                    AIServiceDependencies.writing(),
-                                    AIServiceDependencies.conversations(),
-                                    AIServiceDependencies.writingTools(),
-                                    AIServiceDependencies.references(null))
+                                    AIServiceDependencies.writing(db.dataSource()),
+                                    AIServiceDependencies.conversations(db.dataSource()),
+                                    AIServiceDependencies.writingTools(db.dataSource()),
+                                    AIServiceDependencies.references(null, db.dataSource()))
                             .getRun(7);
             assertEquals("sales.csv", view.attachments.get(0).name);
             String checkpoint = db.scalar("select value from website where name='ai_pending_u1_7'").toString();
@@ -361,15 +361,15 @@ public class AIFileInputTest {
                                             client,
                                             null,
                                             ContentToolsFixture.from(db.config()),
-                                            AccountServicesFixture.component().permissions(),
-                                            AccountServicesFixture.component().preferences(),
-                                            AIServiceDependencies.approvals(),
+                                            AccountServicesFixture.component(db.dataSource()).permissions(),
+                                            AccountServicesFixture.component(db.dataSource()).preferences(),
+                                            AIServiceDependencies.approvals(db.dataSource()),
                                             new AIFileService(),
-                                            AIServiceDependencies.writing(),
-                                            AIServiceDependencies.conversations(),
-                                            AIServiceDependencies.writingTools(),
+                                            AIServiceDependencies.writing(db.dataSource()),
+                                            AIServiceDependencies.conversations(db.dataSource()),
+                                            AIServiceDependencies.writingTools(db.dataSource()),
                                             AIServiceDependencies.references(
-                                                    ContentToolsFixture.from(db.config())))
+                                                    ContentToolsFixture.from(db.config()), db.dataSource()))
                                     .resume(decision))
                             .contains("\"type\":\"done\""));
             assertBytes(csv, fileParts(client.requestBodies.get(1)).get(0));
@@ -390,15 +390,15 @@ public class AIFileInputTest {
                                                 client,
                                                 null,
                                                 ContentToolsFixture.from(db.config()),
-                                                AccountServicesFixture.component().permissions(),
-                                                AccountServicesFixture.component().preferences(),
-                                                AIServiceDependencies.approvals(),
+                                                AccountServicesFixture.component(db.dataSource()).permissions(),
+                                                AccountServicesFixture.component(db.dataSource()).preferences(),
+                                                AIServiceDependencies.approvals(db.dataSource()),
                                                 new AIFileService(),
-                                                AIServiceDependencies.writing(),
-                                                AIServiceDependencies.conversations(),
-                                                AIServiceDependencies.writingTools(),
+                                                AIServiceDependencies.writing(db.dataSource()),
+                                                AIServiceDependencies.conversations(db.dataSource()),
+                                                AIServiceDependencies.writingTools(db.dataSource()),
                                                 AIServiceDependencies.references(
-                                                        ContentToolsFixture.from(db.config())))
+                                                        ContentToolsFixture.from(db.config()), db.dataSource()))
                                         .start(request(7, text("report.csv", "a,b"))));
                 Input image = image("png");
                 assertThrows(
@@ -408,15 +408,15 @@ public class AIFileInputTest {
                                                 client,
                                                 null,
                                                 ContentToolsFixture.from(db.config()),
-                                                AccountServicesFixture.component().permissions(),
-                                                AccountServicesFixture.component().preferences(),
-                                                AIServiceDependencies.approvals(),
+                                                AccountServicesFixture.component(db.dataSource()).permissions(),
+                                                AccountServicesFixture.component(db.dataSource()).preferences(),
+                                                AIServiceDependencies.approvals(db.dataSource()),
                                                 new AIFileService(),
-                                                AIServiceDependencies.writing(),
-                                                AIServiceDependencies.conversations(),
-                                                AIServiceDependencies.writingTools(),
+                                                AIServiceDependencies.writing(db.dataSource()),
+                                                AIServiceDependencies.conversations(db.dataSource()),
+                                                AIServiceDependencies.writingTools(db.dataSource()),
                                                 AIServiceDependencies.references(
-                                                        ContentToolsFixture.from(db.config())))
+                                                        ContentToolsFixture.from(db.config()), db.dataSource()))
                                         .start(request(7, image)));
                 assertTrue(client.requests.isEmpty());
             }
@@ -490,22 +490,22 @@ public class AIFileInputTest {
             message.setAttachments(List.of(png, document));
             AIConversationService conversations =
                     new AIConversationService(
-                            AccountServicesFixture.component().security(),
-                            ApplicationServicesFixture.websiteKv(),
-                            WebSite::new,
+                            AccountServicesFixture.component(db.dataSource()).security(),
+                            ApplicationServicesFixture.websiteKv(db.dataSource()),
+                            () -> new WebSite(db.dataSource()),
                             new AIFileService(),
-                            AIServiceDependencies.approvals());
+                            AIServiceDependencies.approvals(db.dataSource()));
             conversations.appendAIMessageEntries(List.of(message), 7L);
             AIChatService chat =
                     new AIChatService(
-                            AccountServicesFixture.component().permissions(),
-                            AccountServicesFixture.component().preferences(),
-                            AIServiceDependencies.approvals(),
+                            AccountServicesFixture.component(db.dataSource()).permissions(),
+                            AccountServicesFixture.component(db.dataSource()).preferences(),
+                            AIServiceDependencies.approvals(db.dataSource()),
                             new AIFileService(),
-                            AIServiceDependencies.writing(),
-                            AIServiceDependencies.conversations(),
-                            AIServiceDependencies.writingTools(),
-                            AIServiceDependencies.references(null));
+                            AIServiceDependencies.writing(db.dataSource()),
+                            AIServiceDependencies.conversations(db.dataSource()),
+                            AIServiceDependencies.writingTools(db.dataSource()),
+                            AIServiceDependencies.references(null, db.dataSource()));
             assertArrayEquals(Base64.getDecoder().decode(image.data), storage.read(chat.imageAttachment(7, png.id)));
             assertThrows(AIFileInputException.class, () -> chat.imageAttachment(0, png.id));
             assertThrows(AIFileInputException.class, () -> chat.imageAttachment(7, document.id));
@@ -529,30 +529,30 @@ public class AIFileInputTest {
             Attachment image = storage.save(List.of(image("webp")), info()).get(0);
             Run run = new Run(); run.userId = 1; run.articleId = 0; run.input = "Describe"; run.attachments = List.of(image);
             AIApprovalStore checkpoints =
-                    new AIApprovalStore(AccountServicesFixture.component().security());
+                    new AIApprovalStore(AccountServicesFixture.component(db.dataSource()).security());
             checkpoints.pause(run);
             checkpoints.save(run, "running");
             AIChatService chat =
                     new AIChatService(
-                            AccountServicesFixture.component().permissions(),
-                            AccountServicesFixture.component().preferences(),
-                            AIServiceDependencies.approvals(),
+                            AccountServicesFixture.component(db.dataSource()).permissions(),
+                            AccountServicesFixture.component(db.dataSource()).preferences(),
+                            AIServiceDependencies.approvals(db.dataSource()),
                             new AIFileService(),
-                            AIServiceDependencies.writing(),
-                            AIServiceDependencies.conversations(),
-                            AIServiceDependencies.writingTools(),
-                            AIServiceDependencies.references(null));
+                            AIServiceDependencies.writing(db.dataSource()),
+                            AIServiceDependencies.conversations(db.dataSource()),
+                            AIServiceDependencies.writingTools(db.dataSource()),
+                            AIServiceDependencies.references(null, db.dataSource()));
             assertEquals(image.id, chat.imageAttachment(0, image.id).id);
             checkpoints.save(run, "completed");
             AIResponseEntry.AIContentEntry message = new AIResponseEntry.AIContentEntry("user", "Describe");
             image.expiresAt = 1; message.setAttachments(List.of(image));
             AIConversationService conversations =
                     new AIConversationService(
-                            AccountServicesFixture.component().security(),
-                            ApplicationServicesFixture.websiteKv(),
-                            WebSite::new,
+                            AccountServicesFixture.component(db.dataSource()).security(),
+                            ApplicationServicesFixture.websiteKv(db.dataSource()),
+                            () -> new WebSite(db.dataSource()),
                             new AIFileService(),
-                            AIServiceDependencies.approvals());
+                            AIServiceDependencies.approvals(db.dataSource()));
             conversations.appendAIMessageEntries(List.of(message), -1L);
             assertThrows(AIFileInputException.class, () -> storage.read(chat.imageAttachment(0, image.id)));
             assertTrue(conversations.clearAIMessage(-1L));
@@ -567,15 +567,15 @@ public class AIFileInputTest {
             AIResponseEntry.AIContentEntry entry = new AIResponseEntry.AIContentEntry("user", "Read notes"); entry.setAttachments(List.of(file));
             AIConversationService conversations =
                     new AIConversationService(
-                            AccountServicesFixture.component().security(),
-                            ApplicationServicesFixture.websiteKv(),
-                            WebSite::new,
+                            AccountServicesFixture.component(db.dataSource()).security(),
+                            ApplicationServicesFixture.websiteKv(db.dataSource()),
+                            () -> new WebSite(db.dataSource()),
                             new AIFileService(),
-                            AIServiceDependencies.approvals());
+                            AIServiceDependencies.approvals(db.dataSource()));
             conversations.appendAIMessageEntries(List.of(entry), -1L);
             Run draft = new Run(); draft.userId = 1; draft.articleId = 0; draft.input = "Read notes"; draft.attachments = List.of(file);
             AIApprovalStore store =
-                    new AIApprovalStore(AccountServicesFixture.component().security());
+                    new AIApprovalStore(AccountServicesFixture.component(db.dataSource()).security());
             store.pause(draft);
             store.save(draft, "completed");
             assertTrue(conversations.migrateDraftAIMessageToArticle(7L, -1L));

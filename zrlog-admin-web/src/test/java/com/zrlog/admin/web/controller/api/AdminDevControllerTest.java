@@ -5,7 +5,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-import com.hibegin.common.dao.DAO;
+import com.hibegin.common.dao.DataSourceWrapper;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.annotation.RequestMethod;
 import com.hibegin.http.server.api.HttpRequest;
@@ -58,7 +58,7 @@ public class AdminDevControllerTest {
             applicationConfig = db.config();
             String runMode = System.getProperty("sws.run.mode");
             Object before = db.queryOne("select value from website where name=?", "admin_audit_log");
-            AdminPageDataResponse<Boolean> result = controller(Map.of()).ui();
+            AdminPageDataResponse<Boolean> result = controller(Map.of(), db.dataSource()).ui();
             assertEquals(Boolean.TRUE, result.getData());
             assertEquals(runMode, System.getProperty("sws.run.mode"));
             assertEquals(before, db.queryOne("select value from website where name=?", "admin_audit_log"));
@@ -73,7 +73,7 @@ public class AdminDevControllerTest {
     public void shouldLoadDevInfoFromRealCacheStore() throws Exception {
         try (InMemoryZrLogDatabase ignored = InMemoryZrLogDatabase.open()) {
             applicationConfig = ignored.config();
-            AdminDevController controller = controller(Map.of());
+            AdminDevController controller = controller(Map.of(), ignored.dataSource());
 
             AdminPageDataResponse<DevInfoResponse> response = controller.index();
 
@@ -88,10 +88,10 @@ public class AdminDevControllerTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
             ServerConfig serverConfig = new ServerConfig();
-            AdminDevController enable = controller(Map.of(), serverConfig);
+            AdminDevController enable = controller(Map.of(), serverConfig, db.dataSource());
 
             enable.enable();
-            ApiStandardResponse<Boolean> disabled = controller(Map.of("enabled", "false"), serverConfig).mode();
+            ApiStandardResponse<Boolean> disabled = controller(Map.of("enabled", "false"), serverConfig, db.dataSource()).mode();
 
             assertFalse(disabled.getData());
             String audit = String.valueOf(db.queryOne("select value from website where name=?", "admin_audit_log")
@@ -112,21 +112,21 @@ public class AdminDevControllerTest {
                             new FeatureLabService(
                                     () -> true,
                                     new WebhookService(
-                                            ApplicationServicesFixture.messages(),
-                                            ApplicationServicesFixture.websiteCache()),
-                                    WebSite::new),
+                                            ApplicationServicesFixture.messages(ignored.dataSource()),
+                                            ApplicationServicesFixture.websiteCache(ignored.dataSource())),
+                                    () -> new WebSite(ignored.dataSource())),
                             ApplicationServicesFixture.site(ignored.config()),
                             () ->
-                                    new WebSite()
+                                    new WebSite(ignored.dataSource())
                                             .getStringValueByName("admin_static_resource_base_url"),
-                            () -> new UserPasskey(DAO.getDefaultDataSource()));
+                            () -> new UserPasskey(ignored.dataSource()));
             assertFalse(resources.adminResourceInfo(request(Map.of(), config)).isDevMode());
-            ApiStandardResponse<Boolean> enabled = controller(Map.of("enabled", "true")).mode();
+            ApiStandardResponse<Boolean> enabled = controller(Map.of("enabled", "true"), ignored.dataSource()).mode();
 
             assertEquals(Boolean.TRUE, enabled.getData());
             assertEquals("dev", System.getProperty("sws.run.mode"));
             assertTrue(resources.adminResourceInfo(request(Map.of(), config)).isDevMode());
-            controller(Map.of("enabled", "false"), config).mode();
+            controller(Map.of("enabled", "false"), config, ignored.dataSource()).mode();
             assertFalse(resources.adminResourceInfo(request(Map.of(), config)).isDevMode());
         }
     }
@@ -135,30 +135,30 @@ public class AdminDevControllerTest {
     public void shouldReleaseDevLocksAndRecordAudit() throws Exception {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             applicationConfig = db.config();
-            assertEquals(0, controller(Map.of()).releaseLocks().getError());
+            assertEquals(0, controller(Map.of(), db.dataSource()).releaseLocks().getError());
 
             assertTrue(String.valueOf(db.queryOne("select value from website where name=?", "admin_audit_log")
                     .get("value")).contains("RELEASE_DEV_LOCKS"));
         }
     }
 
-    private AdminDevController controller(Map<String, String> params) throws Exception {
-        return controller(params, new ServerConfig());
+    private AdminDevController controller(Map<String, String> params, DataSourceWrapper testDataSource) throws Exception {
+        return controller(params, new ServerConfig(), testDataSource);
     }
 
-    private AdminDevController controller(Map<String, String> params, ServerConfig serverConfig)
+    private AdminDevController controller(Map<String, String> params, ServerConfig serverConfig, DataSourceWrapper testDataSource)
             throws Exception {
         AdminDevController controller =
                 new AdminDevController(
                         new AdminPageDataFactory(
                                 ApplicationServicesFixture.site(applicationConfig),
                                 () -> "test",
-                                ApplicationServicesFixture.messages(),
-                                AccountServicesFixture.component().permissions()),
-                        ApplicationServicesFixture.audit(),
-                        ApplicationServicesFixture.websiteCache(),
+                                ApplicationServicesFixture.messages(testDataSource),
+                                AccountServicesFixture.component(testDataSource).permissions()),
+                        ApplicationServicesFixture.audit(testDataSource),
+                        ApplicationServicesFixture.websiteCache(testDataSource),
                         new DistributedLockManager(
-                                WebSite::new, ApplicationServicesFixture.locks()));
+                                () -> new WebSite(testDataSource), ApplicationServicesFixture.locks(testDataSource)));
         Field requestField = Controller.class.getDeclaredField("request");
         requestField.setAccessible(true);
         requestField.set(controller, request(params, serverConfig));

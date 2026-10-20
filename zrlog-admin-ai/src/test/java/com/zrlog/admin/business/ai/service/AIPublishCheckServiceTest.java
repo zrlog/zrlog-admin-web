@@ -25,10 +25,10 @@ public class AIPublishCheckServiceTest {
         try (InMemoryZrLogDatabase db = InMemoryZrLogDatabase.open()) {
             var service =
                     new AIPublishCheckService(
-                            ApplicationServicesFixture.settings(),
-                            ApplicationServicesFixture.operations(),
-                            AIServiceDependencies.writing(),
-                            AIServiceDependencies.conversations());
+                            ApplicationServicesFixture.settings(db.dataSource()),
+                            ApplicationServicesFixture.operations(db.dataSource()),
+                            AIServiceDependencies.writing(db.dataSource()),
+                            AIServiceDependencies.conversations(db.dataSource()));
             var context = new GenerateArticleFieldRequest();
             db.putWebsite("generator_html_status", "1");
             db.putWebsite("host", "blog.example");
@@ -51,10 +51,10 @@ public class AIPublishCheckServiceTest {
                 var proceed = new CountDownLatch(1);
                 AIPublishCheckService service =
                         new AIPublishCheckService(
-                                ApplicationServicesFixture.settings(),
-                                ApplicationServicesFixture.operations(),
-                                AIServiceDependencies.writing(),
-                                AIServiceDependencies.conversations()) {
+                                ApplicationServicesFixture.settings(db.dataSource()),
+                                ApplicationServicesFixture.operations(db.dataSource()),
+                                AIServiceDependencies.writing(db.dataSource()),
+                                AIServiceDependencies.conversations(db.dataSource())) {
                             @Override
                             PublishCheckResponse buildPublishCheckPayload(
                                     Long id,
@@ -93,10 +93,10 @@ public class AIPublishCheckServiceTest {
     public void shouldExtractScoresAndItemCountsFromKnownPayloads() throws Exception {
         AIPublishCheckService service =
                 new AIPublishCheckService(
-                        ApplicationServicesFixture.settings(),
-                        ApplicationServicesFixture.operations(),
-                        AIServiceDependencies.writing(),
-                        AIServiceDependencies.conversations());
+                        ApplicationServicesFixture.settings(null),
+                        ApplicationServicesFixture.operations(null),
+                        AIServiceDependencies.writing(null),
+                        AIServiceDependencies.conversations(null));
         Method extractScore = method("extractScore", Object.class);
         Method extractItemCount = method("extractItemCount", Object.class);
         ScoreArticleResponse response = new ScoreArticleResponse();
@@ -119,10 +119,10 @@ public class AIPublishCheckServiceTest {
     public void shouldConvertIntegerLikeValues() throws Exception {
         AIPublishCheckService service =
                 new AIPublishCheckService(
-                        ApplicationServicesFixture.settings(),
-                        ApplicationServicesFixture.operations(),
-                        AIServiceDependencies.writing(),
-                        AIServiceDependencies.conversations());
+                        ApplicationServicesFixture.settings(null),
+                        ApplicationServicesFixture.operations(null),
+                        AIServiceDependencies.writing(null),
+                        AIServiceDependencies.conversations(null));
         Method method = method("toInteger", Object.class);
 
         assertEquals(7, method.invoke(service, 7L));
