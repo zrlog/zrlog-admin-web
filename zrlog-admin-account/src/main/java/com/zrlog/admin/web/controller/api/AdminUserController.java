@@ -8,6 +8,7 @@ import com.zrlog.admin.business.account.AvatarStorage;
 import com.zrlog.admin.business.exception.AdminAuthException;
 import com.zrlog.admin.business.rest.request.*;
 import com.zrlog.admin.business.rest.response.*;
+import com.zrlog.admin.business.service.AccountProfileService;
 import com.zrlog.admin.business.service.AdminAuditService;
 import com.zrlog.admin.business.service.AdminPageDataFactory;
 import com.zrlog.admin.business.service.MfaService;
@@ -41,6 +42,7 @@ public class AdminUserController extends BaseController {
 
 
     private final UserService userService;
+    private final AccountProfileService profiles;
     private final MfaService mfaService;
     private final PasskeyService passkeyService;
 
@@ -50,6 +52,7 @@ public class AdminUserController extends BaseController {
     @Inject
     public AdminUserController(
             UserService userService,
+            AccountProfileService profiles,
             CacheService cacheService,
             Supplier<AvatarStorage> avatarStorage,
             AdminPageDataFactory pages,
@@ -64,6 +67,7 @@ public class AdminUserController extends BaseController {
         this.passkeyService = passkeyService;
         this.pages = pages;
         this.userService = userService;
+        this.profiles = profiles;
         this.cacheService = cacheService;
         this.avatarStorage = Objects.requireNonNull(avatarStorage);
     }
@@ -75,7 +79,7 @@ public class AdminUserController extends BaseController {
         if (Objects.isNull(adminTokenVO)) {
             throw new AdminAuthException();
         }
-        return pages.response(userService.getBasicUserInfo(adminTokenVO.getUserId(), adminTokenVO.getSessionId()), "", request.getUri());
+        return pages.response(profiles.getBasicUserInfo(adminTokenVO.getUserId(), adminTokenVO.getSessionId()), "", request.getUri());
     }
 
     @ResponseBody
@@ -122,7 +126,8 @@ public class AdminUserController extends BaseController {
     @RequiresAction(value = AccountAction.ACCOUNT_SELF, descriptionKey = "account.updateProfile")
     public UpdateRecordResponse update() throws SQLException {
         UpdateAdminRequest updateAdminRequest = getRequestBodyWithNullCheck(UpdateAdminRequest.class);
-        userService.update(AdminTokenThreadLocal.getUserId(), updateAdminRequest, getRequest(), avatarStorage.get());
+        AdminTokenVO token = AdminTokenThreadLocal.getUser();
+        profiles.update(token.getUserId(), token.getSessionId(), updateAdminRequest, getRequest(), avatarStorage.get());
         this.adminAuditService.record(request, AdminAuditAction.UPDATE_PROFILE);
         UpdateRecordResponse updateRecordResponse = new UpdateRecordResponse(true);
         updateRecordResponse.setMessage(I18nUtil.getAdminBackendStringFromRes("admin.user.update.success"));

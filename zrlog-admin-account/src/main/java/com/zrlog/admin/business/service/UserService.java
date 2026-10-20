@@ -14,7 +14,6 @@ import com.zrlog.admin.business.rest.request.UpdatePasswordRequest;
 import com.zrlog.admin.business.rest.response.UpdateRecordResponse;
 import com.zrlog.admin.business.rest.response.UserBasicInfoResponse;
 import com.zrlog.admin.business.rest.response.UserInfoResponse;
-import com.zrlog.admin.web.token.AdminTokenThreadLocal;
 import com.zrlog.business.rest.response.CheckVersionResponse;
 import com.zrlog.common.CacheService;
 import com.zrlog.common.cache.dto.UserBasicDTO;
@@ -35,7 +34,6 @@ import java.util.function.Supplier;
 public class UserService {
     private final UserPreferenceService userPreferenceService;
     private final jakarta.inject.Provider<User> userProvider;
-    private final jakarta.inject.Provider<PasskeyService> passkeys;
 
     private final Supplier<Set<String>> cacheableApiUris;
 
@@ -44,12 +42,10 @@ public class UserService {
             Supplier<Set<String>> cacheableApiUris,
             MfaService mfaService,
             UserPreferenceService userPreferenceService,
-            jakarta.inject.Provider<User> userProvider,
-            jakarta.inject.Provider<PasskeyService> passkeys) {
+            jakarta.inject.Provider<User> userProvider) {
         this.mfaService = mfaService;
         this.userPreferenceService = userPreferenceService;
         this.userProvider = userProvider;
-        this.passkeys = passkeys;
 
         this.cacheableApiUris = Objects.requireNonNull(cacheableApiUris);
     }
@@ -86,7 +82,6 @@ public class UserService {
         UserBasicInfoResponse userInfoByUser = getUserInfoByUser(BeanUtil.convert(byId, UserBasicDTO.class), sessionId);
         userInfoByUser.setEmail(ObjectHelpers.requireNonNullElse((String) byId.get("email"), ""));
         userInfoByUser.setMfaEnabled(mfaService.getMfaEnabled(byId));
-        userInfoByUser.setPasskeys(passkeys.get().list(userId));
         return userInfoByUser;
     }
 
@@ -179,7 +174,7 @@ public class UserService {
         return userLoginDTO;
     }
 
-    public UserBasicInfoResponse update(int userId, UpdateAdminRequest updateAdminRequest,
+    public void update(int userId, UpdateAdminRequest updateAdminRequest,
                                         HttpRequest request, AvatarStorage storage) throws SQLException {
         if (ZrLogUtil.isPreviewMode()) {
             throw new PermissionErrorException();
@@ -191,7 +186,6 @@ public class UserService {
                         updateAdminRequest.getUserName(),
                         normalizeHeader(updateAdminRequest.getHeader(), request, storage),
                         userId);
-        return getBasicUserInfo(userId, AdminTokenThreadLocal.getUser().getSessionId());
     }
 
     private String normalizeHeader(String header, HttpRequest request, AvatarStorage storage) {

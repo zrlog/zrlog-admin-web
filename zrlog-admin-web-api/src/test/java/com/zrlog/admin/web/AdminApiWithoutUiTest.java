@@ -3,7 +3,7 @@ package com.zrlog.admin.web;
 import com.hibegin.http.HttpMethod;
 import com.hibegin.http.server.api.HttpRequest;
 import com.zrlog.admin.business.service.AdminResourceService;
-import com.zrlog.admin.business.service.UserService;
+import com.zrlog.admin.web.di.account.AccountComponent;
 import com.zrlog.admin.support.InMemoryZrLogDatabase;
 import org.junit.Test;
 
@@ -25,7 +25,11 @@ public class AdminApiWithoutUiTest {
             assertNull(router.getMethod("/api/admin/manifest", HttpMethod.GET));
             assertNotNull(router.getMethod("/api/admin/login", HttpMethod.POST));
             assertNotNull(router.getMethod("/api/admin/article", HttpMethod.GET));
-            assertTrue(db.config().getServerConfig().getBindings().build().get(UserService.class).getBasicUserInfo(1, "api-only").getCacheableApiUris().isEmpty());
+            var profile = db.config().getServerConfig().getBindings().build()
+                    .get(AccountComponent.class).profiles().getBasicUserInfo(1, "api-only");
+            assertTrue(profile.getCacheableApiUris().isEmpty());
+            assertTrue(profile.getPasskeys().isEmpty());
+            assertEquals("admin", profile.getUserName());
             HttpRequest request = (HttpRequest) Proxy.newProxyInstance(getClass().getClassLoader(),
                     new Class<?>[]{HttpRequest.class}, (proxy, method, args) -> {
                         if (method.getName().equals("getUri")) return "/api/public/adminResource";

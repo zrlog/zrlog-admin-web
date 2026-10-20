@@ -29,6 +29,8 @@ public interface AccountComponent {
 
     UserService users();
 
+    AccountProfileService profiles();
+
     PasskeyService passkeys();
 
     MfaService mfa();

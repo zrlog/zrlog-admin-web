@@ -550,12 +550,8 @@ public class AdminControllerDelegationTest {
     public void shouldRejectUserInfoRequestsWithoutAdminToken() throws Exception {
         AdminUserController controller =
                 new AdminUserController(
-                        new UserService(
-                                java.util.Collections::emptySet,
-                                AccountServicesFixture.component().mfa(),
-                                AccountServicesFixture.component().preferences(),
-                                User::new,
-                                () -> AccountServicesFixture.component().passkeys()),
+                        AccountServicesFixture.component().users(),
+                        AccountServicesFixture.component().profiles(),
                         new InMemoryZrLogDatabase.TestCacheService(),
                         ApplicationServicesFixture.capability(
                                 applicationConfig, AvatarStorage.class),
@@ -570,8 +566,7 @@ public class AdminControllerDelegationTest {
                                         java.util.Collections::emptySet,
                                         AccountServicesFixture.component().mfa(),
                                         AccountServicesFixture.component().preferences(),
-                                        User::new,
-                                        () -> AccountServicesFixture.component().passkeys()),
+                                        User::new),
                                 User::new,
                                 () -> new UserPasskey(DAO.getDefaultDataSource()),
                                 () -> new UserPasskeyChallenge(DAO.getDefaultDataSource()),
@@ -601,12 +596,8 @@ public class AdminControllerDelegationTest {
     public void shouldDelegateMfaStatusLookupUsingThreadLocalUserIdFallback() throws Exception {
         AdminUserController controller =
                 new AdminUserController(
-                        new UserService(
-                                java.util.Collections::emptySet,
-                                AccountServicesFixture.component().mfa(),
-                                AccountServicesFixture.component().preferences(),
-                                User::new,
-                                () -> AccountServicesFixture.component().passkeys()),
+                        AccountServicesFixture.component().users(),
+                        AccountServicesFixture.component().profiles(),
                         new InMemoryZrLogDatabase.TestCacheService(),
                         ApplicationServicesFixture.capability(
                                 applicationConfig, AvatarStorage.class),
@@ -621,8 +612,7 @@ public class AdminControllerDelegationTest {
                                         java.util.Collections::emptySet,
                                         AccountServicesFixture.component().mfa(),
                                         AccountServicesFixture.component().preferences(),
-                                        User::new,
-                                        () -> AccountServicesFixture.component().passkeys()),
+                                        User::new),
                                 User::new,
                                 () -> new UserPasskey(DAO.getDefaultDataSource()),
                                 () -> new UserPasskeyChallenge(DAO.getDefaultDataSource()),
@@ -650,12 +640,8 @@ public class AdminControllerDelegationTest {
             setAdminToken();
             AdminUserController controller =
                     new AdminUserController(
-                            new UserService(
-                                    java.util.Collections::emptySet,
-                                    AccountServicesFixture.component().mfa(),
-                                    AccountServicesFixture.component().preferences(),
-                                    User::new,
-                                    () -> AccountServicesFixture.component().passkeys()),
+                            AccountServicesFixture.component().users(),
+                            AccountServicesFixture.component().profiles(),
                             db.cacheService(),
                             ApplicationServicesFixture.capability(db.config(), AvatarStorage.class),
                             new AdminPageDataFactory(
@@ -669,8 +655,7 @@ public class AdminControllerDelegationTest {
                                             java.util.Collections::emptySet,
                                             AccountServicesFixture.component().mfa(),
                                             AccountServicesFixture.component().preferences(),
-                                            User::new,
-                                            () -> AccountServicesFixture.component().passkeys()),
+                                            User::new),
                                     User::new,
                                     () -> new UserPasskey(DAO.getDefaultDataSource()),
                                     () -> new UserPasskeyChallenge(DAO.getDefaultDataSource()),

@@ -60,8 +60,7 @@ public class MemberServiceTest {
                             java.util.Collections::emptySet,
                             AccountServicesFixture.component().mfa(),
                             AccountServicesFixture.component().preferences(),
-                            User::new,
-                            () -> AccountServicesFixture.component().passkeys());
+                            User::new);
             String avatar = users.getBasicUserInfo(member.userId, "new-member-session").getHeader();
             String dataUriPrefix = "data:image/gif;base64,";
             assertTrue(avatar.startsWith(dataUriPrefix));

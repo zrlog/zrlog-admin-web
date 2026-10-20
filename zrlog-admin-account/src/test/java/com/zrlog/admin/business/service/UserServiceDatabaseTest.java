@@ -44,8 +44,7 @@ public class UserServiceDatabaseTest {
                             () -> uris,
                             AccountServicesFixture.component().mfa(),
                             AccountServicesFixture.component().preferences(),
-                            User::new,
-                            () -> AccountServicesFixture.component().passkeys());
+                            User::new);
             var first = users.getBasicUserInfo(1, "first");
             assertEquals(java.util.Set.of("/api/admin/site-a"), first.getCacheableApiUris());
             uris.clear();
@@ -70,8 +69,7 @@ public class UserServiceDatabaseTest {
                                     java.util.Collections::emptySet,
                                     AccountServicesFixture.component().mfa(),
                                     AccountServicesFixture.component().preferences(),
-                                    User::new,
-                                    () -> AccountServicesFixture.component().passkeys())
+                                    User::new)
                             .login(request);
             String upgradedPassword = String.valueOf(db.scalar("select password from user where userId=?", 1));
 
@@ -99,8 +97,7 @@ public class UserServiceDatabaseTest {
                                     java.util.Collections::emptySet,
                                     AccountServicesFixture.component().mfa(),
                                     AccountServicesFixture.component().preferences(),
-                                    User::new,
-                                    () -> AccountServicesFixture.component().passkeys())
+                                    User::new)
                             .updatePassword(1, request);
             String updatedPassword = String.valueOf(db.scalar("select password from user where userId=?", 1));
 
@@ -119,8 +116,7 @@ public class UserServiceDatabaseTest {
                                     java.util.Collections::emptySet,
                                     AccountServicesFixture.component().mfa(),
                                     AccountServicesFixture.component().preferences(),
-                                    User::new,
-                                    () -> AccountServicesFixture.component().passkeys())
+                                    User::new)
                             .getUserInfoWithCache(1, "session-key", db.cacheService());
 
             assertEquals("admin", response.getUserName());
@@ -144,8 +140,7 @@ public class UserServiceDatabaseTest {
                             java.util.Collections::emptySet,
                             AccountServicesFixture.component().mfa(),
                             AccountServicesFixture.component().preferences(),
-                            User::new,
-                            () -> AccountServicesFixture.component().passkeys());
+                            User::new);
             UserInfoResponse owner = service.getUserInfoWithCache(1, "owner-session", db.cacheService());
             UserInfoResponse writer = service.getUserInfoWithCache(2, "writer-session", db.cacheService());
             assertEquals("en_US", owner.getLanguage());
@@ -190,8 +185,7 @@ public class UserServiceDatabaseTest {
                             java.util.Collections::emptySet,
                             AccountServicesFixture.component().mfa(),
                             AccountServicesFixture.component().preferences(),
-                            User::new,
-                            () -> AccountServicesFixture.component().passkeys());
+                            User::new);
 
             assertThrows(UserNameAndPasswordRequiredException.class, () -> service.login(loginRequest("", "")));
             assertThrows(UserNameOrPasswordException.class, () -> service.login(loginRequest("missing", "secret")));
@@ -217,22 +211,23 @@ public class UserServiceDatabaseTest {
                             java.util.Collections::emptySet,
                             AccountServicesFixture.component().mfa(),
                             AccountServicesFixture.component().preferences(),
-                            User::new,
-                            () -> AccountServicesFixture.component().passkeys());
+                            User::new);
             UserBasicInfoResponse before = service.getBasicUserInfo(1, "session-key");
             UpdateAdminRequest request = new UpdateAdminRequest();
             request.setUserName("root");
             request.setEmail("root@example.com");
             request.setHeader("/attached/root.png");
 
-            Object updated = service.update(1, request, null, null);
+            service.update(1, request, null, null);
+            UserBasicInfoResponse updated = service.getBasicUserInfo(1, "session-key");
             Map<String, Object> row = db.queryOne("select userName,email,header from user where userId=?", 1);
 
             assertEquals("admin", before.getUserName());
             assertEquals("admin@example.com", before.getEmail());
             assertEquals("session-key", before.getKey());
             assertNotNull(before.getCacheableApiUris());
-            assertTrue(updated instanceof UserBasicInfoResponse);
+            assertEquals("root", updated.getUserName());
+            assertEquals("session-key", updated.getKey());
             assertFalse(new com.google.gson.Gson().toJson(updated).contains("password"));
             assertFalse(new com.google.gson.Gson().toJson(updated).contains("secretKey"));
             assertEquals("root", row.get("userName"));
@@ -249,8 +244,7 @@ public class UserServiceDatabaseTest {
                             java.util.Collections::emptySet,
                             AccountServicesFixture.component().mfa(),
                             AccountServicesFixture.component().preferences(),
-                            User::new,
-                            () -> AccountServicesFixture.component().passkeys());
+                            User::new);
             UpdateAdminRequest missingComma = profileRequest("data:image/png;base64");
             UpdateAdminRequest missingBase64Marker = profileRequest("data:image/png,abc");
 
@@ -269,8 +263,7 @@ public class UserServiceDatabaseTest {
                                 java.util.Collections::emptySet,
                                 AccountServicesFixture.component().mfa(),
                                 AccountServicesFixture.component().preferences(),
-                                User::new,
-                                () -> AccountServicesFixture.component().passkeys());
+                                User::new);
                 UpdateAdminRequest input = profileRequest("data:image/webp;base64,AQID");
                 assertThrows(
                         PermissionErrorException.class, () -> service.update(1, input, null, null));
@@ -290,7 +283,8 @@ public class UserServiceDatabaseTest {
                                 return "https://assets.example/avatars/profile.webp";
                             }
                         };
-                assertEquals("https://assets.example/avatars/profile.webp", service.update(1, input, null, storage).getHeader());
+                service.update(1, input, null, storage);
+                assertEquals("https://assets.example/avatars/profile.webp", service.getBasicUserInfo(1, "session-key").getHeader());
                 assertEquals("https://assets.example/avatars/profile.webp", db.scalar("select header from user where userId=1"));
             }
         }
